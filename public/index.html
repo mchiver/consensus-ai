@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="Consensus">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Consensus</title>
+	<link rel="icon" href="data:,">
+	<link rel="stylesheet" href="/vendor/bootstrap.min.css">
+	<link rel="stylesheet" href="/css/consensus.css">
+	<script src="/js/theme.js"></script>
+</head>
+<body ng-controller="AppController" ng-cloak>
+
+	<div class="layout">
+
+		<!-- ============================================================= -->
+		<aside class="sidebar" ng-controller="SidebarController">
+			<div class="sidebar-top">
+				<div class="brand">Consensus</div>
+				<button class="btn btn-sm btn-primary" ng-click="StartNew()" ng-hide="Creating">New proposal</button>
+			</div>
+			<form class="new-proposal" ng-show="Creating" ng-submit="Create()">
+				<input class="form-control form-control-sm" type="text" placeholder="Title" ng-model="NewTitle" autofocus>
+				<div class="new-proposal-buttons">
+					<button class="btn btn-sm btn-primary" type="submit" ng-disabled="!NewTitle">Create</button>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelNew()">Cancel</button>
+				</div>
+			</form>
+
+			<form class="sidebar-search" ng-submit="Search()">
+				<input class="form-control form-control-sm" type="search" placeholder="Search proposals and threads" ng-model="Query" id="search-box">
+			</form>
+
+			<a class="waiting-link" ng-href="#/waiting" ng-class="{ open: State.View === 'waiting' }" id="waiting-link">Waiting on you: {{ WaitingCount() }}</a>
+
+			<div class="list-heading">Proposals <span class="count">{{ Proposals().length }}</span></div>
+			<div class="list-empty" ng-show="Proposals().length === 0">none</div>
+			<a class="proposal-item" ng-repeat="proposal in Proposals()" ng-class="{ open: proposal.Id === State.OpenId }" ng-href="#/p/{{ proposal.Id }}">
+				<div class="proposal-title">{{ proposal.Title }}</div>
+				<div class="badges">
+					<span class="badge contested" ng-show="proposal.Tally.Contested" title="contested">{{ proposal.Tally.Contested }}</span>
+					<span class="badge mine" ng-show="proposal.Tally.WaitingOn[State.Me.Name]" title="waiting on you">you {{ proposal.Tally.WaitingOn[State.Me.Name] }}</span>
+					<span class="badge waiting" ng-show="proposal.Tally.Waiting" title="resolved, waiting to be applied">{{ proposal.Tally.Waiting }}</span>
+					<span class="badge applied" ng-show="proposal.Tally.Applied" title="applied">{{ proposal.Tally.Applied }}</span>
+					<span class="badge ready" ng-show="proposal.Tally.Approvable && proposal.Tally.Total" title="ready for approval">ready</span>
+				</div>
+			</a>
+
+			<div class="list-heading">Plans <span class="count">{{ Plans().length }}</span></div>
+			<div class="list-empty" ng-show="Plans().length === 0">none</div>
+			<a class="proposal-item plan" ng-repeat="proposal in Plans()" ng-class="{ open: proposal.Id === State.OpenId }" ng-href="#/p/{{ proposal.Id }}">
+				<div class="proposal-title">{{ proposal.Title }}</div>
+				<div class="badges">
+					<span class="badge applied" ng-show="proposal.Tally.Applied" title="applied">{{ proposal.Tally.Applied }}</span>
+				</div>
+			</a>
+
+			<div class="list-heading trash-heading" ng-click="ToggleTrash()">Trash <span class="count">{{ ShowingTrash ? '▾' : '▸' }}</span></div>
+			<div ng-show="ShowingTrash">
+				<div class="list-empty" ng-show="Trash.length === 0">empty</div>
+				<div class="proposal-item trashed" ng-repeat="proposal in Trash">
+					<div class="proposal-title">{{ proposal.Title }}</div>
+					<div class="muted small">{{ proposal.Updated | when }}</div>
+				</div>
+			</div>
+
+			<div class="sidebar-bottom">
+				<span class="me" ng-show="State.Me">you are {{ State.Me.Display }} ({{ State.Me.Role }})</span>
+				<span class="connection" ng-class="{ live: State.Live }" title="live updates">{{ State.Live ? 'live' : 'offline' }}</span>
+				<div class="theme-controls">
+					<select class="form-select form-select-sm" ng-model="Theme" ng-change="SetTheme()" title="theme" id="theme-select">
+						<option value="system">System</option>
+						<option value="light">Light</option>
+						<option value="dark">Dark</option>
+					</select>
+					<select class="form-select form-select-sm" ng-model="Scale" ng-change="SetScale()" title="size" id="scale-select">
+						<option value="small">Small</option>
+						<option value="normal">Normal</option>
+						<option value="large">Large</option>
+					</select>
+				</div>
+			</div>
+		</aside>
+
+		<div class="splitter" data-splitter="sidebar"></div>
+
+		<!-- ============================================================= -->
+		<main class="main">
+			<header class="header" ng-controller="HeaderController">
+				<div class="header-left" ng-show="State.Open">
+					<div class="title">{{ State.Open.Proposal.Title }}</div>
+					<div class="state-line">
+						<span class="status-badge" ng-class="State.Open.Proposal.Status" id="status-badge">{{ State.Open.Proposal.Status === 'consensus' ? 'Plan' : 'Proposal' }}</span>
+						<span id="state-line">{{ State.Open.Proposal.State }}</span>
+						<span class="revision" id="revision">revision {{ State.Open.Proposal.Revision }}</span>
+					</div>
+				</div>
+				<div class="title muted" ng-hide="State.Open">{{ State.View === 'waiting' ? 'Waiting on you' : ( State.View === 'search' ? 'Search' : 'Consensus' ) }}</div>
+				<div class="header-buttons" ng-show="State.Open">
+					<div class="btn-group" role="group">
+						<button class="btn btn-sm" id="view-read" ng-class="State.View === 'read' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('read')">Read</button>
+						<button class="btn btn-sm" id="view-edit" ng-class="State.View === 'edit' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('edit')">Edit</button>
+						<button class="btn btn-sm" id="view-revisions" ng-class="State.View === 'revisions' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('revisions')">Revisions</button>
+					</div>
+					<button class="btn btn-sm btn-outline-secondary" ng-click="CommentOnWhole()" ng-show="State.View === 'read'">Comment on the whole document</button>
+					<button class="btn btn-sm btn-success" id="approve-button" ng-show="State.Me.Role === 'owner' && State.Open.Proposal.Status !== 'consensus'" ng-disabled="!State.Open.Proposal.Tally.Approvable || Busy" ng-click="Approve()" title="{{ ApproveHint() }}">Approve as Plan</button>
+					<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete" ng-click="ConfirmingDelete = true">Delete</button>
+					<span class="confirm" ng-show="ConfirmingDelete">
+						to the trash?
+						<button class="btn btn-sm btn-danger" ng-click="Delete()" ng-disabled="Busy">Yes</button>
+						<button class="btn btn-sm btn-outline-secondary" ng-click="ConfirmingDelete = false">No</button>
+					</span>
+				</div>
+			</header>
+
+			<div class="main-error alert alert-danger" ng-show="State.Error">
+				{{ State.Error }}
+				<button type="button" class="btn-close" aria-label="Close" ng-click="State.ClearError()"></button>
+			</div>
+
+			<section class="read" ng-controller="ReadController" ng-show="State.View === 'read'">
+				<div class="read-empty" ng-hide="State.Open">
+					<p>Pick a proposal on the left, or create one.</p>
+					<p class="muted">Select a passage of a proposal to comment on it. The LLM takes part over the API.</p>
+				</div>
+				<div class="reanchor-hint alert alert-info" ng-show="State.Reanchoring">
+					Select the passage this thread belongs to, then press Re-anchor.
+					<button class="btn btn-sm btn-outline-secondary" ng-click="CancelReanchor()">Cancel</button>
+				</div>
+				<article class="markdown" id="read-view" ng-show="State.Open"></article>
+				<button class="comment-button btn btn-sm btn-primary" id="comment-button" ng-click="CommentOnSelection()">{{ State.Reanchoring ? 'Re-anchor here' : 'Comment' }}</button>
+			</section>
+
+			<section class="edit-view" ng-controller="EditController" ng-show="State.View === 'edit'">
+				<div class="edit-bar">
+					<span class="alert alert-warning py-1 px-2 m-0" ng-show="State.Open.Proposal.Status === 'consensus'">This is a Plan: saving sets it back to contested and returns it to Proposals.</span>
+					<span class="alert alert-warning py-1 px-2 m-0" ng-show="Stale">The text changed on the server since you started editing. Copy what you need, then discard and edit again.</span>
+					<span class="muted" ng-show="!Stale && State.Open.Proposal.Status !== 'consensus'">Editing revision {{ Base }}. Ctrl+S saves.</span>
+					<span class="edit-buttons">
+						<button class="btn btn-sm btn-primary" id="save-button" ng-click="Save()" ng-disabled="!Dirty || Stale || Busy">Save</button>
+						<button class="btn btn-sm btn-outline-secondary" ng-click="Discard()">{{ Dirty ? 'Discard' : 'Close' }}</button>
+					</span>
+				</div>
+				<div class="edit-body">
+					<div class="editor" id="editor"></div>
+					<div class="splitter" data-splitter="preview"></div>
+					<div class="edit-preview"><article class="markdown" id="edit-preview"></article></div>
+				</div>
+			</section>
+
+			<section class="revisions" ng-controller="RevisionsController" ng-show="State.View === 'revisions'">
+				<div class="revision-list">
+					<div class="revision-row" ng-repeat="revision in Revisions" ng-class="{ selected: revision.Revision === Shown.Revision }" ng-click="Show(revision)">
+						<span class="revision-number">{{ revision.Revision }}</span>
+						<span class="revision-reason" ng-class="revision.Reason">{{ revision.Reason }}</span>
+						<span class="revision-by">{{ revision.By | display }}</span>
+						<span class="revision-at">{{ revision.At | when }}</span>
+						<span class="revision-thread" ng-show="revision.Thread" ng-click="OpenThread(revision, $event)" title="the thread it applied">thread &ldquo;{{ ThreadWords(revision.Thread) }}&rdquo;</span>
+					</div>
+				</div>
+				<div class="revision-text">
+					<div class="muted small" ng-show="Shown">revision {{ Shown.Revision }}{{ Shown.Revision === State.Open.Proposal.Revision ? ' (current)' : '' }}</div>
+					<article class="markdown" id="revision-view"></article>
+				</div>
+			</section>
+
+			<section class="waiting-view" ng-controller="WaitingController" ng-show="State.View === 'waiting'">
+				<div class="view-heading">Waiting on you <span class="muted">{{ Items.length }}</span></div>
+				<div class="muted" ng-show="Items.length === 0">Nothing waits on you.</div>
+				<div class="waiting-group" ng-repeat="group in Groups">
+					<div class="waiting-proposal"><a ng-href="#/p/{{ group.Proposal.Id }}">{{ group.Proposal.Title }}</a> <span class="muted small">{{ group.Proposal.Status === 'consensus' ? 'Plan' : 'Proposal' }}</span></div>
+					<a class="waiting-item" ng-repeat="item in group.Items" ng-class="item.Thread.State" ng-href="#/p/{{ group.Proposal.Id }}" ng-click="Open(item)">
+						<div class="thread-head">
+							<span class="state-badge" ng-class="item.Thread.State">{{ item.Thread.State }}</span>
+							<span class="muted">{{ item.Thread.Anchor ? '“' + item.Thread.Anchor.Text + '”' : 'the whole document' }}</span>
+						</div>
+						<div class="last"><b>{{ item.Thread.Replies[item.Thread.Replies.length - 1].By | display }}</b>: {{ item.Thread.Replies[item.Thread.Replies.length - 1].Text }}</div>
+					</a>
+				</div>
+			</section>
+
+			<section class="search-view" ng-controller="SearchController" ng-show="State.View === 'search'">
+				<div class="view-heading">Search <span class="muted">{{ Query }}</span></div>
+				<div class="muted" ng-show="Searched && Hits.length === 0">Nothing found.</div>
+				<a class="search-hit" ng-repeat="hit in Hits" ng-class="{ thread: hit.Thread }" ng-href="#/p/{{ hit.Proposal }}" ng-click="Open(hit)">
+					<div class="search-hit-head">
+						<span class="proposal">{{ hit.Title }}</span>
+						<span>{{ hit.Thread ? 'thread' : 'passage' }}</span>
+						<span>score {{ hit.Score }}</span>
+					</div>
+					<div class="snippet">{{ hit.Text }}</div>
+				</a>
+			</section>
+		</main>
+
+		<div class="splitter" data-splitter="threads"></div>
+
+		<!-- ============================================================= -->
+		<aside class="threads" ng-controller="ThreadsController">
+			<div class="threads-top">
+				<select class="form-select form-select-sm" id="thread-filter" ng-model="State.Filter" ng-options="option.Value as option.Label for option in Filters"></select>
+				<span class="count">{{ Threads().length }}</span>
+			</div>
+
+			<div class="thread compose" ng-show="State.Compose">
+				<div class="thread-anchor" ng-show="State.Compose.Anchor">&ldquo;{{ State.Compose.Anchor.Text }}&rdquo;</div>
+				<div class="thread-anchor whole" ng-hide="State.Compose.Anchor">the whole document</div>
+				<textarea class="form-control form-control-sm" rows="3" ng-model="State.Compose.Text" placeholder="Your comment" id="compose-text"></textarea>
+				<div class="thread-buttons">
+					<button class="btn btn-sm btn-primary" id="compose-post" ng-click="Post()" ng-disabled="!State.Compose.Text || Busy">Comment</button>
+					<button class="btn btn-sm btn-outline-secondary" ng-click="CancelCompose()">Cancel</button>
+				</div>
+			</div>
+
+			<div class="threads-empty" ng-show="State.Open && Threads().length === 0 && !State.Compose">no threads {{ State.Filter === 'all' ? '' : 'match this filter' }}</div>
+
+			<div class="thread" ng-repeat="thread in Threads()" ng-class="[ thread.State, { selected: thread.Id === State.Selected, detached: thread.Detached, mine: thread.WaitingOnMe } ]" id="thread-{{ thread.Id }}" ng-click="Select(thread)">
+				<div class="thread-head">
+					<span class="state-badge" ng-class="thread.State">{{ thread.State }}</span>
+					<span class="detached-badge" ng-show="thread.Detached">detached</span>
+					<span class="turn" ng-show="thread.Turn.length">waiting on {{ thread.Turn.join(', ') }}</span>
+					<span class="turn none" ng-hide="thread.Turn.length">nothing to do</span>
+				</div>
+				<div class="thread-anchor" ng-show="thread.Anchor" ng-click="ScrollToAnchor(thread, $event)" title="show in the text">&ldquo;{{ thread.Anchor.Text }}&rdquo;</div>
+				<div class="thread-anchor whole" ng-hide="thread.Anchor">the whole document</div>
+
+				<div class="reply" ng-repeat="reply in thread.Replies">
+					<div class="reply-head"><span class="by">{{ reply.By | display }}</span> <span class="at">{{ reply.At | when }}</span></div>
+					<div class="reply-text">{{ reply.Text }}</div>
+				</div>
+
+				<div class="record" ng-show="thread.Resolved">resolved by {{ thread.Resolved.By | display }} {{ thread.Resolved.At | when }}</div>
+				<div class="record" ng-show="thread.Applied">applied by {{ thread.Applied.By | display }} at revision {{ thread.Applied.Revision }}: {{ thread.Applied.Outcome }}</div>
+
+				<div class="reply-form" ng-show="thread.Id === State.Selected">
+					<textarea class="form-control form-control-sm reply-box" rows="2" ng-model="State.Drafts[thread.Id]" placeholder="Reply{{ thread.Status === 'consensus' ? ' (reopens the thread)' : '' }}"></textarea>
+					<div class="thread-buttons">
+						<button class="btn btn-sm btn-primary reply-button" ng-click="Reply(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy">Reply</button>
+						<button class="btn btn-sm btn-success resolve-button" ng-show="CanResolve(thread)" ng-click="Resolve(thread)" ng-disabled="Busy">Resolve</button>
+						<button class="btn btn-sm btn-outline-secondary" ng-show="thread.Detached || thread.Anchor" ng-click="Reanchor(thread)">Re-anchor</button>
+					</div>
+				</div>
+			</div>
+		</aside>
+
+	</div>
+
+	<script src="/vendor/angular.min.js"></script>
+	<script src="/vendor/marked.umd.js"></script>
+	<script src="/vendor/monaco/loader.js"></script>
+	<script src="/js/layout.js"></script>
+	<script src="/js/client.js"></script>
+	<script src="/js/render.js"></script>
+	<script src="/js/editor.js"></script>
+	<script src="/js/app.js"></script>
+	<script src="/js/sidebar.js"></script>
+	<script src="/js/header.js"></script>
+	<script src="/js/read.js"></script>
+	<script src="/js/edit.js"></script>
+	<script src="/js/revisions.js"></script>
+	<script src="/js/waiting.js"></script>
+	<script src="/js/search.js"></script>
+	<script src="/js/threads.js"></script>
+</body>
+</html>

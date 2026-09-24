@@ -1,0 +1,25 @@
+{
+	"name": "consensus",
+	"version": "0.1.0",
+	"description": "Collaborative proposal building and approval: the User and the LLM work a proposal through, thread by thread, until it is approved as a Plan.",
+	"private": true,
+	"license": "MIT",
+	"main": "src/Server.js",
+	"bin": {
+		"consensus": "bin/consensus.js"
+	},
+	"scripts": {
+		"start": "node bin/consensus.js",
+		"test": "node --test"
+	},
+	"engines": {
+		"node": ">=22"
+	},
+	"dependencies": {
+		"angular": "^1.8.3",
+		"bootstrap": "^5.3.8",
+		"express": "^5.1.0",
+		"marked": "^18.0.0",
+		"monaco-editor": "0.56.0"
+	}
+}
