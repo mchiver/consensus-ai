@@ -67,6 +67,7 @@
 			<div class="sidebar-bottom">
 				<span class="me" ng-show="State.Me">you are {{ State.Me.Display }} ({{ State.Me.Role }})</span>
 				<span class="connection" ng-class="{ live: State.Live }" title="live updates">{{ State.Live ? 'live' : 'offline' }}</span>
+				<div class="usage" id="usage" ng-show="Usage" title="{{ UsageHint() }}">LLM today: {{ Usage.Today.Input | tokens }} in &middot; {{ Usage.Today.Output | tokens }} out</div>
 				<div class="theme-controls">
 					<select class="form-select form-select-sm" ng-model="Theme" ng-change="SetTheme()" title="theme" id="theme-select">
 						<option value="system">System</option>
@@ -103,6 +104,7 @@
 						<button class="btn btn-sm" id="view-revisions" ng-class="State.View === 'revisions' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('revisions')">Revisions</button>
 					</div>
 					<button class="btn btn-sm btn-outline-secondary" ng-click="CommentOnWhole()" ng-show="State.View === 'read'">Comment on the whole document</button>
+					<button class="btn btn-sm btn-primary" id="send-button" ng-show="State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="!State.Open.Llm.Waiting || State.Open.Llm.Running || Busy" ng-click="Send()" title="{{ SendHint() }}">{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Send to LLM (' + State.Open.Llm.Waiting + ')' }}</button>
 					<button class="btn btn-sm btn-success" id="approve-button" ng-show="State.Me.Role === 'owner' && State.Open.Proposal.Status !== 'consensus'" ng-disabled="!State.Open.Proposal.Tally.Approvable || Busy" ng-click="Approve()" title="{{ ApproveHint() }}">Approve as Plan</button>
 					<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete" ng-click="ConfirmingDelete = true">Delete</button>
 					<span class="confirm" ng-show="ConfirmingDelete">
@@ -121,7 +123,7 @@
 			<section class="read" ng-controller="ReadController" ng-show="State.View === 'read'">
 				<div class="read-empty" ng-hide="State.Open">
 					<p>Pick a proposal on the left, or create one.</p>
-					<p class="muted">Select a passage of a proposal to comment on it. The LLM takes part over the API.</p>
+					<p class="muted">Select a passage of a proposal to comment on it. Send to LLM hands the LLM what is waiting on it.</p>
 				</div>
 				<div class="reanchor-hint alert alert-info" ng-show="State.Reanchoring">
 					Select the passage this thread belongs to, then press Re-anchor.
@@ -224,13 +226,21 @@
 				<div class="thread-anchor" ng-show="thread.Anchor" ng-click="ScrollToAnchor(thread, $event)" title="show in the text">&ldquo;{{ thread.Anchor.Text }}&rdquo;</div>
 				<div class="thread-anchor whole" ng-hide="thread.Anchor">the whole document</div>
 
-				<div class="reply" ng-repeat="reply in thread.Replies">
-					<div class="reply-head"><span class="by">{{ reply.By | display }}</span> <span class="at">{{ reply.At | when }}</span></div>
-					<div class="reply-text">{{ reply.Text }}</div>
+				<div class="reply-controls" ng-show="thread.Replies.length > 1">
+					<button class="btn btn-link btn-sm" ng-click="CollapseEarlier(thread, $event)">collapse earlier</button>
+					<button class="btn btn-link btn-sm" ng-click="ExpandAll(thread, $event)">expand all</button>
+				</div>
+
+				<div class="reply" ng-repeat="reply in thread.Replies" ng-class="{ collapsed: IsCollapsed(reply) }">
+					<div class="reply-head">
+						<span class="reply-badge" ng-click="ToggleReply(reply, $event)" title="{{ reply.At | fullstamp }}"><span class="caret">{{ IsCollapsed(reply) ? '&#9656;' : '&#9662;' }}</span> <span class="by">{{ reply.By | display }}</span> <span class="at">{{ reply.At | stamp }}</span></span>
+					</div>
+					<div class="reply-text" ng-hide="IsCollapsed(reply)" ng-bind-html="reply.Text | markdown"></div>
 				</div>
 
 				<div class="record" ng-show="thread.Resolved">resolved by {{ thread.Resolved.By | display }} {{ thread.Resolved.At | when }}</div>
 				<div class="record" ng-show="thread.Applied">applied by {{ thread.Applied.By | display }} at revision {{ thread.Applied.Revision }}: {{ thread.Applied.Outcome }}</div>
+				<div class="record failed" ng-show="thread.CallFailed" title="{{ thread.CallFailed.At | fullstamp }}">LLM call failed {{ thread.CallFailed.At | stamp }}: {{ thread.CallFailed.Reason }}</div>
 
 				<div class="reply-form" ng-show="thread.Id === State.Selected">
 					<textarea class="form-control form-control-sm reply-box" rows="2" ng-model="State.Drafts[thread.Id]" placeholder="Reply{{ thread.Status === 'consensus' ? ' (reopens the thread)' : '' }}"></textarea>

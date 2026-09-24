@@ -102,6 +102,52 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	};
 
 
+	//-----------------------------------------------------------------
+	// Collapsed replies, by reply id, kept in State so a reload keeps them.
+
+	$scope.IsCollapsed = function ( reply )
+	{
+		return State.Collapsed[ reply.Id ] === true;
+	};
+
+
+	$scope.ToggleReply = function ( reply, event )
+	{
+		event.stopPropagation();
+		if ( State.Collapsed[ reply.Id ] )
+		{
+			delete State.Collapsed[ reply.Id ];
+		}
+		else
+		{
+			State.Collapsed[ reply.Id ] = true;
+		}
+	};
+
+
+	// Collapse every reply but the most recent one.
+	$scope.CollapseEarlier = function ( thread, event )
+	{
+		event.stopPropagation();
+		let last_index = thread.Replies.length - 1;
+		for ( let index = 0; index < last_index; index++ )
+		{
+			State.Collapsed[ thread.Replies[ index ].Id ] = true;
+		}
+		delete State.Collapsed[ thread.Replies[ last_index ].Id ];
+	};
+
+
+	$scope.ExpandAll = function ( thread, event )
+	{
+		event.stopPropagation();
+		for ( let reply of thread.Replies )
+		{
+			delete State.Collapsed[ reply.Id ];
+		}
+	};
+
+
 	$scope.CanResolve = function ( thread )
 	{
 		return State.Me && State.Me.Role === 'owner' && thread.Status === 'contested';

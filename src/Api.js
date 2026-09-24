@@ -4,19 +4,21 @@
 // Every rule lives here or in Rules.js, none in a client: the page and the LLM's curl see the same API.
 // Errors are { Error } with a status. Writes to one proposal run through the store's queue.
 // After a change, Context.Refresh( id ) re-indexes the proposal in the background; Context.Search answers /search.
+// POST /proposals/:id/send calls the LLM (Llm.js); Context.Caller, when given, replaces Llm.Caller (the tests use it).
 
 const EXPRESS = require( 'express' );
 const CRYPTO = require( 'crypto' );
 const RULES = require( './Rules.js' );
 const ANCHORS = require( './Anchors.js' );
 const PARTICIPANTS = require( './Participants.js' );
+const LLM = require( './Llm.js' );
 
 const BODY_LIMIT = '8mb';
 const SEARCH_LIMIT = 10;
 
 
 //---------------------------------------------------------------------
-// Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Refresh?, Search? }
+// Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Refresh?, Search?, Caller? }
 
 function Attach( App, Context )
 {
@@ -61,6 +63,19 @@ function Attach( App, Context )
 		}
 		response.status( status ).json( body );
 		return null;
+	}
+
+
+	// A refusal from a function the routes and the LLM's call share: the route turns it into fail().
+	function refused( status, message, extra )
+	{
+		return { Refused: { Status: status, Error: message, Extra: extra } };
+	}
+
+
+	function find_thread( read, thread_id )
+	{
+		return read.Threads.find( function ( candidate ) { return candidate.Id === thread_id; } ) || null;
 	}
 
 
@@ -239,6 +254,7 @@ function Attach( App, Context )
 			Proposal: summarize( read.Proposal, read.Threads, name ),
 			Text: read.Text,
 			Threads: present_threads( read.Threads, read.Text, name ),
+			Llm: llm_view( request.params.id, read.Threads ),
 		} );
 	} );
 
@@ -453,25 +469,20 @@ function Attach( App, Context )
 
 
 	// A reply. To a resolved thread it reopens it; a change already applied stays applied.
-	router.post( '/proposals/:id/threads/:tid/replies', async function ( request, response )
+	// Returns { Thread, Reopened } or { Refused: { Status, Error } }; the route and the LLM's call share it.
+	async function add_reply( id, thread_id, participant, text )
 	{
-		let text = text_of( ( request.body || {} ).Text ).trim();
-		if ( !text )
-		{
-			return fail( response, 400, 'Text is required' );
-		}
-		let id = request.params.id;
 		let result = await store.Queue( id, async function ()
 		{
 			let read = await store.ReadProposal( id );
 			if ( !read )
 			{
-				return fail( response, 404, 'no such proposal' );
+				return refused( 404, 'no such proposal' );
 			}
-			let thread = read.Threads.find( function ( candidate ) { return candidate.Id === request.params.tid; } );
+			let thread = find_thread( read, thread_id );
 			if ( !thread )
 			{
-				return fail( response, 404, 'no such thread' );
+				return refused( 404, 'no such thread' );
 			}
 			let effect = RULES.ReplyEffect( thread );
 			if ( effect.Reopen )
@@ -480,16 +491,31 @@ function Attach( App, Context )
 				thread.Reopened = effect.Reopened;
 				thread.Resolved = effect.Resolved;
 			}
-			thread.Replies.push( { Id: new_id( 'r' ), By: request.Participant.Name, At: now(), Text: text } );
+			thread.Replies.push( { Id: new_id( 'r' ), By: participant.Name, At: now(), Text: text } );
 			await store.WriteThreads( id, read.Threads );
 			await store.UpdateProposal( id, RULES.CommentEffect( read.Proposal ) );
-			return { Thread: present_threads( [ thread ], read.Text, request.Participant.Name )[ 0 ], Reopened: effect.Reopen };
+			return { Thread: present_threads( [ thread ], read.Text, participant.Name )[ 0 ], Reopened: effect.Reopen };
 		} );
-		if ( !result )
+		if ( !result.Refused )
 		{
-			return;
+			changed( id, result.Reopened ? 'reopened' : 'reply', result.Thread.Id );
 		}
-		changed( id, result.Reopened ? 'reopened' : 'reply', result.Thread.Id );
+		return result;
+	}
+
+
+	router.post( '/proposals/:id/threads/:tid/replies', async function ( request, response )
+	{
+		let text = text_of( ( request.body || {} ).Text ).trim();
+		if ( !text )
+		{
+			return fail( response, 400, 'Text is required' );
+		}
+		let result = await add_reply( request.params.id, request.params.tid, request.Participant, text );
+		if ( result.Refused )
+		{
+			return fail( response, result.Refused.Status, result.Refused.Error );
+		}
 		response.status( 201 ).json( result );
 	} );
 
@@ -564,34 +590,33 @@ function Attach( App, Context )
 	} );
 
 
-	// Apply: a resolved thread's outcome goes into the text. { Text?, Outcome, Revision, Anchor? }
+	// Apply: a resolved thread's outcome goes into the text. Body = { Text?, Outcome, Revision, Anchor? }
 	// With Text: a new revision tied to the thread, made from Revision (409 when stale). Without: the outcome alone.
-	// Anchor, when given, points the thread at the passage the change produced.
-	router.post( '/proposals/:id/threads/:tid/apply', async function ( request, response )
+	// Anchor, when given, points the thread at the passage the change produced; with Loose, an anchor that is
+	// not found is left out instead of refused. Returns { Thread, Proposal } or { Refused: { Status, Error, Extra } }.
+	async function apply_outcome( id, thread_id, participant, body, loose )
 	{
-		let body = request.body || {};
 		let outcome = text_of( body.Outcome ).trim();
 		if ( !outcome )
 		{
-			return fail( response, 400, 'Outcome is required' );
+			return refused( 400, 'Outcome is required' );
 		}
-		let id = request.params.id;
 		let result = await store.Queue( id, async function ()
 		{
 			let read = await store.ReadProposal( id );
 			if ( !read )
 			{
-				return fail( response, 404, 'no such proposal' );
+				return refused( 404, 'no such proposal' );
 			}
-			let thread = read.Threads.find( function ( candidate ) { return candidate.Id === request.params.tid; } );
+			let thread = find_thread( read, thread_id );
 			if ( !thread )
 			{
-				return fail( response, 404, 'no such thread' );
+				return refused( 404, 'no such thread' );
 			}
-			let can = RULES.CanApply( request.Participant, thread );
+			let can = RULES.CanApply( participant, thread );
 			if ( !can.Ok )
 			{
-				return fail( response, 409, can.Reason );
+				return refused( 409, can.Reason );
 			}
 			let proposal = read.Proposal;
 			let text = read.Text;
@@ -600,35 +625,369 @@ function Attach( App, Context )
 			{
 				if ( body.Revision !== proposal.Revision )
 				{
-					return fail( response, 409, 'the text changed since revision ' + body.Revision + '; reload and apply again', { Revision: proposal.Revision } );
+					return refused( 409, 'the text changed since revision ' + body.Revision + '; reload and apply again', { Revision: proposal.Revision } );
 				}
-				proposal = await store.WriteText( id, { Text: body.Text, By: request.Participant.Name, Reason: 'apply', Thread: thread.Id } );
+				proposal = await store.WriteText( id, { Text: body.Text, By: participant.Name, Reason: 'apply', Thread: thread.Id } );
 				text = body.Text;
 				refind( read.Threads, text );
 			}
 			if ( body.Anchor )
 			{
 				let anchor = place_anchor( body.Anchor, text );
-				if ( !anchor )
+				if ( anchor )
 				{
-					return fail( response, 400, 'the anchor text was not found in the proposal' );
+					thread.Anchor = anchor;
+					thread.Detached = false;
 				}
-				thread.Anchor = anchor;
-				thread.Detached = false;
+				else if ( !loose )
+				{
+					return refused( 400, 'the anchor text was not found in the proposal' );
+				}
 			}
-			Object.assign( thread, RULES.ApplyEffect( request.Participant, now(), proposal.Revision, outcome ) );
+			Object.assign( thread, RULES.ApplyEffect( participant, now(), proposal.Revision, outcome ) );
 			await store.WriteThreads( id, read.Threads );
 			if ( changed_text )
 			{
 				proposal = await store.UpdateProposal( id, RULES.EditEffect( proposal ) );
 			}
-			return { Thread: present_threads( [ thread ], text, request.Participant.Name )[ 0 ], Proposal: summarize( proposal, read.Threads, request.Participant.Name ) };
+			return { Thread: present_threads( [ thread ], text, participant.Name )[ 0 ], Proposal: summarize( proposal, read.Threads, participant.Name ) };
 		} );
-		if ( !result )
+		if ( !result.Refused )
 		{
+			changed( id, 'applied', result.Thread.Id );
+		}
+		return result;
+	}
+
+
+	router.post( '/proposals/:id/threads/:tid/apply', async function ( request, response )
+	{
+		let result = await apply_outcome( request.params.id, request.params.tid, request.Participant, request.body || {}, false );
+		if ( result.Refused )
+		{
+			return fail( response, result.Refused.Status, result.Refused.Error, result.Refused.Extra );
+		}
+		response.json( result );
+	} );
+
+
+	//-----------------------------------------------------------------
+	// Send to LLM: the owner hands everything waiting on the llm participant in one proposal to the LLM.
+	// The call runs in the background; the answer's replies and applies are carried out as the llm participant.
+
+	let calling = {};
+	let recent_calls = [];
+	const HOUR = 60 * 60 * 1000;
+	const SEARCH_PER_THREAD = 3;
+
+
+	// The llm participant that Consensus calls, or null.
+	function called_llm()
+	{
+		return ( settings.Participants || [] ).find( function ( participant ) { return participant.Role === 'llm' && !!participant.Call; } ) || null;
+	}
+
+
+	function calls_in_last_hour()
+	{
+		let since = Date.now() - HOUR;
+		recent_calls = recent_calls.filter( function ( at ) { return at > since; } );
+		return recent_calls.length;
+	}
+
+
+	// What the page needs for the button: who, whether a call runs, how much is waiting.
+	function llm_view( id, threads )
+	{
+		let llm = called_llm();
+		if ( !llm )
+		{
+			return { Configured: false };
+		}
+		return {
+			Configured: true,
+			Name: llm.Name,
+			Running: !!calling[ id ],
+			Waiting: RULES.WaitingOn( llm.Name, threads, participants() ).length,
+		};
+	}
+
+
+	router.post( '/proposals/:id/send', async function ( request, response )
+	{
+		if ( request.Participant.Role !== 'owner' )
+		{
+			return fail( response, 403, 'only the owner sends to the LLM' );
+		}
+		let llm = called_llm();
+		if ( !llm )
+		{
+			return fail( response, 409, 'no LLM is configured: give the llm participant a Call in consensus.json' );
+		}
+		let id = request.params.id;
+		if ( calling[ id ] )
+		{
+			return fail( response, 409, 'a call to the LLM is already running for this proposal' );
+		}
+		let read = await store.ReadProposal( id );
+		if ( !read )
+		{
+			return fail( response, 404, 'no such proposal' );
+		}
+		let waiting = RULES.WaitingOn( llm.Name, read.Threads, participants() );
+		if ( waiting.length === 0 )
+		{
+			return fail( response, 409, 'nothing is waiting on the LLM' );
+		}
+		let call = LLM.CallSettings( llm );
+		if ( calls_in_last_hour() >= call.CallsPerHour )
+		{
+			return fail( response, 409, 'the LLM is paused: ' + call.CallsPerHour + ' calls in the last hour' );
+		}
+		calling[ id ] = true;
+		recent_calls.push( Date.now() );
+		events.Send( { Proposal: id, Kind: 'llm-started' } );
+		response.status( 202 ).json( { Started: true, Threads: waiting.map( function ( thread ) { return thread.Id; } ) } );
+
+		run_call( id, llm, call ).catch( function ( error )
+		{
+			console.error( 'llm: ' + id + ': ' + error.message );
+		} ).finally( function ()
+		{
+			delete calling[ id ];
+			events.Send( { Proposal: id, Kind: 'llm-finished' } );
+		} );
+	} );
+
+
+	async function run_call( id, llm, call )
+	{
+		let started = Date.now();
+		let read = await store.ReadProposal( id );
+		let presented = present_threads( read.Threads, read.Text, llm.Name );
+		let waiting = presented.filter( function ( thread ) { return thread.WaitingOnMe; } );
+		let prompt = LLM.Prompt( {
+			Proposal: read.Proposal,
+			Text: read.Text,
+			Threads: presented,
+			Me: llm.Name,
+			Participants: participants(),
+			Search: await search_for( waiting ),
+		} );
+		let caller = ( Context.Caller || LLM.Caller )( call );
+		let answer = null;
+		try
+		{
+			answer = await caller( prompt );
+		}
+		catch ( error )
+		{
+			let failures = {};
+			for ( let thread of waiting )
+			{
+				failures[ thread.Id ] = error.message;
+			}
+			await record_call_results( id, failures, false );
+			log_call( id, call, waiting, started, 'failed: ' + error.message );
 			return;
 		}
-		changed( id, 'applied', result.Thread.Id );
+		await record_usage( call, answer.Usage );
+		let failures = await carry_out( id, llm, waiting, answer.Answer.Actions, read.Proposal.Revision );
+		await record_call_results( id, failures, true );
+		let failed = Object.keys( failures ).length;
+		log_call( id, call, waiting, started, answer.Answer.Actions.length + ' actions' + ( failed ? ', ' + failed + ' refused' : '' ) + ', ' + answer.Usage.Input + ' in, ' + answer.Usage.Output + ' out' );
+	}
+
+
+	// For each waiting thread, the best passages elsewhere: its anchor words and its last reply as the query.
+	async function search_for( waiting )
+	{
+		let found = {};
+		if ( !Context.Search )
+		{
+			return found;
+		}
+		let titles = {};
+		for ( let proposal of await store.ListProposals() )
+		{
+			titles[ proposal.Id ] = proposal.Title;
+		}
+		for ( let thread of waiting )
+		{
+			let last = thread.Replies[ thread.Replies.length - 1 ];
+			let query = ( thread.Anchor ? thread.Anchor.Text + ' ' : '' ) + ( last ? last.Text : '' );
+			let hits = [];
+			try
+			{
+				hits = await Context.Search( query, SEARCH_PER_THREAD + 1 );
+			}
+			catch ( error )
+			{
+				console.error( 'llm: search for ' + thread.Id + ': ' + error.message );
+			}
+			found[ thread.Id ] = hits.filter( function ( hit ) { return hit.Thread !== thread.Id; } ).slice( 0, SEARCH_PER_THREAD ).map( function ( hit )
+			{
+				return Object.assign( {}, hit, { Title: titles[ hit.Proposal ] || hit.Proposal } );
+			} );
+		}
+		return found;
+	}
+
+
+	// The answer's actions, in order, each through the same rules as the API. Returns { threadId: reason } for refusals.
+	async function carry_out( id, llm, waiting, actions, revision )
+	{
+		let failures = {};
+		let current_revision = revision;
+		for ( let action of actions )
+		{
+			let thread = waiting.find( function ( candidate ) { return candidate.Id === action.Thread; } );
+			if ( !thread )
+			{
+				console.error( 'llm: ' + id + ': ignored an action for thread ' + action.Thread + ', which was not waiting on the LLM' );
+				continue;
+			}
+			let result = null;
+			if ( action.Kind === 'reply' )
+			{
+				let text = text_of( action.Reply ).trim();
+				if ( thread.Status !== 'contested' )
+				{
+					result = refused( 409, 'the LLM replied to a thread waiting to be applied' );
+				}
+				else if ( !text )
+				{
+					result = refused( 400, 'the LLM gave an empty reply' );
+				}
+				else
+				{
+					result = await add_reply( id, thread.Id, llm, text );
+				}
+			}
+			else
+			{
+				if ( thread.Status !== 'consensus' )
+				{
+					result = refused( 409, 'the LLM applied a thread that is still contested' );
+				}
+				else
+				{
+					let body = { Outcome: action.Outcome, Revision: current_revision };
+					if ( typeof action.Text === 'string' && action.Text.trim() )
+					{
+						body.Text = action.Text;
+					}
+					if ( action.Anchor )
+					{
+						body.Anchor = { Text: text_of( action.Anchor ) };
+					}
+					result = await apply_outcome( id, thread.Id, llm, body, true );
+					if ( !result.Refused )
+					{
+						current_revision = result.Proposal.Revision;
+					}
+				}
+			}
+			if ( result.Refused )
+			{
+				failures[ thread.Id ] = result.Refused.Error;
+			}
+		}
+		return failures;
+	}
+
+
+	// A failure line on each thread in Failures; with Succeeded, every other thread's failure line is cleared.
+	async function record_call_results( id, failures, succeeded )
+	{
+		let at = now();
+		await store.Queue( id, async function ()
+		{
+			let read = await store.ReadProposal( id );
+			if ( !read )
+			{
+				return;
+			}
+			for ( let thread of read.Threads )
+			{
+				if ( failures[ thread.Id ] )
+				{
+					thread.CallFailed = { At: at, Reason: failures[ thread.Id ] };
+				}
+				else if ( succeeded )
+				{
+					delete thread.CallFailed;
+				}
+			}
+			await store.WriteThreads( id, read.Threads );
+		} );
+		changed( id, 'llm' );
+	}
+
+
+	function log_call( id, call, waiting, started, what )
+	{
+		let seconds = ( ( Date.now() - started ) / 1000 ).toFixed( 1 );
+		console.log( 'llm: ' + id + ': ' + call.Kind + ( call.Model ? ' ' + call.Model : '' ) + ', ' + waiting.length + ' threads, ' + seconds + 's, ' + what );
+	}
+
+
+	//-----------------------------------------------------------------
+	// Usage: the LLM's tokens per day and model, kept in usage.json.
+
+	function today()
+	{
+		return new Date().toLocaleDateString( 'en-CA' );
+	}
+
+
+	async function record_usage( call, usage )
+	{
+		let model = ( usage && usage.Model ) || call.Model || call.Kind;
+		await store.Queue( '~usage', async function ()
+		{
+			let all = await store.ReadUsage();
+			let day = all.Days[ today() ] || ( all.Days[ today() ] = {} );
+			let entry = day[ model ] || ( day[ model ] = { Calls: 0, Input: 0, Output: 0 } );
+			entry.Calls += 1;
+			entry.Input += ( usage && usage.Input ) || 0;
+			entry.Output += ( usage && usage.Output ) || 0;
+			await store.WriteUsage( all );
+		} );
+	}
+
+
+	function add_into( total, entry )
+	{
+		total.Calls += entry.Calls;
+		total.Input += entry.Input;
+		total.Output += entry.Output;
+	}
+
+
+	router.get( '/usage', async function ( request, response )
+	{
+		let all = await store.ReadUsage();
+		let result = {
+			Day: today(),
+			Today: { Calls: 0, Input: 0, Output: 0 },
+			Total: { Calls: 0, Input: 0, Output: 0 },
+			Models: {},
+		};
+		for ( let day of Object.keys( all.Days ) )
+		{
+			for ( let model of Object.keys( all.Days[ day ] ) )
+			{
+				let entry = all.Days[ day ][ model ];
+				add_into( result.Total, entry );
+				if ( day === result.Day )
+				{
+					add_into( result.Today, entry );
+				}
+				let by_model = result.Models[ model ] || ( result.Models[ model ] = { Calls: 0, Input: 0, Output: 0 } );
+				add_into( by_model, entry );
+			}
+		}
 		response.json( result );
 	} );
 

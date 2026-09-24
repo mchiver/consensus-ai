@@ -4,6 +4,7 @@
 // and a queue per proposal so two requests never interleave their writes.
 //
 //   <folder>/consensus.json                   settings
+//   <folder>/usage.json                       the LLM's tokens, per day and model
 //   <folder>/proposals/<id>/proposal.json     { Id, Title, Status, Created, Updated, Revision, Approved }
 //   <folder>/proposals/<id>/proposal.md       the text at revision Revision
 //   <folder>/proposals/<id>/threads.json      [ thread ]
@@ -16,6 +17,7 @@ const PATH = require( 'path' );
 const CRYPTO = require( 'crypto' );
 
 const SETTINGS_FILE = 'consensus.json';
+const USAGE_FILE = 'usage.json';
 const PROPOSALS_FOLDER = 'proposals';
 const TRASH_FOLDER = 'trash';
 const REVISIONS_FOLDER = 'revisions';
@@ -116,6 +118,22 @@ function Open( Folder )
 	function SettingsPath()
 	{
 		return PATH.join( folder, SETTINGS_FILE );
+	}
+
+
+	//-----------------------------------------------------------------
+	// Usage: { Days: { "2026-09-24": { "<model>": { Calls, Input, Output } } } }
+
+	async function ReadUsage()
+	{
+		let usage = await read_json_or_null( PATH.join( folder, USAGE_FILE ) );
+		return usage || { Days: {} };
+	}
+
+
+	async function WriteUsage( Usage )
+	{
+		await write_json( PATH.join( folder, USAGE_FILE ), Usage );
 	}
 
 
@@ -342,6 +360,8 @@ function Open( Folder )
 		ReadSettings: ReadSettings,
 		WriteSettings: WriteSettings,
 		SettingsPath: SettingsPath,
+		ReadUsage: ReadUsage,
+		WriteUsage: WriteUsage,
 		ListProposals: ListProposals,
 		ReadProposal: ReadProposal,
 		CreateProposal: CreateProposal,

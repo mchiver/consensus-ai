@@ -25,6 +25,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		Pending: null,
 		Query: '',
 		Drafts: {},
+		Collapsed: {},
 		Live: false,
 		Error: null,
 	};
@@ -246,11 +247,97 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 } ] )
 
 
+// A reply's time with a day word: "today 07:22", "yesterday 07:22", "last week 07:22", or "Sep 12 07:22".
+.filter( 'stamp', [ function ()
+{
+	const DAY_LENGTH = 24 * 60 * 60 * 1000;
+
+	return function ( Value )
+	{
+		if ( !Value )
+		{
+			return '';
+		}
+		let date = new Date( Value );
+		let today = new Date();
+		let time = date.toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } );
+		let date_midnight = new Date( date.getFullYear(), date.getMonth(), date.getDate() );
+		let today_midnight = new Date( today.getFullYear(), today.getMonth(), today.getDate() );
+		let days_ago = Math.round( ( today_midnight - date_midnight ) / DAY_LENGTH );
+		if ( days_ago === 0 )
+		{
+			return 'today ' + time;
+		}
+		if ( days_ago === 1 )
+		{
+			return 'yesterday ' + time;
+		}
+		if ( days_ago > 1 && days_ago < 7 )
+		{
+			return 'last week ' + time;
+		}
+		let date_options = { month: 'short', day: 'numeric' };
+		if ( date.getFullYear() !== today.getFullYear() )
+		{
+			date_options.year = 'numeric';
+		}
+		return date.toLocaleDateString( [], date_options ) + ' ' + time;
+	};
+} ] )
+
+
+// The full timestamp, for a tooltip: "Thursday, September 24, 2026, 07:22:25".
+.filter( 'fullstamp', [ function ()
+{
+	return function ( Value )
+	{
+		if ( !Value )
+		{
+			return '';
+		}
+		let date = new Date( Value );
+		let date_options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+		let time_options = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
+		return date.toLocaleDateString( [], date_options ) + ', ' + date.toLocaleTimeString( [], time_options );
+	};
+} ] )
+
+
+// A token count, short: 950, 12.4k, 3.2M.
+.filter( 'tokens', [ function ()
+{
+	return function ( Count )
+	{
+		let count = Count || 0;
+		if ( count < 1000 )
+		{
+			return String( count );
+		}
+		if ( count < 1000000 )
+		{
+			return ( count / 1000 ).toFixed( 1 ) + 'k';
+		}
+		return ( count / 1000000 ).toFixed( 1 ) + 'M';
+	};
+} ] )
+
+
 .filter( 'display', [ 'State', function ( State )
 {
 	return function ( Name )
 	{
 		return State.DisplayOf( Name );
+	};
+} ] )
+
+
+// A reply's markdown as trusted html; a single line break stays a line break, as typed.
+.filter( 'markdown', [ '$sce', function ( $sce )
+{
+	return function ( Text )
+	{
+		let html = marked.parse( Text || '', { breaks: true } );
+		return $sce.trustAsHtml( html );
 	};
 } ] )
 

@@ -1,6 +1,6 @@
 'use strict';
 
-// Sidebar - Proposals and Plans with their tallies, and New proposal.
+// Sidebar - Proposals and Plans with their tallies, New proposal, and the LLM's tokens today.
 
 angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$window', 'State', 'Client', function ( $scope, $window, State, Client )
 {
@@ -10,6 +10,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 	$scope.ShowingTrash = false;
 	$scope.Trash = [];
 	$scope.Query = '';
+	$scope.Usage = null;
 	$scope.Theme = window.ConsensusTheme.Get().Theme;
 	$scope.Scale = window.ConsensusTheme.Get().Scale;
 
@@ -85,6 +86,52 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 	{
 		return State.Proposals.filter( function ( proposal ) { return proposal.Status === 'consensus'; } );
 	};
+
+
+	//-----------------------------------------------------------------
+	// The LLM's tokens: today in the footer, everything in the tooltip. Reloaded after every call.
+
+	async function load_usage()
+	{
+		try
+		{
+			$scope.Usage = await Client.Get( '/api/usage' );
+		}
+		catch ( error )
+		{
+			$scope.Usage = null;
+		}
+		$scope.$applyAsync();
+	}
+
+
+	$scope.UsageHint = function ()
+	{
+		let usage = $scope.Usage;
+		if ( !usage )
+		{
+			return '';
+		}
+		let lines = [ 'today: ' + usage.Today.Calls + ' calls, ' + usage.Today.Input + ' in, ' + usage.Today.Output + ' out' ];
+		lines.push( 'in all: ' + usage.Total.Calls + ' calls, ' + usage.Total.Input + ' in, ' + usage.Total.Output + ' out' );
+		for ( let model of Object.keys( usage.Models ) )
+		{
+			let entry = usage.Models[ model ];
+			lines.push( model + ': ' + entry.Calls + ' calls, ' + entry.Input + ' in, ' + entry.Output + ' out' );
+		}
+		return lines.join( '\n' );
+	};
+
+
+	$scope.$on( 'changed', function ( event, change )
+	{
+		if ( change.Kind === 'llm-finished' )
+		{
+			load_usage();
+		}
+	} );
+
+	load_usage();
 
 
 	$scope.StartNew = function ()

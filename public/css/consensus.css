@@ -482,10 +482,92 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	color: var(--text);
 }
 
+.reply-head
+{
+	margin-bottom: 0.2rem;
+}
+
+.reply-badge
+{
+	display: inline-block;
+	padding: 0.05rem 0.4rem;
+	border-radius: 0.25rem;
+	border: 1px solid var(--border);
+	cursor: pointer;
+	user-select: none;
+}
+
+.reply-badge:hover
+{
+	border-color: var(--muted);
+}
+
+.reply-badge .caret
+{
+	display: inline-block;
+	width: 0.7rem;
+}
+
+.reply.collapsed .reply-head
+{
+	margin-bottom: 0;
+}
+
+.reply-controls
+{
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.5rem;
+}
+
+.reply-controls .btn
+{
+	padding: 0;
+	font-size: 0.75rem;
+	color: var(--muted);
+	text-decoration: none;
+}
+
+.reply-controls .btn:hover
+{
+	color: var(--text);
+}
+
 .reply-text
 {
-	white-space: pre-wrap;
 	word-wrap: break-word;
+}
+
+.reply-text p,
+.reply-text ul,
+.reply-text ol,
+.reply-text pre,
+.reply-text blockquote
+{
+	margin: 0 0 0.4rem 0;
+}
+
+.reply-text > :last-child
+{
+	margin-bottom: 0;
+}
+
+.reply-text ul,
+.reply-text ol
+{
+	padding-left: 1.2rem;
+}
+
+.reply-text pre
+{
+	white-space: pre-wrap;
+}
+
+.reply-text blockquote
+{
+	padding-left: 0.6rem;
+	border-left: 3px solid var(--border);
+	color: var(--muted);
 }
 
 .record
@@ -493,6 +575,17 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	font-size: 0.8rem;
 	color: var(--muted);
 	margin-top: 0.3rem;
+}
+
+.record.failed
+{
+	color: var(--detached-edge);
+}
+
+.usage
+{
+	width: 100%;
+	cursor: default;
 }
 
 .reply-form

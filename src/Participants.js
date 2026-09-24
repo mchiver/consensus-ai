@@ -3,15 +3,17 @@
 // Participants - who is calling, from the settings and the request.
 // A request carrying "Authorization: Bearer <token>" is the participant holding that token.
 // A request without one is the participant with the owner role (the browser, on this workstation).
+// The llm participant needs no token: Consensus calls it (see Llm.js). A token lets any participant use the API.
 // Identity is this one small component: user management with sign-in replaces it later.
 
 const CRYPTO = require( 'crypto' );
+const LLM = require( './Llm.js' );
 
 const ROLES = [ 'owner', 'llm', 'member' ];
 
 
 //---------------------------------------------------------------------
-// DefaultSettings: written at first start. Two participants, the user (owner) and the llm (a fresh token).
+// DefaultSettings: written at first start. Two participants, the user (owner) and the llm, called through Claude Code.
 
 function DefaultSettings( Port )
 {
@@ -19,7 +21,7 @@ function DefaultSettings( Port )
 		Port: Port,
 		Participants: [
 			{ Name: 'user', Display: 'User', Role: 'owner' },
-			{ Name: 'llm', Display: 'LLM', Role: 'llm', Token: NewToken() },
+			{ Name: 'llm', Display: 'LLM', Role: 'llm', Call: { Kind: 'claude-cli', Command: 'claude' } },
 		],
 	};
 }
@@ -101,10 +103,25 @@ function Validate( Settings )
 		{
 			problems.push( 'participant "' + participant.Name + '" has role "' + participant.Role + '", not one of ' + ROLES.join( ', ' ) );
 		}
+		if ( participant.Call )
+		{
+			if ( participant.Role !== 'llm' )
+			{
+				problems.push( 'participant "' + participant.Name + '" has a Call but is not an llm' );
+			}
+			for ( let problem of LLM.Validate( participant.Call ) )
+			{
+				problems.push( 'participant "' + participant.Name + '": ' + problem );
+			}
+		}
 	}
 	if ( !participants.some( is_owner ) )
 	{
 		problems.push( 'no participant has the owner role' );
+	}
+	if ( participants.filter( function ( participant ) { return !!participant.Call; } ).length > 1 )
+	{
+		problems.push( 'only one participant can have a Call' );
 	}
 	return problems;
 }

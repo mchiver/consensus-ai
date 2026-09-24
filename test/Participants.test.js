@@ -7,7 +7,7 @@ const ASSERT = require( 'node:assert/strict' );
 const PARTICIPANTS = require( '../src/Participants.js' );
 
 
-TEST( 'default settings hold the user as owner and the llm with a fresh token', function ()
+TEST( 'default settings hold the user as owner and the llm called through Claude Code, with no token', function ()
 {
 	let settings = PARTICIPANTS.DefaultSettings( 3500 );
 	ASSERT.equal( settings.Port, 3500 );
@@ -15,8 +15,9 @@ TEST( 'default settings hold the user as owner and the llm with a fresh token', 
 	ASSERT.deepEqual( settings.Participants[ 0 ], { Name: 'user', Display: 'User', Role: 'owner' } );
 	ASSERT.equal( settings.Participants[ 1 ].Name, 'llm' );
 	ASSERT.equal( settings.Participants[ 1 ].Role, 'llm' );
-	ASSERT.match( settings.Participants[ 1 ].Token, /^[0-9a-f]{48}$/ );
-	ASSERT.notEqual( PARTICIPANTS.DefaultSettings( 1 ).Participants[ 1 ].Token, settings.Participants[ 1 ].Token );
+	ASSERT.equal( 'Token' in settings.Participants[ 1 ], false );
+	ASSERT.deepEqual( settings.Participants[ 1 ].Call, { Kind: 'claude-cli', Command: 'claude' } );
+	ASSERT.match( PARTICIPANTS.NewToken(), /^[0-9a-f]{48}$/ );
 	ASSERT.deepEqual( PARTICIPANTS.Validate( settings ), [] );
 } );
 
@@ -24,7 +25,8 @@ TEST( 'default settings hold the user as owner and the llm with a fresh token', 
 TEST( 'no header is the owner; a bearer token is its holder; anything else is nobody', function ()
 {
 	let settings = PARTICIPANTS.DefaultSettings( 3500 );
-	let token = settings.Participants[ 1 ].Token;
+	let token = PARTICIPANTS.NewToken();
+	settings.Participants[ 1 ].Token = token;
 	ASSERT.equal( PARTICIPANTS.Identify( settings, undefined ).Name, 'user' );
 	ASSERT.equal( PARTICIPANTS.Identify( settings, '' ).Name, 'user' );
 	ASSERT.equal( PARTICIPANTS.Identify( settings, 'Bearer ' + token ).Name, 'llm' );
@@ -54,4 +56,15 @@ TEST( 'validation names the problems', function ()
 	ASSERT.match( problems[ 0 ], /used twice/ );
 	ASSERT.match( problems[ 1 ], /role "king"/ );
 	ASSERT.match( problems[ 2 ], /no Name/ );
+
+	let calls = PARTICIPANTS.Validate( { Participants: [
+		{ Name: 'u', Role: 'owner', Call: { Kind: 'claude-cli' } },
+		{ Name: 'l', Role: 'llm', Call: { Kind: 'ollama', Url: 'http://127.0.0.1:11434' } },
+		{ Name: 'm', Role: 'llm', Call: { Kind: 'telepathy' } },
+	] } );
+	ASSERT.equal( calls.length, 4 );
+	ASSERT.match( calls[ 0 ], /has a Call but is not an llm/ );
+	ASSERT.match( calls[ 1 ], /needs Url and Model/ );
+	ASSERT.match( calls[ 2 ], /Kind is "telepathy"/ );
+	ASSERT.match( calls[ 3 ], /only one participant/ );
 } );

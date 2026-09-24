@@ -1,8 +1,8 @@
 'use strict';
 
 // The page in a real browser (test/support/Cdp.js drives the installed Chrome or Edge headless):
-// the list loads, a selection becomes a thread, a reply arrives live, resolve, edit and save, approve.
-// The server runs on port 0 over a temporary folder; the LLM's part is played with fetch and its token.
+// the list loads, a selection becomes a thread, Send to LLM brings a reply live, resolve, edit and save, approve.
+// The server runs on port 0 over a temporary folder; the LLM behind Send to LLM is played by fake_caller.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -17,7 +17,6 @@ const TEXT = '# Browser check\n\nThe first paragraph makes a claim about anchors
 let running = null;
 let browser = null;
 let page = null;
-let token = null;
 let proposal = null;
 
 
@@ -33,21 +32,30 @@ function text_of( selector )
 }
 
 
-async function as_llm( method, path, body )
+// The LLM behind Send to LLM, played here: it replies to a contested thread and applies a resolved one.
+function fake_caller()
 {
-	let response = await fetch( running.Url + path, {
-		method: method,
-		headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-		body: JSON.stringify( body || {} ),
-	} );
-	return await response.json();
+	return async function ( Prompt )
+	{
+		let actions = [];
+		let reply = /## Thread (t[0-9a-f]+), contested, WAITING ON YOU to reply/.exec( Prompt );
+		if ( reply )
+		{
+			actions.push( { Thread: reply[ 1 ], Kind: 'reply', Reply: 'Outcome: one item stays.' } );
+		}
+		let apply = /## Thread (t[0-9a-f]+), resolved, WAITING ON YOU to apply/.exec( Prompt );
+		if ( apply )
+		{
+			actions.push( { Thread: apply[ 1 ], Kind: 'apply', Outcome: 'one item stays' } );
+		}
+		return { Answer: { Actions: actions }, Usage: { Model: 'fake-model', Input: 1500, Output: 120 } };
+	};
 }
 
 
 TEST.before( async function ()
 {
-	running = await SERVER.Start( { Data: FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-ui-' ) ), Port: 0 } );
-	token = running.Settings.Participants[ 1 ].Token;
+	running = await SERVER.Start( { Data: FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-ui-' ) ), Port: 0, Caller: fake_caller } );
 	let created = await fetch( running.Url + '/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Browser check', Text: TEXT } ) } );
 	proposal = ( await created.json() ).Proposal;
 	browser = await CDP.StartBrowser();
@@ -99,14 +107,16 @@ TEST( 'a selection becomes an anchored thread', async function ()
 } );
 
 
-TEST( 'a reply from the LLM arrives without a reload', async function ()
+TEST( 'Send to LLM hands it the thread; its reply arrives without a reload and its tokens are counted', async function ()
 {
-	let threads = await ( await fetch( running.Url + '/api/proposals/' + proposal.Id + '/threads' ) ).json();
-	let thread = threads.Threads[ 0 ];
-	await as_llm( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/replies', { Text: 'Outcome: one item stays.' } );
+	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (1)"' );
+	await page.Click( '#send-button' );
 	await page.WaitFor( count_of( '.thread:not(.compose) .reply' ) + ' === 2' );
 	ASSERT.equal( await page.Evaluate( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).pop().textContent.trim()' ), 'Outcome: one item stays.' );
 	await page.WaitFor( text_of( '#state-line' ) + ' === "1 contested, waiting on you 1"' );
+	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (0)"' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "send-button" ).disabled' ), true );
+	await page.WaitFor( text_of( '#usage' ) + ' === "LLM today: 1.5k in · 120 out"' );
 } );
 
 
@@ -136,9 +146,8 @@ TEST( 'edit and save make a revision and keep the highlight', async function ()
 
 TEST( 'once the LLM applies, the owner approves and the proposal is a Plan', async function ()
 {
-	let threads = await ( await fetch( running.Url + '/api/proposals/' + proposal.Id + '/threads' ) ).json();
-	let thread = threads.Threads[ 0 ];
-	await as_llm( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Outcome: 'one item stays' } );
+	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (1)"' );
+	await page.Click( '#send-button' );
 	await page.WaitFor( '!document.getElementById( "approve-button" ).disabled' );
 	await page.WaitFor( text_of( '#state-line' ) + ' === "1 applied · ready for approval as a Plan"' );
 	await page.Click( '#approve-button' );

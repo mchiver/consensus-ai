@@ -9,6 +9,7 @@ const FS = require( 'fs' );
 const OS = require( 'os' );
 const PATH = require( 'path' );
 const SERVER = require( '../src/Server.js' );
+const PARTICIPANTS = require( '../src/Participants.js' );
 
 const TEXT = [
 	'# A proposal',
@@ -24,6 +25,20 @@ const TEXT = [
 
 let running = null;
 let token = null;
+
+// The LLM, played by the tests: Answer( Prompt ) returns what the call answers, or throws.
+let llm_answer = null;
+let llm_prompts = [];
+
+
+function fake_caller( Call )
+{
+	return async function ( Prompt )
+	{
+		llm_prompts.push( Prompt );
+		return await llm_answer( Prompt, Call );
+	};
+}
 
 
 function temporary_folder()
@@ -72,8 +87,10 @@ async function discussed_thread( id, words, outcome )
 
 TEST.before( async function ()
 {
-	running = await SERVER.Start( { Data: temporary_folder(), Port: 0 } );
-	token = running.Settings.Participants[ 1 ].Token;
+	running = await SERVER.Start( { Data: temporary_folder(), Port: 0, Caller: fake_caller } );
+	// The llm needs no token; these tests also play it over the API, so it gets one in memory.
+	token = PARTICIPANTS.NewToken();
+	running.Settings.Participants[ 1 ].Token = token;
 } );
 
 
@@ -93,7 +110,8 @@ TEST( 'start writes the settings, binds to 127.0.0.1 and refuses any other host'
 	await ASSERT.rejects( SERVER.Start( { Data: temporary_folder(), Port: 0, Host: '0.0.0.0' } ), /localhost only/ );
 	let again = await SERVER.Start( { Data: running.Store.Folder, Port: 0 } );
 	ASSERT.equal( again.SettingsWritten, false );
-	ASSERT.equal( again.Settings.Participants[ 1 ].Token, token );
+	ASSERT.deepEqual( again.Settings.Participants[ 1 ].Call, { Kind: 'claude-cli', Command: 'claude' } );
+	ASSERT.equal( 'Token' in again.Settings.Participants[ 1 ], false );
 	await again.Close();
 } );
 
@@ -424,4 +442,172 @@ TEST( 'every change sends a Server-Sent Event { Proposal, Kind }', async functio
 	await call( 'DELETE', '/api/proposals/' + proposal.Id );
 	ASSERT.equal( ( await next_event() ).Kind, 'trashed' );
 	await reader.cancel();
+} );
+
+
+//---------------------------------------------------------------------
+// Send to LLM: the owner's button, the call in the background, the answer carried out as the llm.
+
+async function wait_idle( id )
+{
+	for ( let attempt = 0; attempt < 200; attempt++ )
+	{
+		let read = await call( 'GET', '/api/proposals/' + id );
+		if ( !read.Body.Llm.Running )
+		{
+			return;
+		}
+		await new Promise( function ( resolve ) { setTimeout( resolve, 20 ); } );
+	}
+	throw new Error( 'the call did not finish' );
+}
+
+
+async function send_and_wait( id )
+{
+	let sent = await call( 'POST', '/api/proposals/' + id + '/send' );
+	if ( sent.Status === 202 )
+	{
+		await wait_idle( id );
+	}
+	return sent;
+}
+
+
+function thread_of( read, thread_id )
+{
+	return read.Body.Threads.find( function ( thread ) { return thread.Id === thread_id; } );
+}
+
+
+TEST( 'send: owner only, refused when nothing is waiting on the LLM', async function ()
+{
+	let proposal = await create( 'Send refusals' );
+	let read = await call( 'GET', '/api/proposals/' + proposal.Id );
+	ASSERT.deepEqual( read.Body.Llm, { Configured: true, Name: 'llm', Running: false, Waiting: 0 } );
+	let nothing = await call( 'POST', '/api/proposals/' + proposal.Id + '/send' );
+	ASSERT.equal( nothing.Status, 409 );
+	ASSERT.match( nothing.Body.Error, /nothing is waiting/ );
+	let as_llm = await call( 'POST', '/api/proposals/' + proposal.Id + '/send', {}, true );
+	ASSERT.equal( as_llm.Status, 403 );
+	let missing = await call( 'POST', '/api/proposals/no-such/send' );
+	ASSERT.equal( missing.Status, 404 );
+} );
+
+
+TEST( 'send: the answer\'s replies and applies are carried out as the llm, and its tokens are counted', async function ()
+{
+	let proposal = await create( 'Send carried out' );
+	let id = proposal.Id;
+	let question = ( await call( 'POST', '/api/proposals/' + id + '/threads', { Anchor: { Text: 'A closing paragraph.' }, Text: 'Is this needed?' } ) ).Body.Thread;
+	let resolved = await discussed_thread( id, 'one list item', 'Outcome: the item becomes "one better item".' );
+	await call( 'POST', '/api/proposals/' + id + '/threads/' + resolved.Id + '/resolve' );
+	let before = await call( 'GET', '/api/proposals/' + id );
+	ASSERT.equal( before.Body.Llm.Waiting, 2 );
+	let usage_before = ( await call( 'GET', '/api/usage' ) ).Body;
+
+	llm_answer = async function ()
+	{
+		return {
+			Answer: { Actions: [
+				{ Thread: question.Id, Kind: 'reply', Reply: 'It closes the proposal. Outcome: no change.' },
+				{ Thread: resolved.Id, Kind: 'apply', Outcome: 'the item is better', Text: TEXT.replace( '- one list item', '- one better item' ), Anchor: 'one better item' },
+				{ Thread: 'tnot-waiting', Kind: 'reply', Reply: 'ignored' },
+			] },
+			Usage: { Model: 'fake-model', Input: 1000, Output: 200 },
+		};
+	};
+	llm_prompts = [];
+	let sent = await send_and_wait( id );
+	ASSERT.equal( sent.Status, 202 );
+	ASSERT.deepEqual( sent.Body.Threads.sort(), [ question.Id, resolved.Id ].sort() );
+
+	let prompt = llm_prompts[ 0 ];
+	ASSERT.match( prompt, /Thread [0-9a-z]+, contested, WAITING ON YOU to reply/ );
+	ASSERT.match( prompt, /resolved, WAITING ON YOU to apply/ );
+	ASSERT.match( prompt, /A closing paragraph\./ );
+	ASSERT.match( prompt, /User: Is this needed\?/ );
+
+	let after = await call( 'GET', '/api/proposals/' + id );
+	ASSERT.equal( after.Body.Proposal.Revision, 2 );
+	ASSERT.match( after.Body.Text, /one better item/ );
+	let answered = thread_of( after, question.Id );
+	ASSERT.equal( answered.Replies[ 1 ].By, 'llm' );
+	ASSERT.equal( answered.WaitingOnMe, true );
+	let applied = thread_of( after, resolved.Id );
+	ASSERT.equal( applied.State, 'applied' );
+	ASSERT.equal( applied.Applied.By, 'llm' );
+	ASSERT.equal( applied.Anchor.Text, 'one better item' );
+	ASSERT.equal( after.Body.Llm.Waiting, 0 );
+
+	let usage = ( await call( 'GET', '/api/usage' ) ).Body;
+	ASSERT.equal( usage.Today.Calls, usage_before.Today.Calls + 1 );
+	ASSERT.equal( usage.Today.Input, usage_before.Today.Input + 1000 );
+	ASSERT.equal( usage.Today.Output, usage_before.Today.Output + 200 );
+	ASSERT.equal( usage.Models[ 'fake-model' ].Calls >= 1, true );
+} );
+
+
+TEST( 'send: a failed call leaves a line on each thread; a refused action on its thread; the next success clears them', async function ()
+{
+	let proposal = await create( 'Send failures' );
+	let id = proposal.Id;
+	let first = ( await call( 'POST', '/api/proposals/' + id + '/threads', { Anchor: null, Text: 'First?' } ) ).Body.Thread;
+	let second = ( await call( 'POST', '/api/proposals/' + id + '/threads', { Anchor: null, Text: 'Second?' } ) ).Body.Thread;
+
+	llm_answer = async function () { throw new Error( 'the model is asleep' ); };
+	await send_and_wait( id );
+	let failed = await call( 'GET', '/api/proposals/' + id );
+	ASSERT.equal( thread_of( failed, first.Id ).CallFailed.Reason, 'the model is asleep' );
+	ASSERT.equal( thread_of( failed, second.Id ).CallFailed.Reason, 'the model is asleep' );
+
+	llm_answer = async function ()
+	{
+		return {
+			Answer: { Actions: [
+				{ Thread: first.Id, Kind: 'reply', Reply: 'Answered.' },
+				{ Thread: second.Id, Kind: 'apply', Outcome: 'nothing' },
+			] },
+			Usage: { Model: 'fake-model', Input: 1, Output: 1 },
+		};
+	};
+	await send_and_wait( id );
+	let partly = await call( 'GET', '/api/proposals/' + id );
+	ASSERT.equal( thread_of( partly, first.Id ).CallFailed, undefined );
+	ASSERT.match( thread_of( partly, second.Id ).CallFailed.Reason, /still contested/ );
+} );
+
+
+TEST( 'send: one call at a time per proposal, and a ceiling of calls per hour', async function ()
+{
+	let proposal = await create( 'Send overlap' );
+	let id = proposal.Id;
+	await call( 'POST', '/api/proposals/' + id + '/threads', { Anchor: null, Text: 'Anyone?' } );
+	let release = null;
+	llm_answer = function ()
+	{
+		return new Promise( function ( resolve )
+		{
+			release = function () { resolve( { Answer: { Actions: [] }, Usage: { Model: 'fake-model', Input: 0, Output: 0 } } ); };
+		} );
+	};
+	let first = await call( 'POST', '/api/proposals/' + id + '/send' );
+	ASSERT.equal( first.Status, 202 );
+	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + id ) ).Body.Llm.Running, true );
+	let second = await call( 'POST', '/api/proposals/' + id + '/send' );
+	ASSERT.equal( second.Status, 409 );
+	ASSERT.match( second.Body.Error, /already running/ );
+	while ( !release )
+	{
+		await new Promise( function ( resolve ) { setTimeout( resolve, 10 ); } );
+	}
+	release();
+	await wait_idle( id );
+
+	let settings_call = running.Settings.Participants[ 1 ].Call;
+	settings_call.CallsPerHour = 1;
+	let paused = await call( 'POST', '/api/proposals/' + id + '/send' );
+	delete settings_call.CallsPerHour;
+	ASSERT.equal( paused.Status, 409 );
+	ASSERT.match( paused.Body.Error, /paused/ );
 } );

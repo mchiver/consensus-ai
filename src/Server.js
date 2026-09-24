@@ -1,7 +1,8 @@
 'use strict';
 
-// Server - Start( { Data, Port, Host } ) returns { App, Address, Url, Settings, Store, Events, Close }.
+// Server - Start( { Data, Port, Host, Caller? } ) returns { App, Address, Url, Settings, Store, Events, Close }.
 // Localhost only: any other host is refused. The data folder is ~data beside package.json unless given.
+// Caller, for tests only, replaces how the LLM is called (see Llm.Caller).
 
 const PATH = require( 'path' );
 const FS = require( 'fs' );
@@ -76,7 +77,7 @@ async function Start( Options )
 	app.disable( 'x-powered-by' );
 	let events = EVENTS.Hub();
 	events.Attach( app, '/api/events' );
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Refresh: refresh, Search: search } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Refresh: refresh, Search: search, Caller: options.Caller } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
 	{
