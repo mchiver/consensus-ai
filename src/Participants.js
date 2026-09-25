@@ -10,6 +10,7 @@ const CRYPTO = require( 'crypto' );
 const LLM = require( './Llm.js' );
 
 const ROLES = [ 'owner', 'llm', 'member' ];
+const DEFAULT_STATES = [ 'Proposal', 'Plan', 'Working', 'Finished' ];
 
 
 //---------------------------------------------------------------------
@@ -19,6 +20,7 @@ function DefaultSettings( Port )
 {
 	return {
 		Port: Port,
+		States: DEFAULT_STATES.slice(),
 		Participants: [
 			{ Name: 'user', Display: 'User', Role: 'owner' },
 			{ Name: 'llm', Display: 'LLM', Role: 'llm', Call: { Kind: 'claude-cli', Command: 'claude' } },
@@ -123,16 +125,44 @@ function Validate( Settings )
 	{
 		problems.push( 'only one participant can have a Call' );
 	}
+	if ( Settings && Settings.States !== undefined )
+	{
+		let states = Settings.States;
+		let usable = Array.isArray( states ) && states.length > 0 && states.every( function ( state ) { return typeof state === 'string' && state.trim() === state && state.length > 0; } );
+		if ( !usable )
+		{
+			problems.push( 'States must be a list of one or more names' );
+		}
+		else if ( new Set( states ).size !== states.length )
+		{
+			problems.push( 'States names a state twice' );
+		}
+	}
 	return problems;
+}
+
+
+//---------------------------------------------------------------------
+// States: the names a Plan's state is picked from; the first is where a new Plan starts.
+
+function States( Settings )
+{
+	if ( Settings && Array.isArray( Settings.States ) && Settings.States.length )
+	{
+		return Settings.States.slice();
+	}
+	return DEFAULT_STATES.slice();
 }
 
 
 module.exports = {
 	ROLES: ROLES,
+	DEFAULT_STATES: DEFAULT_STATES,
 	DefaultSettings: DefaultSettings,
 	NewToken: NewToken,
 	Identify: Identify,
 	Public: Public,
 	PublicList: PublicList,
 	Validate: Validate,
+	States: States,
 };

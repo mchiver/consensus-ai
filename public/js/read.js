@@ -33,7 +33,8 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 
 	function offer_comment()
 	{
-		let anchor = Render.SelectionAnchor( view );
+		let is_document = !!State.Open && State.Open.Proposal.Kind === 'document';
+		let anchor = is_document ? null : Render.SelectionAnchor( view );
 		if ( !anchor )
 		{
 			hide_button();

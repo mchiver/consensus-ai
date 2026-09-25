@@ -68,3 +68,23 @@ TEST( 'validation names the problems', function ()
 	ASSERT.match( calls[ 2 ], /Kind is "telepathy"/ );
 	ASSERT.match( calls[ 3 ], /only one participant/ );
 } );
+
+
+TEST( 'States: the settings\' list, or the defaults; a bad list is named', function ()
+{
+	let settings = PARTICIPANTS.DefaultSettings( 3500 );
+	ASSERT.deepEqual( settings.States, [ 'Proposal', 'Plan', 'Working', 'Finished' ] );
+	ASSERT.deepEqual( PARTICIPANTS.States( settings ), [ 'Proposal', 'Plan', 'Working', 'Finished' ] );
+	ASSERT.deepEqual( PARTICIPANTS.States( { States: [ 'Draft', 'Done' ] } ), [ 'Draft', 'Done' ] );
+	ASSERT.deepEqual( PARTICIPANTS.States( {} ), PARTICIPANTS.DEFAULT_STATES );
+	function problems( states )
+	{
+		return PARTICIPANTS.Validate( Object.assign( {}, settings, { States: states } ) );
+	}
+	ASSERT.deepEqual( problems( [ 'Draft', 'Done' ] ), [] );
+	ASSERT.match( problems( [] )[ 0 ], /States must be a list/ );
+	ASSERT.match( problems( 'Plan' )[ 0 ], /States must be a list/ );
+	ASSERT.match( problems( [ 'Plan', '' ] )[ 0 ], /States must be a list/ );
+	ASSERT.match( problems( [ ' Plan' ] )[ 0 ], /States must be a list/ );
+	ASSERT.match( problems( [ 'Plan', 'Plan' ] )[ 0 ], /twice/ );
+} );

@@ -1,7 +1,7 @@
 'use strict';
 
-// Search view - the best chunks across proposals, plans and threads; a hit opens its proposal at the
-// passage or the thread.
+// Search view - the best chunks in one project, or everywhere: plans, documents, threads and corpus files.
+// A hit opens its proposal at the passage or the thread, or its corpus.
 
 angular.module( 'Consensus' ).controller( 'SearchController', [ '$scope', 'State', 'Client', function ( $scope, State, Client )
 {
@@ -11,11 +11,17 @@ angular.module( 'Consensus' ).controller( 'SearchController', [ '$scope', 'State
 	$scope.Searched = false;
 
 
-	async function search( query )
+	// Within one project when Project is given, otherwise across everything.
+	async function search( query, project )
 	{
 		$scope.Query = query;
 		$scope.Searched = false;
-		let answer = await State.Act( function () { return Client.Get( '/api/search?q=' + encodeURIComponent( query ) + '&limit=20' ); } );
+		let path = '/api/search?q=' + encodeURIComponent( query ) + '&limit=20';
+		if ( project )
+		{
+			path += '&project=' + encodeURIComponent( project );
+		}
+		let answer = await State.Act( function () { return Client.Get( path ); } );
 		$scope.Hits = answer ? answer.Hits : [];
 		$scope.Searched = true;
 		$scope.$applyAsync();
@@ -24,7 +30,11 @@ angular.module( 'Consensus' ).controller( 'SearchController', [ '$scope', 'State
 
 	$scope.Open = function ( hit )
 	{
-		if ( hit.Thread )
+		if ( hit.Corpus )
+		{
+			State.PendingFile = hit.Path;
+		}
+		else if ( hit.Thread )
 		{
 			State.Pend( { Select: hit.Thread } );
 		}
@@ -35,8 +45,15 @@ angular.module( 'Consensus' ).controller( 'SearchController', [ '$scope', 'State
 	};
 
 
-	$scope.$on( 'search-requested', function ( event, query )
+	$scope.ProjectName = function ()
 	{
-		search( query );
+		let project = State.Projects.find( function ( candidate ) { return candidate.Id === State.SearchProject; } );
+		return project ? project.Name : ( State.SearchProject || '' );
+	};
+
+
+	$scope.$on( 'search-requested', function ( event, query, project )
+	{
+		search( query, project );
 	} );
 } ] );

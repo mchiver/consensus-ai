@@ -7,6 +7,55 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 
 
 //---------------------------------------------------------------------
+// The routes are plain hashes read from $window.location. ng-include (the sidebar's tree) brings in
+// $location, which would rewrite them to "#!/..." unless its prefix is empty.
+
+.config( [ '$locationProvider', function ( $locationProvider )
+{
+	$locationProvider.hashPrefix( '' );
+} ] )
+
+
+//---------------------------------------------------------------------
+// auto-focus: an input shown by ng-if takes the focus (the autofocus attribute only works on page load).
+
+.directive( 'autoFocus', [ '$timeout', function ( $timeout )
+{
+	return {
+		restrict: 'A',
+		link: function ( scope, element )
+		{
+			$timeout( function () { element[ 0 ].focus(); } );
+		},
+	};
+} ] )
+
+
+//---------------------------------------------------------------------
+// on-file="Handler( File )" on an <input type="file">: the picked file is handed over, and the input cleared
+// so the same file can be picked again.
+
+.directive( 'onFile', [ function ()
+{
+	return {
+		restrict: 'A',
+		link: function ( scope, element, attributes )
+		{
+			element[ 0 ].addEventListener( 'change', function ()
+			{
+				let file = element[ 0 ].files[ 0 ];
+				element[ 0 ].value = '';
+				if ( file )
+				{
+					scope.$apply( function () { scope.$eval( attributes.onFile, { File: file } ); } );
+				}
+			} );
+		},
+	};
+} ] )
+
+
+//---------------------------------------------------------------------
 // State
 
 .factory( 'State', [ 'Client', '$rootScope', function ( Client, $rootScope )
@@ -14,7 +63,11 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	let state = {
 		Me: null,
 		Participants: [],
+		States: [],
 		Proposals: [],
+		Projects: [],
+		CorpusId: null,
+		SearchProject: null,
 		OpenId: null,
 		Open: null,
 		View: 'read',
@@ -67,14 +120,17 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		let answer = await Client.Get( '/api/me' );
 		state.Me = answer.Me;
 		state.Participants = answer.Participants;
+		state.States = answer.States || [];
 		digest();
 	}
 
 
+	// The proposals (for the counts) and the projects with their trees (for the sidebar), together.
 	async function LoadList()
 	{
-		let answer = await Client.Get( '/api/proposals' );
-		state.Proposals = answer.Proposals;
+		let answers = await Promise.all( [ Client.Get( '/api/proposals' ), Client.Get( '/api/projects' ) ] );
+		state.Proposals = answers[ 0 ].Proposals;
+		state.Projects = answers[ 1 ].Projects;
 		digest();
 	}
 
@@ -82,6 +138,10 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	// OpenProposal( id ): show it; OpenProposal( null, view ): a view without a proposal (waiting, search).
 	async function OpenProposal( Id, View )
 	{
+		if ( View !== 'corpus' )
+		{
+			state.CorpusId = null;
+		}
 		if ( !Id )
 		{
 			state.OpenId = null;
@@ -364,12 +424,22 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			State.OpenProposal( null, 'waiting' );
 			return;
 		}
-		let search = /^#\/search\/(.*)$/.exec( hash );
+		let corpus = /^#\/c\/([^/]+)$/.exec( hash );
+		if ( corpus )
+		{
+			State.CorpusId = decodeURIComponent( corpus[ 1 ] );
+			State.OpenProposal( null, 'corpus' );
+			return;
+		}
+		// #/search/<words> searches everything; #/search/<project>/<words> one project (the words are encoded, so
+		// they hold no slash).
+		let search = /^#\/search\/(?:([^/]+)\/)?(.*)$/.exec( hash );
 		if ( search )
 		{
-			State.Query = decodeURIComponent( search[ 1 ] );
+			State.SearchProject = search[ 1 ] ? decodeURIComponent( search[ 1 ] ) : null;
+			State.Query = decodeURIComponent( search[ 2 ] );
 			State.OpenProposal( null, 'search' );
-			$scope.$broadcast( 'search-requested', State.Query );
+			$scope.$broadcast( 'search-requested', State.Query, State.SearchProject );
 			return;
 		}
 		State.OpenProposal( null );

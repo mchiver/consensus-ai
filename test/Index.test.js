@@ -129,3 +129,28 @@ TEST( 'a refresh after a change re-chunks, and unchanged chunks keep their hash'
 	ASSERT.equal( after_reply[ 1 ].Hash, before[ 1 ].Hash );
 	ASSERT.notEqual( after_reply[ 2 ].Hash, before[ 2 ].Hash );
 } );
+
+
+TEST( 'a search among some ids weighs and finds only their chunks', async function ()
+{
+	let indexes = {
+		a: [ { Chunk: 1, Proposal: 'a', Revision: 1, Text: 'The lantern is lit by the keeper.' } ],
+		b: [ { Chunk: 1, Proposal: 'b', Revision: 1, Text: 'The lantern was replaced by a lamp.' } ],
+		c: [ { Chunk: 1, Corpus: 'c', Path: 'notes.md', Revision: 1, Text: 'notes.md\n\nlantern oil schedule' } ],
+	};
+	let store = {
+		ListProposals: async function () { return [ { Id: 'a' }, { Id: 'b' } ]; },
+		ReadIndex: async function ( id ) { return JSON.parse( JSON.stringify( indexes[ id ] ) ); },
+		ListCorpora: async function () { return [ { Id: 'c' } ]; },
+		ReadCorpusIndex: async function ( id ) { return JSON.parse( JSON.stringify( indexes[ id ] ) ); },
+	};
+	function sources( hits )
+	{
+		return hits.map( function ( hit ) { return hit.Proposal || hit.Corpus; } ).sort();
+	}
+	ASSERT.deepEqual( sources( await INDEX.SearchAll( store, 'lantern', 10 ) ), [ 'a', 'b', 'c' ] );
+	ASSERT.deepEqual( sources( await INDEX.SearchAll( store, 'lantern', 10, null, [ 'a', 'c' ] ) ), [ 'a', 'c' ] );
+	ASSERT.deepEqual( sources( await INDEX.SearchAll( store, 'lantern', 10, null, [] ) ), [] );
+	let file = ( await INDEX.SearchAll( store, 'oil schedule', 10, null, [ 'c' ] ) )[ 0 ];
+	ASSERT.deepEqual( [ file.Corpus, file.Path, file.Proposal ], [ 'c', 'notes.md', null ] );
+} );

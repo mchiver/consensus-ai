@@ -12,6 +12,7 @@ const PARTICIPANTS = require( './Participants.js' );
 const EVENTS = require( './Events.js' );
 const API = require( './Api.js' );
 const INDEX = require( './Index.js' );
+const CORPUS = require( './Corpus.js' );
 const VECTORS = require( './Vectors.js' );
 
 
@@ -25,6 +26,27 @@ async function index_missing( store, refresh )
 		if ( !current )
 		{
 			await refresh( proposal.Id );
+		}
+	}
+}
+
+// The same for the uploaded corpora: one whose index is missing or older than its zip is indexed again.
+async function index_missing_corpora( store, refresh_corpus )
+{
+	for ( let corpus of await store.ListCorpora() )
+	{
+		let index = await store.ReadCorpusIndex( corpus.Id );
+		let current = index.length > 0 && index.every( function ( chunk ) { return chunk.Revision === corpus.Version; } );
+		if ( !current )
+		{
+			try
+			{
+				await refresh_corpus( corpus.Id );
+			}
+			catch ( error )
+			{
+				console.error( 'index: corpus ' + corpus.Id + ': ' + error.message );
+			}
 		}
 	}
 }
@@ -59,6 +81,23 @@ async function Start( Options )
 	{
 		throw new Error( 'settings ' + store.SettingsPath() + ': ' + problems.join( '; ' ) );
 	}
+	// Older settings have no States: the defaults are written in, so they can be seen and edited there.
+	if ( !settings.States )
+	{
+		settings.States = PARTICIPANTS.States( settings );
+		await store.WriteSettings( settings );
+		console.log( 'settings: added States ' + settings.States.join( ', ' ) );
+	}
+	if ( !settings.Corpus )
+	{
+		settings.Corpus = CORPUS.Limits( settings );
+		await store.WriteSettings( settings );
+		console.log( 'settings: added the Corpus limits' );
+	}
+	for ( let line of await store.Migrate( settings.States ) )
+	{
+		console.log( 'migrated ' + line );
+	}
 	let port = ( options.Port !== undefined ) ? options.Port : ( settings.Port || DEFAULT_PORT );
 
 	// The search index: ours always; Ollama vectors when the settings name a model.
@@ -67,17 +106,31 @@ async function Start( Options )
 	{
 		return INDEX.Refresh( store, id, embedder );
 	}
-	function search( query, limit )
+	// Ids, when given, limits the search to those items (a project's).
+	function search( query, limit, ids )
 	{
-		return INDEX.SearchAll( store, query, limit, embedder );
+		return INDEX.SearchAll( store, query, limit, embedder, ids );
+	}
+	// A corpus is indexed from its zip, within the settings' limits.
+	async function refresh_corpus( id )
+	{
+		let corpus = await store.ReadCorpus( id );
+		let zip = corpus ? await store.ReadCorpusZip( id ) : null;
+		if ( !zip )
+		{
+			return null;
+		}
+		let extracted = await CORPUS.Extract( zip, CORPUS.Limits( settings ) );
+		return INDEX.RefreshCorpus( store, corpus, extracted.Texts, embedder );
 	}
 	await index_missing( store, refresh );
+	await index_missing_corpora( store, refresh_corpus );
 
 	let app = EXPRESS();
 	app.disable( 'x-powered-by' );
 	let events = EVENTS.Hub();
 	events.Attach( app, '/api/events' );
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Refresh: refresh, Search: search, Caller: options.Caller } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Refresh: refresh, RefreshCorpus: refresh_corpus, Search: search, Caller: options.Caller } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
 	{

@@ -1,7 +1,7 @@
 'use strict';
 
-// Header - the title, the one-line state, Read / Edit / Revisions, Comment on the whole document,
-// Send to LLM and Approve as Plan (owner), and Delete (to the trash, confirmed inline).
+// Header - the title, the state picker and the one-line state, Read / Edit / Revisions, Comment on the whole
+// document, Send to LLM (owner), and Delete (to the trash, confirmed inline).
 
 angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', function ( $scope, $window, State, Client )
 {
@@ -22,27 +22,49 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 	};
 
 
-	$scope.ApproveHint = function ()
+	// The state picker: any of the settings' States, by anyone, at any time.
+	$scope.PickedState = null;
+
+	$scope.$watch( function () { return State.Open ? State.Open.Proposal.State : null; }, function ( current )
 	{
-		if ( !State.Open )
+		$scope.PickedState = current;
+	} );
+
+
+	// The settings' States, plus the proposal's own when the settings no longer name it.
+	$scope.StateOptions = function ()
+	{
+		if ( !State.Open || State.States.includes( State.Open.Proposal.State ) )
 		{
-			return '';
+			return State.States;
 		}
-		let tally = State.Open.Proposal.Tally;
-		if ( tally.Approvable )
+		return State.States.concat( [ State.Open.Proposal.State ] );
+	};
+
+
+	$scope.SetState = async function ()
+	{
+		let wanted = $scope.PickedState;
+		if ( !State.Open || wanted === State.Open.Proposal.State )
 		{
-			return 'nothing contested, nothing waiting: approve this as a Plan';
+			return;
 		}
-		let reasons = [];
-		if ( tally.Contested )
+		$scope.Busy = true;
+		let answer = await State.Act( function ()
 		{
-			reasons.push( tally.Contested + ' contested' );
-		}
-		if ( tally.Waiting )
+			return Client.Put( '/api/proposals/' + encodeURIComponent( State.OpenId ) + '/state', { State: wanted } );
+		} );
+		$scope.Busy = false;
+		if ( answer )
 		{
-			reasons.push( tally.Waiting + ' waiting to be applied' );
+			await State.Reload();
+			State.LoadList();
 		}
-		return 'not yet: ' + reasons.join( ', ' );
+		else
+		{
+			$scope.PickedState = State.Open ? State.Open.Proposal.State : null;
+		}
+		$scope.$applyAsync();
 	};
 
 
@@ -76,23 +98,6 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 		if ( answer )
 		{
 			await State.Reload();
-		}
-		$scope.$applyAsync();
-	};
-
-
-	$scope.Approve = async function ()
-	{
-		$scope.Busy = true;
-		let answer = await State.Act( function ()
-		{
-			return Client.Post( '/api/proposals/' + encodeURIComponent( State.OpenId ) + '/approve' );
-		} );
-		$scope.Busy = false;
-		if ( answer )
-		{
-			await State.Reload();
-			State.LoadList();
 		}
 		$scope.$applyAsync();
 	};

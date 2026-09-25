@@ -5,10 +5,16 @@
 angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope', function ( $q, $rootScope )
 {
 
+	// A body is JSON, or a file (a Blob) sent as it is: the only files sent are zips.
 	async function call( method, path, body )
 	{
 		let options = { method: method, headers: {} };
-		if ( body !== undefined )
+		if ( body instanceof Blob )
+		{
+			options.headers[ 'Content-Type' ] = 'application/zip';
+			options.body = body;
+		}
+		else if ( body !== undefined )
 		{
 			options.headers[ 'Content-Type' ] = 'application/json';
 			options.body = JSON.stringify( body );
@@ -58,6 +64,13 @@ angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope'
 	}
 
 
+	// Upload( 'POST' | 'PUT', Path, File ): a zip as the request's body.
+	function Upload( Method, Path, File )
+	{
+		return $q.when( call( Method, Path, File ) );
+	}
+
+
 	// Listen: Handler( { Proposal, Kind, Thread? } ) inside a digest; Status( live ) on connect and drop.
 	function Listen( Handler, Status )
 	{
@@ -84,6 +97,7 @@ angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope'
 		Post: Post,
 		Put: Put,
 		Delete: Delete,
+		Upload: Upload,
 		Listen: Listen,
 	};
 } ] );

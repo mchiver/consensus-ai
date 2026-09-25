@@ -12,7 +12,7 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 		{ Value: 'mine', Label: 'Waiting on me' },
 	];
 	const TAIL_FILTERS = [
-		{ Value: 'waiting', Label: 'Waiting to be applied' },
+		{ Value: 'resolved', Label: 'Resolved (waiting to be applied)' },
 		{ Value: 'applied', Label: 'Applied' },
 		{ Value: 'reopened', Label: 'Reopened' },
 		{ Value: 'detached', Label: 'Detached' },
@@ -47,7 +47,7 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 		{
 			case 'contested': return thread.Status === 'contested';
 			case 'mine': return thread.WaitingOnMe;
-			case 'waiting': return thread.State === 'waiting';
+			case 'resolved': return thread.State === 'resolved';
 			case 'applied': return thread.State === 'applied';
 			case 'reopened': return thread.State === 'reopened';
 			case 'detached': return thread.Detached;

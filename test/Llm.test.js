@@ -34,9 +34,9 @@ TEST( 'the prompt holds the rules, the text in a fence longer than its own, ever
 		Text: 'Some text with ```` four backticks.',
 		Threads: [
 			thread( 't1', 'contested', [ 'llm' ], [ { By: 'user', Text: 'Why?\nReally.' } ] ),
-			thread( 't2', 'consensus', [ 'llm' ], [ { By: 'llm', Text: 'Outcome: x.' } ], { Resolved: { By: 'user' } } ),
+			thread( 't2', 'resolved', [ 'llm' ], [ { By: 'llm', Text: 'Outcome: x.' } ], { Resolved: { By: 'user' } } ),
 			thread( 't3', 'contested', [ 'user' ], [ { By: 'llm', Text: 'Asked.' } ] ),
-			thread( 't4', 'consensus', [], [ { By: 'llm', Text: 'Done.' } ], { Anchor: null, Resolved: { By: 'user' }, Applied: { Revision: 2, Outcome: 'done' } } ),
+			thread( 't4', 'resolved', [], [ { By: 'llm', Text: 'Done.' } ], { Anchor: null, Resolved: { By: 'user' }, Applied: { Revision: 2, Outcome: 'done' } } ),
 		],
 		Me: 'llm',
 		Participants: PARTICIPANTS,

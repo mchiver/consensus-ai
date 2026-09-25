@@ -41,7 +41,7 @@ const SCHEMA = {
 
 const RULES_TEXT = [
 	'You are the LLM participant in Consensus, a place where people and an LLM work a proposal through in discussion,',
-	'thread by thread, until it is approved as a Plan.',
+	'thread by thread, until every thread is resolved and applied.',
 	'',
 	'# The rules',
 	'',
@@ -113,13 +113,16 @@ function Validate( Call )
 
 
 //---------------------------------------------------------------------
-// Prompt: everything one call needs. Package = { Proposal, Text, Threads, Me, Participants, Search }
-// Threads are presented threads (with Turn); Me is the llm participant's name; Search is { threadId: [ hit ] }.
+// Prompt: everything one call needs. Package = { Project?, Proposal, Text, Threads, Me, Participants, Search }
+// Threads are presented threads (with Turn); Me is the llm participant's name; Search is { threadId: [ hit ] },
+// found within Project (its name) when there is one.
 
 function Prompt( Package )
 {
 	let lines = [ RULES_TEXT, '' ];
-	lines.push( '# The proposal: "' + Package.Proposal.Title + '", revision ' + Package.Proposal.Revision );
+	let state = Package.Proposal.State ? ' (' + Package.Proposal.State + ')' : '';
+	let project = Package.Project ? ' in the project "' + Package.Project + '"' : '';
+	lines.push( '# The proposal: "' + Package.Proposal.Title + '"' + state + project + ', revision ' + Package.Proposal.Revision );
 	lines.push( '' );
 	let fence = fence_for( Package.Text );
 	lines.push( fence + 'markdown' );
@@ -157,7 +160,7 @@ function Prompt( Package )
 	let searched = Object.keys( search ).filter( function ( id ) { return search[ id ].length > 0; } );
 	if ( searched.length )
 	{
-		lines.push( '# What the search finds for the threads waiting on you' );
+		lines.push( '# What the search finds for the threads waiting on you' + ( Package.Project ? ', in the project\'s plans, documents and uploaded files' : '' ) );
 		lines.push( '' );
 		for ( let id of searched )
 		{
@@ -165,7 +168,15 @@ function Prompt( Package )
 			lines.push( '' );
 			for ( let hit of search[ id ] )
 			{
-				let where = hit.Thread ? 'a thread in "' + hit.Title + '"' : '"' + hit.Title + '"';
+				let where = '"' + hit.Title + '"';
+				if ( hit.Thread )
+				{
+					where = 'a thread in "' + hit.Title + '"';
+				}
+				else if ( hit.Path )
+				{
+					where = 'the file ' + hit.Path + ' in the uploaded "' + hit.Title + '"';
+				}
 				lines.push( '- From ' + where + ': ' + indent( clip( hit.Text ) ) );
 			}
 			lines.push( '' );

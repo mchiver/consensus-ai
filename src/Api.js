@@ -12,6 +12,9 @@ const RULES = require( './Rules.js' );
 const ANCHORS = require( './Anchors.js' );
 const PARTICIPANTS = require( './Participants.js' );
 const LLM = require( './Llm.js' );
+const STORE = require( './Store.js' );
+const TREE = require( './Tree.js' );
+const CORPUS = require( './Corpus.js' );
 
 const BODY_LIMIT = '8mb';
 const SEARCH_LIMIT = 10;
@@ -106,7 +109,7 @@ function Attach( App, Context )
 			event.Thread = thread_id;
 		}
 		events.Send( event );
-		if ( Context.Refresh && kind !== 'trashed' && kind !== 'title' )
+		if ( Context.Refresh && kind !== 'trashed' && kind !== 'title' && kind !== 'state' )
 		{
 			// Through the proposal's queue, so it never overlaps a write to, or a move of, that folder.
 			store.Queue( id, function () { return Context.Refresh( id ); } ).catch( function ( error )
@@ -136,21 +139,35 @@ function Attach( App, Context )
 	}
 
 
-	// One word for the page: contested | reopened | waiting | applied
+	// One word for the page: contested | reopened | resolved (waiting to be applied) | applied
 	function state_of( thread )
 	{
 		if ( thread.Status === 'contested' )
 		{
 			return thread.Reopened ? 'reopened' : 'contested';
 		}
-		return RULES.IsWaiting( thread ) ? 'waiting' : 'applied';
+		return RULES.IsWaiting( thread ) ? 'resolved' : 'applied';
 	}
 
 
 	function summarize( proposal, threads, name )
 	{
 		let tally = RULES.Tally( proposal, threads, participants() );
-		return Object.assign( {}, proposal, { Tally: tally, State: RULES.StateLine( proposal, tally, name ) } );
+		let line = is_document( proposal ) ? 'a document' : RULES.StateLine( tally, name );
+		return Object.assign( {}, proposal, { Tally: tally, StateLine: line } );
+	}
+
+
+	// A Document is edited and kept like a Plan, but has no threads and no state; the LLM reads it through search.
+	function is_document( proposal )
+	{
+		return proposal.Kind === 'document';
+	}
+
+
+	function states()
+	{
+		return PARTICIPANTS.States( settings );
 	}
 
 
@@ -201,7 +218,7 @@ function Attach( App, Context )
 
 	router.get( '/me', function ( request, response )
 	{
-		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Participants: participants() } );
+		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Participants: participants(), States: states() } );
 	} );
 
 
@@ -211,11 +228,11 @@ function Attach( App, Context )
 	router.get( '/proposals', async function ( request, response )
 	{
 		let proposals = await store.ListProposals();
-		let status = request.query.status;
+		let state = request.query.state;
 		let list = [];
 		for ( let proposal of proposals )
 		{
-			if ( status && proposal.Status !== status )
+			if ( state && proposal.State !== state )
 			{
 				continue;
 			}
@@ -234,9 +251,51 @@ function Attach( App, Context )
 		{
 			return fail( response, 400, 'Title is required' );
 		}
-		let proposal = await store.CreateProposal( { Title: title, Text: text_of( body.Text ), By: request.Participant.Name } );
+		let kind = ( body.Kind === undefined ) ? 'plan' : body.Kind;
+		if ( kind !== 'plan' && kind !== 'document' )
+		{
+			return fail( response, 400, 'Kind must be plan or document' );
+		}
+		let state = states()[ 0 ];
+		if ( kind === 'document' && body.State !== undefined && body.State !== null )
+		{
+			return fail( response, 400, 'a Document has no State' );
+		}
+		if ( kind === 'plan' && body.State !== undefined )
+		{
+			let can = RULES.CanSetState( body.State, states() );
+			if ( !can.Ok )
+			{
+				return fail( response, 400, can.Reason );
+			}
+			state = body.State;
+		}
+		// Where it goes: a project (Default when not named) and a folder in it (its root when not named).
+		let project_id = ( body.Project === undefined || body.Project === null ) ? STORE.DEFAULT_PROJECT : body.Project;
+		let parent = ( body.Parent === undefined ) ? null : body.Parent;
+		let target = await store.ReadProject( project_id );
+		if ( !target )
+		{
+			return fail( response, 404, 'no such project' );
+		}
+		if ( !TREE.Children( target.Items, parent ) )
+		{
+			return fail( response, 400, 'Parent is not a folder of the project' );
+		}
+		let proposal = await store.CreateProposal( { Title: title, Text: text_of( body.Text ), By: request.Participant.Name, Kind: kind, State: state } );
+		let placed = await change_project( project_id, null, function ( project )
+		{
+			if ( !TREE.Insert( project.Items, parent, { Kind: kind, Id: proposal.Id } ) )
+			{
+				TREE.Insert( project.Items, null, { Kind: kind, Id: proposal.Id } );
+			}
+		} );
+		if ( placed.Refused )
+		{
+			console.error( 'projects: ' + proposal.Id + ' was created but not placed: ' + placed.Refused.Error );
+		}
 		changed( proposal.Id, 'created' );
-		response.status( 201 ).json( { Proposal: summarize( proposal, [], request.Participant.Name ) } );
+		response.status( 201 ).json( { Proposal: summarize( proposal, [], request.Participant.Name ), Project: project_id } );
 	} );
 
 
@@ -248,13 +307,15 @@ function Attach( App, Context )
 			return fail( response, 404, 'no such proposal' );
 		}
 		let name = request.Participant.Name;
+		let holder = await store.ProjectOf( request.params.id );
 		response.json( {
 			Me: PARTICIPANTS.Public( request.Participant ),
 			Participants: participants(),
+			Project: holder ? { Id: holder.Id, Name: holder.Name } : null,
 			Proposal: summarize( read.Proposal, read.Threads, name ),
 			Text: read.Text,
 			Threads: present_threads( read.Threads, read.Text, name ),
-			Llm: llm_view( request.params.id, read.Threads ),
+			Llm: is_document( read.Proposal ) ? { Configured: false } : llm_view( request.params.id, read.Threads ),
 		} );
 	} );
 
@@ -286,7 +347,7 @@ function Attach( App, Context )
 	} );
 
 
-	// A manual edit: a new revision, and the proposal is contested again. Refused when made from a stale revision.
+	// A manual edit: a new revision; no thread's status changes. Refused when made from a stale revision.
 	router.put( '/proposals/:id/text', async function ( request, response )
 	{
 		let body = request.body || {};
@@ -306,10 +367,9 @@ function Attach( App, Context )
 			{
 				return fail( response, 409, 'the text changed since revision ' + body.Revision + '; reload and edit again', { Revision: read.Proposal.Revision } );
 			}
-			await store.WriteText( id, { Text: body.Text, By: request.Participant.Name, Reason: 'edit' } );
+			let proposal = await store.WriteText( id, { Text: body.Text, By: request.Participant.Name, Reason: 'edit' } );
 			refind( read.Threads, body.Text );
 			await store.WriteThreads( id, read.Threads );
-			let proposal = await store.UpdateProposal( id, RULES.EditEffect( read.Proposal ) );
 			return summarize( proposal, read.Threads, request.Participant.Name );
 		} );
 		if ( !result )
@@ -332,6 +392,14 @@ function Attach( App, Context )
 		{
 			return fail( response, 404, 'no such proposal' );
 		}
+		let holder = await store.ProjectOf( id );
+		if ( holder )
+		{
+			await change_project( holder.Id, null, function ( project )
+			{
+				TREE.Remove( project.Items, id );
+			} );
+		}
 		changed( id, 'trashed' );
 		response.json( { Trashed: id } );
 	} );
@@ -343,9 +411,15 @@ function Attach( App, Context )
 	} );
 
 
-	// Approval turns the proposal into a Plan: owner only, nothing contested, nothing waiting to be applied.
-	router.post( '/proposals/:id/approve', async function ( request, response )
+	// A proposal's state: one of the settings' States, set by anyone at any time. { State }
+	router.put( '/proposals/:id/state', async function ( request, response )
 	{
+		let wanted = ( request.body || {} ).State;
+		let can = RULES.CanSetState( wanted, states() );
+		if ( !can.Ok )
+		{
+			return fail( response, 400, can.Reason );
+		}
 		let id = request.params.id;
 		let result = await store.Queue( id, async function ()
 		{
@@ -354,21 +428,597 @@ function Attach( App, Context )
 			{
 				return fail( response, 404, 'no such proposal' );
 			}
-			let can = RULES.CanApprove( request.Participant, read.Proposal, read.Threads );
-			if ( !can.Ok )
+			if ( is_document( read.Proposal ) )
 			{
-				return fail( response, ( request.Participant.Role === 'owner' ) ? 409 : 403, can.Reason );
+				return fail( response, 409, 'a Document has no State' );
 			}
-			let proposal = await store.UpdateProposal( id, RULES.ApproveEffect( request.Participant, now(), read.Proposal ) );
+			let proposal = await store.UpdateProposal( id, { State: wanted } );
 			return summarize( proposal, read.Threads, request.Participant.Name );
 		} );
 		if ( !result )
 		{
 			return;
 		}
-		changed( id, 'approved' );
+		changed( id, 'state' );
 		response.json( { Proposal: result } );
 	} );
+
+
+	//-----------------------------------------------------------------
+	// Projects: each holds a tree of folders and items (Tree.js). Writes to one project run through its queue;
+	// a write that names a Version is refused (409) when the project has moved on, as a stale revision is.
+
+	function project_queue( id )
+	{
+		return 'project:' + id;
+	}
+
+
+	// Change( project ) edits the project in place, or returns a refusal to leave it as it was.
+	// Returns { Project } or { Refused: { Status, Error, Extra } }.
+	async function change_project( id, version, change )
+	{
+		let result = await store.Queue( project_queue( id ), async function ()
+		{
+			let project = await store.ReadProject( id );
+			if ( !project )
+			{
+				return refused( 404, 'no such project' );
+			}
+			if ( version !== null && version !== undefined && version !== project.Version )
+			{
+				return refused( 409, 'the project changed since version ' + version + '; reload and try again', { Version: project.Version } );
+			}
+			let outcome = await change( project );
+			if ( outcome && outcome.Refused )
+			{
+				return outcome;
+			}
+			return { Project: await store.WriteProject( project ) };
+		} );
+		if ( !result.Refused )
+		{
+			events.Send( { Project: id, Kind: 'project' } );
+		}
+		return result;
+	}
+
+
+	// The projects as the page shows them: each item with its title, state and tally.
+	async function present_projects( projects, name )
+	{
+		let views = {};
+		for ( let proposal of await store.ListProposals() )
+		{
+			let read = await store.ReadProposal( proposal.Id );
+			let summary = summarize( proposal, read ? read.Threads : [], name );
+			views[ proposal.Id ] = { Title: summary.Title, State: summary.State, Tally: summary.Tally, StateLine: summary.StateLine, Updated: summary.Updated };
+		}
+		for ( let corpus of await store.ListCorpora() )
+		{
+			let indexed = corpus.Files.filter( function ( file ) { return file.Indexed; } ).length;
+			views[ corpus.Id ] = { Title: corpus.Name, Files: corpus.Files.length, Indexed: indexed, Updated: corpus.Updated };
+		}
+		return projects.map( function ( project )
+		{
+			return Object.assign( {}, project, { Items: present_items( project.Items, views ) } );
+		} );
+	}
+
+
+	function present_items( items, views )
+	{
+		return items.map( function ( node )
+		{
+			if ( node.Kind === 'folder' )
+			{
+				return { Kind: 'folder', Id: node.Id, Name: node.Name, Items: present_items( node.Items, views ) };
+			}
+			let view = views[ node.Id ];
+			if ( !view )
+			{
+				return { Kind: node.Kind, Id: node.Id, Missing: true };
+			}
+			return Object.assign( { Kind: node.Kind, Id: node.Id }, view );
+		} );
+	}
+
+
+	function name_of_body( body )
+	{
+		return text_of( ( body || {} ).Name ).trim();
+	}
+
+
+	function send_result( response, result, status, value )
+	{
+		if ( result.Refused )
+		{
+			return fail( response, result.Refused.Status, result.Refused.Error, result.Refused.Extra );
+		}
+		response.status( status ).json( value );
+	}
+
+
+	router.get( '/projects', async function ( request, response )
+	{
+		let projects = await store.ListProjects();
+		response.json( { Projects: await present_projects( projects, request.Participant.Name ) } );
+	} );
+
+
+	router.post( '/projects', async function ( request, response )
+	{
+		let name = name_of_body( request.body );
+		if ( !name )
+		{
+			return fail( response, 400, 'Name is required' );
+		}
+		let project = await store.CreateProject( { Name: name } );
+		events.Send( { Project: project.Id, Kind: 'project' } );
+		response.status( 201 ).json( { Project: project } );
+	} );
+
+
+	router.put( '/projects/:pid', async function ( request, response )
+	{
+		let name = name_of_body( request.body );
+		if ( !name )
+		{
+			return fail( response, 400, 'Name is required' );
+		}
+		let result = await change_project( request.params.pid, request.body.Version, function ( project )
+		{
+			project.Name = name;
+		} );
+		send_result( response, result, 200, { Project: result.Project } );
+	} );
+
+
+	// Only an empty project is deleted, and never the Default one.
+	router.delete( '/projects/:pid', async function ( request, response )
+	{
+		let id = request.params.pid;
+		if ( id === STORE.DEFAULT_PROJECT )
+		{
+			return fail( response, 409, 'the Default project is never deleted' );
+		}
+		let result = await store.Queue( project_queue( id ), async function ()
+		{
+			let project = await store.ReadProject( id );
+			if ( !project )
+			{
+				return refused( 404, 'no such project' );
+			}
+			if ( project.Items.length )
+			{
+				return refused( 409, 'only an empty project is deleted: move or delete what it holds first' );
+			}
+			await store.DeleteProject( id );
+			return { Deleted: id };
+		} );
+		if ( !result.Refused )
+		{
+			events.Send( { Project: id, Kind: 'project' } );
+		}
+		send_result( response, result, 200, result );
+	} );
+
+
+	router.post( '/projects/:pid/folders', async function ( request, response )
+	{
+		let body = request.body || {};
+		let name = name_of_body( body );
+		if ( !name )
+		{
+			return fail( response, 400, 'Name is required' );
+		}
+		let folder = { Kind: 'folder', Id: new_id( 'f' ), Name: name, Items: [] };
+		let result = await change_project( request.params.pid, body.Version, function ( project )
+		{
+			if ( !TREE.Insert( project.Items, ( body.Parent === undefined ) ? null : body.Parent, folder ) )
+			{
+				return refused( 400, 'Parent is not a folder of the project' );
+			}
+		} );
+		send_result( response, result, 201, { Folder: folder, Project: result.Project } );
+	} );
+
+
+	router.put( '/projects/:pid/folders/:fid', async function ( request, response )
+	{
+		let body = request.body || {};
+		let name = name_of_body( body );
+		if ( !name )
+		{
+			return fail( response, 400, 'Name is required' );
+		}
+		let result = await change_project( request.params.pid, body.Version, function ( project )
+		{
+			let found = TREE.Find( project.Items, request.params.fid );
+			if ( !found || found.Node.Kind !== 'folder' )
+			{
+				return refused( 404, 'no such folder' );
+			}
+			found.Node.Name = name;
+		} );
+		send_result( response, result, 200, { Project: result.Project } );
+	} );
+
+
+	// Only an empty folder is deleted.
+	router.delete( '/projects/:pid/folders/:fid', async function ( request, response )
+	{
+		let result = await change_project( request.params.pid, null, function ( project )
+		{
+			let found = TREE.Find( project.Items, request.params.fid );
+			if ( !found || found.Node.Kind !== 'folder' )
+			{
+				return refused( 404, 'no such folder' );
+			}
+			if ( found.Node.Items.length )
+			{
+				return refused( 409, 'only an empty folder is deleted: move or delete what it holds first' );
+			}
+			TREE.Remove( project.Items, found.Node.Id );
+		} );
+		send_result( response, result, 200, { Project: result.Project } );
+	} );
+
+
+	//-----------------------------------------------------------------
+	// Corpus: an uploaded zip whose text files are indexed with its project. The zip is the request's body
+	// (Content-Type: application/zip), no larger than the settings' Corpus.MaxZipMegabytes.
+
+	function corpus_queue( id )
+	{
+		return 'corpus:' + id;
+	}
+
+
+	function zip_body()
+	{
+		return EXPRESS.raw( { type: 'application/zip', limit: CORPUS.Limits( settings ).MaxZipMegabytes + 'mb' } );
+	}
+
+
+	// The files of an uploaded zip, or a refusal naming what is wrong with it.
+	async function extract_upload( body )
+	{
+		if ( !Buffer.isBuffer( body ) || body.length === 0 )
+		{
+			return refused( 400, 'send the zip as the body, with Content-Type: application/zip' );
+		}
+		try
+		{
+			return await CORPUS.Extract( body, CORPUS.Limits( settings ) );
+		}
+		catch ( error )
+		{
+			return refused( 400, error.message );
+		}
+	}
+
+
+	// Re-index a corpus in the background, through its queue; a new index is announced when done.
+	function corpus_changed( id, kind )
+	{
+		events.Send( { Corpus: id, Kind: kind } );
+		if ( Context.RefreshCorpus && kind !== 'trashed' )
+		{
+			store.Queue( corpus_queue( id ), function () { return Context.RefreshCorpus( id ); } ).catch( function ( error )
+			{
+				console.error( 'index: corpus ' + id + ': ' + error.message );
+			} );
+		}
+	}
+
+
+	router.post( '/projects/:pid/corpus', zip_body(), async function ( request, response )
+	{
+		let name = text_of( request.query.name ).trim().replace( /\.zip$/i, '' );
+		if ( !name )
+		{
+			return fail( response, 400, 'name is required' );
+		}
+		let parent = text_of( request.query.parent ) || null;
+		let target = await store.ReadProject( request.params.pid );
+		if ( !target )
+		{
+			return fail( response, 404, 'no such project' );
+		}
+		if ( !TREE.Children( target.Items, parent ) )
+		{
+			return fail( response, 400, 'parent is not a folder of the project' );
+		}
+		let extracted = await extract_upload( request.body );
+		if ( extracted.Refused )
+		{
+			return send_result( response, extracted );
+		}
+		let corpus = await store.CreateCorpus( { Name: name, Zip: request.body, Files: extracted.Files } );
+		await change_project( target.Id, null, function ( project )
+		{
+			if ( !TREE.Insert( project.Items, parent, { Kind: 'corpus', Id: corpus.Id } ) )
+			{
+				TREE.Insert( project.Items, null, { Kind: 'corpus', Id: corpus.Id } );
+			}
+		} );
+		corpus_changed( corpus.Id, 'created' );
+		response.status( 201 ).json( { Corpus: corpus, Project: target.Id } );
+	} );
+
+
+	router.get( '/corpus/:cid', async function ( request, response )
+	{
+		let corpus = await store.ReadCorpus( request.params.cid );
+		if ( !corpus )
+		{
+			return fail( response, 404, 'no such corpus' );
+		}
+		let holder = await store.ProjectOf( corpus.Id );
+		response.json( { Corpus: corpus, Project: holder ? { Id: holder.Id, Name: holder.Name } : null } );
+	} );
+
+
+	router.get( '/corpus/:cid/file', async function ( request, response )
+	{
+		let path = text_of( request.query.path );
+		let corpus = await store.ReadCorpus( request.params.cid );
+		if ( !corpus )
+		{
+			return fail( response, 404, 'no such corpus' );
+		}
+		let file = corpus.Files.find( function ( candidate ) { return candidate.Path === path; } );
+		if ( !file )
+		{
+			return fail( response, 404, 'no such file in the corpus' );
+		}
+		if ( !file.Indexed )
+		{
+			return fail( response, 409, 'this file was not taken in: ' + file.Reason );
+		}
+		let text = await CORPUS.ReadFile( await store.ReadCorpusZip( corpus.Id ), path );
+		response.json( { Path: path, Text: text } );
+	} );
+
+
+	// A new zip over the corpus: its files are listed and indexed again.
+	router.put( '/corpus/:cid', zip_body(), async function ( request, response )
+	{
+		let id = request.params.cid;
+		let extracted = await extract_upload( request.body );
+		if ( extracted.Refused )
+		{
+			return send_result( response, extracted );
+		}
+		let corpus = await store.Queue( corpus_queue( id ), function ()
+		{
+			return store.ReplaceCorpus( id, { Zip: request.body, Files: extracted.Files } );
+		} );
+		if ( !corpus )
+		{
+			return fail( response, 404, 'no such corpus' );
+		}
+		corpus_changed( id, 'replaced' );
+		response.json( { Corpus: corpus } );
+	} );
+
+
+	router.put( '/corpus/:cid/name', async function ( request, response )
+	{
+		let name = name_of_body( request.body );
+		if ( !name )
+		{
+			return fail( response, 400, 'Name is required' );
+		}
+		let id = request.params.cid;
+		let corpus = await store.Queue( corpus_queue( id ), function () { return store.RenameCorpus( id, name ); } );
+		if ( !corpus )
+		{
+			return fail( response, 404, 'no such corpus' );
+		}
+		events.Send( { Corpus: id, Kind: 'renamed' } );
+		let holder = await store.ProjectOf( id );
+		if ( holder )
+		{
+			events.Send( { Project: holder.Id, Kind: 'project' } );
+		}
+		response.json( { Corpus: corpus } );
+	} );
+
+
+	router.delete( '/corpus/:cid', async function ( request, response )
+	{
+		let id = request.params.cid;
+		let moved = await store.Queue( corpus_queue( id ), function () { return store.TrashCorpus( id ); } );
+		if ( !moved )
+		{
+			return fail( response, 404, 'no such corpus' );
+		}
+		let holder = await store.ProjectOf( id );
+		if ( holder )
+		{
+			await change_project( holder.Id, null, function ( project )
+			{
+				TREE.Remove( project.Items, id );
+			} );
+		}
+		corpus_changed( id, 'trashed' );
+		response.json( { Trashed: id } );
+	} );
+
+
+	//-----------------------------------------------------------------
+	// Items: any node of a tree (a folder, a plan, a document) moved or copied, within a project or into another.
+	// Body = { Project, Parent? }  Parent is a folder of Project; without it, the project's root.
+
+	function where_of( body )
+	{
+		let where = body || {};
+		return { Project: where.Project, Parent: ( where.Parent === undefined ) ? null : where.Parent };
+	}
+
+
+	// The target is a project, and Parent (when given) one of its folders. Returns null or a refusal.
+	async function check_target( where )
+	{
+		if ( typeof where.Project !== 'string' || !where.Project )
+		{
+			return refused( 400, 'Project is required' );
+		}
+		let project = await store.ReadProject( where.Project );
+		if ( !project )
+		{
+			return refused( 404, 'no such project' );
+		}
+		if ( !TREE.Children( project.Items, where.Parent ) )
+		{
+			return refused( 400, 'Parent is not a folder of the project' );
+		}
+		return null;
+	}
+
+
+	router.post( '/items/:id/move', async function ( request, response )
+	{
+		let id = request.params.id;
+		let where = where_of( request.body );
+		let problem = await check_target( where );
+		if ( problem )
+		{
+			return send_result( response, problem );
+		}
+		let source = await store.ProjectOf( id );
+		if ( !source )
+		{
+			return fail( response, 404, 'no such item in any project' );
+		}
+		let result = null;
+		if ( source.Id === where.Project )
+		{
+			result = await change_project( source.Id, null, function ( project )
+			{
+				let found = TREE.Find( project.Items, id );
+				if ( !found )
+				{
+					return refused( 404, 'no such item in the project' );
+				}
+				if ( where.Parent !== null && TREE.Contains( found.Node, where.Parent ) )
+				{
+					return refused( 400, 'a folder cannot go inside itself' );
+				}
+				TREE.Remove( project.Items, id );
+				TREE.Insert( project.Items, where.Parent, found.Node );
+			} );
+		}
+		else
+		{
+			// Out of one project, into the other; if the second step is refused, the item goes back to its first project's root.
+			let node = null;
+			let taken = await change_project( source.Id, null, function ( project )
+			{
+				node = TREE.Remove( project.Items, id );
+				if ( !node )
+				{
+					return refused( 404, 'no such item in the project' );
+				}
+			} );
+			if ( taken.Refused )
+			{
+				return send_result( response, taken );
+			}
+			result = await change_project( where.Project, null, function ( project )
+			{
+				if ( !TREE.Insert( project.Items, where.Parent, node ) )
+				{
+					return refused( 400, 'Parent is not a folder of the project' );
+				}
+			} );
+			if ( result.Refused )
+			{
+				await change_project( source.Id, null, function ( project )
+				{
+					TREE.Insert( project.Items, null, node );
+				} );
+			}
+		}
+		send_result( response, result, 200, { Project: result.Project } );
+	} );
+
+
+	// A copy of a plan or document is whole (text, threads, revisions) under a new id; a folder's copy holds a
+	// copy of everything in it, with new ids throughout.
+	router.post( '/items/:id/copy', async function ( request, response )
+	{
+		let id = request.params.id;
+		let where = where_of( request.body );
+		let problem = await check_target( where );
+		if ( problem )
+		{
+			return send_result( response, problem );
+		}
+		let source = await store.ProjectOf( id );
+		let found = source ? TREE.Find( source.Items, id ) : null;
+		if ( !found )
+		{
+			return fail( response, 404, 'no such item in any project' );
+		}
+		let copy = await copy_node( found.Node );
+		if ( copy.Refused )
+		{
+			return send_result( response, copy );
+		}
+		let result = await change_project( where.Project, null, function ( project )
+		{
+			if ( !TREE.Insert( project.Items, where.Parent, copy ) )
+			{
+				return refused( 400, 'Parent is not a folder of the project' );
+			}
+		} );
+		send_result( response, result, 201, { Node: copy, Project: result.Project } );
+	} );
+
+
+	// The copy of one node and everything under it, or a refusal.
+	async function copy_node( node )
+	{
+		if ( node.Kind === 'folder' )
+		{
+			let folder = { Kind: 'folder', Id: new_id( 'f' ), Name: node.Name, Items: [] };
+			for ( let child of node.Items )
+			{
+				let copied = await copy_node( child );
+				if ( copied.Refused )
+				{
+					return copied;
+				}
+				folder.Items.push( copied );
+			}
+			return folder;
+		}
+		if ( node.Kind === 'plan' || node.Kind === 'document' )
+		{
+			let proposal = await store.Queue( node.Id, function () { return store.CopyProposal( node.Id ); } );
+			if ( !proposal )
+			{
+				return refused( 404, 'no such proposal: ' + node.Id );
+			}
+			changed( proposal.Id, 'created' );
+			return { Kind: node.Kind, Id: proposal.Id };
+		}
+		if ( node.Kind === 'corpus' )
+		{
+			let corpus = await store.Queue( corpus_queue( node.Id ), function () { return store.CopyCorpus( node.Id ); } );
+			if ( !corpus )
+			{
+				return refused( 404, 'no such corpus: ' + node.Id );
+			}
+			corpus_changed( corpus.Id, 'created' );
+			return { Kind: 'corpus', Id: corpus.Id };
+		}
+		return refused( 409, 'a ' + node.Kind + ' item cannot be copied' );
+	}
 
 
 	//-----------------------------------------------------------------
@@ -433,6 +1083,10 @@ function Attach( App, Context )
 			{
 				return fail( response, 404, 'no such proposal' );
 			}
+			if ( is_document( read.Proposal ) )
+			{
+				return fail( response, 409, 'a Document has no threads' );
+			}
 			let anchor = null;
 			if ( body.Anchor )
 			{
@@ -456,7 +1110,7 @@ function Attach( App, Context )
 			};
 			read.Threads.push( thread );
 			await store.WriteThreads( id, read.Threads );
-			await store.UpdateProposal( id, RULES.CommentEffect( read.Proposal ) );
+			await store.UpdateProposal( id, {} );
 			return present_threads( [ thread ], read.Text, request.Participant.Name )[ 0 ];
 		} );
 		if ( !result )
@@ -493,7 +1147,7 @@ function Attach( App, Context )
 			}
 			thread.Replies.push( { Id: new_id( 'r' ), By: participant.Name, At: now(), Text: text } );
 			await store.WriteThreads( id, read.Threads );
-			await store.UpdateProposal( id, RULES.CommentEffect( read.Proposal ) );
+			await store.UpdateProposal( id, {} );
 			return { Thread: present_threads( [ thread ], read.Text, participant.Name )[ 0 ], Reopened: effect.Reopen };
 		} );
 		if ( !result.Refused )
@@ -646,10 +1300,6 @@ function Attach( App, Context )
 			}
 			Object.assign( thread, RULES.ApplyEffect( participant, now(), proposal.Revision, outcome ) );
 			await store.WriteThreads( id, read.Threads );
-			if ( changed_text )
-			{
-				proposal = await store.UpdateProposal( id, RULES.EditEffect( proposal ) );
-			}
 			return { Thread: present_threads( [ thread ], text, participant.Name )[ 0 ], Proposal: summarize( proposal, read.Threads, participant.Name ) };
 		} );
 		if ( !result.Refused )
@@ -734,6 +1384,10 @@ function Attach( App, Context )
 		{
 			return fail( response, 404, 'no such proposal' );
 		}
+		if ( is_document( read.Proposal ) )
+		{
+			return fail( response, 409, 'a Document has no threads to send' );
+		}
 		let waiting = RULES.WaitingOn( llm.Name, read.Threads, participants() );
 		if ( waiting.length === 0 )
 		{
@@ -766,13 +1420,16 @@ function Attach( App, Context )
 		let read = await store.ReadProposal( id );
 		let presented = present_threads( read.Threads, read.Text, llm.Name );
 		let waiting = presented.filter( function ( thread ) { return thread.WaitingOnMe; } );
+		// The context comes from the proposal's own project: its plans, documents and corpus files.
+		let holder = await store.ProjectOf( id );
 		let prompt = LLM.Prompt( {
+			Project: holder ? holder.Name : null,
 			Proposal: read.Proposal,
 			Text: read.Text,
 			Threads: presented,
 			Me: llm.Name,
 			Participants: participants(),
-			Search: await search_for( waiting ),
+			Search: await search_for( waiting, holder ? TREE.ItemIds( holder.Items ) : null ),
 		} );
 		let caller = ( Context.Caller || LLM.Caller )( call );
 		let answer = null;
@@ -799,19 +1456,16 @@ function Attach( App, Context )
 	}
 
 
-	// For each waiting thread, the best passages elsewhere: its anchor words and its last reply as the query.
-	async function search_for( waiting )
+	// For each waiting thread, the best passages elsewhere in Ids (the project's items; everything when null):
+	// its anchor words and its last reply as the query.
+	async function search_for( waiting, ids )
 	{
 		let found = {};
 		if ( !Context.Search )
 		{
 			return found;
 		}
-		let titles = {};
-		for ( let proposal of await store.ListProposals() )
-		{
-			titles[ proposal.Id ] = proposal.Title;
-		}
+		let titles = await source_titles();
 		for ( let thread of waiting )
 		{
 			let last = thread.Replies[ thread.Replies.length - 1 ];
@@ -819,7 +1473,7 @@ function Attach( App, Context )
 			let hits = [];
 			try
 			{
-				hits = await Context.Search( query, SEARCH_PER_THREAD + 1 );
+				hits = await Context.Search( query, SEARCH_PER_THREAD + 1, ids );
 			}
 			catch ( error )
 			{
@@ -827,7 +1481,7 @@ function Attach( App, Context )
 			}
 			found[ thread.Id ] = hits.filter( function ( hit ) { return hit.Thread !== thread.Id; } ).slice( 0, SEARCH_PER_THREAD ).map( function ( hit )
 			{
-				return Object.assign( {}, hit, { Title: titles[ hit.Proposal ] || hit.Proposal } );
+				return Object.assign( {}, hit, { Title: title_of_hit( titles, hit ) } );
 			} );
 		}
 		return found;
@@ -866,7 +1520,7 @@ function Attach( App, Context )
 			}
 			else
 			{
-				if ( thread.Status !== 'consensus' )
+				if ( thread.Status !== 'resolved' )
 				{
 					result = refused( 409, 'the LLM applied a thread that is still contested' );
 				}
@@ -1010,7 +1664,7 @@ function Attach( App, Context )
 			let threads = RULES.WaitingOn( name, read.Threads, all );
 			for ( let thread of present_threads( threads, read.Text, name ) )
 			{
-				waiting.push( { Proposal: { Id: proposal.Id, Title: proposal.Title, Status: proposal.Status, Revision: proposal.Revision }, Thread: thread } );
+				waiting.push( { Proposal: { Id: proposal.Id, Title: proposal.Title, State: proposal.State, Revision: proposal.Revision }, Thread: thread } );
 			}
 		}
 		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Waiting: waiting } );
@@ -1036,18 +1690,48 @@ function Attach( App, Context )
 		{
 			limit = SEARCH_LIMIT;
 		}
-		let hits = await Context.Search( query, limit );
+		// ?project= keeps the search inside one project; without it, everything is searched.
+		let ids = null;
+		if ( request.query.project )
+		{
+			let project = await store.ReadProject( text_of( request.query.project ) );
+			if ( !project )
+			{
+				return fail( response, 404, 'no such project' );
+			}
+			ids = TREE.ItemIds( project.Items );
+		}
+		let hits = await Context.Search( query, limit, ids );
+		let titles = await source_titles();
+		for ( let hit of hits )
+		{
+			hit.Title = title_of_hit( titles, hit );
+		}
+		response.json( { Query: query, Hits: hits } );
+	} );
+
+
+	// The title of everything a hit can come from: proposals by their Title, corpora by their Name.
+	async function source_titles()
+	{
 		let titles = {};
 		for ( let proposal of await store.ListProposals() )
 		{
 			titles[ proposal.Id ] = proposal.Title;
 		}
-		for ( let hit of hits )
+		for ( let corpus of await store.ListCorpora() )
 		{
-			hit.Title = titles[ hit.Proposal ] || hit.Proposal;
+			titles[ corpus.Id ] = corpus.Name;
 		}
-		response.json( { Query: query, Hits: hits } );
-	} );
+		return titles;
+	}
+
+
+	function title_of_hit( titles, hit )
+	{
+		let id = hit.Proposal || hit.Corpus;
+		return titles[ id ] || id;
+	}
 
 
 	//-----------------------------------------------------------------
@@ -1060,6 +1744,10 @@ function Attach( App, Context )
 	router.use( function ( error, request, response, next )
 	{
 		let status = error.status || error.statusCode || 500;
+		if ( error.type === 'entity.too.large' && request.is( 'application/zip' ) )
+		{
+			return fail( response, 413, 'the zip is larger than ' + CORPUS.Limits( settings ).MaxZipMegabytes + ' MB (Corpus.MaxZipMegabytes in consensus.json)' );
+		}
 		fail( response, status, ( status === 500 ) ? 'internal error: ' + error.message : error.message );
 	} );
 

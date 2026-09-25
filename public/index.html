@@ -11,49 +11,114 @@
 </head>
 <body ng-controller="AppController" ng-cloak>
 
-	<div class="layout">
+	<!-- One level of a project's tree; folders include it again for their own items. -->
+	<script type="text/ng-template" id="tree-nodes.html">
+		<div class="tree-node" ng-repeat="node in ( node ? node.Items : project.Items ) track by node.Id" ng-switch="node.Kind">
+			<div ng-switch-when="folder" class="folder" data-id="{{ node.Id }}">
+				<div class="folder-head" ng-class="{ target: IsTarget(node) }" ng-click="PickFolder(project, node)" title="{{ IsTarget(node) ? 'new items go here; click again for the project root' : 'click to put new items here; drag to move' }}" drag-item="node.Id" drop-target="{ Project: project.Id, Parent: node.Id }" on-drop="MoveItem( Id, Target )">
+					<span class="caret" ng-click="ToggleFold(node, $event)">{{ IsFolded(node) ? '&#9656;' : '&#9662;' }}</span>
+					<form class="rename-form" ng-if="IsRenaming(node)" ng-submit="Rename()" ng-click="$event.stopPropagation()">
+						<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" auto-focus>
+					</form>
+					<span class="folder-name" ng-if="!IsRenaming(node)">{{ node.Name }}</span>
+					<span class="count">{{ ItemCount(node.Items) }}</span>
+					<span class="node-buttons" ng-show="Deleting !== node.Id">
+						<button class="btn btn-link btn-sm paste-here" title="paste a copy of {{ Clipboard.Name }} here" ng-show="Clipboard" ng-click="Paste(project, node, $event)">paste</button>
+						<button class="btn btn-link btn-sm copy-item" title="copy this folder and everything in it" ng-click="CopyItem(node, $event)">&#10697;</button>
+						<button class="btn btn-link btn-sm" title="rename" ng-click="StartRename('folder', project, node, $event)">&#9998;</button>
+						<button class="btn btn-link btn-sm" title="delete this empty folder" ng-click="StartDelete(node, $event)">&times;</button>
+					</span>
+					<span class="confirm" ng-show="Deleting === node.Id">
+						delete?
+						<button class="btn btn-sm btn-danger" ng-click="Delete('folder', project, node, $event)">Yes</button>
+						<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)">No</button>
+					</span>
+				</div>
+				<div class="folder-body" ng-if="!IsFolded(node)" ng-include="'tree-nodes.html'"></div>
+			</div>
+			<a ng-switch-when="corpus" class="proposal-item tree-item corpus" ng-class="{ open: State.View === 'corpus' && node.Id === State.CorpusId, missing: node.Missing }" ng-href="#/c/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id">
+				<div class="item-head">
+					<div class="proposal-title">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</div>
+					<span class="item-buttons"><span class="btn btn-link btn-sm copy-item" role="button" title="copy: a whole copy of the zip goes where you paste it" ng-click="CopyItem(node, $event)">&#10697;</span></span>
+				</div>
+				<div class="badges"><span class="item-state" title="files in the zip, and how many were indexed">{{ node.Files }} files, {{ node.Indexed }} indexed</span></div>
+			</a>
+			<a ng-switch-default class="proposal-item tree-item" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document' }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id">
+				<div class="item-head">
+					<div class="proposal-title">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</div>
+					<span class="item-buttons"><span class="btn btn-link btn-sm copy-item" role="button" title="copy: a whole copy, threads and revisions included, goes where you paste it" ng-click="CopyItem(node, $event)">&#10697;</span></span>
+				</div>
+				<div class="badges">
+					<span class="item-state" title="{{ node.Kind === 'document' ? 'a document: no threads, no state' : 'state' }}">{{ node.Kind === 'document' ? 'document' : node.State }}</span>
+					<span class="badge contested" ng-show="node.Tally.Contested" title="contested">{{ node.Tally.Contested }}</span>
+					<span class="badge mine" ng-show="node.Tally.WaitingOn[State.Me.Name]" title="waiting on you">you {{ node.Tally.WaitingOn[State.Me.Name] }}</span>
+					<span class="badge resolved" ng-show="node.Tally.Resolved" title="resolved, waiting to be applied">{{ node.Tally.Resolved }}</span>
+					<span class="badge applied" ng-show="node.Tally.Applied" title="applied">{{ node.Tally.Applied }}</span>
+				</div>
+			</a>
+		</div>
+	</script>
+
+	<div class="layout" ng-class="{ 'no-threads': State.Open.Proposal.Kind === 'document' || State.View === 'corpus' }">
 
 		<!-- ============================================================= -->
 		<aside class="sidebar" ng-controller="SidebarController">
 			<div class="sidebar-top">
 				<div class="brand">Consensus</div>
-				<button class="btn btn-sm btn-primary" ng-click="StartNew()" ng-hide="Creating">New proposal</button>
+				<button class="btn btn-sm btn-primary" id="new-project" ng-click="StartCreate('project')">New project</button>
 			</div>
-			<form class="new-proposal" ng-show="Creating" ng-submit="Create()">
-				<input class="form-control form-control-sm" type="text" placeholder="Title" ng-model="NewTitle" autofocus>
+			<form class="new-proposal" ng-if="Creating.Kind === 'project'" ng-submit="Create()">
+				<input class="form-control form-control-sm" type="text" id="create-name" placeholder="{{ CreatePlaceholder() }}" ng-model="Creating.Name" auto-focus>
 				<div class="new-proposal-buttons">
-					<button class="btn btn-sm btn-primary" type="submit" ng-disabled="!NewTitle">Create</button>
-					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelNew()">Cancel</button>
+					<button class="btn btn-sm btn-primary" type="submit" id="create-submit" ng-disabled="!Creating.Name">Create</button>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()">Cancel</button>
 				</div>
 			</form>
 
 			<form class="sidebar-search" ng-submit="Search()">
-				<input class="form-control form-control-sm" type="search" placeholder="Search proposals and threads" ng-model="Query" id="search-box">
+				<input class="form-control form-control-sm" type="search" placeholder="{{ SearchPlaceholder() }}" ng-model="Query" id="search-box">
 			</form>
 
 			<a class="waiting-link" ng-href="#/waiting" ng-class="{ open: State.View === 'waiting' }" id="waiting-link">Waiting on you: {{ WaitingCount() }}</a>
 
-			<div class="list-heading">Proposals <span class="count">{{ Proposals().length }}</span></div>
-			<div class="list-empty" ng-show="Proposals().length === 0">none</div>
-			<a class="proposal-item" ng-repeat="proposal in Proposals()" ng-class="{ open: proposal.Id === State.OpenId }" ng-href="#/p/{{ proposal.Id }}">
-				<div class="proposal-title">{{ proposal.Title }}</div>
-				<div class="badges">
-					<span class="badge contested" ng-show="proposal.Tally.Contested" title="contested">{{ proposal.Tally.Contested }}</span>
-					<span class="badge mine" ng-show="proposal.Tally.WaitingOn[State.Me.Name]" title="waiting on you">you {{ proposal.Tally.WaitingOn[State.Me.Name] }}</span>
-					<span class="badge waiting" ng-show="proposal.Tally.Waiting" title="resolved, waiting to be applied">{{ proposal.Tally.Waiting }}</span>
-					<span class="badge applied" ng-show="proposal.Tally.Applied" title="applied">{{ proposal.Tally.Applied }}</span>
-					<span class="badge ready" ng-show="proposal.Tally.Approvable && proposal.Tally.Total" title="ready for approval">ready</span>
+			<div class="projects">
+				<div class="project" ng-repeat="project in State.Projects track by project.Id" ng-class="{ open: IsOpen(project) }" data-project="{{ project.Id }}">
+					<div class="project-head" ng-click="ToggleProject(project)" title="{{ IsOpen(project) ? 'close' : 'open' }} this project; drop an item here to move it to the root" drop-target="{ Project: project.Id, Parent: null }" on-drop="MoveItem( Id, Target )">
+						<span class="caret">{{ IsOpen(project) ? '&#9662;' : '&#9656;' }}</span>
+						<form class="rename-form" ng-if="IsRenaming(project)" ng-submit="Rename()" ng-click="$event.stopPropagation()">
+							<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" auto-focus>
+						</form>
+						<span class="project-name" ng-if="!IsRenaming(project)">{{ project.Name }}</span>
+						<span class="count">{{ ItemCount(project.Items) }}</span>
+						<span class="node-buttons" ng-show="IsOpen(project) && Deleting !== project.Id">
+							<button class="btn btn-link btn-sm paste-here" title="paste a copy of {{ Clipboard.Name }} at the root" ng-show="Clipboard" ng-click="Paste(project, null, $event)">paste</button>
+							<button class="btn btn-link btn-sm new-plan" title="new plan{{ Target ? ' in ' + Target.Name : '' }}" ng-click="StartCreate('plan', project, $event)">+ plan</button>
+							<button class="btn btn-link btn-sm new-document" title="new document{{ Target ? ' in ' + Target.Name : '' }}" ng-click="StartCreate('document', project, $event)">+ doc</button>
+							<button class="btn btn-link btn-sm new-folder" title="new folder{{ Target ? ' in ' + Target.Name : '' }}" ng-click="StartCreate('folder', project, $event)">+ folder</button>
+							<label class="btn btn-link btn-sm new-corpus mb-0" title="upload a zip: its text files are indexed with the project{{ Target ? ' (into ' + Target.Name + ')' : '' }}" ng-click="$event.stopPropagation()">+ zip<input type="file" accept=".zip,application/zip" hidden class="zip-input" on-file="UploadZip( project, File )"></label>
+							<button class="btn btn-link btn-sm" title="rename" ng-click="StartRename('project', project, project, $event)">&#9998;</button>
+							<button class="btn btn-link btn-sm" title="delete this empty project" ng-show="project.Id !== 'default'" ng-click="StartDelete(project, $event)">&times;</button>
+						</span>
+						<span class="confirm" ng-show="Deleting === project.Id">
+							delete?
+							<button class="btn btn-sm btn-danger" ng-click="Delete('project', project, project, $event)">Yes</button>
+							<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)">No</button>
+						</span>
+					</div>
+					<div class="project-body" ng-if="IsOpen(project)">
+						<form class="new-proposal" ng-if="Creating.Project === project.Id" ng-submit="Create()">
+							<input class="form-control form-control-sm" type="text" id="create-name" placeholder="{{ CreatePlaceholder() }}" ng-model="Creating.Name" auto-focus>
+							<div class="new-proposal-buttons">
+								<button class="btn btn-sm btn-primary" type="submit" id="create-submit" ng-disabled="!Creating.Name">Create</button>
+								<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()">Cancel</button>
+							</div>
+						</form>
+						<div class="clipboard" ng-show="Clipboard" id="clipboard">copied: {{ Clipboard.Name }} <span class="muted">(Ctrl+V or paste)</span> <button class="btn btn-link btn-sm" title="forget it" ng-click="ClearClipboard()">&times;</button></div>
+						<div class="list-empty" ng-show="project.Items.length === 0">empty</div>
+						<div class="tree" ng-include="'tree-nodes.html'"></div>
+					</div>
 				</div>
-			</a>
-
-			<div class="list-heading">Plans <span class="count">{{ Plans().length }}</span></div>
-			<div class="list-empty" ng-show="Plans().length === 0">none</div>
-			<a class="proposal-item plan" ng-repeat="proposal in Plans()" ng-class="{ open: proposal.Id === State.OpenId }" ng-href="#/p/{{ proposal.Id }}">
-				<div class="proposal-title">{{ proposal.Title }}</div>
-				<div class="badges">
-					<span class="badge applied" ng-show="proposal.Tally.Applied" title="applied">{{ proposal.Tally.Applied }}</span>
-				</div>
-			</a>
+			</div>
 
 			<div class="list-heading trash-heading" ng-click="ToggleTrash()">Trash <span class="count">{{ ShowingTrash ? '▾' : '▸' }}</span></div>
 			<div ng-show="ShowingTrash">
@@ -91,21 +156,21 @@
 				<div class="header-left" ng-show="State.Open">
 					<div class="title">{{ State.Open.Proposal.Title }}</div>
 					<div class="state-line">
-						<span class="status-badge" ng-class="State.Open.Proposal.Status" id="status-badge">{{ State.Open.Proposal.Status === 'consensus' ? 'Plan' : 'Proposal' }}</span>
-						<span id="state-line">{{ State.Open.Proposal.State }}</span>
+						<span class="document-badge" id="document-badge" ng-show="State.Open.Proposal.Kind === 'document'">Document</span>
+						<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="State.Open.Proposal.Kind !== 'document'" title="the proposal's state: anyone can change it" ng-model="PickedState" ng-change="SetState()" ng-disabled="Busy" ng-options="name for name in StateOptions()"></select>
+						<span id="state-line">{{ State.Open.Proposal.StateLine }}</span>
 						<span class="revision" id="revision">revision {{ State.Open.Proposal.Revision }}</span>
 					</div>
 				</div>
-				<div class="title muted" ng-hide="State.Open">{{ State.View === 'waiting' ? 'Waiting on you' : ( State.View === 'search' ? 'Search' : 'Consensus' ) }}</div>
+				<div class="title muted" ng-hide="State.Open">{{ State.View === 'waiting' ? 'Waiting on you' : ( State.View === 'search' ? 'Search' : ( State.View === 'corpus' ? 'Corpus' : 'Consensus' ) ) }}</div>
 				<div class="header-buttons" ng-show="State.Open">
 					<div class="btn-group" role="group">
 						<button class="btn btn-sm" id="view-read" ng-class="State.View === 'read' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('read')">Read</button>
 						<button class="btn btn-sm" id="view-edit" ng-class="State.View === 'edit' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('edit')">Edit</button>
 						<button class="btn btn-sm" id="view-revisions" ng-class="State.View === 'revisions' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('revisions')">Revisions</button>
 					</div>
-					<button class="btn btn-sm btn-outline-secondary" ng-click="CommentOnWhole()" ng-show="State.View === 'read'">Comment on the whole document</button>
+					<button class="btn btn-sm btn-outline-secondary" ng-click="CommentOnWhole()" ng-show="State.View === 'read' && State.Open.Proposal.Kind !== 'document'">Comment on the whole document</button>
 					<button class="btn btn-sm btn-primary" id="send-button" ng-show="State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="!State.Open.Llm.Waiting || State.Open.Llm.Running || Busy" ng-click="Send()" title="{{ SendHint() }}">{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Send to LLM (' + State.Open.Llm.Waiting + ')' }}</button>
-					<button class="btn btn-sm btn-success" id="approve-button" ng-show="State.Me.Role === 'owner' && State.Open.Proposal.Status !== 'consensus'" ng-disabled="!State.Open.Proposal.Tally.Approvable || Busy" ng-click="Approve()" title="{{ ApproveHint() }}">Approve as Plan</button>
 					<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete" ng-click="ConfirmingDelete = true">Delete</button>
 					<span class="confirm" ng-show="ConfirmingDelete">
 						to the trash?
@@ -135,9 +200,8 @@
 
 			<section class="edit-view" ng-controller="EditController" ng-show="State.View === 'edit'">
 				<div class="edit-bar">
-					<span class="alert alert-warning py-1 px-2 m-0" ng-show="State.Open.Proposal.Status === 'consensus'">This is a Plan: saving sets it back to contested and returns it to Proposals.</span>
 					<span class="alert alert-warning py-1 px-2 m-0" ng-show="Stale">The text changed on the server since you started editing. Copy what you need, then discard and edit again.</span>
-					<span class="muted" ng-show="!Stale && State.Open.Proposal.Status !== 'consensus'">Editing revision {{ Base }}. Ctrl+S saves.</span>
+					<span class="muted" ng-show="!Stale">Editing revision {{ Base }}. Ctrl+S saves.</span>
 					<span class="edit-buttons">
 						<button class="btn btn-sm btn-primary" id="save-button" ng-click="Save()" ng-disabled="!Dirty || Stale || Busy">Save</button>
 						<button class="btn btn-sm btn-outline-secondary" ng-click="Discard()">{{ Dirty ? 'Discard' : 'Close' }}</button>
@@ -170,7 +234,7 @@
 				<div class="view-heading">Waiting on you <span class="muted">{{ Items.length }}</span></div>
 				<div class="muted" ng-show="Items.length === 0">Nothing waits on you.</div>
 				<div class="waiting-group" ng-repeat="group in Groups">
-					<div class="waiting-proposal"><a ng-href="#/p/{{ group.Proposal.Id }}">{{ group.Proposal.Title }}</a> <span class="muted small">{{ group.Proposal.Status === 'consensus' ? 'Plan' : 'Proposal' }}</span></div>
+					<div class="waiting-proposal"><a ng-href="#/p/{{ group.Proposal.Id }}">{{ group.Proposal.Title }}</a> <span class="muted small">{{ group.Proposal.State }}</span></div>
 					<a class="waiting-item" ng-repeat="item in group.Items" ng-class="item.Thread.State" ng-href="#/p/{{ group.Proposal.Id }}" ng-click="Open(item)">
 						<div class="thread-head">
 							<span class="state-badge" ng-class="item.Thread.State">{{ item.Thread.State }}</span>
@@ -182,16 +246,52 @@
 			</section>
 
 			<section class="search-view" ng-controller="SearchController" ng-show="State.View === 'search'">
-				<div class="view-heading">Search <span class="muted">{{ Query }}</span></div>
+				<div class="view-heading" id="search-heading">Search {{ ProjectName() ? 'in ' + ProjectName() : 'everything' }} <span class="muted">{{ Query }}</span></div>
 				<div class="muted" ng-show="Searched && Hits.length === 0">Nothing found.</div>
-				<a class="search-hit" ng-repeat="hit in Hits" ng-class="{ thread: hit.Thread }" ng-href="#/p/{{ hit.Proposal }}" ng-click="Open(hit)">
+				<a class="search-hit" ng-repeat="hit in Hits" ng-class="{ thread: hit.Thread, file: hit.Corpus }" ng-href="{{ hit.Corpus ? '#/c/' + hit.Corpus : '#/p/' + hit.Proposal }}" ng-click="Open(hit)">
 					<div class="search-hit-head">
 						<span class="proposal">{{ hit.Title }}</span>
-						<span>{{ hit.Thread ? 'thread' : 'passage' }}</span>
+						<span>{{ hit.Corpus ? hit.Path : ( hit.Thread ? 'thread' : 'passage' ) }}</span>
 						<span>score {{ hit.Score }}</span>
 					</div>
 					<div class="snippet">{{ hit.Text }}</div>
 				</a>
+			</section>
+
+			<section class="corpus-view" ng-controller="CorpusController" ng-show="State.View === 'corpus'">
+				<div class="corpus-head" ng-show="Corpus">
+					<form class="rename-form" ng-if="Renaming" ng-submit="Rename()">
+						<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" auto-focus>
+					</form>
+					<div class="title" ng-if="!Renaming" id="corpus-name">&#128230; {{ Corpus.Name }}</div>
+					<div class="muted small" id="corpus-summary">{{ Corpus.Files.length }} files, {{ IndexedCount() }} indexed &middot; version {{ Corpus.Version }}<span ng-show="Project"> &middot; in {{ Project.Name }}</span></div>
+					<div class="corpus-buttons">
+						<label class="btn btn-sm btn-outline-secondary mb-0" ng-class="{ disabled: Busy }" title="upload a new zip in place of this one: its files are indexed again">Replace zip<input type="file" accept=".zip,application/zip" hidden on-file="Replace( File )"></label>
+						<button class="btn btn-sm btn-outline-secondary" ng-click="StartRename()" ng-hide="Renaming">Rename</button>
+						<button class="btn btn-sm btn-outline-secondary" ng-click="CancelRename()" ng-show="Renaming">Cancel</button>
+						<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete" ng-click="ConfirmingDelete = true">Delete</button>
+						<span class="confirm" ng-show="ConfirmingDelete">
+							to the trash?
+							<button class="btn btn-sm btn-danger" ng-click="Delete()" ng-disabled="Busy">Yes</button>
+							<button class="btn btn-sm btn-outline-secondary" ng-click="ConfirmingDelete = false">No</button>
+						</span>
+					</div>
+				</div>
+				<div class="corpus-body" ng-show="Corpus">
+					<div class="corpus-files">
+						<div class="corpus-file" ng-repeat="file in Corpus.Files" ng-class="{ indexed: file.Indexed, shown: File.Path === file.Path }" ng-click="ShowFile(file)" title="{{ file.Indexed ? 'show its text' : 'not taken in: ' + file.Reason }}">
+							<span class="path">{{ file.Path }}</span>
+							<span class="muted small">{{ file.Indexed ? ( file.Size | number ) + ' B' : file.Reason }}</span>
+						</div>
+					</div>
+					<div class="corpus-text">
+						<div class="muted" ng-hide="File">Pick an indexed file to read it.</div>
+						<div ng-show="File">
+							<div class="corpus-text-path">{{ File.Path }}</div>
+							<pre id="corpus-file-text">{{ File.Text }}</pre>
+						</div>
+					</div>
+				</div>
 			</section>
 		</main>
 
@@ -243,7 +343,7 @@
 				<div class="record failed" ng-show="thread.CallFailed" title="{{ thread.CallFailed.At | fullstamp }}">LLM call failed {{ thread.CallFailed.At | stamp }}: {{ thread.CallFailed.Reason }}</div>
 
 				<div class="reply-form" ng-show="thread.Id === State.Selected">
-					<textarea class="form-control form-control-sm reply-box" rows="2" ng-model="State.Drafts[thread.Id]" placeholder="Reply{{ thread.Status === 'consensus' ? ' (reopens the thread)' : '' }}"></textarea>
+					<textarea class="form-control form-control-sm reply-box" rows="2" ng-model="State.Drafts[thread.Id]" placeholder="Reply{{ thread.Status === 'resolved' ? ' (reopens the thread)' : '' }}"></textarea>
 					<div class="thread-buttons">
 						<button class="btn btn-sm btn-primary reply-button" ng-click="Reply(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy">Reply</button>
 						<button class="btn btn-sm btn-success resolve-button" ng-show="CanResolve(thread)" ng-click="Resolve(thread)" ng-disabled="Busy">Resolve</button>
@@ -270,6 +370,7 @@
 	<script src="/js/revisions.js"></script>
 	<script src="/js/waiting.js"></script>
 	<script src="/js/search.js"></script>
+	<script src="/js/corpus.js"></script>
 	<script src="/js/threads.js"></script>
 </body>
 </html>

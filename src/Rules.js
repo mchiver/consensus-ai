@@ -3,13 +3,14 @@
 // Rules - the consensus rules as pure functions over a proposal, its threads and the participants.
 // Nothing here touches a file or a request; every rule is asserted in test/Rules.test.js.
 //
-//   thread = { Id, Anchor, Detached, Status: 'contested' | 'consensus', Reopened, Resolved, Applied, Replies }
-//   proposal = { Id, Title, Status: 'contested' | 'consensus', Revision, Approved }
+//   thread = { Id, Anchor, Detached, Status: 'contested' | 'resolved', Reopened, Resolved, Applied, Replies }
+//   proposal = { Id, Title, State, Revision }   State is one of the settings' States, changed by anyone at any time
 //   participant = { Name, Display, Role: 'owner' | 'llm' | 'member' }
 //
-// A thread's life: contested -> resolved (consensus, waiting to be applied) -> applied. A reply to a resolved
+// A thread's life: Contested -> Resolved (waiting to be applied) -> Applied. A reply to a resolved or applied
 // thread reopens it (contested, marked reopened); an applied change stays applied, and after the thread is
 // resolved again it is waiting to be applied again, since the resolution is newer than the applied record.
+// A proposal's State does not depend on its threads.
 
 
 //---------------------------------------------------------------------
@@ -17,7 +18,7 @@
 
 function IsWaiting( Thread )
 {
-	if ( Thread.Status !== 'consensus' )
+	if ( Thread.Status !== 'resolved' )
 	{
 		return false;
 	}
@@ -31,14 +32,14 @@ function IsWaiting( Thread )
 
 function IsApplied( Thread )
 {
-	return Thread.Status === 'consensus' && !IsWaiting( Thread );
+	return Thread.Status === 'resolved' && !IsWaiting( Thread );
 }
 
 
 //---------------------------------------------------------------------
 // Turn: the names a thread waits on.
 //   contested            every participant except the one who replied last
-//   waiting to be applied every participant with the llm role
+//   resolved             every participant with the llm role (waiting to be applied)
 //   applied              nobody
 
 function Turn( Thread, Participants )
@@ -74,7 +75,7 @@ function name_of( participant )
 
 function Tally( Proposal, Threads, Participants )
 {
-	let tally = { Total: Threads.length, Contested: 0, Reopened: 0, Waiting: 0, Applied: 0, Detached: 0, WaitingOn: {} };
+	let tally = { Total: Threads.length, Contested: 0, Reopened: 0, Resolved: 0, Applied: 0, Detached: 0, WaitingOn: {} };
 	for ( let participant of Participants )
 	{
 		tally.WaitingOn[ participant.Name ] = 0;
@@ -91,7 +92,7 @@ function Tally( Proposal, Threads, Participants )
 		}
 		else if ( IsWaiting( thread ) )
 		{
-			tally.Waiting++;
+			tally.Resolved++;
 		}
 		else
 		{
@@ -106,7 +107,6 @@ function Tally( Proposal, Threads, Participants )
 			tally.WaitingOn[ name ] = ( tally.WaitingOn[ name ] || 0 ) + 1;
 		}
 	}
-	tally.Approvable = ( tally.Contested === 0 && tally.Waiting === 0 );
 	return tally;
 }
 
@@ -114,12 +114,8 @@ function Tally( Proposal, Threads, Participants )
 //---------------------------------------------------------------------
 // StateLine: the one line at the top, for the participant reading it.
 
-function StateLine( Proposal, Tally_, Name )
+function StateLine( Tally_, Name )
 {
-	if ( Proposal.Status === 'consensus' )
-	{
-		return 'a Plan, approved at revision ' + ( Proposal.Approved ? Proposal.Approved.Revision : Proposal.Revision );
-	}
 	if ( Tally_.Total === 0 )
 	{
 		return 'no threads yet';
@@ -139,9 +135,9 @@ function StateLine( Proposal, Tally_, Name )
 		}
 		parts.push( part );
 	}
-	if ( Tally_.Waiting > 0 )
+	if ( Tally_.Resolved > 0 )
 	{
-		parts.push( Tally_.Waiting + ' waiting to be applied' );
+		parts.push( Tally_.Resolved + ' resolved' );
 	}
 	if ( Tally_.Applied > 0 )
 	{
@@ -150,10 +146,6 @@ function StateLine( Proposal, Tally_, Name )
 	if ( Tally_.Detached > 0 )
 	{
 		parts.push( Tally_.Detached + ' detached' );
-	}
-	if ( Tally_.Approvable )
-	{
-		parts.push( 'ready for approval as a Plan' );
 	}
 	return parts.join( ' · ' );
 }
@@ -186,7 +178,7 @@ function CanApply( Who, Thread )
 	{
 		return { Ok: false, Reason: 'unknown participant' };
 	}
-	if ( Thread.Status !== 'consensus' )
+	if ( Thread.Status !== 'resolved' )
 	{
 		return { Ok: false, Reason: 'only a resolved thread is applied' };
 	}
@@ -198,25 +190,12 @@ function CanApply( Who, Thread )
 }
 
 
-function CanApprove( Who, Proposal, Threads )
+// A proposal's state: any of the settings' States, by anyone, at any time.
+function CanSetState( State, States )
 {
-	if ( !Who || Who.Role !== 'owner' )
+	if ( typeof State !== 'string' || !States.includes( State ) )
 	{
-		return { Ok: false, Reason: 'only the owner approves a proposal' };
-	}
-	if ( Proposal.Status === 'consensus' )
-	{
-		return { Ok: false, Reason: 'the proposal is already a Plan' };
-	}
-	let contested = Threads.filter( function ( thread ) { return thread.Status === 'contested'; } ).length;
-	if ( contested > 0 )
-	{
-		return { Ok: false, Reason: contested + ' thread' + ( contested === 1 ? ' is' : 's are' ) + ' still contested' };
-	}
-	let waiting = Threads.filter( IsWaiting ).length;
-	if ( waiting > 0 )
-	{
-		return { Ok: false, Reason: waiting + ' resolved thread' + ( waiting === 1 ? ' is' : 's are' ) + ' waiting to be applied' };
+		return { Ok: false, Reason: 'State must be one of ' + States.join( ', ' ) };
 	}
 	return { Ok: true };
 }
@@ -228,7 +207,7 @@ function CanApprove( Who, Proposal, Threads )
 // A reply to a resolved thread reopens it: contested again, marked reopened. An applied change stays applied.
 function ReplyEffect( Thread )
 {
-	if ( Thread.Status === 'consensus' )
+	if ( Thread.Status === 'resolved' )
 	{
 		return { Reopen: true, Status: 'contested', Reopened: true, Resolved: null };
 	}
@@ -236,34 +215,15 @@ function ReplyEffect( Thread )
 }
 
 
-// Any text change, new thread or reply sets the proposal back to contested; a Plan returns to the Proposals list.
-function EditEffect( Proposal )
-{
-	return { Status: 'contested', Approved: null };
-}
-
-
-function CommentEffect( Proposal )
-{
-	return EditEffect( Proposal );
-}
-
-
 function ResolveEffect( Who, At )
 {
-	return { Status: 'consensus', Reopened: false, Resolved: { By: Who.Name, At: At } };
+	return { Status: 'resolved', Reopened: false, Resolved: { By: Who.Name, At: At } };
 }
 
 
 function ApplyEffect( Who, At, Revision, Outcome )
 {
 	return { Applied: { By: Who.Name, At: At, Revision: Revision, Outcome: Outcome } };
-}
-
-
-function ApproveEffect( Who, At, Proposal )
-{
-	return { Status: 'consensus', Approved: { By: Who.Name, At: At, Revision: Proposal.Revision } };
 }
 
 
@@ -278,7 +238,7 @@ function WaitingOn( Name, Threads, Participants )
 
 //---------------------------------------------------------------------
 // Filter: threads by the page's filter names.
-//   all | contested | consensus (resolved, applied or not) | waiting (resolved, unapplied) | applied | reopened | detached | mine
+//   all | contested | resolved (waiting to be applied) | applied | reopened | detached | mine
 
 function Filter( Threads, Status, Participants, Name )
 {
@@ -288,9 +248,7 @@ function Filter( Threads, Status, Participants, Name )
 			return Threads.slice();
 		case 'contested':
 			return Threads.filter( function ( thread ) { return thread.Status === 'contested'; } );
-		case 'consensus':
-			return Threads.filter( function ( thread ) { return thread.Status === 'consensus'; } );
-		case 'waiting':
+		case 'resolved':
 			return Threads.filter( IsWaiting );
 		case 'applied':
 			return Threads.filter( IsApplied );
@@ -314,13 +272,10 @@ module.exports = {
 	StateLine: StateLine,
 	CanResolve: CanResolve,
 	CanApply: CanApply,
-	CanApprove: CanApprove,
+	CanSetState: CanSetState,
 	ReplyEffect: ReplyEffect,
-	EditEffect: EditEffect,
-	CommentEffect: CommentEffect,
 	ResolveEffect: ResolveEffect,
 	ApplyEffect: ApplyEffect,
-	ApproveEffect: ApproveEffect,
 	WaitingOn: WaitingOn,
 	Filter: Filter,
 };

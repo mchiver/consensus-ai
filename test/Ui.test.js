@@ -1,7 +1,7 @@
 'use strict';
 
 // The page in a real browser (test/support/Cdp.js drives the installed Chrome or Edge headless):
-// the list loads, a selection becomes a thread, Send to LLM brings a reply live, resolve, edit and save, approve.
+// the list loads, a selection becomes a thread, Send to LLM brings a reply live, resolve, edit and save, the state picker.
 // The server runs on port 0 over a temporary folder; the LLM behind Send to LLM is played by fake_caller.
 
 const TEST = require( 'node:test' );
@@ -11,6 +11,7 @@ const OS = require( 'os' );
 const PATH = require( 'path' );
 const SERVER = require( '../src/Server.js' );
 const CDP = require( './support/Cdp.js' );
+const MAKER = require( './support/ZipMaker.js' );
 
 const TEXT = '# Browser check\n\nThe first paragraph makes a claim about anchors.\n\n- one list item\n- another list item\n\nA closing paragraph.\n';
 
@@ -125,8 +126,8 @@ TEST( 'the owner resolves from the page', async function ()
 	await page.Click( '.thread:not(.compose)' );
 	await page.WaitFor( count_of( '.thread.selected .resolve-button' ) + ' === 1' );
 	await page.Click( '.thread.selected .resolve-button' );
-	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "waiting"' );
-	await page.WaitFor( text_of( '#state-line' ) + ' === "1 waiting to be applied"' );
+	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "resolved"' );
+	await page.WaitFor( text_of( '#state-line' ) + ' === "1 resolved"' );
 } );
 
 
@@ -144,26 +145,137 @@ TEST( 'edit and save make a revision and keep the highlight', async function ()
 } );
 
 
-TEST( 'once the LLM applies, the owner approves and the proposal is a Plan', async function ()
+TEST( 'once the LLM applies, the state picker makes the proposal Working and the sidebar follows', async function ()
 {
 	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (1)"' );
 	await page.Click( '#send-button' );
-	await page.WaitFor( '!document.getElementById( "approve-button" ).disabled' );
-	await page.WaitFor( text_of( '#state-line' ) + ' === "1 applied · ready for approval as a Plan"' );
-	await page.Click( '#approve-button' );
-	await page.WaitFor( text_of( '#status-badge' ) + ' === "Plan"' );
-	await page.WaitFor( count_of( '.proposal-item.plan' ) + ' === 1' );
+	await page.WaitFor( text_of( '#state-line' ) + ' === "1 applied"' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).selectedOptions[ 0 ].label' ), 'Proposal' );
+	await page.Evaluate( '( function () { let picker = document.getElementById( "state-picker" ); let option = Array.from( picker.options ).find( function ( candidate ) { return candidate.label === "Working"; } ); picker.value = option.value; picker.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	await page.WaitFor( text_of( '.tree-item[data-id="' + proposal.Id + '"] .item-state' ) + ' === "Working"' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).selectedOptions[ 0 ].label' ), 'Working' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'a new project opens and closes the others; a folder and a plan are made in it', async function ()
+{
+	await page.WaitFor( count_of( '.project.open[data-project="default"]' ) + ' === 1' );
+	await page.Click( '#new-project' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
+	await page.Type( 'Browser project' );
+	await page.Click( '#create-submit' );
+	await page.WaitFor( count_of( '.project' ) + ' === 2' );
+	await page.WaitFor( count_of( '.project.open' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( text_of( '.project.open .project-name' ) ), 'Browser project' );
+	ASSERT.equal( await page.Evaluate( count_of( '.project[data-project="default"] .tree-item' ) ), 0 );
+	// a folder, picked as where the plan goes
+	await page.Click( '.project.open .new-folder' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
+	await page.Type( 'Specs' );
+	await page.Click( '#create-submit' );
+	await page.WaitFor( count_of( '.project.open .folder' ) + ' === 1' );
+	await page.Click( '.project.open .folder-head' );
+	await page.WaitFor( count_of( '.project.open .folder-head.target' ) + ' === 1' );
+	await page.Click( '.project.open .new-plan' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
+	await page.Type( 'Plan in a folder' );
+	await page.Click( '#create-submit' );
+	await page.WaitFor( count_of( '.project.open .folder .tree-item' ) + ' === 1' );
+	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Plan in a folder"' );
+	ASSERT.equal( await page.Evaluate( text_of( '.project.open .folder .tree-item .proposal-title' ) ), 'Plan in a folder' );
+	// a document: no threads pane, no state picker, no comment button
+	await page.Click( '.project.open .new-document' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
+	await page.Type( 'Reference notes' );
+	await page.Click( '#create-submit' );
+	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Reference notes"' );
+	await page.WaitFor( 'document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.querySelector( "aside.threads" ) ).display' ), 'none' );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "state-picker" ) ).display' ), 'none' );
+	ASSERT.equal( await page.Evaluate( text_of( '#document-badge' ) ), 'Document' );
+	await page.WaitFor( text_of( '.project.open .tree-item.document .item-state' ) + ' === "document"' );
+	// opening Default again closes the new project
+	await page.Click( '.project[data-project="default"] .project-head' );
+	await page.WaitFor( count_of( '.project.open[data-project="default"]' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.open' ) ), 1 );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'an item dragged onto a project moves there; copy and paste makes a whole copy', async function ()
+{
+	// open the new project again, then drag the document out of its folder onto the project's head: it moves to the root
+	await page.Click( '.project:not([data-project="default"]) .project-head' );
+	await page.WaitFor( count_of( '.project.open .tree-item.document' ) + ' === 1' );
+	let moved = await page.Evaluate( '( function () {'
+		+ ' let data = new DataTransfer();'
+		+ ' let item = document.querySelector( ".project.open .tree-item.document" );'
+		+ ' let head = document.querySelector( ".project.open .project-head" );'
+		+ ' item.dispatchEvent( new DragEvent( "dragstart", { bubbles: true, dataTransfer: data } ) );'
+		+ ' head.dispatchEvent( new DragEvent( "dragover", { bubbles: true, cancelable: true, dataTransfer: data } ) );'
+		+ ' head.dispatchEvent( new DragEvent( "drop", { bubbles: true, cancelable: true, dataTransfer: data } ) );'
+		+ ' return data.getData( "application/x-consensus-item" ); } )()' );
+	ASSERT.match( moved, /^reference-notes-/ );
+	await page.WaitFor( count_of( '.project.open .project-body > .tree > .tree-node > .tree-item.document' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.open .folder .tree-item.document' ) ), 0 );
+
+	// copy the plan in the folder, paste at the project's root
+	await page.Evaluate( 'document.querySelector( ".project.open .folder .tree-item .copy-item" ).click()' );
+	await page.WaitFor( text_of( '#clipboard' ) + '.startsWith( "copied: Plan in a folder" )' );
+	await page.Evaluate( 'document.querySelector( ".project.open .project-head .paste-here" ).click()' );
+	await page.WaitFor( count_of( '.project.open .tree-item' ) + ' === 3' );
+	await page.WaitFor( '[ ...document.querySelectorAll( ".project.open .proposal-title" ) ].some( function ( title ) { return title.textContent.trim() === "Plan in a folder (copy)"; } )' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'a zip uploaded into the project becomes a corpus: its files listed, one read, and found by search', async function ()
+{
+	let zip = MAKER.Make( [ { Name: 'notes/lighthouse.md', Data: '# Lighthouse\n\nThe keeper winds the clockwork lamp at dusk.\n' }, { Name: 'notes/photo.jpg', Data: 'jpeg' } ] );
+	await page.WaitFor( count_of( '.project.open .zip-input' ) + ' === 1' );
+	await page.Evaluate( '( function () {'
+		+ ' let bytes = Uint8Array.from( atob( ' + JSON.stringify( zip.toString( 'base64' ) ) + ' ), function ( character ) { return character.charCodeAt( 0 ); } );'
+		+ ' let data = new DataTransfer();'
+		+ ' data.items.add( new File( [ bytes ], "lighthouse.zip", { type: "application/zip" } ) );'
+		+ ' let input = document.querySelector( ".project.open .zip-input" );'
+		+ ' input.files = data.files;'
+		+ ' input.dispatchEvent( new Event( "change" ) );'
+		+ ' return true; } )()' );
+	await page.WaitFor( text_of( '#corpus-summary' ) + '.startsWith( "2 files, 1 indexed" )' );
+	ASSERT.equal( await page.Evaluate( text_of( '#corpus-name' ) ), '📦 lighthouse' );
+	await page.WaitFor( count_of( '.project.open .tree-item.corpus.open' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.querySelector( "aside.threads" ) ).display' ), 'none' );
+	await page.Click( '.corpus-file.indexed' );
+	await page.WaitFor( '/clockwork lamp/.test( ' + text_of( '#corpus-file-text' ) + ' )' );
+	ASSERT.match( await page.Evaluate( text_of( '.corpus-file:not(.indexed)' ) ), /not a text type: \.jpg/ );
+	// search finds the file
+	await page.Click( '#search-box' );
+	await page.Type( 'clockwork keeper' );
+	await page.Press( 'Enter' );
+	await page.WaitFor( count_of( '.search-hit.file' ) + ' >= 1', 15000 );
+	ASSERT.match( await page.Evaluate( text_of( '.search-hit.file .search-hit-head' ) ), /notes\/lighthouse\.md/ );
+	await page.WaitFor( text_of( '#search-heading' ) + '.startsWith( "Search in Browser project" )' );
+	// only this project's items: the thread in Default is not among the hits
+	ASSERT.equal( await page.Evaluate( count_of( '.search-hit.thread' ) ), 0 );
+	// a hit opens its corpus at the file
+	await page.Click( '.search-hit.file' );
+	await page.WaitFor( '/clockwork lamp/.test( ' + text_of( '#corpus-file-text' ) + ' )' );
+	await page.Evaluate( 'document.getElementById( "search-box" ).value = ""; document.getElementById( "search-box" ).dispatchEvent( new Event( "input" ) ); true' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
 
 TEST( 'search finds the thread and the theme switches', async function ()
 {
+	// the thread is in Default: open it, so the search box searches there
+	await page.Click( '.project[data-project="default"] .project-head' );
+	await page.WaitFor( count_of( '.project.open[data-project="default"]' ) + ' === 1' );
 	await page.Click( '#search-box' );
 	await page.Type( 'one item stays' );
 	await page.Press( 'Enter' );
 	await page.WaitFor( count_of( '.search-hit' ) + ' >= 1', 15000 );
-	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".search-hit" ).classList.contains( "thread" )' ), true );
+	await page.WaitFor( 'document.querySelector( ".search-hit" ).classList.contains( "thread" )', 15000 );
 	await page.Evaluate( 'window.ConsensusTheme.SetTheme( "dark" )' );
 	ASSERT.equal( await page.Evaluate( 'document.documentElement.dataset.bsTheme' ), 'dark' );
 	await page.Evaluate( 'window.ConsensusTheme.SetScale( "large" )' );

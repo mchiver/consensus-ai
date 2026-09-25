@@ -1,6 +1,6 @@
 'use strict';
 
-// Index - our own lexical embedding: chunks of every proposal and thread, weighted by BM25.
+// Index - our own lexical embedding: chunks of every proposal, thread and corpus file, weighted by BM25.
 // Pure functions over chunks; no model and no dependency.
 
 const CRYPTO = require( 'crypto' );
@@ -8,6 +8,7 @@ const CRYPTO = require( 'crypto' );
 const BM25_K1 = 1.2;
 const BM25_B = 0.75;
 const CHUNK_TARGET_LENGTH = 600;
+const CODE_BLOCK_LINES = 40;
 
 const STOP_WORDS = new Set( [
 	'a', 'an', 'the', 'and', 'or', 'but', 'if', 'then', 'else', 'of', 'to', 'in', 'on', 'at', 'by', 'for', 'with',
@@ -243,7 +244,7 @@ function Search( Query, Chunks, Limit )
 		}
 		if ( score > 0 )
 		{
-			hits.push( { Proposal: chunk.Proposal, Revision: chunk.Revision, Chunk: chunk.Chunk, Thread: chunk.Thread || null, Text: chunk.Text, Score: round( score ) } );
+			hits.push( present( chunk, round( score ) ) );
 		}
 	}
 	hits.sort( by_score );
@@ -270,7 +271,15 @@ async function Refresh( Store, Id, Embedder )
 		return null;
 	}
 	let chunks = Chunk( read.Proposal, read.Text, read.Threads );
-	let previous = await Store.ReadIndex( Id );
+	await embed( chunks, await Store.ReadIndex( Id ), Embedder, Id );
+	await Store.WriteIndex( Id, chunks );
+	return chunks;
+}
+
+
+// Each chunk keeps the vector it had when its text is unchanged; with an embedder, the others get one.
+async function embed( chunks, previous, Embedder, Id )
+{
 	let vectors_by_hash = {};
 	for ( let chunk of previous )
 	{
@@ -305,34 +314,98 @@ async function Refresh( Store, Id, Embedder )
 			}
 		}
 	}
-	await Store.WriteIndex( Id, chunks );
+}
+
+
+//---------------------------------------------------------------------
+// ChunkCorpus: a corpus's text files. Markdown by paragraph, as a proposal is; any other file in blocks of
+// CODE_BLOCK_LINES lines. Each chunk starts with its file's path, so a question naming the file finds it.
+
+function ChunkCorpus( Corpus_, Texts )
+{
+	let chunks = [];
+	let index = 0;
+	for ( let path of Object.keys( Texts ).sort() )
+	{
+		let pieces = /\.md$/i.test( path ) ? split_paragraphs( Texts[ path ] ) : split_lines( Texts[ path ], CODE_BLOCK_LINES );
+		for ( let piece of pieces )
+		{
+			index++;
+			let chunk = { Chunk: index, Corpus: Corpus_.Id, Path: path, Revision: Corpus_.Version, Text: path + '\n\n' + piece };
+			chunk.Hash = Hash( chunk.Text );
+			chunks.push( chunk );
+		}
+	}
+	return chunks;
+}
+
+
+function split_lines( text, size )
+{
+	let lines = text.split( /\r?\n/ );
+	let blocks = [];
+	for ( let start = 0; start < lines.length; start += size )
+	{
+		let block = lines.slice( start, start + size ).join( '\n' ).trim();
+		if ( block )
+		{
+			blocks.push( block );
+		}
+	}
+	return blocks;
+}
+
+
+// RefreshCorpus: a corpus's index.json from the texts of its zip.
+async function RefreshCorpus( Store, Corpus_, Texts, Embedder )
+{
+	let chunks = ChunkCorpus( Corpus_, Texts );
+	await embed( chunks, await Store.ReadCorpusIndex( Corpus_.Id ), Embedder, Corpus_.Id );
+	await Store.WriteCorpusIndex( Corpus_.Id, chunks );
 	return chunks;
 }
 
 
 //---------------------------------------------------------------------
-// Corpus: every proposal's chunks, weighed together.
+// Corpus: the chunks of every proposal and uploaded corpus, weighed together; with Ids (a list), only of those,
+// so a project's search weighs its words against its own items alone.
 
-async function Corpus( Store )
+async function Corpus( Store, Ids )
 {
+	let wanted = Ids ? new Set( Ids ) : null;
+	function included( id )
+	{
+		return !wanted || wanted.has( id );
+	}
 	let chunks = [];
 	for ( let proposal of await Store.ListProposals() )
 	{
-		chunks = chunks.concat( await Store.ReadIndex( proposal.Id ) );
+		if ( included( proposal.Id ) )
+		{
+			chunks = chunks.concat( await Store.ReadIndex( proposal.Id ) );
+		}
+	}
+	for ( let corpus of await Store.ListCorpora() )
+	{
+		if ( included( corpus.Id ) )
+		{
+			chunks = chunks.concat( await Store.ReadCorpusIndex( corpus.Id ) );
+		}
 	}
 	return Weigh( chunks );
 }
 
 
 //---------------------------------------------------------------------
-// SearchAll: the best chunks across proposals. With an embedder and vectors in the corpus, the cosine
-// ranking is merged with ours by rank; without, the lexical ranking answers alone.
+// SearchAll: the best chunks across proposals and corpora, or only among Ids (a project's items) when given.
+// With an embedder and vectors in the corpus, the cosine ranking is merged with ours by rank; without, the
+// lexical ranking answers alone.
 
-async function SearchAll( Store, Query, Limit, Embedder )
+async function SearchAll( Store, Query, Limit, Embedder, Ids )
 {
 	let VECTORS = require( './Vectors.js' );
 	let limit = Limit || 10;
-	let chunks = await Corpus( Store );
+	let chunks = await Corpus( Store, Ids );
 	let by_key = {};
 	for ( let chunk of chunks )
 	{
@@ -380,12 +453,17 @@ async function SearchAll( Store, Query, Limit, Embedder )
 
 function key_of( chunk )
 {
-	return chunk.Proposal + '#' + chunk.Chunk;
+	return ( chunk.Corpus || chunk.Proposal ) + '#' + chunk.Chunk;
 }
 
 
+// A hit: from a proposal (Proposal, Thread when a thread) or from a corpus (Corpus, Path).
 function present( chunk, score )
 {
+	if ( chunk.Corpus )
+	{
+		return { Proposal: null, Corpus: chunk.Corpus, Path: chunk.Path, Revision: chunk.Revision, Chunk: chunk.Chunk, Thread: null, Text: chunk.Text, Score: score };
+	}
 	return { Proposal: chunk.Proposal, Revision: chunk.Revision, Chunk: chunk.Chunk, Thread: chunk.Thread || null, Text: chunk.Text, Score: score };
 }
 
@@ -398,6 +476,8 @@ module.exports = {
 	Weigh: Weigh,
 	Search: Search,
 	Refresh: Refresh,
+	ChunkCorpus: ChunkCorpus,
+	RefreshCorpus: RefreshCorpus,
 	Corpus: Corpus,
 	SearchAll: SearchAll,
 };
