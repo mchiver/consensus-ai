@@ -115,6 +115,12 @@ a full participant that is asked to apply resolved threads; `member` takes part 
 
 ## How the LLM takes part
 
+Two kinds of LLM take part, both as the one `llm` participant. The **one-shot LLM** is the one Consensus
+calls (below): it reviews, replies, applies and keeps the project's context, and never builds. An **agent
+session** in the codebase (Claude Code, say) initializes contexts and implements plans through the API;
+`.guides/build-with-consensus.md` is its guide, with the build loop: a plan with every thread applied is
+built on the owner's word, the agent reports in a build log thread, and the owner accepts it by resolving it.
+
 Consensus calls the LLM itself, only when the owner presses **Send to LLM** in a plan's heading. The
 button counts the threads waiting on the LLM, is disabled at 0, and reads **LLM working…** while a call
 runs. Replying, resolving and new threads only leave work waiting.

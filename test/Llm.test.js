@@ -43,6 +43,7 @@ TEST( 'the prompt holds the rules, the text in a fence longer than its own, ever
 		Search: { t1: [ { Title: 'Other', Thread: null, Text: 'a passage elsewhere' } ], t2: [] },
 	} );
 	ASSERT.match( prompt, /# The rules/ );
+	ASSERT.match( prompt, /You never build: implementing a plan in code is done\n  by an agent session/ );
 	ASSERT.match( prompt, /"A title", revision 3/ );
 	ASSERT.match( prompt, /`````markdown\nSome text with ```` four backticks\.\n`````/ );
 	ASSERT.match( prompt, /## Thread t1, contested, WAITING ON YOU to reply/ );
