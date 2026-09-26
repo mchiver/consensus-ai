@@ -11,8 +11,9 @@
 </head>
 <body ng-controller="AppController" ng-cloak>
 
-	<!-- One level of a project's tree; folders include it again for their own items. Depth is the level: 1 at a
-	     project's root, one more in each folder. Every row is one line: chevron, icon, name, then its badges. -->
+	<!-- One level of a project's tree; folders, and plans with Subplans, include it again for their own items. Depth
+	     is the level: 1 at a project's root, one more in each folder or plan. Every row is one line: chevron, icon,
+	     name, then its badges. -->
 	<script type="text/ng-template" id="tree-nodes.html">
 		<div class="tree-node" ng-repeat="node in ( node ? node.Items : project.Items ) track by node.Id" ng-switch="node.Kind">
 			<div ng-switch-when="folder" class="folder" data-id="{{ node.Id }}">
@@ -45,8 +46,9 @@
 				<span class="badges"><span class="item-state" title="{{ node.Files }} files in the zip, {{ node.Indexed }} indexed">{{ node.Files }} files</span></span>
 				<span class="item-buttons"><span class="btn btn-link btn-sm copy-item" role="button" title="copy: a whole copy of the zip goes where you paste it" ng-click="CopyItem(node, $event)">&#10697;</span></span>
 			</a>
-			<a ng-switch-default class="proposal-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document' }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id" tree-drop="{ Kind: 'item', Project: project.Id, Id: node.Id }" on-tree-drop="TreeDrop( Drag, Target, Zone )">
-				<span class="chevron-space"></span>
+			<a ng-switch-default class="proposal-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document', parent: node.Items.length }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id" tree-drop="{ Kind: node.Kind === 'plan' ? 'plan' : 'item', Project: project.Id, Id: node.Id }" on-tree-drop="TreeDrop( Drag, Target, Zone )">
+				<span class="chevron" ng-if="node.Items.length" ng-class="{ folded: IsFolded(node) }" ng-click="ToggleFold(node, $event)" title="{{ IsFolded(node) ? 'show' : 'hide' }} its Subplans"></span>
+				<span class="chevron-space" ng-if="!node.Items.length"></span>
 				<span class="tree-icon" ng-class="node.Kind === 'document' ? 'icon-document' : 'icon-plan'"></span>
 				<form class="rename-form" ng-if="IsRenaming(node)" ng-submit="Rename()" ng-click="$event.preventDefault(); $event.stopPropagation()">
 					<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
@@ -60,10 +62,12 @@
 					<span class="badge applied" ng-show="node.Tally.Applied" title="applied">{{ node.Tally.Applied }}</span>
 				</span>
 				<span class="item-buttons" ng-if="!IsRenaming(node) && !node.Missing">
+					<span class="btn btn-link btn-sm new-subplan" role="button" title="new Subplan under this plan" ng-if="node.Kind === 'plan'" ng-click="NewSubplan(project, node, $event)">+</span>
 					<span class="btn btn-link btn-sm rename-item" role="button" title="rename" ng-click="StartRename('proposal', project, node, $event)">&#9998;</span>
-					<span class="btn btn-link btn-sm copy-item" role="button" title="copy: a whole copy, threads and revisions included, goes where you paste it" ng-click="CopyItem(node, $event)">&#10697;</span>
+					<span class="btn btn-link btn-sm copy-item" role="button" title="copy: a whole copy, threads, revisions and Subplans included, goes where you paste it" ng-click="CopyItem(node, $event)">&#10697;</span>
 				</span>
 			</a>
+			<div class="folder-body subplans" ng-if="node.Kind === 'plan' && node.Items.length && !IsFolded(node)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
 		</div>
 	</script>
 
@@ -204,6 +208,7 @@
 					</div>
 					<div class="header-buttons">
 						<button class="btn btn-sm btn-outline-secondary" ng-click="CommentOnWhole()" ng-show="State.View === 'read' && HasThreads()">Comment on the whole document</button>
+						<button class="btn btn-sm btn-outline-secondary" id="new-subplan" ng-click="NewSubplan()" ng-show="IsPlan()" title="a new plan under this one">New subplan</button>
 						<button class="btn btn-sm btn-primary" id="initialize-context" ng-show="IsContext() && State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="State.Open.Llm.Running || Busy" ng-click="InitializeContext()" title="the LLM writes the context from the project: its plans and documents, the files in its zips, and a few key files">{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Initialize context' }}</button>
 						<button class="btn btn-sm btn-primary" id="send-button" ng-show="HasThreads() && State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="Busy" ng-click="Send()" title="{{ SendHint() }}">{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Send to LLM (' + State.Open.Llm.Waiting + ')' }}</button>
 						<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete || IsContext()" ng-click="ConfirmingDelete = true">Delete</button>
@@ -236,6 +241,7 @@
 							<div class="session-label">Prompt</div>
 							<div class="session-choices">
 								<label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" id="session-context" ng-model="P.Options.Context" ng-change="Measure()"> Context</label>
+								<label class="form-check form-check-inline mb-0" ng-show="HasParents()" title="the text of the plans this one is a Subplan of"><input class="form-check-input" type="checkbox" id="session-parents" ng-model="P.Options.Parents" ng-change="Measure()"> Parent plans</label>
 								<label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" id="session-search" ng-model="P.Options.Search" ng-change="Measure()"> Search</label>
 								<select class="form-select form-select-sm session-threads" id="session-threads" ng-model="P.Options.Threads" ng-change="Measure()">
 									<option value="waiting">Only waiting threads</option>
@@ -309,6 +315,7 @@
 				</div>
 				<article class="markdown" id="read-view" ng-show="State.Open"></article>
 				<button class="comment-button btn btn-sm btn-primary" id="comment-button" ng-click="CommentOnSelection()">{{ State.Reanchoring ? 'Re-anchor here' : 'Comment' }}</button>
+				<button class="comment-button btn btn-sm btn-secondary" id="subplan-button" ng-click="SubplanFromSelection()" title="a new Subplan that starts with the selected text">Start a new Subplan</button>
 			</section>
 
 			<section class="edit-view" ng-controller="EditController" ng-show="State.View === 'edit'">
@@ -427,6 +434,7 @@
 				<textarea class="form-control form-control-sm" rows="3" ng-model="State.Compose.Text" placeholder="Your comment" id="compose-text"></textarea>
 				<div class="thread-buttons">
 					<button class="btn btn-sm btn-primary" id="compose-post" ng-click="Post()" ng-disabled="!State.Compose.Text || Busy">Comment</button>
+					<button class="btn btn-sm btn-outline-secondary" id="compose-subplan" ng-show="IsPlan()" ng-click="SubplanFromCompose()" ng-disabled="Busy" title="post this thread with a link to a new Subplan that starts from it">Start a new Subplan</button>
 					<button class="btn btn-sm btn-outline-secondary" ng-click="CancelCompose()">Cancel</button>
 				</div>
 			</div>
@@ -474,11 +482,28 @@
 						<button class="btn btn-sm btn-success reply-resolve-button" ng-show="CanResolve(thread)" ng-click="ReplyAndResolve(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy" title="post your reply as the outcome and resolve the thread">Reply and resolve</button>
 						<button class="btn btn-sm btn-success resolve-button" ng-show="CanResolve(thread)" ng-click="Resolve(thread)" ng-disabled="Busy" title="accept the outcome or recommendation in the last reply">Resolve</button>
 						<button class="btn btn-sm btn-outline-secondary" ng-show="thread.Detached || thread.Anchor" ng-click="Reanchor(thread)">Re-anchor</button>
+						<button class="btn btn-sm btn-outline-secondary subplan-from-thread" ng-show="IsPlan()" ng-click="SubplanFromThread(thread)" ng-disabled="Busy" title="reply with a link to a new Subplan that starts from this thread">Start a new Subplan</button>
 					</div>
 				</div>
 			</div>
 		</aside>
 
+	</div>
+
+	<!-- A new Subplan: its title, and what it starts with. -->
+	<div class="subplan-popup" ng-controller="SubplanController" ng-show="Subplans.Pending">
+		<form class="subplan-form" ng-if="Subplans.Pending" ng-submit="Create()" ng-keydown="Key($event)">
+			<div class="subplan-head">New Subplan under &ldquo;{{ Subplans.Pending.Parent.Title }}&rdquo;</div>
+			<input class="form-control form-control-sm" type="text" id="subplan-title" placeholder="Subplan title" ng-model="Subplans.Pending.Title" auto-focus>
+			<div class="muted small" ng-show="Subplans.Pending.Seed">It starts with:</div>
+			<pre class="subplan-seed" ng-show="Subplans.Pending.Seed">{{ Subplans.Pending.Seed }}</pre>
+			<div class="muted small" ng-show="Subplans.Pending.Compose">The thread is posted with a link to it.</div>
+			<div class="muted small" ng-show="Subplans.Pending.Thread">The thread gets {{ Subplans.Pending.Draft ? 'your reply' : 'a reply' }} with a link to it, and stays open.</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-primary" type="submit" id="subplan-create" ng-disabled="!Subplans.Pending.Title || Subplans.Busy">Create</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Cancel()">Cancel</button>
+			</div>
+		</form>
 	</div>
 
 	<script src="/vendor/angular.min.js"></script>
@@ -491,6 +516,7 @@
 	<script src="/js/app.js"></script>
 	<script src="/js/tabs.js"></script>
 	<script src="/js/sessions.js"></script>
+	<script src="/js/subplans.js"></script>
 	<script src="/js/sidebar.js"></script>
 	<script src="/js/header.js"></script>
 	<script src="/js/read.js"></script>

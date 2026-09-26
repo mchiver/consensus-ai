@@ -2,7 +2,7 @@
 
 // Threads pane - filter, each thread with its anchor words and replies, reply, resolve, and the compose card.
 
-angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$timeout', 'State', 'Client', function ( $scope, $timeout, State, Client )
+angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$timeout', 'State', 'Client', 'Subplans', function ( $scope, $timeout, State, Client, Subplans )
 {
 	$scope.State = State;
 	$scope.Busy = false;
@@ -245,6 +245,30 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	$scope.Reanchor = function ( thread )
 	{
 		State.StartReanchor( thread.Id );
+	};
+
+
+	//-----------------------------------------------------------------
+	// Start a new Subplan from the thread being composed, or from a thread (with the draft reply, if any).
+
+	$scope.IsPlan = function ()
+	{
+		return !!State.Open && ( State.Open.Proposal.Kind || 'plan' ) === 'plan';
+	};
+
+
+	$scope.SubplanFromCompose = function ()
+	{
+		if ( State.Compose )
+		{
+			Subplans.FromCompose( State.Compose );
+		}
+	};
+
+
+	$scope.SubplanFromThread = function ( thread )
+	{
+		Subplans.FromThread( thread, State.Drafts[ thread.Id ] );
 	};
 
 

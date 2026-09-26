@@ -613,3 +613,79 @@ TEST( 'session: a pasted answer that asks for more is answered, and Continue giv
 	await page.WaitFor( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).some( function ( reply ) { return reply.textContent.trim() === "Tab two has one line."; } )' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
+
+
+//---------------------------------------------------------------------
+
+TEST( 'subplans: started from the header, selected text, a new thread and a reply; they fold under their parent', async function ()
+{
+	let parent = await created( 'Parent plan' );
+	async function open_parent()
+	{
+		await page.Evaluate( 'window.location.hash = "#/p/' + parent.Id + '"; true' );
+		await page.WaitFor( text_of( '#read-view h1' ) + ' === "Parent plan"', 20000 );
+	}
+	async function name_it( title )
+	{
+		await page.WaitFor( 'document.activeElement && document.activeElement.id === "subplan-title"' );
+		await page.Type( title );
+		await page.Click( '#subplan-create' );
+		await page.WaitFor( text_of( '#read-view h1' ) + ' === ' + JSON.stringify( title ), 20000 );
+	}
+	function select_line()
+	{
+		return '( function () { let paragraph = document.querySelector( "#read-view p" ); let range = document.createRange(); range.selectNodeContents( paragraph ); let selection = window.getSelection(); selection.removeAllRanges(); selection.addRange( range ); document.getElementById( "read-view" ).dispatchEvent( new MouseEvent( "mouseup", { bubbles: true } ) ); return true; } )()';
+	}
+	async function threads_of( id )
+	{
+		return ( await ( await fetch( running.Url + '/api/proposals/' + id ) ).json() ).Threads;
+	}
+
+	// from the header: an empty Subplan, opened
+	await open_parent();
+	await page.Click( '#new-subplan' );
+	await name_it( 'From the header' );
+
+	// from selected text: it starts with the passage; the parent is not changed
+	await open_parent();
+	await page.Evaluate( select_line() );
+	await page.WaitFor( 'document.getElementById( "subplan-button" ).classList.contains( "shown" )' );
+	await page.Click( '#subplan-button' );
+	await name_it( 'From the selection' );
+	ASSERT.equal( await page.Evaluate( text_of( '#read-view blockquote' ) ), 'A line.' );
+
+	// from a new thread: the thread is posted with the comment and a link
+	await open_parent();
+	await page.Evaluate( select_line() );
+	await page.WaitFor( 'document.getElementById( "comment-button" ).classList.contains( "shown" )' );
+	await page.Click( '#comment-button' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.id === "compose-text"' );
+	await page.Type( 'This needs its own plan.' );
+	await page.Click( '#compose-subplan' );
+	await name_it( 'From a new thread' );
+	let threads = await threads_of( parent.Id );
+	ASSERT.equal( threads.length, 1 );
+	ASSERT.match( threads[ 0 ].Replies[ 0 ].Text, /^This needs its own plan\.\n\nStarted a new Subplan: \[From a new thread\]\(#\/p\/p[0-9a-f]{8}\)$/ );
+
+	// from a reply: the draft goes in with the link, and the thread stays open
+	await open_parent();
+	await page.Click( '.thread:not(.compose)' );
+	await page.WaitFor( count_of( '.thread.selected .reply-box' ) + ' === 1' );
+	await page.Evaluate( '( function () { let box = document.querySelector( ".thread.selected .reply-box" ); box.value = "Or split it further."; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.Click( '.thread.selected .subplan-from-thread' );
+	await name_it( 'From a reply' );
+	ASSERT.match( await page.Evaluate( text_of( '#read-view' ) ), /This needs its own plan\./ );
+	threads = await threads_of( parent.Id );
+	ASSERT.equal( threads[ 0 ].Status, 'contested' );
+	ASSERT.match( threads[ 0 ].Replies[ 1 ].Text, /^Or split it further\.\n\nStarted a new Subplan: \[From a reply\]/ );
+
+	// the tree: four Subplans under the parent, folded away by its chevron
+	let under = '.tree-item[data-id="' + parent.Id + '"] + .subplans .tree-item';
+	await page.WaitFor( count_of( under ) + ' === 4' );
+	await page.Click( '.tree-item[data-id="' + parent.Id + '"] .chevron' );
+	await page.WaitFor( count_of( under ) + ' === 0' );
+	ASSERT.match( await page.Evaluate( 'window.location.hash' ), /#\/p\// );
+	await page.Click( '.tree-item[data-id="' + parent.Id + '"] .chevron' );
+	await page.WaitFor( count_of( under ) + ' === 4' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );

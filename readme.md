@@ -35,6 +35,13 @@ opening an item opens its project. A project holds, in folders of any depth:
   files, which were taken in and why the others were not, and shows a file's text (as plain text, never
   as HTML). Replace zip uploads a new one in its place.
 - **Folders**, to organize any of these.
+- **Subplans**: a plan can hold plans, and only plans. A Subplan is a full plan of its own (its own threads,
+  state and Subplans); the tie is organizational only. Subplans fold under their parent, and move, copy and
+  go to the trash with it. Start one with **+** on a plan's row or **New subplan** in its heading (empty),
+  **Start a new Subplan** in a thread being written or replied to (it starts with the anchored passage
+  quoted and the thread so far; the thread gets a reply linking to it and stays open), or on selected text
+  (it starts with that text; the parent is not changed). Dropping a plan on the middle of a plan makes it a
+  Subplan.
 
 The **Default** project is created at first start and never deleted; ad-hoc items live there. Every item
 belongs to exactly one project. Click a folder to make it where new items go. Everything reorders by drag
@@ -80,8 +87,8 @@ outcome, or the recommendation, in the last reply.
 	corpora/<id>/index.json          search chunks
 	trash/<id>/                      a deleted proposal or corpus, moved whole
 
-A project's `Items` is its tree: `{ Kind: "folder", Id, Name, Items }` or `{ Kind: "plan" | "document" |
-"corpus", Id }`, pointing at the proposal or corpus by id. Every write is whole-file and atomic, and writes
+A project's `Items` is its tree: `{ Kind: "folder", Id, Name, Items }`, `{ Kind: "plan", Id, Items? }` (its
+Subplans) or `{ Kind: "document" | "corpus", Id }`, pointing at the proposal or corpus by id. Every write is whole-file and atomic, and writes
 to one proposal, corpus or project never interleave; a tree change that names an older `Version` is refused.
 
 At every start the folder is brought up to date and each change is logged: older proposals get a `State`
@@ -138,7 +145,8 @@ on the LLM and opens the plan's **session panel**, within the plan's content are
 has its own, and sessions in different tabs run at the same time. Closing the panel or switching tabs does not
 stop a session. In the panel:
 
-- **Prompt:** the project's context on or off, search on or off, and which threads: only the waiting ones,
+- **Prompt:** the project's context on or off, a Subplan's **Parent plans** on or off (every plan above it,
+  the top one first, as its text without threads), search on or off, and which threads: only the waiting ones,
   the open ones (the default: finished threads are left out), or all. The prompt's size shows as tokens
   (characters ÷ 4) and characters, with each part's share; **Preview** shows the prompt itself.
 - **Send to:** a destination from the settings (Claude CLI, Ollama with its model picked from what Ollama

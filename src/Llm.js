@@ -226,8 +226,9 @@ function Validate( Call, Destination )
 // Prompt: everything one call needs. Package = { Project?, Context?, MaxCharacters, Proposal, Text, Threads, Me,
 // Participants, Search }. Threads are presented threads (with Turn); Me is the llm participant's name; Search is
 // { threadId: [ hit ] }, found within Project (its name) when there is one. Context is the project's context,
-// { Text, Revision }. PromptParts gives the same prompt as named parts, for sizing: Rules, Context, Plan, Threads,
-// Search; a part with nothing in it is left out.
+// { Text, Revision }. Parents are the plans this one is a Subplan of, the top one first, as { Title, State, Text };
+// Subplans are its own, as { Title }. PromptParts gives the same prompt as named parts, for sizing: Rules, Context,
+// Parent plans, Plan, Threads, Search; a part with nothing in it is left out.
 
 function Prompt( Package )
 {
@@ -241,6 +242,8 @@ function PromptParts( Package )
 	let marks = [ { Name: 'Rules', At: 0 } ];
 	marks.push( { Name: 'Context', At: lines.length } );
 	push_context( lines, Package.Context );
+	marks.push( { Name: 'Parent plans', At: lines.length } );
+	push_parents( lines, Package.Parents || [] );
 	marks.push( { Name: 'Plan', At: lines.length } );
 	let state = Package.Proposal.State ? ' (' + Package.Proposal.State + ')' : '';
 	let project = Package.Project ? ' in the project "' + Package.Project + '"' : '';
@@ -251,6 +254,15 @@ function PromptParts( Package )
 	lines.push( Package.Text );
 	lines.push( fence );
 	lines.push( '' );
+	if ( ( Package.Subplans || [] ).length )
+	{
+		lines.push( 'Its Subplans, each a plan of its own (read one with read_plan when you need it):' );
+		for ( let subplan of Package.Subplans )
+		{
+			lines.push( '- "' + subplan.Title + '"' );
+		}
+		lines.push( '' );
+	}
 	marks.push( { Name: 'Threads', At: lines.length } );
 	lines.push( '# The threads' );
 	lines.push( '' );
@@ -376,6 +388,31 @@ function DescribeRequest( Request )
 		return tool + ' "' + ( Request.Query || '' ) + '"';
 	}
 	return tool;
+}
+
+
+// The plans this proposal is a Subplan of, the top one first, each as its text: context, not for acting on.
+function push_parents( lines, parents )
+{
+	if ( !parents.length )
+	{
+		return;
+	}
+	lines.push( '# The parent plans' );
+	lines.push( '' );
+	lines.push( 'This proposal is a Subplan. These are the plans above it, the top one first, as their current text. They are context: act only on this proposal\'s threads.' );
+	lines.push( '' );
+	for ( let parent of parents )
+	{
+		let state = parent.State ? ' (' + parent.State + ')' : '';
+		lines.push( '## "' + parent.Title + '"' + state );
+		lines.push( '' );
+		let fence = fence_for( parent.Text );
+		lines.push( fence + 'markdown' );
+		lines.push( parent.Text );
+		lines.push( fence );
+		lines.push( '' );
+	}
 }
 
 

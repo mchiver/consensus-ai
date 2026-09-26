@@ -3,11 +3,12 @@
 // Sidebar - the project tree: one project open at a time, its folders and items with their tallies;
 // new project, plan and folder, rename and delete; the search box, the waiting count, Trash at the bottom,
 // and the LLM's tokens today. Items and projects move and reorder by drag and drop; items copy by copy and paste.
+// A plan holds its Subplans: they fold under it, and a plan dropped into it becomes one.
 
 const DRAG_TYPE = 'application/x-consensus-item';
 const DRAG_PROJECT_TYPE = 'application/x-consensus-project';
 
-angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$window', 'State', 'Client', function ( $scope, $window, State, Client )
+angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$window', 'State', 'Client', 'Subplans', function ( $scope, $window, State, Client, Subplans )
 {
 	const OPEN_PROJECT_KEY = 'consensus.project';
 	const FOLDED_KEY = 'consensus.folded';
@@ -112,7 +113,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 
 
 	//-----------------------------------------------------------------
-	// The tree: one project open at a time; folders fold on their own.
+	// The tree: one project open at a time; folders, and plans with Subplans, fold on their own.
 
 	$scope.IsOpen = function ( project )
 	{
@@ -153,6 +154,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 
 	$scope.ToggleFold = function ( node, event )
 	{
+		event.preventDefault();
 		event.stopPropagation();
 		if ( folded.includes( node.Id ) )
 		{
@@ -195,7 +197,12 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 		let count = 0;
 		for ( let node of items )
 		{
-			count += ( node.Kind === 'folder' ) ? $scope.ItemCount( node.Items ) : 1;
+			if ( node.Kind === 'folder' )
+			{
+				count += $scope.ItemCount( node.Items );
+				continue;
+			}
+			count += 1 + ( node.Items ? $scope.ItemCount( node.Items ) : 0 );
 		}
 		return count;
 	};
@@ -276,6 +283,15 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 			await State.LoadList();
 		}
 		$scope.$applyAsync();
+	};
+
+
+	// A new Subplan under a plan of the tree: its title is asked for in the Subplan form.
+	$scope.NewSubplan = function ( project, node, event )
+	{
+		event.preventDefault();
+		event.stopPropagation();
+		Subplans.Start( node, project.Id );
 	};
 
 
@@ -439,8 +455,8 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 	};
 
 
-	// Where the node Id sits in Items: { Parent (a folder's id, or null for the root), Next (the id of the node
-	// after it, or null) }, or null.
+	// Where the node Id sits in Items: { Parent (a folder's or a plan's id, or null for the root), Next (the id of
+	// the node after it, or null) }, or null.
 	function place_of( items, id, parent )
 	{
 		for ( let index = 0; index < items.length; index++ )
@@ -451,7 +467,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 				let next = ( index + 1 < items.length ) ? items[ index + 1 ].Id : null;
 				return { Parent: parent, Next: next };
 			}
-			if ( node.Kind === 'folder' )
+			if ( node.Items )
 			{
 				let found = place_of( node.Items, id, node.Id );
 				if ( found )
@@ -464,8 +480,9 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 	}
 
 
-	// A drop on the tree. Drag = { Kind: 'item' | 'project', Id }; Target = { Kind: 'project' | 'folder' | 'item',
-	// Project, Id }; Zone = 'before' | 'after' | 'into'.
+	// A drop on the tree. Drag = { Kind: 'item' | 'project', Id }; Target = { Kind: 'project' | 'folder' | 'plan' |
+	// 'item', Project, Id }; Zone = 'before' | 'after' | 'into'. Into a plan makes a Subplan; the server refuses
+	// anything but a plan there.
 	$scope.TreeDrop = function ( Drag, Target, Zone )
 	{
 		if ( Drag.Kind === 'project' )
@@ -475,7 +492,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 		}
 		if ( Zone === 'into' )
 		{
-			let parent = ( Target.Kind === 'folder' ) ? Target.Id : null;
+			let parent = ( Target.Kind === 'folder' || Target.Kind === 'plan' ) ? Target.Id : null;
 			$scope.MoveItem( Drag.Id, { Project: Target.Project, Parent: parent } );
 			return;
 		}
@@ -733,11 +750,11 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 
 
 //---------------------------------------------------------------------
-// tree-drop="{ Kind: 'project' | 'folder' | 'item', Project, Id }" on-tree-drop="Handler( Drag, Target, Zone )":
+// tree-drop="{ Kind: 'project' | 'folder' | 'plan' | 'item', Project, Id }" on-tree-drop="Handler( Drag, Target, Zone )":
 // a row of the tree things are dropped on. Where the pointer is on the row picks the zone, shown by a line or
 // an outline:
 //   an item on a project's head           into its root
-//   an item on a folder                   before (top quarter), after (bottom quarter), or into (the middle)
+//   an item on a folder or a plan         before (top quarter), after (bottom quarter), or into (the middle)
 //   an item on an item                    before (top half) or after (bottom half)
 //   a project on a project's head         before (top half) or after (bottom half)
 
@@ -777,7 +794,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 		{
 			return null;
 		}
-		if ( target.Kind === 'folder' )
+		if ( target.Kind === 'folder' || target.Kind === 'plan' )
 		{
 			if ( share < 0.25 )
 			{

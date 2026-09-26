@@ -41,16 +41,44 @@ TEST( 'item ids leave folders out', function ()
 } );
 
 
-TEST( 'insert goes to the root or into a folder, never into an item', function ()
+TEST( 'insert goes to the root, into a folder, or a plan into a plan; never into another item', function ()
 {
 	let items = sample();
 	ASSERT.equal( TREE.Insert( items, null, { Kind: 'plan', Id: 'p3' } ), true );
 	ASSERT.equal( items[ 3 ].Id, 'p3' );
 	ASSERT.equal( TREE.Insert( items, 'f2', { Kind: 'plan', Id: 'p4' } ), true );
 	ASSERT.deepEqual( TREE.ItemIds( items[ 1 ].Items[ 1 ].Items ), [ 'p2', 'p4' ] );
-	ASSERT.equal( TREE.Insert( items, 'p1', { Kind: 'plan', Id: 'p5' } ), false );
+	ASSERT.equal( TREE.Insert( items, 'p1', { Kind: 'document', Id: 'd5' } ), false );
+	ASSERT.equal( TREE.Insert( items, 'p1', { Kind: 'folder', Id: 'f5', Name: 'N', Items: [] } ), false );
+	ASSERT.equal( items[ 0 ].Items, undefined );
+	ASSERT.equal( TREE.Insert( items, 'd1', { Kind: 'plan', Id: 'p5' } ), false );
+	ASSERT.equal( TREE.Insert( items, 'c1', { Kind: 'plan', Id: 'p5' } ), false );
 	ASSERT.equal( TREE.Insert( items, 'none', { Kind: 'plan', Id: 'p5' } ), false );
 	ASSERT.equal( TREE.Find( items, 'p5' ), null );
+} );
+
+
+TEST( 'subplans: a plan holds plans, found, walked, and its list dropped when emptied', function ()
+{
+	let items = sample();
+	ASSERT.equal( TREE.Insert( items, 'p2', { Kind: 'plan', Id: 'p6' } ), true );
+	ASSERT.equal( TREE.Insert( items, 'p6', { Kind: 'plan', Id: 'p7' } ), true );
+	ASSERT.equal( TREE.Insert( items, 'p2', { Kind: 'plan', Id: 'p8' }, 'p6' ), true );
+	ASSERT.deepEqual( TREE.ItemIds( items ), [ 'p1', 'd1', 'p2', 'p8', 'p6', 'p7', 'c1' ] );
+	ASSERT.deepEqual( TREE.Subplans( items, 'p2' ).map( function ( node ) { return node.Id; } ), [ 'p8', 'p6' ] );
+	ASSERT.deepEqual( TREE.Subplans( items, 'p1' ), [] );
+	ASSERT.deepEqual( TREE.Parents( items, 'p7' ).map( function ( node ) { return node.Id; } ), [ 'p2', 'p6' ] );
+	ASSERT.deepEqual( TREE.Parents( items, 'p2' ), [] );
+	ASSERT.deepEqual( TREE.Parents( items, 'none' ), [] );
+	ASSERT.equal( TREE.Contains( TREE.Find( items, 'p2' ).Node, 'p7' ), true );
+	ASSERT.deepEqual( TREE.Validate( items ), [] );
+	let moved = TREE.Remove( items, 'p6' );
+	ASSERT.deepEqual( TREE.ItemIds( moved.Items ), [ 'p7' ] );
+	TREE.Remove( items, 'p8' );
+	ASSERT.equal( TREE.Find( items, 'p2' ).Node.Items, undefined );
+	ASSERT.equal( TREE.CanHold( items, 'p2', 'plan' ), true );
+	ASSERT.equal( TREE.CanHold( items, 'p2', 'corpus' ), false );
+	ASSERT.equal( TREE.CanHold( items, null, 'corpus' ), true );
 } );
 
 
@@ -88,9 +116,11 @@ TEST( 'validation names the problems', function ()
 		{ Kind: 'folder', Id: 'f1', Name: ' ', Items: [] },
 		{ Kind: 'folder', Id: 'f2', Name: 'N' },
 		{ Kind: 'plan' },
+		{ Kind: 'plan', Id: 'p9', Items: [ { Kind: 'document', Id: 'd9' } ] },
 	];
 	let problems = TREE.Validate( bad );
-	ASSERT.equal( problems.length, 5 );
+	ASSERT.equal( problems.length, 6 );
+	ASSERT.match( problems.join( '; ' ), /p9 holds a document/ );
 	ASSERT.match( problems.join( '; ' ), /p1 appears twice/ );
 	ASSERT.match( problems.join( '; ' ), /kind "thing"/ );
 	ASSERT.match( problems.join( '; ' ), /f1 has no Name/ );

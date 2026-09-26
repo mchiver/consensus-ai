@@ -1723,3 +1723,51 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 {
 	display: none;
 }
+
+/* --------------------------------------------------------------------- subplans */
+
+/* The new Subplan form: over the page, near the top, like a small dialog. */
+.subplan-popup
+{
+	position: fixed;
+	inset: 0;
+	z-index: 50;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding-top: 12vh;
+	background: rgba( 0, 0, 0, 0.25 );
+}
+
+.subplan-form
+{
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	width: min( 34rem, calc( 100% - 2rem ) );
+	padding: 1rem;
+	background: var(--page-bg);
+	color: var(--text);
+	border: 1px solid var(--border);
+	border-radius: 0.4rem;
+	box-shadow: 0 6px 24px rgba( 0, 0, 0, 0.25 );
+	font-size: 0.9rem;
+}
+
+.subplan-head
+{
+	font-weight: 600;
+}
+
+.subplan-seed
+{
+	max-height: 12rem;
+	overflow: auto;
+	margin: 0;
+	padding: 0.5rem;
+	white-space: pre-wrap;
+	font-size: 0.8rem;
+	background: var(--panel-bg);
+	border: 1px solid var(--border);
+	border-radius: 0.25rem;
+}

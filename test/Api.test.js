@@ -816,7 +816,7 @@ TEST( 'projects: Default holds new proposals; a project and its folders are crea
 	ASSERT.equal( placed.Status, 201 );
 	ASSERT.equal( placed.Body.Project, project.Id );
 	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'Nowhere', Text: TEXT, Project: 'none-000000' } ) ).Status, 404 );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'Nowhere', Text: TEXT, Project: project.Id, Parent: placed.Body.Proposal.Id } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'Nowhere', Text: TEXT, Kind: 'document', Project: project.Id, Parent: placed.Body.Proposal.Id } ) ).Status, 400 );
 	let read = ( await call( 'GET', '/api/projects' ) ).Body.Projects.find( function ( candidate ) { return candidate.Id === project.Id; } );
 	ASSERT.equal( read.Items[ 0 ].Kind, 'folder' );
 	ASSERT.equal( read.Items[ 0 ].Items[ 0 ].Title, 'Placed' );
@@ -1129,7 +1129,7 @@ TEST( 'session: the prompt shaped by the choices and sized part by part; a desti
 	await wait_idle( id );
 	let run = ( await call( 'GET', '/api/proposals/' + id + '/runs' ) ).Body.Runs.find( function ( candidate ) { return candidate.Id === started.Body.Run; } );
 	ASSERT.equal( run.Model, 'picked-model' );
-	ASSERT.deepEqual( run.Options, { Context: true, Threads: 'waiting', Search: false } );
+	ASSERT.deepEqual( run.Options, { Context: true, Parents: true, Threads: 'waiting', Search: false } );
 	ASSERT.deepEqual( run.Steps.map( function ( step ) { return step.Text; } ), [ 'Consensus sent the prompt to picked-model', 'picked-model answered: 1 reply', 'Consensus carried out 1 action, 0 refused' ] );
 	ASSERT.equal( run.Steps[ 1 ].Tokens, 40 );
 	ASSERT.ok( run.Steps.every( function ( step ) { return step.At; } ) );
@@ -1287,4 +1287,69 @@ TEST( 'send: one call at a time per proposal, and a ceiling of calls per hour', 
 	delete settings_call.CallsPerHour;
 	ASSERT.equal( paused.Status, 409 );
 	ASSERT.match( paused.Body.Error, /paused/ );
+} );
+
+
+//---------------------------------------------------------------------
+
+TEST( 'subplans: a plan holds plans; they move, copy and go to the trash with it; the prompt carries the parents and names the subplans', async function ()
+{
+	let project = ( await call( 'POST', '/api/projects', { Name: 'Subplans' } ) ).Body.Project;
+	let made = async function ( title, parent, kind, body_text )
+	{
+		let result = await call( 'POST', '/api/proposals', { Title: title, Text: body_text || ( '# ' + title + '\n\nThe text of ' + title + '.\n' ), Kind: kind || 'plan', Project: project.Id, Parent: parent } );
+		return result;
+	};
+	let top = ( await made( 'Top' ) ).Body.Proposal;
+	let middle = await made( 'Middle', top.Id );
+	ASSERT.equal( middle.Status, 201 );
+	middle = middle.Body.Proposal;
+	let bottom = ( await made( 'Bottom', middle.Id ) ).Body.Proposal;
+	let side = ( await made( 'Side', top.Id ) ).Body.Proposal;
+
+	// only plans go under a plan
+	ASSERT.equal( ( await made( 'Doc', top.Id, 'document' ) ).Status, 400 );
+	let doc = ( await made( 'Doc', null, 'document' ) ).Body.Proposal;
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + doc.Id + '/move', { Project: project.Id, Parent: top.Id } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + top.Id + '/move', { Project: project.Id, Parent: bottom.Id } ) ).Status, 400 );
+
+	// the tree shows them nested
+	let listed = ( await call( 'GET', '/api/projects' ) ).Body.Projects.find( function ( candidate ) { return candidate.Id === project.Id; } );
+	let top_node = listed.Items.find( function ( node ) { return node.Id === top.Id; } );
+	ASSERT.deepEqual( top_node.Items.map( function ( node ) { return node.Title; } ), [ 'Middle', 'Side' ] );
+	ASSERT.equal( top_node.Items[ 0 ].Items[ 0 ].Title, 'Bottom' );
+	ASSERT.equal( top_node.Items[ 1 ].Items, undefined );
+
+	// a plan dragged onto a plan becomes its subplan; dragged out, it is not
+	let loose = ( await made( 'Loose' ) ).Body.Proposal;
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + loose.Id + '/move', { Project: project.Id, Parent: side.Id } ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + loose.Id + '/move', { Project: project.Id, Parent: null } ) ).Status, 200 );
+
+	// the prompt: the parents' text, the top one first, as their own part; a parent names its subplans
+	let prompt = ( await call( 'GET', '/api/proposals/' + bottom.Id + '/prompt' ) ).Body;
+	ASSERT.deepEqual( prompt.Parts.map( function ( part ) { return part.Name; } ).slice( 0, 4 ), [ 'Rules', 'Context', 'Parent plans', 'Plan' ] );
+	let parents = prompt.Prompt.slice( prompt.Prompt.indexOf( '# The parent plans' ), prompt.Prompt.indexOf( '# The proposal:' ) );
+	ASSERT.ok( parents.indexOf( 'The text of Top.' ) > 0 );
+	ASSERT.ok( parents.indexOf( 'The text of Middle.' ) > parents.indexOf( 'The text of Top.' ) );
+	ASSERT.equal( parents.includes( 'The text of Side.' ), false );
+	let without = ( await call( 'GET', '/api/proposals/' + bottom.Id + '/prompt?parents=0' ) ).Body;
+	ASSERT.equal( without.Prompt.includes( '# The parent plans' ), false );
+	let top_prompt = ( await call( 'GET', '/api/proposals/' + top.Id + '/prompt' ) ).Body.Prompt;
+	ASSERT.equal( top_prompt.includes( '# The parent plans' ), false );
+	ASSERT.match( top_prompt, /Its Subplans[^\n]*\n- "Middle"\n- "Side"/ );
+
+	// a copy carries its subplans, with new ids
+	let copied = await call( 'POST', '/api/items/' + middle.Id + '/copy', { Project: project.Id } );
+	ASSERT.equal( copied.Status, 201 );
+	ASSERT.equal( copied.Body.Node.Items.length, 1 );
+	ASSERT.notEqual( copied.Body.Node.Items[ 0 ].Id, bottom.Id );
+	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + copied.Body.Node.Items[ 0 ].Id ) ).Body.Proposal.Title.startsWith( 'Bottom' ), true );
+
+	// the trash takes a plan's subplans with it
+	let trashed = await call( 'DELETE', '/api/proposals/' + top.Id );
+	ASSERT.equal( trashed.Status, 200 );
+	ASSERT.deepEqual( trashed.Body.Subplans.slice().sort(), [ middle.Id, bottom.Id, side.Id ].sort() );
+	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + bottom.Id ) ).Status, 404 );
+	listed = ( await call( 'GET', '/api/projects' ) ).Body.Projects.find( function ( candidate ) { return candidate.Id === project.Id; } );
+	ASSERT.equal( listed.Items.some( function ( node ) { return node.Id === top.Id; } ), false );
 } );

@@ -1,11 +1,11 @@
 'use strict';
 
 // Sessions - the LLM session panel of a plan. Send to LLM opens it within the plan's content area; each plan has
-// its own, so sessions in different tabs run at the same time. The panel shapes the prompt (context, threads,
-// search) and shows its size, picks where it goes (a destination and model, or Manual copy / paste), and shows the
+// its own, so sessions in different tabs run at the same time. The panel shapes the prompt (context, parent plans
+// for a Subplan, threads, search) and shows its size, picks where it goes (a destination and model, or Manual copy / paste), and shows the
 // run log. A session runs on the server: closing the panel or switching tabs does not stop it.
 //
-//   panel = { Open, Options: { Context, Threads, Search }, Destination, Model, Size, Preview, Manual, Busy, Result }
+//   panel = { Open, Options: { Context, Parents, Threads, Search }, Destination, Model, Size, Preview, Manual, Busy, Result }
 //     Size    the prompt's size as the server measures it: { Characters, Tokens, Parts }
 //     Manual  { Prompt, Revision, Context, Run, Answer } while a copy / paste session is under way
 
@@ -21,7 +21,7 @@ angular.module( 'Consensus' ).factory( 'Sessions', [ function ()
 		{
 			panels[ Id ] = {
 				Open: false,
-				Options: { Context: true, Threads: 'open', Search: true },
+				Options: { Context: true, Parents: true, Threads: 'open', Search: true },
 				Destination: null,
 				Model: null,
 				Size: null,
@@ -238,8 +238,38 @@ angular.module( 'Consensus' ).factory( 'Sessions', [ function ()
 
 	function options_query( options )
 	{
-		return '?context=' + ( options.Context ? '1' : '0' ) + '&threads=' + encodeURIComponent( options.Threads ) + '&search=' + ( options.Search ? '1' : '0' );
+		return '?context=' + ( options.Context ? '1' : '0' ) + '&parents=' + ( options.Parents ? '1' : '0' ) + '&threads=' + encodeURIComponent( options.Threads ) + '&search=' + ( options.Search ? '1' : '0' );
 	}
+
+
+	// Whether the node Id sits under a plan in Items: a Subplan.
+	function is_subplan( items, id, under_plan )
+	{
+		for ( let node of items || [] )
+		{
+			if ( node.Id === id )
+			{
+				return under_plan;
+			}
+			if ( node.Items && is_subplan( node.Items, id, node.Kind === 'plan' ) )
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+
+	// The open plan is a Subplan, so the parent plans can go in its prompt.
+	$scope.HasParents = function ()
+	{
+		if ( !State.Open || !State.Open.Project )
+		{
+			return false;
+		}
+		let project = ( State.Projects || [] ).find( function ( candidate ) { return candidate.Id === State.Open.Project.Id; } );
+		return !!project && is_subplan( project.Items, State.Open.Proposal.Id, false );
+	};
 
 
 	async function measure( id, panel )

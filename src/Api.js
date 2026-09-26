@@ -280,7 +280,8 @@ function Attach( App, Context )
 			}
 			state = body.State;
 		}
-		// Where it goes: a project (Default when not named) and a folder in it (its root when not named).
+		// Where it goes: a project (Default when not named) and a folder in it, or a plan for a Subplan (its root
+		// when not named).
 		let project_id = ( body.Project === undefined || body.Project === null ) ? STORE.DEFAULT_PROJECT : body.Project;
 		let parent = ( body.Parent === undefined ) ? null : body.Parent;
 		let target = await store.ReadProject( project_id );
@@ -288,9 +289,9 @@ function Attach( App, Context )
 		{
 			return fail( response, 404, 'no such project' );
 		}
-		if ( !TREE.Children( target.Items, parent ) )
+		if ( !TREE.CanHold( target.Items, parent, kind ) )
 		{
-			return fail( response, 400, 'Parent is not a folder of the project' );
+			return fail( response, 400, PARENT_REFUSED );
 		}
 		let proposal = await store.CreateProposal( { Title: title, Text: text_of( body.Text ), By: request.Participant.Name, Kind: kind, State: state } );
 		let placed = await change_project( project_id, null, function ( project )
@@ -399,6 +400,10 @@ function Attach( App, Context )
 		{
 			return fail( response, 409, 'a project\'s context is never deleted on its own' );
 		}
+		// A plan's Subplans go to the trash with it.
+		let holder = await store.ProjectOf( id );
+		let found = holder ? TREE.Find( holder.Items, id ) : null;
+		let subplans = ( found && Array.isArray( found.Node.Items ) ) ? TREE.ItemIds( found.Node.Items ) : [];
 		let moved = await store.Queue( id, async function ()
 		{
 			return await store.TrashProposal( id );
@@ -407,7 +412,14 @@ function Attach( App, Context )
 		{
 			return fail( response, 404, 'no such proposal' );
 		}
-		let holder = await store.ProjectOf( id );
+		let trashed = [ id ];
+		for ( let subplan of subplans )
+		{
+			if ( await store.Queue( subplan, function () { return store.TrashProposal( subplan ); } ) )
+			{
+				trashed.push( subplan );
+			}
+		}
 		if ( holder )
 		{
 			await change_project( holder.Id, null, function ( project )
@@ -415,8 +427,11 @@ function Attach( App, Context )
 				TREE.Remove( project.Items, id );
 			} );
 		}
-		changed( id, 'trashed' );
-		response.json( { Trashed: id } );
+		for ( let gone of trashed )
+		{
+			changed( gone, 'trashed' );
+		}
+		response.json( { Trashed: id, Subplans: trashed.slice( 1 ) } );
 	} );
 
 
@@ -537,11 +552,12 @@ function Attach( App, Context )
 				return { Kind: 'folder', Id: node.Id, Name: node.Name, Items: present_items( node.Items, views ) };
 			}
 			let view = views[ node.Id ];
-			if ( !view )
+			let presented = view ? Object.assign( { Kind: node.Kind, Id: node.Id }, view ) : { Kind: node.Kind, Id: node.Id, Missing: true };
+			if ( node.Kind === 'plan' && Array.isArray( node.Items ) && node.Items.length )
 			{
-				return { Kind: node.Kind, Id: node.Id, Missing: true };
+				presented.Items = present_items( node.Items, views );
 			}
-			return Object.assign( { Kind: node.Kind, Id: node.Id }, view );
+			return presented;
 		} );
 	}
 
@@ -772,7 +788,7 @@ function Attach( App, Context )
 		{
 			return fail( response, 404, 'no such project' );
 		}
-		if ( !TREE.Children( target.Items, parent ) )
+		if ( !TREE.CanHold( target.Items, parent, 'corpus' ) )
 		{
 			return fail( response, 400, 'parent is not a folder of the project' );
 		}
@@ -908,8 +924,9 @@ function Attach( App, Context )
 	}
 
 
-	// The target is a project, and Parent (when given) one of its folders. Returns null or a refusal.
-	async function check_target( where )
+	// The target is a project, and Parent (when given) one of its folders, or one of its plans for a plan. Returns
+	// null or a refusal.
+	async function check_target( where, kind )
 	{
 		if ( typeof where.Project !== 'string' || !where.Project )
 		{
@@ -920,11 +937,19 @@ function Attach( App, Context )
 		{
 			return refused( 404, 'no such project' );
 		}
-		if ( !TREE.Children( project.Items, where.Parent ) )
+		if ( !TREE.CanHold( project.Items, where.Parent, kind ) )
 		{
-			return refused( 400, 'Parent is not a folder of the project' );
+			return refused( 400, PARENT_REFUSED );
 		}
 		return null;
+	}
+
+
+	// The kind of the node Id in the project, or null.
+	function kind_in( project, id )
+	{
+		let found = project ? TREE.Find( project.Items, id ) : null;
+		return found ? found.Node.Kind : null;
 	}
 
 
@@ -938,15 +963,15 @@ function Attach( App, Context )
 		{
 			return fail( response, 400, 'an item cannot go just before itself' );
 		}
-		let problem = await check_target( where );
-		if ( problem )
-		{
-			return send_result( response, problem );
-		}
 		let source = await store.ProjectOf( id );
 		if ( !source )
 		{
 			return fail( response, 404, 'no such item in any project' );
+		}
+		let problem = await check_target( where, kind_in( source, id ) );
+		if ( problem )
+		{
+			return send_result( response, problem );
 		}
 		let result = null;
 		if ( source.Id === where.Project )
@@ -960,7 +985,11 @@ function Attach( App, Context )
 				}
 				if ( where.Parent !== null && TREE.Contains( found.Node, where.Parent ) )
 				{
-					return refused( 400, 'a folder cannot go inside itself' );
+					return refused( 400, 'an item cannot go inside itself' );
+				}
+				if ( !TREE.CanHold( project.Items, where.Parent, found.Node.Kind ) )
+				{
+					return refused( 400, PARENT_REFUSED );
 				}
 				TREE.Remove( project.Items, id );
 				TREE.Insert( project.Items, where.Parent, found.Node, where.Before );
@@ -986,7 +1015,7 @@ function Attach( App, Context )
 			{
 				if ( !TREE.Insert( project.Items, where.Parent, node, where.Before ) )
 				{
-					return refused( 400, 'Parent is not a folder of the project' );
+					return refused( 400, PARENT_REFUSED );
 				}
 			} );
 			if ( result.Refused )
@@ -1002,21 +1031,21 @@ function Attach( App, Context )
 
 
 	// A copy of a plan or document is whole (text, threads, revisions) under a new id; a folder's copy holds a
-	// copy of everything in it, with new ids throughout.
+	// copy of everything in it, and a plan's copy a copy of its Subplans, with new ids throughout.
 	router.post( '/items/:id/copy', async function ( request, response )
 	{
 		let id = request.params.id;
 		let where = where_of( request.body );
-		let problem = await check_target( where );
-		if ( problem )
-		{
-			return send_result( response, problem );
-		}
 		let source = await store.ProjectOf( id );
 		let found = source ? TREE.Find( source.Items, id ) : null;
 		if ( !found )
 		{
 			return fail( response, 404, 'no such item in any project' );
+		}
+		let problem = await check_target( where, found.Node.Kind );
+		if ( problem )
+		{
+			return send_result( response, problem );
 		}
 		let copy = await copy_node( found.Node );
 		if ( copy.Refused )
@@ -1027,7 +1056,7 @@ function Attach( App, Context )
 		{
 			if ( !TREE.Insert( project.Items, where.Parent, copy ) )
 			{
-				return refused( 400, 'Parent is not a folder of the project' );
+				return refused( 400, PARENT_REFUSED );
 			}
 		} );
 		send_result( response, result, 201, { Node: copy, Project: result.Project } );
@@ -1059,7 +1088,21 @@ function Attach( App, Context )
 				return refused( 404, 'no such proposal: ' + node.Id );
 			}
 			changed( proposal.Id, 'created' );
-			return { Kind: node.Kind, Id: proposal.Id };
+			let copied = { Kind: node.Kind, Id: proposal.Id };
+			if ( Array.isArray( node.Items ) && node.Items.length )
+			{
+				copied.Items = [];
+				for ( let child of node.Items )
+				{
+					let subplan = await copy_node( child );
+					if ( subplan.Refused )
+					{
+						return subplan;
+					}
+					copied.Items.push( subplan );
+				}
+			}
+			return copied;
 		}
 		if ( node.Kind === 'corpus' )
 		{
@@ -1435,6 +1478,7 @@ function Attach( App, Context )
 	const RUNS_KEPT = 20;
 	const MANUAL = 'Manual';
 	const THREAD_CHOICES = [ 'waiting', 'open', 'all' ];
+	const PARENT_REFUSED = 'Parent is not a folder of the project, or a plan (which holds plans only)';
 
 
 	// The llm participant, called by Consensus or not.
@@ -1477,23 +1521,25 @@ function Attach( App, Context )
 	}
 
 
-	// A session's choices, each defaulted: { Context: true, Threads: 'waiting' | 'open' | 'all', Search: true }
+	// A session's choices, each defaulted: { Context: true, Parents: true, Threads: 'waiting' | 'open' | 'all', Search: true }
 	function options_of( given )
 	{
 		let options = given || {};
 		return {
 			Context: options.Context !== false,
+			Parents: options.Parents !== false,
 			Threads: THREAD_CHOICES.includes( options.Threads ) ? options.Threads : 'open',
 			Search: options.Search !== false,
 		};
 	}
 
 
-	// The same from a query string: ?context=0&threads=waiting&search=0
+	// The same from a query string: ?context=0&parents=0&threads=waiting&search=0
 	function options_of_query( query )
 	{
 		return options_of( {
 			Context: query.context !== '0' && query.context !== 'false',
+			Parents: query.parents !== '0' && query.parents !== 'false',
 			Threads: query.threads,
 			Search: query.search !== '0' && query.search !== 'false',
 		} );
@@ -1530,9 +1576,13 @@ function Attach( App, Context )
 		let holder = await store.ProjectOf( id );
 		let context = chosen.Context ? await context_of( holder ) : null;
 		let search = chosen.Search ? await search_for( waiting, holder ? TREE.ItemIds( holder.Items ) : null ) : {};
+		let parents = chosen.Parents ? await plans_of( holder ? TREE.Parents( holder.Items, id ) : [], true ) : [];
+		let subplans = await plans_of( holder ? TREE.Subplans( holder.Items, id ) : [], false );
 		let parts = LLM.PromptParts( {
 			Project: holder ? holder.Name : null,
 			Context: context,
+			Parents: parents,
+			Subplans: subplans,
 			MaxCharacters: LLM.ContextSettings( settings ).MaxCharacters,
 			Proposal: read.Proposal,
 			Text: read.Text,
@@ -1544,6 +1594,29 @@ function Attach( App, Context )
 		} );
 		let prompt = parts.map( function ( part ) { return part.Text; } ).join( '\n' );
 		return { Prompt: prompt, Parts: parts, Read: read, Waiting: waiting, Context: context };
+	}
+
+
+	// The plans of Nodes as { Id, Title, State, Text? }, with their text when With_text; a plan that cannot be read
+	// is left out.
+	async function plans_of( nodes, with_text )
+	{
+		let plans = [];
+		for ( let node of nodes )
+		{
+			let read = await store.ReadProposal( node.Id );
+			if ( !read )
+			{
+				continue;
+			}
+			let plan = { Id: node.Id, Title: read.Proposal.Title, State: read.Proposal.State };
+			if ( with_text )
+			{
+				plan.Text = read.Text;
+			}
+			plans.push( plan );
+		}
+		return plans;
 	}
 
 
@@ -1838,11 +1911,12 @@ function Attach( App, Context )
 	}
 
 
-	// The project's plans, documents and zips, with their ids, as { Kind, Id, Title, State, Folder, Corpus? }
+	// The project's plans, documents and zips, with their ids, as { Kind, Id, Title, State, Folder, Parent?, Corpus? };
+	// a Subplan's Parent is its parent plan's title.
 	async function project_items( project )
 	{
 		let items = [];
-		async function walk( nodes, folder )
+		async function walk( nodes, folder, parent )
 		{
 			for ( let node of nodes )
 			{
@@ -1863,11 +1937,20 @@ function Attach( App, Context )
 				let read = await store.ReadProposal( node.Id );
 				if ( read )
 				{
-					items.push( { Kind: read.Proposal.Kind || 'plan', Id: node.Id, Title: read.Proposal.Title, State: read.Proposal.State, Folder: folder } );
+					let item = { Kind: read.Proposal.Kind || 'plan', Id: node.Id, Title: read.Proposal.Title, State: read.Proposal.State, Folder: folder };
+					if ( parent )
+					{
+						item.Parent = parent;
+					}
+					items.push( item );
+				}
+				if ( read && Array.isArray( node.Items ) )
+				{
+					await walk( node.Items, folder, read.Proposal.Title );
 				}
 			}
 		}
-		await walk( project.Items, '' );
+		await walk( project.Items, '', null );
 		if ( project.Context )
 		{
 			items.push( { Kind: 'context', Id: project.Context, Title: 'Context', Folder: '' } );
@@ -1898,7 +1981,7 @@ function Attach( App, Context )
 			let lines = [ 'The project "' + project.Name + '":' ];
 			for ( let item of items )
 			{
-				let where = item.Folder ? ' in ' + item.Folder : '';
+				let where = item.Parent ? ' under "' + item.Parent + '"' : ( item.Folder ? ' in ' + item.Folder : '' );
 				let extra = item.State ? ' (' + item.State + ')' : ( item.Corpus ? ' (' + item.Corpus.Files.length + ' files)' : '' );
 				lines.push( '- ' + item.Kind + ' "' + item.Title + '"' + extra + where + ', id ' + item.Id );
 			}

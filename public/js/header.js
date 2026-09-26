@@ -4,7 +4,7 @@
 // state picker and the one-line state, then Comment on the whole document, Send to LLM (owner), and Delete
 // (to the trash, confirmed inline).
 
-angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Tabs', 'Sessions', function ( $scope, $window, State, Client, Tabs, Sessions )
+angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Tabs', 'Sessions', 'Subplans', function ( $scope, $window, State, Client, Tabs, Sessions, Subplans )
 {
 	$scope.State = State;
 	$scope.Busy = false;
@@ -21,6 +21,19 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 	$scope.HasThreads = function ()
 	{
 		return !!State.Open && State.Open.Proposal.Kind !== 'document' && State.Open.Proposal.Kind !== 'context';
+	};
+
+
+	// A plan (not a document or a context) takes Subplans.
+	$scope.IsPlan = function ()
+	{
+		return !!State.Open && ( State.Open.Proposal.Kind || 'plan' ) === 'plan';
+	};
+
+
+	$scope.NewSubplan = function ()
+	{
+		Subplans.Start();
 	};
 
 

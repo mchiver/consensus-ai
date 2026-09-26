@@ -249,7 +249,12 @@ function rename_nodes( items, map )
 		{
 			return Object.assign( {}, node, { Items: rename_nodes( node.Items || [], map ) } );
 		}
-		return Object.assign( {}, node, { Id: map[ node.Id ] || node.Id } );
+		let renamed = Object.assign( {}, node, { Id: map[ node.Id ] || node.Id } );
+		if ( Array.isArray( node.Items ) )
+		{
+			renamed.Items = rename_nodes( node.Items, map );
+		}
+		return renamed;
 	} );
 }
 

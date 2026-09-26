@@ -1,13 +1,15 @@
 'use strict';
 
-// Read view - the rendered markdown with each anchored passage highlighted; a selection offers Comment
-// (or Re-anchor here, while a thread is being re-anchored); clicking a highlight opens its thread.
+// Read view - the rendered markdown with each anchored passage highlighted; a selection offers Comment and, on a
+// plan, Start a new Subplan (or Re-anchor here, while a thread is being re-anchored); clicking a highlight opens
+// its thread.
 
-angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeout', 'State', 'Render', 'Client', function ( $scope, $timeout, State, Render, Client )
+angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeout', 'State', 'Render', 'Client', 'Subplans', function ( $scope, $timeout, State, Render, Client, Subplans )
 {
 	$scope.State = State;
 	let view = document.getElementById( 'read-view' );
 	let button = document.getElementById( 'comment-button' );
+	let subplan_button = document.getElementById( 'subplan-button' );
 	let section = view.parentNode;
 	let pending_anchor = null;
 
@@ -27,6 +29,7 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 	function hide_button()
 	{
 		button.classList.remove( 'shown' );
+		subplan_button.classList.remove( 'shown' );
 		pending_anchor = null;
 	}
 
@@ -50,7 +53,27 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 		button.style.left = left + 'px';
 		button.classList.add( 'shown' );
 		pending_anchor = anchor;
+		let is_plan = ( State.Open.Proposal.Kind || 'plan' ) === 'plan';
+		if ( is_plan && !State.Reanchoring )
+		{
+			subplan_button.style.top = top + 'px';
+			subplan_button.style.left = ( left + button.offsetWidth + 6 ) + 'px';
+			subplan_button.classList.add( 'shown' );
+		}
 	}
+
+
+	$scope.SubplanFromSelection = function ()
+	{
+		if ( !pending_anchor )
+		{
+			return;
+		}
+		let anchor = pending_anchor;
+		window.getSelection().removeAllRanges();
+		hide_button();
+		Subplans.FromSelection( anchor );
+	};
 
 
 	$scope.CommentOnSelection = async function ()
