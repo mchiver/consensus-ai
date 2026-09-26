@@ -1532,6 +1532,160 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='6.8' cy='6.8' r='4.3' fill='none' stroke='black' stroke-width='1.4'/%3E%3Cpath d='M10 10l4 4' stroke='black' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" );
 }
 
+/* --------------------------------------------------------------------- the LLM session panel */
+
+/* The views of the open item share this area; the session panel floats in it, over the plan's content only. */
+.content-area
+{
+	position: relative;
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+/* Anchored to the bottom right, so the bars at the top of a view (the edit bar's Save) stay in reach. */
+.session-panel
+{
+	position: absolute;
+	bottom: 0.75rem;
+	right: 1rem;
+	z-index: 20;
+	width: min( 42rem, calc( 100% - 2rem ) );
+	max-height: calc( 100% - 4rem );
+	overflow-y: auto;
+	background: var(--page-bg);
+	border: 1px solid var(--border);
+	border-radius: 0.4rem;
+	box-shadow: 0 6px 24px rgba( 0, 0, 0, 0.18 );
+	font-size: 0.9rem;
+}
+
+.session-head
+{
+	position: sticky;
+	top: 0;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.5rem 0.75rem;
+	background: var(--panel-bg);
+	border-bottom: 1px solid var(--border);
+}
+
+.session-title
+{
+	font-weight: 600;
+}
+
+.session-head .btn-close
+{
+	margin-left: auto;
+}
+
+.session-section
+{
+	padding: 0.6rem 0.75rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.session-label
+{
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--muted);
+	margin-bottom: 0.35rem;
+}
+
+.session-choices
+{
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 0.75rem;
+}
+
+.session-choices .form-select
+{
+	width: auto;
+}
+
+.session-size
+{
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.25rem 0.75rem;
+	margin-top: 0.5rem;
+}
+
+.size-part
+{
+	font-size: 0.8rem;
+	color: var(--muted);
+}
+
+.session-preview
+{
+	max-height: 20rem;
+	overflow: auto;
+	margin: 0.5rem 0 0;
+	padding: 0.5rem;
+	background: var(--panel-bg);
+	border-radius: 0.3rem;
+	font-size: 0.75rem;
+	white-space: pre-wrap;
+}
+
+.session-copy-box, #session-answer
+{
+	margin-top: 0.4rem;
+	font-family: var(--bs-font-monospace);
+	font-size: 0.8rem;
+}
+
+.session-result
+{
+	padding: 0.4rem 0.75rem;
+	background: var(--applied-bg);
+}
+
+.run + .run
+{
+	margin-top: 0.5rem;
+	padding-top: 0.5rem;
+	border-top: 1px dashed var(--border);
+}
+
+.run-head
+{
+	font-weight: 600;
+	margin-bottom: 0.2rem;
+}
+
+.run-running
+{
+	font-weight: normal;
+	color: var(--accent);
+}
+
+.run-step
+{
+	display: grid;
+	grid-template-columns: auto 1fr auto auto;
+	gap: 0.6rem;
+	font-size: 0.8rem;
+	line-height: 1.5;
+}
+
+.step-at, .step-meta
+{
+	color: var(--muted);
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
 /* A detached window: one item, no sidebar and no strip, a bar to put it back. */
 .detached-bar
 {

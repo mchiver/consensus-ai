@@ -113,16 +113,49 @@ TEST( 'a selection becomes an anchored thread', async function ()
 } );
 
 
-TEST( 'Send to LLM hands it the thread; its reply arrives without a reload and its tokens are counted', async function ()
+// Send to LLM opens the plan's session panel; Send there runs the session with the panel's choices.
+async function send_from_panel()
+{
+	if ( !await page.Evaluate( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' ) )
+	{
+		await page.Click( '#send-button' );
+	}
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
+	await page.WaitFor( '!document.getElementById( "session-send" ).disabled' );
+	await page.Click( '#session-send' );
+}
+
+
+TEST( 'Send to LLM opens the session panel; its Send hands the LLM the thread, the reply arrives live, and the run log shows each step', async function ()
 {
 	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (1)"' );
 	await page.Click( '#send-button' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
+	// the prompt's size, part by part, and its preview
+	await page.WaitFor( '/\\d tokens/.test( ' + text_of( '#session-size' ) + ' )' );
+	ASSERT.match( await page.Evaluate( text_of( '#session-size' ) ), /Rules \d+%/ );
+	await page.Click( '#session-preview-toggle' );
+	await page.WaitFor( '/# The rules/.test( ' + text_of( '#session-preview' ) + ' )' );
+	await page.Click( '#session-preview-toggle' );
+	// only the waiting threads: the size shrinks or stays, never grows
+	let open_size = await page.Evaluate( 'parseInt( ' + text_of( '#session-size b' ) + '.replace( /\\D/g, "" ), 10 )' );
+	await page.Evaluate( '( function () { let select = document.getElementById( "session-threads" ); select.value = "waiting"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	await page.WaitFor( 'parseInt( ' + text_of( '#session-size b' ) + '.replace( /\\D/g, "" ), 10 ) <= ' + open_size );
+	await send_from_panel();
 	await page.WaitFor( count_of( '.thread:not(.compose) .reply' ) + ' === 2' );
 	ASSERT.equal( await page.Evaluate( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).pop().textContent.trim()' ), 'Outcome: one item stays.' );
 	await page.WaitFor( text_of( '#state-line' ) + ' === "1 contested, waiting on you 1"' );
 	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (0)"' );
-	ASSERT.equal( await page.Evaluate( 'document.getElementById( "send-button" ).disabled' ), true );
+	await page.WaitFor( 'document.getElementById( "session-send" ).disabled' );
 	await page.WaitFor( text_of( '#usage' ) + ' === "LLM today: 1.5k in · 120 out"' );
+	await page.WaitFor( 'document.querySelector( ".run" ) && document.querySelector( ".run" ).querySelectorAll( ".run-step" ).length === 3' );
+	let steps = await page.Evaluate( '[ ...document.querySelector( ".run" ).querySelectorAll( ".run-step .step-text" ) ].map( function ( step ) { return step.textContent.trim(); } )' );
+	ASSERT.match( steps[ 0 ], /^Consensus sent the prompt to / );
+	ASSERT.equal( steps[ 1 ], 'fake-model answered: 1 reply' );
+	ASSERT.equal( steps[ 2 ], 'Consensus carried out 1 action, 0 refused' );
+	await page.Click( '.session-head .btn-close' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display === "none"' );
+	ASSERT.deepEqual( page.Errors, [] );
 } );
 
 
@@ -153,8 +186,9 @@ TEST( 'edit and save make a revision and keep the highlight', async function ()
 TEST( 'once the LLM applies, the state picker makes the proposal Working and the sidebar follows', async function ()
 {
 	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (1)"' );
-	await page.Click( '#send-button' );
+	await send_from_panel();
 	await page.WaitFor( text_of( '#state-line' ) + ' === "1 applied"' );
+	await page.Click( '.session-head .btn-close' );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).selectedOptions[ 0 ].label' ), 'Proposal' );
 	await page.Evaluate( '( function () { let picker = document.getElementById( "state-picker" ); let option = Array.from( picker.options ).find( function ( candidate ) { return candidate.label === "Working"; } ); picker.value = option.value; picker.dispatchEvent( new Event( "change" ) ); return true; } )()' );
 	await page.WaitFor( text_of( '.tree-item[data-id="' + proposal.Id + '"] .item-state' ) + ' === "Working"' );
@@ -503,6 +537,7 @@ TEST( 'tabs: a tab detaches into its own window and is re-attached from there', 
 	await page.WaitFor( count_of( tab_selector( tab_one.Id ) ) + ' === 0' );
 	ASSERT.equal( await page.Evaluate( 'window.opened[ 0 ]' ), '/?detached=1#/p/' + tab_one.Id );
 	// clicked again in the main window, the item stays out: its window is asked to come forward
+	await page.WaitFor( text_of( '.header .title' ) + ' !== "Tab one"' );
 	let shown = await page.Evaluate( text_of( '.header .title' ) );
 	await page.Evaluate( 'window.location.hash = "#/p/' + tab_one.Id + '"; true' );
 	await page.WaitFor( 'window.heard.includes( "focus" )' );
@@ -522,4 +557,31 @@ TEST( 'tabs: a tab detaches into its own window and is re-attached from there', 
 	ASSERT.deepEqual( page.Errors, [] );
 	ASSERT.deepEqual( detached.Errors, [] );
 	detached.Close();
+} );
+
+
+TEST( 'session: Manual copy / paste makes the prompt, and a pasted answer is carried out and logged', async function ()
+{
+	let posted = await fetch( running.Url + '/api/proposals/' + tab_one.Id + '/threads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Text: 'Is one line enough?' } ) } );
+	let thread = ( await posted.json() ).Thread;
+	await page.Evaluate( 'window.location.hash = "#/p/' + tab_one.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tab one"' );
+	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (1)"' );
+	await page.Click( '#send-button' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
+	await page.Evaluate( '( function () { let select = document.getElementById( "session-destination" ); select.value = "Manual"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-copy" ) ).display !== "none"' );
+	await page.Click( '#session-copy' );
+	// the prompt is made, on the clipboard or shown to copy by hand
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-answer" ) ).display !== "none" && document.getElementById( "session-answer" ).offsetParent !== null' );
+	let answer = JSON.stringify( { Actions: [ { Thread: thread.Id, Kind: 'reply', Reply: 'One line is enough.' } ] } );
+	await page.Evaluate( '( function () { let box = document.getElementById( "session-answer" ); box.value = ' + JSON.stringify( answer ) + '; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.WaitFor( '!document.getElementById( "session-carry-out" ).disabled' );
+	await page.Click( '#session-carry-out' );
+	await page.WaitFor( text_of( '#session-result' ) + ' === "Carried out 1 actions, 0 refused."' );
+	await page.WaitFor( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).some( function ( reply ) { return reply.textContent.trim() === "One line is enough."; } )' );
+	await page.WaitFor( 'document.querySelector( ".run" ) && /^Manual/.test( document.querySelector( ".run .run-head" ).textContent.trim() )' );
+	let steps = await page.Evaluate( '[ ...document.querySelector( ".run" ).querySelectorAll( ".run-step .step-text" ) ].map( function ( step ) { return step.textContent.trim(); } )' );
+	ASSERT.deepEqual( steps, [ 'Consensus made the prompt for copying', 'The answer was pasted: 1 reply', 'Consensus carried out 1 action, 0 refused' ] );
+	ASSERT.deepEqual( page.Errors, [] );
 } );

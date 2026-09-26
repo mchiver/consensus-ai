@@ -135,17 +135,56 @@ function CallSettings( Participant )
 }
 
 
-// Problems with a Call setting, as sentences; none when it is usable.
-function Validate( Call )
+// The places a session can send its prompt, from the llm participant: its Destinations list, or its one Call read
+// as a list of one. Each is { Name, Kind, Command?, Url?, Model?, CallsPerHour, TimeoutSeconds }, defaulted as a Call
+// is. Manual copy / paste is not among them: it needs no setting.
+function Destinations( Participant )
+{
+	if ( !Participant )
+	{
+		return [];
+	}
+	let given = Array.isArray( Participant.Destinations ) ? Participant.Destinations : ( Participant.Call ? [ Participant.Call ] : [] );
+	return given.map( function ( destination, index )
+	{
+		let call = CallSettings( { Call: destination } );
+		call.Name = destination.Name || default_name( destination, index );
+		return call;
+	} );
+}
+
+
+function default_name( destination, index )
+{
+	if ( destination.Kind === 'claude-cli' )
+	{
+		return 'Claude CLI';
+	}
+	if ( destination.Kind === 'ollama' )
+	{
+		return 'Ollama';
+	}
+	return 'Destination ' + ( index + 1 );
+}
+
+
+// Problems with a Call setting, or with one of the Destinations (Destination: true, where an ollama Model may be left
+// to the dialog), as sentences; none when it is usable.
+function Validate( Call, Destination )
 {
 	let problems = [];
+	let what = Destination ? 'Destination' : 'Call';
 	if ( !KINDS.includes( Call.Kind ) )
 	{
-		problems.push( 'Call.Kind is "' + Call.Kind + '", not one of ' + KINDS.join( ', ' ) );
+		problems.push( what + '.Kind is "' + Call.Kind + '", not one of ' + KINDS.join( ', ' ) );
 	}
-	if ( Call.Kind === 'ollama' && ( !Call.Url || !Call.Model ) )
+	if ( Call.Kind === 'ollama' && !Destination && ( !Call.Url || !Call.Model ) )
 	{
 		problems.push( 'Call of kind ollama needs Url and Model' );
+	}
+	if ( Call.Kind === 'ollama' && Destination && !Call.Url )
+	{
+		problems.push( what + ' of kind ollama needs a Url' );
 	}
 	return problems;
 }
@@ -155,12 +194,22 @@ function Validate( Call )
 // Prompt: everything one call needs. Package = { Project?, Context?, MaxCharacters, Proposal, Text, Threads, Me,
 // Participants, Search }. Threads are presented threads (with Turn); Me is the llm participant's name; Search is
 // { threadId: [ hit ] }, found within Project (its name) when there is one. Context is the project's context,
-// { Text, Revision }.
+// { Text, Revision }. PromptParts gives the same prompt as named parts, for sizing: Rules, Context, Plan, Threads,
+// Search; a part with nothing in it is left out.
 
 function Prompt( Package )
 {
+	return PromptParts( Package ).map( function ( part ) { return part.Text; } ).join( '\n' );
+}
+
+
+function PromptParts( Package )
+{
 	let lines = [ rules_text( Package.MaxCharacters || DEFAULT_CONTEXT_CHARACTERS ), '' ];
+	let marks = [ { Name: 'Rules', At: 0 } ];
+	marks.push( { Name: 'Context', At: lines.length } );
 	push_context( lines, Package.Context );
+	marks.push( { Name: 'Plan', At: lines.length } );
 	let state = Package.Proposal.State ? ' (' + Package.Proposal.State + ')' : '';
 	let project = Package.Project ? ' in the project "' + Package.Project + '"' : '';
 	lines.push( '# The proposal: "' + Package.Proposal.Title + '"' + state + project + ', revision ' + Package.Proposal.Revision );
@@ -170,6 +219,7 @@ function Prompt( Package )
 	lines.push( Package.Text );
 	lines.push( fence );
 	lines.push( '' );
+	marks.push( { Name: 'Threads', At: lines.length } );
 	lines.push( '# The threads' );
 	lines.push( '' );
 	if ( Package.Threads.length === 0 )
@@ -197,6 +247,7 @@ function Prompt( Package )
 		}
 		lines.push( '' );
 	}
+	marks.push( { Name: 'Search', At: lines.length } );
 	let search = Package.Search || {};
 	let searched = Object.keys( search ).filter( function ( id ) { return search[ id ].length > 0; } );
 	if ( searched.length )
@@ -223,7 +274,17 @@ function Prompt( Package )
 			lines.push( '' );
 		}
 	}
-	return lines.join( '\n' );
+	let parts = [];
+	for ( let index = 0; index < marks.length; index++ )
+	{
+		let end = ( index + 1 < marks.length ) ? marks[ index + 1 ].At : lines.length;
+		let slice = lines.slice( marks[ index ].At, end );
+		if ( slice.length )
+		{
+			parts.push( { Name: marks[ index ].Name, Text: slice.join( '\n' ) } );
+		}
+	}
+	return parts;
 }
 
 
@@ -546,9 +607,11 @@ module.exports = {
 	KINDS: KINDS,
 	SCHEMA: SCHEMA,
 	CallSettings: CallSettings,
+	Destinations: Destinations,
 	ContextSettings: ContextSettings,
 	Validate: Validate,
 	Prompt: Prompt,
+	PromptParts: PromptParts,
 	InitializePrompt: InitializePrompt,
 	Parse: Parse,
 	Caller: Caller,

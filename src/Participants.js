@@ -116,6 +116,23 @@ function Validate( Settings )
 				problems.push( 'participant "' + participant.Name + '": ' + problem );
 			}
 		}
+		if ( participant.Destinations !== undefined )
+		{
+			if ( participant.Role !== 'llm' || !Array.isArray( participant.Destinations ) )
+			{
+				problems.push( 'participant "' + participant.Name + '": Destinations must be a list, on an llm' );
+			}
+			else
+			{
+				for ( let destination of participant.Destinations )
+				{
+					for ( let problem of LLM.Validate( destination, true ) )
+					{
+						problems.push( 'participant "' + participant.Name + '": ' + problem );
+					}
+				}
+			}
+		}
 	}
 	if ( !participants.some( is_owner ) )
 	{

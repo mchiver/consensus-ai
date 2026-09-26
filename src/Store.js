@@ -8,6 +8,7 @@
 //   <folder>/proposals/<id>/proposal.json     { Id, Title, Kind: 'plan' | 'document' | 'context', State, Created, Updated, Revision }
 //   <folder>/proposals/<id>/proposal.md       the text at revision Revision
 //   <folder>/proposals/<id>/threads.json      [ thread ]
+//   <folder>/proposals/<id>/runs.json         the LLM sessions run on it, the last 20
 //   <folder>/proposals/<id>/revisions/0001.md, 0001.json
 //   <folder>/proposals/<id>/index.json        search chunks
 //   <folder>/projects.json                    { Projects: [ { Id, Name } ] }  every project's name, in display order
@@ -343,6 +344,19 @@ function Open( Folder )
 	async function WriteThreads( Id, Threads )
 	{
 		await write_json( PATH.join( proposal_folder( Id ), 'threads.json' ), Threads );
+	}
+
+
+	// The LLM sessions run on a proposal, newest last: [ { Id, Started, Destination, Model, Options, Steps, Finished } ]
+	async function ReadRuns( Id )
+	{
+		return ( await read_json_or_null( PATH.join( proposal_folder( Id ), 'runs.json' ) ) ) || [];
+	}
+
+
+	async function WriteRuns( Id, Runs )
+	{
+		await write_json( PATH.join( proposal_folder( Id ), 'runs.json' ), Runs );
 	}
 
 
@@ -979,6 +993,8 @@ function Open( Folder )
 		UpdateProposal: UpdateProposal,
 		WriteText: WriteText,
 		WriteThreads: WriteThreads,
+		ReadRuns: ReadRuns,
+		WriteRuns: WriteRuns,
 		ListRevisions: ListRevisions,
 		ReadRevision: ReadRevision,
 		ReadIndex: ReadIndex,

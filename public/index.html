@@ -205,7 +205,7 @@
 					<div class="header-buttons">
 						<button class="btn btn-sm btn-outline-secondary" ng-click="CommentOnWhole()" ng-show="State.View === 'read' && HasThreads()">Comment on the whole document</button>
 						<button class="btn btn-sm btn-primary" id="initialize-context" ng-show="IsContext() && State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="State.Open.Llm.Running || Busy" ng-click="InitializeContext()" title="the LLM writes the context from the project: its plans and documents, the files in its zips, and a few key files">{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Initialize context' }}</button>
-						<button class="btn btn-sm btn-primary" id="send-button" ng-show="HasThreads() && State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="!State.Open.Llm.Waiting || State.Open.Llm.Running || Busy" ng-click="Send()" title="{{ SendHint() }}">{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Send to LLM (' + State.Open.Llm.Waiting + ')' }}</button>
+						<button class="btn btn-sm btn-primary" id="send-button" ng-show="HasThreads() && State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="Busy" ng-click="Send()" title="{{ SendHint() }}">{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Send to LLM (' + State.Open.Llm.Waiting + ')' }}</button>
 						<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete || IsContext()" ng-click="ConfirmingDelete = true">Delete</button>
 						<span class="confirm" ng-show="ConfirmingDelete">
 							to the trash?
@@ -219,6 +219,74 @@
 			<div class="main-error alert alert-danger" ng-show="State.Error">
 				{{ State.Error }}
 				<button type="button" class="btn-close" aria-label="Close" ng-click="State.ClearError()"></button>
+			</div>
+
+			<!-- The views of the open item, and the plan's LLM session panel within them. -->
+			<div class="content-area">
+
+			<div class="session-host" ng-controller="SessionController">
+				<aside class="session-panel" id="session-panel" ng-show="IsShown()">
+					<div class="session-head">
+						<span class="session-title">LLM session</span>
+						<span class="muted small">{{ State.Open.Llm.Waiting }} waiting on the LLM</span>
+						<button type="button" class="btn-close" aria-label="Close" ng-click="Close()" title="close the panel; a running session goes on"></button>
+					</div>
+					<div class="session-body" ng-if="P">
+						<div class="session-section">
+							<div class="session-label">Prompt</div>
+							<div class="session-choices">
+								<label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" id="session-context" ng-model="P.Options.Context" ng-change="Measure()"> Context</label>
+								<label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" id="session-search" ng-model="P.Options.Search" ng-change="Measure()"> Search</label>
+								<select class="form-select form-select-sm session-threads" id="session-threads" ng-model="P.Options.Threads" ng-change="Measure()">
+									<option value="waiting">Only waiting threads</option>
+									<option value="open">Open threads</option>
+									<option value="all">All threads</option>
+								</select>
+							</div>
+							<div class="session-size" id="session-size" ng-show="P.Size">
+								<b>{{ P.Size.Tokens | number }} tokens</b>
+								<span class="muted">{{ P.Size.Characters | number }} characters</span>
+								<span class="size-part" ng-repeat="part in P.Size.Parts" title="{{ part.Characters | number }} characters, {{ part.Tokens | number }} tokens">{{ part.Name }} {{ Share( part, P.Size ) }}%</span>
+								<button class="btn btn-link btn-sm" id="session-preview-toggle" ng-click="TogglePreview(P)">{{ P.Preview === null ? 'Preview' : 'Hide preview' }}</button>
+							</div>
+							<pre class="session-preview" id="session-preview" ng-show="P.Preview !== null">{{ P.Preview }}</pre>
+						</div>
+
+						<div class="session-section">
+							<div class="session-label">Send to</div>
+							<div class="session-choices">
+								<select class="form-select form-select-sm" id="session-destination" ng-model="P.Destination" ng-change="PickDestination(P)">
+									<option ng-repeat="destination in Destinations" value="{{ destination.Name }}">{{ destination.Name }}</option>
+									<option value="Manual" ng-if="ManualOffered">Manual copy / paste</option>
+								</select>
+								<select class="form-select form-select-sm" id="session-model" ng-show="IsOllama(P)" ng-model="P.Model" ng-change="PickModel(P)" ng-options="model for model in Models[ P.Destination ]"></select>
+								<button class="btn btn-sm btn-primary" id="session-send" ng-show="P.Destination !== MANUAL" ng-click="Send(P)" ng-disabled="P.Busy || State.Open.Llm.Running || !State.Open.Llm.Waiting" title="{{ State.Open.Llm.Waiting ? 'send the prompt and carry out the answer' : 'nothing is waiting on the LLM' }}">{{ State.Open.Llm.Running ? 'Running&hellip;' : 'Send' }}</button>
+								<button class="btn btn-sm btn-primary" id="session-copy" ng-show="P.Destination === MANUAL" ng-click="CopyPrompt(P)" ng-disabled="P.Busy">Copy prompt</button>
+							</div>
+						</div>
+
+						<div class="session-section" ng-show="P.Manual">
+							<div class="muted small">{{ P.Manual.Copied ? 'The prompt is on the clipboard.' : 'Copy the prompt below by hand.' }} Give it to any LLM, paste its answer here, then carry it out.</div>
+							<textarea class="form-control form-control-sm session-copy-box" ng-show="P.Manual && !P.Manual.Copied" readonly rows="4">{{ P.Manual.Prompt }}</textarea>
+							<textarea class="form-control form-control-sm" id="session-answer" rows="5" ng-model="P.Manual.Answer" placeholder="The answer: { &quot;Actions&quot;: [ … ] }"></textarea>
+							<div class="thread-buttons">
+								<button class="btn btn-sm btn-primary" id="session-carry-out" ng-click="CarryOut(P)" ng-disabled="P.Busy || !P.Manual.Answer">Carry out</button>
+							</div>
+						</div>
+
+						<div class="session-result small" id="session-result" ng-show="P.Result">Carried out {{ P.Result.Actions }} actions, {{ P.Result.Refused }} refused.</div>
+
+						<div class="session-section">
+							<div class="session-label">Run log</div>
+							<div class="muted small" ng-hide="Runs.length">No sessions yet.</div>
+							<div class="run" ng-repeat="run in Runs | limitTo: ( ShowingEarlier ? Runs.length : 1 ) track by run.Id">
+								<div class="run-head">{{ run.Destination }}{{ run.Model ? ' · ' + run.Model : '' }} <span class="muted">{{ Clock( run.Started ) }}</span> <span class="run-running" ng-hide="run.Finished">running&hellip;</span></div>
+								<div class="run-step" ng-repeat="step in run.Steps"><span class="step-at">{{ Clock( step.At ) }}</span><span class="step-text">{{ step.Text }}</span><span class="step-meta">{{ Seconds( step ) }}</span><span class="step-meta">{{ Tokens( step ) }}</span></div>
+							</div>
+							<button class="btn btn-link btn-sm" ng-show="Runs.length > 1" ng-click="ToggleEarlier()">{{ ShowingEarlier ? 'Only the latest' : ( Runs.length - 1 ) + ' earlier sessions' }}</button>
+						</div>
+					</div>
+				</aside>
 			</div>
 
 			<section class="read" ng-controller="ReadController" ng-show="State.View === 'read'">
@@ -331,6 +399,8 @@
 					</div>
 				</div>
 			</section>
+
+			</div>
 		</main>
 
 		<div class="splitter" data-splitter="threads"></div>
@@ -411,6 +481,7 @@
 	<script src="/js/editor.js"></script>
 	<script src="/js/app.js"></script>
 	<script src="/js/tabs.js"></script>
+	<script src="/js/sessions.js"></script>
 	<script src="/js/sidebar.js"></script>
 	<script src="/js/header.js"></script>
 	<script src="/js/read.js"></script>

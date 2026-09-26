@@ -210,14 +210,25 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		{
 			return;
 		}
+		// Switching tabs quickly can leave an older load still on its way: an answer for a proposal that is no longer
+		// the open one is dropped, so it never shows over the newer one.
+		let id = state.OpenId;
 		try
 		{
-			let answer = await Client.Get( '/api/proposals/' + state.OpenId );
+			let answer = await Client.Get( '/api/proposals/' + id );
+			if ( id !== state.OpenId )
+			{
+				return;
+			}
 			state.Open = answer;
 			clear_error();
 		}
 		catch ( error )
 		{
+			if ( id !== state.OpenId )
+			{
+				return;
+			}
 			state.Open = null;
 			state.Error = error.message;
 		}

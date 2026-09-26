@@ -4,7 +4,7 @@
 // state picker and the one-line state, then Comment on the whole document, Send to LLM (owner), and Delete
 // (to the trash, confirmed inline).
 
-angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Tabs', function ( $scope, $window, State, Client, Tabs )
+angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Tabs', 'Sessions', function ( $scope, $window, State, Client, Tabs, Sessions )
 {
 	$scope.State = State;
 	$scope.Busy = false;
@@ -120,29 +120,16 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 		let llm = State.Open.Llm;
 		if ( llm.Running )
 		{
-			return 'the LLM is answering; its replies appear when it is done';
+			return 'a session is running; its log is in the session panel';
 		}
-		if ( !llm.Waiting )
-		{
-			return 'nothing is waiting on the LLM';
-		}
-		return 'hand the LLM the ' + llm.Waiting + ' thread' + ( llm.Waiting === 1 ? '' : 's' ) + ' waiting on it';
+		return 'open the session panel: shape the prompt, pick where it goes, and follow the run log (' + llm.Waiting + ' thread' + ( llm.Waiting === 1 ? '' : 's' ) + ' waiting on the LLM)';
 	};
 
 
-	$scope.Send = async function ()
+	// Send to LLM opens (or closes) the plan's session panel; the session starts from there.
+	$scope.Send = function ()
 	{
-		$scope.Busy = true;
-		let answer = await State.Act( function ()
-		{
-			return Client.Post( '/api/proposals/' + encodeURIComponent( State.OpenId ) + '/send' );
-		} );
-		$scope.Busy = false;
-		if ( answer )
-		{
-			await State.Reload();
-		}
-		$scope.$applyAsync();
+		Sessions.Toggle( State.OpenId );
 	};
 
 

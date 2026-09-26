@@ -1042,6 +1042,107 @@ TEST( 'context: Initialize context gives the LLM the project\'s items, zip files
 } );
 
 
+TEST( 'copy prompt and paste answer: the same prompt as a call, and the answer carried out against the revisions it was made from', async function ()
+{
+	let proposal = await create( 'Pasted answer' );
+	let id = proposal.Id;
+	let question = ( await call( 'POST', '/api/proposals/' + id + '/threads', { Anchor: { Text: 'A closing paragraph.' }, Text: 'Is this needed?' } ) ).Body.Thread;
+	let resolved = await discussed_thread( id, 'one list item', 'Outcome: the item becomes "one pasted item".' );
+	await call( 'POST', '/api/proposals/' + id + '/threads/' + resolved.Id + '/resolve' );
+
+	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + id + '/prompt', undefined, true ) ).Status, 403 );
+	let copied = await call( 'GET', '/api/proposals/' + id + '/prompt' );
+	ASSERT.equal( copied.Status, 200 );
+	ASSERT.match( copied.Body.Prompt, /# The rules/ );
+	ASSERT.match( copied.Body.Prompt, /contested, WAITING ON YOU to reply/ );
+	ASSERT.equal( copied.Body.Revision, 1 );
+	ASSERT.deepEqual( copied.Body.Waiting.sort(), [ question.Id, resolved.Id ].sort() );
+	ASSERT.deepEqual( copied.Body.Schema.required, [ 'Actions' ] );
+
+	// the answer, as text in a code fence, the way a chat LLM gives it
+	let answer = '```json\n' + JSON.stringify( { Actions: [
+		{ Thread: question.Id, Kind: 'reply', Reply: 'It closes the proposal.' },
+		{ Thread: resolved.Id, Kind: 'apply', Outcome: 'the item is pasted', Text: TEXT.replace( '- one list item', '- one pasted item' ), Anchor: 'one pasted item' },
+	] } ) + '\n```';
+	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + id + '/answer', { Answer: answer, Revision: 1 }, true ) ).Status, 403 );
+	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + id + '/answer', { Answer: 'I think so.', Revision: 1 } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + id + '/answer', { Answer: answer } ) ).Status, 400 );
+	let pasted = await call( 'POST', '/api/proposals/' + id + '/answer', { Answer: answer, Revision: 1 } );
+	ASSERT.equal( pasted.Status, 200 );
+	ASSERT.equal( pasted.Body.Actions, 2 );
+	ASSERT.deepEqual( pasted.Body.Refused, {} );
+	let runs = ( await call( 'GET', '/api/proposals/' + id + '/runs' ) ).Body.Runs;
+	let pasted_run = runs.find( function ( run ) { return run.Id === pasted.Body.Run; } );
+	ASSERT.equal( pasted_run.Destination, 'Manual' );
+	ASSERT.deepEqual( pasted_run.Steps.map( function ( step ) { return step.Text; } ), [ 'The answer was pasted: 1 reply, 1 apply', 'Consensus carried out 2 actions, 0 refused' ] );
+	ASSERT.ok( pasted_run.Finished );
+	let after = await call( 'GET', '/api/proposals/' + id );
+	ASSERT.match( after.Body.Text, /one pasted item/ );
+	ASSERT.equal( thread_of( after, question.Id ).Replies[ 1 ].By, 'llm' );
+	ASSERT.equal( thread_of( after, resolved.Id ).State, 'applied' );
+
+	// pasted again from the old prompt: the reply is fine, but the text moved on, so nothing is applied twice
+	await call( 'POST', '/api/proposals/' + id + '/threads/' + question.Id + '/replies', { Text: 'Then keep it.' } );
+	let stale = await call( 'POST', '/api/proposals/' + id + '/answer', { Answer: { Actions: [ { Thread: question.Id, Kind: 'reply', Reply: 'Kept.' } ] }, Revision: 1 } );
+	ASSERT.deepEqual( stale.Body.Refused, {} );
+	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + id ) ).Body.Proposal.Revision, 2 );
+} );
+
+
+TEST( 'session: the prompt shaped by the choices and sized part by part; a destination and model picked; every step in the run log', async function ()
+{
+	let proposal = await create( 'Session' );
+	let id = proposal.Id;
+	let open = ( await call( 'POST', '/api/proposals/' + id + '/threads', { Anchor: { Text: 'A closing paragraph.' }, Text: 'Is this needed?' } ) ).Body.Thread;
+	let done = await discussed_thread( id, 'one list item', 'Outcome: no change.' );
+	await call( 'POST', '/api/proposals/' + id + '/threads/' + done.Id + '/resolve' );
+	await call( 'POST', '/api/proposals/' + id + '/threads/' + done.Id + '/apply', { Outcome: 'no change', Revision: 1 }, true );
+
+	// the choices: open threads (the default) leave the applied one out; all threads bring it in; no context, no search
+	let shaped = ( await call( 'GET', '/api/proposals/' + id + '/prompt' ) ).Body;
+	ASSERT.match( shaped.Prompt, new RegExp( 'Thread ' + open.Id ) );
+	ASSERT.equal( shaped.Prompt.includes( 'Thread ' + done.Id ), false );
+	ASSERT.deepEqual( shaped.Parts.map( function ( part ) { return part.Name; } ).slice( 0, 4 ), [ 'Rules', 'Context', 'Plan', 'Threads' ] );
+	ASSERT.equal( shaped.Characters, shaped.Prompt.length );
+	ASSERT.equal( shaped.Tokens, Math.ceil( shaped.Prompt.length / 4 ) );
+	ASSERT.equal( shaped.Parts.reduce( function ( sum, part ) { return sum + part.Characters; }, 0 ) + shaped.Parts.length - 1, shaped.Characters );
+	let all = ( await call( 'GET', '/api/proposals/' + id + '/prompt?threads=all&context=0&search=0' ) ).Body;
+	ASSERT.match( all.Prompt, new RegExp( 'Thread ' + done.Id ) );
+	ASSERT.deepEqual( all.Parts.map( function ( part ) { return part.Name; } ), [ 'Rules', 'Plan', 'Threads' ] );
+	let waiting_only = ( await call( 'GET', '/api/proposals/' + id + '/prompt?threads=waiting' ) ).Body;
+	ASSERT.match( waiting_only.Prompt, new RegExp( 'Thread ' + open.Id ) );
+
+	// the destinations: the one Call is a list of one; Manual is always there
+	let destinations = ( await call( 'GET', '/api/llm/destinations' ) ).Body;
+	ASSERT.equal( destinations.Destinations.length, 1 );
+	ASSERT.equal( destinations.Manual, true );
+	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + id + '/session', { Destination: 'Nowhere' } ) ).Status, 400 );
+
+	// a session to the first destination with a model picked: its run log, step by step
+	await call( 'POST', '/api/proposals/' + id + '/threads/' + open.Id + '/replies', { Text: 'Please answer.' } );
+	llm_answer = async function ()
+	{
+		return { Answer: { Actions: [ { Thread: open.Id, Kind: 'reply', Reply: 'It closes the text.' } ] }, Usage: { Model: 'picked-model', Input: 900, Output: 40 } };
+	};
+	let started = await call( 'POST', '/api/proposals/' + id + '/session', { Destination: destinations.Destinations[ 0 ].Name, Model: 'picked-model', Options: { Threads: 'waiting', Search: false } } );
+	ASSERT.equal( started.Status, 202 );
+	await wait_idle( id );
+	let run = ( await call( 'GET', '/api/proposals/' + id + '/runs' ) ).Body.Runs.find( function ( candidate ) { return candidate.Id === started.Body.Run; } );
+	ASSERT.equal( run.Model, 'picked-model' );
+	ASSERT.deepEqual( run.Options, { Context: true, Threads: 'waiting', Search: false } );
+	ASSERT.deepEqual( run.Steps.map( function ( step ) { return step.Text; } ), [ 'Consensus sent the prompt to picked-model', 'picked-model answered: 1 reply', 'Consensus carried out 1 action, 0 refused' ] );
+	ASSERT.equal( run.Steps[ 1 ].Tokens, 40 );
+	ASSERT.ok( run.Steps.every( function ( step ) { return step.At; } ) );
+	ASSERT.ok( run.Finished );
+
+	// Manual: the prompt comes back at once, with its run
+	let manual = await call( 'POST', '/api/proposals/' + id + '/session', { Destination: 'Manual' } );
+	ASSERT.equal( manual.Status, 200 );
+	ASSERT.match( manual.Body.Prompt, /# The rules/ );
+	ASSERT.match( manual.Body.Run, /^s[0-9a-f]{8}$/ );
+} );
+
+
 TEST( 'send: a failed call leaves a line on each thread; a refused action on its thread; the next success clears them', async function ()
 {
 	let proposal = await create( 'Send failures' );

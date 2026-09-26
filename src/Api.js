@@ -1424,19 +1424,31 @@ function Attach( App, Context )
 
 
 	//-----------------------------------------------------------------
-	// Send to LLM: the owner hands everything waiting on the llm participant in one proposal to the LLM.
-	// The call runs in the background; the answer's replies and applies are carried out as the llm participant.
+	// LLM sessions: the owner shapes a prompt (Options), picks where it goes (a Destination, or Manual copy / paste),
+	// and the answer's actions are carried out as the llm participant. Each session's steps are its run log, kept with
+	// the proposal in runs.json. Send to LLM is a session with the first destination and the default options.
 
 	let calling = {};
 	let recent_calls = [];
 	const HOUR = 60 * 60 * 1000;
 	const SEARCH_PER_THREAD = 3;
+	const RUNS_KEPT = 20;
+	const MANUAL = 'Manual';
+	const THREAD_CHOICES = [ 'waiting', 'open', 'all' ];
 
 
-	// The llm participant that Consensus calls, or null.
+	// The llm participant, called by Consensus or not.
+	function llm_participant()
+	{
+		return ( settings.Participants || [] ).find( function ( participant ) { return participant.Role === 'llm'; } ) || null;
+	}
+
+
+	// The llm participant with somewhere to send a prompt (a Call or Destinations), or null.
 	function called_llm()
 	{
-		return ( settings.Participants || [] ).find( function ( participant ) { return participant.Role === 'llm' && !!participant.Call; } ) || null;
+		let llm = llm_participant();
+		return ( llm && LLM.Destinations( llm ).length ) ? llm : null;
 	}
 
 
@@ -1448,10 +1460,10 @@ function Attach( App, Context )
 	}
 
 
-	// What the page needs for the button: who, whether a call runs, how much is waiting.
+	// What the page needs for the button: who, whether a session runs, how much is waiting.
 	function llm_view( id, threads )
 	{
-		let llm = called_llm();
+		let llm = llm_participant();
 		if ( !llm )
 		{
 			return { Configured: false };
@@ -1465,16 +1477,271 @@ function Attach( App, Context )
 	}
 
 
-	router.post( '/proposals/:id/send', async function ( request, response )
+	// A session's choices, each defaulted: { Context: true, Threads: 'waiting' | 'open' | 'all', Search: true }
+	function options_of( given )
+	{
+		let options = given || {};
+		return {
+			Context: options.Context !== false,
+			Threads: THREAD_CHOICES.includes( options.Threads ) ? options.Threads : 'open',
+			Search: options.Search !== false,
+		};
+	}
+
+
+	// The same from a query string: ?context=0&threads=waiting&search=0
+	function options_of_query( query )
+	{
+		return options_of( {
+			Context: query.context !== '0' && query.context !== 'false',
+			Threads: query.threads,
+			Search: query.search !== '0' && query.search !== 'false',
+		} );
+	}
+
+
+	function tokens_of( text )
+	{
+		return Math.ceil( String( text ).length / 4 );
+	}
+
+
+	// Everything one session needs, for the llm participant: { Prompt, Parts, Read, Waiting, Context }. The threads
+	// sent are those Options.Threads names; the waiting ones are always among them.
+	async function package_for( id, llm, options )
+	{
+		let chosen = options_of( options );
+		let read = await store.ReadProposal( id );
+		let presented = present_threads( read.Threads, read.Text, llm.Name );
+		let waiting = presented.filter( function ( thread ) { return thread.WaitingOnMe; } );
+		let sent = presented.filter( function ( thread )
+		{
+			if ( chosen.Threads === 'waiting' )
+			{
+				return thread.WaitingOnMe;
+			}
+			if ( chosen.Threads === 'open' )
+			{
+				return thread.WaitingOnMe || thread.State !== 'applied';
+			}
+			return true;
+		} );
+		// The context comes from the proposal's own project: its context, and its plans, documents and corpus files.
+		let holder = await store.ProjectOf( id );
+		let context = chosen.Context ? await context_of( holder ) : null;
+		let search = chosen.Search ? await search_for( waiting, holder ? TREE.ItemIds( holder.Items ) : null ) : {};
+		let parts = LLM.PromptParts( {
+			Project: holder ? holder.Name : null,
+			Context: context,
+			MaxCharacters: LLM.ContextSettings( settings ).MaxCharacters,
+			Proposal: read.Proposal,
+			Text: read.Text,
+			Threads: sent,
+			Me: llm.Name,
+			Participants: participants(),
+			Search: search,
+		} );
+		let prompt = parts.map( function ( part ) { return part.Text; } ).join( '\n' );
+		return { Prompt: prompt, Parts: parts, Read: read, Waiting: waiting, Context: context };
+	}
+
+
+	// A prompt as the dialog shows it: its size, part by part, and the revisions it was made from.
+	function prompt_view( packed )
+	{
+		return {
+			Prompt: packed.Prompt,
+			Parts: packed.Parts.map( function ( part ) { return { Name: part.Name, Characters: part.Text.length, Tokens: tokens_of( part.Text ) }; } ),
+			Characters: packed.Prompt.length,
+			Tokens: tokens_of( packed.Prompt ),
+			Schema: LLM.SCHEMA,
+			Revision: packed.Read.Proposal.Revision,
+			Context: packed.Context ? { Id: packed.Context.Id, Revision: packed.Context.Revision } : null,
+			Waiting: packed.Waiting.map( function ( thread ) { return thread.Id; } ),
+		};
+	}
+
+
+	//-----------------------------------------------------------------
+	// The run log: runs.json beside the proposal's threads, the last RUNS_KEPT sessions, written through its own queue.
+
+	function runs_queue( id )
+	{
+		return 'runs:' + id;
+	}
+
+
+	async function start_run( id, destination, model, options )
+	{
+		let run = { Id: new_id( 's' ), Started: now(), Destination: destination, Model: model || null, Options: options, Steps: [], Finished: null };
+		await store.Queue( runs_queue( id ), async function ()
+		{
+			let runs = await store.ReadRuns( id );
+			runs.push( run );
+			await store.WriteRuns( id, runs.slice( -RUNS_KEPT ) );
+		} );
+		events.Send( { Proposal: id, Kind: 'run', Run: run.Id } );
+		return run.Id;
+	}
+
+
+	// A step of a run: { Text, Seconds?, Tokens? }; Finished ends the run.
+	async function log_step( id, run_id, step, finished )
+	{
+		await store.Queue( runs_queue( id ), async function ()
+		{
+			let runs = await store.ReadRuns( id );
+			let run = runs.find( function ( candidate ) { return candidate.Id === run_id; } );
+			if ( !run )
+			{
+				return;
+			}
+			if ( step )
+			{
+				run.Steps.push( Object.assign( { At: now() }, step ) );
+			}
+			if ( finished )
+			{
+				run.Finished = now();
+			}
+			await store.WriteRuns( id, runs );
+		} );
+		events.Send( { Proposal: id, Kind: 'run', Run: run_id } );
+	}
+
+
+	function seconds_since( started )
+	{
+		return Math.round( ( Date.now() - started ) / 100 ) / 10;
+	}
+
+
+	// "2 replies, 1 apply, the context" for an answer's actions.
+	function actions_words( actions )
+	{
+		let counts = { reply: 0, apply: 0, context: 0 };
+		for ( let action of actions )
+		{
+			counts[ action.Kind ] = ( counts[ action.Kind ] || 0 ) + 1;
+		}
+		let words = [];
+		if ( counts.reply )
+		{
+			words.push( counts.reply + ( counts.reply === 1 ? ' reply' : ' replies' ) );
+		}
+		if ( counts.apply )
+		{
+			words.push( counts.apply + ( counts.apply === 1 ? ' apply' : ' applies' ) );
+		}
+		if ( counts.context )
+		{
+			words.push( 'the context' );
+		}
+		return words.length ? words.join( ', ' ) : 'nothing to do';
+	}
+
+
+	// The answer's actions carried out, the results recorded on the threads, and the run log's last step.
+	async function carry_out_answer( id, llm, run_id, actions, revision, context )
+	{
+		let read = await store.ReadProposal( id );
+		let waiting = present_threads( read.Threads, read.Text, llm.Name ).filter( function ( thread ) { return thread.WaitingOnMe; } );
+		let failures = await carry_out( id, llm, waiting, actions, revision, context );
+		await record_call_results( id, failures, true );
+		let refused = Object.keys( failures );
+		let why = refused.map( function ( thread_id ) { return thread_id + ': ' + failures[ thread_id ]; } ).join( '; ' );
+		await log_step( id, run_id, { Text: 'Consensus carried out ' + actions.length + ( actions.length === 1 ? ' action' : ' actions' ) + ', ' + refused.length + ' refused' + ( why ? ' (' + why + ')' : '' ) }, true );
+		return failures;
+	}
+
+
+	//-----------------------------------------------------------------
+	// The destinations, and the models an Ollama destination offers.
+
+	router.get( '/llm/destinations', function ( request, response )
+	{
+		let llm = llm_participant();
+		let destinations = llm ? LLM.Destinations( llm ) : [];
+		response.json( {
+			Destinations: destinations.map( function ( destination ) { return { Name: destination.Name, Kind: destination.Kind, Model: destination.Model || null }; } ),
+			Manual: !!llm,
+		} );
+	} );
+
+
+	router.get( '/llm/models', async function ( request, response )
+	{
+		let llm = llm_participant();
+		let destination = llm ? LLM.Destinations( llm ).find( function ( candidate ) { return candidate.Name === request.query.destination; } ) : null;
+		if ( !destination )
+		{
+			return fail( response, 404, 'no such destination' );
+		}
+		if ( destination.Kind !== 'ollama' )
+		{
+			return response.json( { Models: destination.Model ? [ destination.Model ] : [] } );
+		}
+		try
+		{
+			let answer = await fetch( String( destination.Url ).replace( /\/+$/, '' ) + '/api/tags', { signal: AbortSignal.timeout( 5000 ) } );
+			let json = await answer.json();
+			let names = ( json.models || [] ).map( function ( model ) { return model.name; } ).sort();
+			response.json( { Models: names } );
+		}
+		catch ( error )
+		{
+			fail( response, 502, 'Ollama at ' + destination.Url + ' did not answer: ' + error.message );
+		}
+	} );
+
+
+	//-----------------------------------------------------------------
+	// The prompt, for the dialog's summary and preview (and for Manual copy): ?context=&threads=&search=
+
+	router.get( '/proposals/:id/prompt', async function ( request, response )
+	{
+		if ( request.Participant.Role !== 'owner' )
+		{
+			return fail( response, 403, 'only the owner copies the prompt' );
+		}
+		let llm = llm_participant();
+		if ( !llm )
+		{
+			return fail( response, 409, 'there is no llm participant in consensus.json' );
+		}
+		let read = await store.ReadProposal( request.params.id );
+		if ( !read )
+		{
+			return fail( response, 404, 'no such proposal' );
+		}
+		if ( is_document( read.Proposal ) )
+		{
+			return fail( response, 409, 'a Document or a Context has no threads to send' );
+		}
+		response.json( prompt_view( await package_for( request.params.id, llm, options_of_query( request.query ) ) ) );
+	} );
+
+
+	router.get( '/proposals/:id/runs', async function ( request, response )
+	{
+		response.json( { Runs: await store.ReadRuns( request.params.id ) } );
+	} );
+
+
+	//-----------------------------------------------------------------
+	// A session. Body = { Destination: a destination's Name or 'Manual', Model?, Options? }
+	// Manual answers { Run, ...the prompt } at once; any other runs in the background and answers 202 { Run, Threads }.
+
+	async function start_session( request, response, body )
 	{
 		if ( request.Participant.Role !== 'owner' )
 		{
 			return fail( response, 403, 'only the owner sends to the LLM' );
 		}
-		let llm = called_llm();
+		let llm = llm_participant();
 		if ( !llm )
 		{
-			return fail( response, 409, 'no LLM is configured: give the llm participant a Call in consensus.json' );
+			return fail( response, 409, 'no LLM is configured: give the llm participant a Call or Destinations in consensus.json' );
 		}
 		let id = request.params.id;
 		if ( calling[ id ] )
@@ -1490,75 +1757,157 @@ function Attach( App, Context )
 		{
 			return fail( response, 409, 'a Document or a Context has no threads to send' );
 		}
+		let options = options_of( body.Options );
+		if ( body.Destination === MANUAL )
+		{
+			let started = Date.now();
+			let packed = await package_for( id, llm, options );
+			let run_id = await start_run( id, MANUAL, null, options );
+			await log_step( id, run_id, { Text: 'Consensus made the prompt for copying', Seconds: seconds_since( started ), Tokens: tokens_of( packed.Prompt ) } );
+			return response.json( Object.assign( { Run: run_id }, prompt_view( packed ) ) );
+		}
+		let destinations = LLM.Destinations( llm );
+		let destination = body.Destination ? destinations.find( function ( candidate ) { return candidate.Name === body.Destination; } ) : destinations[ 0 ];
+		if ( !destination )
+		{
+			return fail( response, body.Destination ? 400 : 409, body.Destination ? 'no destination is named "' + body.Destination + '"' : 'no LLM is configured: give the llm participant a Call or Destinations in consensus.json' );
+		}
+		let call = Object.assign( {}, destination );
+		if ( typeof body.Model === 'string' && body.Model.trim() )
+		{
+			call.Model = body.Model.trim();
+		}
+		if ( call.Kind === 'ollama' && !call.Model )
+		{
+			return fail( response, 400, 'pick an Ollama model' );
+		}
 		let waiting = RULES.WaitingOn( llm.Name, read.Threads, participants() );
 		if ( waiting.length === 0 )
 		{
 			return fail( response, 409, 'nothing is waiting on the LLM' );
 		}
-		let call = LLM.CallSettings( llm );
 		if ( calls_in_last_hour() >= call.CallsPerHour )
 		{
 			return fail( response, 409, 'the LLM is paused: ' + call.CallsPerHour + ' calls in the last hour' );
 		}
 		calling[ id ] = true;
 		recent_calls.push( Date.now() );
+		let run_id = await start_run( id, destination.Name, call.Model, options );
 		events.Send( { Proposal: id, Kind: 'llm-started' } );
-		response.status( 202 ).json( { Started: true, Threads: waiting.map( function ( thread ) { return thread.Id; } ) } );
+		response.status( 202 ).json( { Started: true, Run: run_id, Threads: waiting.map( function ( thread ) { return thread.Id; } ) } );
 
-		run_call( id, llm, call ).catch( function ( error )
+		run_session( id, llm, call, options, run_id ).catch( function ( error )
 		{
 			console.error( 'llm: ' + id + ': ' + error.message );
+			return log_step( id, run_id, { Text: 'the session stopped: ' + error.message }, true );
 		} ).finally( function ()
 		{
 			delete calling[ id ];
 			events.Send( { Proposal: id, Kind: 'llm-finished' } );
 		} );
+	}
+
+
+	router.post( '/proposals/:id/session', function ( request, response )
+	{
+		return start_session( request, response, request.body || {} );
 	} );
 
 
-	async function run_call( id, llm, call )
+	// Send to LLM, as it was before the dialog: the first destination, the default choices.
+	router.post( '/proposals/:id/send', function ( request, response )
+	{
+		return start_session( request, response, {} );
+	} );
+
+
+	async function run_session( id, llm, call, options, run_id )
 	{
 		let started = Date.now();
-		let read = await store.ReadProposal( id );
-		let presented = present_threads( read.Threads, read.Text, llm.Name );
-		let waiting = presented.filter( function ( thread ) { return thread.WaitingOnMe; } );
-		// The context comes from the proposal's own project: its context, and its plans, documents and corpus files.
-		let holder = await store.ProjectOf( id );
-		let context = await context_of( holder );
-		let prompt = LLM.Prompt( {
-			Project: holder ? holder.Name : null,
-			Context: context,
-			MaxCharacters: LLM.ContextSettings( settings ).MaxCharacters,
-			Proposal: read.Proposal,
-			Text: read.Text,
-			Threads: presented,
-			Me: llm.Name,
-			Participants: participants(),
-			Search: await search_for( waiting, holder ? TREE.ItemIds( holder.Items ) : null ),
-		} );
+		let packed = await package_for( id, llm, options );
+		let model = call.Model || call.Kind;
+		await log_step( id, run_id, { Text: 'Consensus sent the prompt to ' + model, Seconds: seconds_since( started ), Tokens: tokens_of( packed.Prompt ) } );
 		let caller = ( Context.Caller || LLM.Caller )( call );
+		let asked = Date.now();
 		let answer = null;
 		try
 		{
-			answer = await caller( prompt );
+			answer = await caller( packed.Prompt );
 		}
 		catch ( error )
 		{
 			let failures = {};
-			for ( let thread of waiting )
+			for ( let thread of packed.Waiting )
 			{
 				failures[ thread.Id ] = error.message;
 			}
 			await record_call_results( id, failures, false );
-			log_call( id, call, waiting, started, 'failed: ' + error.message );
+			await log_step( id, run_id, { Text: model + ' failed: ' + error.message, Seconds: seconds_since( asked ) }, true );
+			log_call( id, call, packed.Waiting, started, 'failed: ' + error.message );
 			return;
 		}
 		await record_usage( call, answer.Usage );
-		let failures = await carry_out( id, llm, waiting, answer.Answer.Actions, read.Proposal.Revision, context );
-		await record_call_results( id, failures, true );
+		let answered_by = ( answer.Usage && answer.Usage.Model ) || model;
+		await log_step( id, run_id, { Text: answered_by + ' answered: ' + actions_words( answer.Answer.Actions ), Seconds: seconds_since( asked ), Tokens: ( answer.Usage && answer.Usage.Output ) || tokens_of( JSON.stringify( answer.Answer ) ) } );
+		let failures = await carry_out_answer( id, llm, run_id, answer.Answer.Actions, packed.Read.Proposal.Revision, packed.Context );
 		let failed = Object.keys( failures ).length;
-		log_call( id, call, waiting, started, answer.Answer.Actions.length + ' actions' + ( failed ? ', ' + failed + ' refused' : '' ) + ', ' + answer.Usage.Input + ' in, ' + answer.Usage.Output + ' out' );
+		log_call( id, call, packed.Waiting, started, answer.Answer.Actions.length + ' actions' + ( failed ? ', ' + failed + ' refused' : '' ) + ', ' + answer.Usage.Input + ' in, ' + answer.Usage.Output + ' out' );
 	}
+
+
+	// A pasted answer: Body = { Answer (the JSON object, or text holding it), Revision, ContextRevision?, Run? }
+	// Returns { Actions, Refused }.
+	router.post( '/proposals/:id/answer', async function ( request, response )
+	{
+		if ( request.Participant.Role !== 'owner' )
+		{
+			return fail( response, 403, 'only the owner pastes an answer' );
+		}
+		let llm = llm_participant();
+		if ( !llm )
+		{
+			return fail( response, 409, 'there is no llm participant in consensus.json' );
+		}
+		let body = request.body || {};
+		let id = request.params.id;
+		if ( calling[ id ] )
+		{
+			return fail( response, 409, 'a call to the LLM is already running for this proposal' );
+		}
+		let answer = null;
+		try
+		{
+			answer = LLM.Parse( body.Answer );
+		}
+		catch ( error )
+		{
+			return fail( response, 400, error.message );
+		}
+		if ( !await store.ReadProposal( id ) )
+		{
+			return fail( response, 404, 'no such proposal' );
+		}
+		if ( typeof body.Revision !== 'number' )
+		{
+			return fail( response, 400, 'Revision is required: the revision the prompt was made from' );
+		}
+		calling[ id ] = true;
+		try
+		{
+			let run_id = ( typeof body.Run === 'string' && body.Run ) ? body.Run : await start_run( id, MANUAL, null, null );
+			let pasted = ( typeof body.Answer === 'string' ) ? body.Answer : JSON.stringify( body.Answer );
+			await log_step( id, run_id, { Text: 'The answer was pasted: ' + actions_words( answer.Actions ), Tokens: tokens_of( pasted ) } );
+			let holder = await store.ProjectOf( id );
+			let context = ( holder && holder.Context ) ? { Id: holder.Context, Revision: ( typeof body.ContextRevision === 'number' ) ? body.ContextRevision : null } : null;
+			let failures = await carry_out_answer( id, llm, run_id, answer.Actions, body.Revision, context );
+			console.log( 'llm: ' + id + ': a pasted answer, ' + answer.Actions.length + ' actions' + ( Object.keys( failures ).length ? ', ' + Object.keys( failures ).length + ' refused' : '' ) );
+			response.json( { Actions: answer.Actions.length, Refused: failures, Run: run_id } );
+		}
+		finally
+		{
+			delete calling[ id ];
+		}
+	} );
 
 
 	// For each waiting thread, the best passages elsewhere in Ids (the project's items; everything when null):
@@ -1744,7 +2093,12 @@ function Attach( App, Context )
 		{
 			return fail( response, 409, 'a call to the LLM is already running for this context' );
 		}
-		let call = LLM.CallSettings( llm );
+		// the first destination writes it
+		let call = LLM.Destinations( llm )[ 0 ];
+		if ( !call.Model && call.Kind === 'ollama' )
+		{
+			return fail( response, 409, 'the first destination, ' + call.Name + ', names no model; give it a Model in consensus.json' );
+		}
 		if ( calls_in_last_hour() >= call.CallsPerHour )
 		{
 			return fail( response, 409, 'the LLM is paused: ' + call.CallsPerHour + ' calls in the last hour' );

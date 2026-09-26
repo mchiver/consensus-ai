@@ -133,14 +133,23 @@ session** in the codebase (Claude Code, say) initializes contexts and implements
 `.guides/build-with-consensus.md` is its guide, with the build loop: a plan with every thread applied is
 built on the owner's word, the agent reports in a build log thread, and the owner accepts it by resolving it.
 
-Consensus calls the LLM itself, only when the owner presses **Send to LLM** in a plan's heading. The
-button counts the threads waiting on the LLM, is disabled at 0, and reads **LLM working…** while a call
-runs. Replying, resolving and new threads only leave work waiting.
+Consensus calls the LLM only when the owner asks. **Send to LLM** in a plan's heading counts the threads waiting
+on the LLM and opens the plan's **session panel**, within the plan's content area: each plan, in its own tab,
+has its own, and sessions in different tabs run at the same time. Closing the panel or switching tabs does not
+stop a session. In the panel:
 
-One call per press, for everything waiting on the LLM in that plan. The prompt holds the rules, the plan's
-project and **its context**, its text at the current revision, every thread with the waiting ones marked, and for each waiting
-thread the best passages the search finds **in the plan's own project**: its plans, threads, documents and
-corpus files. The LLM has no tools: it answers with one JSON object,
+- **Prompt:** the project's context on or off, search on or off, and which threads: only the waiting ones,
+  the open ones (the default: finished threads are left out), or all. The prompt's size shows as tokens
+  (characters ÷ 4) and characters, with each part's share; **Preview** shows the prompt itself.
+- **Send to:** a destination from the settings (Claude CLI, Ollama with its model picked from what Ollama
+  lists), or **Manual copy / paste**: Copy prompt, give it to any LLM anywhere, paste its answer, Carry out.
+- **Run log:** each session's steps with their time, duration and size (sent, answered, carried out), kept
+  with the plan in `runs.json` (the last 20 sessions).
+
+A session holds the rules, the plan's project and **its context**, the plan's text at the current revision,
+its threads (the waiting ones marked), and for each waiting thread the best passages the search finds **in the
+plan's own project**: its plans, threads, documents and corpus files. It never holds other plans in full.
+The LLM has no tools: it answers with one JSON object,
 
 	{ "Actions": [
 		{ "Thread": "t…", "Kind": "reply", "Reply": "markdown" },
@@ -162,15 +171,19 @@ it like a document; it has no threads and no state, and is never moved, copied o
 context's page, **Initialize context** (owner) asks the LLM to write it from the project: its plans and
 documents by title, the files in its zips, and a few key files (readmes, manifests, CLAUDE.md).
 
-The `Call` setting on the llm participant chooses the LLM:
+The llm participant's `Destinations` list names where a session can go (an older single `Call` is read as a
+list of one):
 
-	"Call": { "Kind": "claude-cli", "Command": "claude", "Model": "sonnet" }
-	"Call": { "Kind": "ollama", "Url": "http://127.0.0.1:11434", "Model": "glm-5.3:cloud" }
+	"Destinations": [
+		{ "Name": "Claude CLI", "Kind": "claude-cli", "Command": "claude", "Model": "sonnet" },
+		{ "Name": "Ollama", "Kind": "ollama", "Url": "http://127.0.0.1:11434" }
+	]
 
 `claude-cli` runs Claude Code headless (`claude -p`) with every tool turned off, on the claude.ai sign-in
 of this workstation; `Model` is optional and passed as `--model`. `ollama` posts to Ollama's chat endpoint,
-held to the answer's format. Both also take `CallsPerHour` (default 20: past it the button is refused until
-the hour has passed) and `TimeoutSeconds` (default 300). Without a `Call`, there is no button.
+held to the answer's format; its `Model` may be left out and picked in the panel. Both also take `CallsPerHour` (default 20: past it the button is refused until
+the hour has passed) and `TimeoutSeconds` (default 300). Send to LLM (the `/send` route) goes to the first
+destination with the default choices. Manual copy / paste needs no setting.
 
 ## The rules, in plain words
 

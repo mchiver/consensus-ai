@@ -1,0 +1,472 @@
+'use strict';
+
+// Sessions - the LLM session panel of a plan. Send to LLM opens it within the plan's content area; each plan has
+// its own, so sessions in different tabs run at the same time. The panel shapes the prompt (context, threads,
+// search) and shows its size, picks where it goes (a destination and model, or Manual copy / paste), and shows the
+// run log. A session runs on the server: closing the panel or switching tabs does not stop it.
+//
+//   panel = { Open, Options: { Context, Threads, Search }, Destination, Model, Size, Preview, Manual, Busy, Result }
+//     Size    the prompt's size as the server measures it: { Characters, Tokens, Parts }
+//     Manual  { Prompt, Revision, Context, Run, Answer } while a copy / paste session is under way
+
+angular.module( 'Consensus' ).factory( 'Sessions', [ function ()
+{
+	let panels = {};
+
+
+	// The panel of the proposal Id, made closed the first time it is asked for.
+	function Panel( Id )
+	{
+		if ( !panels[ Id ] )
+		{
+			panels[ Id ] = {
+				Open: false,
+				Options: { Context: true, Threads: 'open', Search: true },
+				Destination: null,
+				Model: null,
+				Size: null,
+				Preview: null,
+				Manual: null,
+				Busy: false,
+				Result: null,
+			};
+		}
+		return panels[ Id ];
+	}
+
+
+	function Toggle( Id )
+	{
+		let panel = Panel( Id );
+		panel.Open = !panel.Open;
+		return panel;
+	}
+
+
+	return {
+		Panel: Panel,
+		Toggle: Toggle,
+	};
+} ] )
+
+
+//---------------------------------------------------------------------
+// SessionController: the panel of the open plan.
+
+.controller( 'SessionController', [ '$scope', '$timeout', 'State', 'Client', 'Sessions', function ( $scope, $timeout, State, Client, Sessions )
+{
+	const DESTINATION_KEY = 'consensus.destination';
+	const MODEL_KEY = 'consensus.model.';
+	const SIZE_DELAY = 250;
+	const MANUAL = 'Manual';
+
+	$scope.State = State;
+	$scope.Destinations = [];
+	$scope.ManualOffered = false;
+	$scope.Models = {};
+	$scope.Runs = [];
+	$scope.ShowingEarlier = false;
+	$scope.MANUAL = MANUAL;
+	let size_timer = null;
+
+
+	function recall( key, fallback )
+	{
+		try
+		{
+			let value = window.localStorage.getItem( key );
+			return ( value === null ) ? fallback : value;
+		}
+		catch ( error )
+		{
+			return fallback;
+		}
+	}
+
+
+	function remember( key, value )
+	{
+		try
+		{
+			window.localStorage.setItem( key, value );
+		}
+		catch ( error )
+		{
+			// not remembered; the panel falls back to the first destination
+		}
+	}
+
+
+	// The open plan's panel, or null when the open item is no plan.
+	$scope.Panel = function ()
+	{
+		if ( !State.Open || State.Open.Proposal.Kind === 'document' || State.Open.Proposal.Kind === 'context' )
+		{
+			return null;
+		}
+		return Sessions.Panel( State.OpenId );
+	};
+
+
+	$scope.IsShown = function ()
+	{
+		let panel = $scope.Panel();
+		return !!panel && panel.Open;
+	};
+
+
+	// P: the open plan's panel, for the template's inputs.
+	$scope.P = null;
+	$scope.$watch( function () { return $scope.Panel(); }, function ( panel )
+	{
+		$scope.P = panel;
+	} );
+
+
+	$scope.ToggleEarlier = function ()
+	{
+		$scope.ShowingEarlier = !$scope.ShowingEarlier;
+	};
+
+
+	$scope.Close = function ()
+	{
+		let panel = $scope.Panel();
+		if ( panel )
+		{
+			panel.Open = false;
+		}
+	};
+
+
+	//-----------------------------------------------------------------
+	// Destinations and models
+
+	async function load_destinations()
+	{
+		try
+		{
+			let answer = await Client.Get( '/api/llm/destinations' );
+			$scope.Destinations = answer.Destinations;
+			$scope.ManualOffered = answer.Manual;
+		}
+		catch ( error )
+		{
+			$scope.Destinations = [];
+		}
+		$scope.$applyAsync();
+	}
+
+
+	function destination_named( name )
+	{
+		return $scope.Destinations.find( function ( destination ) { return destination.Name === name; } ) || null;
+	}
+
+
+	// A panel's destination and model, the last ones picked in this browser when it has none yet.
+	function settle_destination( panel )
+	{
+		if ( !panel.Destination )
+		{
+			let last = recall( DESTINATION_KEY, null );
+			let known = ( last === MANUAL ) || !!destination_named( last );
+			panel.Destination = known ? last : ( $scope.Destinations.length ? $scope.Destinations[ 0 ].Name : MANUAL );
+		}
+		load_models( panel );
+	}
+
+
+	async function load_models( panel )
+	{
+		let destination = destination_named( panel.Destination );
+		if ( !destination )
+		{
+			return;
+		}
+		if ( !$scope.Models[ destination.Name ] )
+		{
+			try
+			{
+				let answer = await Client.Get( '/api/llm/models?destination=' + encodeURIComponent( destination.Name ) );
+				$scope.Models[ destination.Name ] = answer.Models;
+			}
+			catch ( error )
+			{
+				$scope.Models[ destination.Name ] = destination.Model ? [ destination.Model ] : [];
+			}
+		}
+		if ( !panel.Model )
+		{
+			let models = $scope.Models[ destination.Name ];
+			let last = recall( MODEL_KEY + destination.Name, null );
+			panel.Model = ( last && models.includes( last ) ) ? last : ( destination.Model || models[ 0 ] || null );
+		}
+		$scope.$applyAsync();
+	}
+
+
+	$scope.IsOllama = function ( panel )
+	{
+		let destination = destination_named( panel.Destination );
+		return !!destination && destination.Kind === 'ollama';
+	};
+
+
+	$scope.PickDestination = function ( panel )
+	{
+		remember( DESTINATION_KEY, panel.Destination );
+		panel.Model = null;
+		panel.Manual = null;
+		panel.Result = null;
+		load_models( panel );
+	};
+
+
+	$scope.PickModel = function ( panel )
+	{
+		let destination = destination_named( panel.Destination );
+		if ( destination && panel.Model )
+		{
+			remember( MODEL_KEY + destination.Name, panel.Model );
+		}
+	};
+
+
+	//-----------------------------------------------------------------
+	// The prompt's size, and its preview
+
+	function options_query( options )
+	{
+		return '?context=' + ( options.Context ? '1' : '0' ) + '&threads=' + encodeURIComponent( options.Threads ) + '&search=' + ( options.Search ? '1' : '0' );
+	}
+
+
+	async function measure( id, panel )
+	{
+		try
+		{
+			let answer = await Client.Get( '/api/proposals/' + encodeURIComponent( id ) + '/prompt' + options_query( panel.Options ) );
+			panel.Size = { Characters: answer.Characters, Tokens: answer.Tokens, Parts: answer.Parts };
+			if ( panel.Preview !== null )
+			{
+				panel.Preview = answer.Prompt;
+			}
+		}
+		catch ( error )
+		{
+			panel.Size = null;
+		}
+		$scope.$applyAsync();
+	}
+
+
+	// Any change of choice, and the plan changing, measure the prompt again, a moment later.
+	$scope.Measure = function ()
+	{
+		let panel = $scope.Panel();
+		if ( !panel || !panel.Open )
+		{
+			return;
+		}
+		let id = State.OpenId;
+		if ( size_timer )
+		{
+			$timeout.cancel( size_timer );
+		}
+		size_timer = $timeout( function ()
+		{
+			size_timer = null;
+			measure( id, panel );
+		}, SIZE_DELAY, false );
+	};
+
+
+	$scope.TogglePreview = function ( panel )
+	{
+		panel.Preview = ( panel.Preview === null ) ? '' : null;
+		$scope.Measure();
+	};
+
+
+	$scope.Share = function ( part, size )
+	{
+		return size && size.Characters ? Math.round( 100 * part.Characters / size.Characters ) : 0;
+	};
+
+
+	//-----------------------------------------------------------------
+	// Sending
+
+	$scope.Send = async function ( panel )
+	{
+		let id = State.OpenId;
+		panel.Busy = true;
+		panel.Result = null;
+		let answer = await State.Act( function ()
+		{
+			return Client.Post( '/api/proposals/' + encodeURIComponent( id ) + '/session', { Destination: panel.Destination, Model: panel.Model, Options: panel.Options } );
+		} );
+		panel.Busy = false;
+		if ( answer )
+		{
+			await State.Reload();
+			load_runs( id );
+		}
+		$scope.$applyAsync();
+	};
+
+
+	// Manual: the prompt is made and copied; the answer comes back through the box.
+	$scope.CopyPrompt = async function ( panel )
+	{
+		let id = State.OpenId;
+		panel.Busy = true;
+		panel.Result = null;
+		let answer = await State.Act( function ()
+		{
+			return Client.Post( '/api/proposals/' + encodeURIComponent( id ) + '/session', { Destination: MANUAL, Options: panel.Options } );
+		} );
+		panel.Busy = false;
+		if ( answer )
+		{
+			panel.Manual = { Prompt: answer.Prompt, Revision: answer.Revision, Context: answer.Context, Run: answer.Run, Answer: '', Copied: false };
+			try
+			{
+				await navigator.clipboard.writeText( answer.Prompt );
+				panel.Manual.Copied = true;
+			}
+			catch ( error )
+			{
+				// no clipboard (an http page, or a refusal): the prompt is shown to copy by hand
+				panel.Manual.Copied = false;
+			}
+			load_runs( id );
+		}
+		$scope.$applyAsync();
+	};
+
+
+	$scope.CarryOut = async function ( panel )
+	{
+		let id = State.OpenId;
+		let manual = panel.Manual;
+		if ( !manual || !manual.Answer.trim() )
+		{
+			return;
+		}
+		panel.Busy = true;
+		let answer = await State.Act( function ()
+		{
+			return Client.Post( '/api/proposals/' + encodeURIComponent( id ) + '/answer', {
+				Answer: manual.Answer,
+				Revision: manual.Revision,
+				ContextRevision: manual.Context ? manual.Context.Revision : null,
+				Run: manual.Run,
+			} );
+		} );
+		panel.Busy = false;
+		if ( answer )
+		{
+			panel.Result = { Actions: answer.Actions, Refused: Object.keys( answer.Refused ).length };
+			panel.Manual = null;
+			await State.Reload();
+			load_runs( id );
+		}
+		$scope.$applyAsync();
+	};
+
+
+	//-----------------------------------------------------------------
+	// The run log
+
+	async function load_runs( id )
+	{
+		try
+		{
+			let answer = await Client.Get( '/api/proposals/' + encodeURIComponent( id ) + '/runs' );
+			if ( id === State.OpenId )
+			{
+				$scope.Runs = answer.Runs.slice().reverse();
+			}
+		}
+		catch ( error )
+		{
+			$scope.Runs = [];
+		}
+		$scope.$applyAsync();
+	}
+
+
+	$scope.Latest = function ()
+	{
+		return $scope.Runs[ 0 ] || null;
+	};
+
+
+	$scope.Earlier = function ()
+	{
+		return $scope.Runs.slice( 1 );
+	};
+
+
+	// A step's time, as the page shows it: 12:04:31
+	$scope.Clock = function ( at )
+	{
+		return at ? new Date( at ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit', second: '2-digit' } ) : '';
+	};
+
+
+	$scope.Seconds = function ( step )
+	{
+		return ( typeof step.Seconds === 'number' ) ? step.Seconds.toFixed( 1 ) + ' s' : '';
+	};
+
+
+	$scope.Tokens = function ( step )
+	{
+		return ( typeof step.Tokens === 'number' ) ? step.Tokens.toLocaleString() + ' tokens' : '';
+	};
+
+
+	//-----------------------------------------------------------------
+	// Keeping up
+
+	function shown()
+	{
+		let panel = $scope.Panel();
+		if ( panel && panel.Open )
+		{
+			settle_destination( panel );
+			$scope.Measure();
+			load_runs( State.OpenId );
+		}
+	}
+
+
+	$scope.$watch( function () { let panel = $scope.Panel(); return ( panel && panel.Open ) ? State.OpenId : null; }, function ( id )
+	{
+		if ( id )
+		{
+			shown();
+		}
+	} );
+
+	$scope.$on( 'proposal-loaded', function ()
+	{
+		$scope.Measure();
+	} );
+
+	$scope.$on( 'changed', function ( event, change )
+	{
+		if ( change.Proposal && change.Proposal === State.OpenId && ( change.Kind === 'run' || change.Kind === 'llm-finished' ) )
+		{
+			load_runs( State.OpenId );
+		}
+	} );
+
+	load_destinations().then( function ()
+	{
+		shown();
+	} );
+} ] );
