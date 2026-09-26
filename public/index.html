@@ -376,7 +376,8 @@
 					<textarea class="form-control form-control-sm reply-box" rows="2" ng-model="State.Drafts[thread.Id]" placeholder="Reply{{ thread.Status === 'resolved' ? ' (reopens the thread)' : '' }}"></textarea>
 					<div class="thread-buttons">
 						<button class="btn btn-sm btn-primary reply-button" ng-click="Reply(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy">Reply</button>
-						<button class="btn btn-sm btn-success resolve-button" ng-show="CanResolve(thread)" ng-click="Resolve(thread)" ng-disabled="Busy">Resolve</button>
+						<button class="btn btn-sm btn-success reply-resolve-button" ng-show="CanResolve(thread)" ng-click="ReplyAndResolve(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy" title="post your reply as the outcome and resolve the thread">Reply and resolve</button>
+						<button class="btn btn-sm btn-success resolve-button" ng-show="CanResolve(thread)" ng-click="Resolve(thread)" ng-disabled="Busy" title="accept the outcome or recommendation in the last reply">Resolve</button>
 						<button class="btn btn-sm btn-outline-secondary" ng-show="thread.Detached || thread.Anchor" ng-click="Reanchor(thread)">Re-anchor</button>
 					</div>
 				</div>

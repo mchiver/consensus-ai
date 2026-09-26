@@ -212,6 +212,36 @@ TEST( 'only the owner resolves; a reply to a resolved thread reopens it', async 
 } );
 
 
+TEST( 'reply and resolve: the owner\'s reply becomes the outcome in one request; no one else may', async function ()
+{
+	let proposal = await create( 'Reply and resolve' );
+	let thread = await discussed_thread( proposal.Id, 'one list item', 'Question: keep it, or drop it? I would keep it.' );
+	let path = '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/replies';
+	let by_llm = await call( 'POST', path, { Text: 'Keep it.', Resolve: true }, true );
+	ASSERT.equal( by_llm.Status, 403 );
+	let read = await call( 'GET', '/api/proposals/' + proposal.Id );
+	ASSERT.equal( thread_of_body( read, thread.Id ).Replies.length, 2 );
+	let both = await call( 'POST', path, { Text: 'Drop it.', Resolve: true } );
+	ASSERT.equal( both.Status, 201 );
+	ASSERT.equal( both.Body.Resolved, true );
+	ASSERT.equal( both.Body.Thread.Status, 'resolved' );
+	ASSERT.equal( both.Body.Thread.Resolved.By, 'user' );
+	ASSERT.deepEqual( both.Body.Thread.Turn, [ 'llm' ] );
+	let replies = both.Body.Thread.Replies;
+	ASSERT.deepEqual( [ replies[ replies.length - 1 ].By, replies[ replies.length - 1 ].Text ], [ 'user', 'Drop it.' ] );
+	// a plain reply is as it was: it reopens the resolved thread
+	let plain = await call( 'POST', path, { Text: 'On second thought.' } );
+	ASSERT.equal( plain.Body.Resolved, false );
+	ASSERT.equal( plain.Body.Thread.Status, 'contested' );
+} );
+
+
+function thread_of_body( read, thread_id )
+{
+	return read.Body.Threads.find( function ( thread ) { return thread.Id === thread_id; } );
+}
+
+
 TEST( 'only the owner deletes a thread, applied or not; the revision it made keeps its text', async function ()
 {
 	let proposal = await create( 'Delete a thread' );

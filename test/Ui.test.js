@@ -320,6 +320,26 @@ TEST( 'the threads and the preview hide and are remembered; a plan is renamed in
 } );
 
 
+TEST( 'reply and resolve: one click posts the owner\'s answer and resolves the thread', async function ()
+{
+	// the only thread is applied; a reply reopens it, and Reply and resolve settles it again
+	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
+	await page.Click( '.thread:not(.compose)' );
+	await page.WaitFor( count_of( '.thread.selected .reply-box' ) + ' === 1' );
+	await page.Evaluate( '( function () { let box = document.querySelector( ".thread.selected .reply-box" ); box.value = "Reopened to ask again."; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.Click( '.thread.selected .reply-button' );
+	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "reopened"' );
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.selected .reply-resolve-button" ) ).display !== "none"' );
+	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".thread.selected .reply-resolve-button" ).disabled' ), true );
+	await page.Evaluate( '( function () { let box = document.querySelector( ".thread.selected .reply-box" ); box.value = "Keep one item."; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.WaitFor( '!document.querySelector( ".thread.selected .reply-resolve-button" ).disabled' );
+	await page.Click( '.thread.selected .reply-resolve-button' );
+	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "resolved"' );
+	ASSERT.equal( await page.Evaluate( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).pop().textContent.trim()' ), 'Keep one item.' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
 TEST( 'the owner deletes a thread; the revision it made names it as deleted', async function ()
 {
 	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );

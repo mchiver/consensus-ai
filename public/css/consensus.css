@@ -942,6 +942,7 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 .thread-buttons
 {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 0.5rem;
 	margin-top: 0.4rem;
 }

@@ -50,6 +50,10 @@ The heading's **Threads** button hides or shows the threads pane, and the editor
 preview; each is remembered in the browser. The owner deletes a thread with the × on its first line; a
 revision that applied a deleted thread keeps its text and shows "(deleted thread)".
 
+The owner settles a contested thread in one of two ways. **Reply and resolve** posts the owner's reply and
+resolves the thread with it: that reply is the outcome the LLM applies. **Resolve** with no reply accepts the
+outcome, or the recommendation, in the last reply.
+
 ## The data folder
 
 `~data/` beside `package.json` by default, or the `--data` folder. Plain files:

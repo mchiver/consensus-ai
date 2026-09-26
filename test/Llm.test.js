@@ -44,6 +44,8 @@ TEST( 'the prompt holds the rules, the text in a fence longer than its own, ever
 	} );
 	ASSERT.match( prompt, /# The rules/ );
 	ASSERT.match( prompt, /You never build: implementing a plan in code is done\n  by an agent session/ );
+	ASSERT.match( prompt, /when the\n  owner resolved it with a reply of their own, that reply is the outcome/ );
+	ASSERT.match( prompt, /when the owner resolved it with no reply, they accept the outcome or the recommendation in your last reply/ );
 	ASSERT.match( prompt, /"A title", revision 3/ );
 	ASSERT.match( prompt, /`````markdown\nSome text with ```` four backticks\.\n`````/ );
 	ASSERT.match( prompt, /## Thread t1, contested, WAITING ON YOU to reply/ );

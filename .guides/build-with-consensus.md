@@ -29,8 +29,11 @@ For an agent session (Claude Code or similar) working on a repo whose plans live
 ## "Your turn in Consensus"
 
 1. Find what waits on you (`GET /api/waiting`).
-2. Resolved threads: apply each one, one revision each. When the owner resolved a thread without answering
-   your question, apply your stated recommendation and say so in the Outcome.
+2. Resolved threads: apply each one, one revision each. What resolving means:
+   - **Reply and resolve** (the owner's own reply is last): that reply is the outcome, read as the answer to
+     the question before it. Apply it directly; no confirming round.
+   - **Resolve with no reply:** the owner accepts the outcome, or the recommendation, in your last reply.
+     Apply it, and say in the Outcome that the recommendation went in.
 3. Contested threads the owner answered: reply. Confirm what you understood and give the wording you will
    apply; ask any follow-up with a recommendation.
 4. After changing the text, check for detached threads and re-anchor them.

@@ -222,6 +222,26 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	};
 
 
+	// Reply and resolve: the owner's reply is the outcome, and the thread is resolved with it, in one request.
+	$scope.ReplyAndResolve = async function ( thread )
+	{
+		let text = State.Drafts[ thread.Id ];
+		if ( !text )
+		{
+			return;
+		}
+		let answer = await act( function ()
+		{
+			return Client.Post( path( thread ) + '/replies', { Text: text, Resolve: true } );
+		} );
+		if ( answer )
+		{
+			delete State.Drafts[ thread.Id ];
+			$scope.$applyAsync();
+		}
+	};
+
+
 	$scope.Reanchor = function ( thread )
 	{
 		State.StartReanchor( thread.Id );

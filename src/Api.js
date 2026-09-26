@@ -1176,9 +1176,10 @@ function Attach( App, Context )
 	} );
 
 
-	// A reply. To a resolved thread it reopens it; a change already applied stays applied.
-	// Returns { Thread, Reopened } or { Refused: { Status, Error } }; the route and the LLM's call share it.
-	async function add_reply( id, thread_id, participant, text )
+	// A reply. To a resolved thread it reopens it; a change already applied stays applied. With Resolve (the owner's
+	// Reply and resolve), the thread is resolved in the same write, the reply being its outcome.
+	// Returns { Thread, Reopened, Resolved } or { Refused: { Status, Error } }; the route and the LLM's call share it.
+	async function add_reply( id, thread_id, participant, text, resolve )
 	{
 		let result = await store.Queue( id, async function ()
 		{
@@ -1200,26 +1201,38 @@ function Attach( App, Context )
 				thread.Resolved = effect.Resolved;
 			}
 			thread.Replies.push( { Id: new_id( 'r' ), By: participant.Name, At: now(), Text: text } );
+			if ( resolve )
+			{
+				let can = RULES.CanResolve( participant, thread );
+				if ( !can.Ok )
+				{
+					return refused( ( participant.Role === 'owner' ) ? 409 : 403, can.Reason );
+				}
+				Object.assign( thread, RULES.ResolveEffect( participant, now() ) );
+			}
 			await store.WriteThreads( id, read.Threads );
 			await store.UpdateProposal( id, {} );
-			return { Thread: present_threads( [ thread ], read.Text, participant.Name )[ 0 ], Reopened: effect.Reopen };
+			return { Thread: present_threads( [ thread ], read.Text, participant.Name )[ 0 ], Reopened: effect.Reopen, Resolved: !!resolve };
 		} );
 		if ( !result.Refused )
 		{
-			changed( id, result.Reopened ? 'reopened' : 'reply', result.Thread.Id );
+			let kind = result.Resolved ? 'resolved' : ( result.Reopened ? 'reopened' : 'reply' );
+			changed( id, kind, result.Thread.Id );
 		}
 		return result;
 	}
 
 
+	// Body = { Text, Resolve? }  Resolve: true is the owner's Reply and resolve.
 	router.post( '/proposals/:id/threads/:tid/replies', async function ( request, response )
 	{
-		let text = text_of( ( request.body || {} ).Text ).trim();
+		let body = request.body || {};
+		let text = text_of( body.Text ).trim();
 		if ( !text )
 		{
 			return fail( response, 400, 'Text is required' );
 		}
-		let result = await add_reply( request.params.id, request.params.tid, request.Participant, text );
+		let result = await add_reply( request.params.id, request.params.tid, request.Participant, text, body.Resolve === true );
 		if ( result.Refused )
 		{
 			return fail( response, result.Refused.Status, result.Refused.Error );
