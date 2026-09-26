@@ -14,11 +14,12 @@
 //   <folder>/projects.json                    { Projects: [ { Id, Name } ] }  every project's name, in display order
 //   <folder>/projects/<id>/project.json       { Id, Context, Created, Updated, Version, Items: [ node ] } (see Tree.js)
 //                                             Context: the id of the project's context, a proposal of Kind 'context'
-//   <folder>/corpora/<id>/corpus.json, corpus.zip, index.json    an uploaded zip, its files and search chunks
+//   <folder>/projects/<project>/corpora/<id>/corpus.json, corpus.zip?, index.json    a corpus of the project: an
+//                                             attached zip, or one linked from a context server; its search chunks
 //   <folder>/trash/<id>/                      a deleted proposal or corpus, moved whole
 //
 // Ids are a kind letter and 8 hex digits: p… a plan or document, z… a corpus, j… a project (the Default
-// project is 'default'). Older ids carry a slug of the title; bin/consensus.js migrate-ids converts them.
+// project is 'default').
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -67,7 +68,6 @@ function Open( Folder )
 	FS.mkdirSync( PATH.join( folder, PROPOSALS_FOLDER ), { recursive: true } );
 	FS.mkdirSync( PATH.join( folder, TRASH_FOLDER ), { recursive: true } );
 	FS.mkdirSync( PATH.join( folder, PROJECTS_FOLDER ), { recursive: true } );
-	FS.mkdirSync( PATH.join( folder, CORPORA_FOLDER ), { recursive: true } );
 	let queues = {};
 
 
@@ -277,7 +277,7 @@ function Open( Folder )
 		while ( true )
 		{
 			let id = NewId( Letter );
-			let taken = FS.existsSync( proposal_folder( id ) ) || FS.existsSync( corpus_folder( id ) ) || FS.existsSync( PATH.join( folder, TRASH_FOLDER, id ) ) || FS.existsSync( PATH.dirname( project_file( id ) ) );
+			let taken = FS.existsSync( proposal_folder( id ) ) || corpus_folder( id ) !== null || FS.existsSync( PATH.join( folder, TRASH_FOLDER, id ) ) || FS.existsSync( PATH.dirname( project_file( id ) ) );
 			if ( !taken )
 			{
 				return id;
@@ -635,27 +635,61 @@ function Open( Folder )
 
 
 	//-----------------------------------------------------------------
-	// Corpora: each is an uploaded zip kept whole, with its file list and search chunks.
-	//   corpora/<id>/corpus.json  { Id, Kind: 'corpus', Name, Created, Updated, Version, Files: [ { Path, Size, Indexed, Reason? } ],
-	//                             Link?: { Server, Corpus } }  a linked corpus has no zip: a context server keeps it
-	//   corpora/<id>/corpus.zip   the upload, as it came
-	//   corpora/<id>/index.json   search chunks
+	// Corpora: each is kept in the folder of the project that holds it.
+	//   projects/<project>/corpora/<id>/corpus.json  { Id, Kind: 'corpus', Name, Created, Updated, Version,
+	//       Source: 'attached' | 'linked', Link?: { Server, Corpus }, Include: [], Exclude: [],
+	//       Files: [ { Path, Size, Indexed, Reason? } ] }    a linked corpus's files are asked for at its server
+	//   projects/<project>/corpora/<id>/corpus.zip   an attached corpus's zip, as it came
+	//   projects/<project>/corpora/<id>/index.json   an attached corpus's search chunks
 
+	function corpus_home( project, id )
+	{
+		return PATH.join( folder, PROJECTS_FOLDER, project, CORPORA_FOLDER, id );
+	}
+
+
+	// The folder of the corpus Id, in whichever project keeps it, or null.
 	function corpus_folder( id )
 	{
-		return PATH.join( folder, CORPORA_FOLDER, id );
+		if ( !/^[a-z0-9-]+$/.test( String( id ) ) )
+		{
+			return null;
+		}
+		for ( let project of FS.readdirSync( PATH.join( folder, PROJECTS_FOLDER ) ) )
+		{
+			let candidate = corpus_home( project, id );
+			if ( FS.existsSync( candidate ) )
+			{
+				return candidate;
+			}
+		}
+		return null;
+	}
+
+
+	// Every folder that holds corpora: each project's.
+	function corpora_folders()
+	{
+		let folders = FS.readdirSync( PATH.join( folder, PROJECTS_FOLDER ) ).map( function ( project )
+		{
+			return PATH.join( folder, PROJECTS_FOLDER, project, CORPORA_FOLDER );
+		} );
+		return folders.filter( function ( candidate ) { return FS.existsSync( candidate ); } );
 	}
 
 
 	async function ListCorpora()
 	{
 		let corpora = [];
-		for ( let id of await FS.promises.readdir( PATH.join( folder, CORPORA_FOLDER ) ) )
+		for ( let parent of corpora_folders() )
 		{
-			let corpus = await read_json_or_null( PATH.join( corpus_folder( id ), 'corpus.json' ) );
-			if ( corpus )
+			for ( let id of await FS.promises.readdir( parent ) )
 			{
-				corpora.push( corpus );
+				let corpus = await read_json_or_null( PATH.join( parent, id, 'corpus.json' ) );
+				if ( corpus )
+				{
+					corpora.push( corpus );
+				}
 			}
 		}
 		return corpora;
@@ -664,19 +698,21 @@ function Open( Folder )
 
 	async function ReadCorpus( Id )
 	{
-		if ( !/^[a-z0-9-]+$/.test( String( Id ) ) )
-		{
-			return null;
-		}
-		return await read_json_or_null( PATH.join( corpus_folder( Id ), 'corpus.json' ) );
+		let home = corpus_folder( Id );
+		return home ? await read_json_or_null( PATH.join( home, 'corpus.json' ) ) : null;
 	}
 
 
 	async function ReadCorpusZip( Id )
 	{
+		let home = corpus_folder( Id );
+		if ( !home )
+		{
+			return null;
+		}
 		try
 		{
-			return await FS.promises.readFile( PATH.join( corpus_folder( Id ), 'corpus.zip' ) );
+			return await FS.promises.readFile( PATH.join( home, 'corpus.zip' ) );
 		}
 		catch ( error )
 		{
@@ -689,24 +725,73 @@ function Open( Folder )
 	}
 
 
-	// Parameters: { Name, Zip, Files }, or { Name, Link: { Server, Corpus } } for a corpus kept by a context server,
-	// which has no zip and whose files are asked for there.
+	// Parameters: { Project, Name, Zip, Files } for an attached corpus, or { Project, Name, Link: { Server, Corpus } }
+	// for one kept by a context server, which has no zip and whose files are asked for there. Project is the project
+	// whose folder keeps it (Default when not given).
 	async function CreateCorpus( Parameters )
 	{
 		let id = unique_id( CORPUS_LETTER );
 		let now = new Date().toISOString();
-		let corpus = { Id: id, Kind: 'corpus', Name: Parameters.Name, Created: now, Updated: now, Version: 1, Files: Parameters.Files || [] };
+		let corpus = {
+			Id: id, Kind: 'corpus', Name: Parameters.Name, Created: now, Updated: now, Version: 1,
+			Source: Parameters.Link ? 'linked' : 'attached', Include: [], Exclude: [], Files: Parameters.Files || [],
+		};
 		if ( Parameters.Link )
 		{
 			corpus.Link = { Server: Parameters.Link.Server, Corpus: Parameters.Link.Corpus };
 		}
-		await FS.promises.mkdir( corpus_folder( id ), { recursive: true } );
+		let home = corpus_home( Parameters.Project || DEFAULT_PROJECT, id );
+		await FS.promises.mkdir( home, { recursive: true } );
 		if ( !Parameters.Link )
 		{
-			await write_file( PATH.join( corpus_folder( id ), 'corpus.zip' ), Parameters.Zip );
+			await write_file( PATH.join( home, 'corpus.zip' ), Parameters.Zip );
 		}
-		await write_json( PATH.join( corpus_folder( id ), 'corpus.json' ), corpus );
+		await write_json( PATH.join( home, 'corpus.json' ), corpus );
 		return corpus;
+	}
+
+
+	// Changes to corpus.json: { Include, Exclude, Files, Name }; a change of Files is a new Version. Returns the
+	// corpus, or null.
+	async function UpdateCorpus( Id, Changes )
+	{
+		let corpus = await ReadCorpus( Id );
+		if ( !corpus )
+		{
+			return null;
+		}
+		for ( let key of [ 'Include', 'Exclude', 'Files', 'Name' ] )
+		{
+			if ( Changes[ key ] !== undefined )
+			{
+				corpus[ key ] = Changes[ key ];
+			}
+		}
+		if ( Changes.Files !== undefined )
+		{
+			corpus.Version += 1;
+		}
+		corpus.Updated = new Date().toISOString();
+		await write_json( PATH.join( corpus_folder( Id ), 'corpus.json' ), corpus );
+		return corpus;
+	}
+
+
+	// A corpus's folder moves to the folder of Project, which now holds it. Returns false when there is no such corpus.
+	async function MoveCorpus( Id, Project )
+	{
+		let home = corpus_folder( Id );
+		if ( !home )
+		{
+			return false;
+		}
+		let target = corpus_home( Project, Id );
+		if ( home !== target )
+		{
+			await FS.promises.mkdir( PATH.dirname( target ), { recursive: true } );
+			await rename_with_retry( home, target );
+		}
+		return true;
 	}
 
 
@@ -743,18 +828,24 @@ function Open( Folder )
 
 	async function ReadCorpusIndex( Id )
 	{
-		return ( await read_json_or_null( PATH.join( corpus_folder( Id ), 'index.json' ) ) ) || [];
+		let home = corpus_folder( Id );
+		return ( home ? await read_json_or_null( PATH.join( home, 'index.json' ) ) : null ) || [];
 	}
 
 
 	async function WriteCorpusIndex( Id, Chunks )
 	{
-		await write_json( PATH.join( corpus_folder( Id ), 'index.json' ), Chunks );
+		let home = corpus_folder( Id );
+		if ( home )
+		{
+			await write_json( PATH.join( home, 'index.json' ), Chunks );
+		}
 	}
 
 
-	// A whole copy under a new id, named "<name> (copy)"; its index is rebuilt by the caller. Returns it, or null.
-	async function CopyCorpus( Id )
+	// A whole copy under a new id, named "<name> (copy)", in the folder of Project (Default when not given); its index
+	// is rebuilt by the caller. Returns it, or null.
+	async function CopyCorpus( Id, Project )
 	{
 		let source = await ReadCorpus( Id );
 		if ( !source )
@@ -763,11 +854,13 @@ function Open( Folder )
 		}
 		let name = source.Name + ' (copy)';
 		let id = unique_id( CORPUS_LETTER );
-		await FS.promises.cp( corpus_folder( Id ), corpus_folder( id ), { recursive: true } );
-		await FS.promises.rm( PATH.join( corpus_folder( id ), 'index.json' ), { force: true } );
+		let home = corpus_home( Project || DEFAULT_PROJECT, id );
+		await FS.promises.mkdir( PATH.dirname( home ), { recursive: true } );
+		await FS.promises.cp( corpus_folder( Id ), home, { recursive: true } );
+		await FS.promises.rm( PATH.join( home, 'index.json' ), { force: true } );
 		let now = new Date().toISOString();
 		let corpus = Object.assign( {}, source, { Id: id, Name: name, Created: now, Updated: now } );
-		await write_json( PATH.join( corpus_folder( id ), 'corpus.json' ), corpus );
+		await write_json( PATH.join( home, 'corpus.json' ), corpus );
 		return corpus;
 	}
 
@@ -775,11 +868,11 @@ function Open( Folder )
 	async function TrashCorpus( Id )
 	{
 		let source = corpus_folder( Id );
-		if ( !await ReadCorpus( Id ) )
+		if ( !source || !await ReadCorpus( Id ) )
 		{
 			return false;
 		}
-		await FS.promises.rename( source, PATH.join( folder, TRASH_FOLDER, Id ) );
+		await rename_with_retry( source, PATH.join( folder, TRASH_FOLDER, Id ) );
 		return true;
 	}
 
@@ -843,146 +936,17 @@ function Open( Folder )
 
 
 	//-----------------------------------------------------------------
-	// Migrate: brings an older data folder up to date, in the proposals and in the trash. Run once at start;
-	// running it again changes nothing. Returns a line for each proposal it changed.
-	//   proposal: Status and Approved become State (an approved one is a Plan, any other a Proposal); no Kind is a plan
-	//   thread:   Status 'consensus' becomes 'resolved'
-	//   projects: the Default project exists, holds every proposal no project holds, and no tree names a proposal that is gone
-	//   contexts: every project has its context
+	// Prepare: a new data folder gets its Default project (with its context). Run at start. Returns a line when it
+	// made one.
 
-	async function Migrate( States )
+	async function Prepare()
 	{
-		let plan_state = States.includes( 'Plan' ) ? 'Plan' : States[ 0 ];
-		let lines = [];
-		for ( let parent of [ PROPOSALS_FOLDER, TRASH_FOLDER ] )
+		if ( await ReadProject( DEFAULT_PROJECT ) )
 		{
-			for ( let id of await FS.promises.readdir( PATH.join( folder, parent ) ) )
-			{
-				let one = PATH.join( folder, parent, id );
-				let proposal = await read_json_or_null( PATH.join( one, 'proposal.json' ) );
-				if ( !proposal )
-				{
-					continue;
-				}
-				let changes = [];
-				if ( proposal.State === undefined )
-				{
-					let approved = ( proposal.Status === 'consensus' );
-					proposal.State = approved ? plan_state : States[ 0 ];
-					delete proposal.Status;
-					delete proposal.Approved;
-					changes.push( 'state ' + proposal.State );
-				}
-				if ( proposal.Kind === undefined )
-				{
-					proposal.Kind = 'plan';
-					changes.push( 'kind plan' );
-				}
-				if ( changes.length )
-				{
-					await write_json( PATH.join( one, 'proposal.json' ), proposal );
-				}
-				let threads = await read_json_or_null( PATH.join( one, 'threads.json' ) );
-				let renamed = 0;
-				for ( let thread of threads || [] )
-				{
-					if ( thread.Status === 'consensus' )
-					{
-						thread.Status = 'resolved';
-						renamed++;
-					}
-				}
-				if ( renamed )
-				{
-					await write_json( PATH.join( one, 'threads.json' ), threads );
-					changes.push( renamed + ' thread' + ( renamed === 1 ? '' : 's' ) + ' resolved' );
-				}
-				if ( changes.length )
-				{
-					lines.push( parent + '/' + id + ': ' + changes.join( ', ' ) );
-				}
-			}
+			return [];
 		}
-		for ( let line of await place_in_projects() )
-		{
-			lines.push( line );
-		}
-		return lines;
-	}
-
-
-	// The Default project exists; every proposal no project holds goes to its root; a node whose proposal is
-	// gone (deleted or moved by hand) leaves its tree.
-	async function place_in_projects()
-	{
-		let lines = [];
-		if ( !await ReadProject( DEFAULT_PROJECT ) )
-		{
-			await CreateProject( { Id: DEFAULT_PROJECT, Name: 'Default' } );
-			lines.push( 'projects/' + DEFAULT_PROJECT + ': created' );
-		}
-		for ( let project of await ListProjects() )
-		{
-			let context = project.Context ? await read_json_or_null( PATH.join( proposal_folder( project.Context ), 'proposal.json' ) ) : null;
-			if ( !context )
-			{
-				project.Context = ( await create_context() ).Id;
-				await WriteProject( project );
-				lines.push( 'projects/' + project.Id + ': context ' + project.Context + ' created' );
-			}
-		}
-		let kinds = {};
-		for ( let proposal of await ListProposals() )
-		{
-			// a context belongs to its project, never to a tree
-			if ( proposal.Kind !== 'context' )
-			{
-				kinds[ proposal.Id ] = proposal.Kind || 'plan';
-			}
-		}
-		for ( let corpus of await ListCorpora() )
-		{
-			kinds[ corpus.Id ] = 'corpus';
-		}
-		let present = new Set( Object.keys( kinds ) );
-		let held = new Set();
-		for ( let project of await ListProjects() )
-		{
-			let gone = [];
-			for ( let id of TREE.ItemIds( project.Items ) )
-			{
-				let node = TREE.Find( project.Items, id ).Node;
-				if ( !present.has( id ) )
-				{
-					gone.push( id );
-				}
-				else
-				{
-					held.add( id );
-				}
-			}
-			if ( gone.length )
-			{
-				for ( let id of gone )
-				{
-					TREE.Remove( project.Items, id );
-				}
-				await WriteProject( project );
-				lines.push( 'projects/' + project.Id + ': dropped ' + gone.join( ', ' ) + ', no longer in the data folder' );
-			}
-		}
-		let orphans = Array.from( present ).filter( function ( id ) { return !held.has( id ); } );
-		if ( orphans.length )
-		{
-			let default_project = await ReadProject( DEFAULT_PROJECT );
-			for ( let id of orphans.sort() )
-			{
-				TREE.Insert( default_project.Items, null, { Kind: kinds[ id ], Id: id } );
-			}
-			await WriteProject( default_project );
-			lines.push( 'projects/' + DEFAULT_PROJECT + ': placed ' + orphans.join( ', ' ) );
-		}
-		return lines;
+		await CreateProject( { Id: DEFAULT_PROJECT, Name: 'Default' } );
+		return [ 'projects/' + DEFAULT_PROJECT + ': created' ];
 	}
 
 
@@ -1021,6 +985,8 @@ function Open( Folder )
 		ReadCorpusZip: ReadCorpusZip,
 		CreateCorpus: CreateCorpus,
 		ReplaceCorpus: ReplaceCorpus,
+		UpdateCorpus: UpdateCorpus,
+		MoveCorpus: MoveCorpus,
 		RenameCorpus: RenameCorpus,
 		ReadCorpusIndex: ReadCorpusIndex,
 		WriteCorpusIndex: WriteCorpusIndex,
@@ -1028,7 +994,7 @@ function Open( Folder )
 		TrashCorpus: TrashCorpus,
 		TrashProposal: TrashProposal,
 		ListTrash: ListTrash,
-		Migrate: Migrate,
+		Prepare: Prepare,
 	};
 }
 

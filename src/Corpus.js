@@ -1,20 +1,22 @@
 'use strict';
 
-// Corpus - what an uploaded zip gives a project: its text files, and a reason for each file left out.
-// The limits come from the settings ("Corpus" in consensus.json), with these defaults:
+// Corpus - what an attached zip gives a project: its text files, and a reason for each file left out. A file is let
+// in by the corpus's Include and Exclude and the zip's own .gitignore files (Filter.js), and read unless it is larger
+// than the limit or binary (it holds a NUL byte). The limits come from the settings ("Corpus" in consensus.json):
 //
-//   { "MaxZipMegabytes": 50, "MaxFileKilobytes": 512, "Extensions": [ ".md", ".txt", ... ] }
+//   { "MaxZipMegabytes": 50, "MaxFileKilobytes": 512 }
 //
-//   Extract( Zip, Limits ) -> { Files: [ { Path, Size, Indexed, Reason? } ], Texts: { Path: text } }
+//   Extract( Zip, Limits, Rules? ) -> { Files: [ { Path, Size, Indexed, Reason? } ], Texts: { Path: text } }
+//     Rules = { Include, Exclude }, the corpus entry's
 //   ReadFile( Zip, Path ) -> text, or null when the zip has no such file
 
 const PATH = require( 'path' );
 const ZIP = require( './Zip.js' );
+const FILTER = require( './Filter.js' );
 
 const DEFAULT_LIMITS = {
 	MaxZipMegabytes: 50,
 	MaxFileKilobytes: 512,
-	Extensions: [ '.md', '.txt', '.js', '.json', '.html', '.css', '.py', '.cs', '.sql', '.yml', '.yaml', '.xml', '.sh', '.ps1' ],
 };
 
 
@@ -27,7 +29,6 @@ function Limits( Settings )
 	return {
 		MaxZipMegabytes: ( given.MaxZipMegabytes > 0 ) ? given.MaxZipMegabytes : DEFAULT_LIMITS.MaxZipMegabytes,
 		MaxFileKilobytes: ( given.MaxFileKilobytes > 0 ) ? given.MaxFileKilobytes : DEFAULT_LIMITS.MaxFileKilobytes,
-		Extensions: Array.isArray( given.Extensions ) ? given.Extensions.map( function ( extension ) { return String( extension ).toLowerCase(); } ) : DEFAULT_LIMITS.Extensions.slice(),
 	};
 }
 
@@ -35,16 +36,23 @@ function Limits( Settings )
 //---------------------------------------------------------------------
 // Extract: every file of the zip listed; the text of each one that is indexed.
 
-async function Extract( Zip, Limits_ )
+async function Extract( Zip, Limits_, Rules )
 {
 	let max_bytes = Limits_.MaxFileKilobytes * 1024;
+	let is_gitignore = function ( path ) { return PATH.posix.basename( path ) === '.gitignore'; };
+	let gitignores = ( await ZIP.Entries( Zip, is_gitignore ) ).filter( function ( entry ) { return is_gitignore( entry.Path ); } ).map( function ( entry )
+	{
+		let base = PATH.posix.dirname( entry.Path );
+		return { Base: ( base === '.' ) ? '' : base, Text: entry.Data ? entry.Data.toString( 'utf8' ) : '' };
+	} );
+	let why = FILTER.Make( { Include: Rules && Rules.Include, Exclude: Rules && Rules.Exclude, Gitignores: gitignores } );
 	let reasons = {};
 	function want( path, size )
 	{
-		let extension = PATH.posix.extname( path ).toLowerCase();
-		if ( !Limits_.Extensions.includes( extension ) )
+		let left_out = why( path );
+		if ( left_out )
 		{
-			reasons[ path ] = 'not a text type: ' + ( extension || 'no extension' );
+			reasons[ path ] = left_out;
 			return false;
 		}
 		if ( size > max_bytes )

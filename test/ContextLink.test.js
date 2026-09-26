@@ -148,6 +148,23 @@ TEST( 'a context server\'s Inference item is a destination; its session reads a 
 } );
 
 
+TEST( 'a linked corpus\'s Include and Exclude narrow what its server gives: the list, a file, and search', async function ()
+{
+	let project = ( await call( 'GET', '/api/projects' ) ).Body.Projects[ 0 ];
+	let id = project.Items.find( function ( item ) { return item.Linked; } ).Id;
+	ASSERT.equal( ( await call( 'GET', '/api/corpus/' + id ) ).Body.Corpus.Source, 'linked' );
+	ASSERT.equal( ( await call( 'GET', '/api/search?q=paddle&project=default' ) ).Body.Hits[ 0 ].Path, 'tool.js' );
+	let narrowed = await call( 'PUT', '/api/corpus/' + id + '/filter', { Exclude: '*.js' } );
+	ASSERT.deepEqual( narrowed.Body.Corpus.Exclude, [ '*.js' ] );
+	let files = ( await call( 'GET', '/api/corpus/' + id ) ).Body.Corpus.Files;
+	ASSERT.equal( files.find( function ( file ) { return file.Path === 'tool.js'; } ).Reason, 'left out by Exclude' );
+	ASSERT.equal( files.find( function ( file ) { return file.Path === 'guide.md'; } ).Indexed, true );
+	ASSERT.equal( ( await call( 'GET', '/api/corpus/' + id + '/file?path=tool.js' ) ).Status, 404 );
+	let hits = ( await call( 'GET', '/api/search?q=paddle&project=default' ) ).Body.Hits;
+	ASSERT.equal( hits.some( function ( hit ) { return hit.Path === 'tool.js'; } ), false );
+} );
+
+
 TEST( 'a context server that stops answering shows as offline, and nothing else breaks', async function ()
 {
 	await context.Close();

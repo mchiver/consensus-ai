@@ -45,6 +45,7 @@
 				<span class="proposal-title">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
 				<span class="badges">
 					<span class="badge linked" ng-show="node.Linked" title="kept by a context server: {{ node.Linked }}">linked</span>
+					<span class="badge attached" ng-show="node.Source === 'attached'" title="a zip kept by Consensus, in the project's folder">attached</span>
 					<span class="item-state" ng-show="!node.Offline" title="{{ node.Files }} files, {{ node.Indexed }} indexed">{{ node.Files }} files</span>
 					<span class="item-state offline" ng-show="node.Offline" title="its context server does not answer; refresh when it is back">offline</span>
 				</span>
@@ -401,7 +402,7 @@
 						<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" auto-focus>
 					</form>
 					<div class="title" ng-if="!Renaming" id="corpus-name">&#128230; {{ Corpus.Name }}</div>
-					<div class="muted small" id="corpus-summary">{{ Corpus.Files.length }} files, {{ IndexedCount() }} indexed<span ng-hide="Corpus.Link"> &middot; version {{ Corpus.Version }}</span><span ng-show="Corpus.Link" id="corpus-link"> &middot; linked from {{ Corpus.Link.Server }} / {{ Corpus.Link.Corpus }}</span><span ng-show="Project"> &middot; in {{ Project.Name }}</span></div>
+					<div class="muted small" id="corpus-summary">{{ Corpus.Files.length }} files, {{ IndexedCount() }} indexed<span ng-hide="Corpus.Link" id="corpus-attached"> &middot; attached, version {{ Corpus.Version }}</span><span ng-show="Corpus.Link" id="corpus-link"> &middot; linked from {{ Corpus.Link.Server }} / {{ Corpus.Link.Corpus }}</span><span ng-show="Project"> &middot; in {{ Project.Name }}</span></div>
 					<div class="alert alert-warning py-1 px-2 my-1" ng-show="Corpus.Offline">{{ Corpus.Offline }}</div>
 					<div class="corpus-buttons">
 						<label class="btn btn-sm btn-outline-secondary mb-0" ng-hide="Corpus.Link" ng-class="{ disabled: Busy }" title="upload a new zip in place of this one: its files are indexed again">Replace zip<input type="file" accept=".zip,application/zip" hidden on-file="Replace( File )"></label>
@@ -416,6 +417,21 @@
 						</span>
 					</div>
 				</div>
+				<form class="corpus-filter" ng-show="Corpus" ng-submit="SaveFilter()">
+					<label class="corpus-filter-field">
+						<span class="session-label">Include</span>
+						<textarea class="form-control form-control-sm" id="corpus-include" rows="2" ng-model="Filter.Include" placeholder="every file; or one pattern per line, like src/**"></textarea>
+					</label>
+					<label class="corpus-filter-field">
+						<span class="session-label">Exclude</span>
+						<textarea class="form-control form-control-sm" id="corpus-exclude" rows="2" ng-model="Filter.Exclude" placeholder="nothing; or one pattern per line, like .git/**"></textarea>
+					</label>
+					<div class="corpus-filter-buttons">
+						<button class="btn btn-sm btn-primary" type="submit" id="corpus-filter-save" ng-disabled="!FilterChanged() || Busy" title="{{ Corpus.Link ? 'narrow what the context server gives' : 'list and index the zip\'s files again' }}">Save</button>
+						<button class="btn btn-sm btn-outline-secondary" type="button" ng-show="FilterChanged()" ng-click="ResetFilter()">Discard</button>
+						<span class="muted small">Patterns relative to the corpus's root, as in .gitignore. Exclude wins over Include.</span>
+					</div>
+				</form>
 				<div class="corpus-body" ng-show="Corpus">
 					<div class="corpus-files">
 						<div class="corpus-file" ng-repeat="file in Corpus.Files" ng-class="{ indexed: file.Indexed, shown: File.Path === file.Path }" ng-click="ShowFile(file)" title="{{ file.Indexed ? 'show its text' : 'not taken in: ' + file.Reason }}">

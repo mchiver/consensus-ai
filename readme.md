@@ -31,9 +31,14 @@ opening an item opens its project. A project holds, in folders of any depth:
   the heading; nothing locks, and a state does not depend on the threads.
 - **Documents**: markdown edited in Monaco with revisions, but with no threads and no state. The LLM reads
   them through search; it does not edit them.
-- **Corpus items**: an uploaded zip whose text files are indexed with the project. The corpus view lists its
-  files, which were taken in and why the others were not, and shows a file's text (as plain text, never
-  as HTML). Replace zip uploads a new one in its place.
+- **Corpora**, of two kinds, marked in the tree: **attached**, a zip uploaded to Consensus and kept in the
+  project's folder (Replace zip uploads a new one in its place); and **linked**, a context server's folder (see
+  Context servers). Both are listed, read, searched and offered to the LLM the same way. Each has its own
+  **Include** and **Exclude**, edited in the corpus view (one pattern per line, as in `.gitignore`; an empty
+  Include means every file, and Exclude wins), which narrow what reaches the project; an attached zip's own
+  `.gitignore` files apply too, each to its folder and below. Any file let in is read unless it is larger than
+  `MaxFileKilobytes` or binary (it holds a NUL byte): there is no list of file types. The view lists every file,
+  which were read and why the others were not, and shows a file's text (as plain text, never as HTML).
 - **Folders**, to organize any of these.
 - **Subplans**: a plan can hold plans, and only plans. A Subplan is a full plan of its own (its own threads,
   state and Subplans); the tie is organizational only. Subplans fold under their parent, and move, copy and
@@ -82,30 +87,20 @@ outcome, or the recommendation, in the last reply.
 	proposals/<id>/threads.json      the threads
 	proposals/<id>/revisions/0001.md, 0001.json    every revision's text and record
 	proposals/<id>/index.json        search chunks
-	corpora/<id>/corpus.json         { Id, Kind: corpus, Name, Created, Updated, Version, Files }
-	corpora/<id>/corpus.zip          the upload, as it came; never unpacked to disk
-	corpora/<id>/index.json          search chunks
+	projects/<project>/corpora/<id>/corpus.json    { Id, Kind: corpus, Name, Created, Updated, Version,
+	                                 Source: attached | linked, Link?: { Server, Corpus }, Include, Exclude, Files }
+	projects/<project>/corpora/<id>/corpus.zip     an attached zip, as it came; never unpacked to disk
+	projects/<project>/corpora/<id>/index.json     an attached zip's search chunks
 	trash/<id>/                      a deleted proposal or corpus, moved whole
 
 A project's `Items` is its tree: `{ Kind: "folder", Id, Name, Items }`, `{ Kind: "plan", Id, Items? }` (its
 Subplans) or `{ Kind: "document" | "corpus", Id }`, pointing at the proposal or corpus by id. Every write is whole-file and atomic, and writes
 to one proposal, corpus or project never interleave; a tree change that names an older `Version` is refused.
 
-At every start the folder is brought up to date and each change is logged: older proposals get a `State`
-(an approved one becomes Plan) and a `Kind`, a thread's old `consensus` status becomes `resolved`, missing
-settings are written in with their defaults, a proposal or corpus no project holds goes to the root of
-Default, and a tree entry whose item is gone is dropped.
+A new data folder gets the Default project at its first start, and a new settings file its defaults.
 
 Ids are a kind letter and 8 hex digits: `p…` for a plan or document, `z…` for a corpus, `j…` for a project
-(Default is `default`). A data folder from before that carries ids made from titles; convert it once, with
-the server stopped:
-
-	node bin/consensus.js migrate-ids [--data <folder>]
-
-It first copies the whole folder to `<folder>-backup-<YYYY-MM-DD-HH-mm-ss>` beside it, then renames every
-proposal, corpus and project with the places that name it (trees, search chunks), and moves each project's
-name into `projects.json`. It refuses to run while a server answers on the settings' port. Links to the old
-ids stop working.
+(Default is `default`).
 
 ## Settings
 
@@ -118,13 +113,14 @@ ids stop working.
 			{ "Name": "user", "Display": "User", "Role": "owner" },
 			{ "Name": "llm", "Display": "LLM", "Role": "llm", "Call": { "Kind": "claude-cli", "Command": "claude" } }
 		],
-		"Corpus": { "MaxZipMegabytes": 50, "MaxFileKilobytes": 512, "Extensions": [ ".md", ".txt", ".js", ... ] },
+		"Corpus": { "MaxZipMegabytes": 50, "MaxFileKilobytes": 512 },
 		"Context": { "MaxCharacters": 12000 }
 	}
 
 `States` is the list a plan's state is picked from; a new plan starts in the first. `Corpus` limits
-uploads: a zip over `MaxZipMegabytes` is refused, and a file is taken in only when its extension is listed,
-it is no larger than `MaxFileKilobytes` and it holds no NUL byte. `Context.MaxCharacters` is the size the LLM
+uploads: a zip over `MaxZipMegabytes` is refused, and a file the corpus lets in is read only when it is no larger
+than `MaxFileKilobytes` and holds no NUL byte. An `Extensions` list left there from before is ignored, with a
+note at start. `Context.MaxCharacters` is the size the LLM
 keeps each project's context under. Restart the server after editing.
 
 A request without an `Authorization` header is the participant with the `owner` role: the browser. A
@@ -166,7 +162,8 @@ The LLM has no tools: it answers with one JSON object,
 	] }
 
 An answer may instead **ask for more**, with `"Requests"` beside its actions: `list_project`, `read_plan`,
-`read_revision`, `read_file` (a file in an uploaded zip) or `search`, all read-only and within the plan's
+`read_revision`, `list_files` (a corpus's files, or one folder's), `read_file` (a file in a corpus; `Corpus`
+names it, and the older `Zip` still works) or `search`, all read-only and within the plan's
 project. Consensus answers them in the next prompt of the same session ("What you asked for"), and the LLM
 answers again, up to 5 answers; an answer that asks is not carried out, and the last one must act. Each request
 and its answer is a step of the run log. With Manual copy / paste, **Carry out** on an answer that asks shows
@@ -265,7 +262,7 @@ A missing settings file is written with a new `Token` and no items. It holds:
 
 	{
 	  "Host": "127.0.0.1", "Port": 3600, "Token": "…",
-	  "Corpus": { "MaxFileKilobytes": 512, "Extensions": [ ".md", ".js", … ] },
+	  "Corpus": { "MaxFileKilobytes": 512 },
 	  "Embedding": { "Url": "http://127.0.0.1:11434", "Model": "nomic-embed-text" },
 	  "Items": [
 	    { "Kind": "Corpus", "Name": "Code", "Root": "W:\\code\\app", "Include": [], "Exclude": [ ".git/**" ] },
@@ -279,8 +276,8 @@ A missing settings file is written with a new `Token` and no items. It holds:
   links included.
 - A corpus is the files under `Root` that `Include` and `Exclude` (glob patterns relative to `Root`; an
   empty `Include` means all, and `Exclude` wins) and every `.gitignore` under `Root` let in. Nothing else is
-  assumed: `.git` is left out only when `Exclude` says so. Files over the size limit, or not text, are listed but
-  not read. It is indexed at start the way Consensus indexes (`Embedding` optional), and again when a file
+  assumed: `.git` is left out only when `Exclude` says so. A file larger than `MaxFileKilobytes`, or binary, is
+  listed but not read; there is no list of file types. It is indexed at start the way Consensus indexes (`Embedding` optional), and again when a file
   watcher sees a change.
 - An Inference item only passes a prompt to its LLM and returns the answer. The Claude CLI runs as whoever
   started the context server.
@@ -291,8 +288,9 @@ Consensus is told about context servers in `consensus.json`:
 
 It asks each one what it offers at start and on Refresh; one that does not answer shows as offline, and
 nothing else breaks. **+ link** on a project picks a server's corpus and adds it to the project as an item,
-as a zip is: its files are listed and read through the server (Reload lists them again), search asks the
-server and lists its hits beside ours by rank, and the LLM's `read_file` and `list_project` reach it. Each
+as a zip is: its files are listed and read through the server (Reload lists them again), narrowed by the
+corpus's own Include and Exclude; search asks the server and lists its hits beside ours by rank, and the LLM's
+`list_files`, `read_file` and `list_project` reach it. Each
 Inference item is a destination in the session panel, named "Desk / Ollama".
 
 ## The API
@@ -330,6 +328,7 @@ Inference item is a destination in the session panel, named "Desk / Ollama".
 	GET    /api/corpus/:cid/file?path=               one indexed file's text
 	PUT    /api/corpus/:cid                          a new zip as the body, in place of the old one (not for a linked one)
 	PUT    /api/corpus/:cid/name                     { Name }
+	PUT    /api/corpus/:cid/filter                   { Include, Exclude }  lists, or one pattern per line
 	DELETE /api/corpus/:cid                          to the trash
 	GET    /api/trash                                what is there
 	GET    /api/search?q=&project=&limit=            the best chunks: { Proposal | Corpus, Path?, Title, Revision, Chunk, Thread, Text, Score }
@@ -352,7 +351,8 @@ role, 404 not found, 409 not allowed in this state or a stale revision or versio
 	src/Anchors.js        visible-text anchors
 	src/Llm.js            calling the LLM: the prompt, the answer, claude-cli and ollama
 	src/Index.js          our search index; src/Vectors.js the optional Ollama upgrade
-	src/Corpus.js         what an uploaded zip gives a project, within the limits; src/Zip.js reads zips
+	src/Corpus.js         what an attached zip gives a project, within the limits; src/Zip.js reads zips;
+	                      src/Filter.js which files a corpus lets in (Include, Exclude, .gitignore)
 	src/Store.js          the data folder
 	src/Participants.js   who is calling, and the States
 	src/Events.js         Server-Sent Events

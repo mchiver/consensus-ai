@@ -1786,3 +1786,35 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 {
 	margin-bottom: 0.25rem;
 }
+
+/* A zip kept by Consensus; and a corpus's Include and Exclude, side by side above its files. */
+.badge.attached { background: var(--panel-bg); border-color: var(--icon-folder); }
+
+.corpus-filter
+{
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1rem;
+	padding: 0.5rem 0;
+	border-bottom: 1px solid var(--border);
+}
+
+.corpus-filter-field
+{
+	flex: 1 1 16rem;
+	margin: 0;
+}
+
+.corpus-filter-field textarea
+{
+	font-family: var(--bs-font-monospace);
+	font-size: 0.8rem;
+}
+
+.corpus-filter-buttons
+{
+	display: flex;
+	flex-basis: 100%;
+	align-items: center;
+	gap: 0.5rem;
+}

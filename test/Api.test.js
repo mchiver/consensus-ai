@@ -633,7 +633,8 @@ TEST( 'a corpus: uploaded, listed with reasons, indexed and found, read, replace
 	let zip = MAKER.Make( [
 		{ Name: 'repo/readme.md', Data: '# Repo\n\nThe gearbox ratio is chosen by the flux capacitor.\n' },
 		{ Name: 'repo/src/engine.js', Data: 'function flux_capacitor()\n{\n\treturn 88;\n}\n' },
-		{ Name: 'repo/logo.png', Data: 'png bytes' },
+		{ Name: 'repo/logo.png', Data: 'png\u0000bytes' },
+		{ Name: 'repo/LICENSE', Data: 'Permission is granted to anyone.' },
 		{ Name: 'repo/data.txt', Data: Buffer.from( [ 0x61, 0x00, 0x62 ] ) },
 		{ Name: 'repo/huge.txt', Data: 'x'.repeat( 600 * 1024 ) },
 		{ Name: '__MACOSX/repo/._readme.md', Data: 'fork' },
@@ -652,12 +653,13 @@ TEST( 'a corpus: uploaded, listed with reasons, indexed and found, read, replace
 	ASSERT.deepEqual( files, {
 		'repo/data.txt': 'binary (holds a NUL byte)',
 		'repo/huge.txt': 'larger than 512 KB',
-		'repo/logo.png': 'not a text type: .png',
+		'repo/LICENSE': 'indexed',
+		'repo/logo.png': 'binary (holds a NUL byte)',
 		'repo/readme.md': 'indexed',
 		'repo/src/engine.js': 'indexed',
 	} );
 	let tree = ( await call( 'GET', '/api/projects' ) ).Body.Projects.find( function ( candidate ) { return candidate.Id === project.Id; } );
-	ASSERT.deepEqual( [ tree.Items[ 0 ].Kind, tree.Items[ 0 ].Title, tree.Items[ 0 ].Files, tree.Items[ 0 ].Indexed ], [ 'corpus', 'repo', 5, 2 ] );
+	ASSERT.deepEqual( [ tree.Items[ 0 ].Kind, tree.Items[ 0 ].Title, tree.Items[ 0 ].Files, tree.Items[ 0 ].Indexed ], [ 'corpus', 'repo', 6, 3 ] );
 
 	// found by search, with its path
 	let hits = await search_until( 'flux capacitor gearbox', function ( list ) { return list.some( function ( hit ) { return hit.Corpus === corpus.Id; } ); } );
@@ -1352,4 +1354,77 @@ TEST( 'subplans: a plan holds plans; they move, copy and go to the trash with it
 	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + bottom.Id ) ).Status, 404 );
 	listed = ( await call( 'GET', '/api/projects' ) ).Body.Projects.find( function ( candidate ) { return candidate.Id === project.Id; } );
 	ASSERT.equal( listed.Items.some( function ( node ) { return node.Id === top.Id; } ), false );
+} );
+
+
+TEST( 'a corpus is kept in its project\'s folder, and moves and copies with it', async function ()
+{
+	let first = ( await call( 'POST', '/api/projects', { Name: 'Keeps a zip' } ) ).Body.Project;
+	let second = ( await call( 'POST', '/api/projects', { Name: 'Takes it' } ) ).Body.Project;
+	let made = await upload( 'POST', '/api/projects/' + first.Id + '/corpus?name=kept.zip', MAKER.Make( [ { Name: 'a.md', Data: '# A' } ] ) );
+	let id = made.Body.Corpus.Id;
+	let data = running.Store.Folder;
+	ASSERT.equal( FS.existsSync( PATH.join( data, 'projects', first.Id, 'corpora', id, 'corpus.zip' ) ), true );
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + id + '/move', { Project: second.Id } ) ).Status, 200 );
+	ASSERT.equal( FS.existsSync( PATH.join( data, 'projects', first.Id, 'corpora', id ) ), false );
+	ASSERT.equal( FS.existsSync( PATH.join( data, 'projects', second.Id, 'corpora', id, 'corpus.zip' ) ), true );
+	let copied = ( await call( 'POST', '/api/items/' + id + '/copy', { Project: first.Id } ) ).Body.Node;
+	ASSERT.equal( FS.existsSync( PATH.join( data, 'projects', first.Id, 'corpora', copied.Id, 'corpus.zip' ) ), true );
+	ASSERT.equal( ( await call( 'GET', '/api/corpus/' + id + '/file?path=a.md' ) ).Body.Text, '# A' );
+} );
+
+
+TEST( 'an attached corpus: its Include and Exclude narrow it; the LLM lists its files and reads one', async function ()
+{
+	let project = ( await call( 'POST', '/api/projects', { Name: 'Narrowed' } ) ).Body.Project;
+	let zip = MAKER.Make( [
+		{ Name: 'app/.gitignore', Data: 'dist/\n' },
+		{ Name: 'app/README', Data: 'The heliograph flashes at noon.' },
+		{ Name: 'app/src/main.go', Data: 'package main // semaphore tower' },
+		{ Name: 'app/src/main_test.go', Data: 'package main // test' },
+		{ Name: 'app/dist/out.js', Data: 'built' },
+	] );
+	let corpus = ( await upload( 'POST', '/api/projects/' + project.Id + '/corpus?name=app.zip', zip ) ).Body.Corpus;
+	ASSERT.equal( corpus.Source, 'attached' );
+	ASSERT.equal( corpus.Files.find( function ( file ) { return file.Path === 'app/dist/out.js'; } ).Reason, 'left out by app/.gitignore' );
+	ASSERT.equal( corpus.Files.find( function ( file ) { return file.Path === 'app/README'; } ).Indexed, true );
+
+	// narrowed: one pattern per line, or a list
+	let narrowed = await call( 'PUT', '/api/corpus/' + corpus.Id + '/filter', { Include: 'app/src/**\n', Exclude: [ '**/*_test.go' ] } );
+	ASSERT.equal( narrowed.Status, 200 );
+	ASSERT.deepEqual( [ narrowed.Body.Corpus.Include, narrowed.Body.Corpus.Exclude ], [ [ 'app/src/**' ], [ '**/*_test.go' ] ] );
+	let reasons = {};
+	for ( let file of narrowed.Body.Corpus.Files )
+	{
+		reasons[ file.Path ] = file.Indexed ? 'read' : file.Reason;
+	}
+	ASSERT.equal( reasons[ 'app/src/main.go' ], 'read' );
+	ASSERT.equal( reasons[ 'app/src/main_test.go' ], 'left out by Exclude' );
+	ASSERT.equal( reasons[ 'app/README' ], 'not in Include' );
+	ASSERT.equal( ( await call( 'GET', '/api/corpus/' + corpus.Id + '/file?path=app/README' ) ).Status, 409 );
+	await search_until( 'semaphore tower', function ( list ) { return list.some( function ( hit ) { return hit.Corpus === corpus.Id; } ); } );
+	await search_until( 'heliograph noon', function ( list ) { return !list.some( function ( hit ) { return hit.Corpus === corpus.Id; } ); } );
+	ASSERT.equal( ( await call( 'PUT', '/api/corpus/none00000/filter', {} ) ).Status, 404 );
+
+	// the LLM lists the corpus, then reads a file of it by the older name for the field
+	let plan = ( await call( 'POST', '/api/proposals', { Title: 'Tower plan', Text: TEXT, Project: project.Id } ) ).Body.Proposal;
+	let thread = ( await call( 'POST', '/api/proposals/' + plan.Id + '/threads', { Text: 'What is in the app?' } ) ).Body.Thread;
+	let prompts = [];
+	llm_answer = async function ( Prompt )
+	{
+		prompts.push( Prompt );
+		if ( prompts.length === 1 )
+		{
+			return { Answer: { Actions: [], Requests: [ { Tool: 'list_project' }, { Tool: 'list_files', Corpus: 'app', Folder: 'app/src' }, { Tool: 'read_file', Zip: 'app', Path: 'app/src/main.go' }, { Tool: 'read_file', Corpus: 'app', Path: 'app/README' } ] }, Usage: { Model: 'fake-model', Input: 10, Output: 5 } };
+		}
+		return { Answer: { Actions: [ { Thread: thread.Id, Kind: 'reply', Reply: 'A Go program.' } ] }, Usage: { Model: 'fake-model', Input: 10, Output: 5 } };
+	};
+	await call( 'POST', '/api/proposals/' + plan.Id + '/session', {} );
+	await wait_idle( plan.Id );
+	ASSERT.equal( prompts.length, 2 );
+	ASSERT.match( prompts[ 1 ], /- corpus "app" \(attached, 1 files read\), id z[0-9a-f]{8}/ );
+	ASSERT.match( prompts[ 1 ], /The corpus "app" \(attached, 1 files read\), folder app\/src: 1 files\n- app\/src\/main\.go/ );
+	ASSERT.equal( prompts[ 1 ].includes( 'main_test.go' ), false );
+	ASSERT.match( prompts[ 1 ], /package main \/\/ semaphore tower/ );
+	ASSERT.match( prompts[ 1 ], /refused: "app" does not read a file app\/README/ );
 } );

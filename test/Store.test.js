@@ -165,47 +165,11 @@ TEST( 'a trashed proposal moves whole and leaves the list', async function ()
 } );
 
 
-TEST( 'migrating an older folder: Status and Approved become State, consensus threads become resolved, once', async function ()
-{
-	let store = STORE.Open( temporary_folder() );
-	let states = [ 'Proposal', 'Plan', 'Working', 'Finished' ];
-	function write( parent, id, proposal, threads )
-	{
-		let one = PATH.join( store.Folder, parent, id );
-		FS.mkdirSync( one, { recursive: true } );
-		FS.writeFileSync( PATH.join( one, 'proposal.json' ), JSON.stringify( proposal ) );
-		FS.writeFileSync( PATH.join( one, 'proposal.md' ), 'text' );
-		FS.writeFileSync( PATH.join( one, 'threads.json' ), JSON.stringify( threads ) );
-	}
-	write( 'proposals', 'approved', { Id: 'approved', Title: 'A', Status: 'consensus', Approved: { By: 'user', At: 'x', Revision: 2 }, Revision: 2, Updated: 'u1' }, [ { Id: 't1', Status: 'consensus' }, { Id: 't2', Status: 'contested' } ] );
-	write( 'proposals', 'open', { Id: 'open', Title: 'O', Status: 'contested', Approved: null, Revision: 1, Updated: 'u2' }, [] );
-	write( 'trash', 'gone', { Id: 'gone', Title: 'G', Status: 'consensus', Approved: null, Revision: 1, Updated: 'u3' }, [ { Id: 't3', Status: 'consensus' } ] );
-
-	let lines = await store.Migrate( states );
-	ASSERT.deepEqual( lines.sort(), [
-		'projects/default: created',
-		'projects/default: placed approved, open',
-		'proposals/approved: state Plan, kind plan, 1 thread resolved',
-		'proposals/open: state Proposal, kind plan',
-		'trash/gone: state Plan, kind plan, 1 thread resolved',
-	] );
-	let approved = await store.ReadProposal( 'approved' );
-	ASSERT.deepEqual( approved.Proposal, { Id: 'approved', Title: 'A', Revision: 2, Updated: 'u1', State: 'Plan', Kind: 'plan' } );
-	ASSERT.deepEqual( approved.Threads.map( function ( t ) { return t.Status; } ), [ 'resolved', 'contested' ] );
-	ASSERT.equal( ( await store.ReadProposal( 'open' ) ).Proposal.State, 'Proposal' );
-	ASSERT.deepEqual( await store.Migrate( states ), [] );
-	// states without a Plan: an approved proposal takes the first state
-	write( 'proposals', 'other', { Id: 'other', Title: 'X', Status: 'consensus', Approved: null, Revision: 1, Updated: 'u4' }, [] );
-	await store.Migrate( [ 'Draft', 'Done' ] );
-	ASSERT.equal( ( await store.ReadProposal( 'other' ) ).Proposal.State, 'Draft' );
-} );
-
-
 TEST( 'projects: in the master\'s order, new ones last; created, written with a new version, found by item, moved, deleted', async function ()
 {
 	let store = STORE.Open( temporary_folder() );
 	ASSERT.equal( FS.existsSync( PATH.join( store.Folder, 'projects' ) ), true );
-	await store.Migrate( [ 'Proposal' ] );
+	await store.Prepare();
 	let zebra = await store.CreateProject( { Name: 'Zebra' } );
 	let alpha = await store.CreateProject( { Name: 'Alpha work' } );
 	ASSERT.match( alpha.Id, /^j[0-9a-f]{8}$/ );
@@ -241,30 +205,6 @@ TEST( 'projects: in the master\'s order, new ones last; created, written with a 
 } );
 
 
-TEST( 'every project has its context: made with a new project, or at start for one without; never placed in a tree', async function ()
-{
-	let store = STORE.Open( temporary_folder() );
-	await store.Migrate( [ 'Proposal' ] );
-	let made = await store.CreateProject( { Name: 'Made' } );
-	let context = ( await store.ReadProposal( made.Context ) ).Proposal;
-	ASSERT.equal( context.Kind, 'context' );
-	ASSERT.equal( context.State, null );
-	ASSERT.equal( ( await store.ReadProposal( made.Context ) ).Text, '' );
-	ASSERT.equal( ( await store.ProjectOf( made.Context ) ).Id, made.Id );
-	ASSERT.equal( ( await store.ReadProject( 'default' ) ).Context !== undefined, true );
-	// a project from before contexts gets one at start, logged; its context stays out of Default's tree
-	let older = await store.ReadProject( made.Id );
-	delete older.Context;
-	await store.WriteProject( older );
-	let lines = await store.Migrate( [ 'Proposal' ] );
-	ASSERT.equal( lines.length, 1 );
-	ASSERT.match( lines[ 0 ], new RegExp( '^projects/' + made.Id + ': context p[0-9a-f]{8} created$' ) );
-	ASSERT.notEqual( ( await store.ReadProject( made.Id ) ).Context, made.Context );
-	ASSERT.deepEqual( ( await store.ReadProject( 'default' ) ).Items, [] );
-	ASSERT.deepEqual( await store.Migrate( [ 'Proposal' ] ), [] );
-} );
-
-
 TEST( 'an older data folder with no master lists Default first, then by name, with the names its project.json files carry', async function ()
 {
 	let folder = temporary_folder();
@@ -281,28 +221,6 @@ TEST( 'an older data folder with no master lists Default first, then by name, wi
 } );
 
 
-TEST( 'migrating places new proposals in Default and drops nodes whose proposal is gone', async function ()
-{
-	let store = STORE.Open( temporary_folder() );
-	await store.Migrate( [ 'Proposal' ] );
-	// one proposal held by another project stays there
-	let kept = await store.CreateProposal( { Title: 'Kept', Text: '', By: 'user', State: 'Proposal' } );
-	let other = await store.CreateProject( { Name: 'Other' } );
-	other.Items.push( { Kind: 'plan', Id: kept.Id } );
-	await store.WriteProject( other );
-	let gone = await store.CreateProposal( { Title: 'Gone', Text: '', By: 'user', State: 'Proposal' } );
-	let fresh = await store.CreateProposal( { Title: 'Fresh', Text: '', By: 'user', State: 'Proposal' } );
-	let placed = await store.Migrate( [ 'Proposal' ] );
-	ASSERT.deepEqual( placed, [ 'projects/default: placed ' + [ gone.Id, fresh.Id ].sort().join( ', ' ) ] );
-	await store.TrashProposal( gone.Id );
-	let dropped = await store.Migrate( [ 'Proposal' ] );
-	ASSERT.deepEqual( dropped, [ 'projects/default: dropped ' + gone.Id + ', no longer in the data folder' ] );
-	ASSERT.deepEqual( ( await store.ReadProject( 'default' ) ).Items, [ { Kind: 'plan', Id: fresh.Id } ] );
-	ASSERT.deepEqual( ( await store.ReadProject( other.Id ) ).Items, [ { Kind: 'plan', Id: kept.Id } ] );
-	ASSERT.deepEqual( await store.Migrate( [ 'Proposal' ] ), [] );
-} );
-
-
 TEST( 'proposals list newest updated first', async function ()
 {
 	let store = STORE.Open( temporary_folder() );
@@ -313,4 +231,32 @@ TEST( 'proposals list newest updated first', async function ()
 	await new Promise( function ( resolve ) { setTimeout( resolve, 5 ); } );
 	await store.UpdateProposal( first.Id, { Title: 'First again' } );
 	ASSERT.deepEqual( ( await store.ListProposals() ).map( function ( p ) { return p.Id; } ), [ first.Id, second.Id ] );
+} );
+
+
+TEST( 'corpora are kept in their project\'s folder: made, moved, copied, updated, trashed', async function ()
+{
+	let folder = temporary_folder();
+	let store = STORE.Open( folder );
+	await store.Prepare();
+	let other = await store.CreateProject( { Name: 'Other' } );
+	let made = await store.CreateCorpus( { Project: other.Id, Name: 'repo', Zip: Buffer.from( 'zip' ), Files: [] } );
+	ASSERT.equal( made.Source, 'attached' );
+	ASSERT.deepEqual( [ made.Include, made.Exclude ], [ [], [] ] );
+	ASSERT.equal( FS.existsSync( PATH.join( folder, 'projects', other.Id, 'corpora', made.Id, 'corpus.zip' ) ), true );
+	let linked = await store.CreateCorpus( { Name: 'docs', Link: { Server: 'Desk', Corpus: 'Docs' } } );
+	ASSERT.equal( linked.Source, 'linked' );
+	ASSERT.equal( FS.existsSync( PATH.join( folder, 'projects', 'default', 'corpora', linked.Id, 'corpus.zip' ) ), false );
+
+	ASSERT.equal( await store.MoveCorpus( made.Id, 'default' ), true );
+	ASSERT.equal( FS.existsSync( PATH.join( folder, 'projects', 'default', 'corpora', made.Id, 'corpus.json' ) ), true );
+	ASSERT.equal( ( await store.ReadCorpusZip( made.Id ) ).toString(), 'zip' );
+	let copy = await store.CopyCorpus( made.Id, other.Id );
+	ASSERT.equal( FS.existsSync( PATH.join( folder, 'projects', other.Id, 'corpora', copy.Id, 'corpus.zip' ) ), true );
+	let updated = await store.UpdateCorpus( made.Id, { Include: [ '**/*.md' ], Files: [] } );
+	ASSERT.deepEqual( [ updated.Include, updated.Version ], [ [ '**/*.md' ], 2 ] );
+	ASSERT.equal( await store.TrashCorpus( copy.Id ), true );
+	ASSERT.equal( await store.ReadCorpus( copy.Id ), null );
+	ASSERT.deepEqual( ( await store.ListCorpora() ).map( function ( corpus ) { return corpus.Id; } ).sort(), [ made.Id, linked.Id ].sort() );
+
 } );

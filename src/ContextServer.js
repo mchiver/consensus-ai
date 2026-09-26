@@ -7,7 +7,7 @@
 //   context-server.json:
 //   {
 //     "Host": "127.0.0.1", "Port": 3600, "Token": "<a long random string>",
-//     "Corpus": { "MaxFileKilobytes": 512, "Extensions": [ ".md", ... ] },     the same limits as Consensus's
+//     "Corpus": { "MaxFileKilobytes": 512 },     a file larger than this, or binary, is listed but not read
 //     "Embedding": { "Url": "http://127.0.0.1:11434", "Model": "nomic-embed-text" },    optional, as Consensus's
 //     "Items": [
 //       { "Kind": "Corpus", "Name": "Consensus", "Root": "W:\\code", "Include": [], "Exclude": [ ".git/**" ] },
@@ -18,7 +18,8 @@
 //
 // A corpus is indexed at start with Consensus's own index (Index.js: BM25, and Ollama vectors when Embedding names a
 // model), and again when a file watcher sees a change. Every .gitignore under Root applies to its folder and below,
-// in addition to Exclude; an empty Include means every file.
+// in addition to Exclude; an empty Include means every file. Every file let in is read unless it is larger than
+// MaxFileKilobytes or binary (it holds a NUL byte); there is no list of types.
 //
 //   GET  /api/items                           { Corpus: [ { Name, Files, Indexed } ], Inference: [ { Name, Type, Model } ] }
 //   GET  /api/corpus/:name                    { Name, Files: [ { Path, Size, Modified, Indexed, Reason? } ] }
@@ -53,7 +54,7 @@ function DefaultSettings()
 		Host: DEFAULT_HOST,
 		Port: DEFAULT_PORT,
 		Token: CRYPTO.randomBytes( 24 ).toString( 'hex' ),
-		Corpus: { MaxFileKilobytes: CORPUS.DEFAULT_LIMITS.MaxFileKilobytes, Extensions: CORPUS.DEFAULT_LIMITS.Extensions.slice() },
+		Corpus: { MaxFileKilobytes: CORPUS.DEFAULT_LIMITS.MaxFileKilobytes },
 		Items: [],
 	};
 }
@@ -267,12 +268,6 @@ function OpenCorpus( Item, Limits, Embedder )
 		if ( previous && previous.File.Size === file.Size && previous.File.Modified === file.Modified )
 		{
 			return previous;
-		}
-		let extension = PATH.posix.extname( path ).toLowerCase();
-		if ( !Limits.Extensions.includes( extension ) )
-		{
-			file.Reason = 'not a text type: ' + ( extension || 'no extension' );
-			return { File: file, Text: null };
 		}
 		if ( stat.size > max_bytes )
 		{

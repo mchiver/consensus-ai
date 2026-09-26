@@ -33,8 +33,14 @@ angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$wind
 		{
 			return;
 		}
+		let filter_was_edited = $scope.FilterChanged();
 		$scope.Corpus = answer ? answer.Corpus : null;
 		$scope.Project = answer ? answer.Project : null;
+		// An edit in progress is kept over a reload; otherwise the boxes show what is saved.
+		if ( !filter_was_edited )
+		{
+			$scope.ResetFilter();
+		}
 		if ( $scope.File && $scope.Corpus && !$scope.Corpus.Files.some( function ( file ) { return file.Path === $scope.File.Path && file.Indexed; } ) )
 		{
 			$scope.File = null;
@@ -49,6 +55,59 @@ angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$wind
 		}
 		$scope.$applyAsync();
 	}
+
+
+	//-----------------------------------------------------------------
+	// Include and Exclude: one pattern per line in the boxes, a list on the corpus.
+
+	$scope.Filter = { Include: '', Exclude: '' };
+
+	function lines_of( patterns )
+	{
+		return ( patterns || [] ).join( '\n' );
+	}
+
+
+	function patterns_of( text )
+	{
+		return String( text || '' ).split( /\r?\n/ ).map( function ( line ) { return line.trim(); } ).filter( function ( line ) { return line.length > 0; } );
+	}
+
+
+	$scope.FilterChanged = function ()
+	{
+		if ( !$scope.Corpus )
+		{
+			return false;
+		}
+		return lines_of( patterns_of( $scope.Filter.Include ) ) !== lines_of( $scope.Corpus.Include ) || lines_of( patterns_of( $scope.Filter.Exclude ) ) !== lines_of( $scope.Corpus.Exclude );
+	};
+
+
+	$scope.ResetFilter = function ()
+	{
+		$scope.Filter = { Include: lines_of( $scope.Corpus ? $scope.Corpus.Include : [] ), Exclude: lines_of( $scope.Corpus ? $scope.Corpus.Exclude : [] ) };
+	};
+
+
+	$scope.SaveFilter = async function ()
+	{
+		let id = State.CorpusId;
+		$scope.Busy = true;
+		let answer = await State.Act( function ()
+		{
+			return Client.Put( path_of( id ) + '/filter', { Include: patterns_of( $scope.Filter.Include ), Exclude: patterns_of( $scope.Filter.Exclude ) } );
+		} );
+		$scope.Busy = false;
+		if ( answer && id === State.CorpusId )
+		{
+			$scope.Corpus = Object.assign( {}, $scope.Corpus, { Include: answer.Corpus.Include, Exclude: answer.Corpus.Exclude } );
+			$scope.ResetFilter();
+			await load();
+			State.LoadList();
+		}
+		$scope.$applyAsync();
+	};
 
 
 	// A linked corpus's files, listed again by its context server.

@@ -290,7 +290,7 @@ TEST( 'an item dragged onto a project moves there; copy and paste makes a whole 
 
 TEST( 'a zip uploaded into the project becomes a corpus: its files listed, one read, and found by search', async function ()
 {
-	let zip = MAKER.Make( [ { Name: 'notes/lighthouse.md', Data: '# Lighthouse\n\nThe keeper winds the clockwork lamp at dusk.\n' }, { Name: 'notes/photo.jpg', Data: 'jpeg' } ] );
+	let zip = MAKER.Make( [ { Name: 'notes/lighthouse.md', Data: '# Lighthouse\n\nThe keeper winds the clockwork lamp at dusk.\n' }, { Name: 'notes/photo.jpg', Data: 'jpeg\u0000bytes' } ] );
 	await page.WaitFor( count_of( '.project.open .zip-input' ) + ' === 1' );
 	await page.Evaluate( '( function () {'
 		+ ' let bytes = Uint8Array.from( atob( ' + JSON.stringify( zip.toString( 'base64' ) ) + ' ), function ( character ) { return character.charCodeAt( 0 ); } );'
@@ -306,7 +306,7 @@ TEST( 'a zip uploaded into the project becomes a corpus: its files listed, one r
 	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.querySelector( "aside.threads" ) ).display' ), 'none' );
 	await page.Click( '.corpus-file.indexed' );
 	await page.WaitFor( '/clockwork lamp/.test( ' + text_of( '#corpus-file-text' ) + ' )' );
-	ASSERT.match( await page.Evaluate( text_of( '.corpus-file:not(.indexed)' ) ), /not a text type: \.jpg/ );
+	ASSERT.match( await page.Evaluate( text_of( '.corpus-file:not(.indexed)' ) ), /binary \(holds a NUL byte\)/ );
 	// search finds the file
 	await page.Click( '#search-box' );
 	await page.Type( 'clockwork keeper' );
@@ -383,12 +383,13 @@ TEST( 'reply and resolve: one click posts the owner\'s answer and resolves the t
 	await page.Click( '.thread.selected .reply-button' );
 	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "reopened"' );
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.selected .reply-resolve-button" ) ).display !== "none"' );
-	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".thread.selected .reply-resolve-button" ).disabled' ), true );
+	// the posted draft is cleared a moment after the reply lands, so the button is waited for, not read at once
+	await page.WaitFor( 'document.querySelector( ".thread.selected .reply-resolve-button" ).disabled' );
 	await page.Evaluate( '( function () { let box = document.querySelector( ".thread.selected .reply-box" ); box.value = "Keep one item."; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
 	await page.WaitFor( '!document.querySelector( ".thread.selected .reply-resolve-button" ).disabled' );
 	await page.Click( '.thread.selected .reply-resolve-button' );
 	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "resolved"' );
-	ASSERT.equal( await page.Evaluate( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).pop().textContent.trim()' ), 'Keep one item.' );
+	await page.WaitFor( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).pop().textContent.trim() === "Keep one item."' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -728,5 +729,27 @@ TEST( 'context server: + link lists what it offers; the linked corpus opens, its
 	await page.WaitFor( count_of( '.project.open .tree-item.corpus .badge.linked' ) + ' === 1' );
 	let hits = await ( await fetch( running.Url + '/api/search?q=heron&project=default' ) ).json();
 	ASSERT.equal( hits.Hits[ 0 ].Path, 'field-notes.md' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'a corpus\'s Include and Exclude are edited in its view; the tree marks it attached', async function ()
+{
+	let zip = MAKER.Make( [ { Name: 'kit/guide.md', Data: '# Guide\n\nThe lantern is trimmed.\n' }, { Name: 'kit/build.log', Data: 'noise' } ] );
+	let made = await fetch( running.Url + '/api/projects/default/corpus?name=kit.zip', { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: zip } );
+	let corpus = ( await made.json() ).Corpus;
+	await page.Evaluate( 'window.location.hash = "#/c/' + corpus.Id + '"; true' );
+	await page.WaitFor( text_of( '#corpus-summary' ) + '.startsWith( "2 files, 2 indexed" )', 20000 );
+	ASSERT.match( await page.Evaluate( text_of( '#corpus-attached' ) ), /attached/ );
+	await page.WaitFor( count_of( '.tree-item[data-id="' + corpus.Id + '"] .badge.attached' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "corpus-filter-save" ).disabled' ), true );
+	await page.Evaluate( '( function () { let box = document.getElementById( "corpus-exclude" ); box.value = "*.log"; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.WaitFor( '!document.getElementById( "corpus-filter-save" ).disabled' );
+	await page.Click( '#corpus-filter-save' );
+	await page.WaitFor( text_of( '#corpus-summary' ) + '.startsWith( "2 files, 1 indexed" )' );
+	ASSERT.match( await page.Evaluate( text_of( '.corpus-file:not(.indexed)' ) ), /left out by Exclude/ );
+	await page.WaitFor( 'document.getElementById( "corpus-filter-save" ).disabled' );
+	let saved = await ( await fetch( running.Url + '/api/corpus/' + corpus.Id ) ).json();
+	ASSERT.deepEqual( saved.Corpus.Exclude, [ '*.log' ] );
 	ASSERT.deepEqual( page.Errors, [] );
 } );

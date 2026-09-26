@@ -19,6 +19,7 @@ const LLM = require( './Llm.js' );
 const STORE = require( './Store.js' );
 const TREE = require( './Tree.js' );
 const CORPUS = require( './Corpus.js' );
+const FILTER = require( './Filter.js' );
 
 const BODY_LIMIT = '8mb';
 const SEARCH_LIMIT = 10;
@@ -536,7 +537,7 @@ function Attach( App, Context )
 				continue;
 			}
 			let indexed = corpus.Files.filter( function ( file ) { return file.Indexed; } ).length;
-			views[ corpus.Id ] = { Title: corpus.Name, Files: corpus.Files.length, Indexed: indexed, Updated: corpus.Updated };
+			views[ corpus.Id ] = { Title: corpus.Name, Files: corpus.Files.length, Indexed: indexed, Updated: corpus.Updated, Source: 'attached' };
 		}
 		let empty = {};
 		for ( let project of projects )
@@ -562,6 +563,7 @@ function Attach( App, Context )
 			Indexed: heard ? heard.Indexed : 0,
 			Updated: corpus.Updated,
 			Linked: corpus.Link.Server + ' / ' + corpus.Link.Corpus,
+			Source: 'linked',
 			Offline: !heard,
 		};
 	}
@@ -767,8 +769,9 @@ function Attach( App, Context )
 	}
 
 
-	// The files of an uploaded zip, or a refusal naming what is wrong with it.
-	async function extract_upload( body )
+	// The files of an uploaded zip, under a corpus entry's Include and Exclude (Rules), or a refusal naming what is
+	// wrong with it.
+	async function extract_upload( body, rules )
 	{
 		if ( !Buffer.isBuffer( body ) || body.length === 0 )
 		{
@@ -776,12 +779,70 @@ function Attach( App, Context )
 		}
 		try
 		{
-			return await CORPUS.Extract( body, CORPUS.Limits( settings ) );
+			return await CORPUS.Extract( body, CORPUS.Limits( settings ), rules );
 		}
 		catch ( error )
 		{
 			return refused( 400, error.message );
 		}
+	}
+
+
+	// Whether a Reason says the file was left out by the corpus's rules (rather than not read).
+	function left_out( reason )
+	{
+		return !!reason && ( reason.startsWith( 'left out by' ) || reason === 'not in Include' );
+	}
+
+
+	// A corpus's files as its project sees them: every file listed, with Indexed and, for one not read, its Reason.
+	// A linked corpus's come from its server, with the entry's Include and Exclude applied. Throws when that server
+	// does not answer.
+	async function corpus_files( corpus )
+	{
+		if ( !corpus.Link )
+		{
+			return corpus.Files;
+		}
+		let why = FILTER.Make( { Include: corpus.Include, Exclude: corpus.Exclude } );
+		let listed = await context_servers.Files( corpus.Link.Server, corpus.Link.Corpus );
+		return listed.map( function ( file )
+		{
+			let reason = why( file.Path );
+			return reason ? { Path: file.Path, Size: file.Size, Modified: file.Modified, Indexed: false, Reason: reason } : file;
+		} );
+	}
+
+
+	// One file's text, or null when the corpus does not read it (left out, too large, binary, or not there). Throws
+	// when a linked corpus's server does not answer.
+	async function corpus_read( corpus, path )
+	{
+		if ( corpus.Link )
+		{
+			if ( FILTER.Make( { Include: corpus.Include, Exclude: corpus.Exclude } )( path ) )
+			{
+				return null;
+			}
+			try
+			{
+				return await context_servers.ReadFile( corpus.Link.Server, corpus.Link.Corpus, path );
+			}
+			catch ( error )
+			{
+				if ( /no indexed file/.test( error.message ) )
+				{
+					return null;
+				}
+				throw error;
+			}
+		}
+		let file = corpus.Files.find( function ( candidate ) { return candidate.Path === path; } );
+		if ( !file || !file.Indexed )
+		{
+			return null;
+		}
+		return await CORPUS.ReadFile( await store.ReadCorpusZip( corpus.Id ), path );
 	}
 
 
@@ -816,12 +877,12 @@ function Attach( App, Context )
 		{
 			return fail( response, 400, 'parent is not a folder of the project' );
 		}
-		let extracted = await extract_upload( request.body );
+		let extracted = await extract_upload( request.body, null );
 		if ( extracted.Refused )
 		{
 			return send_result( response, extracted );
 		}
-		let corpus = await store.CreateCorpus( { Name: name, Zip: request.body, Files: extracted.Files } );
+		let corpus = await store.CreateCorpus( { Project: target.Id, Name: name, Zip: request.body, Files: extracted.Files } );
 		await change_project( target.Id, null, function ( project )
 		{
 			if ( !TREE.Insert( project.Items, parent, { Kind: 'corpus', Id: corpus.Id } ) )
@@ -874,7 +935,7 @@ function Attach( App, Context )
 		{
 			return fail( response, 400, 'no corpus "' + name + '" is offered by a context server "' + server + '"; refresh the context servers and pick again' );
 		}
-		let corpus = await store.CreateCorpus( { Name: name, Link: { Server: server, Corpus: name } } );
+		let corpus = await store.CreateCorpus( { Project: target.Id, Name: name, Link: { Server: server, Corpus: name } } );
 		await change_project( target.Id, null, function ( project )
 		{
 			if ( !TREE.Insert( project.Items, parent, { Kind: 'corpus', Id: corpus.Id } ) )
@@ -900,7 +961,7 @@ function Attach( App, Context )
 			corpus = Object.assign( {}, corpus );
 			try
 			{
-				corpus.Files = await context_servers.Files( corpus.Link.Server, corpus.Link.Corpus );
+				corpus.Files = await corpus_files( corpus );
 			}
 			catch ( error )
 			{
@@ -925,7 +986,12 @@ function Attach( App, Context )
 		{
 			try
 			{
-				return response.json( { Path: path, Text: await context_servers.ReadFile( corpus.Link.Server, corpus.Link.Corpus, path ) } );
+				let text = await corpus_read( corpus, path );
+				if ( text === null )
+				{
+					return fail( response, 404, 'no such file in the corpus, or it is left out' );
+				}
+				return response.json( { Path: path, Text: text } );
 			}
 			catch ( error )
 			{
@@ -955,7 +1021,7 @@ function Attach( App, Context )
 		{
 			return fail( response, 409, 'a linked corpus is kept by its context server: there is no zip to replace' );
 		}
-		let extracted = await extract_upload( request.body );
+		let extracted = await extract_upload( request.body, linked );
 		if ( extracted.Refused )
 		{
 			return send_result( response, extracted );
@@ -970,6 +1036,51 @@ function Attach( App, Context )
 		}
 		corpus_changed( id, 'replaced' );
 		response.json( { Corpus: corpus } );
+	} );
+
+
+	// The corpus entry's Include and Exclude: { Include, Exclude }, each a list of patterns or one pattern per line.
+	// An attached zip's files are listed and indexed again under them; a linked corpus is filtered as it is read.
+	router.put( '/corpus/:cid/filter', async function ( request, response )
+	{
+		let body = request.body || {};
+		function patterns( value )
+		{
+			return FILTER.Patterns( Array.isArray( value ) ? value : String( value || '' ).split( /\r?\n/ ) );
+		}
+		let include = patterns( body.Include );
+		let exclude = patterns( body.Exclude );
+		let id = request.params.cid;
+		let result = await store.Queue( corpus_queue( id ), async function ()
+		{
+			let corpus = await store.ReadCorpus( id );
+			if ( !corpus )
+			{
+				return refused( 404, 'no such corpus' );
+			}
+			let changes = { Include: include, Exclude: exclude };
+			if ( !corpus.Link )
+			{
+				let extracted = await extract_upload( await store.ReadCorpusZip( id ), changes );
+				if ( extracted.Refused )
+				{
+					return extracted;
+				}
+				changes.Files = extracted.Files;
+			}
+			return { Corpus: await store.UpdateCorpus( id, changes ) };
+		} );
+		if ( result.Refused )
+		{
+			return send_result( response, result );
+		}
+		corpus_changed( id, result.Corpus.Link ? 'filtered' : 'replaced' );
+		let holder = await store.ProjectOf( id );
+		if ( holder )
+		{
+			events.Send( { Project: holder.Id, Kind: 'project' } );
+		}
+		response.json( { Corpus: result.Corpus } );
 	} );
 
 
@@ -1132,9 +1243,27 @@ function Attach( App, Context )
 					TREE.Insert( project.Items, null, node );
 				} );
 			}
+			else
+			{
+				await move_corpora( node, where.Project );
+			}
 		}
 		send_result( response, result, 200, { Project: result.Project } );
 	} );
+
+
+	// The corpora at or under Node move their folders to Project's, which now holds them.
+	async function move_corpora( node, project )
+	{
+		let ids = [ node.Id ].concat( Array.isArray( node.Items ) ? TREE.ItemIds( node.Items ) : [] );
+		for ( let id of ids )
+		{
+			if ( await store.ReadCorpus( id ) )
+			{
+				await store.Queue( corpus_queue( id ), function () { return store.MoveCorpus( id, project ); } );
+			}
+		}
+	}
 
 
 	// A copy of a plan or document is whole (text, threads, revisions) under a new id; a folder's copy holds a
@@ -1154,7 +1283,7 @@ function Attach( App, Context )
 		{
 			return send_result( response, problem );
 		}
-		let copy = await copy_node( found.Node );
+		let copy = await copy_node( found.Node, where.Project );
 		if ( copy.Refused )
 		{
 			return send_result( response, copy );
@@ -1170,15 +1299,15 @@ function Attach( App, Context )
 	} );
 
 
-	// The copy of one node and everything under it, or a refusal.
-	async function copy_node( node )
+	// The copy of one node and everything under it, for Project (whose folder keeps a corpus's copy), or a refusal.
+	async function copy_node( node, project )
 	{
 		if ( node.Kind === 'folder' )
 		{
 			let folder = { Kind: 'folder', Id: new_id( 'f' ), Name: node.Name, Items: [] };
 			for ( let child of node.Items )
 			{
-				let copied = await copy_node( child );
+				let copied = await copy_node( child, project );
 				if ( copied.Refused )
 				{
 					return copied;
@@ -1201,7 +1330,7 @@ function Attach( App, Context )
 				copied.Items = [];
 				for ( let child of node.Items )
 				{
-					let subplan = await copy_node( child );
+					let subplan = await copy_node( child, project );
 					if ( subplan.Refused )
 					{
 						return subplan;
@@ -1213,7 +1342,7 @@ function Attach( App, Context )
 		}
 		if ( node.Kind === 'corpus' )
 		{
-			let corpus = await store.Queue( corpus_queue( node.Id ), function () { return store.CopyCorpus( node.Id ); } );
+			let corpus = await store.Queue( corpus_queue( node.Id ), function () { return store.CopyCorpus( node.Id, project ); } );
 			if ( !corpus )
 			{
 				return refused( 404, 'no such corpus: ' + node.Id );
@@ -2086,7 +2215,7 @@ function Attach( App, Context )
 					let corpus = await store.ReadCorpus( node.Id );
 					if ( corpus )
 					{
-						items.push( { Kind: 'zip', Id: node.Id, Title: corpus.Name, Folder: folder, Corpus: corpus } );
+						items.push( { Kind: 'corpus', Id: node.Id, Title: corpus.Name, Folder: folder, Corpus: corpus } );
 					}
 					continue;
 				}
@@ -2120,10 +2249,29 @@ function Attach( App, Context )
 	{
 		if ( !corpus.Link )
 		{
-			return ' (' + corpus.Files.length + ' files)';
+			let read = corpus.Files.filter( function ( file ) { return file.Indexed; } ).length;
+			return ' (attached, ' + read + ' files read)';
 		}
 		let view = linked_view( corpus );
-		return view.Offline ? ' (linked from ' + corpus.Link.Server + ', offline)' : ' (' + view.Files + ' files, linked from ' + corpus.Link.Server + ')';
+		return view.Offline ? ' (linked from ' + corpus.Link.Server + ', offline)' : ' (linked from ' + corpus.Link.Server + ', ' + view.Indexed + ' files read)';
+	}
+
+
+	// list_files' answer: the corpus's files that its Include and Exclude let in, under Folder when given; each one
+	// not read says why.
+	function list_of_files( item, files, folder )
+	{
+		let prefix = String( folder || '' ).replace( /^\/+|\/+$/g, '' );
+		let shown = files.filter( function ( file )
+		{
+			return !left_out( file.Reason ) && ( !prefix || file.Path.startsWith( prefix + '/' ) );
+		} );
+		let lines = [ 'The corpus "' + item.Title + '"' + corpus_words( item.Corpus ) + ( prefix ? ', folder ' + prefix : '' ) + ': ' + shown.length + ' files' ];
+		for ( let file of shown )
+		{
+			lines.push( '- ' + file.Path + ( file.Indexed ? '' : ' (not read: ' + file.Reason + ')' ) );
+		}
+		return lines.join( '\n' );
 	}
 
 
@@ -2170,32 +2318,28 @@ function Attach( App, Context )
 			let revision = await store.ReadRevision( item.Id, parseInt( request.Revision, 10 ) );
 			return revision ? clip_result( revision.Text ) : 'refused: "' + item.Title + '" has no revision ' + request.Revision;
 		}
-		if ( tool === 'read_file' )
+		if ( tool === 'list_files' || tool === 'read_file' )
 		{
-			let item = item_named( items, request.Zip, [ 'zip' ] );
+			let name = request.Corpus || request.Zip;
+			let item = item_named( items, name, [ 'corpus' ] );
 			if ( !item )
 			{
-				return 'refused: no uploaded zip "' + ( request.Zip || '' ) + '" in the project';
+				return 'refused: no corpus "' + ( name || '' ) + '" in the project';
 			}
-			let path = String( request.Path || '' ).replace( /^\/+/, '' );
-			if ( item.Corpus.Link )
+			try
 			{
-				try
+				if ( tool === 'list_files' )
 				{
-					return clip_result( await context_servers.ReadFile( item.Corpus.Link.Server, item.Corpus.Link.Corpus, path ) );
+					return clip_result( list_of_files( item, await corpus_files( item.Corpus ), request.Folder ) );
 				}
-				catch ( error )
-				{
-					return 'refused: ' + error.message;
-				}
+				let path = String( request.Path || '' ).replace( /^\/+/, '' );
+				let text = await corpus_read( item.Corpus, path );
+				return ( text === null ) ? 'refused: "' + item.Title + '" does not read a file ' + path : clip_result( text );
 			}
-			let zip = await store.ReadCorpusZip( item.Id );
-			let extracted = await CORPUS.Extract( zip, CORPUS.Limits( settings ) );
-			if ( extracted.Texts[ path ] === undefined )
+			catch ( error )
 			{
-				return 'refused: "' + item.Title + '" has no text file ' + path;
+				return 'refused: ' + error.message;
 			}
-			return clip_result( extracted.Texts[ path ] );
 		}
 		if ( tool === 'search' )
 		{
@@ -2661,32 +2805,20 @@ function Attach( App, Context )
 	// Null when neither can be read.
 	async function corpus_texts( corpus )
 	{
-		if ( corpus.Link )
+		let listed = null;
+		try
 		{
-			try
-			{
-				let listed = await context_servers.Files( corpus.Link.Server, corpus.Link.Corpus );
-				return {
-					Files: listed,
-					Paths: listed.filter( function ( file ) { return file.Indexed; } ).map( function ( file ) { return file.Path; } ),
-					Text: function ( path ) { return context_servers.ReadFile( corpus.Link.Server, corpus.Link.Corpus, path ); },
-				};
-			}
-			catch ( error )
-			{
-				return null;
-			}
+			listed = await corpus_files( corpus );
 		}
-		let zip = await store.ReadCorpusZip( corpus.Id );
-		if ( !zip )
+		catch ( error )
 		{
 			return null;
 		}
-		let extracted = await CORPUS.Extract( zip, CORPUS.Limits( settings ) );
+		let kept = listed.filter( function ( file ) { return !left_out( file.Reason ); } );
 		return {
-			Files: corpus.Files,
-			Paths: Object.keys( extracted.Texts ),
-			Text: async function ( path ) { return extracted.Texts[ path ]; },
+			Files: kept,
+			Paths: kept.filter( function ( file ) { return file.Indexed; } ).map( function ( file ) { return file.Path; } ),
+			Text: function ( path ) { return corpus_read( corpus, path ); },
 		};
 	}
 

@@ -67,7 +67,8 @@ TEST.before( async function ()
 	write( 'build/out.js', 'built\n' );
 	write( '.git/config', '[core]\n' );
 	write( 'node_modules/lib/index.js', 'module.exports = 1;\n' );
-	write( 'image.png', 'PNG' );
+	write( 'image.png', 'PNG\u0000\u0001' );
+	write( 'LICENSE', 'Anyone may use this.\n' );
 	write( 'data.txt', 'x\u0000y' );
 	FS.writeFileSync( PATH.join( outside, 'far.md' ), 'far away\n' );
 	running = await CONTEXT_SERVER.Start( {
@@ -123,7 +124,7 @@ TEST( 'settings: problems are named', function ()
 TEST( 'walk: Exclude, nested .gitignore files and Include decide; nothing else is assumed', function ()
 {
 	let all = CONTEXT_SERVER.Walk( root, [], [ '.git/**' ] );
-	ASSERT.deepEqual( all.sort(), [ '.gitignore', 'data.txt', 'image.png', 'node_modules/lib/index.js', 'notes/secret.txt', 'readme.md', 'src/.gitignore', 'src/app.js' ].sort() );
+	ASSERT.deepEqual( all.sort(), [ '.gitignore', 'LICENSE', 'data.txt', 'image.png', 'node_modules/lib/index.js', 'notes/secret.txt', 'readme.md', 'src/.gitignore', 'src/app.js' ].sort() );
 	let with_git = CONTEXT_SERVER.Walk( root, [], [] );
 	ASSERT.ok( with_git.includes( '.git/config' ) );
 	let only_source = CONTEXT_SERVER.Walk( root, [ 'src/**' ], [] );
@@ -180,7 +181,9 @@ TEST( 'a corpus is listed, read and searched; nothing outside it is read', async
 		by_path[ file.Path ] = file;
 	}
 	ASSERT.equal( by_path[ 'readme.md' ].Indexed, true );
-	ASSERT.match( by_path[ 'image.png' ].Reason, /not a text type/ );
+	ASSERT.match( by_path[ 'image.png' ].Reason, /binary/ );
+	ASSERT.equal( by_path[ 'LICENSE' ].Indexed, true );
+	ASSERT.equal( by_path[ '.gitignore' ].Indexed, true );
 	ASSERT.match( by_path[ 'data.txt' ].Reason, /binary/ );
 	ASSERT.equal( by_path[ 'src/secret.txt' ], undefined );
 	ASSERT.ok( by_path[ 'readme.md' ].Modified );

@@ -16,6 +16,7 @@ const CORPUS = require( './Corpus.js' );
 const VECTORS = require( './Vectors.js' );
 const LLM = require( './Llm.js' );
 const CONTEXT_SERVERS = require( './ContextServers.js' );
+const FILTER = require( './Filter.js' );
 
 
 // A first start over an existing data folder indexes every proposal once; later starts only what is stale.
@@ -65,7 +66,9 @@ async function linked_hits( store, context_servers, query, limit, ids )
 		}
 		try
 		{
-			let hits = await context_servers.Search( corpus.Link.Server, corpus.Link.Corpus, query, limit );
+			// More hits are asked for than wanted, so a page is still full once the entry's rules have filtered them.
+			let why = FILTER.Make( { Include: corpus.Include, Exclude: corpus.Exclude } );
+			let hits = ( await context_servers.Search( corpus.Link.Server, corpus.Link.Corpus, query, ( limit || 10 ) * 3 ) ).filter( function ( hit ) { return !why( hit.Path ); } ).slice( 0, limit || 10 );
 			lists.push( hits.map( function ( hit )
 			{
 				return { Proposal: null, Corpus: corpus.Id, Path: hit.Path, Revision: null, Chunk: null, Thread: null, Text: hit.Text, Score: hit.Score };
@@ -125,6 +128,8 @@ async function Start( Options )
 	if ( !settings )
 	{
 		settings = PARTICIPANTS.DefaultSettings( DEFAULT_PORT );
+		settings.Corpus = CORPUS.Limits( {} );
+		settings.Context = LLM.ContextSettings( {} );
 		await store.WriteSettings( settings );
 		settings_written = true;
 	}
@@ -133,28 +138,9 @@ async function Start( Options )
 	{
 		throw new Error( 'settings ' + store.SettingsPath() + ': ' + problems.join( '; ' ) );
 	}
-	// Older settings have no States: the defaults are written in, so they can be seen and edited there.
-	if ( !settings.States )
+	for ( let line of await store.Prepare() )
 	{
-		settings.States = PARTICIPANTS.States( settings );
-		await store.WriteSettings( settings );
-		console.log( 'settings: added States ' + settings.States.join( ', ' ) );
-	}
-	if ( !settings.Corpus )
-	{
-		settings.Corpus = CORPUS.Limits( settings );
-		await store.WriteSettings( settings );
-		console.log( 'settings: added the Corpus limits' );
-	}
-	if ( !settings.Context )
-	{
-		settings.Context = LLM.ContextSettings( settings );
-		await store.WriteSettings( settings );
-		console.log( 'settings: added the Context size' );
-	}
-	for ( let line of await store.Migrate( settings.States ) )
-	{
-		console.log( 'migrated ' + line );
+		console.log( 'prepared ' + line );
 	}
 	let port = ( options.Port !== undefined ) ? options.Port : ( settings.Port || DEFAULT_PORT );
 
@@ -187,7 +173,7 @@ async function Start( Options )
 		{
 			return null;
 		}
-		let extracted = await CORPUS.Extract( zip, CORPUS.Limits( settings ) );
+		let extracted = await CORPUS.Extract( zip, CORPUS.Limits( settings ), corpus );
 		return INDEX.RefreshCorpus( store, corpus, extracted.Texts, embedder );
 	}
 	await index_missing( store, refresh );
