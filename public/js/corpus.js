@@ -4,7 +4,7 @@
 // and Replace (a new zip), Rename and Delete (to the trash). A file is shown as plain text, never as HTML:
 // a zip can hold anything.
 
-angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$window', 'State', 'Client', function ( $scope, $window, State, Client )
+angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$window', 'State', 'Client', 'Tabs', function ( $scope, $window, State, Client, Tabs )
 {
 	$scope.State = State;
 	$scope.Corpus = null;
@@ -69,7 +69,7 @@ angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$wind
 		{
 			if ( change.Kind === 'trashed' )
 			{
-				$window.location.hash = '';
+				// its tab closes (AppController sees the same event)
 				return;
 			}
 			load();
@@ -146,12 +146,13 @@ angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$wind
 	$scope.Delete = async function ()
 	{
 		$scope.Busy = true;
-		let answer = await State.Act( function () { return Client.Delete( path_of( State.CorpusId ) ); } );
+		let id = State.CorpusId;
+		let answer = await State.Act( function () { return Client.Delete( path_of( id ) ); } );
 		$scope.Busy = false;
 		$scope.ConfirmingDelete = false;
 		if ( answer )
 		{
-			$window.location.hash = '';
+			Tabs.CloseItem( id );
 			State.LoadList();
 		}
 		$scope.$applyAsync();

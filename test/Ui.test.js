@@ -410,3 +410,116 @@ TEST( 'a project\'s context is pinned above its tree; Initialize context has the
 	await page.Click( '#view-read' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
+
+
+//---------------------------------------------------------------------
+// Tabs
+
+let tab_one = null;
+let tab_two = null;
+
+
+async function created( title )
+{
+	let response = await fetch( running.Url + '/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: title, Text: '# ' + title + '\n\nA line.\n' } ) } );
+	return ( await response.json() ).Proposal;
+}
+
+
+function tab_selector( id )
+{
+	return '.tab[data-key="p:' + id + '"]';
+}
+
+
+function tab_keys()
+{
+	return '[ ...document.querySelectorAll( ".tab" ) ].map( function ( tab ) { return tab.dataset.key; } )';
+}
+
+
+TEST( 'tabs: one per item; each keeps its view and an unsaved edit; tabs reorder and close', async function ()
+{
+	tab_one = await created( 'Tab one' );
+	tab_two = await created( 'Tab two' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + tab_one.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tab one"' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + tab_two.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tab two"' );
+	let count = await page.Evaluate( count_of( '.tab' ) );
+	await page.Evaluate( 'window.location.hash = "#/p/' + tab_one.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tab one"' );
+	ASSERT.equal( await page.Evaluate( count_of( '.tab' ) ), count );
+	ASSERT.equal( await page.Evaluate( 'document.querySelector( "' + tab_selector( tab_one.Id ).replace( /"/g, '\\"' ) + '" ).classList.contains( "active" )' ), true );
+
+	// an edit in Tab one, unsaved; Tab two shows its own view; back in Tab one, the edit is still there
+	await page.Click( '#view-edit' );
+	// the editor from an earlier test is reused: wait until it holds this proposal's text
+	await page.WaitFor( 'window.monaco && monaco.editor.getEditors().length === 1 && monaco.editor.getEditors()[ 0 ].getValue() === "# Tab one\\n\\nA line.\\n"', 30000 );
+	await page.Evaluate( 'monaco.editor.getEditors()[ 0 ].setValue( "# Tab one\\n\\nA line, not saved yet.\\n" ); true' );
+	await page.WaitFor( '!document.getElementById( "save-button" ).disabled' );
+	await new Promise( function ( resolve ) { setTimeout( resolve, 400 ); } );
+	await page.Click( tab_selector( tab_two.Id ) );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tab two"' );
+	await page.WaitFor( 'document.getElementById( "view-read" ).classList.contains( "btn-secondary" )' );
+	await page.Click( tab_selector( tab_one.Id ) );
+	await page.WaitFor( 'document.getElementById( "view-edit" ).classList.contains( "btn-secondary" )' );
+	await page.WaitFor( 'monaco.editor.getEditors()[ 0 ].getValue() === "# Tab one\\n\\nA line, not saved yet.\\n"' );
+	await page.WaitFor( '!document.getElementById( "save-button" ).disabled' );
+	await page.Evaluate( '[ ...document.querySelectorAll( ".edit-buttons .btn-outline-secondary" ) ].pop().click(); true' );
+	await page.WaitFor( 'document.getElementById( "view-read" ).classList.contains( "btn-secondary" )' );
+
+	// Tab two dragged onto the left half of Tab one goes just before it
+	let moved = await page.Evaluate( '( function () {'
+		+ ' let data = new DataTransfer();'
+		+ ' let source = document.querySelector( ' + JSON.stringify( tab_selector( tab_two.Id ) ) + ' );'
+		+ ' let target = document.querySelector( ' + JSON.stringify( tab_selector( tab_one.Id ) ) + ' );'
+		+ ' let x = target.getBoundingClientRect().left + 2;'
+		+ ' source.dispatchEvent( new DragEvent( "dragstart", { bubbles: true, dataTransfer: data } ) );'
+		+ ' target.dispatchEvent( new DragEvent( "dragover", { bubbles: true, cancelable: true, dataTransfer: data, clientX: x } ) );'
+		+ ' target.dispatchEvent( new DragEvent( "drop", { bubbles: true, cancelable: true, dataTransfer: data, clientX: x } ) );'
+		+ ' return true; } )()' );
+	ASSERT.equal( moved, true );
+	await page.WaitFor( '( function () { let keys = ' + tab_keys() + '; return keys.indexOf( "p:' + tab_two.Id + '" ) === keys.indexOf( "p:' + tab_one.Id + '" ) - 1; } )()' );
+
+	// closing the shown tab shows the one beside it
+	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( tab_selector( tab_one.Id ) + ' .close-tab' ) + ' ).click(); true' );
+	await page.WaitFor( count_of( tab_selector( tab_one.Id ) ) + ' === 0' );
+	await page.WaitFor( text_of( '.header .title' ) + ' !== "Tab one"' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'tabs: a tab detaches into its own window and is re-attached from there', async function ()
+{
+	await page.Evaluate( 'window.location.hash = "#/p/' + tab_one.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tab one"' );
+	// the window the browser would open is recorded instead; the messages between windows are overheard
+	await page.Evaluate( '( function () {'
+		+ ' window.opened = []; window.open = function ( url ) { window.opened.push( url ); return {}; };'
+		+ ' window.heard = []; let channel = new BroadcastChannel( "consensus-windows" ); channel.onmessage = function ( event ) { window.heard.push( event.data.Type ); };'
+		+ ' return true; } )()' );
+	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( tab_selector( tab_one.Id ) + ' .detach-tab' ) + ' ).click(); true' );
+	await page.WaitFor( count_of( tab_selector( tab_one.Id ) ) + ' === 0' );
+	ASSERT.equal( await page.Evaluate( 'window.opened[ 0 ]' ), '/?detached=1#/p/' + tab_one.Id );
+	// clicked again in the main window, the item stays out: its window is asked to come forward
+	let shown = await page.Evaluate( text_of( '.header .title' ) );
+	await page.Evaluate( 'window.location.hash = "#/p/' + tab_one.Id + '"; true' );
+	await page.WaitFor( 'window.heard.includes( "focus" )' );
+	ASSERT.equal( await page.Evaluate( count_of( tab_selector( tab_one.Id ) ) ), 0 );
+	await page.WaitFor( text_of( '.header .title' ) + ' === ' + JSON.stringify( shown ) );
+
+	// the detached window: the item alone, no sidebar, and Re-attach puts it back as a tab in the main window
+	let detached = await browser.OpenPage( running.Url + '/?detached=1#/p/' + tab_one.Id );
+	await detached.WaitFor( text_of( '.header .title' ) + ' === "Tab one"', 20000 );
+	ASSERT.equal( await detached.Evaluate( 'getComputedStyle( document.querySelector( "aside.sidebar" ) ).display' ), 'none' );
+	ASSERT.equal( await detached.Evaluate( 'getComputedStyle( document.querySelector( ".tab-strip" ) ).display' ), 'none' );
+	await page.WaitFor( 'window.heard.includes( "here" )' );
+	await detached.Click( '#reattach' );
+	await page.WaitFor( count_of( tab_selector( tab_one.Id ) ) + ' === 1' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tab one"' );
+	await page.WaitFor( 'window.heard.includes( "attached" )' );
+	ASSERT.deepEqual( page.Errors, [] );
+	ASSERT.deepEqual( detached.Errors, [] );
+	detached.Close();
+} );

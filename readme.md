@@ -50,6 +50,14 @@ The heading's **Threads** button hides or shows the threads pane, and the editor
 preview; each is remembered in the browser. The owner deletes a thread with the × on its first line; a
 revision that applied a deleted thread keeps its text and shows "(deleted thread)".
 
+Every item you open (plan, document, context, zip), and Waiting on you and Search, opens in a **tab** above the
+document: one tab per item, dragged to reorder, closed with ×. Each tab comes back as you left it, Read, Edit or
+Revisions, an unsaved edit included. Open tabs survive a page reload, not a browser restart; with none open, the
+start page shows. ↗ on a tab opens it in its own browser window (allow pop-ups for the page): the item alone,
+without the sidebar, and **Re-attach** there puts it back as a tab. Clicking an item that is out brings its
+window forward; closing that window closes the item; and if the main window is gone, Re-attach makes the
+detached window the main one.
+
 The owner settles a contested thread in one of two ways. **Reply and resolve** posts the owner's reply and
 resolves the thread with it: that reply is the outcome the LLM applies. **Resolve** with no reply accepts the
 outcome, or the recommendation, in the last reply.

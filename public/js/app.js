@@ -465,57 +465,101 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 //---------------------------------------------------------------------
 // AppController: the routes and the live stream.
 
-.controller( 'AppController', [ '$scope', '$window', 'State', 'Client', function ( $scope, $window, State, Client )
+.controller( 'AppController', [ '$scope', '$window', 'State', 'Client', 'Tabs', function ( $scope, $window, State, Client, Tabs )
 {
 	$scope.State = State;
 
 
-	function route()
+	// What a hash stands for: { Kind: 'p' | 'c' | 'waiting' | 'search', Id?, Query?, Project? }, or null.
+	function route_of( hash )
 	{
-		let hash = $window.location.hash;
 		let proposal = /^#\/p\/([^/]+)$/.exec( hash );
 		if ( proposal )
 		{
-			State.OpenProposal( decodeURIComponent( proposal[ 1 ] ) );
-			return;
+			return { Kind: 'p', Id: decodeURIComponent( proposal[ 1 ] ) };
 		}
 		if ( hash === '#/waiting' )
 		{
-			State.OpenProposal( null, 'waiting' );
-			return;
+			return { Kind: 'waiting' };
 		}
 		let corpus = /^#\/c\/([^/]+)$/.exec( hash );
 		if ( corpus )
 		{
-			State.CorpusId = decodeURIComponent( corpus[ 1 ] );
-			State.OpenProposal( null, 'corpus' );
-			return;
+			return { Kind: 'c', Id: decodeURIComponent( corpus[ 1 ] ) };
 		}
 		// #/search/<words> searches everything; #/search/<project>/<words> one project (the words are encoded, so
 		// they hold no slash).
 		let search = /^#\/search\/(?:([^/]+)\/)?(.*)$/.exec( hash );
 		if ( search )
 		{
-			State.SearchProject = search[ 1 ] ? decodeURIComponent( search[ 1 ] ) : null;
-			State.Query = decodeURIComponent( search[ 2 ] );
-			State.OpenProposal( null, 'search' );
-			$scope.$broadcast( 'search-requested', State.Query, State.SearchProject );
+			return { Kind: 'search', Project: search[ 1 ] ? decodeURIComponent( search[ 1 ] ) : null, Query: decodeURIComponent( search[ 2 ] ) };
+		}
+		return null;
+	}
+
+
+	// Every route is a tab. An item open in a detached window is brought forward there instead; no route shows the
+	// last tab, or the start page when there are no tabs.
+	function route()
+	{
+		let hash = $window.location.hash;
+		let where = route_of( hash );
+		if ( !where )
+		{
+			let last = Tabs.Active() || Tabs.List[ Tabs.List.length - 1 ];
+			if ( last )
+			{
+				$window.location.replace( last.Hash );
+				return;
+			}
+			State.OpenProposal( null );
 			return;
 		}
-		State.OpenProposal( null );
+		if ( Tabs.IsOut( Tabs.KeyOf( where ) ) )
+		{
+			Tabs.FocusOut( Tabs.KeyOf( where ) );
+			let active = Tabs.Active();
+			$window.history.replaceState( null, '', active ? active.Hash : '#' );
+			if ( !active )
+			{
+				State.OpenProposal( null );
+			}
+			return;
+		}
+		let tab = Tabs.Visit( { Kind: where.Kind, Id: where.Id, Hash: hash, Query: where.Query } );
+		Tabs.Announce();
+		if ( where.Kind === 'p' )
+		{
+			State.OpenProposal( where.Id ).then( function () { Tabs.RestoreView( tab ); } );
+			return;
+		}
+		if ( where.Kind === 'waiting' )
+		{
+			State.OpenProposal( null, 'waiting' );
+			return;
+		}
+		if ( where.Kind === 'c' )
+		{
+			State.CorpusId = where.Id;
+			State.OpenProposal( null, 'corpus' );
+			return;
+		}
+		State.SearchProject = where.Project;
+		State.Query = where.Query;
+		State.OpenProposal( null, 'search' );
+		$scope.$broadcast( 'search-requested', State.Query, State.SearchProject );
 	}
 
 
 	function on_change( event )
 	{
 		State.LoadList();
-		if ( event.Proposal === State.OpenId )
+		if ( event.Kind === 'trashed' )
 		{
-			if ( event.Kind === 'trashed' )
-			{
-				$window.location.hash = '';
-				return;
-			}
+			Tabs.CloseItem( event.Proposal || event.Corpus );
+		}
+		else if ( event.Proposal && event.Proposal === State.OpenId )
+		{
 			State.Reload();
 		}
 		$scope.$broadcast( 'changed', event );

@@ -166,6 +166,22 @@
 
 		<!-- ============================================================= -->
 		<main class="main">
+			<!-- The open items, one tab each; in a detached window, a bar to put it back. -->
+			<div class="tabs-area" ng-controller="TabsController">
+				<nav class="tab-strip" ng-show="!Tabs.Detached && Tabs.List.length">
+					<div class="tab" ng-repeat="tab in Tabs.List track by tab.Key" ng-class="{ active: tab.Key === Tabs.ActiveKey }" data-key="{{ tab.Key }}" ng-click="Open(tab)" tab-drag="tab.Key" on-tab-drop="MoveTab( Key, Before )" title="{{ Title(tab) }}">
+						<span class="tree-icon" ng-class="Icon(tab)"></span>
+						<span class="tab-title">{{ Title(tab) }}</span>
+						<button class="tab-button detach-tab" ng-if="Tabs.CanDetach(tab)" title="open in its own window" ng-click="Detach(tab, $event)">&#8599;</button>
+						<button class="tab-button close-tab" title="close" ng-click="Close(tab, $event)">&times;</button>
+					</div>
+				</nav>
+				<div class="detached-bar" ng-show="Tabs.Detached">
+					<span class="muted">In its own window</span>
+					<button class="btn btn-sm btn-outline-secondary" id="reattach" ng-click="Reattach()" title="put it back as a tab in the main window">Re-attach</button>
+				</div>
+			</div>
+
 			<header class="header" ng-controller="HeaderController">
 				<div class="header-row">
 					<div class="title" ng-show="State.Open">{{ IsContext() ? 'Context of ' + State.Open.Project.Name : State.Open.Proposal.Title }}</div>
@@ -394,6 +410,7 @@
 	<script src="/js/render.js"></script>
 	<script src="/js/editor.js"></script>
 	<script src="/js/app.js"></script>
+	<script src="/js/tabs.js"></script>
 	<script src="/js/sidebar.js"></script>
 	<script src="/js/header.js"></script>
 	<script src="/js/read.js"></script>

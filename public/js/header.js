@@ -4,7 +4,7 @@
 // state picker and the one-line state, then Comment on the whole document, Send to LLM (owner), and Delete
 // (to the trash, confirmed inline).
 
-angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', function ( $scope, $window, State, Client )
+angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Tabs', function ( $scope, $window, State, Client, Tabs )
 {
 	$scope.State = State;
 	$scope.Busy = false;
@@ -148,16 +148,18 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 
 	$scope.Delete = async function ()
 	{
+		let id = State.OpenId;
 		$scope.Busy = true;
 		let answer = await State.Act( function ()
 		{
-			return Client.Delete( '/api/proposals/' + encodeURIComponent( State.OpenId ) );
+			return Client.Delete( '/api/proposals/' + encodeURIComponent( id ) );
 		} );
 		$scope.Busy = false;
 		$scope.ConfirmingDelete = false;
 		if ( answer )
 		{
-			$window.location.hash = '';
+			// its tab closes, and the one beside it is shown
+			Tabs.CloseItem( id );
 			State.LoadList();
 		}
 		$scope.$applyAsync();
