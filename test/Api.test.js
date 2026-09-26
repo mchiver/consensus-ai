@@ -212,6 +212,29 @@ TEST( 'only the owner resolves; a reply to a resolved thread reopens it', async 
 } );
 
 
+TEST( 'only the owner deletes a thread, applied or not; the revision it made keeps its text', async function ()
+{
+	let proposal = await create( 'Delete a thread' );
+	let thread = await discussed_thread( proposal.Id, 'one list item', 'Outcome: the item is reworded.' );
+	await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/resolve' );
+	let applied = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Text: TEXT.replace( 'one list item', 'one reworded item' ), Revision: 1, Outcome: 'reworded' }, true );
+	ASSERT.equal( applied.Status, 200 );
+	let other = ( await call( 'POST', '/api/proposals/' + proposal.Id + '/threads', { Text: 'A second thread.' } ) ).Body.Thread;
+	let path = '/api/proposals/' + proposal.Id + '/threads/' + thread.Id;
+	ASSERT.equal( ( await call( 'DELETE', path, undefined, true ) ).Status, 403 );
+	let deleted = await call( 'DELETE', path );
+	ASSERT.equal( deleted.Status, 200 );
+	ASSERT.equal( deleted.Body.Deleted, thread.Id );
+	ASSERT.equal( ( await call( 'DELETE', path ) ).Status, 404 );
+	let read = await call( 'GET', '/api/proposals/' + proposal.Id );
+	ASSERT.deepEqual( read.Body.Threads.map( function ( candidate ) { return candidate.Id; } ), [ other.Id ] );
+	ASSERT.match( read.Body.Text, /one reworded item/ );
+	let revisions = await call( 'GET', '/api/proposals/' + proposal.Id + '/revisions' );
+	ASSERT.equal( revisions.Body.Revisions[ 1 ].Thread, thread.Id );
+	ASSERT.equal( ( await call( 'DELETE', '/api/proposals/none/threads/' + other.Id ) ).Status, 404 );
+} );
+
+
 TEST( 'apply: resolved threads only, a text change makes a revision tied to the thread, a stale revision is refused', async function ()
 {
 	let proposal = await create( 'Apply' );
@@ -474,6 +497,41 @@ TEST( 'items move within a project and into another; a folder never goes inside 
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + plan.Id + '/move', {} ) ).Status, 400 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + plan.Id + '/move', { Project: 'none-000000' } ) ).Status, 404 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + plan.Id + '/move', { Project: 'default', Parent: 'fnothing' } ) ).Status, 400 );
+} );
+
+
+TEST( 'an item goes just before another; a project moves in the order', async function ()
+{
+	let project = ( await call( 'POST', '/api/projects', { Name: 'Ordering' } ) ).Body.Project;
+	let a = await create( 'A' );
+	let b = await create( 'B' );
+	let c = await create( 'C' );
+	for ( let plan of [ a, b, c ] )
+	{
+		await call( 'POST', '/api/items/' + plan.Id + '/move', { Project: project.Id } );
+	}
+	function ids( body ) { return body.Project.Items.map( function ( item ) { return item.Id; } ); }
+	// C just before A, then A to the end, within the root
+	let moved = await call( 'POST', '/api/items/' + c.Id + '/move', { Project: project.Id, Before: a.Id } );
+	ASSERT.deepEqual( ids( moved.Body ), [ c.Id, a.Id, b.Id ] );
+	moved = await call( 'POST', '/api/items/' + a.Id + '/move', { Project: project.Id } );
+	ASSERT.deepEqual( ids( moved.Body ), [ c.Id, b.Id, a.Id ] );
+	// into a folder, just before what it holds
+	let folder = ( await call( 'POST', '/api/projects/' + project.Id + '/folders', { Name: 'Box' } ) ).Body.Folder;
+	await call( 'POST', '/api/items/' + b.Id + '/move', { Project: project.Id, Parent: folder.Id } );
+	moved = await call( 'POST', '/api/items/' + c.Id + '/move', { Project: project.Id, Parent: folder.Id, Before: b.Id } );
+	ASSERT.deepEqual( moved.Body.Project.Items[ 1 ].Items.map( function ( item ) { return item.Id; } ), [ c.Id, b.Id ] );
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + c.Id + '/move', { Project: project.Id, Before: c.Id } ) ).Status, 400 );
+
+	// the project, before Default, then back to the end
+	let order = await call( 'POST', '/api/projects/' + project.Id + '/move', { Before: 'default' } );
+	ASSERT.equal( order.Status, 200 );
+	ASSERT.equal( order.Body.Projects[ 0 ].Id, project.Id );
+	order = await call( 'POST', '/api/projects/' + project.Id + '/move', {} );
+	ASSERT.equal( order.Body.Projects[ order.Body.Projects.length - 1 ].Id, project.Id );
+	ASSERT.equal( ( await call( 'GET', '/api/projects' ) ).Body.Projects[ 0 ].Id, 'default' );
+	ASSERT.equal( ( await call( 'POST', '/api/projects/none/move', {} ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'POST', '/api/projects/' + project.Id + '/move', { Before: 'none' } ) ).Status, 400 );
 } );
 
 

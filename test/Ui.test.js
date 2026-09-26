@@ -216,7 +216,7 @@ TEST( 'an item dragged onto a project moves there; copy and paste makes a whole 
 		+ ' head.dispatchEvent( new DragEvent( "dragover", { bubbles: true, cancelable: true, dataTransfer: data } ) );'
 		+ ' head.dispatchEvent( new DragEvent( "drop", { bubbles: true, cancelable: true, dataTransfer: data } ) );'
 		+ ' return data.getData( "application/x-consensus-item" ); } )()' );
-	ASSERT.match( moved, /^reference-notes-/ );
+	ASSERT.match( moved, /^p[0-9a-f]{8}$/ );
 	await page.WaitFor( count_of( '.project.open .project-body > .tree > .tree-node > .tree-item.document' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( count_of( '.project.open .folder .tree-item.document' ) ), 0 );
 
@@ -280,5 +280,86 @@ TEST( 'search finds the thread and the theme switches', async function ()
 	ASSERT.equal( await page.Evaluate( 'document.documentElement.dataset.bsTheme' ), 'dark' );
 	await page.Evaluate( 'window.ConsensusTheme.SetScale( "large" )' );
 	ASSERT.equal( await page.Evaluate( 'document.documentElement.style.getPropertyValue( "--scale" )' ), '1.15' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'the threads and the preview hide and are remembered; a plan is renamed in its tree row', async function ()
+{
+	await page.Evaluate( 'window.location.hash = "#/p/' + proposal.Id + '"; true' );
+	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Browser check"' );
+	// the threads toggle hides the pane, and a reload keeps it hidden
+	await page.Click( '#threads-toggle' );
+	await page.WaitFor( 'document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
+	await page.Evaluate( 'window.location.reload(); true' );
+	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Browser check"', 20000 );
+	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".layout" ).classList.contains( "no-threads" )' ), true );
+	await page.Click( '#threads-toggle' );
+	await page.WaitFor( '!document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
+	// the preview toggle gives the editor the whole width
+	await page.Click( '#view-edit' );
+	await page.WaitFor( 'window.monaco && monaco.editor.getEditors().length === 1', 30000 );
+	await page.Click( '#preview-toggle' );
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".edit-preview" ) ).display === "none"' );
+	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.preview-hidden" )' ), 'true' );
+	await page.Click( '#preview-toggle' );
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".edit-preview" ) ).display !== "none"' );
+	await page.Click( '#view-read' );
+	// rename from the tree row: only the Title changes
+	await page.Evaluate( 'document.querySelector( ".tree-item[data-id=\\"' + proposal.Id + '\\"] .rename-item" ).click(); true' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.closest( ".rename-form" ) !== null' );
+	await page.Evaluate( '( function () { let input = document.activeElement; input.value = "Browser check, renamed"; input.dispatchEvent( new Event( "input" ) ); input.form.dispatchEvent( new Event( "submit", { cancelable: true } ) ); return true; } )()' );
+	await page.WaitFor( text_of( '.tree-item[data-id="' + proposal.Id + '"] .proposal-title' ) + ' === "Browser check, renamed"' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Browser check, renamed"' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'the owner deletes a thread; the revision it made names it as deleted', async function ()
+{
+	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
+	await page.Evaluate( 'document.querySelector( ".thread:not(.compose) .delete-thread" ).click(); true' );
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread:not(.compose) .thread-delete .confirm" ) ).display !== "none"' );
+	await page.Evaluate( 'document.querySelector( ".thread:not(.compose) .confirm-delete-thread" ).click(); true' );
+	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 0' );
+	await page.WaitFor( text_of( '#state-line' ) + ' === "no threads yet"' );
+	await page.Click( '#view-revisions' );
+	await page.WaitFor( count_of( '.revision-thread.deleted' ) + ' >= 1' );
+	ASSERT.equal( await page.Evaluate( text_of( '.revision-thread.deleted' ) ), '(deleted thread)' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+// Drags Source onto the top edge of Target, as a person's drag would.
+function drag_to_top( source, target )
+{
+	return '( function () {'
+		+ ' let data = new DataTransfer();'
+		+ ' let source = document.querySelector( ' + JSON.stringify( source ) + ' );'
+		+ ' let target = document.querySelector( ' + JSON.stringify( target ) + ' );'
+		+ ' let y = target.getBoundingClientRect().top + 1;'
+		+ ' source.dispatchEvent( new DragEvent( "dragstart", { bubbles: true, dataTransfer: data } ) );'
+		+ ' target.dispatchEvent( new DragEvent( "dragover", { bubbles: true, cancelable: true, dataTransfer: data, clientY: y } ) );'
+		+ ' let shown = target.classList.contains( "drop-before" );'
+		+ ' target.dispatchEvent( new DragEvent( "drop", { bubbles: true, cancelable: true, dataTransfer: data, clientY: y } ) );'
+		+ ' return shown; } )()';
+}
+
+
+TEST( 'an item dropped on the top edge of another goes just before it; a project dropped on another\'s head goes before it', async function ()
+{
+	await page.Click( '.project:not([data-project="default"]) .project-head' );
+	await page.WaitFor( count_of( '.project.open .tree-item.corpus' ) + ' === 1' );
+	function root_titles()
+	{
+		return '[ ...document.querySelectorAll( ".project.open .project-body > .tree > .tree-node" ) ].map( function ( node ) { let title = node.querySelector( ".proposal-title, .folder-name" ); return title ? title.textContent.trim() : ""; } ).join( "|" )';
+	}
+	ASSERT.notEqual( ( await page.Evaluate( root_titles() ) ).split( '|' )[ 0 ], 'lighthouse' );
+	ASSERT.equal( await page.Evaluate( drag_to_top( '.project.open .tree-item.corpus', '.project.open .project-body > .tree > .tree-node:first-child .tree-row' ) ), true );
+	await page.WaitFor( root_titles() + '.split( "|" )[ 0 ] === "lighthouse"' );
+	// the project first, before Default
+	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".project" ) ].map( function ( project ) { return project.dataset.project; } )[ 0 ]' ), 'default' );
+	ASSERT.equal( await page.Evaluate( drag_to_top( '.project:not([data-project="default"]) .project-head', '.project[data-project="default"] .project-head' ) ), true );
+	await page.WaitFor( 'document.querySelector( ".project" ).dataset.project !== "default"' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );

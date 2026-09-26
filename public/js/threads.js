@@ -228,6 +228,47 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	};
 
 
+	//-----------------------------------------------------------------
+	// Delete: owner only, any thread, confirmed inline.
+
+	$scope.Deleting = null;
+
+	$scope.CanDelete = function ()
+	{
+		return !!State.Me && State.Me.Role === 'owner';
+	};
+
+
+	$scope.StartDelete = function ( thread, event )
+	{
+		event.stopPropagation();
+		$scope.Deleting = thread.Id;
+	};
+
+
+	$scope.CancelDelete = function ( event )
+	{
+		event.stopPropagation();
+		$scope.Deleting = null;
+	};
+
+
+	$scope.Delete = async function ( thread, event )
+	{
+		event.stopPropagation();
+		let answer = await act( function ()
+		{
+			return Client.Delete( path( thread ) );
+		} );
+		$scope.Deleting = null;
+		if ( answer && State.Selected === thread.Id )
+		{
+			State.Select( null );
+		}
+		$scope.$applyAsync();
+	};
+
+
 	$scope.$on( 'compose-started', function ()
 	{
 		$timeout( function ()

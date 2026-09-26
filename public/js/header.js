@@ -1,7 +1,8 @@
 'use strict';
 
-// Header - the title, the state picker and the one-line state, Read / Edit / Revisions, Comment on the whole
-// document, Send to LLM (owner), and Delete (to the trash, confirmed inline).
+// Header - two lines. The first: the title, Read / Edit / Revisions and the threads toggle. The second: the
+// state picker and the one-line state, then Comment on the whole document, Send to LLM (owner), and Delete
+// (to the trash, confirmed inline).
 
 angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', function ( $scope, $window, State, Client )
 {
@@ -13,6 +14,19 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 	$scope.SetView = function ( view )
 	{
 		State.SetView( view );
+	};
+
+
+	// A plan has threads; a document has none, so it has no toggle.
+	$scope.HasThreads = function ()
+	{
+		return !!State.Open && State.Open.Proposal.Kind !== 'document';
+	};
+
+
+	$scope.ToggleThreads = function ()
+	{
+		State.SetThreadsHidden( !State.ThreadsHidden );
 	};
 
 

@@ -2,9 +2,10 @@
 
 // Sidebar - the project tree: one project open at a time, its folders and items with their tallies;
 // new project, plan and folder, rename and delete; the search box, the waiting count, Trash at the bottom,
-// and the LLM's tokens today. Items move by drag and drop and copy by copy and paste.
+// and the LLM's tokens today. Items and projects move and reorder by drag and drop; items copy by copy and paste.
 
 const DRAG_TYPE = 'application/x-consensus-item';
+const DRAG_PROJECT_TYPE = 'application/x-consensus-project';
 
 angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$window', 'State', 'Client', function ( $scope, $window, State, Client )
 {
@@ -305,14 +306,16 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 
 
 	//-----------------------------------------------------------------
-	// Renaming: { Kind: 'project' | 'folder', Project, Id, Name }
+	// Renaming: { Kind: 'project' | 'folder' | 'proposal', Project, Id, Name }. A plan or document is renamed by
+	// its Title; its Id stays.
 
 	$scope.StartRename = function ( kind, project, node, event )
 	{
+		event.preventDefault();
 		event.stopPropagation();
 		$scope.Creating = null;
 		$scope.Deleting = null;
-		$scope.Renaming = { Kind: kind, Project: project.Id, Id: node.Id, Name: node.Name };
+		$scope.Renaming = { Kind: kind, Project: project.Id, Id: node.Id, Name: ( kind === 'proposal' ) ? node.Title : node.Name };
 	};
 
 
@@ -336,18 +339,40 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 		{
 			return;
 		}
-		let path = '/api/projects/' + encodeURIComponent( renaming.Project );
-		if ( renaming.Kind === 'folder' )
+		let answer = await State.Act( function ()
 		{
-			path += '/folders/' + encodeURIComponent( renaming.Id );
-		}
-		let answer = await State.Act( function () { return Client.Put( path, { Name: name } ); } );
+			if ( renaming.Kind === 'proposal' )
+			{
+				return Client.Put( '/api/proposals/' + encodeURIComponent( renaming.Id ), { Title: name } );
+			}
+			let path = '/api/projects/' + encodeURIComponent( renaming.Project );
+			if ( renaming.Kind === 'folder' )
+			{
+				path += '/folders/' + encodeURIComponent( renaming.Id );
+			}
+			return Client.Put( path, { Name: name } );
+		} );
 		if ( answer )
 		{
 			$scope.Renaming = null;
 			await State.LoadList();
+			if ( renaming.Kind === 'proposal' && renaming.Id === State.OpenId )
+			{
+				await State.Reload();
+			}
 		}
 		$scope.$applyAsync();
+	};
+
+
+	// Escape in a rename box gives up the rename.
+	$scope.RenameKey = function ( event )
+	{
+		if ( event.key === 'Escape' )
+		{
+			event.stopPropagation();
+			$scope.Renaming = null;
+		}
 	};
 
 
@@ -393,17 +418,18 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 
 
 	//-----------------------------------------------------------------
-	// Move: an item dropped on a project (its root) or a folder. Target = { Project, Parent }
+	// Move: an item goes into a project's root or a folder, at the end or just before a child of it.
+	// Target = { Project, Parent, Before? }
 
 	$scope.MoveItem = async function ( id, target )
 	{
-		if ( id === target.Parent )
+		if ( id === target.Parent || id === target.Before )
 		{
 			return;
 		}
 		let answer = await State.Act( function ()
 		{
-			return Client.Post( '/api/items/' + encodeURIComponent( id ) + '/move', { Project: target.Project, Parent: target.Parent } );
+			return Client.Post( '/api/items/' + encodeURIComponent( id ) + '/move', { Project: target.Project, Parent: target.Parent, Before: target.Before || null } );
 		} );
 		if ( answer )
 		{
@@ -411,6 +437,87 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 		}
 		$scope.$applyAsync();
 	};
+
+
+	// Where the node Id sits in Items: { Parent (a folder's id, or null for the root), Next (the id of the node
+	// after it, or null) }, or null.
+	function place_of( items, id, parent )
+	{
+		for ( let index = 0; index < items.length; index++ )
+		{
+			let node = items[ index ];
+			if ( node.Id === id )
+			{
+				let next = ( index + 1 < items.length ) ? items[ index + 1 ].Id : null;
+				return { Parent: parent, Next: next };
+			}
+			if ( node.Kind === 'folder' )
+			{
+				let found = place_of( node.Items, id, node.Id );
+				if ( found )
+				{
+					return found;
+				}
+			}
+		}
+		return null;
+	}
+
+
+	// A drop on the tree. Drag = { Kind: 'item' | 'project', Id }; Target = { Kind: 'project' | 'folder' | 'item',
+	// Project, Id }; Zone = 'before' | 'after' | 'into'.
+	$scope.TreeDrop = function ( Drag, Target, Zone )
+	{
+		if ( Drag.Kind === 'project' )
+		{
+			move_project( Drag.Id, Target.Project, Zone );
+			return;
+		}
+		if ( Zone === 'into' )
+		{
+			let parent = ( Target.Kind === 'folder' ) ? Target.Id : null;
+			$scope.MoveItem( Drag.Id, { Project: Target.Project, Parent: parent } );
+			return;
+		}
+		let project = State.Projects.find( function ( candidate ) { return candidate.Id === Target.Project; } );
+		let place = project ? place_of( project.Items, Target.Id, null ) : null;
+		if ( !place || Drag.Id === Target.Id )
+		{
+			return;
+		}
+		let before = ( Zone === 'before' ) ? Target.Id : place.Next;
+		if ( before === Drag.Id )
+		{
+			return;
+		}
+		$scope.MoveItem( Drag.Id, { Project: Target.Project, Parent: place.Parent, Before: before } );
+	};
+
+
+	// A project dropped before or after another in the order.
+	async function move_project( id, target_id, zone )
+	{
+		let ids = State.Projects.map( function ( project ) { return project.Id; } );
+		let index = ids.indexOf( target_id );
+		if ( id === target_id || index < 0 )
+		{
+			return;
+		}
+		let before = ( zone === 'before' ) ? target_id : ( ids[ index + 1 ] || null );
+		if ( before === id )
+		{
+			return;
+		}
+		let answer = await State.Act( function ()
+		{
+			return Client.Post( '/api/projects/' + encodeURIComponent( id ) + '/move', { Before: before } );
+		} );
+		if ( answer )
+		{
+			await State.LoadList();
+		}
+		$scope.$applyAsync();
+	}
 
 
 	//-----------------------------------------------------------------
@@ -604,45 +711,130 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 
 
 //---------------------------------------------------------------------
-// drop-target="{ Project, Parent }" on-drop="Handler( Id, Target )": a place an item can be dropped.
+// drag-project="<id>": a project's head can be dragged, to reorder the projects.
 
-.directive( 'dropTarget', [ function ()
+.directive( 'dragProject', [ function ()
 {
 	return {
 		restrict: 'A',
 		link: function ( scope, element, attributes )
 		{
 			let node = element[ 0 ];
-			function carries_item( event )
+			node.setAttribute( 'draggable', 'true' );
+			node.addEventListener( 'dragstart', function ( event )
 			{
-				return Array.from( event.dataTransfer.types ).includes( DRAG_TYPE );
+				event.stopPropagation();
+				event.dataTransfer.setData( DRAG_PROJECT_TYPE, scope.$eval( attributes.dragProject ) );
+				event.dataTransfer.effectAllowed = 'move';
+			} );
+		},
+	};
+} ] )
+
+
+//---------------------------------------------------------------------
+// tree-drop="{ Kind: 'project' | 'folder' | 'item', Project, Id }" on-tree-drop="Handler( Drag, Target, Zone )":
+// a row of the tree things are dropped on. Where the pointer is on the row picks the zone, shown by a line or
+// an outline:
+//   an item on a project's head           into its root
+//   an item on a folder                   before (top quarter), after (bottom quarter), or into (the middle)
+//   an item on an item                    before (top half) or after (bottom half)
+//   a project on a project's head         before (top half) or after (bottom half)
+
+.directive( 'treeDrop', [ function ()
+{
+	const ZONE_CLASSES = [ 'drop-before', 'drop-after', 'drop-into' ];
+
+	function dragged_kind( event )
+	{
+		let types = Array.from( event.dataTransfer.types );
+		if ( types.includes( DRAG_TYPE ) )
+		{
+			return 'item';
+		}
+		if ( types.includes( DRAG_PROJECT_TYPE ) )
+		{
+			return 'project';
+		}
+		return null;
+	}
+
+
+	// The zone for a drag of Kind at the event's height on the row, or null when it cannot drop there.
+	function zone_of( event, node, target, kind )
+	{
+		let rect = node.getBoundingClientRect();
+		let share = ( rect.height > 0 ) ? ( event.clientY - rect.top ) / rect.height : 0.5;
+		if ( target.Kind === 'project' )
+		{
+			if ( kind === 'item' )
+			{
+				return 'into';
 			}
+			return ( share < 0.5 ) ? 'before' : 'after';
+		}
+		if ( kind !== 'item' )
+		{
+			return null;
+		}
+		if ( target.Kind === 'folder' )
+		{
+			if ( share < 0.25 )
+			{
+				return 'before';
+			}
+			return ( share > 0.75 ) ? 'after' : 'into';
+		}
+		return ( share < 0.5 ) ? 'before' : 'after';
+	}
+
+
+	return {
+		restrict: 'A',
+		link: function ( scope, element, attributes )
+		{
+			let node = element[ 0 ];
+
+			function show( zone )
+			{
+				for ( let name of ZONE_CLASSES )
+				{
+					node.classList.toggle( name, name === 'drop-' + zone );
+				}
+			}
+
 			node.addEventListener( 'dragover', function ( event )
 			{
-				if ( carries_item( event ) )
-				{
-					event.preventDefault();
-					event.stopPropagation();
-					event.dataTransfer.dropEffect = 'move';
-					node.classList.add( 'drop-over' );
-				}
-			} );
-			node.addEventListener( 'dragleave', function ()
-			{
-				node.classList.remove( 'drop-over' );
-			} );
-			node.addEventListener( 'drop', function ( event )
-			{
-				node.classList.remove( 'drop-over' );
-				if ( !carries_item( event ) )
+				let kind = dragged_kind( event );
+				let zone = kind ? zone_of( event, node, scope.$eval( attributes.treeDrop ), kind ) : null;
+				if ( !zone )
 				{
 					return;
 				}
 				event.preventDefault();
 				event.stopPropagation();
-				let id = event.dataTransfer.getData( DRAG_TYPE );
-				let target = scope.$eval( attributes.dropTarget );
-				scope.$apply( function () { scope.$eval( attributes.onDrop, { Id: id, Target: target } ); } );
+				event.dataTransfer.dropEffect = 'move';
+				show( zone );
+			} );
+			node.addEventListener( 'dragleave', function ()
+			{
+				show( null );
+			} );
+			node.addEventListener( 'drop', function ( event )
+			{
+				show( null );
+				let kind = dragged_kind( event );
+				let target = scope.$eval( attributes.treeDrop );
+				let zone = kind ? zone_of( event, node, target, kind ) : null;
+				if ( !zone )
+				{
+					return;
+				}
+				event.preventDefault();
+				event.stopPropagation();
+				let id = event.dataTransfer.getData( ( kind === 'item' ) ? DRAG_TYPE : DRAG_PROJECT_TYPE );
+				let drag = { Kind: kind, Id: id };
+				scope.$apply( function () { scope.$eval( attributes.onTreeDrop, { Drag: drag, Target: target, Zone: zone } ); } );
 			} );
 		},
 	};

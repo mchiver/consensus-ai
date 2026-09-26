@@ -29,11 +29,13 @@ TEST( 'opening creates the folders; settings are absent until written', async fu
 } );
 
 
-TEST( 'a created proposal has its files, revision 1 and a slug id', async function ()
+TEST( 'a created proposal has its files, revision 1 and a plain id', async function ()
 {
 	let store = STORE.Open( temporary_folder() );
 	let proposal = await store.CreateProposal( { Title: 'Hello, World!', Text: '# Hello\n\nText.\n', By: 'user', State: 'Proposal' } );
-	ASSERT.match( proposal.Id, /^hello-world-[0-9a-f]{6}$/ );
+	ASSERT.match( proposal.Id, /^p[0-9a-f]{8}$/ );
+	ASSERT.equal( STORE.IsNewId( proposal.Id, STORE.PROPOSAL_LETTER ), true );
+	ASSERT.equal( STORE.IsNewId( 'hello-world-1a2b3c', STORE.PROPOSAL_LETTER ), false );
 	ASSERT.equal( proposal.Revision, 1 );
 	ASSERT.equal( proposal.State, 'Proposal' );
 	ASSERT.equal( proposal.Kind, 'plan' );
@@ -199,27 +201,59 @@ TEST( 'migrating an older folder: Status and Approved become State, consensus th
 } );
 
 
-TEST( 'projects: Default first, then by name; created, written with a new version, found by item, deleted', async function ()
+TEST( 'projects: in the master\'s order, new ones last; created, written with a new version, found by item, moved, deleted', async function ()
 {
 	let store = STORE.Open( temporary_folder() );
 	ASSERT.equal( FS.existsSync( PATH.join( store.Folder, 'projects' ) ), true );
 	await store.Migrate( [ 'Proposal' ] );
 	let zebra = await store.CreateProject( { Name: 'Zebra' } );
 	let alpha = await store.CreateProject( { Name: 'Alpha work' } );
-	ASSERT.match( alpha.Id, /^alpha-work-[0-9a-f]{6}$/ );
+	ASSERT.match( alpha.Id, /^j[0-9a-f]{8}$/ );
+	ASSERT.equal( alpha.Name, 'Alpha work' );
 	ASSERT.equal( alpha.Version, 1 );
 	ASSERT.deepEqual( alpha.Items, [] );
-	ASSERT.deepEqual( ( await store.ListProjects() ).map( function ( p ) { return p.Name; } ), [ 'Default', 'Alpha work', 'Zebra' ] );
+	function names( projects ) { return projects.map( function ( p ) { return p.Name; } ); }
+	ASSERT.deepEqual( names( await store.ListProjects() ), [ 'Default', 'Zebra', 'Alpha work' ] );
+	// the name lives in the master, not in project.json
+	let master = JSON.parse( FS.readFileSync( PATH.join( store.Folder, 'projects.json' ), 'utf8' ) );
+	ASSERT.deepEqual( master.Projects.map( function ( entry ) { return entry.Name; } ), [ 'Default', 'Zebra', 'Alpha work' ] );
+	ASSERT.equal( 'Name' in JSON.parse( FS.readFileSync( PATH.join( store.Folder, 'projects', alpha.Id, 'project.json' ), 'utf8' ) ), false );
 	alpha.Items.push( { Kind: 'plan', Id: 'p1' } );
+	alpha.Name = 'Alpha, renamed';
 	let written = await store.WriteProject( alpha );
 	ASSERT.equal( written.Version, 2 );
 	ASSERT.deepEqual( ( await store.ReadProject( alpha.Id ) ).Items, [ { Kind: 'plan', Id: 'p1' } ] );
+	ASSERT.equal( ( await store.ReadProject( alpha.Id ) ).Name, 'Alpha, renamed' );
 	ASSERT.equal( ( await store.ProjectOf( 'p1' ) ).Id, alpha.Id );
 	ASSERT.equal( await store.ProjectOf( 'p2' ), null );
 	ASSERT.equal( await store.ReadProject( '../proposals' ), null );
+	// moved before Default, then to the end
+	ASSERT.equal( await store.MoveProject( alpha.Id, 'default' ), true );
+	ASSERT.deepEqual( names( await store.ListProjects() ), [ 'Alpha, renamed', 'Default', 'Zebra' ] );
+	ASSERT.equal( await store.MoveProject( alpha.Id, null ), true );
+	ASSERT.deepEqual( names( await store.ListProjects() ), [ 'Default', 'Zebra', 'Alpha, renamed' ] );
+	ASSERT.equal( await store.MoveProject( alpha.Id, 'none' ), false );
+	ASSERT.equal( await store.MoveProject( 'none', null ), false );
 	ASSERT.equal( await store.DeleteProject( zebra.Id ), true );
 	ASSERT.equal( await store.DeleteProject( zebra.Id ), false );
 	ASSERT.equal( await store.ReadProject( zebra.Id ), null );
+	ASSERT.deepEqual( names( await store.ListProjects() ), [ 'Default', 'Alpha, renamed' ] );
+} );
+
+
+TEST( 'an older data folder with no master lists Default first, then by name, with the names its project.json files carry', async function ()
+{
+	let folder = temporary_folder();
+	for ( let project of [ { Id: 'zebra-111111', Name: 'Zebra' }, { Id: 'default', Name: 'Default' }, { Id: 'alpha-222222', Name: 'Alpha' } ] )
+	{
+		FS.mkdirSync( PATH.join( folder, 'projects', project.Id ), { recursive: true } );
+		FS.writeFileSync( PATH.join( folder, 'projects', project.Id, 'project.json' ), JSON.stringify( Object.assign( { Version: 1, Items: [] }, project ) ) );
+	}
+	let store = STORE.Open( folder );
+	ASSERT.deepEqual( ( await store.ListProjects() ).map( function ( p ) { return p.Name; } ), [ 'Default', 'Alpha', 'Zebra' ] );
+	// a new project joins at the end; the master now names them all
+	await store.CreateProject( { Name: 'Beta' } );
+	ASSERT.deepEqual( ( await store.ListProjects() ).map( function ( p ) { return p.Name; } ), [ 'Default', 'Alpha', 'Zebra', 'Beta' ] );
 } );
 
 

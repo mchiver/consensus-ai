@@ -23,10 +23,26 @@
 	--applied-edge: #2fa45a;
 	--detached-edge: #c0392b;
 	--mine-edge: #7c3aed;
+
+	--tree-guide: rgba( 128, 128, 128, 0.35 );
+	--tree-hover: rgba( 128, 128, 128, 0.12 );
+	--tree-selected: rgba( 13, 110, 253, 0.14 );
+	--icon-folder: #b88a2a;
+	--icon-plan: #0d6efd;
+	--icon-document: #6b7380;
+	--icon-zip: #8a4fd8;
 }
 
 [data-bs-theme="dark"]
 {
+	--tree-guide: rgba( 160, 170, 180, 0.3 );
+	--tree-hover: rgba( 160, 170, 180, 0.12 );
+	--tree-selected: rgba( 116, 192, 252, 0.18 );
+	--icon-folder: #dcb67a;
+	--icon-plan: #74c0fc;
+	--icon-document: #9aa4b2;
+	--icon-zip: #b197fc;
+
 	--page-bg: #1b1f24;
 	--panel-bg: #22272e;
 	--border: #373e47;
@@ -175,13 +191,7 @@ html, body
 
 .proposal-item:hover
 {
-	background: rgba( 128, 128, 128, 0.12 );
-}
-
-.proposal-item.open
-{
-	background: rgba( 13, 110, 253, 0.12 );
-	border-left-color: var(--accent);
+	background-color: rgba( 128, 128, 128, 0.12 );
 }
 
 .proposal-title
@@ -213,39 +223,135 @@ html, body
 
 /* --------------------------------------------------------------------- sidebar: the project tree */
 
-.project-head, .folder-head
+/* The VS Code explorer look: one-line rows as wide as the sidebar, an indent per level with a guide line
+   under each folder's chevron, chevrons on folders, and an icon per kind. --depth is the row's level. */
+
+.sidebar
+{
+	--indent: calc( 16px * var(--scale) );
+	--row-start: 8px;
+}
+
+.project-head, .tree-row
 {
 	display: flex;
 	align-items: center;
-	gap: 0.35rem;
-	padding: 0.4rem 0.75rem;
+	gap: 0.3rem;
+	min-height: calc( 1.9rem );
+	padding: 0.1rem 0.5rem 0.1rem var(--row-start);
 	cursor: pointer;
 	user-select: none;
 	white-space: nowrap;
 }
 
+/* An open project's buttons go to a second line rather than squeeze its name away. */
 .project-head
 {
 	font-weight: 600;
 	border-top: 1px solid var(--border);
+	flex-wrap: wrap;
 }
 
-.project-head:hover, .folder-head:hover
+.tree-row
 {
-	background: rgba( 128, 128, 128, 0.12 );
+	padding-left: calc( var(--row-start) + var(--depth) * var(--indent) );
+	background-image: repeating-linear-gradient( to right, transparent 0, transparent calc( var(--indent) / 2 - 0.5px ), var(--tree-guide) calc( var(--indent) / 2 - 0.5px ), var(--tree-guide) calc( var(--indent) / 2 + 0.5px ), transparent calc( var(--indent) / 2 + 0.5px ), transparent var(--indent) );
+	background-position: calc( var(--row-start) + var(--indent) ) 0;
+	background-size: max( 0px, calc( ( var(--depth) - 1 ) * var(--indent) ) ) 100%;
+	background-repeat: no-repeat;
+}
+
+.project-head:hover, .tree-row:hover
+{
+	background-color: var(--tree-hover);
 }
 
 .project.open > .project-head
 {
-	background: rgba( 128, 128, 128, 0.08 );
+	background-color: rgba( 128, 128, 128, 0.08 );
 }
 
-.project-name, .folder-name
+.chevron, .chevron-space
+{
+	flex: none;
+	width: var(--indent);
+	height: var(--indent);
+}
+
+.chevron
+{
+	background-color: var(--muted);
+	-webkit-mask: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 3.5l4.5 4.5L6 12.5' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" ) center / 100% no-repeat;
+	mask: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 3.5l4.5 4.5L6 12.5' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" ) center / 100% no-repeat;
+	transform: rotate( 90deg );
+	transition: transform 0.1s;
+}
+
+.chevron.folded
+{
+	transform: none;
+}
+
+.tree-icon
+{
+	flex: none;
+	width: var(--indent);
+	height: var(--indent);
+	background-color: var(--icon-document);
+	-webkit-mask-position: center;
+	mask-position: center;
+	-webkit-mask-size: 100%;
+	mask-size: 100%;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+}
+
+.tree-icon.icon-folder
+{
+	background-color: var(--icon-folder);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5h4.3l1.5 1.5h7.2v8h-13z' fill='black'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5h4.3l1.5 1.5h7.2v8h-13z' fill='black'/%3E%3C/svg%3E" );
+}
+
+.tree-icon.icon-folder-open
+{
+	background-color: var(--icon-folder);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 12.5v-9h4.3l1.5 1.5h5.2v1.5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M1.5 13l2.3-6h11l-2.3 6z' fill='black'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 12.5v-9h4.3l1.5 1.5h5.2v1.5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M1.5 13l2.3-6h11l-2.3 6z' fill='black'/%3E%3C/svg%3E" );
+}
+
+.tree-icon.icon-plan
+{
+	background-color: var(--icon-plan);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2.5' y='1.5' width='11' height='13' rx='1.5' fill='none' stroke='black' stroke-width='1.2'/%3E%3Cpath d='M4.8 5.2l1 1 1.8-2M4.8 10.2l1 1 1.8-2M9 5.5h2.5M9 10.5h2.5' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2.5' y='1.5' width='11' height='13' rx='1.5' fill='none' stroke='black' stroke-width='1.2'/%3E%3Cpath d='M4.8 5.2l1 1 1.8-2M4.8 10.2l1 1 1.8-2M9 5.5h2.5M9 10.5h2.5' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
+}
+
+.tree-icon.icon-document
+{
+	background-color: var(--icon-document);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3 M5.5 8h5 M5.5 10.5h5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3 M5.5 8h5 M5.5 10.5h5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
+}
+
+.tree-icon.icon-zip
+{
+	background-color: var(--icon-zip);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 4.8l6-3 6 3v6.4l-6 3-6-3z M2 4.8l6 3 6-3 M8 7.8v6.4' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 4.8l6-3 6 3v6.4l-6 3-6-3z M2 4.8l6 3 6-3 M8 7.8v6.4' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
+}
+
+.project-name, .folder-name, .tree-row .proposal-title
 {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	flex: 0 1 auto;
 	min-width: 0;
+}
+
+.tree-row .proposal-title
+{
+	flex: 1 1 auto;
 }
 
 .project-head .count, .folder-head .count
@@ -292,18 +398,13 @@ html, body
 .rename-form
 {
 	flex: 1 1 auto;
+	min-width: 0;
 }
 
 .folder-head.target
 {
-	background: rgba( 13, 110, 253, 0.12 );
-	box-shadow: inset 3px 0 0 var(--accent);
-}
-
-.folder-body
-{
-	margin-left: 1.1rem;
-	border-left: 1px dotted var(--border);
+	background-color: var(--tree-selected);
+	box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .item-state
@@ -315,34 +416,61 @@ html, body
 	align-self: center;
 }
 
-.drop-over
+/* Where a drop lands: a line above or below the row, or an outline for into a folder or a project's root. */
+.sidebar .tree-row.drop-before, .sidebar .project-head.drop-before
+{
+	box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.sidebar .tree-row.drop-after, .sidebar .project-head.drop-after
+{
+	box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.sidebar .tree-row.drop-into, .sidebar .project-head.drop-into
 {
 	outline: 2px dashed var(--accent);
 	outline-offset: -2px;
-	background: rgba( 13, 110, 253, 0.12 );
+	background-color: var(--tree-selected);
 }
 
-.item-head
+/* A plan, document or zip: a link as wide as the sidebar, selected with a full-width highlight. */
+.tree-item
 {
-	display: flex;
+	color: inherit;
+	text-decoration: none;
+	border-left: 0;
+}
+
+.tree-item.open
+{
+	background-color: var(--tree-selected);
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.tree-row .badges
+{
+	flex: none;
+	flex-wrap: nowrap;
+	margin: 0 0 0 auto;
 	align-items: center;
-	gap: 0.3rem;
 }
 
-.item-head .proposal-title
+.tree-row .badge
 {
-	flex: 1 1 auto;
-	min-width: 0;
+	font-size: 0.65rem;
+	padding: 0.2em 0.45em;
 }
 
 .item-buttons
 {
-	visibility: hidden;
+	flex: none;
+	display: none;
 }
 
 .tree-item:hover .item-buttons
 {
-	visibility: visible;
+	display: flex;
 }
 
 .item-buttons .btn
@@ -372,7 +500,6 @@ html, body
 {
 	color: var(--muted);
 	font-style: italic;
-	padding: 0.5rem 0.75rem;
 }
 
 .sidebar-bottom
@@ -399,20 +526,42 @@ html, body
 
 /* --------------------------------------------------------------------- header */
 
+/* Two lines: the title with Read / Edit / Revisions and the threads toggle, then the state with the actions
+   pulled to the right. */
 .header
+{
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	padding: 0.6rem 1.25rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.header-row
 {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 1rem;
-	padding: 0.75rem 1.25rem;
-	border-bottom: 1px solid var(--border);
+	gap: 0.5rem 1rem;
+	flex-wrap: wrap;
+	min-width: 0;
 }
 
 .header .title
 {
 	font-weight: 600;
 	font-size: 1.2rem;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.header-views
+{
+	display: flex;
+	gap: 0.5rem;
+	margin-left: auto;
 }
 
 .state-line
@@ -422,6 +571,11 @@ html, body
 	display: flex;
 	gap: 0.75rem;
 	align-items: center;
+}
+
+.header-buttons
+{
+	margin-left: auto;
 }
 
 .state-line .revision
@@ -438,12 +592,6 @@ html, body
 	padding: 0.1rem 0.4rem;
 	border-radius: 0.25rem;
 	border: 1px solid var(--border);
-	color: var(--muted);
-}
-
-.tree-item.document .proposal-title::before
-{
-	content: "\1F4C4\00A0";
 	color: var(--muted);
 }
 
@@ -787,20 +935,41 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 
 /* --------------------------------------------------------------------- header actions, errors, trash */
 
-.header
-{
-	flex-wrap: wrap;
-}
-
-.header-left
-{
-	min-width: 0;
-}
-
 .header-buttons
 {
 	align-items: center;
 	flex-wrap: wrap;
+}
+
+/* A thread's delete: an × at the end of its first line, confirmed inline. */
+.thread-delete .btn
+{
+	padding: 0 0.3rem;
+	line-height: 1;
+	font-size: 1rem;
+	color: var(--muted);
+	text-decoration: none;
+}
+
+.thread-delete .btn.btn-danger, .thread-delete .btn.btn-outline-secondary
+{
+	font-size: 0.75rem;
+	padding: 0.05rem 0.4rem;
+}
+
+.thread-delete .btn.btn-danger
+{
+	color: #ffffff;
+}
+
+.thread-delete .delete-thread:hover
+{
+	color: var(--detached-edge);
+}
+
+.thread-delete .confirm
+{
+	font-size: 0.8rem;
 }
 
 .confirm
@@ -949,6 +1118,12 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	max-width: 30rem;
 }
 
+.revision-thread.deleted
+{
+	color: var(--muted);
+	cursor: default;
+}
+
 .revision-text
 {
 	flex: 1;
@@ -986,6 +1161,17 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 .edit-preview .markdown
 {
 	max-width: none;
+}
+
+/* The preview hidden: the editor takes the whole width. */
+.edit-body.no-preview
+{
+	grid-template-columns: 1fr 0 0;
+}
+
+.edit-body.no-preview > .splitter, .edit-body.no-preview > .edit-preview
+{
+	display: none;
 }
 
 /* --------------------------------------------------------------------- sidebar: search, waiting, theme */
@@ -1223,11 +1409,6 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	white-space: pre-wrap;
 	word-break: break-word;
 	font-size: 0.85rem;
-}
-
-.tree-item.corpus .proposal-title::before
-{
-	content: "\1F4E6\00A0";
 }
 
 .search-hit.file { border-left-color: var(--muted); }

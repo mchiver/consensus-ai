@@ -605,6 +605,25 @@ function Attach( App, Context )
 	} );
 
 
+	// A project moves in the display order: just before the project Before, or to the end when Before is null.
+	router.post( '/projects/:pid/move', async function ( request, response )
+	{
+		let body = request.body || {};
+		let before = ( typeof body.Before === 'string' && body.Before ) ? body.Before : null;
+		if ( !await store.ReadProject( request.params.pid ) )
+		{
+			return fail( response, 404, 'no such project' );
+		}
+		if ( before !== null && !await store.ReadProject( before ) )
+		{
+			return fail( response, 400, 'Before is not a project' );
+		}
+		await store.MoveProject( request.params.pid, before );
+		events.Send( { Project: request.params.pid, Kind: 'project' } );
+		response.json( { Projects: await present_projects( await store.ListProjects(), request.Participant.Name ) } );
+	} );
+
+
 	router.post( '/projects/:pid/folders', async function ( request, response )
 	{
 		let body = request.body || {};
@@ -853,10 +872,13 @@ function Attach( App, Context )
 	// Items: any node of a tree (a folder, a plan, a document) moved or copied, within a project or into another.
 	// Body = { Project, Parent? }  Parent is a folder of Project; without it, the project's root.
 
+	// Where an item goes: { Project, Parent (a folder's id, or null for the root), Before (the id of the child it
+	// goes just before, or null for the end) }.
 	function where_of( body )
 	{
 		let where = body || {};
-		return { Project: where.Project, Parent: ( where.Parent === undefined ) ? null : where.Parent };
+		let before = ( typeof where.Before === 'string' && where.Before ) ? where.Before : null;
+		return { Project: where.Project, Parent: ( where.Parent === undefined ) ? null : where.Parent, Before: before };
 	}
 
 
@@ -880,10 +902,16 @@ function Attach( App, Context )
 	}
 
 
+	// Move: into a folder or a project's root, at the end or just before a child of it; within a project or
+	// into another.
 	router.post( '/items/:id/move', async function ( request, response )
 	{
 		let id = request.params.id;
 		let where = where_of( request.body );
+		if ( where.Before === id )
+		{
+			return fail( response, 400, 'an item cannot go just before itself' );
+		}
 		let problem = await check_target( where );
 		if ( problem )
 		{
@@ -909,7 +937,7 @@ function Attach( App, Context )
 					return refused( 400, 'a folder cannot go inside itself' );
 				}
 				TREE.Remove( project.Items, id );
-				TREE.Insert( project.Items, where.Parent, found.Node );
+				TREE.Insert( project.Items, where.Parent, found.Node, where.Before );
 			} );
 		}
 		else
@@ -930,7 +958,7 @@ function Attach( App, Context )
 			}
 			result = await change_project( where.Project, null, function ( project )
 			{
-				if ( !TREE.Insert( project.Items, where.Parent, node ) )
+				if ( !TREE.Insert( project.Items, where.Parent, node, where.Before ) )
 				{
 					return refused( 400, 'Parent is not a folder of the project' );
 				}
@@ -1241,6 +1269,41 @@ function Attach( App, Context )
 		}
 		changed( id, 'resolved', result.Id );
 		response.json( { Thread: result } );
+	} );
+
+
+	// Delete: owner only, any thread. The revisions that applied it keep their text and their Thread id.
+	router.delete( '/proposals/:id/threads/:tid', async function ( request, response )
+	{
+		let id = request.params.id;
+		let result = await store.Queue( id, async function ()
+		{
+			let read = await store.ReadProposal( id );
+			if ( !read )
+			{
+				return fail( response, 404, 'no such proposal' );
+			}
+			let can = RULES.CanDeleteThread( request.Participant );
+			if ( !can.Ok )
+			{
+				return fail( response, 403, can.Reason );
+			}
+			let index = read.Threads.findIndex( function ( candidate ) { return candidate.Id === request.params.tid; } );
+			if ( index < 0 )
+			{
+				return fail( response, 404, 'no such thread' );
+			}
+			read.Threads.splice( index, 1 );
+			await store.WriteThreads( id, read.Threads );
+			await store.UpdateProposal( id, {} );
+			return { Id: request.params.tid };
+		} );
+		if ( !result )
+		{
+			return;
+		}
+		changed( id, 'thread-deleted', result.Id );
+		response.json( { Deleted: result.Id } );
 	} );
 
 

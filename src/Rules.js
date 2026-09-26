@@ -190,6 +190,17 @@ function CanApply( Who, Thread )
 }
 
 
+// Only the owner deletes a thread, whatever its status; the revisions that applied it keep their text.
+function CanDeleteThread( Who )
+{
+	if ( !Who || Who.Role !== 'owner' )
+	{
+		return { Ok: false, Reason: 'only the owner deletes a thread' };
+	}
+	return { Ok: true };
+}
+
+
 // A proposal's state: any of the settings' States, by anyone, at any time.
 function CanSetState( State, States )
 {
@@ -272,6 +283,7 @@ module.exports = {
 	StateLine: StateLine,
 	CanResolve: CanResolve,
 	CanApply: CanApply,
+	CanDeleteThread: CanDeleteThread,
 	CanSetState: CanSetState,
 	ReplyEffect: ReplyEffect,
 	ResolveEffect: ResolveEffect,

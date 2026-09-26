@@ -60,7 +60,41 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 
 .factory( 'State', [ 'Client', '$rootScope', function ( Client, $rootScope )
 {
+	const THREADS_HIDDEN_KEY = 'consensus.threads-hidden';
+	const PREVIEW_HIDDEN_KEY = 'consensus.preview-hidden';
+
+
+	// Remembered in this browser only; a blocked or empty storage falls back to the default.
+	function recall( key, fallback )
+	{
+		try
+		{
+			let value = window.localStorage.getItem( key );
+			return ( value === null ) ? fallback : JSON.parse( value );
+		}
+		catch ( error )
+		{
+			return fallback;
+		}
+	}
+
+
+	function remember( key, value )
+	{
+		try
+		{
+			window.localStorage.setItem( key, JSON.stringify( value ) );
+		}
+		catch ( error )
+		{
+			// not remembered; nothing else depends on it
+		}
+	}
+
+
 	let state = {
+		ThreadsHidden: recall( THREADS_HIDDEN_KEY, false ),
+		PreviewHidden: recall( PREVIEW_HIDDEN_KEY, false ),
 		Me: null,
 		Participants: [],
 		States: [],
@@ -203,15 +237,39 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
+	// The threads pane and the edit preview, each shown or hidden, remembered in this browser.
+	function SetThreadsHidden( Hidden )
+	{
+		state.ThreadsHidden = !!Hidden;
+		remember( THREADS_HIDDEN_KEY, state.ThreadsHidden );
+	}
+
+
+	function SetPreviewHidden( Hidden )
+	{
+		state.PreviewHidden = !!Hidden;
+		remember( PREVIEW_HIDDEN_KEY, state.PreviewHidden );
+	}
+
+
+	// Selecting a thread shows the threads pane, so the thread is in view.
 	function Select( ThreadId )
 	{
 		state.Selected = ThreadId;
+		if ( ThreadId && state.ThreadsHidden )
+		{
+			SetThreadsHidden( false );
+		}
 		$rootScope.$broadcast( 'thread-selected', ThreadId );
 	}
 
 
 	function StartCompose( Anchor )
 	{
+		if ( state.ThreadsHidden )
+		{
+			SetThreadsHidden( false );
+		}
 		state.Compose = { Anchor: Anchor || null, Text: '' };
 		state.Reanchoring = null;
 		state.Selected = null;
@@ -271,6 +329,8 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	state.OpenProposal = OpenProposal;
 	state.Reload = Reload;
 	state.SetView = SetView;
+	state.SetThreadsHidden = SetThreadsHidden;
+	state.SetPreviewHidden = SetPreviewHidden;
 	state.Select = Select;
 	state.StartCompose = StartCompose;
 	state.CancelCompose = CancelCompose;

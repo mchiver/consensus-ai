@@ -11,14 +11,16 @@
 </head>
 <body ng-controller="AppController" ng-cloak>
 
-	<!-- One level of a project's tree; folders include it again for their own items. -->
+	<!-- One level of a project's tree; folders include it again for their own items. Depth is the level: 1 at a
+	     project's root, one more in each folder. Every row is one line: chevron, icon, name, then its badges. -->
 	<script type="text/ng-template" id="tree-nodes.html">
 		<div class="tree-node" ng-repeat="node in ( node ? node.Items : project.Items ) track by node.Id" ng-switch="node.Kind">
 			<div ng-switch-when="folder" class="folder" data-id="{{ node.Id }}">
-				<div class="folder-head" ng-class="{ target: IsTarget(node) }" ng-click="PickFolder(project, node)" title="{{ IsTarget(node) ? 'new items go here; click again for the project root' : 'click to put new items here; drag to move' }}" drag-item="node.Id" drop-target="{ Project: project.Id, Parent: node.Id }" on-drop="MoveItem( Id, Target )">
-					<span class="caret" ng-click="ToggleFold(node, $event)">{{ IsFolded(node) ? '&#9656;' : '&#9662;' }}</span>
+				<div class="folder-head tree-row" style="--depth: {{ Depth }}" ng-class="{ target: IsTarget(node) }" ng-click="PickFolder(project, node)" title="{{ IsTarget(node) ? 'new items go here; click again for the project root' : 'click to put new items here; drag to move or reorder' }}" drag-item="node.Id" tree-drop="{ Kind: 'folder', Project: project.Id, Id: node.Id }" on-tree-drop="TreeDrop( Drag, Target, Zone )">
+					<span class="chevron" ng-class="{ folded: IsFolded(node) }" ng-click="ToggleFold(node, $event)"></span>
+					<span class="tree-icon" ng-class="IsFolded(node) ? 'icon-folder' : 'icon-folder-open'"></span>
 					<form class="rename-form" ng-if="IsRenaming(node)" ng-submit="Rename()" ng-click="$event.stopPropagation()">
-						<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" auto-focus>
+						<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
 					</form>
 					<span class="folder-name" ng-if="!IsRenaming(node)">{{ node.Name }}</span>
 					<span class="count">{{ ItemCount(node.Items) }}</span>
@@ -34,32 +36,38 @@
 						<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)">No</button>
 					</span>
 				</div>
-				<div class="folder-body" ng-if="!IsFolded(node)" ng-include="'tree-nodes.html'"></div>
+				<div class="folder-body" ng-if="!IsFolded(node)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
 			</div>
-			<a ng-switch-when="corpus" class="proposal-item tree-item corpus" ng-class="{ open: State.View === 'corpus' && node.Id === State.CorpusId, missing: node.Missing }" ng-href="#/c/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id">
-				<div class="item-head">
-					<div class="proposal-title">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</div>
-					<span class="item-buttons"><span class="btn btn-link btn-sm copy-item" role="button" title="copy: a whole copy of the zip goes where you paste it" ng-click="CopyItem(node, $event)">&#10697;</span></span>
-				</div>
-				<div class="badges"><span class="item-state" title="files in the zip, and how many were indexed">{{ node.Files }} files, {{ node.Indexed }} indexed</span></div>
+			<a ng-switch-when="corpus" class="proposal-item tree-item tree-row corpus" style="--depth: {{ Depth }}" ng-class="{ open: State.View === 'corpus' && node.Id === State.CorpusId, missing: node.Missing }" ng-href="#/c/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id" tree-drop="{ Kind: 'item', Project: project.Id, Id: node.Id }" on-tree-drop="TreeDrop( Drag, Target, Zone )">
+				<span class="chevron-space"></span>
+				<span class="tree-icon icon-zip"></span>
+				<span class="proposal-title">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
+				<span class="badges"><span class="item-state" title="{{ node.Files }} files in the zip, {{ node.Indexed }} indexed">{{ node.Files }} files</span></span>
+				<span class="item-buttons"><span class="btn btn-link btn-sm copy-item" role="button" title="copy: a whole copy of the zip goes where you paste it" ng-click="CopyItem(node, $event)">&#10697;</span></span>
 			</a>
-			<a ng-switch-default class="proposal-item tree-item" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document' }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id">
-				<div class="item-head">
-					<div class="proposal-title">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</div>
-					<span class="item-buttons"><span class="btn btn-link btn-sm copy-item" role="button" title="copy: a whole copy, threads and revisions included, goes where you paste it" ng-click="CopyItem(node, $event)">&#10697;</span></span>
-				</div>
-				<div class="badges">
+			<a ng-switch-default class="proposal-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document' }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id" tree-drop="{ Kind: 'item', Project: project.Id, Id: node.Id }" on-tree-drop="TreeDrop( Drag, Target, Zone )">
+				<span class="chevron-space"></span>
+				<span class="tree-icon" ng-class="node.Kind === 'document' ? 'icon-document' : 'icon-plan'"></span>
+				<form class="rename-form" ng-if="IsRenaming(node)" ng-submit="Rename()" ng-click="$event.preventDefault(); $event.stopPropagation()">
+					<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
+				</form>
+				<span class="proposal-title" ng-if="!IsRenaming(node)">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
+				<span class="badges" ng-if="!IsRenaming(node)">
 					<span class="item-state" title="{{ node.Kind === 'document' ? 'a document: no threads, no state' : 'state' }}">{{ node.Kind === 'document' ? 'document' : node.State }}</span>
 					<span class="badge contested" ng-show="node.Tally.Contested" title="contested">{{ node.Tally.Contested }}</span>
 					<span class="badge mine" ng-show="node.Tally.WaitingOn[State.Me.Name]" title="waiting on you">you {{ node.Tally.WaitingOn[State.Me.Name] }}</span>
 					<span class="badge resolved" ng-show="node.Tally.Resolved" title="resolved, waiting to be applied">{{ node.Tally.Resolved }}</span>
 					<span class="badge applied" ng-show="node.Tally.Applied" title="applied">{{ node.Tally.Applied }}</span>
-				</div>
+				</span>
+				<span class="item-buttons" ng-if="!IsRenaming(node) && !node.Missing">
+					<span class="btn btn-link btn-sm rename-item" role="button" title="rename" ng-click="StartRename('proposal', project, node, $event)">&#9998;</span>
+					<span class="btn btn-link btn-sm copy-item" role="button" title="copy: a whole copy, threads and revisions included, goes where you paste it" ng-click="CopyItem(node, $event)">&#10697;</span>
+				</span>
 			</a>
 		</div>
 	</script>
 
-	<div class="layout" ng-class="{ 'no-threads': State.Open.Proposal.Kind === 'document' || State.View === 'corpus' }">
+	<div class="layout" ng-class="{ 'no-threads': State.Open.Proposal.Kind === 'document' || State.View === 'corpus' || State.ThreadsHidden }">
 
 		<!-- ============================================================= -->
 		<aside class="sidebar" ng-controller="SidebarController">
@@ -83,10 +91,10 @@
 
 			<div class="projects">
 				<div class="project" ng-repeat="project in State.Projects track by project.Id" ng-class="{ open: IsOpen(project) }" data-project="{{ project.Id }}">
-					<div class="project-head" ng-click="ToggleProject(project)" title="{{ IsOpen(project) ? 'close' : 'open' }} this project; drop an item here to move it to the root" drop-target="{ Project: project.Id, Parent: null }" on-drop="MoveItem( Id, Target )">
-						<span class="caret">{{ IsOpen(project) ? '&#9662;' : '&#9656;' }}</span>
+					<div class="project-head" ng-click="ToggleProject(project)" title="{{ IsOpen(project) ? 'close' : 'open' }} this project; drag to reorder the projects; drop an item here to move it to the root" drag-project="project.Id" tree-drop="{ Kind: 'project', Project: project.Id, Id: project.Id }" on-tree-drop="TreeDrop( Drag, Target, Zone )">
+						<span class="chevron" ng-class="{ folded: !IsOpen(project) }"></span>
 						<form class="rename-form" ng-if="IsRenaming(project)" ng-submit="Rename()" ng-click="$event.stopPropagation()">
-							<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" auto-focus>
+							<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
 						</form>
 						<span class="project-name" ng-if="!IsRenaming(project)">{{ project.Name }}</span>
 						<span class="count">{{ ItemCount(project.Items) }}</span>
@@ -105,7 +113,7 @@
 							<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)">No</button>
 						</span>
 					</div>
-					<div class="project-body" ng-if="IsOpen(project)">
+					<div class="project-body" ng-if="IsOpen(project)" ng-init="Depth = 1">
 						<form class="new-proposal" ng-if="Creating.Project === project.Id" ng-submit="Create()">
 							<input class="form-control form-control-sm" type="text" id="create-name" placeholder="{{ CreatePlaceholder() }}" ng-model="Creating.Name" auto-focus>
 							<div class="new-proposal-buttons">
@@ -153,30 +161,35 @@
 		<!-- ============================================================= -->
 		<main class="main">
 			<header class="header" ng-controller="HeaderController">
-				<div class="header-left" ng-show="State.Open">
-					<div class="title">{{ State.Open.Proposal.Title }}</div>
+				<div class="header-row">
+					<div class="title" ng-show="State.Open">{{ State.Open.Proposal.Title }}</div>
+					<div class="title muted" ng-hide="State.Open">{{ State.View === 'waiting' ? 'Waiting on you' : ( State.View === 'search' ? 'Search' : ( State.View === 'corpus' ? 'Corpus' : 'Consensus' ) ) }}</div>
+					<div class="header-views" ng-show="State.Open">
+						<div class="btn-group" role="group">
+							<button class="btn btn-sm" id="view-read" ng-class="State.View === 'read' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('read')">Read</button>
+							<button class="btn btn-sm" id="view-edit" ng-class="State.View === 'edit' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('edit')">Edit</button>
+							<button class="btn btn-sm" id="view-revisions" ng-class="State.View === 'revisions' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('revisions')">Revisions</button>
+						</div>
+						<button class="btn btn-sm" id="threads-toggle" ng-show="HasThreads()" ng-class="State.ThreadsHidden ? 'btn-outline-secondary' : 'btn-secondary'" ng-click="ToggleThreads()" title="{{ State.ThreadsHidden ? 'show' : 'hide' }} the threads">Threads</button>
+					</div>
+				</div>
+				<div class="header-row" ng-show="State.Open">
 					<div class="state-line">
 						<span class="document-badge" id="document-badge" ng-show="State.Open.Proposal.Kind === 'document'">Document</span>
 						<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="State.Open.Proposal.Kind !== 'document'" title="the proposal's state: anyone can change it" ng-model="PickedState" ng-change="SetState()" ng-disabled="Busy" ng-options="name for name in StateOptions()"></select>
 						<span id="state-line">{{ State.Open.Proposal.StateLine }}</span>
 						<span class="revision" id="revision">revision {{ State.Open.Proposal.Revision }}</span>
 					</div>
-				</div>
-				<div class="title muted" ng-hide="State.Open">{{ State.View === 'waiting' ? 'Waiting on you' : ( State.View === 'search' ? 'Search' : ( State.View === 'corpus' ? 'Corpus' : 'Consensus' ) ) }}</div>
-				<div class="header-buttons" ng-show="State.Open">
-					<div class="btn-group" role="group">
-						<button class="btn btn-sm" id="view-read" ng-class="State.View === 'read' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('read')">Read</button>
-						<button class="btn btn-sm" id="view-edit" ng-class="State.View === 'edit' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('edit')">Edit</button>
-						<button class="btn btn-sm" id="view-revisions" ng-class="State.View === 'revisions' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('revisions')">Revisions</button>
+					<div class="header-buttons">
+						<button class="btn btn-sm btn-outline-secondary" ng-click="CommentOnWhole()" ng-show="State.View === 'read' && State.Open.Proposal.Kind !== 'document'">Comment on the whole document</button>
+						<button class="btn btn-sm btn-primary" id="send-button" ng-show="State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="!State.Open.Llm.Waiting || State.Open.Llm.Running || Busy" ng-click="Send()" title="{{ SendHint() }}">{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Send to LLM (' + State.Open.Llm.Waiting + ')' }}</button>
+						<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete" ng-click="ConfirmingDelete = true">Delete</button>
+						<span class="confirm" ng-show="ConfirmingDelete">
+							to the trash?
+							<button class="btn btn-sm btn-danger" ng-click="Delete()" ng-disabled="Busy">Yes</button>
+							<button class="btn btn-sm btn-outline-secondary" ng-click="ConfirmingDelete = false">No</button>
+						</span>
 					</div>
-					<button class="btn btn-sm btn-outline-secondary" ng-click="CommentOnWhole()" ng-show="State.View === 'read' && State.Open.Proposal.Kind !== 'document'">Comment on the whole document</button>
-					<button class="btn btn-sm btn-primary" id="send-button" ng-show="State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="!State.Open.Llm.Waiting || State.Open.Llm.Running || Busy" ng-click="Send()" title="{{ SendHint() }}">{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Send to LLM (' + State.Open.Llm.Waiting + ')' }}</button>
-					<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete" ng-click="ConfirmingDelete = true">Delete</button>
-					<span class="confirm" ng-show="ConfirmingDelete">
-						to the trash?
-						<button class="btn btn-sm btn-danger" ng-click="Delete()" ng-disabled="Busy">Yes</button>
-						<button class="btn btn-sm btn-outline-secondary" ng-click="ConfirmingDelete = false">No</button>
-					</span>
 				</div>
 			</header>
 
@@ -203,11 +216,12 @@
 					<span class="alert alert-warning py-1 px-2 m-0" ng-show="Stale">The text changed on the server since you started editing. Copy what you need, then discard and edit again.</span>
 					<span class="muted" ng-show="!Stale">Editing revision {{ Base }}. Ctrl+S saves.</span>
 					<span class="edit-buttons">
+						<button class="btn btn-sm" id="preview-toggle" ng-class="State.PreviewHidden ? 'btn-outline-secondary' : 'btn-secondary'" ng-click="TogglePreview()" title="{{ State.PreviewHidden ? 'show' : 'hide' }} the preview">Preview</button>
 						<button class="btn btn-sm btn-primary" id="save-button" ng-click="Save()" ng-disabled="!Dirty || Stale || Busy">Save</button>
 						<button class="btn btn-sm btn-outline-secondary" ng-click="Discard()">{{ Dirty ? 'Discard' : 'Close' }}</button>
 					</span>
 				</div>
-				<div class="edit-body">
+				<div class="edit-body" ng-class="{ 'no-preview': State.PreviewHidden }">
 					<div class="editor" id="editor"></div>
 					<div class="splitter" data-splitter="preview"></div>
 					<div class="edit-preview"><article class="markdown" id="edit-preview"></article></div>
@@ -221,7 +235,7 @@
 						<span class="revision-reason" ng-class="revision.Reason">{{ revision.Reason }}</span>
 						<span class="revision-by">{{ revision.By | display }}</span>
 						<span class="revision-at">{{ revision.At | when }}</span>
-						<span class="revision-thread" ng-show="revision.Thread" ng-click="OpenThread(revision, $event)" title="the thread it applied">thread &ldquo;{{ ThreadWords(revision.Thread) }}&rdquo;</span>
+						<span class="revision-thread" ng-show="revision.Thread" ng-class="{ deleted: !ThreadExists(revision.Thread) }" ng-click="OpenThread(revision, $event)" title="{{ ThreadExists(revision.Thread) ? 'the thread it applied' : 'the thread it applied was deleted' }}">{{ ThreadLabel(revision.Thread) }}</span>
 					</div>
 				</div>
 				<div class="revision-text">
@@ -322,6 +336,14 @@
 					<span class="detached-badge" ng-show="thread.Detached">detached</span>
 					<span class="turn" ng-show="thread.Turn.length">waiting on {{ thread.Turn.join(', ') }}</span>
 					<span class="turn none" ng-hide="thread.Turn.length">nothing to do</span>
+					<span class="thread-delete" ng-show="CanDelete()">
+						<button class="btn btn-link btn-sm delete-thread" ng-hide="Deleting === thread.Id" title="delete this thread" ng-click="StartDelete(thread, $event)">&times;</button>
+						<span class="confirm" ng-show="Deleting === thread.Id">
+							delete?
+							<button class="btn btn-sm btn-danger confirm-delete-thread" ng-click="Delete(thread, $event)" ng-disabled="Busy">Yes</button>
+							<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)">No</button>
+						</span>
+					</span>
 				</div>
 				<div class="thread-anchor" ng-show="thread.Anchor" ng-click="ScrollToAnchor(thread, $event)" title="show in the text">&ldquo;{{ thread.Anchor.Text }}&rdquo;</div>
 				<div class="thread-anchor whole" ng-hide="thread.Anchor">the whole document</div>

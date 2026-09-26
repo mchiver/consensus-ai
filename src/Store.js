@@ -10,9 +10,13 @@
 //   <folder>/proposals/<id>/threads.json      [ thread ]
 //   <folder>/proposals/<id>/revisions/0001.md, 0001.json
 //   <folder>/proposals/<id>/index.json        search chunks
-//   <folder>/projects/<id>/project.json       { Id, Name, Created, Updated, Version, Items: [ node ] } (see Tree.js)
+//   <folder>/projects.json                    { Projects: [ { Id, Name } ] }  every project's name, in display order
+//   <folder>/projects/<id>/project.json       { Id, Created, Updated, Version, Items: [ node ] } (see Tree.js)
 //   <folder>/corpora/<id>/corpus.json, corpus.zip, index.json    an uploaded zip, its files and search chunks
 //   <folder>/trash/<id>/                      a deleted proposal or corpus, moved whole
+//
+// Ids are a kind letter and 8 hex digits: p… a plan or document, z… a corpus, j… a project (the Default
+// project is 'default'). Older ids carry a slug of the title; bin/consensus.js migrate-ids converts them.
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -21,6 +25,8 @@ const TREE = require( './Tree.js' );
 
 const SETTINGS_FILE = 'consensus.json';
 const USAGE_FILE = 'usage.json';
+const MASTER_FILE = 'projects.json';
+const MASTER_QUEUE = 'projects.json';
 const PROPOSALS_FOLDER = 'proposals';
 const TRASH_FOLDER = 'trash';
 const REVISIONS_FOLDER = 'revisions';
@@ -29,6 +35,25 @@ const CORPORA_FOLDER = 'corpora';
 const DEFAULT_PROJECT = 'default';
 const RENAME_ATTEMPTS = 10;
 const RENAME_DELAY_MS = 20;
+const PROPOSAL_LETTER = 'p';
+const CORPUS_LETTER = 'z';
+const PROJECT_LETTER = 'j';
+
+
+//---------------------------------------------------------------------
+// Ids: a kind letter and 8 hex digits.
+
+function NewId( Letter )
+{
+	return Letter + CRYPTO.randomBytes( 4 ).toString( 'hex' );
+}
+
+
+// IsNewId( Id, Letter ): the id already has the form NewId gives.
+function IsNewId( Id, Letter )
+{
+	return new RegExp( '^' + Letter + '[0-9a-f]{8}$' ).test( String( Id ) );
+}
 
 
 //---------------------------------------------------------------------
@@ -223,7 +248,7 @@ function Open( Folder )
 	// Parameters: { Title, Text, By, Kind: 'plan' | 'document', State }  A document has no State.
 	async function CreateProposal( Parameters )
 	{
-		let id = await unique_id( Parameters.Title );
+		let id = unique_id( PROPOSAL_LETTER );
 		let now = new Date().toISOString();
 		let kind = Parameters.Kind || 'plan';
 		let proposal = {
@@ -244,18 +269,14 @@ function Open( Folder )
 	}
 
 
-	async function unique_id( title )
+	// A new id: Letter and 8 hex digits, used by nothing in the data folder.
+	function unique_id( Letter )
 	{
-		let slug = String( title || 'proposal' ).toLowerCase().replace( /[^a-z0-9]+/g, '-' ).replace( /^-+|-+$/g, '' ).slice( 0, 48 );
-		if ( !slug )
-		{
-			slug = 'proposal';
-		}
 		while ( true )
 		{
-			let id = slug + '-' + CRYPTO.randomBytes( 3 ).toString( 'hex' );
-			let exists = FS.existsSync( proposal_folder( id ) ) || FS.existsSync( PATH.join( folder, TRASH_FOLDER, id ) );
-			if ( !exists )
+			let id = NewId( Letter );
+			let taken = FS.existsSync( proposal_folder( id ) ) || FS.existsSync( corpus_folder( id ) ) || FS.existsSync( PATH.join( folder, TRASH_FOLDER, id ) ) || FS.existsSync( PATH.dirname( project_file( id ) ) );
+			if ( !taken )
 			{
 				return id;
 			}
@@ -363,7 +384,8 @@ function Open( Folder )
 
 
 	//-----------------------------------------------------------------
-	// Projects: each is one project.json holding its tree. The Default project always exists.
+	// Projects: each is one project.json holding its tree; the master projects.json holds every project's name,
+	// in display order. The Default project always exists. A project comes back with its Name from the master.
 
 	function project_file( id )
 	{
@@ -371,20 +393,47 @@ function Open( Folder )
 	}
 
 
-	async function ListProjects()
+	function master_file()
 	{
-		let ids = await FS.promises.readdir( PATH.join( folder, PROJECTS_FOLDER ) );
-		let projects = [];
-		for ( let id of ids )
+		return PATH.join( folder, MASTER_FILE );
+	}
+
+
+	// The project ids that have a project.json.
+	async function project_ids()
+	{
+		let ids = [];
+		for ( let id of await FS.promises.readdir( PATH.join( folder, PROJECTS_FOLDER ) ) )
 		{
-			let project = await read_json_or_null( project_file( id ) );
-			if ( project )
+			if ( FS.existsSync( project_file( id ) ) )
 			{
-				projects.push( project );
+				ids.push( id );
 			}
 		}
-		projects.sort( by_default_then_name );
-		return projects;
+		return ids;
+	}
+
+
+	// The master: { Projects: [ { Id, Name } ] }, every project once, in display order. A project the master
+	// does not name yet (an older data folder, or one put there by hand) joins at the end, Default first and
+	// the rest by name, with the Name its project.json still carries. An entry whose project.json is missing
+	// stays (a project being created writes the master first); ListProjects leaves it out.
+	async function read_master()
+	{
+		let master = await read_json_or_null( master_file() );
+		let listed = ( master && Array.isArray( master.Projects ) ) ? master.Projects : [];
+		let ids = await project_ids();
+		let unlisted = [];
+		for ( let id of ids )
+		{
+			if ( !listed.some( function ( entry ) { return entry.Id === id; } ) )
+			{
+				let project = await read_json_or_null( project_file( id ) );
+				unlisted.push( { Id: id, Name: ( project && project.Name ) || id } );
+			}
+		}
+		unlisted.sort( by_default_then_name );
+		return { Projects: listed.concat( unlisted ) };
 	}
 
 
@@ -398,52 +447,107 @@ function Open( Folder )
 	}
 
 
+	// Change( master ) edits the master in place; the master's writes run one after another.
+	function change_master( Change )
+	{
+		return Queue( MASTER_QUEUE, async function ()
+		{
+			let master = await read_master();
+			let result = Change( master );
+			await write_json( master_file(), master );
+			return result;
+		} );
+	}
+
+
+	function with_name( project, master )
+	{
+		let entry = master.Projects.find( function ( candidate ) { return candidate.Id === project.Id; } );
+		let name = entry ? entry.Name : ( project.Name || project.Id );
+		return Object.assign( {}, project, { Name: name } );
+	}
+
+
+	async function ListProjects()
+	{
+		let master = await read_master();
+		let projects = [];
+		for ( let entry of master.Projects )
+		{
+			let project = await read_json_or_null( project_file( entry.Id ) );
+			if ( project )
+			{
+				projects.push( with_name( project, master ) );
+			}
+		}
+		return projects;
+	}
+
+
 	async function ReadProject( Id )
 	{
 		if ( !/^[a-z0-9-]+$/.test( String( Id ) ) )
 		{
 			return null;
 		}
-		return await read_json_or_null( project_file( Id ) );
+		let project = await read_json_or_null( project_file( Id ) );
+		if ( !project )
+		{
+			return null;
+		}
+		return with_name( project, await read_master() );
 	}
 
 
-	// Parameters: { Name, Id? }  Id only for the Default project.
+	// Parameters: { Name, Id? }  Id only for the Default project. A new project goes to the end of the order.
 	async function CreateProject( Parameters )
 	{
-		let id = Parameters.Id || await unique_project_id( Parameters.Name );
+		let id = Parameters.Id || unique_id( PROJECT_LETTER );
 		let now = new Date().toISOString();
-		let project = { Id: id, Name: Parameters.Name, Created: now, Updated: now, Version: 1, Items: [] };
+		let project = { Id: id, Created: now, Updated: now, Version: 1, Items: [] };
+		// The master first: were the folder there first, the master would count it among the unnamed ones.
+		await change_master( function ( master )
+		{
+			let entry = master.Projects.find( function ( candidate ) { return candidate.Id === id; } );
+			if ( entry )
+			{
+				entry.Name = Parameters.Name;
+			}
+			else
+			{
+				master.Projects.push( { Id: id, Name: Parameters.Name } );
+			}
+		} );
 		await FS.promises.mkdir( PATH.dirname( project_file( id ) ), { recursive: true } );
 		await write_json( project_file( id ), project );
-		return project;
+		return Object.assign( {}, project, { Name: Parameters.Name } );
 	}
 
 
-	async function unique_project_id( name )
-	{
-		let slug = String( name || 'project' ).toLowerCase().replace( /[^a-z0-9]+/g, '-' ).replace( /^-+|-+$/g, '' ).slice( 0, 48 );
-		if ( !slug )
-		{
-			slug = 'project';
-		}
-		while ( true )
-		{
-			let id = slug + '-' + CRYPTO.randomBytes( 3 ).toString( 'hex' );
-			if ( !FS.existsSync( PATH.dirname( project_file( id ) ) ) )
-			{
-				return id;
-			}
-		}
-	}
-
-
-	// Writes a changed project: its Version goes up by one and Updated is now. Returns the project as written.
+	// Writes a changed project: its Version goes up by one and Updated is now. Its tree goes to its project.json,
+	// its Name to the master. Returns the project as written, with its Name.
 	async function WriteProject( Project )
 	{
 		Project.Version = ( Project.Version || 0 ) + 1;
 		Project.Updated = new Date().toISOString();
-		await write_json( project_file( Project.Id ), Project );
+		let stored = Object.assign( {}, Project );
+		delete stored.Name;
+		await write_json( project_file( Project.Id ), stored );
+		if ( Project.Name )
+		{
+			await change_master( function ( master )
+			{
+				let entry = master.Projects.find( function ( candidate ) { return candidate.Id === Project.Id; } );
+				if ( entry )
+				{
+					entry.Name = Project.Name;
+				}
+				else
+				{
+					master.Projects.push( { Id: Project.Id, Name: Project.Name } );
+				}
+			} );
+		}
 		return Project;
 	}
 
@@ -456,7 +560,34 @@ function Open( Folder )
 			return false;
 		}
 		await FS.promises.rm( project_folder, { recursive: true } );
+		await change_master( function ( master )
+		{
+			master.Projects = master.Projects.filter( function ( entry ) { return entry.Id !== Id; } );
+		} );
 		return true;
+	}
+
+
+	// Moves a project in the display order: before the project Before, or to the end when Before is null.
+	// Returns false when either is not a project.
+	async function MoveProject( Id, Before )
+	{
+		return await change_master( function ( master )
+		{
+			let index = master.Projects.findIndex( function ( entry ) { return entry.Id === Id; } );
+			if ( index < 0 || Before === Id )
+			{
+				return index >= 0;
+			}
+			if ( Before !== null && !master.Projects.some( function ( entry ) { return entry.Id === Before; } ) )
+			{
+				return false;
+			}
+			let moved = master.Projects.splice( index, 1 )[ 0 ];
+			let at = ( Before === null ) ? master.Projects.length : master.Projects.findIndex( function ( entry ) { return entry.Id === Before; } );
+			master.Projects.splice( at, 0, moved );
+			return true;
+		} );
 	}
 
 
@@ -531,7 +662,7 @@ function Open( Folder )
 	// Parameters: { Name, Zip, Files }
 	async function CreateCorpus( Parameters )
 	{
-		let id = await unique_corpus_id( Parameters.Name );
+		let id = unique_id( CORPUS_LETTER );
 		let now = new Date().toISOString();
 		let corpus = { Id: id, Kind: 'corpus', Name: Parameters.Name, Created: now, Updated: now, Version: 1, Files: Parameters.Files };
 		await FS.promises.mkdir( corpus_folder( id ), { recursive: true } );
@@ -593,7 +724,7 @@ function Open( Folder )
 			return null;
 		}
 		let name = source.Name + ' (copy)';
-		let id = await unique_corpus_id( name );
+		let id = unique_id( CORPUS_LETTER );
 		await FS.promises.cp( corpus_folder( Id ), corpus_folder( id ), { recursive: true } );
 		await FS.promises.rm( PATH.join( corpus_folder( id ), 'index.json' ), { force: true } );
 		let now = new Date().toISOString();
@@ -615,21 +746,6 @@ function Open( Folder )
 	}
 
 
-	async function unique_corpus_id( name )
-	{
-		let slug = String( name || 'corpus' ).toLowerCase().replace( /[^a-z0-9]+/g, '-' ).replace( /^-+|-+$/g, '' ).slice( 0, 48 ) || 'corpus';
-		while ( true )
-		{
-			let id = slug + '-' + CRYPTO.randomBytes( 3 ).toString( 'hex' );
-			let taken = FS.existsSync( corpus_folder( id ) ) || FS.existsSync( proposal_folder( id ) ) || FS.existsSync( PATH.join( folder, TRASH_FOLDER, id ) );
-			if ( !taken )
-			{
-				return id;
-			}
-		}
-	}
-
-
 	// A copy of a proposal, whole: text, threads and revisions, under a new id, titled "<title> (copy)".
 	// Its index is rebuilt by the caller (the chunks carry the proposal's id). Returns the new proposal, or null.
 	async function CopyProposal( Id )
@@ -640,7 +756,7 @@ function Open( Folder )
 			return null;
 		}
 		let title = source.Title + ' (copy)';
-		let id = await unique_id( title );
+		let id = unique_id( PROPOSAL_LETTER );
 		await FS.promises.cp( proposal_folder( Id ), proposal_folder( id ), { recursive: true } );
 		await FS.promises.rm( PATH.join( proposal_folder( id ), 'index.json' ), { force: true } );
 		let now = new Date().toISOString();
@@ -842,6 +958,7 @@ function Open( Folder )
 		CreateProject: CreateProject,
 		WriteProject: WriteProject,
 		DeleteProject: DeleteProject,
+		MoveProject: MoveProject,
 		ProjectOf: ProjectOf,
 		CopyProposal: CopyProposal,
 		ListCorpora: ListCorpora,
@@ -864,4 +981,10 @@ function Open( Folder )
 module.exports = {
 	Open: Open,
 	DEFAULT_PROJECT: DEFAULT_PROJECT,
+	PROPOSAL_LETTER: PROPOSAL_LETTER,
+	CORPUS_LETTER: CORPUS_LETTER,
+	PROJECT_LETTER: PROJECT_LETTER,
+	MASTER_FILE: MASTER_FILE,
+	NewId: NewId,
+	IsNewId: IsNewId,
 };

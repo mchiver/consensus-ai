@@ -96,6 +96,17 @@ angular.module( 'Consensus' ).controller( 'EditController', [ '$scope', '$timeou
 	};
 
 
+	// The preview beside the editor, shown or hidden; shown again, it catches up with the text.
+	$scope.TogglePreview = function ()
+	{
+		State.SetPreviewHidden( !State.PreviewHidden );
+		if ( !State.PreviewHidden )
+		{
+			render_preview( Editor.Get() );
+		}
+	};
+
+
 	Editor.OnSave( function ()
 	{
 		$scope.Save();

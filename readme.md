@@ -37,11 +37,18 @@ opening an item opens its project. A project holds, in folders of any depth:
 - **Folders**, to organize any of these.
 
 The **Default** project is created at first start and never deleted; ad-hoc items live there. Every item
-belongs to exactly one project. Click a folder to make it where new items go. Drag an item onto a folder or
-a project's heading to move it; copy it (⧉, or Ctrl+C on the open item) and paste it (a paste button, or
+belongs to exactly one project. Click a folder to make it where new items go. Everything reorders by drag
+and drop: drop an item on the top or bottom edge of a row to put it just before or after that row, on the
+middle of a folder to move it inside, or on a project's heading to move it to that project's root; drop a
+project's heading on another's to reorder the projects. Rename a plan or document with ✎ on its row (only
+its title changes); copy it (⧉, or Ctrl+C on the open item) and paste it (a paste button, or
 Ctrl+V into the open project) for a whole copy under a new id: a plan's text, threads and revisions, a
 folder's whole contents. A project or folder is deleted only when empty. Trash is at the bottom of the
 sidebar.
+
+The heading's **Threads** button hides or shows the threads pane, and the editor's **Preview** button its
+preview; each is remembered in the browser. The owner deletes a thread with the × on its first line; a
+revision that applied a deleted thread keeps its text and shows "(deleted thread)".
 
 ## The data folder
 
@@ -49,7 +56,8 @@ sidebar.
 
 	consensus.json                   settings: Port, Participants, States, Corpus, optional Embedding
 	usage.json                       the LLM's tokens per day and model
-	projects/<id>/project.json       { Id, Name, Created, Updated, Version, Items: [ node ] }
+	projects.json                    { Projects: [ { Id, Name } ] }: every project's name, in display order
+	projects/<id>/project.json       { Id, Created, Updated, Version, Items: [ node ] }
 	proposals/<id>/proposal.json     { Id, Title, Kind: plan | document, State, Created, Updated, Revision }
 	proposals/<id>/proposal.md       the text at revision Revision
 	proposals/<id>/threads.json      the threads
@@ -68,6 +76,17 @@ At every start the folder is brought up to date and each change is logged: older
 (an approved one becomes Plan) and a `Kind`, a thread's old `consensus` status becomes `resolved`, missing
 settings are written in with their defaults, a proposal or corpus no project holds goes to the root of
 Default, and a tree entry whose item is gone is dropped.
+
+Ids are a kind letter and 8 hex digits: `p…` for a plan or document, `z…` for a corpus, `j…` for a project
+(Default is `default`). A data folder from before that carries ids made from titles; convert it once, with
+the server stopped:
+
+	node bin/consensus.js migrate-ids [--data <folder>]
+
+It first copies the whole folder to `<folder>-backup-<YYYY-MM-DD-HH-mm-ss>` beside it, then renames every
+proposal, corpus and project with the places that name it (trees, search chunks), and moves each project's
+name into `projects.json`. It refuses to run while a server answers on the settings' port. Links to the old
+ids stop working.
 
 ## Settings
 

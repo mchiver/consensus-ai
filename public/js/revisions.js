@@ -48,24 +48,41 @@ angular.module( 'Consensus' ).controller( 'RevisionsController', [ '$scope', 'St
 	};
 
 
-	$scope.ThreadWords = function ( thread_id )
+	function thread_of( thread_id )
 	{
 		if ( !State.Open )
 		{
-			return thread_id;
+			return null;
 		}
-		let thread = State.Open.Threads.find( function ( candidate ) { return candidate.Id === thread_id; } );
+		return State.Open.Threads.find( function ( candidate ) { return candidate.Id === thread_id; } ) || null;
+	}
+
+
+	// The thread a revision applied, in words; a deleted thread is named as such.
+	$scope.ThreadLabel = function ( thread_id )
+	{
+		let thread = thread_of( thread_id );
 		if ( !thread )
 		{
-			return thread_id;
+			return '(deleted thread)';
 		}
-		return thread.Anchor ? thread.Anchor.Text : 'the whole document';
+		return 'thread “' + ( thread.Anchor ? thread.Anchor.Text : 'the whole document' ) + '”';
+	};
+
+
+	$scope.ThreadExists = function ( thread_id )
+	{
+		return !!thread_of( thread_id );
 	};
 
 
 	$scope.OpenThread = function ( revision, event )
 	{
 		event.stopPropagation();
+		if ( !thread_of( revision.Thread ) )
+		{
+			return;
+		}
 		State.SetView( 'read' );
 		State.Select( revision.Thread );
 	};

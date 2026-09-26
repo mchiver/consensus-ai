@@ -85,16 +85,25 @@ function Children( Items, Parent )
 
 
 //---------------------------------------------------------------------
-// Insert: puts Node at the end of Parent's children. Returns false when Parent is not the root or a folder.
+// Insert: puts Node among Parent's children, just before the child Before, or at the end when Before is not
+// given or is not one of them. Returns false when Parent is not the root or a folder.
 
-function Insert( Items, Parent, Node )
+function Insert( Items, Parent, Node, Before )
 {
 	let children = Children( Items, Parent );
 	if ( !children )
 	{
 		return false;
 	}
-	children.push( Node );
+	let index = Before ? children.findIndex( function ( child ) { return child.Id === Before; } ) : -1;
+	if ( index < 0 )
+	{
+		children.push( Node );
+	}
+	else
+	{
+		children.splice( index, 0, Node );
+	}
 	return true;
 }
 

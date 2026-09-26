@@ -86,6 +86,15 @@ TEST( 'any participant applies, but only a resolved, unapplied thread', function
 } );
 
 
+TEST( 'only the owner deletes a thread', function ()
+{
+	ASSERT.equal( RULES.CanDeleteThread( OWNER ).Ok, true );
+	ASSERT.equal( RULES.CanDeleteThread( LLM ).Ok, false );
+	ASSERT.equal( RULES.CanDeleteThread( MEMBER ).Ok, false );
+	ASSERT.equal( RULES.CanDeleteThread( null ).Ok, false );
+} );
+
+
 TEST( 'a reopened, applied thread that is resolved again waits to be applied again', function ()
 {
 	let again = thread( { Status: 'resolved', Applied: { By: 'llm', At: '2026-09-24T01:00:00Z', Revision: 2, Outcome: 'first' }, Resolved: { By: 'user', At: '2026-09-24T02:00:00Z' } } );
