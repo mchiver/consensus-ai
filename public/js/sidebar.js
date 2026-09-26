@@ -219,6 +219,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 		}
 		$scope.Renaming = null;
 		$scope.Deleting = null;
+		$scope.Linking = null;
 		$scope.Creating = { Kind: kind, Project: project ? project.Id : null, Parent: project ? parent_in( project ) : null, Name: '' };
 	};
 
@@ -314,6 +315,93 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 		$scope.Uploading = false;
 		if ( answer )
 		{
+			await State.LoadList();
+			$window.location.hash = '#/c/' + encodeURIComponent( answer.Corpus.Id );
+		}
+		$scope.$applyAsync();
+	};
+
+
+	//-----------------------------------------------------------------
+	// Linking: a corpus a context server offers becomes an item of the project (the picked folder, or its root).
+	// Linking = { Project, Parent, Servers, Choices: [ { Label, Server, Corpus } ], Picked, Loaded }
+
+	$scope.Linking = null;
+
+	function choices_of( servers )
+	{
+		let choices = [];
+		for ( let server of servers )
+		{
+			for ( let corpus of server.Corpus )
+			{
+				choices.push( { Label: server.Name + ' / ' + corpus.Name + ' (' + corpus.Files + ' files)', Server: server.Name, Corpus: corpus.Name } );
+			}
+		}
+		return choices;
+	}
+
+
+	function show_servers( servers )
+	{
+		if ( !$scope.Linking )
+		{
+			return;
+		}
+		$scope.Linking.Servers = servers;
+		$scope.Linking.Choices = choices_of( servers );
+		$scope.Linking.Picked = $scope.Linking.Choices[ 0 ] || null;
+		$scope.Linking.Loaded = true;
+	}
+
+
+	$scope.StartLink = async function ( project, event )
+	{
+		event.stopPropagation();
+		$scope.Creating = null;
+		$scope.Renaming = null;
+		$scope.Deleting = null;
+		$scope.Linking = { Project: project.Id, Parent: parent_in( project ), Servers: [], Choices: [], Picked: null, Loaded: false };
+		let answer = await State.Act( function () { return Client.Get( '/api/context-servers' ); } );
+		if ( answer )
+		{
+			show_servers( answer.Servers );
+		}
+		$scope.$applyAsync();
+	};
+
+
+	$scope.RefreshServers = async function ()
+	{
+		let answer = await State.Act( function () { return Client.Post( '/api/context-servers/refresh' ); } );
+		if ( answer )
+		{
+			show_servers( answer.Servers );
+		}
+		$scope.$applyAsync();
+	};
+
+
+	$scope.CancelLink = function ()
+	{
+		$scope.Linking = null;
+	};
+
+
+	$scope.Link = async function ()
+	{
+		let linking = $scope.Linking;
+		if ( !linking || !linking.Picked )
+		{
+			return;
+		}
+		let answer = await State.Act( function ()
+		{
+			return Client.Post( '/api/projects/' + encodeURIComponent( linking.Project ) + '/corpus-link', { Server: linking.Picked.Server, Corpus: linking.Picked.Corpus, Parent: linking.Parent } );
+		} );
+		if ( answer )
+		{
+			$scope.Linking = null;
 			await State.LoadList();
 			$window.location.hash = '#/c/' + encodeURIComponent( answer.Corpus.Id );
 		}

@@ -253,6 +253,48 @@ descriptors, and names in UTF-8, flagged or not, or in the old IBM code page. ma
 `.DS_Store` entries are left out. A zip holding a name that climbs out (`..`), starts at a root or names a
 drive, or an encrypted entry, is refused whole with the reason.
 
+## Context servers
+
+A context server is a small server beside Consensus that keeps a **live corpus** (a folder read as it is now,
+rather than a zip uploaded again after each change) and passes prompts to local LLMs. It is optional. Start
+one with its own settings file:
+
+	node bin/context-server.js [--settings context-server.json] [--port 3600]
+
+A missing settings file is written with a new `Token` and no items. It holds:
+
+	{
+	  "Host": "127.0.0.1", "Port": 3600, "Token": "…",
+	  "Corpus": { "MaxFileKilobytes": 512, "Extensions": [ ".md", ".js", … ] },
+	  "Embedding": { "Url": "http://127.0.0.1:11434", "Model": "nomic-embed-text" },
+	  "Items": [
+	    { "Kind": "Corpus", "Name": "Code", "Root": "W:\\code\\app", "Include": [], "Exclude": [ ".git/**" ] },
+	    { "Kind": "Inference", "Name": "Ollama", "Type": "ollama", "Url": "http://127.0.0.1:11434" },
+	    { "Kind": "Inference", "Name": "Claude CLI", "Type": "claude-cli" }
+	  ]
+	}
+
+- `Host` is the address it binds to: 127.0.0.1 by default, or a LAN address for a Consensus elsewhere. Every
+  request must carry the `Token`. It has no write routes, and refuses any path outside a corpus's `Root`,
+  links included.
+- A corpus is the files under `Root` that `Include` and `Exclude` (glob patterns relative to `Root`; an
+  empty `Include` means all, and `Exclude` wins) and every `.gitignore` under `Root` let in. Nothing else is
+  assumed: `.git` is left out only when `Exclude` says so. Files over the size limit, or not text, are listed but
+  not read. It is indexed at start the way Consensus indexes (`Embedding` optional), and again when a file
+  watcher sees a change.
+- An Inference item only passes a prompt to its LLM and returns the answer. The Claude CLI runs as whoever
+  started the context server.
+
+Consensus is told about context servers in `consensus.json`:
+
+	"ContextServers": [ { "Name": "Desk", "Url": "http://127.0.0.1:3600", "Token": "…" } ]
+
+It asks each one what it offers at start and on Refresh; one that does not answer shows as offline, and
+nothing else breaks. **+ link** on a project picks a server's corpus and adds it to the project as an item,
+as a zip is: its files are listed and read through the server (Reload lists them again), search asks the
+server and lists its hits beside ours by rank, and the LLM's `read_file` and `list_project` reach it. Each
+Inference item is a destination in the session panel, named "Desk / Ollama".
+
 ## The API
 
 	GET    /api/me                                   who this request is, the participants, the States
@@ -281,9 +323,12 @@ drive, or an encrypted entry, is refused whole with the reason.
 	POST   /api/proposals/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
 	POST   /api/proposals/:id/send                   owner; calls the LLM for what waits on it (202, runs in the background)
 	POST   /api/projects/:pid/corpus?name=&parent=   the zip as the body (Content-Type: application/zip)
-	GET    /api/corpus/:cid                          the corpus, its files and its project
+	GET    /api/context-servers                      what each context server offers, as last heard (never its token)
+	POST   /api/context-servers/refresh              ask them again
+	POST   /api/projects/:pid/corpus-link            { Server, Corpus, Parent? }  a context server's corpus as an item
+	GET    /api/corpus/:cid                          the corpus, its files (a linked one's from its server) and its project
 	GET    /api/corpus/:cid/file?path=               one indexed file's text
-	PUT    /api/corpus/:cid                          a new zip as the body, in place of the old one
+	PUT    /api/corpus/:cid                          a new zip as the body, in place of the old one (not for a linked one)
 	PUT    /api/corpus/:cid/name                     { Name }
 	DELETE /api/corpus/:cid                          to the trash
 	GET    /api/trash                                what is there
@@ -299,6 +344,7 @@ role, 404 not found, 409 not allowed in this state or a stale revision or versio
 ## Layout of the code
 
 	bin/consensus.js      the command line
+	bin/context-server.js a context server, src/ContextServer.js; src/ContextServers.js is Consensus's side
 	src/Server.js         Start( { Data, Port, Host } )
 	src/Api.js            the routes
 	src/Rules.js          the consensus rules, pure functions

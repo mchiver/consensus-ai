@@ -3,3 +3,4 @@ node_modules/
 
 .plans/
 CLAUDE.md
+context-server.json

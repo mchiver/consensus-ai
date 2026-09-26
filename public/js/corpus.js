@@ -51,6 +51,13 @@ angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$wind
 	}
 
 
+	// A linked corpus's files, listed again by its context server.
+	$scope.Reload = function ()
+	{
+		load();
+	};
+
+
 	$scope.$watchGroup( [ function () { return State.CorpusId; }, function () { return State.View; } ], function ( values, previous )
 	{
 		if ( values[ 0 ] !== previous[ 0 ] )

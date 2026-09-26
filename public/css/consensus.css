@@ -1771,3 +1771,18 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	border: 1px solid var(--border);
 	border-radius: 0.25rem;
 }
+
+/* --------------------------------------------------------------------- context servers */
+
+/* A corpus kept by a context server, and one whose server does not answer. */
+.badge.linked { background: var(--panel-bg); border-color: var(--icon-zip); }
+
+.item-state.offline
+{
+	color: var(--detached-edge);
+}
+
+.link-form select
+{
+	margin-bottom: 0.25rem;
+}

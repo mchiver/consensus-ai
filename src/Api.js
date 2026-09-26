@@ -7,6 +7,8 @@
 // POST /proposals/:id/send calls the LLM (Llm.js); Context.Caller, when given, replaces Llm.Caller (the tests use it).
 // Each project has a context (a proposal of Kind 'context'): every call to the LLM includes it and may change it;
 // POST /projects/:pid/context/initialize asks the LLM to write it from the project.
+// Context.ContextServers (ContextServers.js), when given, reaches the context servers in the settings: a corpus
+// linked from one is read and searched there, and their Inference items are destinations.
 
 const EXPRESS = require( 'express' );
 const CRYPTO = require( 'crypto' );
@@ -23,13 +25,15 @@ const SEARCH_LIMIT = 10;
 
 
 //---------------------------------------------------------------------
-// Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Refresh?, Search?, Caller? }
+// Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Refresh?, Search?, Caller?,
+// ContextServers? }
 
 function Attach( App, Context )
 {
 	let store = Context.Store;
 	let settings = Context.Settings;
 	let events = Context.Events;
+	let context_servers = Context.ContextServers || null;
 	let router = EXPRESS.Router();
 	router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
 	router.use( identify );
@@ -526,6 +530,11 @@ function Attach( App, Context )
 		}
 		for ( let corpus of await store.ListCorpora() )
 		{
+			if ( corpus.Link )
+			{
+				views[ corpus.Id ] = linked_view( corpus );
+				continue;
+			}
 			let indexed = corpus.Files.filter( function ( file ) { return file.Indexed; } ).length;
 			views[ corpus.Id ] = { Title: corpus.Name, Files: corpus.Files.length, Indexed: indexed, Updated: corpus.Updated };
 		}
@@ -540,6 +549,21 @@ function Attach( App, Context )
 			let context = project.Context ? { Id: project.Context, Empty: empty[ project.Id ] } : null;
 			return Object.assign( {}, project, { Items: present_items( project.Items, views ), Context: context } );
 		} );
+	}
+
+
+	// A linked corpus as the tree shows it: its counts as its context server last told them, or offline.
+	function linked_view( corpus )
+	{
+		let heard = context_servers ? context_servers.Has( corpus.Link.Server, corpus.Link.Corpus ) : null;
+		return {
+			Title: corpus.Name,
+			Files: heard ? heard.Files : 0,
+			Indexed: heard ? heard.Indexed : 0,
+			Updated: corpus.Updated,
+			Linked: corpus.Link.Server + ' / ' + corpus.Link.Corpus,
+			Offline: !heard,
+		};
 	}
 
 
@@ -810,12 +834,79 @@ function Attach( App, Context )
 	} );
 
 
+	//-----------------------------------------------------------------
+	// Context servers: what each one offers, as last heard, and a corpus of one linked into a project.
+
+	router.get( '/context-servers', function ( request, response )
+	{
+		response.json( { Servers: context_servers ? context_servers.List() : [] } );
+	} );
+
+
+	router.post( '/context-servers/refresh', async function ( request, response )
+	{
+		let servers = context_servers ? await context_servers.Refresh() : [];
+		for ( let project of await store.ListProjects() )
+		{
+			events.Send( { Project: project.Id, Kind: 'project' } );
+		}
+		response.json( { Servers: servers } );
+	} );
+
+
+	// { Server, Corpus, Parent? }: the corpus, as its server offers it, becomes an item of the project.
+	router.post( '/projects/:pid/corpus-link', async function ( request, response )
+	{
+		let body = request.body || {};
+		let server = text_of( body.Server );
+		let name = text_of( body.Corpus );
+		let parent = text_of( body.Parent ) || null;
+		let target = await store.ReadProject( request.params.pid );
+		if ( !target )
+		{
+			return fail( response, 404, 'no such project' );
+		}
+		if ( !TREE.CanHold( target.Items, parent, 'corpus' ) )
+		{
+			return fail( response, 400, 'Parent is not a folder of the project' );
+		}
+		if ( !context_servers || !context_servers.Has( server, name ) )
+		{
+			return fail( response, 400, 'no corpus "' + name + '" is offered by a context server "' + server + '"; refresh the context servers and pick again' );
+		}
+		let corpus = await store.CreateCorpus( { Name: name, Link: { Server: server, Corpus: name } } );
+		await change_project( target.Id, null, function ( project )
+		{
+			if ( !TREE.Insert( project.Items, parent, { Kind: 'corpus', Id: corpus.Id } ) )
+			{
+				TREE.Insert( project.Items, null, { Kind: 'corpus', Id: corpus.Id } );
+			}
+		} );
+		events.Send( { Corpus: corpus.Id, Kind: 'created' } );
+		response.status( 201 ).json( { Corpus: corpus, Project: target.Id } );
+	} );
+
+
 	router.get( '/corpus/:cid', async function ( request, response )
 	{
 		let corpus = await store.ReadCorpus( request.params.cid );
 		if ( !corpus )
 		{
 			return fail( response, 404, 'no such corpus' );
+		}
+		// A linked corpus's files are asked for now: its server keeps them.
+		if ( corpus.Link )
+		{
+			corpus = Object.assign( {}, corpus );
+			try
+			{
+				corpus.Files = await context_servers.Files( corpus.Link.Server, corpus.Link.Corpus );
+			}
+			catch ( error )
+			{
+				corpus.Files = [];
+				corpus.Offline = error.message;
+			}
 		}
 		let holder = await store.ProjectOf( corpus.Id );
 		response.json( { Corpus: corpus, Project: holder ? { Id: holder.Id, Name: holder.Name } : null } );
@@ -829,6 +920,17 @@ function Attach( App, Context )
 		if ( !corpus )
 		{
 			return fail( response, 404, 'no such corpus' );
+		}
+		if ( corpus.Link )
+		{
+			try
+			{
+				return response.json( { Path: path, Text: await context_servers.ReadFile( corpus.Link.Server, corpus.Link.Corpus, path ) } );
+			}
+			catch ( error )
+			{
+				return fail( response, 502, error.message );
+			}
 		}
 		let file = corpus.Files.find( function ( candidate ) { return candidate.Path === path; } );
 		if ( !file )
@@ -848,6 +950,11 @@ function Attach( App, Context )
 	router.put( '/corpus/:cid', zip_body(), async function ( request, response )
 	{
 		let id = request.params.cid;
+		let linked = await store.ReadCorpus( id );
+		if ( linked && linked.Link )
+		{
+			return fail( response, 409, 'a linked corpus is kept by its context server: there is no zip to replace' );
+		}
 		let extracted = await extract_upload( request.body );
 		if ( extracted.Refused )
 		{
@@ -1492,7 +1599,45 @@ function Attach( App, Context )
 	function called_llm()
 	{
 		let llm = llm_participant();
-		return ( llm && LLM.Destinations( llm ).length ) ? llm : null;
+		return ( llm && destinations_of( llm ).length ) ? llm : null;
+	}
+
+
+	// Where a session can send its prompt: the llm participant's own destinations, then each online context server's
+	// Inference items, named "<server> / <item>".
+	function destinations_of( llm )
+	{
+		let local = llm ? LLM.Destinations( llm ) : [];
+		if ( !llm || !context_servers )
+		{
+			return local;
+		}
+		let remote = [];
+		for ( let server of context_servers.List() )
+		{
+			for ( let item of server.Inference )
+			{
+				let call = LLM.CallSettings( { Call: { Kind: item.Type, Model: item.Model || undefined } } );
+				call.Name = server.Name + ' / ' + item.Name;
+				call.Remote = { Server: server.Name, Inference: item.Name };
+				remote.push( call );
+			}
+		}
+		return local.concat( remote );
+	}
+
+
+	// The function that sends a prompt for a call: through its context server, or from here.
+	function caller_for( call )
+	{
+		if ( call.Remote )
+		{
+			return function ( prompt )
+			{
+				return context_servers.Infer( call.Remote.Server, call.Remote.Inference, prompt, call.Model, call.TimeoutSeconds );
+			};
+		}
+		return ( Context.Caller || LLM.Caller )( call );
 	}
 
 
@@ -1735,7 +1880,7 @@ function Attach( App, Context )
 	router.get( '/llm/destinations', function ( request, response )
 	{
 		let llm = llm_participant();
-		let destinations = llm ? LLM.Destinations( llm ) : [];
+		let destinations = llm ? destinations_of( llm ) : [];
 		response.json( {
 			Destinations: destinations.map( function ( destination ) { return { Name: destination.Name, Kind: destination.Kind, Model: destination.Model || null }; } ),
 			Manual: !!llm,
@@ -1746,10 +1891,21 @@ function Attach( App, Context )
 	router.get( '/llm/models', async function ( request, response )
 	{
 		let llm = llm_participant();
-		let destination = llm ? LLM.Destinations( llm ).find( function ( candidate ) { return candidate.Name === request.query.destination; } ) : null;
+		let destination = llm ? destinations_of( llm ).find( function ( candidate ) { return candidate.Name === request.query.destination; } ) : null;
 		if ( !destination )
 		{
 			return fail( response, 404, 'no such destination' );
+		}
+		if ( destination.Remote && destination.Kind === 'ollama' )
+		{
+			try
+			{
+				return response.json( { Models: await context_servers.Models( destination.Remote.Server, destination.Remote.Inference ) } );
+			}
+			catch ( error )
+			{
+				return fail( response, 502, error.message );
+			}
 		}
 		if ( destination.Kind !== 'ollama' )
 		{
@@ -1840,7 +1996,7 @@ function Attach( App, Context )
 			await log_step( id, run_id, { Text: 'Consensus made the prompt for copying', Seconds: seconds_since( started ), Tokens: tokens_of( packed.Prompt ) } );
 			return response.json( Object.assign( { Run: run_id }, prompt_view( packed ) ) );
 		}
-		let destinations = LLM.Destinations( llm );
+		let destinations = destinations_of( llm );
 		let destination = body.Destination ? destinations.find( function ( candidate ) { return candidate.Name === body.Destination; } ) : destinations[ 0 ];
 		if ( !destination )
 		{
@@ -1959,6 +2115,18 @@ function Attach( App, Context )
 	}
 
 
+	// " (12 files)" for a zip; " (12 files, linked from Workstation)" for a linked corpus, as its server last said.
+	function corpus_words( corpus )
+	{
+		if ( !corpus.Link )
+		{
+			return ' (' + corpus.Files.length + ' files)';
+		}
+		let view = linked_view( corpus );
+		return view.Offline ? ' (linked from ' + corpus.Link.Server + ', offline)' : ' (' + view.Files + ' files, linked from ' + corpus.Link.Server + ')';
+	}
+
+
 	// An item of the project named by id or title (any case), of one of Kinds, or null.
 	function item_named( items, name, kinds )
 	{
@@ -1982,7 +2150,7 @@ function Attach( App, Context )
 			for ( let item of items )
 			{
 				let where = item.Parent ? ' under "' + item.Parent + '"' : ( item.Folder ? ' in ' + item.Folder : '' );
-				let extra = item.State ? ' (' + item.State + ')' : ( item.Corpus ? ' (' + item.Corpus.Files.length + ' files)' : '' );
+				let extra = item.State ? ' (' + item.State + ')' : ( item.Corpus ? corpus_words( item.Corpus ) : '' );
 				lines.push( '- ' + item.Kind + ' "' + item.Title + '"' + extra + where + ', id ' + item.Id );
 			}
 			return lines.join( '\n' );
@@ -2009,9 +2177,20 @@ function Attach( App, Context )
 			{
 				return 'refused: no uploaded zip "' + ( request.Zip || '' ) + '" in the project';
 			}
+			let path = String( request.Path || '' ).replace( /^\/+/, '' );
+			if ( item.Corpus.Link )
+			{
+				try
+				{
+					return clip_result( await context_servers.ReadFile( item.Corpus.Link.Server, item.Corpus.Link.Corpus, path ) );
+				}
+				catch ( error )
+				{
+					return 'refused: ' + error.message;
+				}
+			}
 			let zip = await store.ReadCorpusZip( item.Id );
 			let extracted = await CORPUS.Extract( zip, CORPUS.Limits( settings ) );
-			let path = String( request.Path || '' ).replace( /^\/+/, '' );
 			if ( extracted.Texts[ path ] === undefined )
 			{
 				return 'refused: "' + item.Title + '" has no text file ' + path;
@@ -2094,7 +2273,7 @@ function Attach( App, Context )
 	{
 		let started = Date.now();
 		let model = call.Model || call.Kind;
-		let caller = ( Context.Caller || LLM.Caller )( call );
+		let caller = caller_for( call );
 		let holder = await store.ProjectOf( id );
 		let turns = [];
 		for ( let turn = 1; ; turn++ )
@@ -2426,7 +2605,7 @@ function Attach( App, Context )
 		let started = Date.now();
 		let context = await context_of( project );
 		let prompt = LLM.InitializePrompt( Object.assign( { Project: project.Name, Context: context, MaxCharacters: LLM.ContextSettings( settings ).MaxCharacters }, await project_contents( project ) ) );
-		let caller = ( Context.Caller || LLM.Caller )( call );
+		let caller = caller_for( call );
 		let answer = await caller( prompt );
 		await record_usage( call, answer.Usage );
 		let action = answer.Answer.Actions.find( function ( candidate ) { return candidate.Kind === 'context'; } );
@@ -2456,27 +2635,59 @@ function Attach( App, Context )
 				continue;
 			}
 			let corpus = await store.ReadCorpus( id );
-			let zip = corpus ? await store.ReadCorpusZip( id ) : null;
-			if ( !zip )
+			let texts = corpus ? await corpus_texts( corpus ) : null;
+			if ( !texts )
 			{
 				continue;
 			}
-			let extracted = await CORPUS.Extract( zip, CORPUS.Limits( settings ) );
-			let paths = Object.keys( extracted.Texts );
-			for ( let file of corpus.Files )
+			for ( let file of texts.Files )
 			{
 				files.push( corpus.Name + '/' + file.Path );
 			}
-			let keys = paths.filter( function ( path ) { return KEY_FILE.test( path ); } ).sort( by_depth );
+			let keys = texts.Paths.filter( function ( path ) { return KEY_FILE.test( path ); } ).sort( by_depth );
 			for ( let path of keys )
 			{
 				if ( key_files.length < KEY_FILE_COUNT )
 				{
-					key_files.push( { Path: corpus.Name + '/' + path, Text: extracted.Texts[ path ] } );
+					key_files.push( { Path: corpus.Name + '/' + path, Text: await texts.Text( path ) } );
 				}
 			}
 		}
 		return { Items: items, Files: files, KeyFiles: key_files };
+	}
+
+
+	// A corpus's files, the paths of its text files and a way to read one: from its zip, or from its context server.
+	// Null when neither can be read.
+	async function corpus_texts( corpus )
+	{
+		if ( corpus.Link )
+		{
+			try
+			{
+				let listed = await context_servers.Files( corpus.Link.Server, corpus.Link.Corpus );
+				return {
+					Files: listed,
+					Paths: listed.filter( function ( file ) { return file.Indexed; } ).map( function ( file ) { return file.Path; } ),
+					Text: function ( path ) { return context_servers.ReadFile( corpus.Link.Server, corpus.Link.Corpus, path ); },
+				};
+			}
+			catch ( error )
+			{
+				return null;
+			}
+		}
+		let zip = await store.ReadCorpusZip( corpus.Id );
+		if ( !zip )
+		{
+			return null;
+		}
+		let extracted = await CORPUS.Extract( zip, CORPUS.Limits( settings ) );
+		return {
+			Files: corpus.Files,
+			Paths: Object.keys( extracted.Texts ),
+			Text: async function ( path ) { return extracted.Texts[ path ]; },
+		};
 	}
 
 

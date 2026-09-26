@@ -43,7 +43,11 @@
 				<span class="chevron-space"></span>
 				<span class="tree-icon icon-zip"></span>
 				<span class="proposal-title">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
-				<span class="badges"><span class="item-state" title="{{ node.Files }} files in the zip, {{ node.Indexed }} indexed">{{ node.Files }} files</span></span>
+				<span class="badges">
+					<span class="badge linked" ng-show="node.Linked" title="kept by a context server: {{ node.Linked }}">linked</span>
+					<span class="item-state" ng-show="!node.Offline" title="{{ node.Files }} files, {{ node.Indexed }} indexed">{{ node.Files }} files</span>
+					<span class="item-state offline" ng-show="node.Offline" title="its context server does not answer; refresh when it is back">offline</span>
+				</span>
 				<span class="item-buttons"><span class="btn btn-link btn-sm copy-item" role="button" title="copy: a whole copy of the zip goes where you paste it" ng-click="CopyItem(node, $event)">&#10697;</span></span>
 			</a>
 			<a ng-switch-default class="proposal-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document', parent: node.Items.length }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id" tree-drop="{ Kind: node.Kind === 'plan' ? 'plan' : 'item', Project: project.Id, Id: node.Id }" on-tree-drop="TreeDrop( Drag, Target, Zone )">
@@ -107,6 +111,7 @@
 							<button class="btn btn-link btn-sm new-plan" title="new plan{{ Target ? ' in ' + Target.Name : '' }}" ng-click="StartCreate('plan', project, $event)">+ plan</button>
 							<button class="btn btn-link btn-sm new-document" title="new document{{ Target ? ' in ' + Target.Name : '' }}" ng-click="StartCreate('document', project, $event)">+ doc</button>
 							<button class="btn btn-link btn-sm new-folder" title="new folder{{ Target ? ' in ' + Target.Name : '' }}" ng-click="StartCreate('folder', project, $event)">+ folder</button>
+							<button class="btn btn-link btn-sm new-link" title="link a corpus from a context server{{ Target ? ' (into ' + Target.Name + ')' : '' }}" ng-click="StartLink(project, $event)">+ link</button>
 							<label class="btn btn-link btn-sm new-corpus mb-0" title="upload a zip: its text files are indexed with the project{{ Target ? ' (into ' + Target.Name + ')' : '' }}" ng-click="$event.stopPropagation()">+ zip<input type="file" accept=".zip,application/zip" hidden class="zip-input" on-file="UploadZip( project, File )"></label>
 							<button class="btn btn-link btn-sm" title="rename" ng-click="StartRename('project', project, project, $event)">&#9998;</button>
 							<button class="btn btn-link btn-sm" title="delete this empty project" ng-show="project.Id !== 'default'" ng-click="StartDelete(project, $event)">&times;</button>
@@ -123,6 +128,16 @@
 							<div class="new-proposal-buttons">
 								<button class="btn btn-sm btn-primary" type="submit" id="create-submit" ng-disabled="!Creating.Name">Create</button>
 								<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()">Cancel</button>
+							</div>
+						</form>
+						<form class="new-proposal link-form" ng-if="Linking.Project === project.Id" ng-submit="Link()">
+							<select class="form-select form-select-sm" id="link-choice" ng-model="Linking.Picked" ng-options="choice.Label for choice in Linking.Choices" ng-disabled="!Linking.Choices.length"></select>
+							<div class="muted small" ng-show="Linking.Loaded && !Linking.Choices.length">No corpus is offered{{ Linking.Servers.length ? '' : ': no context servers are listed in consensus.json' }}.</div>
+							<div class="muted small" ng-repeat="server in Linking.Servers" ng-show="!server.Online">{{ server.Name }}: offline</div>
+							<div class="new-proposal-buttons">
+								<button class="btn btn-sm btn-primary" type="submit" id="link-submit" ng-disabled="!Linking.Picked">Link</button>
+								<button class="btn btn-sm btn-outline-secondary" type="button" id="link-refresh" ng-click="RefreshServers()" title="ask the context servers again">Refresh</button>
+								<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelLink()">Cancel</button>
 							</div>
 						</form>
 						<div class="clipboard" ng-show="Clipboard" id="clipboard">copied: {{ Clipboard.Name }} <span class="muted">(Ctrl+V or paste)</span> <button class="btn btn-link btn-sm" title="forget it" ng-click="ClearClipboard()">&times;</button></div>
@@ -386,9 +401,11 @@
 						<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" auto-focus>
 					</form>
 					<div class="title" ng-if="!Renaming" id="corpus-name">&#128230; {{ Corpus.Name }}</div>
-					<div class="muted small" id="corpus-summary">{{ Corpus.Files.length }} files, {{ IndexedCount() }} indexed &middot; version {{ Corpus.Version }}<span ng-show="Project"> &middot; in {{ Project.Name }}</span></div>
+					<div class="muted small" id="corpus-summary">{{ Corpus.Files.length }} files, {{ IndexedCount() }} indexed<span ng-hide="Corpus.Link"> &middot; version {{ Corpus.Version }}</span><span ng-show="Corpus.Link" id="corpus-link"> &middot; linked from {{ Corpus.Link.Server }} / {{ Corpus.Link.Corpus }}</span><span ng-show="Project"> &middot; in {{ Project.Name }}</span></div>
+					<div class="alert alert-warning py-1 px-2 my-1" ng-show="Corpus.Offline">{{ Corpus.Offline }}</div>
 					<div class="corpus-buttons">
-						<label class="btn btn-sm btn-outline-secondary mb-0" ng-class="{ disabled: Busy }" title="upload a new zip in place of this one: its files are indexed again">Replace zip<input type="file" accept=".zip,application/zip" hidden on-file="Replace( File )"></label>
+						<label class="btn btn-sm btn-outline-secondary mb-0" ng-hide="Corpus.Link" ng-class="{ disabled: Busy }" title="upload a new zip in place of this one: its files are indexed again">Replace zip<input type="file" accept=".zip,application/zip" hidden on-file="Replace( File )"></label>
+						<button class="btn btn-sm btn-outline-secondary" id="corpus-reload" ng-show="Corpus.Link" ng-click="Reload()" title="list the files again from the context server">Reload</button>
 						<button class="btn btn-sm btn-outline-secondary" ng-click="StartRename()" ng-hide="Renaming">Rename</button>
 						<button class="btn btn-sm btn-outline-secondary" ng-click="CancelRename()" ng-show="Renaming">Cancel</button>
 						<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete" ng-click="ConfirmingDelete = true">Delete</button>

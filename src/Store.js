@@ -636,7 +636,8 @@ function Open( Folder )
 
 	//-----------------------------------------------------------------
 	// Corpora: each is an uploaded zip kept whole, with its file list and search chunks.
-	//   corpora/<id>/corpus.json  { Id, Kind: 'corpus', Name, Created, Updated, Version, Files: [ { Path, Size, Indexed, Reason? } ] }
+	//   corpora/<id>/corpus.json  { Id, Kind: 'corpus', Name, Created, Updated, Version, Files: [ { Path, Size, Indexed, Reason? } ],
+	//                             Link?: { Server, Corpus } }  a linked corpus has no zip: a context server keeps it
 	//   corpora/<id>/corpus.zip   the upload, as it came
 	//   corpora/<id>/index.json   search chunks
 
@@ -688,14 +689,22 @@ function Open( Folder )
 	}
 
 
-	// Parameters: { Name, Zip, Files }
+	// Parameters: { Name, Zip, Files }, or { Name, Link: { Server, Corpus } } for a corpus kept by a context server,
+	// which has no zip and whose files are asked for there.
 	async function CreateCorpus( Parameters )
 	{
 		let id = unique_id( CORPUS_LETTER );
 		let now = new Date().toISOString();
-		let corpus = { Id: id, Kind: 'corpus', Name: Parameters.Name, Created: now, Updated: now, Version: 1, Files: Parameters.Files };
+		let corpus = { Id: id, Kind: 'corpus', Name: Parameters.Name, Created: now, Updated: now, Version: 1, Files: Parameters.Files || [] };
+		if ( Parameters.Link )
+		{
+			corpus.Link = { Server: Parameters.Link.Server, Corpus: Parameters.Link.Corpus };
+		}
 		await FS.promises.mkdir( corpus_folder( id ), { recursive: true } );
-		await write_file( PATH.join( corpus_folder( id ), 'corpus.zip' ), Parameters.Zip );
+		if ( !Parameters.Link )
+		{
+			await write_file( PATH.join( corpus_folder( id ), 'corpus.zip' ), Parameters.Zip );
+		}
 		await write_json( PATH.join( corpus_folder( id ), 'corpus.json' ), corpus );
 		return corpus;
 	}

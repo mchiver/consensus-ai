@@ -403,9 +403,19 @@ async function Corpus( Store, Ids )
 
 async function SearchAll( Store, Query, Limit, Embedder, Ids )
 {
+	return SearchChunks( Query, await Corpus( Store, Ids ), Limit, Embedder );
+}
+
+
+//---------------------------------------------------------------------
+// SearchChunks: the same over chunks already weighed (Weigh), wherever they are kept: the context server keeps
+// its corpora's chunks in memory.
+
+async function SearchChunks( Query, Chunks, Limit, Embedder )
+{
 	let VECTORS = require( './Vectors.js' );
 	let limit = Limit || 10;
-	let chunks = await Corpus( Store, Ids );
+	let chunks = Chunks;
 	let by_key = {};
 	for ( let chunk of chunks )
 	{
@@ -478,6 +488,8 @@ module.exports = {
 	Refresh: Refresh,
 	ChunkCorpus: ChunkCorpus,
 	RefreshCorpus: RefreshCorpus,
+	Embed: embed,
 	Corpus: Corpus,
 	SearchAll: SearchAll,
+	SearchChunks: SearchChunks,
 };

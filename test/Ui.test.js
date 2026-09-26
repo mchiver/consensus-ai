@@ -12,6 +12,10 @@ const PATH = require( 'path' );
 const SERVER = require( '../src/Server.js' );
 const CDP = require( './support/Cdp.js' );
 const MAKER = require( './support/ZipMaker.js' );
+const PARTICIPANTS = require( '../src/Participants.js' );
+const CONTEXT_SERVER = require( '../src/ContextServer.js' );
+
+const CONTEXT_TOKEN = 'ui-context-token-0123456789';
 
 const TEXT = '# Browser check\n\nThe first paragraph makes a claim about anchors.\n\n- one list item\n- another list item\n\nA closing paragraph.\n';
 
@@ -19,6 +23,8 @@ let running = null;
 let browser = null;
 let page = null;
 let proposal = null;
+let context = null;
+let corpus_root = null;
 
 
 function count_of( selector )
@@ -61,7 +67,15 @@ function fake_caller()
 
 TEST.before( async function ()
 {
-	running = await SERVER.Start( { Data: FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-ui-' ) ), Port: 0, Caller: fake_caller } );
+	// A context server beside it, offering one corpus to link.
+	corpus_root = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-ui-corpus-' ) );
+	FS.writeFileSync( PATH.join( corpus_root, 'field-notes.md' ), '# Field notes\n\nThe heron waits by the reeds.\n' );
+	context = await CONTEXT_SERVER.Start( { Port: 0, Settings: { Token: CONTEXT_TOKEN, Items: [ { Kind: 'Corpus', Name: 'Notes', Root: corpus_root } ] } } );
+	let data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-ui-' ) );
+	let settings = PARTICIPANTS.DefaultSettings( 0 );
+	settings.ContextServers = [ { Name: 'Desk', Url: context.Url, Token: CONTEXT_TOKEN } ];
+	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( settings, null, '	' ) );
+	running = await SERVER.Start( { Data: data, Port: 0, Caller: fake_caller } );
 	let created = await fetch( running.Url + '/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Browser check', Text: TEXT } ) } );
 	proposal = ( await created.json() ).Proposal;
 	browser = await CDP.StartBrowser();
@@ -78,6 +92,11 @@ TEST.after( async function ()
 	if ( running )
 	{
 		await running.Close();
+	}
+	if ( context )
+	{
+		await context.Close();
+		FS.rmSync( corpus_root, { recursive: true, force: true } );
 	}
 } );
 
@@ -687,5 +706,27 @@ TEST( 'subplans: started from the header, selected text, a new thread and a repl
 	ASSERT.match( await page.Evaluate( 'window.location.hash' ), /#\/p\// );
 	await page.Click( '.tree-item[data-id="' + parent.Id + '"] .chevron' );
 	await page.WaitFor( count_of( under ) + ' === 4' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+//---------------------------------------------------------------------
+
+TEST( 'context server: + link lists what it offers; the linked corpus opens, its file reads, and search finds it', async function ()
+{
+	await page.Evaluate( 'window.location.hash = "#/p/' + proposal.Id + '"; true' );
+	await page.WaitFor( 'document.querySelector( ".project.open .new-link" ) !== null', 20000 );
+	await page.Evaluate( 'document.querySelector( ".project.open .new-link" ).click(); true' );
+	await page.WaitFor( 'document.getElementById( "link-choice" ) && document.getElementById( "link-choice" ).selectedOptions.length === 1 && document.getElementById( "link-choice" ).selectedOptions[ 0 ].textContent !== ""' );
+	ASSERT.match( await page.Evaluate( 'document.getElementById( "link-choice" ).selectedOptions[ 0 ].textContent' ), /^Desk \/ Notes \(1 files\)$/ );
+	await page.Click( '#link-submit' );
+	await page.WaitFor( text_of( '#corpus-link' ) + ' === "· linked from Desk / Notes"', 20000 );
+	await page.WaitFor( count_of( '.corpus-file.indexed' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.querySelector( ".corpus-buttons label" ) ).display' ), 'none' );
+	await page.Click( '.corpus-file.indexed' );
+	await page.WaitFor( text_of( '#corpus-file-text' ) + '.includes( "heron" )' );
+	await page.WaitFor( count_of( '.project.open .tree-item.corpus .badge.linked' ) + ' === 1' );
+	let hits = await ( await fetch( running.Url + '/api/search?q=heron&project=default' ) ).json();
+	ASSERT.equal( hits.Hits[ 0 ].Path, 'field-notes.md' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
