@@ -1645,6 +1645,15 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	font-size: 0.8rem;
 }
 
+.session-turn
+{
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--accent);
+	margin-bottom: 0.3rem;
+}
+
 .session-result
 {
 	padding: 0.4rem 0.75rem;

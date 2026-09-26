@@ -62,16 +62,21 @@ TEST( 'the prompt holds the rules, the text in a fence longer than its own, ever
 TEST( 'the answer is read from an object, from JSON text, or from JSON in a code fence', function ()
 {
 	let actions = { Actions: [ { Thread: 't1', Kind: 'reply', Reply: 'Yes.' } ] };
-	ASSERT.deepEqual( LLM.Parse( actions ), actions );
-	ASSERT.deepEqual( LLM.Parse( JSON.stringify( actions ) ), actions );
-	ASSERT.deepEqual( LLM.Parse( '```json\n' + JSON.stringify( actions, null, 2 ) + '\n```' ), actions );
-	ASSERT.deepEqual( LLM.Parse( '{ "Actions": [] }' ), { Actions: [] } );
+	let read = Object.assign( { Requests: [] }, actions );
+	ASSERT.deepEqual( LLM.Parse( actions ), read );
+	ASSERT.deepEqual( LLM.Parse( JSON.stringify( actions ) ), read );
+	ASSERT.deepEqual( LLM.Parse( '```json\n' + JSON.stringify( actions, null, 2 ) + '\n```' ), read );
+	ASSERT.deepEqual( LLM.Parse( '{ "Actions": [] }' ), { Actions: [], Requests: [] } );
 	ASSERT.throws( function () { LLM.Parse( 'I think so.' ); }, /not JSON/ );
 	ASSERT.throws( function () { LLM.Parse( { Answer: [] } ); }, /no Actions/ );
 	ASSERT.throws( function () { LLM.Parse( { Actions: [ { Thread: 't1', Kind: 'resolve' } ] } ); }, /unknown Kind/ );
+	// an answer that asks for more
+	let asking = { Actions: [], Requests: [ { Tool: 'read_plan', Plan: 'Tabs' } ] };
+	ASSERT.deepEqual( LLM.Parse( asking ), asking );
+	ASSERT.throws( function () { LLM.Parse( { Actions: [], Requests: [ { Plan: 'Tabs' } ] } ); }, /a request has no Tool/ );
 	// a context action needs no thread, but needs its text
 	let context = { Actions: [ { Kind: 'context', Text: '# Context\n', Reason: 'why' } ] };
-	ASSERT.deepEqual( LLM.Parse( context ), context );
+	ASSERT.deepEqual( LLM.Parse( context ), Object.assign( { Requests: [] }, context ) );
 	ASSERT.throws( function () { LLM.Parse( { Actions: [ { Kind: 'context', Text: '  ' } ] } ); }, /context action has no Text/ );
 } );
 
@@ -108,6 +113,26 @@ TEST( 'the initialize prompt holds the project\'s items, its files and its key f
 	ASSERT.match( prompt, /- plan: Light them \(Working\)\n- document: Notes/ );
 	ASSERT.match( prompt, /# The files in its uploaded zips\n\n- code\/README\.md\n- code\/src\/index\.js/ );
 	ASSERT.match( prompt, /# The file code\/README\.md\n\n````\nx{8000}\n…\n````/ );
+} );
+
+
+TEST( 'turns: the rules offer the requests; the next prompt ends with what was asked for, what it found, and which answer is next', function ()
+{
+	let base = { Proposal: { Title: 'P', Revision: 1 }, Text: 'x', Threads: [], Me: 'llm', Participants: PARTICIPANTS };
+	let first = LLM.Prompt( base );
+	ASSERT.match( first, /# Asking for more/ );
+	ASSERT.match( first, /\{ "Tool": "read_plan", "Plan": "<id or title>" \}/ );
+	ASSERT.equal( first.includes( '# What you asked for' ), false );
+	let turns = [ { Requests: [ { Tool: 'read_plan', Plan: 'Tabs' }, { Tool: 'search', Query: 'drag' } ], Results: [ '# Tabs\n\nOne per item.', 'refused: no hits' ] } ];
+	let second = LLM.PromptParts( Object.assign( { Turns: turns }, base ) );
+	let answers = second[ second.length - 1 ];
+	ASSERT.equal( answers.Name, 'Answers' );
+	ASSERT.match( answers.Text, /## read_plan "Tabs"\n\n````\n# Tabs\n\nOne per item\.\n````/ );
+	ASSERT.match( answers.Text, /## search "drag"/ );
+	ASSERT.match( answers.Text, /This is your answer 2 of 5\. Act, or ask for more\./ );
+	let last = LLM.Prompt( Object.assign( { Turns: [ turns[ 0 ], turns[ 0 ], turns[ 0 ], turns[ 0 ] ] }, base ) );
+	ASSERT.match( last, /This is your answer 5 of 5, the last: act now\./ );
+	ASSERT.equal( LLM.DescribeRequest( { Tool: 'read_file', Zip: 'code', Path: 'a.md' } ), 'read_file "code" a.md' );
 } );
 
 
@@ -153,7 +178,7 @@ TEST( 'the ollama caller sends the prompt with the schema and reads a fenced ans
 		ASSERT.equal( received.Body.stream, false );
 		ASSERT.deepEqual( received.Body.format, LLM.SCHEMA );
 		ASSERT.equal( received.Body.messages[ 0 ].content, 'the prompt' );
-		ASSERT.deepEqual( result.Answer, { Actions: [ { Thread: 't1', Kind: 'reply', Reply: 'Hi.' } ] } );
+		ASSERT.deepEqual( result.Answer, { Actions: [ { Thread: 't1', Kind: 'reply', Reply: 'Hi.' } ], Requests: [] } );
 		ASSERT.deepEqual( result.Usage, { Model: 'test-model', Input: 700, Output: 50 } );
 	}
 	finally

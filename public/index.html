@@ -266,11 +266,20 @@
 						</div>
 
 						<div class="session-section" ng-show="P.Manual">
-							<div class="muted small">{{ P.Manual.Copied ? 'The prompt is on the clipboard.' : 'Copy the prompt below by hand.' }} Give it to any LLM, paste its answer here, then carry it out.</div>
-							<textarea class="form-control form-control-sm session-copy-box" ng-show="P.Manual && !P.Manual.Copied" readonly rows="4">{{ P.Manual.Prompt }}</textarea>
-							<textarea class="form-control form-control-sm" id="session-answer" rows="5" ng-model="P.Manual.Answer" placeholder="The answer: { &quot;Actions&quot;: [ … ] }"></textarea>
-							<div class="thread-buttons">
-								<button class="btn btn-sm btn-primary" id="session-carry-out" ng-click="CarryOut(P)" ng-disabled="P.Busy || !P.Manual.Answer">Carry out</button>
+							<div class="session-turn" id="session-turn" ng-show="P.Manual.Turn">Answer {{ P.Manual.Turn }} of 5</div>
+							<div ng-hide="P.Manual.Next">
+								<div class="muted small">{{ P.Manual.Copied ? 'The prompt is on the clipboard.' : 'Copy the prompt below by hand.' }} Give it to any LLM, paste its answer here, then carry it out.</div>
+								<textarea class="form-control form-control-sm session-copy-box" ng-show="P.Manual && !P.Manual.Copied" readonly rows="4">{{ P.Manual.Prompt }}</textarea>
+								<textarea class="form-control form-control-sm" id="session-answer" rows="5" ng-model="P.Manual.Answer" placeholder="The answer: { &quot;Actions&quot;: [ … ] }"></textarea>
+								<div class="thread-buttons">
+									<button class="btn btn-sm btn-primary" id="session-carry-out" ng-click="CarryOut(P)" ng-disabled="P.Busy || !P.Manual.Answer" title="carry out the answer's actions, or, when it asks for more, answer it">Carry out</button>
+								</div>
+							</div>
+							<div ng-show="P.Manual.Next">
+								<div class="small">The LLM asked for more, and Consensus answered it (see the run log). <b>Continue</b> copies the prompt for answer {{ P.Manual.Next.Turn }}.</div>
+								<div class="thread-buttons">
+									<button class="btn btn-sm btn-primary" id="session-continue" ng-click="Continue(P)">Continue</button>
+								</div>
 							</div>
 						</div>
 

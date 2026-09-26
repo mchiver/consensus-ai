@@ -157,7 +157,14 @@ The LLM has no tools: it answers with one JSON object,
 		{ "Kind": "context", "Text": "the whole new context", "Reason": "one sentence" }
 	] }
 
-and Consensus carries each action out as the llm participant, through the same rules as the API. An action
+An answer may instead **ask for more**, with `"Requests"` beside its actions: `list_project`, `read_plan`,
+`read_revision`, `read_file` (a file in an uploaded zip) or `search`, all read-only and within the plan's
+project. Consensus answers them in the next prompt of the same session ("What you asked for"), and the LLM
+answers again, up to 5 answers; an answer that asks is not carried out, and the last one must act. Each request
+and its answer is a step of the run log. With Manual copy / paste, **Carry out** on an answer that asks shows
+**Continue**, which copies the next prompt.
+
+The final answer's actions are carried out as the llm participant, through the same rules as the API. An action
 that is refused, or a call that fails, leaves a line on its thread (*LLM call failed …*); the next
 successful call clears it, and pressing Send to LLM again is the retry. Each call is a line in the server
 log, and its tokens are added to `usage.json`; the sidebar shows today's, with the rest in its tooltip.

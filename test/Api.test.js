@@ -1143,6 +1143,88 @@ TEST( 'session: the prompt shaped by the choices and sized part by part; a desti
 } );
 
 
+TEST( 'turns: the LLM asks for more, Consensus answers within the project, the next prompt carries it, and the last answer acts', async function ()
+{
+	let project = ( await call( 'POST', '/api/projects', { Name: 'Turns' } ) ).Body.Project;
+	let other = ( await call( 'POST', '/api/proposals', { Title: 'Other plan', Text: '# Other plan\n\nLamps are lit at dusk.\n', Project: project.Id } ) ).Body.Proposal;
+	let elsewhere = await create( 'Not in the project' );
+	let plan = ( await call( 'POST', '/api/proposals', { Title: 'Asking plan', Text: TEXT, Project: project.Id } ) ).Body.Proposal;
+	let thread = ( await call( 'POST', '/api/proposals/' + plan.Id + '/threads', { Text: 'When are the lamps lit?' } ) ).Body.Thread;
+
+	// answer 1 asks; answer 2 asks again; answer 3 acts
+	let prompts = [];
+	llm_answer = async function ( Prompt )
+	{
+		prompts.push( Prompt );
+		if ( prompts.length === 1 )
+		{
+			return { Answer: { Actions: [], Requests: [ { Tool: 'list_project' }, { Tool: 'read_plan', Plan: 'other plan' }, { Tool: 'read_plan', Plan: elsewhere.Id } ] }, Usage: { Model: 'fake-model', Input: 10, Output: 5 } };
+		}
+		if ( prompts.length === 2 )
+		{
+			return { Answer: { Actions: [], Requests: [ { Tool: 'read_revision', Plan: other.Id, Revision: 1 }, { Tool: 'teleport' } ] }, Usage: { Model: 'fake-model', Input: 10, Output: 5 } };
+		}
+		return { Answer: { Actions: [ { Thread: thread.Id, Kind: 'reply', Reply: 'At dusk, says Other plan.' } ] }, Usage: { Model: 'fake-model', Input: 10, Output: 5 } };
+	};
+	let started = await call( 'POST', '/api/proposals/' + plan.Id + '/session', {} );
+	ASSERT.equal( started.Status, 202 );
+	await wait_idle( plan.Id );
+	ASSERT.equal( prompts.length, 3 );
+	ASSERT.equal( prompts[ 0 ].includes( '# What you asked for' ), false );
+	ASSERT.match( prompts[ 1 ], /## list_project\n\n`+\nThe project "Turns":/ );
+	ASSERT.match( prompts[ 1 ], /- plan "Other plan" \(Proposal\), id / );
+	ASSERT.match( prompts[ 1 ], /## read_plan "other plan"\n\n`+\n# Other plan\n\nLamps are lit at dusk\./ );
+	ASSERT.match( prompts[ 1 ], new RegExp( 'refused: no plan or document "' + elsewhere.Id + '" in the project' ) );
+	ASSERT.match( prompts[ 1 ], /This is your answer 2 of 5\./ );
+	ASSERT.match( prompts[ 2 ], /## read_revision "p[0-9a-f]{8}" 1\n\n`+\n# Other plan/ );
+	ASSERT.match( prompts[ 2 ], /refused: there is no tool "teleport"/ );
+	let read = await call( 'GET', '/api/proposals/' + plan.Id );
+	ASSERT.equal( thread_of( read, thread.Id ).Replies[ 1 ].Text, 'At dusk, says Other plan.' );
+	let run = ( await call( 'GET', '/api/proposals/' + plan.Id + '/runs' ) ).Body.Runs.find( function ( candidate ) { return candidate.Id === started.Body.Run; } );
+	// the test's llm has a Call of kind claude-cli and no model: the log names the kind
+	let target = run.Model || 'claude-cli';
+	ASSERT.deepEqual( run.Steps.map( function ( step ) { return step.Text; } ), [
+		'Consensus sent the prompt to ' + target,
+		'fake-model asked for list_project, read_plan "other plan", read_plan "' + elsewhere.Id + '"',
+		'Consensus answered list_project',
+		'Consensus answered read_plan "other plan"',
+		'Consensus answered read_plan "' + elsewhere.Id + '"',
+		'Consensus sent answer 2\'s prompt to ' + target,
+		'fake-model asked for read_revision "' + other.Id + '" 1, teleport',
+		'Consensus answered read_revision "' + other.Id + '" 1',
+		'Consensus answered teleport',
+		'Consensus sent answer 3\'s prompt to ' + target,
+		'fake-model answered: 1 reply',
+		'Consensus carried out 1 action, 0 refused',
+	] );
+} );
+
+
+TEST( 'turns, by hand: a pasted answer that asks for more gets the next prompt to copy; the last answer is carried out', async function ()
+{
+	let proposal = await create( 'Asking by hand' );
+	let thread = ( await call( 'POST', '/api/proposals/' + proposal.Id + '/threads', { Text: 'What does search find?' } ) ).Body.Thread;
+	let made = ( await call( 'POST', '/api/proposals/' + proposal.Id + '/session', { Destination: 'Manual' } ) ).Body;
+	let asked = await call( 'POST', '/api/proposals/' + proposal.Id + '/answer', { Answer: { Actions: [], Requests: [ { Tool: 'read_plan', Plan: 'Asking by hand' } ] }, Revision: made.Revision, Run: made.Run } );
+	ASSERT.equal( asked.Status, 200 );
+	ASSERT.equal( asked.Body.Continue, true );
+	ASSERT.equal( asked.Body.Turn, 2 );
+	ASSERT.match( asked.Body.Prompt, /## read_plan "Asking by hand"\n\n`+\n# A proposal/ );
+	let done = await call( 'POST', '/api/proposals/' + proposal.Id + '/answer', { Answer: { Actions: [ { Thread: thread.Id, Kind: 'reply', Reply: 'It finds the proposal itself.' } ] }, Revision: asked.Body.Revision, Run: made.Run } );
+	ASSERT.equal( done.Body.Actions, 1 );
+	let run = ( await call( 'GET', '/api/proposals/' + proposal.Id + '/runs' ) ).Body.Runs.find( function ( candidate ) { return candidate.Id === made.Run; } );
+	ASSERT.deepEqual( run.Steps.map( function ( step ) { return step.Text; } ), [
+		'Consensus made the prompt for copying',
+		'The pasted answer asked for read_plan "Asking by hand"',
+		'Consensus answered read_plan "Asking by hand"',
+		'Consensus made answer 2\'s prompt for copying',
+		'The answer was pasted: 1 reply',
+		'Consensus carried out 1 action, 0 refused',
+	] );
+	ASSERT.equal( run.Turns.length, 1 );
+} );
+
+
 TEST( 'send: a failed call leaves a line on each thread; a refused action on its thread; the next success clears them', async function ()
 {
 	let proposal = await create( 'Send failures' );

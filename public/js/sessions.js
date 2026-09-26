@@ -330,7 +330,7 @@ angular.module( 'Consensus' ).factory( 'Sessions', [ function ()
 		panel.Busy = false;
 		if ( answer )
 		{
-			panel.Manual = { Prompt: answer.Prompt, Revision: answer.Revision, Context: answer.Context, Run: answer.Run, Answer: '', Copied: false };
+			panel.Manual = { Prompt: answer.Prompt, Revision: answer.Revision, Context: answer.Context, Run: answer.Run, Turn: 1, Answer: '', Copied: false };
 			try
 			{
 				await navigator.clipboard.writeText( answer.Prompt );
@@ -366,12 +366,41 @@ angular.module( 'Consensus' ).factory( 'Sessions', [ function ()
 			} );
 		} );
 		panel.Busy = false;
-		if ( answer )
+		if ( answer && answer.Continue )
+		{
+			// the LLM asked for more: Consensus answered it, and the next prompt waits for Continue
+			manual.Next = { Prompt: answer.Prompt, Revision: answer.Revision, Context: answer.Context, Turn: answer.Turn };
+			load_runs( id );
+		}
+		else if ( answer )
 		{
 			panel.Result = { Actions: answer.Actions, Refused: Object.keys( answer.Refused ).length };
 			panel.Manual = null;
 			await State.Reload();
 			load_runs( id );
+		}
+		$scope.$applyAsync();
+	};
+
+
+	// Continue: the next answer's prompt, with what the LLM asked for, goes on the clipboard.
+	$scope.Continue = async function ( panel )
+	{
+		let manual = panel.Manual;
+		if ( !manual || !manual.Next )
+		{
+			return;
+		}
+		let next = manual.Next;
+		panel.Manual = { Prompt: next.Prompt, Revision: next.Revision, Context: next.Context, Run: manual.Run, Turn: next.Turn, Answer: '', Copied: false };
+		try
+		{
+			await navigator.clipboard.writeText( next.Prompt );
+			panel.Manual.Copied = true;
+		}
+		catch ( error )
+		{
+			panel.Manual.Copied = false;
 		}
 		$scope.$applyAsync();
 	};

@@ -1508,7 +1508,7 @@ function Attach( App, Context )
 
 	// Everything one session needs, for the llm participant: { Prompt, Parts, Read, Waiting, Context }. The threads
 	// sent are those Options.Threads names; the waiting ones are always among them.
-	async function package_for( id, llm, options )
+	async function package_for( id, llm, options, turns )
 	{
 		let chosen = options_of( options );
 		let read = await store.ReadProposal( id );
@@ -1540,6 +1540,7 @@ function Attach( App, Context )
 			Me: llm.Name,
 			Participants: participants(),
 			Search: search,
+			Turns: turns || [],
 		} );
 		let prompt = parts.map( function ( part ) { return part.Text; } ).join( '\n' );
 		return { Prompt: prompt, Parts: parts, Read: read, Waiting: waiting, Context: context };
@@ -1573,7 +1574,7 @@ function Attach( App, Context )
 
 	async function start_run( id, destination, model, options )
 	{
-		let run = { Id: new_id( 's' ), Started: now(), Destination: destination, Model: model || null, Options: options, Steps: [], Finished: null };
+		let run = { Id: new_id( 's' ), Started: now(), Destination: destination, Model: model || null, Options: options, Turns: [], Steps: [], Finished: null };
 		await store.Queue( runs_queue( id ), async function ()
 		{
 			let runs = await store.ReadRuns( id );
@@ -1821,42 +1822,246 @@ function Attach( App, Context )
 	} );
 
 
+	//-----------------------------------------------------------------
+	// Turns: an answer may ask for more (Requests) instead of acting. Consensus answers each request, read-only and
+	// within the plan's project, and the next prompt of the same session carries what it found. A session has at most
+	// LLM.MAX_TURNS answers; the last one's actions are carried out even if it asks again.
+
+	const RESULT_LENGTH = 20000;
+	const SEARCH_RESULTS = 5;
+
+
+	function clip_result( text )
+	{
+		let value = String( text );
+		return ( value.length > RESULT_LENGTH ) ? value.slice( 0, RESULT_LENGTH ) + '\n… (cut at ' + RESULT_LENGTH + ' characters)' : value;
+	}
+
+
+	// The project's plans, documents and zips, with their ids, as { Kind, Id, Title, State, Folder, Corpus? }
+	async function project_items( project )
+	{
+		let items = [];
+		async function walk( nodes, folder )
+		{
+			for ( let node of nodes )
+			{
+				if ( node.Kind === 'folder' )
+				{
+					await walk( node.Items, ( folder ? folder + '/' : '' ) + node.Name );
+					continue;
+				}
+				if ( node.Kind === 'corpus' )
+				{
+					let corpus = await store.ReadCorpus( node.Id );
+					if ( corpus )
+					{
+						items.push( { Kind: 'zip', Id: node.Id, Title: corpus.Name, Folder: folder, Corpus: corpus } );
+					}
+					continue;
+				}
+				let read = await store.ReadProposal( node.Id );
+				if ( read )
+				{
+					items.push( { Kind: read.Proposal.Kind || 'plan', Id: node.Id, Title: read.Proposal.Title, State: read.Proposal.State, Folder: folder } );
+				}
+			}
+		}
+		await walk( project.Items, '' );
+		if ( project.Context )
+		{
+			items.push( { Kind: 'context', Id: project.Context, Title: 'Context', Folder: '' } );
+		}
+		return items;
+	}
+
+
+	// An item of the project named by id or title (any case), of one of Kinds, or null.
+	function item_named( items, name, kinds )
+	{
+		let wanted = String( name || '' ).trim().toLowerCase();
+		return items.find( function ( item ) { return kinds.includes( item.Kind ) && ( item.Id === name || item.Title.toLowerCase() === wanted ); } ) || null;
+	}
+
+
+	// What a request finds, as text; a request that cannot be answered says why.
+	async function answer_request( project, request )
+	{
+		if ( !project )
+		{
+			return 'refused: the plan is in no project';
+		}
+		let items = await project_items( project );
+		let tool = request.Tool;
+		if ( tool === 'list_project' )
+		{
+			let lines = [ 'The project "' + project.Name + '":' ];
+			for ( let item of items )
+			{
+				let where = item.Folder ? ' in ' + item.Folder : '';
+				let extra = item.State ? ' (' + item.State + ')' : ( item.Corpus ? ' (' + item.Corpus.Files.length + ' files)' : '' );
+				lines.push( '- ' + item.Kind + ' "' + item.Title + '"' + extra + where + ', id ' + item.Id );
+			}
+			return lines.join( '\n' );
+		}
+		if ( tool === 'read_plan' || tool === 'read_revision' )
+		{
+			let item = item_named( items, request.Plan, [ 'plan', 'document', 'context' ] );
+			if ( !item )
+			{
+				return 'refused: no plan or document "' + ( request.Plan || '' ) + '" in the project';
+			}
+			if ( tool === 'read_plan' )
+			{
+				let read = await store.ReadProposal( item.Id );
+				return clip_result( read.Text );
+			}
+			let revision = await store.ReadRevision( item.Id, parseInt( request.Revision, 10 ) );
+			return revision ? clip_result( revision.Text ) : 'refused: "' + item.Title + '" has no revision ' + request.Revision;
+		}
+		if ( tool === 'read_file' )
+		{
+			let item = item_named( items, request.Zip, [ 'zip' ] );
+			if ( !item )
+			{
+				return 'refused: no uploaded zip "' + ( request.Zip || '' ) + '" in the project';
+			}
+			let zip = await store.ReadCorpusZip( item.Id );
+			let extracted = await CORPUS.Extract( zip, CORPUS.Limits( settings ) );
+			let path = String( request.Path || '' ).replace( /^\/+/, '' );
+			if ( extracted.Texts[ path ] === undefined )
+			{
+				return 'refused: "' + item.Title + '" has no text file ' + path;
+			}
+			return clip_result( extracted.Texts[ path ] );
+		}
+		if ( tool === 'search' )
+		{
+			if ( !Context.Search || !String( request.Query || '' ).trim() )
+			{
+				return 'refused: nothing to search for';
+			}
+			let hits = await Context.Search( String( request.Query ), SEARCH_RESULTS, TREE.ItemIds( project.Items ) );
+			if ( !hits.length )
+			{
+				return 'nothing found';
+			}
+			let titles = await source_titles();
+			return hits.map( function ( hit )
+			{
+				let title = title_of_hit( titles, hit );
+				let where = hit.Path ? 'the file ' + hit.Path + ' in "' + title + '"' : ( hit.Thread ? 'a thread in "' + title + '"' : '"' + title + '"' );
+				return '- From ' + where + ':\n  ' + String( hit.Text ).replace( /\n/g, '\n  ' );
+			} ).join( '\n' );
+		}
+		return 'refused: there is no tool "' + tool + '"';
+	}
+
+
+	// Each request answered, each a step of the run log. Returns the results, in the requests' order.
+	async function answer_requests( id, run_id, project, requests )
+	{
+		let results = [];
+		for ( let request of requests )
+		{
+			let started = Date.now();
+			let result = null;
+			try
+			{
+				result = await answer_request( project, request );
+			}
+			catch ( error )
+			{
+				result = 'refused: ' + error.message;
+			}
+			results.push( result );
+			await log_step( id, run_id, { Text: 'Consensus answered ' + LLM.DescribeRequest( request ), Seconds: seconds_since( started ), Tokens: tokens_of( result ) } );
+		}
+		return results;
+	}
+
+
+	// The run's turns so far, kept with it, so a Manual session can carry on across pastes.
+	async function update_run( id, run_id, change )
+	{
+		let changed_run = null;
+		await store.Queue( runs_queue( id ), async function ()
+		{
+			let runs = await store.ReadRuns( id );
+			let run = runs.find( function ( candidate ) { return candidate.Id === run_id; } );
+			if ( run )
+			{
+				change( run );
+				changed_run = run;
+				await store.WriteRuns( id, runs );
+			}
+		} );
+		return changed_run;
+	}
+
+
+	async function read_run( id, run_id )
+	{
+		let runs = await store.ReadRuns( id );
+		return runs.find( function ( candidate ) { return candidate.Id === run_id; } ) || null;
+	}
+
+
 	async function run_session( id, llm, call, options, run_id )
 	{
 		let started = Date.now();
-		let packed = await package_for( id, llm, options );
 		let model = call.Model || call.Kind;
-		await log_step( id, run_id, { Text: 'Consensus sent the prompt to ' + model, Seconds: seconds_since( started ), Tokens: tokens_of( packed.Prompt ) } );
 		let caller = ( Context.Caller || LLM.Caller )( call );
-		let asked = Date.now();
-		let answer = null;
-		try
+		let holder = await store.ProjectOf( id );
+		let turns = [];
+		for ( let turn = 1; ; turn++ )
 		{
-			answer = await caller( packed.Prompt );
-		}
-		catch ( error )
-		{
-			let failures = {};
-			for ( let thread of packed.Waiting )
+			let made = Date.now();
+			let packed = await package_for( id, llm, options, turns );
+			let sent = ( turn === 1 ) ? 'Consensus sent the prompt to ' + model : 'Consensus sent answer ' + turn + '\'s prompt to ' + model;
+			await log_step( id, run_id, { Text: sent, Seconds: seconds_since( made ), Tokens: tokens_of( packed.Prompt ) } );
+			let asked = Date.now();
+			let answer = null;
+			try
 			{
-				failures[ thread.Id ] = error.message;
+				answer = await caller( packed.Prompt );
 			}
-			await record_call_results( id, failures, false );
-			await log_step( id, run_id, { Text: model + ' failed: ' + error.message, Seconds: seconds_since( asked ) }, true );
-			log_call( id, call, packed.Waiting, started, 'failed: ' + error.message );
+			catch ( error )
+			{
+				let failures = {};
+				for ( let thread of packed.Waiting )
+				{
+					failures[ thread.Id ] = error.message;
+				}
+				await record_call_results( id, failures, false );
+				await log_step( id, run_id, { Text: model + ' failed: ' + error.message, Seconds: seconds_since( asked ) }, true );
+				log_call( id, call, packed.Waiting, started, 'failed: ' + error.message );
+				return;
+			}
+			await record_usage( call, answer.Usage );
+			let answered_by = ( answer.Usage && answer.Usage.Model ) || model;
+			let output = ( answer.Usage && answer.Usage.Output ) || tokens_of( JSON.stringify( answer.Answer ) );
+			let requests = answer.Answer.Requests || [];
+			if ( requests.length && turn < LLM.MAX_TURNS )
+			{
+				await log_step( id, run_id, { Text: answered_by + ' asked for ' + requests.map( LLM.DescribeRequest ).join( ', ' ), Seconds: seconds_since( asked ), Tokens: output } );
+				let results = await answer_requests( id, run_id, holder, requests );
+				turns.push( { Requests: requests, Results: results } );
+				continue;
+			}
+			let ignored = requests.length ? ' (its requests go unanswered: it was the last answer)' : '';
+			await log_step( id, run_id, { Text: answered_by + ' answered: ' + actions_words( answer.Answer.Actions ) + ignored, Seconds: seconds_since( asked ), Tokens: output } );
+			let failures = await carry_out_answer( id, llm, run_id, answer.Answer.Actions, packed.Read.Proposal.Revision, packed.Context );
+			let failed = Object.keys( failures ).length;
+			log_call( id, call, packed.Waiting, started, turn + ( turn === 1 ? ' answer, ' : ' answers, ' ) + answer.Answer.Actions.length + ' actions' + ( failed ? ', ' + failed + ' refused' : '' ) + ', ' + answer.Usage.Input + ' in, ' + answer.Usage.Output + ' out' );
 			return;
 		}
-		await record_usage( call, answer.Usage );
-		let answered_by = ( answer.Usage && answer.Usage.Model ) || model;
-		await log_step( id, run_id, { Text: answered_by + ' answered: ' + actions_words( answer.Answer.Actions ), Seconds: seconds_since( asked ), Tokens: ( answer.Usage && answer.Usage.Output ) || tokens_of( JSON.stringify( answer.Answer ) ) } );
-		let failures = await carry_out_answer( id, llm, run_id, answer.Answer.Actions, packed.Read.Proposal.Revision, packed.Context );
-		let failed = Object.keys( failures ).length;
-		log_call( id, call, packed.Waiting, started, answer.Answer.Actions.length + ' actions' + ( failed ? ', ' + failed + ' refused' : '' ) + ', ' + answer.Usage.Input + ' in, ' + answer.Usage.Output + ' out' );
 	}
 
 
 	// A pasted answer: Body = { Answer (the JSON object, or text holding it), Revision, ContextRevision?, Run? }
-	// Returns { Actions, Refused }.
+	// An answer that asks for more (with a Run, before its last turn) is answered, and the next prompt comes back to
+	// copy: { Continue: true, Run, Turn, ...the prompt }. Any other is carried out: { Actions, Refused, Run }.
 	router.post( '/proposals/:id/answer', async function ( request, response )
 	{
 		if ( request.Participant.Role !== 'owner' )
@@ -1894,10 +2099,24 @@ function Attach( App, Context )
 		calling[ id ] = true;
 		try
 		{
-			let run_id = ( typeof body.Run === 'string' && body.Run ) ? body.Run : await start_run( id, MANUAL, null, null );
+			let run = ( typeof body.Run === 'string' && body.Run ) ? await read_run( id, body.Run ) : null;
+			let run_id = run ? run.Id : await start_run( id, MANUAL, null, null );
 			let pasted = ( typeof body.Answer === 'string' ) ? body.Answer : JSON.stringify( body.Answer );
-			await log_step( id, run_id, { Text: 'The answer was pasted: ' + actions_words( answer.Actions ), Tokens: tokens_of( pasted ) } );
+			let turns = ( run && run.Turns ) || [];
 			let holder = await store.ProjectOf( id );
+			if ( run && answer.Requests.length && turns.length + 1 < LLM.MAX_TURNS )
+			{
+				await log_step( id, run_id, { Text: 'The pasted answer asked for ' + answer.Requests.map( LLM.DescribeRequest ).join( ', ' ), Tokens: tokens_of( pasted ) } );
+				let results = await answer_requests( id, run_id, holder, answer.Requests );
+				turns = turns.concat( [ { Requests: answer.Requests, Results: results } ] );
+				await update_run( id, run_id, function ( changed ) { changed.Turns = turns; } );
+				let started = Date.now();
+				let packed = await package_for( id, llm, run.Options, turns );
+				await log_step( id, run_id, { Text: 'Consensus made answer ' + ( turns.length + 1 ) + '\'s prompt for copying', Seconds: seconds_since( started ), Tokens: tokens_of( packed.Prompt ) } );
+				return response.json( Object.assign( { Continue: true, Run: run_id, Turn: turns.length + 1 }, prompt_view( packed ) ) );
+			}
+			let ignored = answer.Requests.length ? ' (its requests go unanswered)' : '';
+			await log_step( id, run_id, { Text: 'The answer was pasted: ' + actions_words( answer.Actions ) + ignored, Tokens: tokens_of( pasted ) } );
 			let context = ( holder && holder.Context ) ? { Id: holder.Context, Revision: ( typeof body.ContextRevision === 'number' ) ? body.ContextRevision : null } : null;
 			let failures = await carry_out_answer( id, llm, run_id, answer.Actions, body.Revision, context );
 			console.log( 'llm: ' + id + ': a pasted answer, ' + answer.Actions.length + ' actions' + ( Object.keys( failures ).length ? ', ' + Object.keys( failures ).length + ' refused' : '' ) );

@@ -585,3 +585,31 @@ TEST( 'session: Manual copy / paste makes the prompt, and a pasted answer is car
 	ASSERT.deepEqual( steps, [ 'Consensus made the prompt for copying', 'The answer was pasted: 1 reply', 'Consensus carried out 1 action, 0 refused' ] );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
+
+
+TEST( 'session: a pasted answer that asks for more is answered, and Continue gives the next prompt', async function ()
+{
+	let posted = await fetch( running.Url + '/api/proposals/' + tab_one.Id + '/threads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Text: 'What does Tab two say?' } ) } );
+	let thread = ( await posted.json() ).Thread;
+	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (1)"' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-copy" ) ).display !== "none"' );
+	await page.Click( '#session-copy' );
+	await page.WaitFor( text_of( '#session-turn' ) + ' === "Answer 1 of 5"' );
+	function paste( answer )
+	{
+		return '( function () { let box = document.getElementById( "session-answer" ); box.value = ' + JSON.stringify( JSON.stringify( answer ) ) + '; box.dispatchEvent( new Event( "input" ) ); return true; } )()';
+	}
+	await page.Evaluate( paste( { Actions: [], Requests: [ { Tool: 'read_plan', Plan: 'Tab two' } ] } ) );
+	await page.WaitFor( '!document.getElementById( "session-carry-out" ).disabled' );
+	await page.Click( '#session-carry-out' );
+	await page.WaitFor( 'document.getElementById( "session-continue" ).offsetParent !== null' );
+	await page.WaitFor( '[ ...document.querySelector( ".run" ).querySelectorAll( ".run-step .step-text" ) ].some( function ( step ) { return step.textContent.trim() === "Consensus answered read_plan \\"Tab two\\""; } )' );
+	await page.Click( '#session-continue' );
+	await page.WaitFor( text_of( '#session-turn' ) + ' === "Answer 2 of 5"' );
+	await page.Evaluate( paste( { Actions: [ { Thread: thread.Id, Kind: 'reply', Reply: 'Tab two has one line.' } ] } ) );
+	await page.WaitFor( '!document.getElementById( "session-carry-out" ).disabled' );
+	await page.Click( '#session-carry-out' );
+	await page.WaitFor( text_of( '#session-result' ) + ' === "Carried out 1 actions, 0 refused."' );
+	await page.WaitFor( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).some( function ( reply ) { return reply.textContent.trim() === "Tab two has one line."; } )' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
