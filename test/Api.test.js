@@ -913,6 +913,105 @@ TEST( 'send: the answer\'s replies and applies are carried out as the llm, and i
 } );
 
 
+TEST( 'context: every project has one; a call includes it and may rewrite it, but not over a newer revision', async function ()
+{
+	let project = ( await call( 'POST', '/api/projects', { Name: 'With context' } ) ).Body.Project;
+	let listed = ( await call( 'GET', '/api/projects' ) ).Body.Projects.find( function ( candidate ) { return candidate.Id === project.Id; } );
+	ASSERT.equal( listed.Context.Empty, true );
+	let context_id = listed.Context.Id;
+	let context = await call( 'GET', '/api/proposals/' + context_id );
+	ASSERT.equal( context.Body.Proposal.Kind, 'context' );
+	ASSERT.equal( context.Body.Project.Id, project.Id );
+	ASSERT.equal( context.Body.Proposal.StateLine, 'the project\'s context' );
+	// no threads, no state, never deleted on its own
+	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + context_id + '/threads', { Text: 'x' } ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + context_id + '/state', { State: 'Plan' } ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'DELETE', '/api/proposals/' + context_id ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + context_id + '/move', { Project: 'default' } ) ).Status, 404 );
+
+	// the first call finds no context and writes one; a second context action is ignored
+	let plan = ( await call( 'POST', '/api/proposals', { Title: 'Plan with context', Text: TEXT, Project: project.Id } ) ).Body.Proposal;
+	let thread = ( await call( 'POST', '/api/proposals/' + plan.Id + '/threads', { Text: 'Review this.' } ) ).Body.Thread;
+	llm_answer = async function ()
+	{
+		return {
+			Answer: { Actions: [
+				{ Thread: thread.Id, Kind: 'reply', Reply: 'Reviewed; I started the project\'s context.' },
+				{ Kind: 'context', Text: '# Context\n\nFirst.\n', Reason: 'started it' },
+				{ Kind: 'context', Text: '# Context\n\nIgnored.\n' },
+			] },
+			Usage: { Model: 'fake-model', Input: 10, Output: 10 },
+		};
+	};
+	llm_prompts = [];
+	await send_and_wait( plan.Id );
+	ASSERT.match( llm_prompts[ 0 ], /This project has no context yet/ );
+	ASSERT.match( llm_prompts[ 0 ], /Keep it under 12000 characters/ );
+	context = await call( 'GET', '/api/proposals/' + context_id );
+	ASSERT.equal( context.Body.Text, '# Context\n\nFirst.\n' );
+	ASSERT.equal( context.Body.Proposal.Revision, 2 );
+	let revisions = ( await call( 'GET', '/api/proposals/' + context_id + '/revisions' ) ).Body.Revisions;
+	ASSERT.deepEqual( [ revisions[ 1 ].By, revisions[ 1 ].Reason, revisions[ 1 ].Note ], [ 'llm', 'context', 'started it' ] );
+	ASSERT.equal( ( await call( 'GET', '/api/projects' ) ).Body.Projects.find( function ( candidate ) { return candidate.Id === project.Id; } ).Context.Empty, false );
+
+	// the next call includes it; a person's edit while the call runs makes the LLM's change stale, and it is refused
+	await call( 'POST', '/api/proposals/' + plan.Id + '/threads/' + thread.Id + '/replies', { Text: 'One more look.' } );
+	llm_answer = async function ()
+	{
+		await call( 'PUT', '/api/proposals/' + context_id + '/text', { Text: '# Context\n\nEdited by hand.\n', Revision: 2 } );
+		return { Answer: { Actions: [ { Kind: 'context', Text: '# Context\n\nStale.\n', Reason: 'late' } ] }, Usage: { Model: 'fake-model', Input: 10, Output: 10 } };
+	};
+	await send_and_wait( plan.Id );
+	ASSERT.match( llm_prompts[ 1 ], /# The project's context, revision 2/ );
+	ASSERT.match( llm_prompts[ 1 ], /First\./ );
+	context = await call( 'GET', '/api/proposals/' + context_id );
+	ASSERT.equal( context.Body.Text, '# Context\n\nEdited by hand.\n' );
+	ASSERT.equal( context.Body.Proposal.Revision, 3 );
+} );
+
+
+TEST( 'context: Initialize context gives the LLM the project\'s items, zip files and key files; an empty project\'s context is trashed with it', async function ()
+{
+	let project = ( await call( 'POST', '/api/projects', { Name: 'From code' } ) ).Body.Project;
+	let context_id = ( await call( 'GET', '/api/projects' ) ).Body.Projects.find( function ( candidate ) { return candidate.Id === project.Id; } ).Context.Id;
+	let zip = MAKER.Make( [
+		{ Name: 'app/README.md', Data: '# The app\n\nIt keeps lamps lit.\n' },
+		{ Name: 'app/package.json', Data: '{ "name": "lamps" }\n' },
+		{ Name: 'app/src/deep/README.md', Data: 'a deeper readme\n' },
+		{ Name: 'app/src/index.js', Data: 'console.log( 1 );\n' },
+	] );
+	ASSERT.equal( ( await upload( 'POST', '/api/projects/' + project.Id + '/corpus?name=code', zip ) ).Status, 201 );
+	await call( 'POST', '/api/proposals', { Title: 'A plan in it', Text: '# A plan in it\n', Project: project.Id } );
+
+	ASSERT.equal( ( await call( 'POST', '/api/projects/' + project.Id + '/context/initialize', {}, true ) ).Status, 403 );
+	ASSERT.equal( ( await call( 'POST', '/api/projects/none/context/initialize' ) ).Status, 404 );
+	llm_answer = async function ()
+	{
+		return { Answer: { Actions: [ { Kind: 'context', Text: '# From code\n\nLamps.\n', Reason: 'from the zip' } ] }, Usage: { Model: 'fake-model', Input: 10, Output: 10 } };
+	};
+	llm_prompts = [];
+	let started = await call( 'POST', '/api/projects/' + project.Id + '/context/initialize' );
+	ASSERT.equal( started.Status, 202 );
+	ASSERT.equal( started.Body.Context, context_id );
+	await wait_idle( context_id );
+	let prompt = llm_prompts[ 0 ];
+	ASSERT.match( prompt, /Write the context of the project "From code"/ );
+	ASSERT.match( prompt, /- plan: A plan in it/ );
+	ASSERT.match( prompt, /- code\/app\/src\/index\.js/ );
+	ASSERT.match( prompt, /# The file code\/app\/README\.md\n\n`+\n# The app/ );
+	ASSERT.match( prompt, /# The file code\/app\/package\.json/ );
+	ASSERT.ok( prompt.indexOf( 'code/app/README.md' ) < prompt.indexOf( '# The file code/app/src/deep/README.md' ) );
+	let context = await call( 'GET', '/api/proposals/' + context_id );
+	ASSERT.equal( context.Body.Text, '# From code\n\nLamps.\n' );
+
+	// an empty project is deleted, and its context goes to the trash with it
+	let empty = ( await call( 'POST', '/api/projects', { Name: 'Short lived' } ) ).Body.Project;
+	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + empty.Id ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + empty.Context ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'GET', '/api/trash' ) ).Body.Proposals.some( function ( trashed ) { return trashed.Id === empty.Context; } ), true );
+} );
+
+
 TEST( 'send: a failed call leaves a line on each thread; a refused action on its thread; the next success clears them', async function ()
 {
 	let proposal = await create( 'Send failures' );

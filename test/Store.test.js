@@ -241,6 +241,30 @@ TEST( 'projects: in the master\'s order, new ones last; created, written with a 
 } );
 
 
+TEST( 'every project has its context: made with a new project, or at start for one without; never placed in a tree', async function ()
+{
+	let store = STORE.Open( temporary_folder() );
+	await store.Migrate( [ 'Proposal' ] );
+	let made = await store.CreateProject( { Name: 'Made' } );
+	let context = ( await store.ReadProposal( made.Context ) ).Proposal;
+	ASSERT.equal( context.Kind, 'context' );
+	ASSERT.equal( context.State, null );
+	ASSERT.equal( ( await store.ReadProposal( made.Context ) ).Text, '' );
+	ASSERT.equal( ( await store.ProjectOf( made.Context ) ).Id, made.Id );
+	ASSERT.equal( ( await store.ReadProject( 'default' ) ).Context !== undefined, true );
+	// a project from before contexts gets one at start, logged; its context stays out of Default's tree
+	let older = await store.ReadProject( made.Id );
+	delete older.Context;
+	await store.WriteProject( older );
+	let lines = await store.Migrate( [ 'Proposal' ] );
+	ASSERT.equal( lines.length, 1 );
+	ASSERT.match( lines[ 0 ], new RegExp( '^projects/' + made.Id + ': context p[0-9a-f]{8} created$' ) );
+	ASSERT.notEqual( ( await store.ReadProject( made.Id ) ).Context, made.Context );
+	ASSERT.deepEqual( ( await store.ReadProject( 'default' ) ).Items, [] );
+	ASSERT.deepEqual( await store.Migrate( [ 'Proposal' ] ), [] );
+} );
+
+
 TEST( 'an older data folder with no master lists Default first, then by name, with the names its project.json files carry', async function ()
 {
 	let folder = temporary_folder();

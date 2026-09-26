@@ -128,6 +128,10 @@ async function MigrateIds( Folder )
 		}
 		project.Id = new_id;
 		delete project.Name;
+		if ( project.Context && map[ project.Context ] )
+		{
+			project.Context = map[ project.Context ];
+		}
 		project.Items = rename_nodes( project.Items || [], map );
 		await write_json( file, project );
 		if ( new_id !== id )

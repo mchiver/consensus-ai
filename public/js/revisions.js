@@ -104,7 +104,9 @@ angular.module( 'Consensus' ).controller( 'RevisionsController', [ '$scope', 'St
 		}
 		else
 		{
+			// another proposal's list is never shown, even for a moment, when the view comes back
 			$scope.Shown = null;
+			$scope.Revisions = [];
 		}
 	} );
 } ] );

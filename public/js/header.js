@@ -17,16 +17,45 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 	};
 
 
-	// A plan has threads; a document has none, so it has no toggle.
+	// A plan has threads; a document or a context has none, so it has no toggle and nothing to send.
 	$scope.HasThreads = function ()
 	{
-		return !!State.Open && State.Open.Proposal.Kind !== 'document';
+		return !!State.Open && State.Open.Proposal.Kind !== 'document' && State.Open.Proposal.Kind !== 'context';
+	};
+
+
+	$scope.IsContext = function ()
+	{
+		return !!State.Open && State.Open.Proposal.Kind === 'context';
 	};
 
 
 	$scope.ToggleThreads = function ()
 	{
 		State.SetThreadsHidden( !State.ThreadsHidden );
+	};
+
+
+	// Initialize context: the LLM writes the open context from its project. The call runs in the background; the
+	// new revision arrives live.
+	$scope.InitializeContext = async function ()
+	{
+		if ( !State.Open || !State.Open.Project )
+		{
+			return;
+		}
+		$scope.Busy = true;
+		let project_id = State.Open.Project.Id;
+		let answer = await State.Act( function ()
+		{
+			return Client.Post( '/api/projects/' + encodeURIComponent( project_id ) + '/context/initialize' );
+		} );
+		$scope.Busy = false;
+		if ( answer )
+		{
+			await State.Reload();
+		}
+		$scope.$applyAsync();
 	};
 
 

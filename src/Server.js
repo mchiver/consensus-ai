@@ -14,6 +14,7 @@ const API = require( './Api.js' );
 const INDEX = require( './Index.js' );
 const CORPUS = require( './Corpus.js' );
 const VECTORS = require( './Vectors.js' );
+const LLM = require( './Llm.js' );
 
 
 // A first start over an existing data folder indexes every proposal once; later starts only what is stale.
@@ -93,6 +94,12 @@ async function Start( Options )
 		settings.Corpus = CORPUS.Limits( settings );
 		await store.WriteSettings( settings );
 		console.log( 'settings: added the Corpus limits' );
+	}
+	if ( !settings.Context )
+	{
+		settings.Context = LLM.ContextSettings( settings );
+		await store.WriteSettings( settings );
+		console.log( 'settings: added the Context size' );
 	}
 	for ( let line of await store.Migrate( settings.States ) )
 	{

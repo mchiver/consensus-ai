@@ -57,8 +57,8 @@ revision that applied a deleted thread keeps its text and shows "(deleted thread
 	consensus.json                   settings: Port, Participants, States, Corpus, optional Embedding
 	usage.json                       the LLM's tokens per day and model
 	projects.json                    { Projects: [ { Id, Name } ] }: every project's name, in display order
-	projects/<id>/project.json       { Id, Created, Updated, Version, Items: [ node ] }
-	proposals/<id>/proposal.json     { Id, Title, Kind: plan | document, State, Created, Updated, Revision }
+	projects/<id>/project.json       { Id, Context, Created, Updated, Version, Items: [ node ] }  Context: its context's id
+	proposals/<id>/proposal.json     { Id, Title, Kind: plan | document | context, State, Created, Updated, Revision }
 	proposals/<id>/proposal.md       the text at revision Revision
 	proposals/<id>/threads.json      the threads
 	proposals/<id>/revisions/0001.md, 0001.json    every revision's text and record
@@ -99,12 +99,14 @@ ids stop working.
 			{ "Name": "user", "Display": "User", "Role": "owner" },
 			{ "Name": "llm", "Display": "LLM", "Role": "llm", "Call": { "Kind": "claude-cli", "Command": "claude" } }
 		],
-		"Corpus": { "MaxZipMegabytes": 50, "MaxFileKilobytes": 512, "Extensions": [ ".md", ".txt", ".js", ... ] }
+		"Corpus": { "MaxZipMegabytes": 50, "MaxFileKilobytes": 512, "Extensions": [ ".md", ".txt", ".js", ... ] },
+		"Context": { "MaxCharacters": 12000 }
 	}
 
 `States` is the list a plan's state is picked from; a new plan starts in the first. `Corpus` limits
 uploads: a zip over `MaxZipMegabytes` is refused, and a file is taken in only when its extension is listed,
-it is no larger than `MaxFileKilobytes` and it holds no NUL byte. Restart the server after editing.
+it is no larger than `MaxFileKilobytes` and it holds no NUL byte. `Context.MaxCharacters` is the size the LLM
+keeps each project's context under. Restart the server after editing.
 
 A request without an `Authorization` header is the participant with the `owner` role: the browser. A
 request with `Authorization: Bearer <token>` is the participant holding that token; give a participant a
@@ -118,19 +120,29 @@ button counts the threads waiting on the LLM, is disabled at 0, and reads **LLM 
 runs. Replying, resolving and new threads only leave work waiting.
 
 One call per press, for everything waiting on the LLM in that plan. The prompt holds the rules, the plan's
-project, its text at the current revision, every thread with the waiting ones marked, and for each waiting
+project and **its context**, its text at the current revision, every thread with the waiting ones marked, and for each waiting
 thread the best passages the search finds **in the plan's own project**: its plans, threads, documents and
 corpus files. The LLM has no tools: it answers with one JSON object,
 
 	{ "Actions": [
 		{ "Thread": "t…", "Kind": "reply", "Reply": "markdown" },
-		{ "Thread": "t…", "Kind": "apply", "Outcome": "one sentence", "Text": "the whole new markdown", "Anchor": "a few words" }
+		{ "Thread": "t…", "Kind": "apply", "Outcome": "one sentence", "Text": "the whole new markdown", "Anchor": "a few words" },
+		{ "Kind": "context", "Text": "the whole new context", "Reason": "one sentence" }
 	] }
 
 and Consensus carries each action out as the llm participant, through the same rules as the API. An action
 that is refused, or a call that fails, leaves a line on its thread (*LLM call failed …*); the next
 successful call clears it, and pressing Send to LLM again is the retry. Each call is a line in the server
 log, and its tokens are added to `usage.json`; the sidebar shows today's, with the rest in its tooltip.
+
+**The project's context.** Every project has one, Default included: a short account of what the project is
+and what has been decided, pinned above its tree. Every call includes it, and the LLM keeps it coherent across
+discussions: when a call changes what it should say, or the project has none yet, the answer carries a
+`context` action with its whole new text. That becomes a new revision at once, with the LLM's reason beside
+it in Revisions, and is refused when the context changed since the call was given it. People read and edit
+it like a document; it has no threads and no state, and is never moved, copied or deleted on its own. On a
+context's page, **Initialize context** (owner) asks the LLM to write it from the project: its plans and
+documents by title, the files in its zips, and a few key files (readmes, manifests, CLAUDE.md).
 
 The `Call` setting on the llm participant chooses the LLM:
 

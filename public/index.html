@@ -67,7 +67,7 @@
 		</div>
 	</script>
 
-	<div class="layout" ng-class="{ 'no-threads': State.Open.Proposal.Kind === 'document' || State.View === 'corpus' || State.ThreadsHidden }">
+	<div class="layout" ng-class="{ 'no-threads': State.Open.Proposal.Kind === 'document' || State.Open.Proposal.Kind === 'context' || State.View === 'corpus' || State.ThreadsHidden }">
 
 		<!-- ============================================================= -->
 		<aside class="sidebar" ng-controller="SidebarController">
@@ -122,6 +122,12 @@
 							</div>
 						</form>
 						<div class="clipboard" ng-show="Clipboard" id="clipboard">copied: {{ Clipboard.Name }} <span class="muted">(Ctrl+V or paste)</span> <button class="btn btn-link btn-sm" title="forget it" ng-click="ClearClipboard()">&times;</button></div>
+						<a class="tree-item tree-row context-item" style="--depth: {{ Depth }}" ng-if="project.Context" ng-class="{ open: project.Context.Id === State.OpenId }" ng-href="#/p/{{ project.Context.Id }}" data-id="{{ project.Context.Id }}" title="the project's context: every call to the LLM reads it, and the LLM keeps it up to date">
+							<span class="chevron-space"></span>
+							<span class="tree-icon icon-context"></span>
+							<span class="proposal-title">Context</span>
+							<span class="badges"><span class="item-state" ng-show="project.Context.Empty">empty</span></span>
+						</a>
 						<div class="list-empty" ng-show="project.Items.length === 0">empty</div>
 						<div class="tree" ng-include="'tree-nodes.html'"></div>
 					</div>
@@ -162,7 +168,7 @@
 		<main class="main">
 			<header class="header" ng-controller="HeaderController">
 				<div class="header-row">
-					<div class="title" ng-show="State.Open">{{ State.Open.Proposal.Title }}</div>
+					<div class="title" ng-show="State.Open">{{ IsContext() ? 'Context of ' + State.Open.Project.Name : State.Open.Proposal.Title }}</div>
 					<div class="title muted" ng-hide="State.Open">{{ State.View === 'waiting' ? 'Waiting on you' : ( State.View === 'search' ? 'Search' : ( State.View === 'corpus' ? 'Corpus' : 'Consensus' ) ) }}</div>
 					<div class="header-views" ng-show="State.Open">
 						<div class="btn-group" role="group">
@@ -175,15 +181,16 @@
 				</div>
 				<div class="header-row" ng-show="State.Open">
 					<div class="state-line">
-						<span class="document-badge" id="document-badge" ng-show="State.Open.Proposal.Kind === 'document'">Document</span>
-						<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="State.Open.Proposal.Kind !== 'document'" title="the proposal's state: anyone can change it" ng-model="PickedState" ng-change="SetState()" ng-disabled="Busy" ng-options="name for name in StateOptions()"></select>
+						<span class="document-badge" id="document-badge" ng-show="State.Open.Proposal.Kind === 'document' || IsContext()">{{ IsContext() ? 'Context' : 'Document' }}</span>
+						<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="State.Open.Proposal.Kind !== 'document' && !IsContext()" title="the proposal's state: anyone can change it" ng-model="PickedState" ng-change="SetState()" ng-disabled="Busy" ng-options="name for name in StateOptions()"></select>
 						<span id="state-line">{{ State.Open.Proposal.StateLine }}</span>
 						<span class="revision" id="revision">revision {{ State.Open.Proposal.Revision }}</span>
 					</div>
 					<div class="header-buttons">
-						<button class="btn btn-sm btn-outline-secondary" ng-click="CommentOnWhole()" ng-show="State.View === 'read' && State.Open.Proposal.Kind !== 'document'">Comment on the whole document</button>
-						<button class="btn btn-sm btn-primary" id="send-button" ng-show="State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="!State.Open.Llm.Waiting || State.Open.Llm.Running || Busy" ng-click="Send()" title="{{ SendHint() }}">{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Send to LLM (' + State.Open.Llm.Waiting + ')' }}</button>
-						<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete" ng-click="ConfirmingDelete = true">Delete</button>
+						<button class="btn btn-sm btn-outline-secondary" ng-click="CommentOnWhole()" ng-show="State.View === 'read' && HasThreads()">Comment on the whole document</button>
+						<button class="btn btn-sm btn-primary" id="initialize-context" ng-show="IsContext() && State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="State.Open.Llm.Running || Busy" ng-click="InitializeContext()" title="the LLM writes the context from the project: its plans and documents, the files in its zips, and a few key files">{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Initialize context' }}</button>
+						<button class="btn btn-sm btn-primary" id="send-button" ng-show="HasThreads() && State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="!State.Open.Llm.Waiting || State.Open.Llm.Running || Busy" ng-click="Send()" title="{{ SendHint() }}">{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Send to LLM (' + State.Open.Llm.Waiting + ')' }}</button>
+						<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete || IsContext()" ng-click="ConfirmingDelete = true">Delete</button>
 						<span class="confirm" ng-show="ConfirmingDelete">
 							to the trash?
 							<button class="btn btn-sm btn-danger" ng-click="Delete()" ng-disabled="Busy">Yes</button>
@@ -235,6 +242,7 @@
 						<span class="revision-reason" ng-class="revision.Reason">{{ revision.Reason }}</span>
 						<span class="revision-by">{{ revision.By | display }}</span>
 						<span class="revision-at">{{ revision.At | when }}</span>
+						<span class="revision-note" ng-show="revision.Note" title="{{ revision.Note }}">{{ revision.Note }}</span>
 						<span class="revision-thread" ng-show="revision.Thread" ng-class="{ deleted: !ThreadExists(revision.Thread) }" ng-click="OpenThread(revision, $event)" title="{{ ThreadExists(revision.Thread) ? 'the thread it applied' : 'the thread it applied was deleted' }}">{{ ThreadLabel(revision.Thread) }}</span>
 					</div>
 				</div>

@@ -5,13 +5,14 @@
 //
 //   <folder>/consensus.json                   settings
 //   <folder>/usage.json                       the LLM's tokens, per day and model
-//   <folder>/proposals/<id>/proposal.json     { Id, Title, Kind: 'plan' | 'document', State, Created, Updated, Revision }
+//   <folder>/proposals/<id>/proposal.json     { Id, Title, Kind: 'plan' | 'document' | 'context', State, Created, Updated, Revision }
 //   <folder>/proposals/<id>/proposal.md       the text at revision Revision
 //   <folder>/proposals/<id>/threads.json      [ thread ]
 //   <folder>/proposals/<id>/revisions/0001.md, 0001.json
 //   <folder>/proposals/<id>/index.json        search chunks
 //   <folder>/projects.json                    { Projects: [ { Id, Name } ] }  every project's name, in display order
-//   <folder>/projects/<id>/project.json       { Id, Created, Updated, Version, Items: [ node ] } (see Tree.js)
+//   <folder>/projects/<id>/project.json       { Id, Context, Created, Updated, Version, Items: [ node ] } (see Tree.js)
+//                                             Context: the id of the project's context, a proposal of Kind 'context'
 //   <folder>/corpora/<id>/corpus.json, corpus.zip, index.json    an uploaded zip, its files and search chunks
 //   <folder>/trash/<id>/                      a deleted proposal or corpus, moved whole
 //
@@ -245,7 +246,7 @@ function Open( Folder )
 	}
 
 
-	// Parameters: { Title, Text, By, Kind: 'plan' | 'document', State }  A document has no State.
+	// Parameters: { Title, Text, By, Kind: 'plan' | 'document' | 'context', State }  Only a plan has a State.
 	async function CreateProposal( Parameters )
 	{
 		let id = unique_id( PROPOSAL_LETTER );
@@ -255,7 +256,7 @@ function Open( Folder )
 			Id: id,
 			Title: Parameters.Title,
 			Kind: kind,
-			State: ( kind === 'document' ) ? null : Parameters.State,
+			State: ( kind === 'plan' ) ? Parameters.State : null,
 			Created: now,
 			Updated: now,
 			Revision: 1,
@@ -302,7 +303,8 @@ function Open( Folder )
 	}
 
 
-	// A new revision of the text. Parameters: { Text, By, Reason: 'edit' | 'apply', Thread? }
+	// A new revision of the text. Parameters: { Text, By, Reason: 'edit' | 'apply' | 'context', Thread?, Note? }
+	// Note: a sentence saying why, kept with the revision (the LLM's reason for a context change).
 	async function WriteText( Id, Parameters )
 	{
 		let proposal = await read_json_or_null( PATH.join( proposal_folder( Id ), 'proposal.json' ) );
@@ -316,6 +318,10 @@ function Open( Folder )
 		if ( Parameters.Thread )
 		{
 			record.Thread = Parameters.Thread;
+		}
+		if ( Parameters.Note )
+		{
+			record.Note = Parameters.Note;
 		}
 		await write_snapshot( Id, revision, Parameters.Text, record );
 		await write_file( PATH.join( proposal_folder( Id ), 'proposal.md' ), Parameters.Text );
@@ -499,12 +505,14 @@ function Open( Folder )
 	}
 
 
-	// Parameters: { Name, Id? }  Id only for the Default project. A new project goes to the end of the order.
+	// Parameters: { Name, Id? }  Id only for the Default project. A new project goes to the end of the order,
+	// with its context, empty until someone or the LLM writes it.
 	async function CreateProject( Parameters )
 	{
 		let id = Parameters.Id || unique_id( PROJECT_LETTER );
 		let now = new Date().toISOString();
-		let project = { Id: id, Created: now, Updated: now, Version: 1, Items: [] };
+		let context = await create_context();
+		let project = { Id: id, Context: context.Id, Created: now, Updated: now, Version: 1, Items: [] };
 		// The master first: were the folder there first, the master would count it among the unnamed ones.
 		await change_master( function ( master )
 		{
@@ -521,6 +529,13 @@ function Open( Folder )
 		await FS.promises.mkdir( PATH.dirname( project_file( id ) ), { recursive: true } );
 		await write_json( project_file( id ), project );
 		return Object.assign( {}, project, { Name: Parameters.Name } );
+	}
+
+
+	// A project's context: a proposal of Kind 'context', titled Context, with no text yet.
+	async function create_context()
+	{
+		return await CreateProposal( { Title: 'Context', Text: '', By: 'consensus', Kind: 'context' } );
 	}
 
 
@@ -591,12 +606,12 @@ function Open( Folder )
 	}
 
 
-	// The project whose tree holds the item Id, or null.
+	// The project whose tree holds the item Id, or whose context it is, or null.
 	async function ProjectOf( Id )
 	{
 		for ( let project of await ListProjects() )
 		{
-			if ( TREE.Find( project.Items, Id ) )
+			if ( project.Context === Id || TREE.Find( project.Items, Id ) )
 			{
 				return project;
 			}
@@ -810,6 +825,7 @@ function Open( Folder )
 	//   proposal: Status and Approved become State (an approved one is a Plan, any other a Proposal); no Kind is a plan
 	//   thread:   Status 'consensus' becomes 'resolved'
 	//   projects: the Default project exists, holds every proposal no project holds, and no tree names a proposal that is gone
+	//   contexts: every project has its context
 
 	async function Migrate( States )
 	{
@@ -882,10 +898,24 @@ function Open( Folder )
 			await CreateProject( { Id: DEFAULT_PROJECT, Name: 'Default' } );
 			lines.push( 'projects/' + DEFAULT_PROJECT + ': created' );
 		}
+		for ( let project of await ListProjects() )
+		{
+			let context = project.Context ? await read_json_or_null( PATH.join( proposal_folder( project.Context ), 'proposal.json' ) ) : null;
+			if ( !context )
+			{
+				project.Context = ( await create_context() ).Id;
+				await WriteProject( project );
+				lines.push( 'projects/' + project.Id + ': context ' + project.Context + ' created' );
+			}
+		}
 		let kinds = {};
 		for ( let proposal of await ListProposals() )
 		{
-			kinds[ proposal.Id ] = proposal.Kind || 'plan';
+			// a context belongs to its project, never to a tree
+			if ( proposal.Kind !== 'context' )
+			{
+				kinds[ proposal.Id ] = proposal.Kind || 'plan';
+			}
 		}
 		for ( let corpus of await ListCorpora() )
 		{

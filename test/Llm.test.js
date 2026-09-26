@@ -66,6 +66,45 @@ TEST( 'the answer is read from an object, from JSON text, or from JSON in a code
 	ASSERT.throws( function () { LLM.Parse( 'I think so.' ); }, /not JSON/ );
 	ASSERT.throws( function () { LLM.Parse( { Answer: [] } ); }, /no Actions/ );
 	ASSERT.throws( function () { LLM.Parse( { Actions: [ { Thread: 't1', Kind: 'resolve' } ] } ); }, /unknown Kind/ );
+	// a context action needs no thread, but needs its text
+	let context = { Actions: [ { Kind: 'context', Text: '# Context\n', Reason: 'why' } ] };
+	ASSERT.deepEqual( LLM.Parse( context ), context );
+	ASSERT.throws( function () { LLM.Parse( { Actions: [ { Kind: 'context', Text: '  ' } ] } ); }, /context action has no Text/ );
+} );
+
+
+TEST( 'the prompt holds the project\'s context after the rules, or asks for one; the size comes from the settings', function ()
+{
+	function prompt_with( context )
+	{
+		return LLM.Prompt( { Proposal: { Title: 'P', Revision: 1 }, Text: 'x', Threads: [], Me: 'llm', Participants: PARTICIPANTS, Context: context, MaxCharacters: 900 } );
+	}
+	let written = prompt_with( { Text: '# Context\n\nLamps stay lit.\n', Revision: 4 } );
+	ASSERT.match( written, /Keep it under 900 characters/ );
+	ASSERT.match( written, /# The project's context, revision 4\n\n````markdown\n# Context\n\nLamps stay lit\.\n\n````/ );
+	ASSERT.ok( written.indexOf( '# The rules' ) < written.indexOf( '# The project\'s context, revision 4' ) );
+	ASSERT.ok( written.indexOf( '# The project\'s context, revision 4' ) < written.indexOf( '# The proposal' ) );
+	ASSERT.match( prompt_with( { Text: '  \n', Revision: 1 } ), /This project has no context yet\. Write one with a context action\./ );
+	ASSERT.equal( prompt_with( null ).includes( '# The project\'s context:' ), false );
+	ASSERT.deepEqual( LLM.ContextSettings( {} ), { MaxCharacters: 12000 } );
+	ASSERT.deepEqual( LLM.ContextSettings( { Context: { MaxCharacters: 5000 } } ), { MaxCharacters: 5000 } );
+} );
+
+
+TEST( 'the initialize prompt holds the project\'s items, its files and its key files, clipped', function ()
+{
+	let prompt = LLM.InitializePrompt( {
+		Project: 'Lamps',
+		Context: { Text: '', Revision: 1 },
+		MaxCharacters: 12000,
+		Items: [ { Kind: 'plan', Title: 'Light them', State: 'Working' }, { Kind: 'document', Title: 'Notes' } ],
+		Files: [ 'code/README.md', 'code/src/index.js' ],
+		KeyFiles: [ { Path: 'code/README.md', Text: 'x'.repeat( 9000 ) } ],
+	} );
+	ASSERT.match( prompt, /Write the context of the project "Lamps"/ );
+	ASSERT.match( prompt, /- plan: Light them \(Working\)\n- document: Notes/ );
+	ASSERT.match( prompt, /# The files in its uploaded zips\n\n- code\/README\.md\n- code\/src\/index\.js/ );
+	ASSERT.match( prompt, /# The file code\/README\.md\n\n````\nx{8000}\n…\n````/ );
 } );
 
 

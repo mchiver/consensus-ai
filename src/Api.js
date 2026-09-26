@@ -5,6 +5,8 @@
 // Errors are { Error } with a status. Writes to one proposal run through the store's queue.
 // After a change, Context.Refresh( id ) re-indexes the proposal in the background; Context.Search answers /search.
 // POST /proposals/:id/send calls the LLM (Llm.js); Context.Caller, when given, replaces Llm.Caller (the tests use it).
+// Each project has a context (a proposal of Kind 'context'): every call to the LLM includes it and may change it;
+// POST /projects/:pid/context/initialize asks the LLM to write it from the project.
 
 const EXPRESS = require( 'express' );
 const CRYPTO = require( 'crypto' );
@@ -153,15 +155,23 @@ function Attach( App, Context )
 	function summarize( proposal, threads, name )
 	{
 		let tally = RULES.Tally( proposal, threads, participants() );
-		let line = is_document( proposal ) ? 'a document' : RULES.StateLine( tally, name );
+		let line = is_context( proposal ) ? 'the project\'s context' : ( is_document( proposal ) ? 'a document' : RULES.StateLine( tally, name ) );
 		return Object.assign( {}, proposal, { Tally: tally, StateLine: line } );
 	}
 
 
 	// A Document is edited and kept like a Plan, but has no threads and no state; the LLM reads it through search.
+	// A project's Context is kept the same way, so it answers true here too.
 	function is_document( proposal )
 	{
-		return proposal.Kind === 'document';
+		return proposal.Kind === 'document' || proposal.Kind === 'context';
+	}
+
+
+	// A project's Context: in every call to the LLM, which may rewrite it; never moved, copied or deleted.
+	function is_context( proposal )
+	{
+		return proposal.Kind === 'context';
 	}
 
 
@@ -315,7 +325,7 @@ function Attach( App, Context )
 			Proposal: summarize( read.Proposal, read.Threads, name ),
 			Text: read.Text,
 			Threads: present_threads( read.Threads, read.Text, name ),
-			Llm: is_document( read.Proposal ) ? { Configured: false } : llm_view( request.params.id, read.Threads ),
+			Llm: ( is_document( read.Proposal ) && !is_context( read.Proposal ) ) ? { Configured: false } : llm_view( request.params.id, read.Threads ),
 		} );
 	} );
 
@@ -384,6 +394,11 @@ function Attach( App, Context )
 	router.delete( '/proposals/:id', async function ( request, response )
 	{
 		let id = request.params.id;
+		let read = await store.ReadProposal( id );
+		if ( read && is_context( read.Proposal ) )
+		{
+			return fail( response, 409, 'a project\'s context is never deleted on its own' );
+		}
 		let moved = await store.Queue( id, async function ()
 		{
 			return await store.TrashProposal( id );
@@ -430,7 +445,7 @@ function Attach( App, Context )
 			}
 			if ( is_document( read.Proposal ) )
 			{
-				return fail( response, 409, 'a Document has no State' );
+				return fail( response, 409, 'a Document or a Context has no State' );
 			}
 			let proposal = await store.UpdateProposal( id, { State: wanted } );
 			return summarize( proposal, read.Threads, request.Participant.Name );
@@ -499,9 +514,16 @@ function Attach( App, Context )
 			let indexed = corpus.Files.filter( function ( file ) { return file.Indexed; } ).length;
 			views[ corpus.Id ] = { Title: corpus.Name, Files: corpus.Files.length, Indexed: indexed, Updated: corpus.Updated };
 		}
+		let empty = {};
+		for ( let project of projects )
+		{
+			let read = project.Context ? await store.ReadProposal( project.Context ) : null;
+			empty[ project.Id ] = !read || !read.Text.trim();
+		}
 		return projects.map( function ( project )
 		{
-			return Object.assign( {}, project, { Items: present_items( project.Items, views ) } );
+			let context = project.Context ? { Id: project.Context, Empty: empty[ project.Id ] } : null;
+			return Object.assign( {}, project, { Items: present_items( project.Items, views ), Context: context } );
 		} );
 	}
 
@@ -595,6 +617,10 @@ function Attach( App, Context )
 				return refused( 409, 'only an empty project is deleted: move or delete what it holds first' );
 			}
 			await store.DeleteProject( id );
+			if ( project.Context )
+			{
+				await store.Queue( project.Context, function () { return store.TrashProposal( project.Context ); } );
+			}
 			return { Deleted: id };
 		} );
 		if ( !result.Refused )
@@ -1113,7 +1139,7 @@ function Attach( App, Context )
 			}
 			if ( is_document( read.Proposal ) )
 			{
-				return fail( response, 409, 'a Document has no threads' );
+				return fail( response, 409, 'a Document or a Context has no threads' );
 			}
 			let anchor = null;
 			if ( body.Anchor )
@@ -1449,7 +1475,7 @@ function Attach( App, Context )
 		}
 		if ( is_document( read.Proposal ) )
 		{
-			return fail( response, 409, 'a Document has no threads to send' );
+			return fail( response, 409, 'a Document or a Context has no threads to send' );
 		}
 		let waiting = RULES.WaitingOn( llm.Name, read.Threads, participants() );
 		if ( waiting.length === 0 )
@@ -1483,10 +1509,13 @@ function Attach( App, Context )
 		let read = await store.ReadProposal( id );
 		let presented = present_threads( read.Threads, read.Text, llm.Name );
 		let waiting = presented.filter( function ( thread ) { return thread.WaitingOnMe; } );
-		// The context comes from the proposal's own project: its plans, documents and corpus files.
+		// The context comes from the proposal's own project: its context, and its plans, documents and corpus files.
 		let holder = await store.ProjectOf( id );
+		let context = await context_of( holder );
 		let prompt = LLM.Prompt( {
 			Project: holder ? holder.Name : null,
+			Context: context,
+			MaxCharacters: LLM.ContextSettings( settings ).MaxCharacters,
 			Proposal: read.Proposal,
 			Text: read.Text,
 			Threads: presented,
@@ -1512,7 +1541,7 @@ function Attach( App, Context )
 			return;
 		}
 		await record_usage( call, answer.Usage );
-		let failures = await carry_out( id, llm, waiting, answer.Answer.Actions, read.Proposal.Revision );
+		let failures = await carry_out( id, llm, waiting, answer.Answer.Actions, read.Proposal.Revision, context );
 		await record_call_results( id, failures, true );
 		let failed = Object.keys( failures ).length;
 		log_call( id, call, waiting, started, answer.Answer.Actions.length + ' actions' + ( failed ? ', ' + failed + ' refused' : '' ) + ', ' + answer.Usage.Input + ' in, ' + answer.Usage.Output + ' out' );
@@ -1552,12 +1581,30 @@ function Attach( App, Context )
 
 
 	// The answer's actions, in order, each through the same rules as the API. Returns { threadId: reason } for refusals.
-	async function carry_out( id, llm, waiting, actions, revision )
+	// Context is the project's context as the call was given it ({ Id, Revision }), or null; one context action is
+	// carried out, made from that revision.
+	async function carry_out( id, llm, waiting, actions, revision, context )
 	{
 		let failures = {};
 		let current_revision = revision;
+		let context_written = false;
 		for ( let action of actions )
 		{
+			if ( action.Kind === 'context' )
+			{
+				if ( !context || context_written )
+				{
+					console.error( 'llm: ' + id + ': ignored a context action' + ( context ? ', one is carried out per answer' : ', the proposal is in no project' ) );
+					continue;
+				}
+				context_written = true;
+				let written = await write_context( context.Id, llm, action.Text, text_of( action.Reason ).trim(), context.Revision );
+				if ( written.Refused )
+				{
+					console.error( 'llm: ' + id + ': the context change was refused: ' + written.Refused.Error );
+				}
+				continue;
+			}
 			let thread = waiting.find( function ( candidate ) { return candidate.Id === action.Thread; } );
 			if ( !thread )
 			{
@@ -1611,6 +1658,169 @@ function Attach( App, Context )
 			}
 		}
 		return failures;
+	}
+
+
+	//-----------------------------------------------------------------
+	// The project's context: { Id, Text, Revision } for a project, or null.
+
+	async function context_of( project )
+	{
+		if ( !project || !project.Context )
+		{
+			return null;
+		}
+		let read = await store.ReadProposal( project.Context );
+		return read ? { Id: project.Context, Text: read.Text, Revision: read.Proposal.Revision } : null;
+	}
+
+
+	// A new revision of a context, made from Revision (refused when the context has moved on since).
+	// Returns { Proposal } or { Refused }.
+	async function write_context( id, who, text, reason, revision )
+	{
+		let result = await store.Queue( id, async function ()
+		{
+			let read = await store.ReadProposal( id );
+			if ( !read || !is_context( read.Proposal ) )
+			{
+				return refused( 404, 'no such context' );
+			}
+			if ( read.Proposal.Revision !== revision )
+			{
+				return refused( 409, 'the context changed since revision ' + revision );
+			}
+			if ( read.Text === text )
+			{
+				return { Proposal: read.Proposal };
+			}
+			let proposal = await store.WriteText( id, { Text: text, By: who.Name, Reason: 'context', Note: reason || null } );
+			return { Proposal: proposal };
+		} );
+		if ( !result.Refused )
+		{
+			changed( id, 'context' );
+		}
+		return result;
+	}
+
+
+	// Initialize context: the owner asks the LLM to write a project's context from the project: its plans and
+	// documents by title, the files in its zips, and a few key files. The call runs in the background, as a send does.
+	const KEY_FILE = /(^|\/)(readme(\.[a-z]+)?|claude\.md|agents\.md|package\.json|pyproject\.toml|cargo\.toml|go\.mod|pom\.xml|[^\/]+\.csproj)$/i;
+	const KEY_FILE_COUNT = 6;
+
+	router.post( '/projects/:pid/context/initialize', async function ( request, response )
+	{
+		if ( request.Participant.Role !== 'owner' )
+		{
+			return fail( response, 403, 'only the owner asks the LLM for a context' );
+		}
+		let llm = called_llm();
+		if ( !llm )
+		{
+			return fail( response, 409, 'no LLM is configured: give the llm participant a Call in consensus.json' );
+		}
+		let project = await store.ReadProject( request.params.pid );
+		if ( !project || !project.Context )
+		{
+			return fail( response, 404, 'no such project' );
+		}
+		let id = project.Context;
+		if ( calling[ id ] )
+		{
+			return fail( response, 409, 'a call to the LLM is already running for this context' );
+		}
+		let call = LLM.CallSettings( llm );
+		if ( calls_in_last_hour() >= call.CallsPerHour )
+		{
+			return fail( response, 409, 'the LLM is paused: ' + call.CallsPerHour + ' calls in the last hour' );
+		}
+		calling[ id ] = true;
+		recent_calls.push( Date.now() );
+		events.Send( { Proposal: id, Kind: 'llm-started' } );
+		response.status( 202 ).json( { Started: true, Context: id } );
+
+		run_initialize( project, llm, call ).catch( function ( error )
+		{
+			console.error( 'llm: context ' + id + ': ' + error.message );
+		} ).finally( function ()
+		{
+			delete calling[ id ];
+			events.Send( { Proposal: id, Kind: 'llm-finished' } );
+		} );
+	} );
+
+
+	async function run_initialize( project, llm, call )
+	{
+		let started = Date.now();
+		let context = await context_of( project );
+		let prompt = LLM.InitializePrompt( Object.assign( { Project: project.Name, Context: context, MaxCharacters: LLM.ContextSettings( settings ).MaxCharacters }, await project_contents( project ) ) );
+		let caller = ( Context.Caller || LLM.Caller )( call );
+		let answer = await caller( prompt );
+		await record_usage( call, answer.Usage );
+		let action = answer.Answer.Actions.find( function ( candidate ) { return candidate.Kind === 'context'; } );
+		let what = 'no context in the answer';
+		if ( action )
+		{
+			let written = await write_context( context.Id, llm, action.Text, text_of( action.Reason ).trim() || 'initialized from the project', context.Revision );
+			what = written.Refused ? 'the context was refused: ' + written.Refused.Error : 'context revision ' + written.Proposal.Revision;
+		}
+		let seconds = ( ( Date.now() - started ) / 1000 ).toFixed( 1 );
+		console.log( 'llm: context ' + context.Id + ' of ' + project.Id + ': ' + call.Kind + ( call.Model ? ' ' + call.Model : '' ) + ', ' + seconds + 's, ' + what + ', ' + answer.Usage.Input + ' in, ' + answer.Usage.Output + ' out' );
+	}
+
+
+	// What a project holds, for writing its context: { Items: [ { Kind, Title, State } ], Files: [ path ], KeyFiles: [ { Path, Text } ] }
+	async function project_contents( project )
+	{
+		let items = [];
+		let files = [];
+		let key_files = [];
+		for ( let id of TREE.ItemIds( project.Items ) )
+		{
+			let read = await store.ReadProposal( id );
+			if ( read )
+			{
+				items.push( { Kind: read.Proposal.Kind || 'plan', Title: read.Proposal.Title, State: read.Proposal.State } );
+				continue;
+			}
+			let corpus = await store.ReadCorpus( id );
+			let zip = corpus ? await store.ReadCorpusZip( id ) : null;
+			if ( !zip )
+			{
+				continue;
+			}
+			let extracted = await CORPUS.Extract( zip, CORPUS.Limits( settings ) );
+			let paths = Object.keys( extracted.Texts );
+			for ( let file of corpus.Files )
+			{
+				files.push( corpus.Name + '/' + file.Path );
+			}
+			let keys = paths.filter( function ( path ) { return KEY_FILE.test( path ); } ).sort( by_depth );
+			for ( let path of keys )
+			{
+				if ( key_files.length < KEY_FILE_COUNT )
+				{
+					key_files.push( { Path: corpus.Name + '/' + path, Text: extracted.Texts[ path ] } );
+				}
+			}
+		}
+		return { Items: items, Files: files, KeyFiles: key_files };
+	}
+
+
+	// Shallow paths first: a readme at the top says more than one in a subfolder.
+	function by_depth( a, b )
+	{
+		let depth_a = a.split( '/' ).length;
+		let depth_b = b.split( '/' ).length;
+		if ( depth_a !== depth_b )
+		{
+			return depth_a - depth_b;
+		}
+		return a.localeCompare( b );
 	}
 
 

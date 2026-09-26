@@ -341,6 +341,19 @@ html, body
 	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 4.8l6-3 6 3v6.4l-6 3-6-3z M2 4.8l6 3 6-3 M8 7.8v6.4' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
 }
 
+/* The project's context: a folded map, pinned above the tree. */
+.tree-icon.icon-context
+{
+	background-color: var(--applied-edge);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5l4-1.5 5 1.5 4-1.5v10.5l-4 1.5-5-1.5-4 1.5z M5.5 2v10.5 M10.5 3.5V14' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5l4-1.5 5 1.5 4-1.5v10.5l-4 1.5-5-1.5-4 1.5z M5.5 2v10.5 M10.5 3.5V14' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
+}
+
+.context-item .proposal-title
+{
+	font-weight: 600;
+}
+
 .project-name, .folder-name, .tree-row .proposal-title
 {
 	overflow: hidden;
@@ -1102,6 +1115,18 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 
 .revision-reason.apply { background: var(--applied-bg); border-color: var(--applied-edge); }
 .revision-reason.edit { background: var(--contested-bg); border-color: var(--contested-edge); }
+.revision-reason.context { background: var(--resolved-bg); border-color: var(--resolved-edge); }
+
+/* Why a revision was made, when it says (the LLM's reason for a context change). */
+.revision-note
+{
+	color: var(--muted);
+	font-style: italic;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 30rem;
+}
 
 .revision-at
 {

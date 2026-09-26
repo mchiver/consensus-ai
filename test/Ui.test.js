@@ -39,6 +39,11 @@ function fake_caller()
 	return async function ( Prompt )
 	{
 		let actions = [];
+		let project = /Write the context of the project "([^"]+)"/.exec( Prompt );
+		if ( project )
+		{
+			actions.push( { Kind: 'context', Text: '# ' + project[ 1 ] + '\n\nWritten by the LLM.\n', Reason: 'initialized' } );
+		}
 		let reply = /## Thread (t[0-9a-f]+), contested, WAITING ON YOU to reply/.exec( Prompt );
 		if ( reply )
 		{
@@ -361,5 +366,27 @@ TEST( 'an item dropped on the top edge of another goes just before it; a project
 	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".project" ) ].map( function ( project ) { return project.dataset.project; } )[ 0 ]' ), 'default' );
 	ASSERT.equal( await page.Evaluate( drag_to_top( '.project:not([data-project="default"]) .project-head', '.project[data-project="default"] .project-head' ) ), true );
 	await page.WaitFor( 'document.querySelector( ".project" ).dataset.project !== "default"' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'a project\'s context is pinned above its tree; Initialize context has the LLM write it', async function ()
+{
+	await page.WaitFor( count_of( '.project.open .context-item' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-item .item-state' ) ), 'empty' );
+	ASSERT.equal( await page.Evaluate( '!!document.querySelector( ".project.open .context-item" ).getAttribute( "draggable" )' ), false );
+	await page.Click( '.project.open .context-item' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Context of Browser project"' );
+	await page.WaitFor( 'document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
+	ASSERT.equal( await page.Evaluate( text_of( '#document-badge' ) ), 'Context' );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "send-button" ) ).display' ), 'none' );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "state-picker" ) ).display' ), 'none' );
+	await page.Click( '#initialize-context' );
+	await page.WaitFor( text_of( '#read-view p' ) + ' === "Written by the LLM."', 15000 );
+	await page.WaitFor( text_of( '#revision' ) + ' === "revision 2"' );
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".project.open .context-item .item-state" ) ).display === "none"' );
+	await page.Click( '#view-revisions' );
+	await page.WaitFor( '[ ...document.querySelectorAll( ".revision-note" ) ].some( function ( note ) { return note.textContent.trim() === "initialized"; } )' );
+	await page.Click( '#view-read' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
