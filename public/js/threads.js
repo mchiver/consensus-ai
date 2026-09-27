@@ -81,19 +81,36 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	}
 
 
-	// The selected thread always shows, whatever the filter: a thread just posted, or picked in the text, stays in view.
 	$scope.Threads = function ()
 	{
 		if ( !State.Open )
 		{
 			return [];
 		}
-		let shown = State.Open.Threads.filter( function ( thread )
-		{
-			return thread.Id === State.Selected || matches( thread );
-		} );
-		return shown.sort( by_position );
+		return State.Open.Threads.filter( matches ).sort( by_position );
 	};
+
+
+	// A selected thread the filter leaves out is deselected: by a change of filter, a change to the thread (a post, a
+	// reply, a resolve), or a selection in the text.
+	function selected_hidden()
+	{
+		if ( !State.Selected || !State.Open )
+		{
+			return false;
+		}
+		let thread = State.Open.Threads.find( function ( candidate ) { return candidate.Id === State.Selected; } );
+		return !!thread && !matches( thread );
+	}
+
+
+	$scope.$watch( selected_hidden, function ( hidden )
+	{
+		if ( hidden )
+		{
+			State.Select( null );
+		}
+	} );
 
 
 	$scope.SetHighlight = function ()

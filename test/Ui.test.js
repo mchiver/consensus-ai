@@ -123,6 +123,8 @@ TEST( 'the list and the proposal load, live', async function ()
 
 TEST( 'a selection becomes an anchored thread', async function ()
 {
+	// the owner's new thread waits on the LLM, so the pane shows every thread
+	await show_all_threads();
 	// Select the words "one list item" in the rendered text, as a person's drag would leave them.
 	await page.Evaluate( '( function () { let li = document.querySelector( "#read-view li" ); let range = document.createRange(); range.selectNodeContents( li ); let selection = window.getSelection(); selection.removeAllRanges(); selection.addRange( range ); document.getElementById( "read-view" ).dispatchEvent( new MouseEvent( "mouseup", { bubbles: true } ) ); return true; } )()' );
 	await page.WaitFor( 'document.getElementById( "comment-button" ).classList.contains( "shown" )' );
@@ -187,6 +189,7 @@ TEST( 'Send to LLM opens the session panel; its Send hands the LLM the thread, t
 
 TEST( 'the owner resolves from the page', async function ()
 {
+	await show_all_threads();
 	await page.Click( '.thread:not(.compose)' );
 	await page.WaitFor( count_of( '.thread.selected .resolve-button' ) + ' === 1' );
 	await page.Click( '.thread.selected .resolve-button' );
@@ -823,6 +826,15 @@ TEST( 'the tree: it hides and shows; it sorts by name, created and updated; it s
 	ASSERT.equal( await page.Evaluate( count_of( '.thread:not(.compose)' ) ), 0 );
 	await show_all_threads();
 	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
+	// a selected thread the filter leaves out is deselected
+	await page.Click( '.thread:not(.compose)' );
+	await page.WaitFor( count_of( '.thread.selected' ) + ' === 1' );
+	await page.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); injector.get( "State" ).Filter = "mine"; injector.get( "$rootScope" ).$apply(); return true; } )()' );
+	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 0' );
+	await page.WaitFor( 'angular.element( document.body ).injector().get( "State" ).Selected === null' );
+	await show_all_threads();
+	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( count_of( '.thread.selected' ) ), 0 );
 	await page.Click( tab_selector( alpha.Id ) );
 	await page.WaitFor( text_of( '.header .title' ) + ' === "Alpha"' );
 	ASSERT.equal( await page.Evaluate( FILTER ), 'Waiting on me' );
@@ -857,6 +869,7 @@ TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-docum
 	await page.WaitFor( MARKED + '.includes( "' + resolved_thread.Id + '" )' );
 
 	// New Comment starts a whole-document thread; Comment and resolve posts it resolved
+	await show_all_threads();
 	ASSERT.equal( await page.Evaluate( text_of( '#new-comment' ) ), 'New Comment' );
 	await page.Click( '#new-comment' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "compose-text"' );
