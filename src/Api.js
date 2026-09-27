@@ -527,7 +527,7 @@ function Attach( App, Context )
 		{
 			let read = await store.ReadProposal( proposal.Id );
 			let summary = summarize( proposal, read ? read.Threads : [], name );
-			views[ proposal.Id ] = { Title: summary.Title, State: summary.State, Tally: summary.Tally, StateLine: summary.StateLine, Updated: summary.Updated };
+			views[ proposal.Id ] = { Title: summary.Title, State: summary.State, Tally: summary.Tally, StateLine: summary.StateLine, Created: summary.Created, Updated: summary.Updated };
 		}
 		for ( let corpus of await store.ListCorpora() )
 		{
@@ -537,7 +537,7 @@ function Attach( App, Context )
 				continue;
 			}
 			let indexed = corpus.Files.filter( function ( file ) { return file.Indexed; } ).length;
-			views[ corpus.Id ] = { Title: corpus.Name, Files: corpus.Files.length, Indexed: indexed, Updated: corpus.Updated, Source: 'attached' };
+			views[ corpus.Id ] = { Title: corpus.Name, Files: corpus.Files.length, Indexed: indexed, Created: corpus.Created, Updated: corpus.Updated, Source: 'attached' };
 		}
 		let empty = {};
 		for ( let project of projects )
@@ -561,6 +561,7 @@ function Attach( App, Context )
 			Title: corpus.Name,
 			Files: heard ? heard.Files : 0,
 			Indexed: heard ? heard.Indexed : 0,
+			Created: corpus.Created,
 			Updated: corpus.Updated,
 			Linked: corpus.Link.Server + ' / ' + corpus.Link.Corpus,
 			Source: 'linked',
@@ -1400,6 +1401,7 @@ function Attach( App, Context )
 
 
 	// A new thread: the first reply is the comment. Anchor is { Text, Prefix?, Suffix? } or null for the whole document.
+	// With Resolve (the owner's Comment and resolve), it is posted resolved, the comment being its outcome.
 	router.post( '/proposals/:id/threads', async function ( request, response )
 	{
 		let body = request.body || {};
@@ -1441,6 +1443,15 @@ function Attach( App, Context )
 				Created: at,
 				Replies: [ { Id: new_id( 'r' ), By: request.Participant.Name, At: at, Text: text } ],
 			};
+			if ( body.Resolve )
+			{
+				let can = RULES.CanResolve( request.Participant, thread );
+				if ( !can.Ok )
+				{
+					return fail( response, ( request.Participant.Role === 'owner' ) ? 409 : 403, can.Reason );
+				}
+				Object.assign( thread, RULES.ResolveEffect( request.Participant, at ) );
+			}
 			read.Threads.push( thread );
 			await store.WriteThreads( id, read.Threads );
 			await store.UpdateProposal( id, {} );
@@ -1450,7 +1461,7 @@ function Attach( App, Context )
 		{
 			return;
 		}
-		changed( id, 'thread', result.Id );
+		changed( id, ( result.Status === 'resolved' ) ? 'resolved' : 'thread', result.Id );
 		response.status( 201 ).json( { Thread: result } );
 	} );
 

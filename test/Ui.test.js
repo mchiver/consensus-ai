@@ -33,6 +33,13 @@ function count_of( selector )
 }
 
 
+// The threads pane starts at Waiting on me; tests that work with threads waiting on others show them all.
+async function show_all_threads()
+{
+	await page.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); injector.get( "State" ).Filter = "all"; injector.get( "$rootScope" ).$apply(); return true; } )()' );
+}
+
+
 function text_of( selector )
 {
 	return '( document.querySelector( ' + JSON.stringify( selector ) + ' ) || { textContent: "" } ).textContent.trim()';
@@ -376,6 +383,7 @@ TEST( 'the threads and the preview hide and are remembered; a plan is renamed in
 TEST( 'reply and resolve: one click posts the owner\'s answer and resolves the thread', async function ()
 {
 	// the only thread is applied; a reply reopens it, and Reply and resolve settles it again
+	await show_all_threads();
 	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
 	await page.Click( '.thread:not(.compose)' );
 	await page.WaitFor( count_of( '.thread.selected .reply-box' ) + ' === 1' );
@@ -396,6 +404,7 @@ TEST( 'reply and resolve: one click posts the owner\'s answer and resolves the t
 
 TEST( 'the owner deletes a thread; the revision it made names it as deleted', async function ()
 {
+	await show_all_threads();
 	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
 	await page.Evaluate( 'document.querySelector( ".thread:not(.compose) .delete-thread" ).click(); true' );
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread:not(.compose) .thread-delete .confirm" ) ).display !== "none"' );
@@ -568,7 +577,7 @@ TEST( 'tabs: a tab detaches into its own window and is re-attached from there', 
 	let detached = await browser.OpenPage( running.Url + '/?detached=1#/p/' + tab_one.Id );
 	await detached.WaitFor( text_of( '.header .title' ) + ' === "Tab one"', 20000 );
 	ASSERT.equal( await detached.Evaluate( 'getComputedStyle( document.querySelector( "aside.sidebar" ) ).display' ), 'none' );
-	ASSERT.equal( await detached.Evaluate( 'getComputedStyle( document.querySelector( ".tab-strip" ) ).display' ), 'none' );
+	ASSERT.equal( await detached.Evaluate( 'getComputedStyle( document.querySelector( ".tabs-row" ) ).display' ), 'none' );
 	await page.WaitFor( 'window.heard.includes( "here" )' );
 	await detached.Click( '#reattach' );
 	await page.WaitFor( count_of( tab_selector( tab_one.Id ) ) + ' === 1' );
@@ -689,6 +698,7 @@ TEST( 'subplans: started from the header, selected text, a new thread and a repl
 
 	// from a reply: the draft goes in with the link, and the thread stays open
 	await open_parent();
+	await show_all_threads();
 	await page.Click( '.thread:not(.compose)' );
 	await page.WaitFor( count_of( '.thread.selected .reply-box' ) + ' === 1' );
 	await page.Evaluate( '( function () { let box = document.querySelector( ".thread.selected .reply-box" ); box.value = "Or split it further."; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
@@ -751,5 +761,159 @@ TEST( 'a corpus\'s Include and Exclude are edited in its view; the tree marks it
 	await page.WaitFor( 'document.getElementById( "corpus-filter-save" ).disabled' );
 	let saved = await ( await fetch( running.Url + '/api/corpus/' + corpus.Id ) ).json();
 	ASSERT.deepEqual( saved.Corpus.Exclude, [ '*.log' ] );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'the tree: it hides and shows; it sorts by name, created and updated; it shows each item\'s last update', async function ()
+{
+	async function post( path, body )
+	{
+		let response = await fetch( running.Url + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( body ) } );
+		return response.json();
+	}
+	async function sort_by( value )
+	{
+		await page.Evaluate( '( function () { let select = document.getElementById( "tree-sort" ); select.value = "' + value + '"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	}
+	const TITLES = '[ ...document.querySelectorAll( ".project.open .tree-item:not(.context-item) .proposal-title" ) ].map( function ( title ) { return title.textContent.trim(); } ).join( "," )';
+
+	let project = ( await post( '/api/projects', { Name: 'Sorting' } ) ).Project;
+	let beta = ( await post( '/api/proposals', { Title: 'Beta', Text: '# Beta\n', Project: project.Id } ) ).Proposal;
+	await new Promise( function ( resolve ) { setTimeout( resolve, 20 ); } );
+	let alpha = ( await post( '/api/proposals', { Title: 'Alpha', Text: '# Alpha\n', Project: project.Id } ) ).Proposal;
+	await new Promise( function ( resolve ) { setTimeout( resolve, 20 ); } );
+	await post( '/api/proposals/' + beta.Id + '/threads', { Text: 'A question for the LLM.' } );
+
+	await page.Evaluate( 'window.location.hash = "#/p/' + alpha.Id + '"; true' );
+	await page.WaitFor( TITLES + ' === "Beta,Alpha"' );
+	await sort_by( 'name' );
+	await page.WaitFor( TITLES + ' === "Alpha,Beta"' );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.open .tree-date' ) ), 0 );
+	await sort_by( 'created' );
+	await page.WaitFor( TITLES + ' === "Beta,Alpha"' );
+	let dates = await page.Evaluate( '[ ...document.querySelectorAll( ".project.open .tree-date" ) ].map( function ( date ) { return date.textContent.trim(); } )' );
+	ASSERT.equal( dates.length, 2 );
+	ASSERT.ok( dates.every( function ( date ) { return /^\d{4}-\d{2}-\d{2}$/.test( date ); } ) );
+	await sort_by( 'updated' );
+	await page.WaitFor( TITLES + ' === "Alpha,Beta"' );
+	await sort_by( 'none' );
+	await page.WaitFor( TITLES + ' === "Beta,Alpha"' );
+
+	// the last update on each row, and on the project's heading
+	ASSERT.equal( await page.Evaluate( count_of( '.project.open .tree-stamp' ) ), 0 );
+	await page.Click( '#show-updated' );
+	await page.WaitFor( count_of( '.project.open .tree-item .tree-stamp' ) + ' === 2' );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.open > .project-head .tree-stamp' ) ), 1 );
+	await page.Click( '#show-updated' );
+	await page.WaitFor( count_of( '.project.open .tree-stamp' ) + ' === 0' );
+
+	// the tree hides and comes back, remembered
+	await page.Click( '#tree-toggle' );
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".sidebar" ) ).display === "none"' );
+	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.tree-hidden" )' ), 'true' );
+	await page.Click( '#tree-toggle' );
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".sidebar" ) ).display !== "none"' );
+
+	// the threads filter: a new tab starts at Waiting on me, and each tab keeps its own
+	const FILTER = 'document.getElementById( "thread-filter" ).selectedOptions[ 0 ].textContent.trim()';
+	await page.Evaluate( 'window.location.hash = "#/p/' + beta.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Beta"' );
+	await page.WaitFor( FILTER + ' === "Waiting on me"' );
+	ASSERT.equal( await page.Evaluate( count_of( '.thread:not(.compose)' ) ), 0 );
+	await show_all_threads();
+	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
+	await page.Click( tab_selector( alpha.Id ) );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Alpha"' );
+	ASSERT.equal( await page.Evaluate( FILTER ), 'Waiting on me' );
+	await page.Click( tab_selector( beta.Id ) );
+	await page.WaitFor( FILTER + ' === "All threads"' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-document thread; highlight all or open', async function ()
+{
+	async function post( path, body )
+	{
+		let response = await fetch( running.Url + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( body ) } );
+		return response.json();
+	}
+	const MARKED = '[ ...document.querySelectorAll( "#read-view mark.anchor" ) ].map( function ( mark ) { return mark.dataset.threads; } ).join( " " )';
+
+	let plan = await created( 'Highlights' );
+	await fetch( running.Url + '/api/proposals/' + plan.Id + '/text', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Text: '# Highlights\n\nThe first passage.\n\nThe second passage.\n', Revision: plan.Revision } ) } );
+	let open_thread = ( await post( '/api/proposals/' + plan.Id + '/threads', { Text: 'Why first?', Anchor: { Text: 'first passage' } } ) ).Thread;
+	let resolved_thread = ( await post( '/api/proposals/' + plan.Id + '/threads', { Text: 'Keep it.', Anchor: { Text: 'second passage' }, Resolve: true } ) ).Thread;
+	ASSERT.equal( resolved_thread.Status, 'resolved' );
+
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+	await page.WaitFor( MARKED + '.includes( "' + open_thread.Id + '" ) && ' + MARKED + '.includes( "' + resolved_thread.Id + '" )' );
+	await page.Evaluate( '( function () { let select = document.getElementById( "thread-highlight" ); select.selectedIndex = 1; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	await page.WaitFor( '!' + MARKED + '.includes( "' + resolved_thread.Id + '" )' );
+	ASSERT.match( await page.Evaluate( MARKED ), new RegExp( open_thread.Id ) );
+	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.highlight" )' ), '"open"' );
+	await page.Evaluate( '( function () { let select = document.getElementById( "thread-highlight" ); select.selectedIndex = 0; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	await page.WaitFor( MARKED + '.includes( "' + resolved_thread.Id + '" )' );
+
+	// New Comment starts a whole-document thread; Comment and resolve posts it resolved
+	ASSERT.equal( await page.Evaluate( text_of( '#new-comment' ) ), 'New Comment' );
+	await page.Click( '#new-comment' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.id === "compose-text"' );
+	await page.Type( 'Add a summary at the top.' );
+	await page.WaitFor( '!document.getElementById( "compose-resolve" ).disabled' );
+	await page.Click( '#compose-resolve' );
+	await page.WaitFor( count_of( '.thread.selected' ) + ' === 1' );
+	let threads = ( await ( await fetch( running.Url + '/api/proposals/' + plan.Id + '/threads' ) ).json() ).Threads;
+	let posted = threads.find( function ( thread ) { return thread.Replies[ 0 ].Text === 'Add a summary at the top.'; } );
+	ASSERT.equal( posted.Status, 'resolved' );
+	ASSERT.equal( posted.Anchor, null );
+	ASSERT.deepEqual( posted.Turn, [ 'llm' ] );
+
+	// a whole-document thread can be anchored afterwards
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.selected .reanchor-button" ) ).display !== "none"' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'session panel: it opens centered, moves by its heading, resizes by its corner grip, and Reset centers it again', async function ()
+{
+	const BOX = '( function () { let panel = document.getElementById( "session-panel" ); let area = panel.closest( ".content-area" ); return { Left: panel.offsetLeft, Top: panel.offsetTop, Width: panel.offsetWidth, Height: panel.offsetHeight, AreaWidth: area.clientWidth, AreaHeight: area.clientHeight }; } )()';
+	function centered( box )
+	{
+		return Math.abs( box.Left + box.Width / 2 - box.AreaWidth / 2 ) <= 2;
+	}
+
+	let plan = await created( 'Floating' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Floating"' );
+	await page.Click( '#send-button' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
+	await new Promise( function ( resolve ) { setTimeout( resolve, 100 ); } );
+	let first = await page.Evaluate( BOX );
+	ASSERT.ok( centered( first ), JSON.stringify( first ) );
+
+	// moved by its heading, and remembered
+	await page.Drag( '.session-head .session-title', -5, -60 );
+	let moved = await page.Evaluate( BOX );
+	ASSERT.ok( Math.abs( moved.Top - ( first.Top - 60 ) ) <= 1, JSON.stringify( moved ) );
+	let saved = JSON.parse( await page.Evaluate( 'window.localStorage.getItem( "consensus.session-box" )' ) );
+	ASSERT.deepEqual( [ saved.Left, saved.Top ], [ moved.Left, moved.Top ] );
+
+	// sized by the grip in its corner, within the area
+	await page.Drag( '#session-grip', -60, 50 );
+	await page.WaitFor( '( JSON.parse( window.localStorage.getItem( "consensus.session-box" ) ) || {} ).Width > 0' );
+	let resized = await page.Evaluate( BOX );
+	ASSERT.ok( resized.Width < moved.Width, JSON.stringify( resized ) );
+	ASSERT.ok( resized.Top + resized.Height <= resized.AreaHeight, JSON.stringify( resized ) );
+
+	// Reset: centered again at its first size, and nothing remembered
+	await page.Click( '#session-reset' );
+	await page.WaitFor( 'window.localStorage.getItem( "consensus.session-box" ) === null' );
+	let reset = await page.Evaluate( BOX );
+	ASSERT.ok( centered( reset ), JSON.stringify( reset ) );
+	ASSERT.equal( reset.Width, first.Width );
+	await page.Click( '#session-panel .btn-close' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display === "none"' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );

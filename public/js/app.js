@@ -62,6 +62,8 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 {
 	const THREADS_HIDDEN_KEY = 'consensus.threads-hidden';
 	const PREVIEW_HIDDEN_KEY = 'consensus.preview-hidden';
+	const TREE_HIDDEN_KEY = 'consensus.tree-hidden';
+	const HIGHLIGHT_KEY = 'consensus.highlight';
 
 
 	// Remembered in this browser only; a blocked or empty storage falls back to the default.
@@ -95,6 +97,8 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	let state = {
 		ThreadsHidden: recall( THREADS_HIDDEN_KEY, false ),
 		PreviewHidden: recall( PREVIEW_HIDDEN_KEY, false ),
+		TreeHidden: recall( TREE_HIDDEN_KEY, false ),
+		Highlight: recall( HIGHLIGHT_KEY, 'all' ),
 		Me: null,
 		Participants: [],
 		States: [],
@@ -105,7 +109,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		OpenId: null,
 		Open: null,
 		View: 'read',
-		Filter: 'all',
+		Filter: 'mine',
 		Selected: null,
 		Compose: null,
 		Reanchoring: null,
@@ -263,6 +267,23 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
+	// The project tree shown or hidden, remembered in this browser.
+	function SetTreeHidden( Hidden )
+	{
+		state.TreeHidden = !!Hidden;
+		remember( TREE_HIDDEN_KEY, state.TreeHidden );
+	}
+
+
+	// Which anchored passages the read view highlights: 'all' threads, or only the 'open' (contested) ones.
+	function SetHighlight( Highlight )
+	{
+		state.Highlight = ( Highlight === 'open' ) ? 'open' : 'all';
+		remember( HIGHLIGHT_KEY, state.Highlight );
+		$rootScope.$broadcast( 'highlight-changed' );
+	}
+
+
 	// Selecting a thread shows the threads pane, so the thread is in view.
 	function Select( ThreadId )
 	{
@@ -342,6 +363,8 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	state.SetView = SetView;
 	state.SetThreadsHidden = SetThreadsHidden;
 	state.SetPreviewHidden = SetPreviewHidden;
+	state.SetTreeHidden = SetTreeHidden;
+	state.SetHighlight = SetHighlight;
 	state.Select = Select;
 	state.StartCompose = StartCompose;
 	state.CancelCompose = CancelCompose;
@@ -413,6 +436,23 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			date_options.year = 'numeric';
 		}
 		return date.toLocaleDateString( [], date_options ) + ' ' + time;
+	};
+} ] )
+
+
+// The local date alone, for the tree's sorted rows: "2026-09-24".
+.filter( 'day', [ function ()
+{
+	return function ( Value )
+	{
+		if ( !Value )
+		{
+			return '';
+		}
+		let date = new Date( Value );
+		let month = String( date.getMonth() + 1 ).padStart( 2, '0' );
+		let day = String( date.getDate() ).padStart( 2, '0' );
+		return date.getFullYear() + '-' + month + '-' + day;
 	};
 } ] )
 

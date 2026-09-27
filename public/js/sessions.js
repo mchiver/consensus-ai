@@ -129,6 +129,13 @@ angular.module( 'Consensus' ).factory( 'Sessions', [ function ()
 	};
 
 
+	// Back to the center, at its first size.
+	$scope.ResetPlace = function ()
+	{
+		$scope.$broadcast( 'session-reset' );
+	};
+
+
 	$scope.Close = function ()
 	{
 		let panel = $scope.Panel();
@@ -528,4 +535,229 @@ angular.module( 'Consensus' ).factory( 'Sessions', [ function ()
 	{
 		shown();
 	} );
+} ] )
+
+
+//---------------------------------------------------------------------
+// floating-panel="<shown>": the session panel floats in the content area. It opens centered; dragging its heading
+// moves it, and the grip in its corner sizes it, both kept within the area. The last place and size are remembered
+// in this browser, one for every panel; 'session-reset' puts it back in the center at its first size.
+
+.directive( 'floatingPanel', [ '$timeout', '$window', function ( $timeout, $window )
+{
+	const BOX_KEY = 'consensus.session-box';
+	const MARGIN = 8;
+	const MINIMUM_WIDTH = 288;
+	const MINIMUM_HEIGHT = 128;
+
+	function read_box()
+	{
+		try
+		{
+			let box = JSON.parse( $window.localStorage.getItem( BOX_KEY ) || 'null' );
+			return ( box && typeof box.Left === 'number' && typeof box.Top === 'number' ) ? box : null;
+		}
+		catch ( error )
+		{
+			return null;
+		}
+	}
+
+
+	function write_box( box )
+	{
+		try
+		{
+			if ( box )
+			{
+				$window.localStorage.setItem( BOX_KEY, JSON.stringify( box ) );
+			}
+			else
+			{
+				$window.localStorage.removeItem( BOX_KEY );
+			}
+		}
+		catch ( error )
+		{
+			// not remembered; the panel opens centered
+		}
+	}
+
+
+	return {
+		restrict: 'A',
+		link: function ( scope, element, attributes )
+		{
+			let panel = element[ 0 ];
+			let head = panel.querySelector( '.session-head' );
+			let grip = panel.querySelector( '.session-grip' );
+
+
+			function area()
+			{
+				return panel.closest( '.content-area' );
+			}
+
+
+			function px( value )
+			{
+				return Math.round( value ) + 'px';
+			}
+
+
+			// The panel's size as set by the grip, or null while it keeps its first size.
+			function sized()
+			{
+				if ( !panel.style.width || !panel.style.height )
+				{
+					return null;
+				}
+				return { Width: panel.offsetWidth, Height: panel.offsetHeight };
+			}
+
+
+			// Keep it within the area: no wider or taller than it, and every edge inside it.
+			function fit( left, top )
+			{
+				let room = area();
+				let width = room.clientWidth;
+				let height = room.clientHeight;
+				if ( panel.style.width && panel.offsetWidth > width - 2 * MARGIN )
+				{
+					panel.style.width = px( width - 2 * MARGIN );
+				}
+				if ( panel.style.height && panel.offsetHeight > height - 2 * MARGIN )
+				{
+					panel.style.height = px( height - 2 * MARGIN );
+				}
+				let fitted_left = Math.max( MARGIN, Math.min( left, width - panel.offsetWidth - MARGIN ) );
+				let fitted_top = Math.max( MARGIN, Math.min( top, height - panel.offsetHeight - MARGIN ) );
+				panel.style.left = px( fitted_left );
+				panel.style.top = px( fitted_top );
+				// with its first size, the panel grows with its content no further than the area's bottom edge
+				panel.style.maxHeight = panel.style.height ? '' : px( height - fitted_top - MARGIN );
+			}
+
+
+			function save()
+			{
+				let box = { Left: panel.offsetLeft, Top: panel.offsetTop };
+				let size = sized();
+				if ( size )
+				{
+					box.Width = size.Width;
+					box.Height = size.Height;
+				}
+				write_box( box );
+			}
+
+
+			function center()
+			{
+				panel.style.width = '';
+				panel.style.height = '';
+				panel.style.maxHeight = '';
+				let room = area();
+				fit( ( room.clientWidth - panel.offsetWidth ) / 2, ( room.clientHeight - panel.offsetHeight ) / 2 );
+			}
+
+
+			function place()
+			{
+				let box = read_box();
+				if ( !box )
+				{
+					center();
+				}
+				else
+				{
+					panel.style.width = box.Width ? px( box.Width ) : '';
+					panel.style.height = box.Height ? px( box.Height ) : '';
+					fit( box.Left, box.Top );
+				}
+			}
+
+
+			scope.$watch( attributes.floatingPanel, function ( shown )
+			{
+				if ( shown )
+				{
+					$timeout( place, 0 );
+				}
+			} );
+
+			scope.$on( 'session-reset', function ()
+			{
+				write_box( null );
+				center();
+			} );
+
+
+			// A drag with the left button: Move( dx, dy ) as the pointer goes, then the place and size are saved.
+			function drag( down, Move )
+			{
+				down.preventDefault();
+				panel.classList.add( 'moving' );
+				function move( event )
+				{
+					Move( event.clientX - down.clientX, event.clientY - down.clientY );
+				}
+				function up()
+				{
+					panel.classList.remove( 'moving' );
+					$window.removeEventListener( 'mousemove', move );
+					$window.removeEventListener( 'mouseup', up );
+					save();
+				}
+				$window.addEventListener( 'mousemove', move );
+				$window.addEventListener( 'mouseup', up );
+			}
+
+
+			// Dragging the heading moves it; its buttons stay buttons.
+			head.addEventListener( 'mousedown', function ( down )
+			{
+				if ( down.button !== 0 || down.target.closest( 'button, input, select, a, label' ) )
+				{
+					return;
+				}
+				let start_left = panel.offsetLeft;
+				let start_top = panel.offsetTop;
+				drag( down, function ( dx, dy )
+				{
+					fit( start_left + dx, start_top + dy );
+				} );
+			} );
+
+
+			// Dragging the grip sizes it, no smaller than a usable minimum and no further than the area's edges.
+			grip.addEventListener( 'mousedown', function ( down )
+			{
+				if ( down.button !== 0 )
+				{
+					return;
+				}
+				let start_width = panel.offsetWidth;
+				let start_height = panel.offsetHeight;
+				let room = area();
+				drag( down, function ( dx, dy )
+				{
+					let most_width = room.clientWidth - panel.offsetLeft - MARGIN;
+					let most_height = room.clientHeight - panel.offsetTop - MARGIN;
+					panel.style.width = px( Math.max( MINIMUM_WIDTH, Math.min( start_width + dx, most_width ) ) );
+					panel.style.height = px( Math.max( MINIMUM_HEIGHT, Math.min( start_height + dy, most_height ) ) );
+					panel.style.maxHeight = '';
+				} );
+			} );
+
+
+			$window.addEventListener( 'resize', function ()
+			{
+				if ( panel.offsetParent !== null )
+				{
+					fit( panel.offsetLeft, panel.offsetTop );
+				}
+			} );
+		},
+	};
 } ] );

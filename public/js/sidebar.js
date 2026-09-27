@@ -4,6 +4,7 @@
 // new project, plan and folder, rename and delete; the search box, the waiting count, Trash at the bottom,
 // and the LLM's tokens today. Items and projects move and reorder by drag and drop; items copy by copy and paste.
 // A plan holds its Subplans: they fold under it, and a plan dropped into it becomes one.
+// The tree can be sorted (by name, created or updated) and show each item's last update; both remembered here.
 
 const DRAG_TYPE = 'application/x-consensus-item';
 const DRAG_PROJECT_TYPE = 'application/x-consensus-project';
@@ -12,6 +13,9 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 {
 	const OPEN_PROJECT_KEY = 'consensus.project';
 	const FOLDED_KEY = 'consensus.folded';
+	const SORT_KEY = 'consensus.tree-sort';
+	const SHOW_UPDATED_KEY = 'consensus.show-updated';
+	const SORTS = [ 'none', 'name', 'created', 'updated' ];
 
 	$scope.State = State;
 	$scope.Creating = null;
@@ -26,6 +30,12 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 	$scope.Scale = window.ConsensusTheme.Get().Scale;
 	$scope.OpenProjectId = read_stored( OPEN_PROJECT_KEY, 'default' );
 	let folded = read_stored( FOLDED_KEY, [] );
+	$scope.Sort = read_stored( SORT_KEY, 'none' );
+	if ( !SORTS.includes( $scope.Sort ) )
+	{
+		$scope.Sort = 'none';
+	}
+	$scope.ShowUpdated = read_stored( SHOW_UPDATED_KEY, false );
 
 
 	//-----------------------------------------------------------------
@@ -190,6 +200,84 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 	{
 		return ( $scope.Target && $scope.Target.Project === project.Id ) ? $scope.Target.Folder : null;
 	}
+
+
+	//-----------------------------------------------------------------
+	// Sorting and stamps. Sorting only changes what the tree shows; the project's own order is kept.
+
+	$scope.SetSort = function ()
+	{
+		write_stored( SORT_KEY, $scope.Sort );
+	};
+
+
+	$scope.ToggleUpdated = function ()
+	{
+		$scope.ShowUpdated = !$scope.ShowUpdated;
+		write_stored( SHOW_UPDATED_KEY, $scope.ShowUpdated );
+	};
+
+
+	$scope.IsSorted = function ()
+	{
+		return $scope.Sort !== 'none';
+	};
+
+
+	function name_of( node )
+	{
+		return String( ( node.Kind === 'folder' ) ? node.Name : ( node.Title || node.Id ) ).toLowerCase();
+	}
+
+
+	function date_of( node )
+	{
+		return ( $scope.Sort === 'created' ) ? ( node.Created || '' ) : ( node.Updated || '' );
+	}
+
+
+	// Folders first, by name; then the other items by name, or by date (oldest first) and then name.
+	function compare( a, b )
+	{
+		let a_folder = ( a.Kind === 'folder' );
+		let b_folder = ( b.Kind === 'folder' );
+		if ( a_folder !== b_folder )
+		{
+			return a_folder ? -1 : 1;
+		}
+		if ( !a_folder && $scope.Sort !== 'name' )
+		{
+			let a_date = date_of( a );
+			let b_date = date_of( b );
+			if ( a_date !== b_date )
+			{
+				return ( a_date < b_date ) ? -1 : 1;
+			}
+		}
+		return name_of( a ).localeCompare( name_of( b ) );
+	}
+
+
+	// The items of one level as the tree shows them.
+	$scope.Sorted = function ( items )
+	{
+		if ( !items || !$scope.IsSorted() )
+		{
+			return items;
+		}
+		return items.slice().sort( compare );
+	};
+
+
+	// The date shown before an item's name when sorted by created or updated, or ''.
+	$scope.DateOf = function ( node )
+	{
+		if ( node.Kind === 'folder' || ( $scope.Sort !== 'created' && $scope.Sort !== 'updated' ) )
+		{
+			return '';
+		}
+		return date_of( node );
+	};
 
 
 	$scope.ItemCount = function ( items )
@@ -845,6 +933,8 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 //   an item on a folder or a plan         before (top quarter), after (bottom quarter), or into (the middle)
 //   an item on an item                    before (top half) or after (bottom half)
 //   a project on a project's head         before (top half) or after (bottom half)
+// While the tree is sorted (the target has Sorted: true), an item only moves into a folder or a plan: there is
+// no order to put it in.
 
 .directive( 'treeDrop', [ function ()
 {
@@ -881,6 +971,10 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 		if ( kind !== 'item' )
 		{
 			return null;
+		}
+		if ( target.Sorted )
+		{
+			return ( target.Kind === 'folder' || target.Kind === 'plan' ) ? 'into' : null;
 		}
 		if ( target.Kind === 'folder' || target.Kind === 'plan' )
 		{

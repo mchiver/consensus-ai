@@ -101,6 +101,47 @@ html, body
 	display: none;
 }
 
+/* The project tree hidden: the sidebar and its splitter are not shown, so the grid has three columns, as in a
+   detached window. */
+.layout.no-tree
+{
+	grid-template-columns: 1fr 6px var(--threads-width);
+}
+
+.layout.no-tree.no-threads
+{
+	grid-template-columns: 1fr 0 0;
+}
+
+.layout.no-tree > .sidebar, .layout.no-tree > .splitter[data-splitter="sidebar"]
+{
+	display: none;
+}
+
+/* --------------------------------------------------------------------- icons */
+
+/* The symbols are drawn once, out of sight; each icon uses one by id and strokes it in the text's color. */
+.icon-sprite
+{
+	position: absolute;
+	width: 0;
+	height: 0;
+	overflow: hidden;
+}
+
+.icon
+{
+	flex: none;
+	width: 1em;
+	height: 1em;
+	vertical-align: -0.125em;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
 .splitter
 {
 	cursor: col-resize;
@@ -717,6 +758,14 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	border-bottom: 1px solid var(--border);
 }
 
+/* The filter and the Highlight picker share the row, the count between them. */
+.threads-top .form-select
+{
+	flex: 1 1 0;
+	min-width: 0;
+	width: auto;
+}
+
 .threads-top .count
 {
 	color: var(--muted);
@@ -1219,6 +1268,46 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	font-size: 0.9rem;
 }
 
+/* Sort and Show updated, above the projects. */
+.tree-controls
+{
+	display: flex;
+	gap: 0.4rem;
+	margin: 0.5rem 0.75rem 0;
+}
+
+.tree-controls .form-select
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	width: auto;
+}
+
+.tree-controls .btn
+{
+	flex: none;
+	white-space: nowrap;
+}
+
+/* The date before an item's name when the tree is sorted by a date, and its last update at the row's end. */
+.tree-date
+{
+	flex: none;
+	color: var(--muted);
+	font-size: 0.8rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.tree-stamp
+{
+	flex: none;
+	margin-left: auto;
+	padding-left: 0.4rem;
+	color: var(--muted);
+	font-size: 0.72rem;
+	font-weight: normal;
+}
+
 .waiting-link.open, .waiting-link:hover
 {
 	background: rgba( 124, 58, 237, 0.12 );
@@ -1441,12 +1530,44 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 
 /* --------------------------------------------------------------------- tabs */
 
-.tab-strip
+/* The tree's toggle, then the tabs. */
+.tabs-row
 {
 	display: flex;
-	overflow-x: auto;
+	align-items: stretch;
 	background: var(--panel-bg);
 	border-bottom: 1px solid var(--border);
+}
+
+.tree-toggle
+{
+	flex: none;
+	display: flex;
+	align-items: center;
+	padding: 0.35rem 0.6rem;
+	border: none;
+	border-right: 1px solid var(--border);
+	background: transparent;
+	color: var(--accent);
+	font-size: 1rem;
+}
+
+.tree-toggle.off
+{
+	color: var(--muted);
+}
+
+.tree-toggle:hover
+{
+	background: var(--tree-hover);
+}
+
+.tab-strip
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	overflow-x: auto;
 	scrollbar-width: thin;
 }
 
@@ -1544,16 +1665,19 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	min-height: 0;
 }
 
-/* Anchored to the bottom right, so the bars at the top of a view (the edit bar's Save) stay in reach. */
+/* Placed by the floating-panel directive: centered at first, then where it was moved; the grip sizes it. The
+   heading stays put and the body scrolls. */
 .session-panel
 {
 	position: absolute;
-	bottom: 0.75rem;
-	right: 1rem;
+	top: 0;
+	left: 0;
 	z-index: 20;
+	display: flex;
+	flex-direction: column;
 	width: min( 42rem, calc( 100% - 2rem ) );
-	max-height: calc( 100% - 4rem );
-	overflow-y: auto;
+	max-height: calc( 100% - 1rem );
+	overflow: hidden;
 	background: var(--page-bg);
 	border: 1px solid var(--border);
 	border-radius: 0.4rem;
@@ -1563,8 +1687,9 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 
 .session-head
 {
-	position: sticky;
-	top: 0;
+	flex: none;
+	cursor: move;
+	user-select: none;
 	display: flex;
 	align-items: center;
 	gap: 0.75rem;
@@ -1578,9 +1703,46 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	font-weight: 600;
 }
 
-.session-head .btn-close
+.session-head .session-reset
 {
 	margin-left: auto;
+	padding: 0 0.25rem;
+}
+
+.session-body
+{
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/* The corner grip: three short diagonal lines. */
+.session-grip
+{
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 14px;
+	height: 14px;
+	cursor: nwse-resize;
+	background: linear-gradient( 135deg, transparent 0 55%, var(--muted) 55% 62%, transparent 62% 72%, var(--muted) 72% 79%, transparent 79% 89%, var(--muted) 89% 96%, transparent 96% );
+	opacity: 0.6;
+}
+
+.session-grip:hover
+{
+	opacity: 1;
+}
+
+.session-panel.moving
+{
+	opacity: 0.92;
+	box-shadow: 0 10px 32px rgba( 0, 0, 0, 0.28 );
+}
+
+.session-head .btn-close
+{
+	margin-left: 0;
 }
 
 .session-section
@@ -1817,4 +1979,119 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	flex-basis: 100%;
 	align-items: center;
 	gap: 0.5rem;
+}
+
+/* --------------------------------------------------------------------- buttons */
+
+/* Color by purpose: Bootstrap's primary (blue), success (green: resolve and accept) and danger (red: delete) as they
+   are; every other button a tinted neutral. Each has an icon before its label; on hover it lifts, deepens and casts
+   a soft shadow, and pressed it settles back. */
+:root
+{
+	--button-neutral-bg: rgba( 13, 110, 253, 0.06 );
+	--button-neutral-hover: rgba( 13, 110, 253, 0.16 );
+	--button-neutral-border: #c4ccd6;
+	--button-shadow: rgba( 0, 0, 0, 0.2 );
+	--button-motion: 120ms ease;
+}
+
+[data-bs-theme="dark"]
+{
+	--button-neutral-bg: rgba( 116, 192, 252, 0.08 );
+	--button-neutral-hover: rgba( 116, 192, 252, 0.2 );
+	--button-neutral-border: #4a5360;
+	--button-shadow: rgba( 0, 0, 0, 0.55 );
+}
+
+.btn-outline-secondary
+{
+	--bs-btn-color: var(--text);
+	--bs-btn-bg: var(--button-neutral-bg);
+	--bs-btn-border-color: var(--button-neutral-border);
+	--bs-btn-hover-color: var(--text);
+	--bs-btn-hover-bg: var(--button-neutral-hover);
+	--bs-btn-hover-border-color: var(--accent);
+	--bs-btn-active-color: var(--text);
+	--bs-btn-active-bg: var(--button-neutral-hover);
+	--bs-btn-active-border-color: var(--accent);
+	--bs-btn-disabled-color: var(--muted);
+	--bs-btn-disabled-bg: transparent;
+	--bs-btn-disabled-border-color: var(--border);
+}
+
+.btn-outline-danger
+{
+	--bs-btn-bg: rgba( 220, 53, 69, 0.06 );
+}
+
+.btn, .tab-button, .tree-toggle
+{
+	transition: transform var(--button-motion), box-shadow var(--button-motion), background-color var(--button-motion), border-color var(--button-motion), color var(--button-motion);
+}
+
+.btn:not(.btn-link):not(:disabled):hover
+{
+	transform: translateY( -1px );
+	box-shadow: 0 3px 8px var(--button-shadow);
+}
+
+.btn:not(.btn-link):not(:disabled):active
+{
+	transform: translateY( 0 );
+	box-shadow: 0 1px 2px var(--button-shadow);
+}
+
+/* The icon before a label; an icon alone (the row buttons) stands for its title. */
+.icon.lead
+{
+	margin-right: 0.35em;
+}
+
+.btn .icon, .tab-button .icon
+{
+	transition: transform var(--button-motion);
+}
+
+.btn-link:not(:disabled):hover, .tab-button:hover
+{
+	color: var(--accent);
+}
+
+.btn-link:not(:disabled):hover > .icon:not(.lead), .tab-button:hover > .icon, .tree-toggle:hover > .icon
+{
+	transform: scale( 1.2 );
+}
+
+.btn-link[title^="delete"]:hover, .tab-button.close-tab:hover
+{
+	color: var(--bs-danger);
+}
+
+@media ( prefers-reduced-motion: reduce )
+{
+	.btn, .tab-button, .tree-toggle, .btn .icon, .tab-button .icon, .tree-toggle .icon
+	{
+		transition: none;
+	}
+
+	.btn:not(.btn-link):not(:disabled):hover, .btn:not(.btn-link):not(:disabled):active
+	{
+		transform: none;
+	}
+
+	.btn-link:not(:disabled):hover > .icon:not(.lead), .tab-button:hover > .icon, .tree-toggle:hover > .icon
+	{
+		transform: none;
+	}
+}
+
+/* In the tree's rows the icons sit close to their words, so the row buttons fit the sidebar. */
+.node-buttons .icon.lead, .item-buttons .icon.lead
+{
+	margin-right: 0.1em;
+}
+
+.project-head .node-buttons
+{
+	flex-wrap: wrap;
 }

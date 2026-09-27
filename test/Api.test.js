@@ -236,6 +236,25 @@ TEST( 'reply and resolve: the owner\'s reply becomes the outcome in one request;
 } );
 
 
+TEST( 'comment and resolve: the owner posts a thread already resolved, its comment the outcome; no one else may', async function ()
+{
+	let proposal = await create( 'Comment and resolve' );
+	let path = '/api/proposals/' + proposal.Id + '/threads';
+	let by_llm = await call( 'POST', path, { Text: 'Drop the last line.', Resolve: true }, true );
+	ASSERT.equal( by_llm.Status, 403 );
+	ASSERT.equal( ( await call( 'GET', path ) ).Body.Threads.length, 0 );
+	let posted = await call( 'POST', path, { Text: 'Drop the last line.', Resolve: true } );
+	ASSERT.equal( posted.Status, 201 );
+	ASSERT.equal( posted.Body.Thread.Status, 'resolved' );
+	ASSERT.equal( posted.Body.Thread.Resolved.By, 'user' );
+	ASSERT.deepEqual( posted.Body.Thread.Turn, [ 'llm' ] );
+	ASSERT.equal( posted.Body.Thread.Replies.length, 1 );
+	// without Resolve, a new thread is contested as before
+	let plain = await call( 'POST', path, { Text: 'Why this line?' } );
+	ASSERT.equal( plain.Body.Thread.Status, 'contested' );
+} );
+
+
 function thread_of_body( read, thread_id )
 {
 	return read.Body.Threads.find( function ( thread ) { return thread.Id === thread_id; } );
@@ -660,6 +679,7 @@ TEST( 'a corpus: uploaded, listed with reasons, indexed and found, read, replace
 	} );
 	let tree = ( await call( 'GET', '/api/projects' ) ).Body.Projects.find( function ( candidate ) { return candidate.Id === project.Id; } );
 	ASSERT.deepEqual( [ tree.Items[ 0 ].Kind, tree.Items[ 0 ].Title, tree.Items[ 0 ].Files, tree.Items[ 0 ].Indexed ], [ 'corpus', 'repo', 6, 3 ] );
+	ASSERT.equal( typeof tree.Items[ 0 ].Created, 'string' );
 
 	// found by search, with its path
 	let hits = await search_until( 'flux capacitor gearbox', function ( list ) { return list.some( function ( hit ) { return hit.Corpus === corpus.Id; } ); } );
@@ -822,6 +842,8 @@ TEST( 'projects: Default holds new proposals; a project and its folders are crea
 	let read = ( await call( 'GET', '/api/projects' ) ).Body.Projects.find( function ( candidate ) { return candidate.Id === project.Id; } );
 	ASSERT.equal( read.Items[ 0 ].Kind, 'folder' );
 	ASSERT.equal( read.Items[ 0 ].Items[ 0 ].Title, 'Placed' );
+	ASSERT.equal( read.Items[ 0 ].Items[ 0 ].Created, placed.Body.Proposal.Created );
+	ASSERT.equal( typeof read.Items[ 0 ].Items[ 0 ].Updated, 'string' );
 
 	// renames
 	let renamed = await call( 'PUT', '/api/projects/' + project.Id, { Name: 'Consensus work' } );

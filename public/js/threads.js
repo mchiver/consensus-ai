@@ -1,6 +1,7 @@
 'use strict';
 
-// Threads pane - filter, each thread with its anchor words and replies, reply, resolve, and the compose card.
+// Threads pane - filter, highlight, each thread with its anchor words and replies, reply, resolve, and the compose
+// card (Comment, or the owner's Comment and resolve).
 
 angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$timeout', 'State', 'Client', 'Subplans', function ( $scope, $timeout, State, Client, Subplans )
 {
@@ -18,6 +19,10 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 		{ Value: 'detached', Label: 'Detached' },
 	];
 	$scope.Filters = BASE_FILTERS.concat( TAIL_FILTERS );
+	$scope.Highlights = [
+		{ Value: 'all', Label: 'Highlight all threads' },
+		{ Value: 'open', Label: 'Highlight open threads' },
+	];
 
 
 	// One "Waiting on <participant>" filter per participant, from the settings.
@@ -76,13 +81,24 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	}
 
 
+	// The selected thread always shows, whatever the filter: a thread just posted, or picked in the text, stays in view.
 	$scope.Threads = function ()
 	{
 		if ( !State.Open )
 		{
 			return [];
 		}
-		return State.Open.Threads.filter( matches ).sort( by_position );
+		let shown = State.Open.Threads.filter( function ( thread )
+		{
+			return thread.Id === State.Selected || matches( thread );
+		} );
+		return shown.sort( by_position );
+	};
+
+
+	$scope.SetHighlight = function ()
+	{
+		State.SetHighlight( State.Highlight );
 	};
 
 
@@ -148,6 +164,12 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	};
 
 
+	$scope.IsOwner = function ()
+	{
+		return !!State.Me && State.Me.Role === 'owner';
+	};
+
+
 	$scope.CanResolve = function ( thread )
 	{
 		return State.Me && State.Me.Role === 'owner' && thread.Status === 'contested';
@@ -168,16 +190,22 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	}
 
 
-	$scope.Post = async function ()
+	// Comment; with Resolve (the owner's Comment and resolve), the thread is posted resolved, the comment its outcome.
+	$scope.Post = async function ( Resolve )
 	{
 		let compose = State.Compose;
 		if ( !compose || !compose.Text )
 		{
 			return;
 		}
+		let body = { Anchor: compose.Anchor, Text: compose.Text };
+		if ( Resolve )
+		{
+			body.Resolve = true;
+		}
 		let answer = await act( function ()
 		{
-			return Client.Post( path( null ), { Anchor: compose.Anchor, Text: compose.Text } );
+			return Client.Post( path( null ), body );
 		} );
 		if ( answer )
 		{

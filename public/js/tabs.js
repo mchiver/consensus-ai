@@ -2,10 +2,11 @@
 
 // Tabs - the open items above the document view, and the windows they can be detached into.
 //
-//   tab = { Key, Kind: 'p' | 'c' | 'waiting' | 'search', Id?, Hash, Title?, Query?, View?, Draft? }
+//   tab = { Key, Kind: 'p' | 'c' | 'waiting' | 'search', Id?, Hash, Title?, Query?, View?, Filter?, Draft? }
 //     Key    'p:<id>', 'c:<id>', 'waiting' or 'search': one tab per item
 //     Hash   the route that shows it (#/p/<id>, #/c/<id>, #/waiting, #/search/...)
 //     View   read | edit | revisions, for a proposal: each tab comes back as it was left
+//     Filter the threads pane's filter, for a proposal: a new tab starts at Waiting on me
 //     Draft  { Text, Base }: an unsaved edit, kept while its tab is not the one shown
 //
 // The hash stays the route: AppController calls Visit for it, and a tab's click sets it. The tabs are kept in
@@ -26,6 +27,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	const CHANNEL_NAME = 'consensus-windows';
 	const REATTACH_WAIT = 700;
 	const VIEWS = [ 'read', 'edit', 'revisions' ];
+	const DEFAULT_FILTER = 'mine';
 
 	let tabs = {
 		List: [],
@@ -114,6 +116,10 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 			tabs.List = [ tab ];
 		}
 		tabs.ActiveKey = key;
+		if ( tab.Kind === 'p' )
+		{
+			State.Filter = tab.Filter || DEFAULT_FILTER;
+		}
 		save();
 		return tab;
 	}
@@ -239,6 +245,18 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		if ( tab && tab.Kind === 'p' && tab.Id === State.OpenId && VIEWS.includes( view ) && tab.View !== view )
 		{
 			tab.View = view;
+			save();
+		}
+	} );
+
+
+	// Each proposal's tab keeps its threads filter.
+	$rootScope.$watch( function () { return State.Filter; }, function ( filter )
+	{
+		let tab = Active();
+		if ( tab && tab.Kind === 'p' && tab.Filter !== filter )
+		{
+			tab.Filter = filter;
 			save();
 		}
 	} );
@@ -570,6 +588,13 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	$scope.Reattach = function ()
 	{
 		Tabs.Reattach();
+	};
+
+
+	// The button at the left of the strip hides or shows the project tree.
+	$scope.ToggleTree = function ()
+	{
+		State.SetTreeHidden( !State.TreeHidden );
 	};
 
 

@@ -1,6 +1,7 @@
 'use strict';
 
-// Read view - the rendered markdown with each anchored passage highlighted; a selection offers Comment and, on a
+// Read view - the rendered markdown with each anchored passage highlighted (every thread's, or only the open ones'
+// and the selected one's, as the Highlight picker says); a selection offers Comment and, on a
 // plan, Start a new Subplan (or Re-anchor here, while a thread is being re-anchored); clicking a highlight opens
 // its thread.
 
@@ -22,7 +23,20 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 			view.innerHTML = '';
 			return;
 		}
-		Render.Show( view, State.Open.Text, State.Open.Threads, State.Selected );
+		Render.Show( view, State.Open.Text, highlighted(), State.Selected );
+	}
+
+
+	function highlighted()
+	{
+		if ( State.Highlight !== 'open' )
+		{
+			return State.Open.Threads;
+		}
+		return State.Open.Threads.filter( function ( thread )
+		{
+			return thread.Status === 'contested' || thread.Id === State.Selected;
+		} );
 	}
 
 
@@ -189,4 +203,5 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 		Render.ScrollToThread( view, id );
 	} );
 	$scope.$on( 'compose-started', show );
+	$scope.$on( 'highlight-changed', show );
 } ] );
