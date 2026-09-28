@@ -40,6 +40,18 @@ async function show_all_threads()
 }
 
 
+// A row's actions menu: its ⋯ opens the popup menu, and the entry whose label starts with Label is picked.
+async function menu_pick( row, label, opener )
+{
+	let button = 'document.querySelector( ' + JSON.stringify( row + ' ' + ( opener || '.row-menu' ) ) + ' )';
+	await page.WaitFor( button + ' !== null', 20000 );
+	await page.Evaluate( button + '.click(); true' );
+	let entry = '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( entry ) { return entry.textContent.trim().startsWith( ' + JSON.stringify( label ) + ' ); } )';
+	await page.WaitFor( '!!' + entry );
+	await page.Evaluate( entry + '.click(); true' );
+}
+
+
 function text_of( selector )
 {
 	return '( document.querySelector( ' + JSON.stringify( selector ) + ' ) || { textContent: "" } ).textContent.trim()';
@@ -238,14 +250,14 @@ TEST( 'a new project opens and closes the others; a folder and a plan are made i
 	ASSERT.equal( await page.Evaluate( text_of( '.project.open .project-name' ) ), 'Browser project' );
 	ASSERT.equal( await page.Evaluate( count_of( '.project[data-project="default"] .tree-item' ) ), 0 );
 	// a folder, picked as where the plan goes
-	await page.Click( '.project.open .new-folder' );
+	await menu_pick( '.project.open > .project-head', 'New folder' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
 	await page.Type( 'Specs' );
 	await page.Click( '#create-submit' );
 	await page.WaitFor( count_of( '.project.open .folder' ) + ' === 1' );
 	await page.Click( '.project.open .folder-head' );
 	await page.WaitFor( count_of( '.project.open .folder-head.target' ) + ' === 1' );
-	await page.Click( '.project.open .new-plan' );
+	await menu_pick( '.project.open > .project-head', 'New plan' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
 	await page.Type( 'Plan in a folder' );
 	await page.Click( '#create-submit' );
@@ -253,7 +265,7 @@ TEST( 'a new project opens and closes the others; a folder and a plan are made i
 	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Plan in a folder"' );
 	ASSERT.equal( await page.Evaluate( text_of( '.project.open .folder .tree-item .proposal-title' ) ), 'Plan in a folder' );
 	// a document: no threads pane, no state picker, no comment button
-	await page.Click( '.project.open .new-document' );
+	await menu_pick( '.project.open > .project-head', 'New document' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
 	await page.Type( 'Reference notes' );
 	await page.Click( '#create-submit' );
@@ -289,9 +301,9 @@ TEST( 'an item dragged onto a project moves there; copy and paste makes a whole 
 	ASSERT.equal( await page.Evaluate( count_of( '.project.open .folder .tree-item.document' ) ), 0 );
 
 	// copy the plan in the folder, paste at the project's root
-	await page.Evaluate( 'document.querySelector( ".project.open .folder .tree-item .copy-item" ).click()' );
+	await menu_pick( '.project.open .folder .tree-item', 'Copy' );
 	await page.WaitFor( text_of( '#clipboard' ) + '.startsWith( "copied: Plan in a folder" )' );
-	await page.Evaluate( 'document.querySelector( ".project.open .project-head .paste-here" ).click()' );
+	await menu_pick( '.project.open > .project-head', 'Paste' );
 	await page.WaitFor( count_of( '.project.open .tree-item' ) + ' === 3' );
 	await page.WaitFor( '[ ...document.querySelectorAll( ".project.open .proposal-title" ) ].some( function ( title ) { return title.textContent.trim() === "Plan in a folder (copy)"; } )' );
 	ASSERT.deepEqual( page.Errors, [] );
@@ -374,7 +386,7 @@ TEST( 'the threads and the preview hide and are remembered; a plan is renamed in
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".edit-preview" ) ).display !== "none"' );
 	await page.Click( '#view-read' );
 	// rename from the tree row: only the Title changes
-	await page.Evaluate( 'document.querySelector( ".tree-item[data-id=\\"' + proposal.Id + '\\"] .rename-item" ).click(); true' );
+	await menu_pick( '.tree-item[data-id="' + proposal.Id + '"]', 'Rename' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.closest( ".rename-form" ) !== null' );
 	await page.Evaluate( '( function () { let input = document.activeElement; input.value = "Browser check, renamed"; input.dispatchEvent( new Event( "input" ) ); input.form.dispatchEvent( new Event( "submit", { cancelable: true } ) ); return true; } )()' );
 	await page.WaitFor( text_of( '.tree-item[data-id="' + proposal.Id + '"] .proposal-title' ) + ' === "Browser check, renamed"' );
@@ -556,7 +568,7 @@ TEST( 'tabs: one per item; each keeps its view and an unsaved edit; tabs reorder
 } );
 
 
-TEST( 'tabs: a tab detaches into its own window and is re-attached from there', async function ()
+TEST( 'tabs: a tab detaches into its own window, stays ghosted in the strip, and is re-attached from either window', async function ()
 {
 	await page.Evaluate( 'window.location.hash = "#/p/' + tab_one.Id + '"; true' );
 	await page.WaitFor( text_of( '.header .title' ) + ' === "Tab one"' );
@@ -565,16 +577,19 @@ TEST( 'tabs: a tab detaches into its own window and is re-attached from there', 
 		+ ' window.opened = []; window.open = function ( url ) { window.opened.push( url ); return {}; };'
 		+ ' window.heard = []; let channel = new BroadcastChannel( "consensus-windows" ); channel.onmessage = function ( event ) { window.heard.push( event.data.Type ); };'
 		+ ' return true; } )()' );
-	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( tab_selector( tab_one.Id ) + ' .detach-tab' ) + ' ).click(); true' );
-	await page.WaitFor( count_of( tab_selector( tab_one.Id ) ) + ' === 0' );
+	await menu_pick( tab_selector( tab_one.Id ), 'Detach', '.tab-menu' );
+	await page.WaitFor( count_of( tab_selector( tab_one.Id ) + '.out' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( 'window.opened[ 0 ]' ), '/?detached=1#/p/' + tab_one.Id );
-	// clicked again in the main window, the item stays out: its window is asked to come forward
+	// the strip shows the tab beside it; the ghost does not open when clicked
 	await page.WaitFor( text_of( '.header .title' ) + ' !== "Tab one"' );
 	let shown = await page.Evaluate( text_of( '.header .title' ) );
+	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( tab_selector( tab_one.Id ) ) + ' ).click(); true' );
+	ASSERT.equal( await page.Evaluate( text_of( '.header .title' ) ), shown );
+	// opened again from the tree, the item stays out: its window is asked to come forward
 	await page.Evaluate( 'window.location.hash = "#/p/' + tab_one.Id + '"; true' );
 	await page.WaitFor( 'window.heard.includes( "focus" )' );
-	ASSERT.equal( await page.Evaluate( count_of( tab_selector( tab_one.Id ) ) ), 0 );
 	await page.WaitFor( text_of( '.header .title' ) + ' === ' + JSON.stringify( shown ) );
+	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].length' ), 0 );
 
 	// the detached window: the item alone, no sidebar, and Re-attach puts it back as a tab in the main window
 	let detached = await browser.OpenPage( running.Url + '/?detached=1#/p/' + tab_one.Id );
@@ -586,9 +601,51 @@ TEST( 'tabs: a tab detaches into its own window and is re-attached from there', 
 	await page.WaitFor( count_of( tab_selector( tab_one.Id ) ) + ' === 1' );
 	await page.WaitFor( text_of( '.header .title' ) + ' === "Tab one"' );
 	await page.WaitFor( 'window.heard.includes( "attached" )' );
+	ASSERT.equal( await page.Evaluate( count_of( tab_selector( tab_one.Id ) + '.out' ) ), 0 );
+	detached.Close();
+
+	// out again, and called back from the main window: the ghost's menu has Re-attach and Close
+	await menu_pick( tab_selector( tab_one.Id ), 'Detach', '.tab-menu' );
+	await page.WaitFor( count_of( tab_selector( tab_one.Id ) + '.out' ) + ' === 1' );
+	let again = await browser.OpenPage( running.Url + '/?detached=1#/p/' + tab_one.Id );
+	await again.WaitFor( text_of( '.header .title' ) + ' === "Tab one"', 20000 );
+	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( tab_selector( tab_one.Id ) + ' .tab-menu' ) + ' ).click(); true' );
+	await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' === 2' );
+	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].map( function ( entry ) { return entry.textContent.trim(); } )' ), [ 'Re-attach', 'Close' ] );
+	await page.Press( 'Escape' );
+	await menu_pick( tab_selector( tab_one.Id ), 'Re-attach', '.tab-menu' );
+	await page.WaitFor( 'window.heard.includes( "call-back" )' );
+	await page.WaitFor( count_of( tab_selector( tab_one.Id ) + '.out' ) + ' === 0' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tab one"' );
 	ASSERT.deepEqual( page.Errors, [] );
 	ASSERT.deepEqual( detached.Errors, [] );
-	detached.Close();
+	ASSERT.deepEqual( again.Errors, [] );
+	again.Close();
+} );
+
+
+TEST( 'tabs: the tab menu closes others, those to the right, or all', async function ()
+{
+	let made = [];
+	for ( let name of [ 'Menu one', 'Menu two', 'Menu three' ] )
+	{
+		let plan = await created( name );
+		made.push( plan );
+		await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+		await page.WaitFor( text_of( '.header .title' ) + ' === ' + JSON.stringify( name ) );
+	}
+	// to the right of the first of them: the other two go
+	await menu_pick( tab_selector( made[ 0 ].Id ), 'Close to the right', '.tab-menu' );
+	await page.WaitFor( count_of( tab_selector( made[ 1 ].Id ) ) + ' + ' + count_of( tab_selector( made[ 2 ].Id ) ) + ' === 0' );
+	ASSERT.equal( await page.Evaluate( count_of( tab_selector( made[ 0 ].Id ) ) ), 1 );
+	// others: only it is left, and shown
+	await menu_pick( tab_selector( made[ 0 ].Id ), 'Close others', '.tab-menu' );
+	await page.WaitFor( count_of( '.tab' ) + ' === 1' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Menu one"' );
+	// all: the start page
+	await menu_pick( tab_selector( made[ 0 ].Id ), 'Close all', '.tab-menu' );
+	await page.WaitFor( count_of( '.tab' ) + ' === 0' );
+	ASSERT.deepEqual( page.Errors, [] );
 } );
 
 
@@ -729,8 +786,7 @@ TEST( 'subplans: started from the header, selected text, a new thread and a repl
 TEST( 'context server: + link lists what it offers; the linked corpus opens, its file reads, and search finds it', async function ()
 {
 	await page.Evaluate( 'window.location.hash = "#/p/' + proposal.Id + '"; true' );
-	await page.WaitFor( 'document.querySelector( ".project.open .new-link" ) !== null', 20000 );
-	await page.Evaluate( 'document.querySelector( ".project.open .new-link" ).click(); true' );
+	await menu_pick( '.project.open > .project-head', 'Link a corpus' );
 	await page.WaitFor( 'document.getElementById( "link-choice" ) && document.getElementById( "link-choice" ).selectedOptions.length === 1 && document.getElementById( "link-choice" ).selectedOptions[ 0 ].textContent !== ""' );
 	ASSERT.match( await page.Evaluate( 'document.getElementById( "link-choice" ).selectedOptions[ 0 ].textContent' ), /^Desk \/ Notes \(1 files\)$/ );
 	await page.Click( '#link-submit' );
@@ -928,5 +984,61 @@ TEST( 'session panel: it opens centered, moves by its heading, resizes by its co
 	ASSERT.equal( reset.Width, first.Width );
 	await page.Click( '#session-panel .btn-close' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display === "none"' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'tree menus: a right-click or the ⋯ opens a row\'s actions; Delete is there only, confirmed on the row; the open project has the solid dot', async function ()
+{
+	let doomed = await created( 'Doomed plan' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + doomed.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Doomed plan"' );
+	const ROW = '.tree-item[data-id="' + doomed.Id + '"]';
+	await page.WaitFor( count_of( ROW ) + ' === 1' );
+
+	// no Delete in the heading; the open project's dot is solid, the others hollow
+	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".header button" ) ].some( function ( button ) { return button.textContent.trim() === "Delete"; } )' ), false );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.open .project-dot.open' ) ), 1 );
+	ASSERT.equal( await page.Evaluate( count_of( '.project-dot.open' ) ), 1 );
+	ASSERT.equal( await page.Evaluate( count_of( '.project-dot' ) + ' - ' + count_of( '.project' ) ), 0 );
+
+	// a right-click opens the same menu; Escape closes it
+	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( ROW ) + ' ).dispatchEvent( new MouseEvent( "contextmenu", { bubbles: true, cancelable: true, clientX: 60, clientY: 200 } ) ); true' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display !== "none"' );
+	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].map( function ( entry ) { return entry.textContent.trim(); } )' ), [ 'New Subplan', 'Rename', 'Copy', 'Delete' ] );
+	await page.Press( 'Escape' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display === "none"' );
+
+	// Delete from the menu asks on the row; Yes sends it to the trash and closes its tab
+	await menu_pick( ROW, 'Delete' );
+	await page.WaitFor( count_of( ROW + ' .confirm-delete-item' ) + ' === 1' );
+	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( ROW + ' .confirm-delete-item' ) + ' ).click(); true' );
+	await page.WaitFor( count_of( ROW ) + ' === 0' );
+	await page.WaitFor( count_of( tab_selector( doomed.Id ) ) + ' === 0' );
+	ASSERT.equal( ( await fetch( running.Url + '/api/proposals/' + doomed.Id ) ).status, 404 );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'Ctrl+E: Read to Edit, and back to Read from the editor, keeping the unsaved edit', async function ()
+{
+	let plan = await created( 'Keyboard plan' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Keyboard plan"' );
+	await page.WaitFor( 'document.getElementById( "view-read" ).classList.contains( "btn-secondary" )' );
+	await page.Click( '#read-view' );
+	await page.Press( 'e', [ 'Control' ] );
+	await page.WaitFor( 'document.getElementById( "view-edit" ).classList.contains( "btn-secondary" )' );
+	const SAVED = JSON.stringify( '# Keyboard plan\n\nA line.\n' );
+	const EDITED = JSON.stringify( '# Keyboard plan\n\nA line, not saved.\n' );
+	await page.WaitFor( 'window.monaco && monaco.editor.getEditors().length === 1 && monaco.editor.getEditors()[ 0 ].getValue() === ' + SAVED, 30000 );
+	await page.Evaluate( '( function () { let editor = monaco.editor.getEditors()[ 0 ]; editor.setValue( ' + EDITED + ' ); editor.focus(); return true; } )()' );
+	// from inside the editor, back to Read; the edit, kept with the tab a moment after typing, is there on the way back
+	await page.WaitFor( '( window.sessionStorage.getItem( "consensus.tabs" ) || "" ).includes( "A line, not saved" )' );
+	await page.Press( 'e', [ 'Control' ] );
+	await page.WaitFor( 'document.getElementById( "view-read" ).classList.contains( "btn-secondary" )' );
+	await page.Press( 'e', [ 'Control' ] );
+	await page.WaitFor( 'document.getElementById( "view-edit" ).classList.contains( "btn-secondary" )' );
+	await page.WaitFor( 'monaco.editor.getEditors()[ 0 ].getValue() === ' + EDITED );
 	ASSERT.deepEqual( page.Errors, [] );
 } );

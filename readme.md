@@ -51,20 +51,22 @@ opening an item opens its project. A project holds, in folders of any depth:
 - **Folders**, to organize any of these.
 - **Subplans**: a plan can hold plans, and only plans. A Subplan is a full plan of its own (its own threads,
   state and Subplans); the tie is organizational only. Subplans fold under their parent, and move, copy and
-  go to the trash with it. Start one with **+** on a plan's row or **New subplan** in its heading (empty),
+  go to the trash with it. Start one with **New Subplan** in a plan's menu or **New subplan** in its heading (empty),
   **Start a new Subplan** in a thread being written or replied to (it starts with the anchored passage
   quoted and the thread so far; the thread gets a reply linking to it and stays open), or on selected text
   (it starts with that text; the parent is not changed). Dropping a plan on the middle of a plan makes it a
   Subplan.
 
 The **Default** project is created at first start and never deleted; ad-hoc items live there. Every item
-belongs to exactly one project. Click a folder to make it where new items go. Everything reorders by drag
+belongs to exactly one project. The open project carries a solid green dot, the others a hollow circle. Each
+row's actions are in its menu: **⋯** at the row's end (on hover, and on the current row) or a right-click. Click a folder to make it where new items go. Everything reorders by drag
 and drop: drop an item on the top or bottom edge of a row to put it just before or after that row, on the
 middle of a folder to move it inside, or on a project's heading to move it to that project's root; drop a
-project's heading on another's to reorder the projects. Rename a plan or document with ✎ on its row (only
-its title changes); copy it (⧉, or Ctrl+C on the open item) and paste it (a paste button, or
-Ctrl+V into the open project) for a whole copy under a new id: a plan's text, threads and revisions, a
-folder's whole contents. A project or folder is deleted only when empty. Trash is at the bottom of the
+project's heading on another's to reorder the projects. Rename an item from its menu (a plan or
+document: only its title changes); copy it (its menu, or Ctrl+C on the open item) and paste it (Paste in a
+project's or folder's menu, or Ctrl+V into the open project) for a whole copy under a new id: a plan's text,
+threads and revisions, a folder's whole contents. Delete is in the menu only, confirmed on the row: a plan,
+document or corpus goes to the trash; a project or folder is deleted only when empty. Trash is at the bottom of the
 sidebar.
 
 The heading's **Threads** button hides or shows the threads pane, and the editor's **Preview** button its
@@ -74,10 +76,12 @@ revision that applied a deleted thread keeps its text and shows "(deleted thread
 Every item you open (plan, document, context, zip), and Waiting on you and Search, opens in a **tab** above the
 document: one tab per item, dragged to reorder, closed with ×. Each tab comes back as you left it, Read, Edit or
 Revisions, an unsaved edit included. Open tabs survive a page reload, not a browser restart; with none open, the
-start page shows. ↗ on a tab opens it in its own browser window (allow pop-ups for the page): the item alone,
-without the sidebar, and **Re-attach** there puts it back as a tab. Clicking an item that is out brings its
-window forward; closing that window closes the item; and if the main window is gone, Re-attach makes the
-detached window the main one.
+start page shows. A tab's menu (▾ beside its ×, or a right-click) has Close, Close others, Close to the right,
+Close all, and **Detach**, which opens it in its own browser window (allow pop-ups for the page): the item alone,
+without the sidebar. Its tab stays in the strip, ghosted: clicking it does nothing, and its menu has
+**Re-attach** (the window comes back as the tab) and Close (the window closes). **Re-attach** in the window does
+the same. Opening an item that is out brings its window forward; closing that window closes the item; and if
+the main window is gone, Re-attach makes the detached window the main one.
 
 The owner settles a contested thread in one of two ways. **Reply and resolve** posts the owner's reply and
 resolves the thread with it: that reply is the outcome the LLM applies. **Resolve** with no reply accepts the
@@ -233,7 +237,7 @@ The project tree on the left with each plan's state, its tallies and a "waiting 
 rendered plan or document in the middle, with each anchored passage of a plan highlighted by state
 (yellow contested, orange reopened, blue resolved, green applied); a plan's threads on the right,
 filterable by state and by whose turn it is. Select text in a plan to comment on it. Edit shows Monaco
-beside a live preview; Ctrl+S saves. Revisions shows the record. A document or a corpus gives the threads
+beside a live preview; Ctrl+S saves, and Ctrl+E switches between Read and Edit (from the editor too). Revisions shows the record. A document or a corpus gives the threads
 pane's room to the text. Light, dark or system theme and three sizes are at the bottom of the sidebar. Two
 browser tabs stay in step: every change is a Server-Sent Event.
 

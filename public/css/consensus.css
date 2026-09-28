@@ -423,26 +423,57 @@ html, body
 	font-weight: normal;
 }
 
-.node-buttons
+/* A row's actions: one ⋯ at its right end, shown on hover, on the current row, and while its menu is open. */
+.row-menu
 {
+	flex: none;
 	margin-left: auto;
-	display: flex;
+	display: inline-flex;
+	align-items: center;
+	padding: 0.1rem 0.3rem;
+	border: 0;
+	border-radius: 0.25rem;
+	background: none;
+	color: var(--muted);
+	font-size: 0.95rem;
+	line-height: 1;
+	cursor: pointer;
 	visibility: hidden;
 }
 
-.project-head:hover .node-buttons, .folder-head:hover .node-buttons, .project.open > .project-head .node-buttons
+.tree-row .badges + .row-menu, .tree-row .tree-stamp + .row-menu
+{
+	margin-left: 0.2rem;
+}
+
+.project-head:hover .row-menu, .tree-row:hover .row-menu, .tree-row.open .row-menu, .row-menu.current, .row-menu.shown
 {
 	visibility: visible;
 }
 
-.node-buttons .btn
+.row-menu:hover, .row-menu.shown
 {
-	padding: 0 0.25rem;
-	font-size: 0.8rem;
-	text-decoration: none;
+	background: var(--tree-hover);
+	color: var(--accent);
 }
 
-.project-head .confirm, .folder-head .confirm
+/* The open project's solid green dot; a hollow circle for the others. */
+.project-dot
+{
+	flex: none;
+	width: 0.55rem;
+	height: 0.55rem;
+	border-radius: 50%;
+	border: 1.5px solid var(--muted);
+}
+
+.project-dot.open
+{
+	background: var(--applied-edge);
+	border-color: var(--applied-edge);
+}
+
+.project-head .confirm, .folder-head .confirm, .tree-item .confirm
 {
 	margin-left: auto;
 	font-weight: normal;
@@ -514,24 +545,6 @@ html, body
 {
 	font-size: 0.65rem;
 	padding: 0.2em 0.45em;
-}
-
-.item-buttons
-{
-	flex: none;
-	display: none;
-}
-
-.tree-item:hover .item-buttons
-{
-	display: flex;
-}
-
-.item-buttons .btn
-{
-	padding: 0 0.25rem;
-	font-size: 0.8rem;
-	text-decoration: none;
 }
 
 .clipboard
@@ -1628,9 +1641,21 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	visibility: hidden;
 }
 
-.tab:hover .tab-button, .tab.active .tab-button
+.tab:hover .tab-button, .tab.active .tab-button, .tab-button.shown
 {
 	visibility: visible;
+}
+
+/* A tab whose item is in its own window: ghosted, and it does not open; its menu brings it back or closes it. */
+.tab.out
+{
+	cursor: default;
+	font-style: italic;
+}
+
+.tab.out .tree-icon, .tab.out .tab-title
+{
+	opacity: 0.45;
 }
 
 .tab-button:hover
@@ -2085,13 +2110,58 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	}
 }
 
-/* In the tree's rows the icons sit close to their words, so the row buttons fit the sidebar. */
-.node-buttons .icon.lead, .item-buttons .icon.lead
+/* --------------------------------------------------------------------- the popup menu */
+
+.popup-menu
 {
-	margin-right: 0.1em;
+	position: fixed;
+	z-index: 100;
+	min-width: 12rem;
+	padding: 0.3rem 0;
+	background: var(--page-bg);
+	border: 1px solid var(--border);
+	border-radius: 0.4rem;
+	box-shadow: 0 8px 24px var(--button-shadow);
+	font-size: 0.88rem;
 }
 
-.project-head .node-buttons
+.menu-button
 {
-	flex-wrap: wrap;
+	display: flex;
+	align-items: center;
+	width: 100%;
+	padding: 0.3rem 0.9rem;
+	border: 0;
+	background: none;
+	color: var(--text);
+	text-align: left;
+	white-space: nowrap;
+}
+
+.menu-button:not(:disabled):hover
+{
+	background: var(--button-neutral-hover);
+}
+
+.menu-button .icon.lead
+{
+	margin-right: 0.6em;
+	color: var(--muted);
+}
+
+.menu-button.danger, .menu-button.danger .icon.lead
+{
+	color: var(--bs-danger);
+}
+
+.menu-button:disabled
+{
+	color: var(--muted);
+	opacity: 0.55;
+}
+
+.menu-separator
+{
+	margin: 0.3rem 0;
+	border-top: 1px solid var(--border);
 }

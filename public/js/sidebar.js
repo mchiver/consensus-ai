@@ -4,12 +4,13 @@
 // new project, plan and folder, rename and delete; the search box, the waiting count, Trash at the bottom,
 // and the LLM's tokens today. Items and projects move and reorder by drag and drop; items copy by copy and paste.
 // A plan holds its Subplans: they fold under it, and a plan dropped into it becomes one.
+// Each row's actions are in its menu (⋯, or a right-click); Delete is there only, confirmed on the row.
 // The tree can be sorted (by name, created or updated) and show each item's last update; both remembered here.
 
 const DRAG_TYPE = 'application/x-consensus-item';
 const DRAG_PROJECT_TYPE = 'application/x-consensus-project';
 
-angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$window', 'State', 'Client', 'Subplans', function ( $scope, $window, State, Client, Subplans )
+angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', function ( $scope, $window, State, Client, Subplans, Tabs, Menus )
 {
 	const OPEN_PROJECT_KEY = 'consensus.project';
 	const FOLDED_KEY = 'consensus.folded';
@@ -280,6 +281,114 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 	};
 
 
+	//-----------------------------------------------------------------
+	// The actions menu of a row: a project, a folder, a plan, a document or a corpus. The actions are the ones the
+	// row buttons used to run; they are handed an event that asks for nothing, since the menu already took its own.
+
+	const QUIET = { preventDefault: function () {}, stopPropagation: function () {} };
+
+
+	function action( label, icon, act, options )
+	{
+		return Object.assign( { Label: label, Icon: icon, Act: act }, options || {} );
+	}
+
+
+	// A new item goes into an open project, so the project opens first.
+	function open_project( project )
+	{
+		if ( !$scope.IsOpen( project ) )
+		{
+			$scope.ToggleProject( project );
+		}
+	}
+
+
+	function create_in( kind, project )
+	{
+		return function ()
+		{
+			open_project( project );
+			$scope.StartCreate( kind, project, QUIET );
+		};
+	}
+
+
+	// The hidden file input on the project's heading takes the zip.
+	function pick_zip( project )
+	{
+		let input = document.querySelector( '.project[data-project="' + project.Id + '"] .zip-input' );
+		if ( input )
+		{
+			input.click();
+		}
+	}
+
+
+	function project_actions( project )
+	{
+		let where = ( $scope.Target && $scope.Target.Project === project.Id ) ? ' in ' + $scope.Target.Name : '';
+		return [
+			action( 'New plan' + where, 'plus', create_in( 'plan', project ) ),
+			action( 'New document' + where, 'plus', create_in( 'document', project ) ),
+			action( 'New folder' + where, 'plus', create_in( 'folder', project ) ),
+			action( 'Link a corpus', 'link', function () { open_project( project ); $scope.StartLink( project, QUIET ); } ),
+			action( 'Upload a zip', 'upload', function () { pick_zip( project ); } ),
+			{ Separator: true },
+			action( $scope.Clipboard ? 'Paste ' + $scope.Clipboard.Name : 'Paste', 'paste', function () { $scope.Paste( project, null, QUIET ); }, { Disabled: !$scope.Clipboard } ),
+			action( 'Rename', 'pencil', function () { $scope.StartRename( 'project', project, project, QUIET ); } ),
+			{ Separator: true },
+			action( 'Delete', 'trash', function () { $scope.StartDelete( project, QUIET ); }, { Danger: true, Disabled: project.Id === 'default' || project.Items.length > 0 } ),
+		];
+	}
+
+
+	function folder_actions( project, node )
+	{
+		return [
+			action( $scope.Clipboard ? 'Paste ' + $scope.Clipboard.Name : 'Paste', 'paste', function () { $scope.Paste( project, node, QUIET ); }, { Disabled: !$scope.Clipboard } ),
+			action( 'Copy', 'copy', function () { $scope.CopyItem( node ); } ),
+			action( 'Rename', 'pencil', function () { $scope.StartRename( 'folder', project, node, QUIET ); } ),
+			{ Separator: true },
+			action( 'Delete', 'trash', function () { $scope.StartDelete( node, QUIET ); }, { Danger: true, Disabled: node.Items.length > 0 } ),
+		];
+	}
+
+
+	function item_actions( project, node )
+	{
+		let kind = ( node.Kind === 'corpus' ) ? 'corpus' : 'proposal';
+		let actions = [];
+		if ( node.Kind === 'plan' )
+		{
+			actions.push( action( 'New Subplan', 'subplan', function () { $scope.NewSubplan( project, node, QUIET ); } ) );
+		}
+		actions.push( action( 'Rename', 'pencil', function () { $scope.StartRename( kind, project, node, QUIET ); } ) );
+		actions.push( action( 'Copy', 'copy', function () { $scope.CopyItem( node ); } ) );
+		actions.push( { Separator: true } );
+		actions.push( action( 'Delete', 'trash', function () { $scope.StartDelete( node, QUIET ); }, { Danger: true } ) );
+		return actions;
+	}
+
+
+	// Kind: 'project' | 'folder' | 'item'. A missing item (its record gone) has nothing to do.
+	$scope.OpenMenu = function ( kind, project, node, event )
+	{
+		if ( node.Missing )
+		{
+			return;
+		}
+		let actions = ( kind === 'project' ) ? project_actions( project ) : ( ( kind === 'folder' ) ? folder_actions( project, node ) : item_actions( project, node ) );
+		Menus.Show( actions, event, node.Id );
+	};
+
+
+	$scope.MenuOpenFor = function ( node )
+	{
+		return Menus.IsOpenFor( node.Id );
+	};
+
+
 	$scope.ItemCount = function ( items )
 	{
 		let count = 0;
@@ -498,7 +607,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 
 
 	//-----------------------------------------------------------------
-	// Renaming: { Kind: 'project' | 'folder' | 'proposal', Project, Id, Name }. A plan or document is renamed by
+	// Renaming: { Kind: 'project' | 'folder' | 'proposal' | 'corpus', Project, Id, Name }. A plan or document is renamed by
 	// its Title; its Id stays.
 
 	$scope.StartRename = function ( kind, project, node, event )
@@ -507,7 +616,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 		event.stopPropagation();
 		$scope.Creating = null;
 		$scope.Deleting = null;
-		$scope.Renaming = { Kind: kind, Project: project.Id, Id: node.Id, Name: ( kind === 'proposal' ) ? node.Title : node.Name };
+		$scope.Renaming = { Kind: kind, Project: project.Id, Id: node.Id, Name: ( kind === 'proposal' || kind === 'corpus' ) ? node.Title : node.Name };
 	};
 
 
@@ -536,6 +645,10 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 			if ( renaming.Kind === 'proposal' )
 			{
 				return Client.Put( '/api/proposals/' + encodeURIComponent( renaming.Id ), { Title: name } );
+			}
+			if ( renaming.Kind === 'corpus' )
+			{
+				return Client.Put( '/api/corpus/' + encodeURIComponent( renaming.Id ) + '/name', { Name: name } );
 			}
 			let path = '/api/projects/' + encodeURIComponent( renaming.Project );
 			if ( renaming.Kind === 'folder' )
@@ -569,7 +682,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 
 
 	//-----------------------------------------------------------------
-	// Deleting an empty project or folder, confirmed inline.
+	// Deleting, confirmed inline: an empty project or folder; a plan, document or corpus (to the trash, its tab closed).
 
 	$scope.StartDelete = function ( node, event )
 	{
@@ -582,6 +695,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 
 	$scope.CancelDelete = function ( event )
 	{
+		event.preventDefault();
 		event.stopPropagation();
 		$scope.Deleting = null;
 	};
@@ -589,16 +703,29 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 
 	$scope.Delete = async function ( kind, project, node, event )
 	{
+		event.preventDefault();
 		event.stopPropagation();
 		let path = '/api/projects/' + encodeURIComponent( project.Id );
 		if ( kind === 'folder' )
 		{
 			path += '/folders/' + encodeURIComponent( node.Id );
 		}
+		else if ( kind === 'proposal' )
+		{
+			path = '/api/proposals/' + encodeURIComponent( node.Id );
+		}
+		else if ( kind === 'corpus' )
+		{
+			path = '/api/corpus/' + encodeURIComponent( node.Id );
+		}
 		let answer = await State.Act( function () { return Client.Delete( path ); } );
 		$scope.Deleting = null;
 		if ( answer )
 		{
+			if ( kind === 'proposal' || kind === 'corpus' )
+			{
+				Tabs.CloseItem( node.Id );
+			}
 			if ( $scope.Target && ( $scope.Target.Folder === node.Id || $scope.Target.Project === node.Id ) )
 			{
 				$scope.Target = null;

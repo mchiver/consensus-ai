@@ -1,17 +1,15 @@
 'use strict';
 
 // Corpus view - an uploaded zip: its files, which were indexed and why the others were not, one file's text,
-// and Replace (a new zip), Rename and Delete (to the trash). A file is shown as plain text, never as HTML:
-// a zip can hold anything.
+// and Replace (a new zip) or Reload (a linked one). Rename and Delete are in its row's menu in the tree. A file is
+// shown as plain text, never as HTML: a zip can hold anything.
 
-angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$window', 'State', 'Client', 'Tabs', function ( $scope, $window, State, Client, Tabs )
+angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$window', 'State', 'Client', function ( $scope, $window, State, Client )
 {
 	$scope.State = State;
 	$scope.Corpus = null;
 	$scope.Project = null;
 	$scope.File = null;
-	$scope.Renaming = null;
-	$scope.ConfirmingDelete = false;
 	$scope.Busy = false;
 
 
@@ -122,8 +120,6 @@ angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$wind
 		if ( values[ 0 ] !== previous[ 0 ] )
 		{
 			$scope.File = null;
-			$scope.Renaming = null;
-			$scope.ConfirmingDelete = false;
 		}
 		load();
 	} );
@@ -179,48 +175,4 @@ angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$wind
 	};
 
 
-	$scope.StartRename = function ()
-	{
-		$scope.Renaming = { Name: $scope.Corpus.Name };
-	};
-
-
-	$scope.CancelRename = function ()
-	{
-		$scope.Renaming = null;
-	};
-
-
-	$scope.Rename = async function ()
-	{
-		let name = ( $scope.Renaming && $scope.Renaming.Name || '' ).trim();
-		if ( !name )
-		{
-			return;
-		}
-		let answer = await State.Act( function () { return Client.Put( path_of( State.CorpusId ) + '/name', { Name: name } ); } );
-		if ( answer )
-		{
-			$scope.Renaming = null;
-			await load();
-			State.LoadList();
-		}
-		$scope.$applyAsync();
-	};
-
-
-	$scope.Delete = async function ()
-	{
-		$scope.Busy = true;
-		let id = State.CorpusId;
-		let answer = await State.Act( function () { return Client.Delete( path_of( id ) ); } );
-		$scope.Busy = false;
-		$scope.ConfirmingDelete = false;
-		if ( answer )
-		{
-			Tabs.CloseItem( id );
-			State.LoadList();
-		}
-		$scope.$applyAsync();
-	};
 } ] );

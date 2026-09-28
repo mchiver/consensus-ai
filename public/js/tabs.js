@@ -19,9 +19,14 @@
 //   detached -> main   reattach { Tab }     put the tab back; the main window answers attached { Key }
 //   main -> detached   hello                on load: which items are out?
 //   main -> detached   focus { Key }        its item was clicked in the main window
+//   main -> detached   call-back { Key }    Re-attach from the main window: the detached window re-attaches
+//   main -> detached   close { Key }        Close from the main window: the detached window closes
 // A re-attach that nobody answers (the main window is gone) turns the detached window into the main window.
+//
+// A detached tab stays in the main window's strip, ghosted: clicking it does nothing, and its menu offers Re-attach
+// and Close. Each tab's menu (▾ or a right-click) closes it, the others, those to its right, or all, and detaches it.
 
-angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$timeout', 'State', function ( $window, $rootScope, $timeout, State )
+angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$timeout', 'State', 'Menus', function ( $window, $rootScope, $timeout, State, Menus )
 {
 	const STORAGE_KEY = 'consensus.tabs';
 	const CHANNEL_NAME = 'consensus-windows';
@@ -37,6 +42,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	};
 	let channel = null;
 	let reattach_timer = null;
+	let call_back_timers = {};
 
 
 	//-----------------------------------------------------------------
@@ -141,8 +147,13 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	}
 
 
+	// A ghosted tab (its item is in its own window) does not open.
 	function Open( Tab )
 	{
+		if ( IsOut( Tab.Key ) )
+		{
+			return;
+		}
 		if ( Tab.Key !== tabs.ActiveKey || $window.location.hash !== Tab.Hash )
 		{
 			go( Tab.Hash );
@@ -150,19 +161,39 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	}
 
 
-	// The tab next to one taken away, or null.
+	// The tab to show next to one taken away from Index: the nearest after it, else before it, that is not ghosted.
 	function neighbor_of( index )
 	{
-		return tabs.List[ index ] || tabs.List[ index - 1 ] || null;
+		for ( let at = index; at < tabs.List.length; at++ )
+		{
+			if ( !IsOut( tabs.List[ at ].Key ) )
+			{
+				return tabs.List[ at ];
+			}
+		}
+		for ( let at = index - 1; at >= 0; at-- )
+		{
+			if ( !IsOut( tabs.List[ at ].Key ) )
+			{
+				return tabs.List[ at ];
+			}
+		}
+		return null;
 	}
 
 
+	// A ghosted tab's window is told to close too.
 	function Close( Tab )
 	{
 		let index = tabs.List.indexOf( Tab );
 		if ( index < 0 )
 		{
 			return;
+		}
+		if ( IsOut( Tab.Key ) )
+		{
+			post( { Type: 'close', Key: Tab.Key } );
+			delete tabs.Out[ Tab.Key ];
 		}
 		tabs.List.splice( index, 1 );
 		if ( Tab.Key === tabs.ActiveKey )
@@ -174,6 +205,45 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 			return;
 		}
 		save();
+	}
+
+
+	// Several at once: the active one last, so the strip moves on once.
+	function CloseMany( List )
+	{
+		let active = null;
+		for ( let tab of List.slice() )
+		{
+			if ( tab.Key === tabs.ActiveKey )
+			{
+				active = tab;
+				continue;
+			}
+			Close( tab );
+		}
+		if ( active )
+		{
+			Close( active );
+		}
+	}
+
+
+	function CloseOthers( Tab )
+	{
+		CloseMany( tabs.List.filter( function ( tab ) { return tab !== Tab; } ) );
+		Open( Tab );
+	}
+
+
+	function CloseToTheRight( Tab )
+	{
+		CloseMany( tabs.List.slice( tabs.List.indexOf( Tab ) + 1 ) );
+	}
+
+
+	function CloseAll()
+	{
+		CloseMany( tabs.List );
 	}
 
 
@@ -280,8 +350,8 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	}
 
 
-	// The tab opens in its own window and leaves the strip. The new window starts from a copy of this window's
-	// session, so it finds the tab's view and draft there.
+	// The tab opens in its own window and stays in the strip, ghosted; the strip shows the tab beside it. The new
+	// window starts from a copy of this window's session, so it finds the tab's view and draft there.
 	function Detach( Tab )
 	{
 		save();
@@ -293,8 +363,29 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 			return false;
 		}
 		tabs.Out[ Tab.Key ] = true;
-		Close( Tab );
+		if ( Tab.Key === tabs.ActiveKey )
+		{
+			let next = neighbor_of( tabs.List.indexOf( Tab ) );
+			tabs.ActiveKey = next ? next.Key : null;
+			go( next ? next.Hash : '' );
+		}
+		save();
 		return true;
+	}
+
+
+	// Re-attach from the main window: its window is asked to come back. With no window to answer (it is gone), the
+	// tab simply stops being ghosted.
+	function CallBack( Tab )
+	{
+		post( { Type: 'call-back', Key: Tab.Key } );
+		call_back_timers[ Tab.Key ] = $timeout( function ()
+		{
+			delete call_back_timers[ Tab.Key ];
+			delete tabs.Out[ Tab.Key ];
+			save();
+			Open( Tab );
+		}, REATTACH_WAIT );
 	}
 
 
@@ -351,6 +442,15 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 			{
 				$window.focus();
 			}
+			else if ( message.Type === 'call-back' && message.Key === tab.Key )
+			{
+				Reattach();
+			}
+			else if ( message.Type === 'close' && message.Key === tab.Key )
+			{
+				tabs.List = [];
+				$window.close();
+			}
 			else if ( message.Type === 'attached' && message.Key === tab.Key && reattach_timer )
 			{
 				$timeout.cancel( reattach_timer );
@@ -368,18 +468,34 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 			}
 			else if ( message.Type === 'closed' )
 			{
+				// its window is gone, and its item with it
 				delete tabs.Out[ message.Key ];
+				let gone = find( message.Key );
+				if ( gone )
+				{
+					tabs.List.splice( tabs.List.indexOf( gone ), 1 );
+					save();
+				}
 			}
 			else if ( message.Type === 'reattach' && message.Tab )
 			{
 				let tab = message.Tab;
 				delete tabs.Out[ tab.Key ];
+				if ( call_back_timers[ tab.Key ] )
+				{
+					$timeout.cancel( call_back_timers[ tab.Key ] );
+					delete call_back_timers[ tab.Key ];
+				}
+				// back where its ghost was, or at the end
 				let open = find( tab.Key );
 				if ( open )
 				{
-					tabs.List.splice( tabs.List.indexOf( open ), 1 );
+					tabs.List.splice( tabs.List.indexOf( open ), 1, tab );
 				}
-				tabs.List.push( tab );
+				else
+				{
+					tabs.List.push( tab );
+				}
 				save();
 				post( { Type: 'attached', Key: tab.Key } );
 				$window.focus();
@@ -441,6 +557,10 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	tabs.Open = Open;
 	tabs.Close = Close;
 	tabs.CloseItem = CloseItem;
+	tabs.CloseOthers = CloseOthers;
+	tabs.CloseToTheRight = CloseToTheRight;
+	tabs.CloseAll = CloseAll;
+	tabs.CallBack = CallBack;
 	tabs.Move = Move;
 	tabs.SetDraft = SetDraft;
 	tabs.DraftOf = DraftOf;
@@ -457,10 +577,41 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 //---------------------------------------------------------------------
 // TabsController: the strip, and in a detached window its Re-attach bar.
 
-.controller( 'TabsController', [ '$scope', 'State', 'Tabs', function ( $scope, State, Tabs )
+.controller( 'TabsController', [ '$scope', 'State', 'Tabs', 'Menus', function ( $scope, State, Tabs, Menus )
 {
 	$scope.State = State;
 	$scope.Tabs = Tabs;
+
+
+	// A tab's menu: a ghosted tab can only come back or close; the others close in their ways, or detach.
+	$scope.OpenTabMenu = function ( tab, event )
+	{
+		let items = [];
+		if ( Tabs.IsOut( tab.Key ) )
+		{
+			items.push( { Label: 'Re-attach', Icon: 'attach', Act: function () { Tabs.CallBack( tab ); } } );
+			items.push( { Label: 'Close', Icon: 'x', Act: function () { Tabs.Close( tab ); } } );
+			Menus.Show( items, event, 'tab:' + tab.Key );
+			return;
+		}
+		let index = Tabs.List.indexOf( tab );
+		items.push( { Label: 'Close', Icon: 'x', Act: function () { Tabs.Close( tab ); } } );
+		items.push( { Label: 'Close others', Icon: 'x', Act: function () { Tabs.CloseOthers( tab ); }, Disabled: Tabs.List.length < 2 } );
+		items.push( { Label: 'Close to the right', Icon: 'x', Act: function () { Tabs.CloseToTheRight( tab ); }, Disabled: index === Tabs.List.length - 1 } );
+		items.push( { Label: 'Close all', Icon: 'x', Act: function () { Tabs.CloseAll(); } } );
+		if ( Tabs.CanDetach( tab ) )
+		{
+			items.push( { Separator: true } );
+			items.push( { Label: 'Detach', Icon: 'detach', Act: function () { Tabs.Detach( tab ); } } );
+		}
+		Menus.Show( items, event, 'tab:' + tab.Key );
+	};
+
+
+	$scope.MenuOpenFor = function ( tab )
+	{
+		return Menus.IsOpenFor( 'tab:' + tab.Key );
+	};
 
 
 	function proposal_of( id )
@@ -575,13 +726,6 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	{
 		event.stopPropagation();
 		Tabs.Close( tab );
-	};
-
-
-	$scope.Detach = function ( tab, event )
-	{
-		event.stopPropagation();
-		Tabs.Detach( tab );
 	};
 
 

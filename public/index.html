@@ -14,6 +14,8 @@
 	<!-- The icons, drawn once and used by id: <svg class="icon"><use href="#i-name"></use></svg>. 16 x 16, stroked in
 	     the current color. -->
 	<svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+		<symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="0.9"/><circle cx="8" cy="8" r="0.9"/><circle cx="12.5" cy="8" r="0.9"/></symbol>
+		<symbol id="i-caret" viewBox="0 0 16 16"><path d="M4.5 6.5L8 10l3.5-3.5"/></symbol>
 		<symbol id="i-arrow" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4"/></symbol>
 		<symbol id="i-attach" viewBox="0 0 16 16"><path d="M7 13.5H2.5V9M2.5 13.5L9 7M9 2.5h4.5v4.5"/></symbol>
 		<symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7"/></symbol>
@@ -48,7 +50,7 @@
 	<script type="text/ng-template" id="tree-nodes.html">
 		<div class="tree-node" ng-repeat="node in Sorted( node ? node.Items : project.Items ) track by node.Id" ng-switch="node.Kind">
 			<div ng-switch-when="folder" class="folder" data-id="{{ node.Id }}">
-				<div class="folder-head tree-row" style="--depth: {{ Depth }}" ng-class="{ target: IsTarget(node) }" ng-click="PickFolder(project, node)" title="{{ IsTarget(node) ? 'new items go here; click again for the project root' : 'click to put new items here; drag to move or reorder' }}" drag-item="node.Id" tree-drop="{ Kind: 'folder', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )">
+				<div class="folder-head tree-row" style="--depth: {{ Depth }}" ng-class="{ target: IsTarget(node) }" ng-click="PickFolder(project, node)" title="{{ IsTarget(node) ? 'new items go here; click again for the project root' : 'click to put new items here; drag to move or reorder' }}" drag-item="node.Id" tree-drop="{ Kind: 'folder', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('folder', project, node, $event)">
 					<span class="chevron" ng-class="{ folded: IsFolded(node) }" ng-click="ToggleFold(node, $event)"></span>
 					<span class="tree-icon" ng-class="IsFolded(node) ? 'icon-folder' : 'icon-folder-open'"></span>
 					<form class="rename-form" ng-if="IsRenaming(node)" ng-submit="Rename()" ng-click="$event.stopPropagation()">
@@ -56,12 +58,7 @@
 					</form>
 					<span class="folder-name" ng-if="!IsRenaming(node)">{{ node.Name }}</span>
 					<span class="count">{{ ItemCount(node.Items) }}</span>
-					<span class="node-buttons" ng-show="Deleting !== node.Id">
-						<button class="btn btn-link btn-sm paste-here" title="paste a copy of {{ Clipboard.Name }} here" ng-show="Clipboard" ng-click="Paste(project, node, $event)"><svg class="icon lead"><use href="#i-paste"></use></svg>paste</button>
-						<button class="btn btn-link btn-sm copy-item" title="copy this folder and everything in it" ng-click="CopyItem(node, $event)"><svg class="icon"><use href="#i-copy"></use></svg></button>
-						<button class="btn btn-link btn-sm" title="rename" ng-click="StartRename('folder', project, node, $event)"><svg class="icon"><use href="#i-pencil"></use></svg></button>
-						<button class="btn btn-link btn-sm" title="delete this empty folder" ng-click="StartDelete(node, $event)"><svg class="icon"><use href="#i-x"></use></svg></button>
-					</span>
+					<button class="row-menu" ng-class="{ shown: MenuOpenFor(node) }" ng-hide="Deleting === node.Id" title="actions" ng-click="OpenMenu('folder', project, node, $event)"><svg class="icon"><use href="#i-more"></use></svg></button>
 					<span class="confirm" ng-show="Deleting === node.Id">
 						delete?
 						<button class="btn btn-sm btn-danger" ng-click="Delete('folder', project, node, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
@@ -70,21 +67,29 @@
 				</div>
 				<div class="folder-body" ng-if="!IsFolded(node)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
 			</div>
-			<a ng-switch-when="corpus" class="proposal-item tree-item tree-row corpus" style="--depth: {{ Depth }}" ng-class="{ open: State.View === 'corpus' && node.Id === State.CorpusId, missing: node.Missing }" ng-href="#/c/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id" tree-drop="{ Kind: 'item', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )">
+			<a ng-switch-when="corpus" class="proposal-item tree-item tree-row corpus" style="--depth: {{ Depth }}" ng-class="{ open: State.View === 'corpus' && node.Id === State.CorpusId, missing: node.Missing }" ng-href="#/c/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id" tree-drop="{ Kind: 'item', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('item', project, node, $event)">
 				<span class="chevron-space"></span>
 				<span class="tree-icon icon-zip"></span>
-				<span class="tree-date" ng-if="DateOf(node)">{{ DateOf(node) | day }}</span>
-				<span class="proposal-title">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
-				<span class="badges">
+				<form class="rename-form" ng-if="IsRenaming(node)" ng-submit="Rename()" ng-click="$event.preventDefault(); $event.stopPropagation()">
+					<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
+				</form>
+				<span class="tree-date" ng-if="DateOf(node) && !IsRenaming(node)">{{ DateOf(node) | day }}</span>
+				<span class="proposal-title" ng-if="!IsRenaming(node)">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
+				<span class="badges" ng-if="!IsRenaming(node)">
 					<span class="badge linked" ng-show="node.Linked" title="kept by a context server: {{ node.Linked }}">linked</span>
 					<span class="badge attached" ng-show="node.Source === 'attached'" title="a zip kept by Consensus, in the project's folder">attached</span>
 					<span class="item-state" ng-show="!node.Offline" title="{{ node.Files }} files, {{ node.Indexed }} indexed">{{ node.Files }} files</span>
 					<span class="item-state offline" ng-show="node.Offline" title="its context server does not answer; refresh when it is back">offline</span>
 				</span>
 				<span class="tree-stamp" ng-if="ShowUpdated && node.Updated" title="updated {{ node.Updated | fullstamp }}">{{ node.Updated | stamp }}</span>
-				<span class="item-buttons"><span class="btn btn-link btn-sm copy-item" role="button" title="copy: a whole copy of the zip goes where you paste it" ng-click="CopyItem(node, $event)"><svg class="icon"><use href="#i-copy"></use></svg></span></span>
+				<span class="confirm" ng-if="Deleting === node.Id">
+					to the trash?
+					<button class="btn btn-sm btn-danger confirm-delete-item" ng-click="Delete('corpus', project, node, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+					<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+				</span>
+				<span class="row-menu" role="button" ng-class="{ shown: MenuOpenFor(node) }" ng-if="!IsRenaming(node) && !node.Missing && Deleting !== node.Id" title="actions" ng-click="OpenMenu('item', project, node, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
 			</a>
-			<a ng-switch-default class="proposal-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document', parent: node.Items.length }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id" tree-drop="{ Kind: node.Kind === 'plan' ? 'plan' : 'item', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )">
+			<a ng-switch-default class="proposal-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document', parent: node.Items.length }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="node.Id" tree-drop="{ Kind: node.Kind === 'plan' ? 'plan' : 'item', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('item', project, node, $event)">
 				<span class="chevron" ng-if="node.Items.length" ng-class="{ folded: IsFolded(node) }" ng-click="ToggleFold(node, $event)" title="{{ IsFolded(node) ? 'show' : 'hide' }} its Subplans"></span>
 				<span class="chevron-space" ng-if="!node.Items.length"></span>
 				<span class="tree-icon" ng-class="node.Kind === 'document' ? 'icon-document' : 'icon-plan'"></span>
@@ -101,11 +106,12 @@
 					<span class="badge applied" ng-show="node.Tally.Applied" title="applied">{{ node.Tally.Applied }}</span>
 				</span>
 				<span class="tree-stamp" ng-if="ShowUpdated && node.Updated && !IsRenaming(node)" title="updated {{ node.Updated | fullstamp }}">{{ node.Updated | stamp }}</span>
-				<span class="item-buttons" ng-if="!IsRenaming(node) && !node.Missing">
-					<span class="btn btn-link btn-sm new-subplan" role="button" title="new Subplan under this plan" ng-if="node.Kind === 'plan'" ng-click="NewSubplan(project, node, $event)"><svg class="icon"><use href="#i-plus"></use></svg></span>
-					<span class="btn btn-link btn-sm rename-item" role="button" title="rename" ng-click="StartRename('proposal', project, node, $event)"><svg class="icon"><use href="#i-pencil"></use></svg></span>
-					<span class="btn btn-link btn-sm copy-item" role="button" title="copy: a whole copy, threads, revisions and Subplans included, goes where you paste it" ng-click="CopyItem(node, $event)"><svg class="icon"><use href="#i-copy"></use></svg></span>
+				<span class="confirm" ng-if="Deleting === node.Id">
+					to the trash?
+					<button class="btn btn-sm btn-danger confirm-delete-item" ng-click="Delete('proposal', project, node, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+					<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
 				</span>
+				<span class="row-menu" role="button" ng-class="{ shown: MenuOpenFor(node) }" ng-if="!IsRenaming(node) && !node.Missing && Deleting !== node.Id" title="actions" ng-click="OpenMenu('item', project, node, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
 			</a>
 			<div class="folder-body subplans" ng-if="node.Kind === 'plan' && node.Items.length && !IsFolded(node)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
 		</div>
@@ -145,24 +151,17 @@
 
 			<div class="projects">
 				<div class="project" ng-repeat="project in State.Projects track by project.Id" ng-class="{ open: IsOpen(project) }" data-project="{{ project.Id }}">
-					<div class="project-head" ng-click="ToggleProject(project)" title="{{ IsOpen(project) ? 'close' : 'open' }} this project; drag to reorder the projects; drop an item here to move it to the root" drag-project="project.Id" tree-drop="{ Kind: 'project', Project: project.Id, Id: project.Id }" on-tree-drop="TreeDrop( Drag, Target, Zone )">
+					<div class="project-head" ng-click="ToggleProject(project)" title="{{ IsOpen(project) ? 'close' : 'open' }} this project; drag to reorder the projects; drop an item here to move it to the root" drag-project="project.Id" tree-drop="{ Kind: 'project', Project: project.Id, Id: project.Id }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('project', project, project, $event)">
 						<span class="chevron" ng-class="{ folded: !IsOpen(project) }"></span>
+						<span class="project-dot" ng-class="{ open: IsOpen(project) }"></span>
 						<form class="rename-form" ng-if="IsRenaming(project)" ng-submit="Rename()" ng-click="$event.stopPropagation()">
 							<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
 						</form>
 						<span class="project-name" ng-if="!IsRenaming(project)">{{ project.Name }}</span>
 						<span class="count">{{ ItemCount(project.Items) }}</span>
 						<span class="tree-stamp" ng-if="ShowUpdated && project.Updated" title="updated {{ project.Updated | fullstamp }}">{{ project.Updated | stamp }}</span>
-						<span class="node-buttons" ng-show="IsOpen(project) && Deleting !== project.Id">
-							<button class="btn btn-link btn-sm paste-here" title="paste a copy of {{ Clipboard.Name }} at the root" ng-show="Clipboard" ng-click="Paste(project, null, $event)"><svg class="icon lead"><use href="#i-paste"></use></svg>paste</button>
-							<button class="btn btn-link btn-sm new-plan" title="new plan{{ Target ? ' in ' + Target.Name : '' }}" ng-click="StartCreate('plan', project, $event)"><svg class="icon lead"><use href="#i-plus"></use></svg>plan</button>
-							<button class="btn btn-link btn-sm new-document" title="new document{{ Target ? ' in ' + Target.Name : '' }}" ng-click="StartCreate('document', project, $event)"><svg class="icon lead"><use href="#i-plus"></use></svg>doc</button>
-							<button class="btn btn-link btn-sm new-folder" title="new folder{{ Target ? ' in ' + Target.Name : '' }}" ng-click="StartCreate('folder', project, $event)"><svg class="icon lead"><use href="#i-plus"></use></svg>folder</button>
-							<button class="btn btn-link btn-sm new-link" title="link a corpus from a context server{{ Target ? ' (into ' + Target.Name + ')' : '' }}" ng-click="StartLink(project, $event)"><svg class="icon lead"><use href="#i-plus"></use></svg>link</button>
-							<label class="btn btn-link btn-sm new-corpus mb-0" title="upload a zip: its text files are indexed with the project{{ Target ? ' (into ' + Target.Name + ')' : '' }}" ng-click="$event.stopPropagation()"><svg class="icon lead"><use href="#i-plus"></use></svg>zip<input type="file" accept=".zip,application/zip" hidden class="zip-input" on-file="UploadZip( project, File )"></label>
-							<button class="btn btn-link btn-sm" title="rename" ng-click="StartRename('project', project, project, $event)"><svg class="icon"><use href="#i-pencil"></use></svg></button>
-							<button class="btn btn-link btn-sm" title="delete this empty project" ng-show="project.Id !== 'default'" ng-click="StartDelete(project, $event)"><svg class="icon"><use href="#i-x"></use></svg></button>
-						</span>
+						<button class="row-menu" ng-class="{ shown: MenuOpenFor(project), current: IsOpen(project) }" ng-hide="Deleting === project.Id" title="actions" ng-click="OpenMenu('project', project, project, $event)"><svg class="icon"><use href="#i-more"></use></svg></button>
+						<input type="file" accept=".zip,application/zip" hidden class="zip-input" on-file="UploadZip( project, File )">
 						<span class="confirm" ng-show="Deleting === project.Id">
 							delete?
 							<button class="btn btn-sm btn-danger" ng-click="Delete('project', project, project, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
@@ -237,10 +236,10 @@
 				<div class="tabs-row" ng-show="!Tabs.Detached">
 					<button class="tree-toggle" id="tree-toggle" ng-class="{ off: State.TreeHidden }" ng-click="ToggleTree()" title="{{ State.TreeHidden ? 'show' : 'hide' }} the project tree"><svg class="icon"><use href="#i-sidebar"></use></svg></button>
 					<nav class="tab-strip" ng-show="Tabs.List.length">
-						<div class="tab" ng-repeat="tab in Tabs.List track by tab.Key" ng-class="{ active: tab.Key === Tabs.ActiveKey }" data-key="{{ tab.Key }}" ng-click="Open(tab)" tab-drag="tab.Key" on-tab-drop="MoveTab( Key, Before )" title="{{ Title(tab) }}">
+						<div class="tab" ng-repeat="tab in Tabs.List track by tab.Key" ng-class="{ active: tab.Key === Tabs.ActiveKey, out: Tabs.IsOut(tab.Key) }" data-key="{{ tab.Key }}" ng-click="Open(tab)" tab-drag="tab.Key" on-tab-drop="MoveTab( Key, Before )" on-context-menu="OpenTabMenu(tab, $event)" title="{{ Title(tab) }}{{ Tabs.IsOut(tab.Key) ? ' (in its own window)' : '' }}">
 							<span class="tree-icon" ng-class="Icon(tab)"></span>
 							<span class="tab-title">{{ Title(tab) }}</span>
-							<button class="tab-button detach-tab" ng-if="Tabs.CanDetach(tab)" title="open in its own window" ng-click="Detach(tab, $event)"><svg class="icon"><use href="#i-detach"></use></svg></button>
+							<button class="tab-button tab-menu" ng-class="{ shown: MenuOpenFor(tab) }" title="close, detach, re-attach" ng-click="OpenTabMenu(tab, $event)"><svg class="icon"><use href="#i-caret"></use></svg></button>
 							<button class="tab-button close-tab" title="close" ng-click="Close(tab, $event)"><svg class="icon"><use href="#i-x"></use></svg></button>
 						</div>
 					</nav>
@@ -276,12 +275,6 @@
 						<button class="btn btn-sm btn-outline-secondary" id="new-subplan" ng-click="NewSubplan()" ng-show="IsPlan()" title="a new plan under this one"><svg class="icon lead"><use href="#i-subplan"></use></svg>New subplan</button>
 						<button class="btn btn-sm btn-primary" id="initialize-context" ng-show="IsContext() && State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="State.Open.Llm.Running || Busy" ng-click="InitializeContext()" title="the LLM writes the context from the project: its plans and documents, the files in its zips, and a few key files"><svg class="icon lead"><use href="#i-sparkle"></use></svg>{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Initialize context' }}</button>
 						<button class="btn btn-sm btn-primary" id="send-button" ng-show="HasThreads() && State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="Busy" ng-click="Send()" title="{{ SendHint() }}"><svg class="icon lead"><use href="#i-send"></use></svg>{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Send to LLM (' + State.Open.Llm.Waiting + ')' }}</button>
-						<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete || IsContext()" ng-click="ConfirmingDelete = true"><svg class="icon lead"><use href="#i-trash"></use></svg>Delete</button>
-						<span class="confirm" ng-show="ConfirmingDelete">
-							to the trash?
-							<button class="btn btn-sm btn-danger" ng-click="Delete()" ng-disabled="Busy"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
-							<button class="btn btn-sm btn-outline-secondary" ng-click="ConfirmingDelete = false"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
-						</span>
 					</div>
 				</div>
 			</header>
@@ -449,23 +442,12 @@
 
 			<section class="corpus-view" ng-controller="CorpusController" ng-show="State.View === 'corpus'">
 				<div class="corpus-head" ng-show="Corpus">
-					<form class="rename-form" ng-if="Renaming" ng-submit="Rename()">
-						<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" auto-focus>
-					</form>
-					<div class="title" ng-if="!Renaming" id="corpus-name">&#128230; {{ Corpus.Name }}</div>
+					<div class="title" id="corpus-name">&#128230; {{ Corpus.Name }}</div>
 					<div class="muted small" id="corpus-summary">{{ Corpus.Files.length }} files, {{ IndexedCount() }} indexed<span ng-hide="Corpus.Link" id="corpus-attached"> &middot; attached, version {{ Corpus.Version }}</span><span ng-show="Corpus.Link" id="corpus-link"> &middot; linked from {{ Corpus.Link.Server }} / {{ Corpus.Link.Corpus }}</span><span ng-show="Project"> &middot; in {{ Project.Name }}</span></div>
 					<div class="alert alert-warning py-1 px-2 my-1" ng-show="Corpus.Offline">{{ Corpus.Offline }}</div>
 					<div class="corpus-buttons">
 						<label class="btn btn-sm btn-outline-secondary mb-0" ng-hide="Corpus.Link" ng-class="{ disabled: Busy }" title="upload a new zip in place of this one: its files are indexed again"><svg class="icon lead"><use href="#i-upload"></use></svg>Replace zip<input type="file" accept=".zip,application/zip" hidden on-file="Replace( File )"></label>
 						<button class="btn btn-sm btn-outline-secondary" id="corpus-reload" ng-show="Corpus.Link" ng-click="Reload()" title="list the files again from the context server"><svg class="icon lead"><use href="#i-refresh"></use></svg>Reload</button>
-						<button class="btn btn-sm btn-outline-secondary" ng-click="StartRename()" ng-hide="Renaming"><svg class="icon lead"><use href="#i-pencil"></use></svg>Rename</button>
-						<button class="btn btn-sm btn-outline-secondary" ng-click="CancelRename()" ng-show="Renaming"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
-						<button class="btn btn-sm btn-outline-danger" ng-hide="ConfirmingDelete" ng-click="ConfirmingDelete = true"><svg class="icon lead"><use href="#i-trash"></use></svg>Delete</button>
-						<span class="confirm" ng-show="ConfirmingDelete">
-							to the trash?
-							<button class="btn btn-sm btn-danger" ng-click="Delete()" ng-disabled="Busy"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
-							<button class="btn btn-sm btn-outline-secondary" ng-click="ConfirmingDelete = false"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
-						</span>
 					</div>
 				</div>
 				<form class="corpus-filter" ng-show="Corpus" ng-submit="SaveFilter()">
@@ -592,6 +574,13 @@
 		</form>
 	</div>
 
+	<!-- The one popup menu: a row's actions, a tab's. -->
+	<div class="popup-menu" id="popup-menu" ng-controller="MenuController" ng-show="Menus.Open" role="menu">
+		<div ng-repeat="item in Menus.Open.Items" ng-class="item.Separator ? 'menu-separator' : 'menu-item'">
+			<button type="button" class="menu-button" ng-if="!item.Separator" ng-class="{ danger: item.Danger }" ng-disabled="item.Disabled" ng-click="Pick(item, $event)" role="menuitem"><svg class="icon lead" ng-if="item.Icon"><use ng-attr-href="#i-{{ item.Icon }}"></use></svg>{{ item.Label }}</button>
+		</div>
+	</div>
+
 	<script src="/vendor/angular.min.js"></script>
 	<script src="/vendor/marked.umd.js"></script>
 	<script src="/vendor/monaco/loader.js"></script>
@@ -600,6 +589,7 @@
 	<script src="/js/render.js"></script>
 	<script src="/js/editor.js"></script>
 	<script src="/js/app.js"></script>
+	<script src="/js/menus.js"></script>
 	<script src="/js/tabs.js"></script>
 	<script src="/js/sessions.js"></script>
 	<script src="/js/subplans.js"></script>

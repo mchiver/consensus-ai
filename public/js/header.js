@@ -1,20 +1,44 @@
 'use strict';
 
 // Header - two lines. The first: the title, Read / Edit / Revisions and the threads toggle. The second: the
-// state picker and the one-line state, then Comment on the whole document, Send to LLM (owner), and Delete
-// (to the trash, confirmed inline).
+// state picker and the one-line state, then New Comment, New subplan, and Send to LLM (owner). Delete is in the
+// item's menu in the tree. Ctrl+E switches the open item between Edit and Read.
 
-angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Tabs', 'Sessions', 'Subplans', function ( $scope, $window, State, Client, Tabs, Sessions, Subplans )
+angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Sessions', 'Subplans', function ( $scope, $window, State, Client, Sessions, Subplans )
 {
 	$scope.State = State;
 	$scope.Busy = false;
-	$scope.ConfirmingDelete = false;
 
 
 	$scope.SetView = function ( view )
 	{
 		State.SetView( view );
 	};
+
+
+	// Ctrl+E: Edit from Read or Revisions, and back to Read from Edit (an unsaved edit is kept, as the Read button
+	// keeps it). Heard before the editor or the browser act on it, so it works in the editor too.
+	function on_key( event )
+	{
+		let ctrl = event.ctrlKey || event.metaKey;
+		if ( !ctrl || event.shiftKey || event.altKey || ( event.key !== 'e' && event.key !== 'E' ) )
+		{
+			return;
+		}
+		if ( !State.Open || !State.OpenId || [ 'read', 'edit', 'revisions' ].indexOf( State.View ) < 0 )
+		{
+			return;
+		}
+		event.preventDefault();
+		event.stopPropagation();
+		$scope.$applyAsync( function ()
+		{
+			State.SetView( ( State.View === 'edit' ) ? 'read' : 'edit' );
+		} );
+	}
+
+	window.addEventListener( 'keydown', on_key, true );
+	$scope.$on( '$destroy', function () { window.removeEventListener( 'keydown', on_key, true ); } );
 
 
 	// A plan has threads; a document or a context has none, so it has no toggle and nothing to send.
@@ -144,30 +168,4 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 	{
 		Sessions.Toggle( State.OpenId );
 	};
-
-
-	$scope.Delete = async function ()
-	{
-		let id = State.OpenId;
-		$scope.Busy = true;
-		let answer = await State.Act( function ()
-		{
-			return Client.Delete( '/api/proposals/' + encodeURIComponent( id ) );
-		} );
-		$scope.Busy = false;
-		$scope.ConfirmingDelete = false;
-		if ( answer )
-		{
-			// its tab closes, and the one beside it is shown
-			Tabs.CloseItem( id );
-			State.LoadList();
-		}
-		$scope.$applyAsync();
-	};
-
-
-	$scope.$on( 'proposal-loaded', function ()
-	{
-		$scope.ConfirmingDelete = false;
-	} );
 } ] );
