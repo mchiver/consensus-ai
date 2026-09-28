@@ -1665,30 +1665,28 @@ function Attach( App, Context )
 				return refused( 409, can.Reason );
 			}
 			let proposal = read.Proposal;
-			let text = read.Text;
 			let changed_text = ( typeof body.Text === 'string' && body.Text !== read.Text );
+			let text = changed_text ? body.Text : read.Text;
+			if ( changed_text && body.Revision !== proposal.Revision )
+			{
+				return refused( 409, 'the text changed since revision ' + body.Revision + '; reload and apply again', { Revision: proposal.Revision } );
+			}
+			// The anchor is placed in the text it will point into before anything is written, so a refusal leaves
+			// the proposal as it was.
+			let anchor = body.Anchor ? place_anchor( body.Anchor, text ) : null;
+			if ( body.Anchor && !anchor && !loose )
+			{
+				return refused( 400, 'the anchor text was not found in the proposal' );
+			}
 			if ( changed_text )
 			{
-				if ( body.Revision !== proposal.Revision )
-				{
-					return refused( 409, 'the text changed since revision ' + body.Revision + '; reload and apply again', { Revision: proposal.Revision } );
-				}
 				proposal = await store.WriteText( id, { Text: body.Text, By: participant.Name, Reason: 'apply', Thread: thread.Id } );
-				text = body.Text;
 				refind( read.Threads, text );
 			}
-			if ( body.Anchor )
+			if ( anchor )
 			{
-				let anchor = place_anchor( body.Anchor, text );
-				if ( anchor )
-				{
-					thread.Anchor = anchor;
-					thread.Detached = false;
-				}
-				else if ( !loose )
-				{
-					return refused( 400, 'the anchor text was not found in the proposal' );
-				}
+				thread.Anchor = anchor;
+				thread.Detached = false;
 			}
 			Object.assign( thread, RULES.ApplyEffect( participant, now(), proposal.Revision, outcome ) );
 			await store.WriteThreads( id, read.Threads );

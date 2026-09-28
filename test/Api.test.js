@@ -338,7 +338,14 @@ TEST( 'apply: resolved threads only, a text change makes a revision tied to the 
 	ASSERT.equal( stale.Status, 409 );
 	ASSERT.equal( stale.Body.Revision, 1 );
 	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Revision: 1 }, true ) ).Status, 400 );
-	let applied = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Outcome: 'reworded', Revision: 1, Anchor: { Text: 'a reworded list item' } }, true );
+	// an anchor not found in the new text is refused before anything is written: no revision, the thread still resolved
+	let lost = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Outcome: 'reworded', Revision: 1, Anchor: { Text: '`a reworded list item`' } }, true );
+	ASSERT.equal( lost.Status, 400 );
+	let unchanged = await call( 'GET', '/api/proposals/' + proposal.Id );
+	ASSERT.equal( unchanged.Body.Proposal.Revision, 1 );
+	ASSERT.equal( unchanged.Body.Text, TEXT );
+	ASSERT.equal( thread_of_body( unchanged, thread.Id ).State, 'resolved' );
+	let applied =await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Outcome: 'reworded', Revision: 1, Anchor: { Text: 'a reworded list item' } }, true );
 	ASSERT.equal( applied.Status, 200 );
 	ASSERT.equal( applied.Body.Proposal.Revision, 2 );
 	ASSERT.equal( applied.Body.Thread.Applied.By, 'llm' );
