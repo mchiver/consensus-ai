@@ -1,7 +1,14 @@
 # Build with Consensus
 
-For an agent session (Claude Code or similar) working on a repo whose plans live in Consensus. The plan
-"Build Workflow" in the Consensus project is where this was agreed.
+Use Consensus to construct documents and plans with your user. Consensus is where the two of you work them out,
+thread by thread: your user (the owner) writes, comments and resolves; you reply, apply what the owner resolves,
+draft plans, and build what the plans say in your own repo. What you contribute goes into Consensus through its
+API; the chat with the owner carries short summaries and the questions that need an answer before you act.
+
+For an agent session (Claude Code or similar) working on a repo whose plans live in Consensus. Read this with
+`curl` (`curl -s http://<server>:<port>/instructions`): a session's web fetch tool may not reach a local or
+private address. The plan "Build Workflow" in the Consensus project is where the build loop was agreed, and
+"Agent Instructions" where this page was.
 
 ## Who does what
 
@@ -13,18 +20,53 @@ For an agent session (Claude Code or similar) working on a repo whose plans live
 
 ## Talking to Consensus
 
-- The server: `http://127.0.0.1:<Port>/api`, with `Port` from `~data/consensus.json` (3500 by default).
-- Act as the llm participant: `Authorization: Bearer <Token>`, the `Token` of the participant whose Role is
-  `llm` in `~data/consensus.json`. Never print the token.
-- Always go through the API, never by editing `~data` files: it keeps the queues, revisions and anchors right.
-- The routes are in `src/Api.js`; the useful ones:
+- The API's address and the `llm` participant's token are in **This server**, at the top of this page when the
+  server serves it.
+- Everything goes through the API; you have no access to the server's files. The API keeps the queues,
+  revisions and anchors right.
+- **Calling the API:** plain HTTP requests (`curl` or any client) to the address in This server, each with the
+  header `Authorization: Bearer <token>` and, for a body, `Content-Type: application/json`. For example, what
+  waits on you, then a reply on a thread:
+
+  ```
+  curl -s -H "Authorization: Bearer <token>" http://<server>:<port>/api/waiting
+
+  curl -s -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+    -d '{ "Text": "Agreed; the wording I will apply: ..." }' \
+    http://<server>:<port>/api/proposals/<plan id>/threads/<thread id>/replies
+  ```
+
+- The useful routes:
   - `GET /api/waiting`: the threads waiting on you, across proposals.
+  - `GET /api/projects`: every project with its tree (folders, plans with their states, documents, corpora)
+    and its context's id.
+  - `POST /api/projects` `{ Name }`: a new project.
   - `GET /api/proposals/<id>`: text, revision, threads, project.
+  - `POST /api/proposals` `{ Title, Text, Project, Parent? }`: a new plan (Parent: a folder's or a plan's id).
   - `POST /api/proposals/<id>/threads` `{ Text, Anchor?: { Text } }`: a new thread (no Anchor: the whole document).
   - `POST /api/proposals/<id>/threads/<tid>/replies` `{ Text }`
   - `POST /api/proposals/<id>/threads/<tid>/apply` `{ Outcome, Revision, Text?, Anchor?: { Text } }`
+  - `POST /api/proposals/<id>/threads/<tid>/anchor` `{ Anchor: { Text } }`: re-anchor a thread.
   - `PUT /api/proposals/<id>/state` `{ State }`
   - `PUT /api/proposals/<id>/text` `{ Text, Revision }`: an edit, for example to a project's context.
+- An anchor's `Text` is matched against the text as it reads, without markdown marks: no backticks or asterisks.
+
+## Finding your project
+
+List the projects (`GET /api/projects`); the one named after your repo (or holding a corpus of it) is yours. If
+none or more than one fits, ask the owner, and remember the answer for the session.
+
+## Loading your context
+
+"Load your context": read your project's context and its tree of plans with their states, and what waits on
+you; report it in a few lines.
+
+## What the owner's words mean
+
+- "check consensus", "check again": report what changed and what waits on you, and act on nothing.
+- "your turn": act as the llm participant on everything waiting on you (below).
+- "build it", "implement it": the build loop (below), for the plan named or just discussed.
+- A message holding any question is answered only; its instructions wait for a message with no question.
 
 ## "Your turn in Consensus"
 
@@ -34,10 +76,16 @@ For an agent session (Claude Code or similar) working on a repo whose plans live
      the question before it. Apply it directly; no confirming round.
    - **Resolve with no reply:** the owner accepts the outcome, or the recommendation, in your last reply.
      Apply it, and say in the Outcome that the recommendation went in.
+   - **Comment and resolve** (a new thread, resolved as it was posted): the comment is the outcome.
 3. Contested threads the owner answered: reply. Confirm what you understood and give the wording you will
    apply; ask any follow-up with a recommendation.
 4. After changing the text, check for detached threads and re-anchor them.
 5. Put comments and questions in Consensus as anchored threads, not in the chat; the chat gets a summary.
+
+## Drafting a plan
+
+Decided defaults go into the text as statements; open threads only for real questions. A request to rework a
+document is answered with a reply holding the exact new text, applied once the owner resolves it.
 
 ## The build loop
 
@@ -49,8 +97,8 @@ For an agent session (Claude Code or similar) working on a repo whose plans live
    where (files), how it was checked (tests), and which model built it.
 5. **Accepted** (the owner resolved the build log):
    - apply the build log thread, outcome only, no text change;
-   - commit the work: one commit titled after the plan, with a summary of the build log, no attribution
-     trailers;
+   - commit the work in your own repo: one commit titled after the plan, with a summary of the build log, no
+     attribution trailers;
    - set the plan's state to Finished;
    - bring the project's context up to date with what changed.
 6. **Sent back** (the owner replied to the build log instead): fix what the reply asks, run the tests, and

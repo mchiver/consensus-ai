@@ -8,6 +8,7 @@ const ASSERT = require( 'node:assert/strict' );
 const FS = require( 'fs' );
 const OS = require( 'os' );
 const PATH = require( 'path' );
+const HTTP = require( 'http' );
 const SERVER = require( '../src/Server.js' );
 const PARTICIPANTS = require( '../src/Participants.js' );
 const MAKER = require( './support/ZipMaker.js' );
@@ -103,17 +104,58 @@ TEST.after( async function ()
 
 //---------------------------------------------------------------------
 
-TEST( 'start writes the settings, binds to 127.0.0.1 and refuses any other host', async function ()
+TEST( 'start writes the settings with Host 127.0.0.1 and listens there; the settings\' Host or the option moves it', async function ()
 {
 	ASSERT.equal( running.SettingsWritten, true );
 	ASSERT.equal( running.Address.Host, '127.0.0.1' );
+	ASSERT.equal( running.Address.Local, true );
+	ASSERT.equal( running.Settings.Host, '127.0.0.1' );
 	ASSERT.equal( FS.existsSync( running.Store.SettingsPath() ), true );
-	await ASSERT.rejects( SERVER.Start( { Data: temporary_folder(), Port: 0, Host: '0.0.0.0' } ), /localhost only/ );
+	// every interface, from the option; reached here at 127.0.0.1
+	let everywhere = await SERVER.Start( { Data: temporary_folder(), Port: 0, Host: '0.0.0.0' } );
+	ASSERT.deepEqual( [ everywhere.Address.Host, everywhere.Address.Local ], [ '0.0.0.0', false ] );
+	ASSERT.equal( everywhere.Url, 'http://127.0.0.1:' + everywhere.Address.Port );
+	ASSERT.equal( ( await fetch( everywhere.Url + '/api/me' ) ).status, 200 );
+	await everywhere.Close();
+	// from the settings' Host
+	let folder = temporary_folder();
+	let settings = PARTICIPANTS.DefaultSettings( 0 );
+	settings.Host = 'localhost';
+	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( settings ) );
+	let from_settings = await SERVER.Start( { Data: folder, Port: 0 } );
+	ASSERT.deepEqual( [ from_settings.Address.Host, from_settings.Address.Local ], [ 'localhost', true ] );
+	await from_settings.Close();
 	let again = await SERVER.Start( { Data: running.Store.Folder, Port: 0 } );
 	ASSERT.equal( again.SettingsWritten, false );
 	ASSERT.deepEqual( again.Settings.Participants[ 1 ].Call, { Kind: 'claude-cli', Command: 'claude' } );
 	ASSERT.equal( 'Token' in again.Settings.Participants[ 1 ], false );
 	await again.Close();
+} );
+
+
+TEST( 'instructions: plain text, This server first with the address the request reached and the llm token, then the guide', async function ()
+{
+	let response = await fetch( running.Url + '/instructions' );
+	ASSERT.equal( response.status, 200 );
+	ASSERT.match( response.headers.get( 'content-type' ), /^text\/plain; charset=utf-8/ );
+	let text = await response.text();
+	ASSERT.ok( text.startsWith( '# This server\n' ) );
+	ASSERT.ok( text.includes( '- API: ' + running.Url + '/api\n' ) );
+	ASSERT.ok( text.includes( token ) );
+	let guide = FS.readFileSync( PATH.join( __dirname, '..', '.guides', 'build-with-consensus.md' ), 'utf8' );
+	ASSERT.ok( text.endsWith( guide ) );
+	// the address is the one the request reached, as its Host header names it
+	let by_name = await new Promise( function ( resolve, reject )
+	{
+		let request = HTTP.get( { host: '127.0.0.1', port: running.Address.Port, path: '/instructions', headers: { Host: 'consensus.example:8080' } }, function ( answer )
+		{
+			let body = '';
+			answer.on( 'data', function ( chunk ) { body += chunk; } );
+			answer.on( 'end', function () { resolve( body ); } );
+		} );
+		request.on( 'error', reject );
+	} );
+	ASSERT.ok( by_name.includes( '- API: http://consensus.example:8080/api\n' ) );
 } );
 
 

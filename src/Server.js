@@ -1,7 +1,8 @@
 'use strict';
 
 // Server - Start( { Data, Port, Host, Caller? } ) returns { App, Address, Url, Settings, Store, Events, Close }.
-// Localhost only: any other host is refused. The data folder is ~data beside package.json unless given.
+// It listens on Host (the option, else the settings' Host, else 127.0.0.1); any address is accepted, and Address.Local
+// says whether it stays on this machine. The data folder is ~data beside package.json unless given.
 // Caller, for tests only, replaces how the LLM is called (see Llm.Caller).
 
 const PATH = require( 'path' );
@@ -12,6 +13,7 @@ const PARTICIPANTS = require( './Participants.js' );
 const EVENTS = require( './Events.js' );
 const API = require( './Api.js' );
 const INDEX = require( './Index.js' );
+const INSTRUCTIONS = require( './Instructions.js' );
 const CORPUS = require( './Corpus.js' );
 const VECTORS = require( './Vectors.js' );
 const LLM = require( './Llm.js' );
@@ -116,11 +118,6 @@ const PUBLIC_FOLDER = PATH.join( __dirname, '..', 'public' );
 async function Start( Options )
 {
 	let options = Options || {};
-	let host = options.Host || DEFAULT_HOST;
-	if ( !LOCAL_HOSTS.includes( host ) )
-	{
-		throw new Error( 'Consensus binds to localhost only; "' + host + '" is refused' );
-	}
 
 	let store = STORE.Open( options.Data || DEFAULT_DATA );
 	let settings = await store.ReadSettings();
@@ -128,6 +125,7 @@ async function Start( Options )
 	if ( !settings )
 	{
 		settings = PARTICIPANTS.DefaultSettings( DEFAULT_PORT );
+		settings.Host = DEFAULT_HOST;
 		settings.Corpus = CORPUS.Limits( {} );
 		settings.Context = LLM.ContextSettings( {} );
 		await store.WriteSettings( settings );
@@ -143,6 +141,7 @@ async function Start( Options )
 		console.log( 'prepared ' + line );
 	}
 	let port = ( options.Port !== undefined ) ? options.Port : ( settings.Port || DEFAULT_PORT );
+	let host = options.Host || settings.Host || DEFAULT_HOST;
 
 	// The search index: ours always; Ollama vectors when the settings name a model.
 	let embedder = VECTORS.Embedder( settings );
@@ -184,6 +183,7 @@ async function Start( Options )
 	let events = EVENTS.Hub();
 	events.Attach( app, '/api/events' );
 	API.Attach( app, { Store: store, Settings: settings, Events: events, Refresh: refresh, RefreshCorpus: refresh_corpus, Search: search, Caller: options.Caller, ContextServers: context_servers } );
+	INSTRUCTIONS.Attach( app, { Settings: settings } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
 	{
@@ -203,8 +203,8 @@ async function Start( Options )
 	return {
 		App: app,
 		Server: server,
-		Address: { Host: host, Port: address.port },
-		Url: 'http://' + host + ':' + address.port,
+		Address: { Host: host, Port: address.port, Local: LOCAL_HOSTS.includes( host ) },
+		Url: 'http://' + url_host( host ) + ':' + address.port,
 		Settings: settings,
 		SettingsWritten: settings_written,
 		Store: store,
@@ -247,6 +247,17 @@ function attach_vendor( app )
 		throw new Error( 'monaco-editor AMD build missing at ' + monaco_folder );
 	}
 	app.use( '/vendor/monaco', EXPRESS.static( monaco_folder ) );
+}
+
+
+// The host to put in a URL for this machine: every interface is reached at 127.0.0.1; IPv6 goes in brackets.
+function url_host( host )
+{
+	if ( host === '0.0.0.0' || host === '::' )
+	{
+		return '127.0.0.1';
+	}
+	return host.includes( ':' ) ? '[' + host + ']' : host;
 }
 
 

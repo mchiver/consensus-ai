@@ -11,10 +11,19 @@ Send to LLM. Nothing runs anywhere but this workstation, except the LLM the sett
 ## Starting it
 
 	npm install
-	node bin/consensus.js [--data <folder>] [--port 3500]
+	node bin/consensus.js [--data <folder>] [--port 3500] [--host <address>]
 
-The server listens on `127.0.0.1` only and refuses any other host. It prints its address, the data folder
-and the settings file. Open `http://127.0.0.1:3500/` in a browser.
+The server listens on the settings' `Host`, `127.0.0.1` by default; `--host` overrides it, and `0.0.0.0`
+listens on every interface. It prints its address, the data folder and the settings file. Open
+`http://127.0.0.1:3500/` in a browser.
+
+Security is relaxed for now: a request without a token is the owner, so anyone who can reach a server
+listening beyond this machine acts as the owner, and reads the llm token at `/instructions`. The server
+prints a warning when it does.
+
+An agent session in any repo is started with one line: "read the instructions at
+`http://<server>:<port>/instructions`" (with `curl`). That page is `.guides/build-with-consensus.md` with a
+**This server** section first: the API's address, as the request reached it, and the llm participant's token.
 
 	npm test
 
@@ -108,6 +117,7 @@ Ids are a kind letter and 8 hex digits: `p…` for a plan or document, `z…` fo
 
 	{
 		"Port": 3500,
+		"Host": "127.0.0.1",
 		"States": [ "Proposal", "Plan", "Working", "Finished" ],
 		"Participants": [
 			{ "Name": "user", "Display": "User", "Role": "owner" },
@@ -117,7 +127,7 @@ Ids are a kind letter and 8 hex digits: `p…` for a plan or document, `z…` fo
 		"Context": { "MaxCharacters": 12000 }
 	}
 
-`States` is the list a plan's state is picked from; a new plan starts in the first. `Corpus` limits
+`Host` is the address the server listens on (see Starting it). `States` is the list a plan's state is picked from; a new plan starts in the first. `Corpus` limits
 uploads: a zip over `MaxZipMegabytes` is refused, and a file the corpus lets in is read only when it is no larger
 than `MaxFileKilobytes` and holds no NUL byte. An `Extensions` list left there from before is ignored, with a
 note at start. `Context.MaxCharacters` is the size the LLM
@@ -133,7 +143,7 @@ a full participant that is asked to apply resolved threads; `member` takes part 
 Two kinds of LLM take part, both as the one `llm` participant. The **one-shot LLM** is the one Consensus
 calls (below): it reviews, replies, applies and keeps the project's context, and never builds. An **agent
 session** in the codebase (Claude Code, say) initializes contexts and implements plans through the API;
-`.guides/build-with-consensus.md` is its guide, with the build loop: a plan with every thread applied is
+`.guides/build-with-consensus.md` is its guide (served at `/instructions`), with the build loop: a plan with every thread applied is
 built on the owner's word, the agent reports in a build log thread, and the owner accepts it by resolving it.
 
 Consensus calls the LLM only when the owner asks. **Send to LLM** in a plan's heading counts the threads waiting
@@ -346,6 +356,7 @@ role, 404 not found, 409 not allowed in this state or a stale revision or versio
 	bin/context-server.js a context server, src/ContextServer.js; src/ContextServers.js is Consensus's side
 	src/Server.js         Start( { Data, Port, Host } )
 	src/Api.js            the routes
+	src/Instructions.js   GET /instructions: the agent guide with This server first
 	src/Rules.js          the consensus rules, pure functions
 	src/Tree.js           a project's tree, pure functions
 	src/Anchors.js        visible-text anchors
