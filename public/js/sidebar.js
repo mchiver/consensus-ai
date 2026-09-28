@@ -1022,6 +1022,9 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 			node.addEventListener( 'dragstart', function ( event )
 			{
 				event.stopPropagation();
+				// A row is a link, so the browser puts its address in the drag; taken out, the drag is ours alone and
+				// the browser offers nothing for it (Chrome's "create split view" at the window's edge).
+				event.dataTransfer.clearData();
 				event.dataTransfer.setData( DRAG_TYPE, scope.$eval( attributes.dragItem ) );
 				event.dataTransfer.effectAllowed = 'move';
 			} );
