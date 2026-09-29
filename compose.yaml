@@ -1,0 +1,20 @@
+# Consensus on cube4 (the plan "Docker Image"): kept in ~/consensus/ there; `docker compose up -d` starts or updates it.
+# The image comes from `docker save … | ssh … docker load`; the data lives in the consensus-data volume.
+services:
+  consensus:
+    image: consensus:latest
+    container_name: consensus
+    restart: unless-stopped
+    ports:
+      # IPv4 only: cube4 also has global IPv6 addresses, which a browser counts as a public network; a page loaded
+      # over one of them may not load its files over the private IPv4 one (Private Network Access blocks it).
+      - "0.0.0.0:3500:3500"
+    volumes:
+      - consensus-data:/data
+    environment:
+      TZ: America/New_York
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  consensus-data:

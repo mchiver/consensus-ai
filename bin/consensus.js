@@ -55,10 +55,14 @@ async function main()
 	}
 	console.log( 'data folder ' + running.Store.Folder );
 	console.log( ( running.SettingsWritten ? 'settings written to ' : 'settings from ' ) + running.Store.SettingsPath() );
-	process.on( 'SIGINT', function ()
+	// Ctrl+C, and SIGTERM from `docker stop` (in a container the server is the first process, which a signal with no
+	// handler does not end): close the server, then exit.
+	function stop()
 	{
 		running.Close().then( function () { process.exit( 0 ); } );
-	} );
+	}
+	process.on( 'SIGINT', stop );
+	process.on( 'SIGTERM', stop );
 }
 
 
