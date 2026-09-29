@@ -28,7 +28,7 @@ function remote_caller( Call )
 	return async function ( Prompt )
 	{
 		prompts.push( Prompt );
-		let thread = /## Thread (t[0-9a-f]{8})/.exec( Prompt )[ 1 ];
+		let thread = /## Thread (thr-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3})/.exec( Prompt )[ 1 ];
 		if ( prompts.length === 1 )
 		{
 			return { Answer: { Actions: [], Requests: [ { Tool: 'read_file', Zip: 'Docs', Path: 'guide.md' } ] }, Usage: { Model: Call.Model || 'remote', Input: 5, Output: 1 } };

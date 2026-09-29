@@ -6,7 +6,7 @@
 //        | { Kind: 'plan', Id, Items?: [ plan node ] }
 //        | { Kind: 'document' | 'corpus', Id }
 //
-// A folder's Id starts with 'f'; every other node's Id is the id of the thing it points to.
+// A folder's Id is a global fld-… id; every other node's Id is the id of the thing it points to.
 // A plan may hold Subplans: plans only, in its Items. A Parent of null is the project's root.
 
 const KINDS = [ 'folder', 'plan', 'document', 'corpus' ];

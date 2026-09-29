@@ -19,7 +19,6 @@
 
 const TREE = require( './Tree.js' );
 const ANCHORS = require( './Anchors.js' );
-const STORE = require( './Store.js' );
 const IDS = require( './Ids.js' );
 
 const FORMAT = 'consensus-project';
@@ -28,7 +27,6 @@ const MODES = [ 'copy', 'merge' ];
 const COPY_PREFIX = 'Copy of ';
 const SAFE_ID = /^[a-z0-9-]+$/;
 const PROPOSAL_KINDS = [ 'plan', 'document', 'context' ];
-const FOLDER_LETTER = 'f';
 const WAITING_REASON = 'waiting for its zip to be attached again';
 const MERGE_BY = 'consensus';
 const SYSTEM_NAMES = [ MERGE_BY ];
@@ -404,6 +402,7 @@ function Merge( Here, File, Now, New_Id )
 		if ( ancestors_of( by_id, file_head.Id ).has( here_head.Id ) )
 		{
 			text = File.Text;
+			proposal.Head = file_head.Id;
 			take_record( proposal, File.Proposal );
 		}
 		else
@@ -413,6 +412,7 @@ function Merge( Here, File, Now, New_Id )
 			revisions.push( merge );
 			by_id[ merge.Id ] = merge;
 			text = merge.Text;
+			proposal.Head = merge.Id;
 			if ( newer === file_head )
 			{
 				take_record( proposal, File.Proposal );
@@ -706,11 +706,11 @@ async function taken_ids( Store, Exported )
 
 
 // A new id no proposal, corpus or project here has.
-async function fresh_id( Store, letter )
+async function fresh_id( Store, kind )
 {
 	while ( true )
 	{
-		let id = STORE.NewId( letter );
+		let id = IDS.New( kind );
 		let taken = await Store.ReadProposal( id ) || await Store.ReadCorpus( id ) || await Store.ReadProject( id );
 		if ( !taken )
 		{
@@ -747,21 +747,21 @@ async function import_copy( Store, Exported, name, report, context )
 	let id_map = {};
 	for ( let whole of records_of( Exported ) )
 	{
-		id_map[ whole.Proposal.Id ] = await fresh_id( Store, STORE.PROPOSAL_LETTER );
+		id_map[ whole.Proposal.Id ] = await fresh_id( Store, IDS.ForProposal( whole.Proposal.Kind ) );
 	}
 	for ( let corpus of corpora_of( Exported ) )
 	{
-		id_map[ corpus.Id ] = await fresh_id( Store, STORE.CORPUS_LETTER );
+		id_map[ corpus.Id ] = await fresh_id( Store, IDS.CORPUS );
 	}
 	let folder_map = {};
 	for ( let entry of all_nodes_of( Exported.Project.Items, null ) )
 	{
 		if ( entry.Node.Kind === 'folder' )
 		{
-			folder_map[ entry.Node.Id ] = STORE.NewId( FOLDER_LETTER );
+			folder_map[ entry.Node.Id ] = IDS.New( IDS.FOLDER );
 		}
 	}
-	let project_id = await fresh_id( Store, STORE.PROJECT_LETTER );
+	let project_id = await fresh_id( Store, IDS.PROJECT );
 	await write_project( Store, Exported, project_id, name, id_map, folder_map, report, context );
 	report.Project.Mode = 'copy';
 }

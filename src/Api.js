@@ -11,7 +11,6 @@
 // linked from one is read and searched there, and their Inference items are destinations.
 
 const EXPRESS = require( 'express' );
-const CRYPTO = require( 'crypto' );
 const RULES = require( './Rules.js' );
 const ANCHORS = require( './Anchors.js' );
 const PARTICIPANTS = require( './Participants.js' );
@@ -21,6 +20,7 @@ const TREE = require( './Tree.js' );
 const CORPUS = require( './Corpus.js' );
 const FILTER = require( './Filter.js' );
 const PORT = require( './ProjectPort.js' );
+const IDS = require( './Ids.js' );
 
 const BODY_LIMIT = '64mb';	// a project import is one json body, every revision of every plan in it
 const SEARCH_LIMIT = 10;
@@ -28,7 +28,7 @@ const SEARCH_LIMIT = 10;
 
 //---------------------------------------------------------------------
 // Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Refresh?, Search?, Caller?,
-// ContextServers? }
+// ContextServers?, OldIds? }
 
 function Attach( App, Context )
 {
@@ -39,6 +39,21 @@ function Attach( App, Context )
 	let router = EXPRESS.Router();
 	router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
 	router.use( identify );
+
+	// An item's id from before Global Ids (Context.OldIds: { old: new }, from ids.json) names it as its new one does.
+	let old_ids = Context.OldIds || {};
+	function resolve_old( request, response, next, value, name )
+	{
+		if ( Object.prototype.hasOwnProperty.call( old_ids, value ) )
+		{
+			request.params[ name ] = old_ids[ value ];
+		}
+		next();
+	}
+	for ( let name of [ 'id', 'pid', 'cid' ] )
+	{
+		router.param( name, resolve_old );
+	}
 
 
 	//-----------------------------------------------------------------
@@ -96,9 +111,10 @@ function Attach( App, Context )
 	}
 
 
-	function new_id( prefix )
+	// A new global id of Kind (Ids.js).
+	function new_id( Kind )
 	{
-		return prefix + CRYPTO.randomBytes( 4 ).toString( 'hex' );
+		return IDS.New( Kind );
 	}
 
 
@@ -766,7 +782,7 @@ function Attach( App, Context )
 		{
 			return fail( response, 400, 'Name is required' );
 		}
-		let folder = { Kind: 'folder', Id: new_id( 'f' ), Name: name, Items: [] };
+		let folder = { Kind: 'folder', Id: new_id( IDS.FOLDER ), Name: name, Items: [] };
 		let result = await change_project( request.params.pid, body.Version, function ( project )
 		{
 			if ( !TREE.Insert( project.Items, ( body.Parent === undefined ) ? null : body.Parent, folder ) )
@@ -1370,7 +1386,7 @@ function Attach( App, Context )
 	{
 		if ( node.Kind === 'folder' )
 		{
-			let folder = { Kind: 'folder', Id: new_id( 'f' ), Name: node.Name, Items: [] };
+			let folder = { Kind: 'folder', Id: new_id( IDS.FOLDER ), Name: node.Name, Items: [] };
 			for ( let child of node.Items )
 			{
 				let copied = await copy_node( child, project );
@@ -1498,7 +1514,7 @@ function Attach( App, Context )
 			}
 			let at = now();
 			let thread = {
-				Id: new_id( 't' ),
+				Id: new_id( IDS.THREAD ),
 				Anchor: anchor,
 				Detached: false,
 				Status: 'contested',
@@ -1506,7 +1522,7 @@ function Attach( App, Context )
 				Resolved: null,
 				Applied: null,
 				Created: at,
-				Replies: [ { Id: new_id( 'r' ), By: request.Participant.Name, At: at, Text: text } ],
+				Replies: [ { Id: new_id( IDS.REPLY ), By: request.Participant.Name, At: at, Text: text } ],
 			};
 			if ( body.Resolve )
 			{
@@ -1555,7 +1571,7 @@ function Attach( App, Context )
 				thread.Reopened = effect.Reopened;
 				thread.Resolved = effect.Resolved;
 			}
-			thread.Replies.push( { Id: new_id( 'r' ), By: participant.Name, At: now(), Text: text } );
+			thread.Replies.push( { Id: new_id( IDS.REPLY ), By: participant.Name, At: now(), Text: text } );
 			if ( resolve )
 			{
 				let can = RULES.CanResolve( participant, thread );
@@ -1753,7 +1769,7 @@ function Attach( App, Context )
 				thread.Anchor = anchor;
 				thread.Detached = false;
 			}
-			Object.assign( thread, RULES.ApplyEffect( participant, now(), proposal.Revision, outcome ) );
+			Object.assign( thread, RULES.ApplyEffect( participant, now(), proposal.Revision, proposal.Head || null, outcome ) );
 			await store.WriteThreads( id, read.Threads );
 			return { Thread: present_threads( [ thread ], text, participant.Name )[ 0 ], Proposal: summarize( proposal, read.Threads, participant.Name ) };
 		} );
@@ -1995,7 +2011,7 @@ function Attach( App, Context )
 
 	async function start_run( id, destination, model, options )
 	{
-		let run = { Id: new_id( 's' ), Started: now(), Destination: destination, Model: model || null, Options: options, Turns: [], Steps: [], Finished: null };
+		let run = { Id: new_id( IDS.RUN ), Started: now(), Destination: destination, Model: model || null, Options: options, Turns: [], Steps: [], Finished: null };
 		await store.Queue( runs_queue( id ), async function ()
 		{
 			let runs = await store.ReadRuns( id );

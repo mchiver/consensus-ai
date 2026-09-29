@@ -8,6 +8,7 @@ const FS = require( 'fs' );
 const OS = require( 'os' );
 const PATH = require( 'path' );
 const STORE = require( '../src/Store.js' );
+const IDS = require( '../src/Ids.js' );
 
 
 function temporary_folder()
@@ -33,9 +34,9 @@ TEST( 'a created proposal has its files, revision 1 and a plain id', async funct
 {
 	let store = STORE.Open( temporary_folder() );
 	let proposal = await store.CreateProposal( { Title: 'Hello, World!', Text: '# Hello\n\nText.\n', By: 'user', State: 'Proposal' } );
-	ASSERT.match( proposal.Id, /^p[0-9a-f]{8}$/ );
-	ASSERT.equal( STORE.IsNewId( proposal.Id, STORE.PROPOSAL_LETTER ), true );
-	ASSERT.equal( STORE.IsNewId( 'hello-world-1a2b3c', STORE.PROPOSAL_LETTER ), false );
+	ASSERT.match( proposal.Id, /^pln-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
+	ASSERT.equal( IDS.Is( proposal.Id, IDS.PLAN ), true );
+	ASSERT.equal( IDS.Is( 'hello-world-1a2b3c' ), false );
 	ASSERT.equal( proposal.Revision, 1 );
 	ASSERT.equal( proposal.State, 'Proposal' );
 	ASSERT.equal( proposal.Kind, 'plan' );
@@ -172,7 +173,7 @@ TEST( 'projects: in the master\'s order, new ones last; created, written with a 
 	await store.Prepare();
 	let zebra = await store.CreateProject( { Name: 'Zebra' } );
 	let alpha = await store.CreateProject( { Name: 'Alpha work' } );
-	ASSERT.match( alpha.Id, /^j[0-9a-f]{8}$/ );
+	ASSERT.match( alpha.Id, /^prj-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
 	ASSERT.equal( alpha.Name, 'Alpha work' );
 	ASSERT.equal( alpha.Version, 1 );
 	ASSERT.deepEqual( alpha.Items, [] );

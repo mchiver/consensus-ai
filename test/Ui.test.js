@@ -69,12 +69,12 @@ function fake_caller()
 		{
 			actions.push( { Kind: 'context', Text: '# ' + project[ 1 ] + '\n\nWritten by the LLM.\n', Reason: 'initialized' } );
 		}
-		let reply = /## Thread (t[0-9a-f]+), contested, WAITING ON YOU to reply/.exec( Prompt );
+		let reply = /## Thread (thr-[0-9a-z-]+), contested, WAITING ON YOU to reply/.exec( Prompt );
 		if ( reply )
 		{
 			actions.push( { Thread: reply[ 1 ], Kind: 'reply', Reply: 'Outcome: one item stays.' } );
 		}
-		let apply = /## Thread (t[0-9a-f]+), resolved, WAITING ON YOU to apply/.exec( Prompt );
+		let apply = /## Thread (thr-[0-9a-z-]+), resolved, WAITING ON YOU to apply/.exec( Prompt );
 		if ( apply )
 		{
 			actions.push( { Thread: apply[ 1 ], Kind: 'apply', Outcome: 'one item stays' } );
@@ -296,7 +296,7 @@ TEST( 'an item dragged onto a project moves there; copy and paste makes a whole 
 		+ ' head.dispatchEvent( new DragEvent( "dragover", { bubbles: true, cancelable: true, dataTransfer: data } ) );'
 		+ ' head.dispatchEvent( new DragEvent( "drop", { bubbles: true, cancelable: true, dataTransfer: data } ) );'
 		+ ' return data.getData( "application/x-consensus-item" ); } )()' );
-	ASSERT.match( moved, /^p[0-9a-f]{8}$/ );
+	ASSERT.match( moved, /^doc-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
 	await page.WaitFor( count_of( '.project.open .project-body > .tree > .tree-node > .tree-item.document' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( count_of( '.project.open .folder .tree-item.document' ) ), 0 );
 
@@ -754,7 +754,7 @@ TEST( 'subplans: started from the header, selected text, a new thread and a repl
 	await name_it( 'From a new thread' );
 	let threads = await threads_of( parent.Id );
 	ASSERT.equal( threads.length, 1 );
-	ASSERT.match( threads[ 0 ].Replies[ 0 ].Text, /^This needs its own plan\.\n\nStarted a new Subplan: \[From a new thread\]\(#\/p\/p[0-9a-f]{8}\)$/ );
+	ASSERT.match( threads[ 0 ].Replies[ 0 ].Text, /^This needs its own plan\.\n\nStarted a new Subplan: \[From a new thread\]\(#\/p\/pln-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}\)$/ );
 
 	// from a reply: the draft goes in with the link, and the thread stays open
 	await open_parent();

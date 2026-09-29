@@ -116,7 +116,7 @@ TEST( 'a reopened, applied thread that is resolved again waits to be applied aga
 
 TEST( 'applying records who, when, the revision and the outcome', function ()
 {
-	ASSERT.deepEqual( RULES.ApplyEffect( LLM, 'at', 5, 'dropped' ), { Applied: { By: 'llm', At: 'at', Revision: 5, Outcome: 'dropped' } } );
+	ASSERT.deepEqual( RULES.ApplyEffect( LLM, 'at', 5, 'rev-aaa-bbb-ccc', 'dropped' ), { Applied: { By: 'llm', At: 'at', Revision: 5, RevisionId: 'rev-aaa-bbb-ccc', Outcome: 'dropped' } } );
 } );
 
 

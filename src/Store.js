@@ -5,11 +5,13 @@
 //
 //   <folder>/consensus.json                   settings
 //   <folder>/usage.json                       the LLM's tokens, per day and model
-//   <folder>/proposals/<id>/proposal.json     { Id, Title, Kind: 'plan' | 'document' | 'context', State, Created, Updated, Revision }
+//   <folder>/proposals/<id>/proposal.json     { Id, Title, Kind: 'plan' | 'document' | 'context', State, Created, Updated, Revision,
+//                                             Head }  Head: the Id of the revision at Revision
 //   <folder>/proposals/<id>/proposal.md       the text at revision Revision
 //   <folder>/proposals/<id>/threads.json      [ thread ]
 //   <folder>/proposals/<id>/runs.json         the LLM sessions run on it, the last 20
-//   <folder>/proposals/<id>/revisions/0001.md, 0001.json
+//   <folder>/proposals/<id>/revisions/0001.md, 0001.json    the text, and { Id, Parent, Merged?, Revision, By, At, Reason,
+//                                             Thread?, Note? }  Parent: the Id of the revision the text was made from
 //   <folder>/proposals/<id>/index.json        search chunks
 //   <folder>/projects.json                    { Projects: [ { Id, Name } ] }  every project's name, in display order
 //   <folder>/projects/<id>/project.json       { Id, Context, Created, Updated, Version, Items: [ node ] } (see Tree.js)
@@ -18,13 +20,13 @@
 //                                             attached zip, or one linked from a context server; its search chunks
 //   <folder>/trash/<id>/                      a deleted proposal or corpus, moved whole
 //
-// Ids are a kind letter and 8 hex digits: p… a plan or document, z… a corpus, j… a project (the Default
-// project is 'default').
+// Ids are global (Ids.js): pln-…, doc-…, ctx-… a proposal, cor-… a corpus, prj-… a project (the Default project is
+// 'default'), rev-… a revision.
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
-const CRYPTO = require( 'crypto' );
 const TREE = require( './Tree.js' );
+const IDS = require( './Ids.js' );
 
 const SETTINGS_FILE = 'consensus.json';
 const USAGE_FILE = 'usage.json';
@@ -38,25 +40,6 @@ const CORPORA_FOLDER = 'corpora';
 const DEFAULT_PROJECT = 'default';
 const RENAME_ATTEMPTS = 10;
 const RENAME_DELAY_MS = 20;
-const PROPOSAL_LETTER = 'p';
-const CORPUS_LETTER = 'z';
-const PROJECT_LETTER = 'j';
-
-
-//---------------------------------------------------------------------
-// Ids: a kind letter and 8 hex digits.
-
-function NewId( Letter )
-{
-	return Letter + CRYPTO.randomBytes( 4 ).toString( 'hex' );
-}
-
-
-// IsNewId( Id, Letter ): the id already has the form NewId gives.
-function IsNewId( Id, Letter )
-{
-	return new RegExp( '^' + Letter + '[0-9a-f]{8}$' ).test( String( Id ) );
-}
 
 
 //---------------------------------------------------------------------
@@ -250,9 +233,10 @@ function Open( Folder )
 	// Parameters: { Title, Text, By, Kind: 'plan' | 'document' | 'context', State }  Only a plan has a State.
 	async function CreateProposal( Parameters )
 	{
-		let id = unique_id( PROPOSAL_LETTER );
-		let now = new Date().toISOString();
 		let kind = Parameters.Kind || 'plan';
+		let id = unique_id( IDS.ForProposal( kind ) );
+		let now = new Date().toISOString();
+		let head = IDS.New( IDS.REVISION );
 		let proposal = {
 			Id: id,
 			Title: Parameters.Title,
@@ -261,9 +245,10 @@ function Open( Folder )
 			Created: now,
 			Updated: now,
 			Revision: 1,
+			Head: head,
 		};
 		await FS.promises.mkdir( PATH.join( proposal_folder( id ), REVISIONS_FOLDER ), { recursive: true } );
-		await write_snapshot( id, 1, Parameters.Text || '', { Revision: 1, By: Parameters.By, At: now, Reason: 'create' } );
+		await write_snapshot( id, 1, Parameters.Text || '', { Id: head, Parent: null, Revision: 1, By: Parameters.By, At: now, Reason: 'create' } );
 		await write_file( PATH.join( proposal_folder( id ), 'proposal.md' ), Parameters.Text || '' );
 		await write_json( PATH.join( proposal_folder( id ), 'threads.json' ), [] );
 		await write_json( PATH.join( proposal_folder( id ), 'proposal.json' ), proposal );
@@ -271,12 +256,12 @@ function Open( Folder )
 	}
 
 
-	// A new id: Letter and 8 hex digits, used by nothing in the data folder.
-	function unique_id( Letter )
+	// A new global id of Kind, used by nothing in the data folder.
+	function unique_id( Kind )
 	{
 		while ( true )
 		{
-			let id = NewId( Letter );
+			let id = IDS.New( Kind );
 			let taken = FS.existsSync( proposal_folder( id ) ) || corpus_folder( id ) !== null || FS.existsSync( PATH.join( folder, TRASH_FOLDER, id ) ) || FS.existsSync( PATH.dirname( project_file( id ) ) );
 			if ( !taken )
 			{
@@ -315,7 +300,7 @@ function Open( Folder )
 		}
 		let now = new Date().toISOString();
 		let revision = proposal.Revision + 1;
-		let record = { Revision: revision, By: Parameters.By, At: now, Reason: Parameters.Reason };
+		let record = { Id: IDS.New( IDS.REVISION ), Parent: proposal.Head || null, Revision: revision, By: Parameters.By, At: now, Reason: Parameters.Reason };
 		if ( Parameters.Thread )
 		{
 			record.Thread = Parameters.Thread;
@@ -327,6 +312,7 @@ function Open( Folder )
 		await write_snapshot( Id, revision, Parameters.Text, record );
 		await write_file( PATH.join( proposal_folder( Id ), 'proposal.md' ), Parameters.Text );
 		proposal.Revision = revision;
+		proposal.Head = record.Id;
 		proposal.Updated = now;
 		await write_json( PATH.join( proposal_folder( Id ), 'proposal.json' ), proposal );
 		return proposal;
@@ -544,7 +530,7 @@ function Open( Folder )
 	// Context (the id of a proposal already written) and its Items.
 	async function CreateProject( Parameters )
 	{
-		let id = Parameters.Id || unique_id( PROJECT_LETTER );
+		let id = Parameters.Id || unique_id( IDS.PROJECT );
 		let now = new Date().toISOString();
 		let context_id = Parameters.Context || ( await create_context() ).Id;
 		let project = { Id: id, Context: context_id, Created: now, Updated: now, Version: 1, Items: Parameters.Items || [] };
@@ -752,7 +738,7 @@ function Open( Folder )
 	// whose folder keeps it (Default when not given).
 	async function CreateCorpus( Parameters )
 	{
-		let id = unique_id( CORPUS_LETTER );
+		let id = unique_id( IDS.CORPUS );
 		let now = new Date().toISOString();
 		let corpus = {
 			Id: id, Kind: 'corpus', Name: Parameters.Name, Created: now, Updated: now, Version: 1,
@@ -876,7 +862,7 @@ function Open( Folder )
 			return null;
 		}
 		let name = source.Name + ' (copy)';
-		let id = unique_id( CORPUS_LETTER );
+		let id = unique_id( IDS.CORPUS );
 		let home = corpus_home( Project || DEFAULT_PROJECT, id );
 		await FS.promises.mkdir( PATH.dirname( home ), { recursive: true } );
 		await FS.promises.cp( corpus_folder( Id ), home, { recursive: true } );
@@ -921,7 +907,7 @@ function Open( Folder )
 			return null;
 		}
 		let title = source.Title + ' (copy)';
-		let id = unique_id( PROPOSAL_LETTER );
+		let id = unique_id( IDS.ForProposal( source.Kind ) );
 		await FS.promises.cp( proposal_folder( Id ), proposal_folder( id ), { recursive: true } );
 		await FS.promises.rm( PATH.join( proposal_folder( id ), 'index.json' ), { force: true } );
 		let now = new Date().toISOString();
@@ -1038,10 +1024,5 @@ function Open( Folder )
 module.exports = {
 	Open: Open,
 	DEFAULT_PROJECT: DEFAULT_PROJECT,
-	PROPOSAL_LETTER: PROPOSAL_LETTER,
-	CORPUS_LETTER: CORPUS_LETTER,
-	PROJECT_LETTER: PROJECT_LETTER,
 	MASTER_FILE: MASTER_FILE,
-	NewId: NewId,
-	IsNewId: IsNewId,
 };

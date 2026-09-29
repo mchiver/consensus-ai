@@ -874,7 +874,7 @@ TEST( 'projects: Default holds new proposals; a project and its folders are crea
 
 	let folder = await call( 'POST', '/api/projects/' + project.Id + '/folders', { Name: 'Specs', Version: 1 } );
 	ASSERT.equal( folder.Status, 201 );
-	ASSERT.match( folder.Body.Folder.Id, /^f[0-9a-f]{8}$/ );
+	ASSERT.match( folder.Body.Folder.Id, /^fld-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
 	ASSERT.equal( folder.Body.Project.Version, 2 );
 	let stale = await call( 'POST', '/api/projects/' + project.Id + '/folders', { Name: 'Late', Version: 1 } );
 	ASSERT.equal( stale.Status, 409 );
@@ -991,7 +991,7 @@ TEST( 'send: the answer\'s replies and applies are carried out as the llm, and i
 	ASSERT.deepEqual( sent.Body.Threads.sort(), [ question.Id, resolved.Id ].sort() );
 
 	let prompt = llm_prompts[ 0 ];
-	ASSERT.match( prompt, /Thread [0-9a-z]+, contested, WAITING ON YOU to reply/ );
+	ASSERT.match( prompt, /Thread [0-9a-z-]+, contested, WAITING ON YOU to reply/ );
 	ASSERT.match( prompt, /resolved, WAITING ON YOU to apply/ );
 	ASSERT.match( prompt, /A closing paragraph\./ );
 	ASSERT.match( prompt, /User: Is this needed\?/ );
@@ -1212,7 +1212,7 @@ TEST( 'session: the prompt shaped by the choices and sized part by part; a desti
 	let manual = await call( 'POST', '/api/proposals/' + id + '/session', { Destination: 'Manual' } );
 	ASSERT.equal( manual.Status, 200 );
 	ASSERT.match( manual.Body.Prompt, /# The rules/ );
-	ASSERT.match( manual.Body.Run, /^s[0-9a-f]{8}$/ );
+	ASSERT.match( manual.Body.Run, /^run-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
 } );
 
 
@@ -1249,7 +1249,7 @@ TEST( 'turns: the LLM asks for more, Consensus answers within the project, the n
 	ASSERT.match( prompts[ 1 ], /## read_plan "other plan"\n\n`+\n# Other plan\n\nLamps are lit at dusk\./ );
 	ASSERT.match( prompts[ 1 ], new RegExp( 'refused: no plan or document "' + elsewhere.Id + '" in the project' ) );
 	ASSERT.match( prompts[ 1 ], /This is your answer 2 of 5\./ );
-	ASSERT.match( prompts[ 2 ], /## read_revision "p[0-9a-f]{8}" 1\n\n`+\n# Other plan/ );
+	ASSERT.match( prompts[ 2 ], /## read_revision "pln-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}" 1\n\n`+\n# Other plan/ );
 	ASSERT.match( prompts[ 2 ], /refused: there is no tool "teleport"/ );
 	let read = await call( 'GET', '/api/proposals/' + plan.Id );
 	ASSERT.equal( thread_of( read, thread.Id ).Replies[ 1 ].Text, 'At dusk, says Other plan.' );
@@ -1493,7 +1493,7 @@ TEST( 'an attached corpus: its Include and Exclude narrow it; the LLM lists its 
 	await call( 'POST', '/api/proposals/' + plan.Id + '/session', {} );
 	await wait_idle( plan.Id );
 	ASSERT.equal( prompts.length, 2 );
-	ASSERT.match( prompts[ 1 ], /- corpus "app" \(attached, 1 files read\), id z[0-9a-f]{8}/ );
+	ASSERT.match( prompts[ 1 ], /- corpus "app" \(attached, 1 files read\), id cor-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}/ );
 	ASSERT.match( prompts[ 1 ], /The corpus "app" \(attached, 1 files read\), folder app\/src: 1 files\n- app\/src\/main\.go/ );
 	ASSERT.equal( prompts[ 1 ].includes( 'main_test.go' ), false );
 	ASSERT.match( prompts[ 1 ], /package main \/\/ semaphore tower/ );

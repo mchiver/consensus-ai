@@ -368,20 +368,53 @@ TEST( 'a project that is here: the preview offers copy or merge, and an import w
 } );
 
 
-TEST( 'merge existing, by the llm over the API: refused, writing nothing, while revisions have no ids (the plan Global Ids)', async function ()
+TEST( 'merge existing, by the llm over the API: new revisions, replies and plans come in; a conflict converges both ways', async function ()
 {
-	// the origin moves on: a new revision and a new plan in the folder
+	// the origin moves on: a new revision, a reply and a new plan in the folder
 	await edit( origin, ids.Plan, '# Plan\n\nThe plan says the heron fishes at dawn, and rests at noon.\n' );
+	await call( origin, 'POST', '/api/proposals/' + ids.Plan + '/threads/' + ids.Thread + '/replies', { Text: 'Because the light is low.' } );
 	let added = ( await call( origin, 'POST', '/api/proposals', { Title: 'Later', Text: '# Later\n\nAdded later.\n', Project: alpha.Id, Parent: ids.Folder } ) ).Body.Proposal.Id;
-	let again = await export_of( origin, alpha.Id );
+	// the document is edited on both servers, the origin last
+	await edit( copy, ids.Document, '# Notes\n\nNotes kept here.\n' );
+	await edit( origin, ids.Document, '# Notes\n\nNotes kept there.\n' );
 
 	let llm_token = PARTICIPANTS.NewToken();
 	copy.Settings.Participants[ 1 ].Token = llm_token;
-	let result = await call( copy, 'POST', '/api/projects/import', { Export: again, Mode: 'merge' }, 'Bearer ' + llm_token );
-	ASSERT.equal( result.Status, 400 );
-	ASSERT.match( result.Body.Error, /has no Id: merging needs the revision ids of the plan Global Ids/ );
-	ASSERT.equal( ( await call( copy, 'GET', '/api/proposals/' + added ) ).Status, 404 );
-	ASSERT.doesNotMatch( ( await text_of( copy, ids.Plan ) ).Text, /rests at noon/ );
+	let result = await call( copy, 'POST', '/api/projects/import', { Export: await export_of( origin, alpha.Id ), Mode: 'merge' }, 'Bearer ' + llm_token );
+	ASSERT.equal( result.Status, 201 );
+	let report = result.Body.Report;
+	ASSERT.deepEqual( report.Project, { Id: alpha.Id, Name: 'Alpha', Mode: 'merge' } );
+	ASSERT.deepEqual( report.Made, { Plans: 1, Documents: 0, Threads: 0, Corpora: 0 } );
+	let plan = report.Merged.find( function ( item ) { return item.Id === ids.Plan; } );
+	ASSERT.equal( plan.Revisions, 1 );
+	ASSERT.equal( plan.Replies, 1 );
+	ASSERT.deepEqual( report.Diverged.map( function ( item ) { return [ item.Id, item.At ]; } ), [ [ ids.Document, 1 ] ] );
+	ASSERT.ok( report.Corpora.every( function ( corpus ) { return corpus.State === 'kept as it is here'; } ) );
+	ASSERT.match( ( await text_of( copy, ids.Plan ) ).Text, /rests at noon/ );
+	ASSERT.equal( ( await text_of( copy, ids.Plan ) ).Threads[ 0 ].Replies.length, 2 );
+	ASSERT.equal( ( await text_of( copy, added ) ).Proposal.Title, 'Later' );
+	ASSERT.deepEqual( shape( ( await project_of( copy, alpha.Id ) ).Items ), shape( ( await project_of( origin, alpha.Id ) ).Items ) );
+	// the conflict: both edits kept, and a merge revision with the newer text, the origin's
+	let document_here = await text_of( copy, ids.Document );
+	ASSERT.match( document_here.Text, /kept there/ );
+	let history = ( await call( copy, 'GET', '/api/proposals/' + ids.Document + '/revisions' ) ).Body.Revisions;
+	ASSERT.deepEqual( history.map( function ( revision ) { return revision.Reason; } ), [ 'create', 'edit', 'edit', 'merge' ] );
+
+	// back the other way: the origin goes on to the merge revision, and both servers hold the same
+	let back = ( await import_into( origin, { Export: await export_of( copy, alpha.Id ), Mode: 'merge' } ) ).Body.Report;
+	ASSERT.deepEqual( back.Diverged, [] );
+	for ( let id of [ alpha.Context, ids.Plan, ids.Subplan, ids.Document, added ] )
+	{
+		let here = await text_of( copy, id );
+		let there = await text_of( origin, id );
+		ASSERT.equal( here.Text, there.Text );
+		ASSERT.equal( here.Proposal.Head, there.Proposal.Head );
+	}
+
+	// and again either way: nothing new
+	let again = ( await import_into( copy, { Export: await export_of( origin, alpha.Id ), Mode: 'merge' } ) ).Body.Report;
+	ASSERT.ok( again.Merged.every( function ( item ) { return item.Revisions === 0 && item.Threads === 0 && item.Replies === 0; } ) );
+	ASSERT.deepEqual( again.Diverged, [] );
 } );
 
 

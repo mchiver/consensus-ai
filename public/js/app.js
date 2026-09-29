@@ -581,7 +581,18 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		Tabs.Announce();
 		if ( where.Kind === 'p' )
 		{
-			State.OpenProposal( where.Id ).then( function () { Tabs.RestoreView( tab ); } );
+			State.OpenProposal( where.Id ).then( function ()
+			{
+				// An id from before Global Ids opens the item under its new id; the tab and the address take it.
+				let found = State.Open && State.Open.Proposal ? State.Open.Proposal.Id : null;
+				if ( found && found !== where.Id && State.OpenId === where.Id )
+				{
+					State.OpenId = found;
+					tab = Tabs.Renamed( tab, found );
+					$window.history.replaceState( null, '', tab.Hash );
+				}
+				Tabs.RestoreView( tab );
+			} );
 			return;
 		}
 		if ( where.Kind === 'waiting' )

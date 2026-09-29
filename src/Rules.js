@@ -232,9 +232,9 @@ function ResolveEffect( Who, At )
 }
 
 
-function ApplyEffect( Who, At, Revision, Outcome )
+function ApplyEffect( Who, At, Revision, RevisionId, Outcome )
 {
-	return { Applied: { By: Who.Name, At: At, Revision: Revision, Outcome: Outcome } };
+	return { Applied: { By: Who.Name, At: At, Revision: Revision, RevisionId: RevisionId, Outcome: Outcome } };
 }
 
 
