@@ -28,7 +28,7 @@ const SEARCH_LIMIT = 10;
 
 //---------------------------------------------------------------------
 // Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Refresh?, Search?, Caller?,
-// ContextServers?, OldIds? }
+// ContextServers? }
 
 function Attach( App, Context )
 {
@@ -39,21 +39,6 @@ function Attach( App, Context )
 	let router = EXPRESS.Router();
 	router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
 	router.use( identify );
-
-	// An item's id from before Global Ids (Context.OldIds: { old: new }, from ids.json) names it as its new one does.
-	let old_ids = Context.OldIds || {};
-	function resolve_old( request, response, next, value, name )
-	{
-		if ( Object.prototype.hasOwnProperty.call( old_ids, value ) )
-		{
-			request.params[ name ] = old_ids[ value ];
-		}
-		next();
-	}
-	for ( let name of [ 'id', 'pid', 'cid' ] )
-	{
-		router.param( name, resolve_old );
-	}
 
 
 	//-----------------------------------------------------------------

@@ -19,7 +19,6 @@ const VECTORS = require( './Vectors.js' );
 const LLM = require( './Llm.js' );
 const CONTEXT_SERVERS = require( './ContextServers.js' );
 const FILTER = require( './Filter.js' );
-const MIGRATE = require( './Migrate.js' );
 
 
 // A first start over an existing data folder indexes every proposal once; later starts only what is stale.
@@ -137,12 +136,6 @@ async function Start( Options )
 	{
 		throw new Error( 'settings ' + store.SettingsPath() + ': ' + problems.join( '; ' ) );
 	}
-	// A data folder from before Global Ids moves to global ids once; its old ids still open their items.
-	let migrated = await MIGRATE.Run( store.Folder );
-	for ( let line of migrated.Lines )
-	{
-		console.log( line );
-	}
 	for ( let line of await store.Prepare() )
 	{
 		console.log( 'prepared ' + line );
@@ -189,7 +182,7 @@ async function Start( Options )
 	app.disable( 'x-powered-by' );
 	let events = EVENTS.Hub();
 	events.Attach( app, '/api/events' );
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Refresh: refresh, RefreshCorpus: refresh_corpus, Search: search, Caller: options.Caller, ContextServers: context_servers, OldIds: migrated.Map } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Refresh: refresh, RefreshCorpus: refresh_corpus, Search: search, Caller: options.Caller, ContextServers: context_servers } );
 	INSTRUCTIONS.Attach( app, { Settings: settings } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )

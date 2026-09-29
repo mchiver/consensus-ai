@@ -261,28 +261,6 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 
 	// Drag and drop in the strip: Key goes just before Before, or to the end when Before is null.
-	// Renamed: a tab opened by an item's id from before Global Ids takes the item's id. When a tab for that id is open
-	// already, it stays and this one goes. Returns the tab that shows the item.
-	function Renamed( Tab, Id )
-	{
-		let key = KeyOf( { Kind: Tab.Kind, Id: Id } );
-		let existing = find( key );
-		if ( existing && existing !== Tab )
-		{
-			tabs.List.splice( tabs.List.indexOf( Tab ), 1 );
-			tabs.ActiveKey = key;
-			save();
-			return existing;
-		}
-		Tab.Key = key;
-		Tab.Id = Id;
-		Tab.Hash = '#/' + Tab.Kind + '/' + encodeURIComponent( Id );
-		tabs.ActiveKey = key;
-		save();
-		return Tab;
-	}
-
-
 	function Move( Key, Before )
 	{
 		let tab = find( Key );
@@ -584,7 +562,6 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	tabs.CloseAll = CloseAll;
 	tabs.CallBack = CallBack;
 	tabs.Move = Move;
-	tabs.Renamed = Renamed;
 	tabs.SetDraft = SetDraft;
 	tabs.DraftOf = DraftOf;
 	tabs.CanDetach = CanDetach;
