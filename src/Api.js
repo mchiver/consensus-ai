@@ -20,8 +20,9 @@ const STORE = require( './Store.js' );
 const TREE = require( './Tree.js' );
 const CORPUS = require( './Corpus.js' );
 const FILTER = require( './Filter.js' );
+const PORT = require( './ProjectPort.js' );
 
-const BODY_LIMIT = '8mb';
+const BODY_LIMIT = '64mb';	// a project import is one json body, every revision of every plan in it
 const SEARCH_LIMIT = 10;
 
 
@@ -537,7 +538,7 @@ function Attach( App, Context )
 				continue;
 			}
 			let indexed = corpus.Files.filter( function ( file ) { return file.Indexed; } ).length;
-			views[ corpus.Id ] = { Title: corpus.Name, Files: corpus.Files.length, Indexed: indexed, Created: corpus.Created, Updated: corpus.Updated, Source: 'attached' };
+			views[ corpus.Id ] = { Title: corpus.Name, Files: corpus.Files.length, Indexed: indexed, Created: corpus.Created, Updated: corpus.Updated, Source: 'attached', Waiting: !!corpus.Waiting };
 		}
 		let empty = {};
 		for ( let project of projects )
@@ -690,6 +691,70 @@ function Attach( App, Context )
 		await store.MoveProject( request.params.pid, before );
 		events.Send( { Project: request.params.pid, Kind: 'project' } );
 		response.json( { Projects: await present_projects( await store.ListProjects(), request.Participant.Name ) } );
+	} );
+
+
+	//-----------------------------------------------------------------
+	// Export and import: a whole project as one json object (ProjectPort.js). The owner, or the llm participant (an
+	// agent session carrying projects from one Consensus server to another).
+
+	function may_port( participant )
+	{
+		return participant.Role === 'owner' || participant.Role === 'llm';
+	}
+
+
+	router.get( '/projects/:pid/export', async function ( request, response )
+	{
+		if ( !may_port( request.Participant ) )
+		{
+			return fail( response, 403, 'only the owner or the llm exports a project' );
+		}
+		let exported = await PORT.Export( store, request.params.pid, context_servers );
+		if ( !exported )
+		{
+			return fail( response, 404, 'no such project' );
+		}
+		response.json( exported );
+	} );
+
+
+	// Body = { Export, Mode?, Preview? }  Preview: true writes nothing and answers whether the project is here. A
+	// project that is here needs Mode: 'copy' or 'merge'. Without Preview the import is written and answered with
+	// its report.
+	router.post( '/projects/import', async function ( request, response )
+	{
+		if ( !may_port( request.Participant ) )
+		{
+			return fail( response, 403, 'only the owner or the llm imports a project' );
+		}
+		let body = request.body || {};
+		let options = { Mode: body.Mode, Preview: !!body.Preview };
+		let names = participants().map( function ( participant ) { return participant.Name; } );
+		let result = await PORT.Import( store, body.Export, options, {
+			ContextServers: context_servers,
+			Participants: names,
+			ChangeProject: function ( id, change ) { return change_project( id, null, change ); },
+		} );
+		if ( result.Problems )
+		{
+			return fail( response, 400, 'the file cannot be imported: ' + result.Problems[ 0 ], { Problems: result.Problems } );
+		}
+		if ( result.Preview )
+		{
+			return response.json( { Preview: result.Preview } );
+		}
+		let report = result.Report;
+		for ( let id of report.Written )
+		{
+			changed( id, 'imported' );
+		}
+		for ( let id of report.WrittenCorpora )
+		{
+			events.Send( { Corpus: id, Kind: 'created' } );
+		}
+		events.Send( { Project: report.Project.Id, Kind: 'project' } );
+		response.status( 201 ).json( { Report: report } );
 	} );
 
 

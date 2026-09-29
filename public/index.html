@@ -78,6 +78,7 @@
 				<span class="badges" ng-if="!IsRenaming(node)">
 					<span class="badge linked" ng-show="node.Linked" title="kept by a context server: {{ node.Linked }}">linked</span>
 					<span class="badge attached" ng-show="node.Source === 'attached'" title="a zip kept by Consensus, in the project's folder">attached</span>
+					<span class="item-state offline waiting-zip" ng-show="node.Waiting" title="imported without its zip: open it and Replace zip to attach it again">needs its zip</span>
 					<span class="item-state" ng-show="!node.Offline" title="{{ node.Files }} files, {{ node.Indexed }} indexed">{{ node.Files }} files</span>
 					<span class="item-state offline" ng-show="node.Offline" title="its context server does not answer; refresh when it is back">offline</span>
 				</span>
@@ -124,6 +125,7 @@
 			<div class="sidebar-top">
 				<div class="brand">Consensus</div>
 				<button class="btn btn-sm btn-primary" id="new-project" ng-click="StartCreate('project')"><svg class="icon lead"><use href="#i-plus"></use></svg>New project</button>
+				<button class="btn btn-sm btn-outline-secondary" id="import-project" ng-click="StartImport()" title="import a project exported from this or another Consensus server"><svg class="icon lead"><use href="#i-upload"></use></svg>Import</button>
 			</div>
 			<form class="new-proposal" ng-if="Creating.Kind === 'project'" ng-submit="Create()">
 				<input class="form-control form-control-sm" type="text" id="create-name" placeholder="{{ CreatePlaceholder() }}" ng-model="Creating.Name" auto-focus>
@@ -574,6 +576,67 @@
 		</form>
 	</div>
 
+	<!-- Export and import a whole project. -->
+	<div class="subplan-popup port-popup" ng-controller="PortController" ng-show="Ports.Open" ng-keydown="Key($event)">
+		<div class="subplan-form port-form" ng-if="Ports.Open === 'export'">
+			<div class="subplan-head">Export &ldquo;{{ Ports.Project.Name }}&rdquo;</div>
+			<div class="muted small">The whole project as json: its context, folders, plans, Subplans, documents, threads, every revision, and its corpora's settings. No tokens and no zips.</div>
+			<div class="muted small" ng-show="Ports.Busy">Exporting…</div>
+			<textarea class="form-control form-control-sm port-json" id="export-json" rows="12" readonly ng-model="Ports.Json" ng-hide="Ports.Busy"></textarea>
+			<div class="port-error" ng-show="Ports.Error">{{ Ports.Error }}</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-primary" type="button" id="export-copy" ng-click="Copy()" ng-disabled="!Ports.Json"><svg class="icon lead"><use href="#i-copy"></use></svg>{{ Ports.Copied ? 'Copied' : 'Copy' }}</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="export-download" ng-click="Download()" ng-disabled="!Ports.Json"><svg class="icon lead"><use href="#i-save"></use></svg>Download</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Close()"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
+			</div>
+		</div>
+
+		<div class="subplan-form port-form" ng-if="Ports.Open === 'import'">
+			<div class="subplan-head">Import a project</div>
+
+			<div ng-hide="Ports.Report">
+				<div class="muted small">Paste an exported project, or load its file.</div>
+				<textarea class="form-control form-control-sm port-json" id="import-json" rows="10" ng-model="Ports.Json" ng-change="Ports.Preview = null" placeholder="{ &quot;Format&quot;: &quot;consensus-project&quot;, … }"></textarea>
+				<div class="port-preview" ng-show="Ports.Preview">
+					<div ng-hide="Ports.Preview.Project.Exists">&ldquo;{{ Ports.Preview.Project.Name }}&rdquo; is not here: it comes in as it is, every id kept.</div>
+					<div ng-show="Ports.Preview.Project.Exists">
+						&ldquo;{{ Ports.Preview.Project.NameHere }}&rdquo; is already here. Import it as a copy, <strong>{{ Ports.Preview.CopyName }}</strong>, with every id new; or merge it into the one here, adding what is new and removing nothing.
+					</div>
+				</div>
+				<div class="port-error" ng-show="Ports.Error">{{ Ports.Error }}</div>
+				<div class="thread-buttons">
+					<label class="btn btn-sm btn-outline-secondary mb-0" ng-class="{ disabled: Ports.Busy }"><svg class="icon lead"><use href="#i-upload"></use></svg>Load file<input type="file" accept=".json,application/json" hidden on-file="Load( File )"></label>
+					<button class="btn btn-sm btn-outline-secondary" type="button" id="import-preview" ng-click="Preview()" ng-disabled="!Ports.Json || Ports.Busy" ng-hide="Ports.Preview"><svg class="icon lead"><use href="#i-eye"></use></svg>Preview</button>
+					<button class="btn btn-sm btn-primary" type="button" id="import-new" ng-click="Import()" ng-show="Ports.Preview && !Ports.Preview.Project.Exists" ng-disabled="Ports.Busy"><svg class="icon lead"><use href="#i-check"></use></svg>Import</button>
+					<button class="btn btn-sm btn-primary" type="button" id="import-copy" ng-click="Import('copy')" ng-show="Ports.Preview.Project.Exists" ng-disabled="Ports.Busy"><svg class="icon lead"><use href="#i-copy"></use></svg>Import as a Copy</button>
+					<button class="btn btn-sm btn-primary" type="button" id="import-merge" ng-click="Import('merge')" ng-show="Ports.Preview.Project.Exists" ng-disabled="Ports.Busy"><svg class="icon lead"><use href="#i-check"></use></svg>Merge Existing</button>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Close()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+				</div>
+			</div>
+
+			<div class="port-report" id="import-report" ng-if="Ports.Report">
+				<div><strong>{{ Ports.Report.Project.Name }}</strong>: {{ Ports.Report.Project.Mode === 'merge' ? 'merged' : ( Ports.Report.Project.Mode === 'copy' ? 'imported as a copy' : 'imported' ) }}.</div>
+				<div>Made: {{ MadeLine( Ports.Report.Made ) }}.</div>
+				<div ng-show="Ports.Report.Merged.length">Merged:
+					<ul><li ng-repeat="item in Ports.Report.Merged">{{ item.Title }}: {{ MergedLine( item ) }}</li></ul>
+				</div>
+				<div class="port-warning" ng-show="Ports.Report.Diverged.length">Diverged, the text here kept:
+					<ul><li ng-repeat="item in Ports.Report.Diverged">{{ item.Title }}, at revision {{ item.At }}</li></ul>
+				</div>
+				<div ng-show="Ports.Report.Corpora.length">Corpora:
+					<ul><li ng-repeat="corpus in Ports.Report.Corpora">{{ corpus.Name }} ({{ corpus.Source }}): {{ corpus.State }}<span ng-show="corpus.Missing.length">; missing on its server: {{ corpus.Missing.join( ', ' ) }}</span><span ng-show="corpus.Added.length">; new on its server: {{ corpus.Added.join( ', ' ) }}</span></li></ul>
+				</div>
+				<div ng-show="Ports.Report.ContextServers.length">Context servers:
+					<ul><li ng-repeat="server in Ports.Report.ContextServers">{{ server.Name }}<span ng-show="server.Url"> ({{ server.Url }})</span>: {{ !server.Present ? 'not here: add it to consensus.json with its token' : ( server.Online ? 'online' : 'offline' ) }}<span ng-show="server.MissingInference.length">; missing: {{ server.MissingInference.join( ', ' ) }}</span></li></ul>
+				</div>
+				<div class="port-warning" ng-show="Ports.Report.UnknownParticipants.length">Participants this server does not know: {{ Ports.Report.UnknownParticipants.join( ', ' ) }}</div>
+				<div class="thread-buttons">
+					<button class="btn btn-sm btn-primary" type="button" id="import-done" ng-click="Close()"><svg class="icon lead"><use href="#i-check"></use></svg>Done</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<!-- The one popup menu: a row's actions, a tab's. -->
 	<div class="popup-menu" id="popup-menu" ng-controller="MenuController" ng-show="Menus.Open" role="menu">
 		<div ng-repeat="item in Menus.Open.Items" ng-class="item.Separator ? 'menu-separator' : 'menu-item'">
@@ -593,6 +656,7 @@
 	<script src="/js/tabs.js"></script>
 	<script src="/js/sessions.js"></script>
 	<script src="/js/subplans.js"></script>
+	<script src="/js/ports.js"></script>
 	<script src="/js/sidebar.js"></script>
 	<script src="/js/header.js"></script>
 	<script src="/js/read.js"></script>

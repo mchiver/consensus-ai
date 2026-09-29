@@ -1042,3 +1042,29 @@ TEST( 'Ctrl+E: Read to Edit, and back to Read from the editor, keeping the unsav
 	await page.WaitFor( 'monaco.editor.getEditors()[ 0 ].getValue() === ' + EDITED );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
+
+
+TEST( 'export and import: a project\'s json in a popup; pasted back, the preview offers a copy, and the copy is made', async function ()
+{
+	const HEAD = '.project[data-project="default"] .project-head';
+	await menu_pick( HEAD, 'Export project' );
+	await page.WaitFor( '( document.getElementById( "export-json" ) || { value: "" } ).value.includes( "consensus-project" )', 20000 );
+	let json = await page.Evaluate( 'document.getElementById( "export-json" ).value' );
+	ASSERT.equal( JSON.parse( json ).Project.Id, 'default' );
+	await page.Evaluate( '[ ...document.querySelectorAll( ".port-form button" ) ].find( function ( button ) { return button.textContent.trim() === "Close"; } ).click(); true' );
+	await page.WaitFor( count_of( '#export-json' ) + ' === 0' );
+
+	await page.Click( '#import-project' );
+	await page.WaitFor( count_of( '#import-json' ) + ' === 1' );
+	await page.Evaluate( '( function () { let box = document.getElementById( "import-json" ); box.value = ' + JSON.stringify( json ) + '; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.Click( '#import-preview' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "import-copy" ) ).display !== "none"' );
+	ASSERT.match( await page.Evaluate( text_of( '.port-preview' ) ), /is already here/ );
+	await page.Click( '#import-copy' );
+	await page.WaitFor( count_of( '#import-report' ) + ' === 1', 20000 );
+	ASSERT.match( await page.Evaluate( text_of( '#import-report' ) ), /Copy of Default \(imported \d{4}-\d{2}-\d{2}\): imported as a copy/ );
+	await page.WaitFor( '[ ...document.querySelectorAll( ".project-name" ) ].some( function ( name ) { return name.textContent.startsWith( "Copy of Default" ); } )' );
+	await page.Click( '#import-done' );
+	await page.WaitFor( count_of( '#import-report' ) + ' === 0' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );

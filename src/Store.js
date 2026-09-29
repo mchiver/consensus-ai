@@ -403,6 +403,26 @@ function Open( Folder )
 	}
 
 
+	// A proposal whole, as an import brings it, under its own Id: Whole = { Proposal, Text, Threads, Revisions:
+	// [ { Revision, By, At, Reason, Thread?, Note?, Text } ] }. The folder is made when missing; what is there is
+	// written over. Its index is rebuilt by the caller.
+	async function WriteWholeProposal( Whole )
+	{
+		let id = Whole.Proposal.Id;
+		await FS.promises.mkdir( PATH.join( proposal_folder( id ), REVISIONS_FOLDER ), { recursive: true } );
+		for ( let revision of Whole.Revisions )
+		{
+			let record = Object.assign( {}, revision );
+			delete record.Text;
+			await write_snapshot( id, revision.Revision, revision.Text, record );
+		}
+		await write_file( PATH.join( proposal_folder( id ), 'proposal.md' ), Whole.Text );
+		await write_json( PATH.join( proposal_folder( id ), 'threads.json' ), Whole.Threads );
+		await write_json( PATH.join( proposal_folder( id ), 'proposal.json' ), Whole.Proposal );
+		return Whole.Proposal;
+	}
+
+
 	//-----------------------------------------------------------------
 	// Projects: each is one project.json holding its tree; the master projects.json holds every project's name,
 	// in display order. The Default project always exists. A project comes back with its Name from the master.
@@ -519,14 +539,15 @@ function Open( Folder )
 	}
 
 
-	// Parameters: { Name, Id? }  Id only for the Default project. A new project goes to the end of the order,
-	// with its context, empty until someone or the LLM writes it.
+	// Parameters: { Name, Id?, Context?, Items? }  Id for the Default project, or an imported one. A new project goes
+	// to the end of the order, with its context, empty until someone or the LLM writes it; an imported one brings its
+	// Context (the id of a proposal already written) and its Items.
 	async function CreateProject( Parameters )
 	{
 		let id = Parameters.Id || unique_id( PROJECT_LETTER );
 		let now = new Date().toISOString();
-		let context = await create_context();
-		let project = { Id: id, Context: context.Id, Created: now, Updated: now, Version: 1, Items: [] };
+		let context_id = Parameters.Context || ( await create_context() ).Id;
+		let project = { Id: id, Context: context_id, Created: now, Updated: now, Version: 1, Items: Parameters.Items || [] };
 		// The master first: were the folder there first, the master would count it among the unnamed ones.
 		await change_master( function ( master )
 		{
@@ -638,7 +659,8 @@ function Open( Folder )
 	// Corpora: each is kept in the folder of the project that holds it.
 	//   projects/<project>/corpora/<id>/corpus.json  { Id, Kind: 'corpus', Name, Created, Updated, Version,
 	//       Source: 'attached' | 'linked', Link?: { Server, Corpus }, Include: [], Exclude: [],
-	//       Files: [ { Path, Size, Indexed, Reason? } ] }    a linked corpus's files are asked for at its server
+	//       Files: [ { Path, Size, Indexed, Reason? } ], Waiting? }    a linked corpus's files are asked for at its
+	//       server; Waiting: an imported attached corpus whose zip has not been attached again yet
 	//   projects/<project>/corpora/<id>/corpus.zip   an attached corpus's zip, as it came
 	//   projects/<project>/corpora/<id>/index.json   an attached corpus's search chunks
 
@@ -805,6 +827,7 @@ function Open( Folder )
 		}
 		await write_file( PATH.join( corpus_folder( Id ), 'corpus.zip' ), Parameters.Zip );
 		corpus.Files = Parameters.Files;
+		delete corpus.Waiting;
 		corpus.Version += 1;
 		corpus.Updated = new Date().toISOString();
 		await write_json( PATH.join( corpus_folder( Id ), 'corpus.json' ), corpus );
@@ -874,6 +897,17 @@ function Open( Folder )
 		}
 		await rename_with_retry( source, PATH.join( folder, TRASH_FOLDER, Id ) );
 		return true;
+	}
+
+
+	// A corpus as an import brings it, under its own Id, in the folder of Project: its corpus.json only. An
+	// attached one has no zip until the user attaches it again (Waiting). Written over when it is there.
+	async function WriteImportedCorpus( Project, Corpus )
+	{
+		let home = corpus_folder( Corpus.Id ) || corpus_home( Project, Corpus.Id );
+		await FS.promises.mkdir( home, { recursive: true } );
+		await write_json( PATH.join( home, 'corpus.json' ), Corpus );
+		return Corpus;
 	}
 
 
@@ -972,6 +1006,7 @@ function Open( Folder )
 		ReadRevision: ReadRevision,
 		ReadIndex: ReadIndex,
 		WriteIndex: WriteIndex,
+		WriteWholeProposal: WriteWholeProposal,
 		ListProjects: ListProjects,
 		ReadProject: ReadProject,
 		CreateProject: CreateProject,
@@ -992,6 +1027,7 @@ function Open( Folder )
 		WriteCorpusIndex: WriteCorpusIndex,
 		CopyCorpus: CopyCorpus,
 		TrashCorpus: TrashCorpus,
+		WriteImportedCorpus: WriteImportedCorpus,
 		TrashProposal: TrashProposal,
 		ListTrash: ListTrash,
 		Prepare: Prepare,

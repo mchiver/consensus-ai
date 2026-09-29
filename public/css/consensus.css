@@ -1959,6 +1959,51 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	border-radius: 0.25rem;
 }
 
+/* --------------------------------------------------------------------- export and import */
+
+/* New project and Import sit together at the right of the brand. */
+.sidebar-top #new-project
+{
+	margin-left: auto;
+	margin-right: 0.35rem;
+}
+
+/* The export and import popup is the Subplan form, wider, with the json in a monospace box. */
+.port-form
+{
+	width: min( 46rem, calc( 100% - 2rem ) );
+	max-height: 80vh;
+	overflow: auto;
+}
+
+.port-json
+{
+	font-family: var(--bs-font-monospace);
+	font-size: 0.75rem;
+	white-space: pre;
+}
+
+.port-preview
+{
+	margin-top: 0.5rem;
+	padding: 0.5rem;
+	background: var(--panel-bg);
+	border: 1px solid var(--border);
+	border-radius: 0.25rem;
+}
+
+.port-error,
+.port-warning
+{
+	color: var(--detached-edge);
+}
+
+.port-report ul
+{
+	margin: 0.15rem 0 0.35rem;
+	padding-left: 1.25rem;
+}
+
 /* --------------------------------------------------------------------- context servers */
 
 /* A corpus kept by a context server, and one whose server does not answer. */

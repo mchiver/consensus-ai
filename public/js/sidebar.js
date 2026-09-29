@@ -10,7 +10,7 @@
 const DRAG_TYPE = 'application/x-consensus-item';
 const DRAG_PROJECT_TYPE = 'application/x-consensus-project';
 
-angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', function ( $scope, $window, State, Client, Subplans, Tabs, Menus )
+angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', function ( $scope, $window, State, Client, Subplans, Tabs, Menus, Ports )
 {
 	const OPEN_PROJECT_KEY = 'consensus.project';
 	const FOLDED_KEY = 'consensus.folded';
@@ -325,6 +325,13 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 	}
 
 
+	// Import project: the popup (ports.js) takes the json.
+	$scope.StartImport = function ()
+	{
+		Ports.StartImport();
+	};
+
+
 	function project_actions( project )
 	{
 		let where = ( $scope.Target && $scope.Target.Project === project.Id ) ? ' in ' + $scope.Target.Name : '';
@@ -337,6 +344,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 			{ Separator: true },
 			action( $scope.Clipboard ? 'Paste ' + $scope.Clipboard.Name : 'Paste', 'paste', function () { $scope.Paste( project, null, QUIET ); }, { Disabled: !$scope.Clipboard } ),
 			action( 'Rename', 'pencil', function () { $scope.StartRename( 'project', project, project, QUIET ); } ),
+			action( 'Export project', 'save', function () { Ports.StartExport( project ).then( function () { $scope.$applyAsync(); } ); } ),
 			{ Separator: true },
 			action( 'Delete', 'trash', function () { $scope.StartDelete( project, QUIET ); }, { Danger: true, Disabled: project.Id === 'default' || project.Items.length > 0 } ),
 		];
