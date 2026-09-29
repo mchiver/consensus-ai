@@ -17,7 +17,7 @@
 //   <folder>/projects/<id>/project.json       { Id, Context, Created, Updated, Version, Items: [ node ] } (see Tree.js)
 //                                             Context: the id of the project's context, a proposal of Kind 'context'
 //   <folder>/projects/<project>/corpora/<id>/corpus.json, corpus.zip?, index.json    a corpus of the project: an
-//                                             attached zip, or one linked from a context server; its search chunks
+//                                             attached zip (or a linked one, retired, with none); its search chunks
 //   <folder>/trash/<id>/                      a deleted proposal or corpus, moved whole
 //
 // Ids are global (Ids.js): pln-…, doc-…, ctx-… a proposal, cor-… a corpus, prj-… a project (the Default project is
@@ -734,7 +734,7 @@ function Open( Folder )
 
 
 	// Parameters: { Project, Name, Zip, Files } for an attached corpus, or { Project, Name, Link: { Server, Corpus } }
-	// for one kept by a context server, which has no zip and whose files are asked for there. Project is the project
+	// for a linked one (retired with the plan Workers; kept for imports), which has no zip. Project is the project
 	// whose folder keeps it (Default when not given).
 	async function CreateCorpus( Parameters )
 	{

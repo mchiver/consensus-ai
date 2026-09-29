@@ -1,8 +1,8 @@
 'use strict';
 
 // Project export and import (ProjectPort.js): a project on one server goes out as one json object and comes into
-// others. Merge is tried on its own; the rest through the API, over temporary folders and a context server that
-// offers a corpus and an inference item. Nothing here reads ~data.
+// others. Merge is tried on its own; the rest through the API, over temporary folders and a worker, played with
+// fetch, that offers a workspace and an inference item. Nothing here reads ~data.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -11,7 +11,6 @@ const OS = require( 'os' );
 const PATH = require( 'path' );
 const SERVER = require( '../src/Server.js' );
 const PARTICIPANTS = require( '../src/Participants.js' );
-const CONTEXT_SERVER = require( '../src/ContextServer.js' );
 const PORT = require( '../src/ProjectPort.js' );
 const IDS = require( '../src/Ids.js' );
 const MAKER = require( './support/ZipMaker.js' );
@@ -19,8 +18,6 @@ const MAKER = require( './support/ZipMaker.js' );
 const TOKEN = 'port-test-token-0123456789';
 
 let folders = [];
-let root = null;
-let context = null;
 let origin = null;
 let copy = null;
 let bare = null;
@@ -37,17 +34,23 @@ function temporary_folder( prefix )
 }
 
 
-// A Consensus server over a new folder; with_box: the context server is in its settings.
+// A Consensus server over a new folder; with_box: the worker Box is in its settings, and has said hello.
 async function start( with_box )
 {
 	let data = temporary_folder( 'consensus-port-data-' );
 	let settings = PARTICIPANTS.DefaultSettings( 0 );
 	if ( with_box )
 	{
-		settings.ContextServers = [ { Name: 'Box', Url: context.Url, Token: TOKEN } ];
+		settings.Workers = [ { Name: 'Box', Token: TOKEN } ];
 	}
 	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( settings, null, '\t' ) );
-	return await SERVER.Start( { Data: data, Port: 0 } );
+	let server = await SERVER.Start( { Data: data, Port: 0 } );
+	if ( with_box )
+	{
+		let said = await call( server, 'POST', '/api/workers/hello', { Workspaces: [ { Name: 'Docs' } ], Inference: [ { Name: 'Model', Type: 'claude-cli' } ] }, 'Bearer ' + TOKEN );
+		ASSERT.equal( said.Status, 200 );
+	}
+	return server;
 }
 
 
@@ -126,24 +129,12 @@ function shape( items )
 
 TEST.before( async function ()
 {
-	root = temporary_folder( 'consensus-port-corpus-' );
-	FS.writeFileSync( PATH.join( root, 'guide.md' ), '# Guide\n\nA heron waits by the weir.\n' );
-	context = await CONTEXT_SERVER.Start( {
-		Port: 0,
-		Settings: {
-			Token: TOKEN,
-			Items: [
-				{ Kind: 'Corpus', Name: 'Docs', Root: root },
-				{ Kind: 'Inference', Name: 'Model', Type: 'claude-cli' },
-			],
-		},
-	} );
 	origin = await start( true );
 	copy = await start( true );
 	bare = await start( false );
 
 	// The project on the origin: a folder with a plan and its Subplan, a document, a thread, a context, an attached
-	// corpus and a linked one.
+	// corpus, a linked one left from before the plan Workers, and a review sent to the worker Box.
 	alpha = ( await call( origin, 'POST', '/api/projects', { Name: 'Alpha' } ) ).Body.Project;
 	let folder = ( await call( origin, 'POST', '/api/projects/' + alpha.Id + '/folders', { Name: 'Drafts' } ) ).Body.Folder;
 	ids.Folder = folder.Id;
@@ -153,7 +144,13 @@ TEST.before( async function ()
 	ids.Thread = ( await call( origin, 'POST', '/api/proposals/' + ids.Plan + '/threads', { Anchor: { Text: 'fishes at dawn' }, Text: 'Why dawn?' } ) ).Body.Thread.Id;
 	await edit( origin, alpha.Context, '# Alpha\n\nThe context of Alpha.\n' );
 	ids.Attached = ( await upload( origin, 'POST', '/api/projects/' + alpha.Id + '/corpus?name=code', MAKER.Make( [ { Name: 'a.md', Data: 'alpha file' }, { Name: 'b.md', Data: 'beta file' } ] ) ) ).Body.Corpus.Id;
-	ids.Linked = ( await call( origin, 'POST', '/api/projects/' + alpha.Id + '/corpus-link', { Server: 'Box', Corpus: 'Docs' } ) ).Body.Corpus.Id;
+	let legacy = await origin.Store.CreateCorpus( { Project: alpha.Id, Name: 'Docs', Link: { Server: 'Box', Corpus: 'Docs' } } );
+	let stored = await origin.Store.ReadProject( alpha.Id );
+	stored.Items.push( { Kind: 'corpus', Id: legacy.Id } );
+	await origin.Store.WriteProject( stored );
+	ids.Linked = legacy.Id;
+	ASSERT.equal( ( await call( origin, 'PUT', '/api/projects/' + alpha.Id + '/workspace', { Worker: 'Box', Name: 'Docs' } ) ).Status, 200 );
+	ASSERT.equal( ( await call( origin, 'POST', '/api/proposals/' + ids.Plan + '/session', { Destination: 'Box / Model' } ) ).Status, 202 );
 } );
 
 
@@ -166,7 +163,6 @@ TEST.after( async function ()
 			await server.Close();
 		}
 	}
-	await context.Close();
 	for ( let folder of folders )
 	{
 		FS.rmSync( folder, { recursive: true, force: true } );
@@ -304,15 +300,15 @@ TEST( 'export: the whole project, every revision, no token, no index; the owner 
 	let plan = exported.Proposals.find( function ( whole ) { return whole.Proposal.Id === ids.Plan; } );
 	ASSERT.equal( plan.Threads[ 0 ].Id, ids.Thread );
 	let linked = exported.Corpora.find( function ( corpus ) { return corpus.Id === ids.Linked; } );
-	ASSERT.deepEqual( linked.Files.map( function ( file ) { return file.Path; } ), [ 'guide.md' ] );
+	ASSERT.deepEqual( linked.Link, { Server: 'Box', Corpus: 'Docs' } );
 	let attached = exported.Corpora.find( function ( corpus ) { return corpus.Id === ids.Attached; } );
 	ASSERT.deepEqual( attached.Files.map( function ( file ) { return file.Path; } ), [ 'a.md', 'b.md' ] );
-	ASSERT.deepEqual( exported.ContextServers, [ { Name: 'Box', Url: context.Url, Corpus: [ 'Docs' ], Inference: [ { Name: 'Model', Type: 'claude-cli', Model: null } ] } ] );
+	ASSERT.deepEqual( exported.Workers, [ { Name: 'Box', Workspaces: [ 'Docs' ], Inference: [ { Name: 'Model', Type: 'claude-cli', Model: null } ] } ] );
 	ASSERT.deepEqual( PORT.Check( exported ), [] );
 } );
 
 
-TEST( 'import of a project that is not here: every id intact, attached corpus waiting, linked one relinked', async function ()
+TEST( 'import of a project that is not here: every id intact, attached corpus waiting, linked one said to be retired', async function ()
 {
 	ASSERT.equal( ( await import_into( copy, { Export: { Format: 'nope' } } ) ).Status, 400 );
 	ASSERT.equal( ( await import_into( copy, { Export: exported, Mode: 'sideways' } ) ).Status, 400 );
@@ -328,9 +324,9 @@ TEST( 'import of a project that is not here: every id intact, attached corpus wa
 	ASSERT.deepEqual( report.Project, { Id: alpha.Id, Name: 'Alpha', Mode: 'new' } );
 	ASSERT.deepEqual( report.Made, { Plans: 2, Documents: 1, Threads: 1, Corpora: 2 } );
 	ASSERT.deepEqual( report.UnknownParticipants, [] );
-	ASSERT.deepEqual( report.ContextServers, [ { Name: 'Box', Url: context.Url, Present: true, Online: true, MissingInference: [] } ] );
+	ASSERT.deepEqual( report.Workers, [ { Name: 'Box', Present: true, Online: true, MissingInference: [] } ] );
 	let linked_state = report.Corpora.find( function ( corpus ) { return corpus.Id === ids.Linked; } );
-	ASSERT.equal( linked_state.State, 'linked; its files match' );
+	ASSERT.match( linked_state.State, /linked corpora are retired/ );
 	let attached_state = report.Corpora.find( function ( corpus ) { return corpus.Id === ids.Attached; } );
 	ASSERT.match( attached_state.State, /waiting for its zip/ );
 
@@ -442,12 +438,13 @@ TEST( 'import as a copy: a new project named "Copy of …", every id new, the pr
 } );
 
 
-TEST( 'import where the context server is not configured: the linked corpus is offline and the report says what to add', async function ()
+TEST( 'import where the worker is not configured: the report says so; an export made before Workers is read too', async function ()
 {
-	let report = ( await import_into( bare, { Export: exported } ) ).Body.Report;
-	let linked = report.Corpora.find( function ( corpus ) { return corpus.Id === ids.Linked; } );
-	ASSERT.match( linked.State, /no context server named "Box"/ );
-	ASSERT.deepEqual( report.ContextServers, [ { Name: 'Box', Url: context.Url, Present: false, Online: false, MissingInference: [ 'Model' ] } ] );
+	let older = JSON.parse( JSON.stringify( exported ) );
+	older.ContextServers = older.Workers;
+	delete older.Workers;
+	let report = ( await import_into( bare, { Export: older } ) ).Body.Report;
+	ASSERT.deepEqual( report.Workers, [ { Name: 'Box', Present: false, Online: false, MissingInference: [ 'Model' ] } ] );
 	let node = ( await project_of( bare, alpha.Id ) ).Items.find( function ( item ) { return item.Id === ids.Linked; } );
-	ASSERT.equal( node.Offline, true );
+	ASSERT.equal( node.Files, 0 );
 } );

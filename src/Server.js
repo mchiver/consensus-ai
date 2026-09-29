@@ -3,7 +3,8 @@
 // Server - Start( { Data, Port, Host, Caller? } ) returns { App, Address, Url, Settings, Store, Events, Close }.
 // It listens on Host (the option, else the settings' Host, else 127.0.0.1); any address is accepted, and Address.Local
 // says whether it stays on this machine. The data folder is ~data beside package.json unless given.
-// Caller, for tests only, replaces how the LLM is called (see Llm.Caller).
+// Caller, for tests only, replaces how the LLM is called (see Llm.Caller); Workers, for tests only, is Workers.Open's
+// Options.
 
 const PATH = require( 'path' );
 const FS = require( 'fs' );
@@ -17,8 +18,7 @@ const INSTRUCTIONS = require( './Instructions.js' );
 const CORPUS = require( './Corpus.js' );
 const VECTORS = require( './Vectors.js' );
 const LLM = require( './Llm.js' );
-const CONTEXT_SERVERS = require( './ContextServers.js' );
-const FILTER = require( './Filter.js' );
+const WORKERS = require( './Workers.js' );
 
 
 // A first start over an existing data folder indexes every proposal once; later starts only what is stale.
@@ -56,58 +56,6 @@ async function index_missing_corpora( store, refresh_corpus )
 	}
 }
 
-// The hits of each linked corpus (among Ids, when given), one list per corpus, as our own hits are shaped.
-async function linked_hits( store, context_servers, query, limit, ids )
-{
-	let lists = [];
-	for ( let corpus of await store.ListCorpora() )
-	{
-		if ( !corpus.Link || ( ids && !ids.includes( corpus.Id ) ) )
-		{
-			continue;
-		}
-		try
-		{
-			// More hits are asked for than wanted, so a page is still full once the entry's rules have filtered them.
-			let why = FILTER.Make( { Include: corpus.Include, Exclude: corpus.Exclude } );
-			let hits = ( await context_servers.Search( corpus.Link.Server, corpus.Link.Corpus, query, ( limit || 10 ) * 3 ) ).filter( function ( hit ) { return !why( hit.Path ); } ).slice( 0, limit || 10 );
-			lists.push( hits.map( function ( hit )
-			{
-				return { Proposal: null, Corpus: corpus.Id, Path: hit.Path, Revision: null, Chunk: null, Thread: null, Text: hit.Text, Score: hit.Score };
-			} ) );
-		}
-		catch ( error )
-		{
-			console.error( 'search: ' + error.message );
-		}
-	}
-	return lists;
-}
-
-
-// The lists' hits taken rank by rank: every list's first, then every list's second, up to Limit.
-function interleave( lists, limit )
-{
-	let hits = [];
-	for ( let rank = 0; hits.length < limit; rank++ )
-	{
-		let any = false;
-		for ( let list of lists )
-		{
-			if ( rank < list.length && hits.length < limit )
-			{
-				hits.push( list[ rank ] );
-				any = true;
-			}
-		}
-		if ( !any )
-		{
-			break;
-		}
-	}
-	return hits;
-}
-
 const DEFAULT_PORT = 3500;
 const DEFAULT_HOST = '127.0.0.1';
 const LOCAL_HOSTS = [ '127.0.0.1', 'localhost', '::1' ];
@@ -131,7 +79,7 @@ async function Start( Options )
 		await store.WriteSettings( settings );
 		settings_written = true;
 	}
-	let problems = PARTICIPANTS.Validate( settings ).concat( CONTEXT_SERVERS.Validate( settings ) );
+	let problems = PARTICIPANTS.Validate( settings ).concat( WORKERS.Validate( settings ) );
 	if ( problems.length )
 	{
 		throw new Error( 'settings ' + store.SettingsPath() + ': ' + problems.join( '; ' ) );
@@ -149,19 +97,12 @@ async function Start( Options )
 	{
 		return INDEX.Refresh( store, id, embedder );
 	}
-	// The context servers in the settings, asked what they offer before the page is served.
-	let context_servers = CONTEXT_SERVERS.Open( settings );
-	for ( let server of await context_servers.Refresh() )
-	{
-		console.log( 'context server ' + server.Name + ': ' + ( server.Online ? server.Corpus.length + ' corpora, ' + server.Inference.length + ' inference' : 'offline, ' + server.Error ) );
-	}
-	// Ids, when given, limits the search to those items (a project's). A corpus linked from a context server is
-	// searched there, and its hits are interleaved with ours by rank, since the two indexes' scores do not compare.
+	// The workers in the settings: each says hello when it connects (plan Workers).
+	let workers = WORKERS.Open( settings, options.Workers );
+	// Ids, when given, limits the search to those items (a project's).
 	async function search( query, limit, ids )
 	{
-		let local = await INDEX.SearchAll( store, query, limit, embedder, ids );
-		let lists = await linked_hits( store, context_servers, query, limit, ids );
-		return lists.length ? interleave( [ local ].concat( lists ), limit || 10 ) : local;
+		return await INDEX.SearchAll( store, query, limit, embedder, ids );
 	}
 	// A corpus is indexed from its zip, within the settings' limits.
 	async function refresh_corpus( id )
@@ -182,7 +123,7 @@ async function Start( Options )
 	app.disable( 'x-powered-by' );
 	let events = EVENTS.Hub();
 	events.Attach( app, '/api/events' );
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Refresh: refresh, RefreshCorpus: refresh_corpus, Search: search, Caller: options.Caller, ContextServers: context_servers } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Refresh: refresh, RefreshCorpus: refresh_corpus, Search: search, Caller: options.Caller, Workers: workers } );
 	INSTRUCTIONS.Attach( app, { Settings: settings } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
@@ -195,6 +136,7 @@ async function Start( Options )
 
 	async function Close()
 	{
+		workers.Close();
 		events.Close();
 		server.closeAllConnections();
 		await new Promise( function ( resolve ) { server.close( resolve ); } );
@@ -209,6 +151,7 @@ async function Start( Options )
 		SettingsWritten: settings_written,
 		Store: store,
 		Events: events,
+		Workers: workers,
 		Close: Close,
 	};
 }
@@ -274,6 +217,7 @@ function listen( app, host, port )
 
 module.exports = {
 	Start: Start,
+	AttachVendor: attach_vendor,
 	DEFAULT_PORT: DEFAULT_PORT,
 	DEFAULT_DATA: DEFAULT_DATA,
 };

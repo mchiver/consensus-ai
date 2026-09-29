@@ -1,0 +1,288 @@
+/* The worker's page. Tokens on :root; Bootstrap's data-bs-theme carries light and dark; --scale the size. */
+
+:root
+{
+	--scale: 1;
+	--page-bg: #ffffff;
+	--panel-bg: #f6f7f9;
+	--border: #dfe3e8;
+	--text: #1f2328;
+	--muted: #6b7380;
+	--online: #2fa45a;
+	--offline: #c0392b;
+	--running: #0d6efd;
+	--selected: rgba( 13, 110, 253, 0.1 );
+}
+
+[data-bs-theme="dark"]
+{
+	--page-bg: #1b1f24;
+	--panel-bg: #22272e;
+	--border: #373e47;
+	--text: #e6edf3;
+	--muted: #9aa4b2;
+	--online: #69db7c;
+	--offline: #ff6b6b;
+	--running: #74c0fc;
+	--selected: rgba( 116, 192, 252, 0.15 );
+}
+
+html
+{
+	font-size: calc( 15px * var(--scale) );
+}
+
+body
+{
+	background: var(--page-bg);
+	color: var(--text);
+	margin: 0;
+}
+
+[ng-cloak]
+{
+	display: none !important;
+}
+
+h2
+{
+	font-size: 1.05rem;
+	margin: 0 0 0.5rem;
+}
+
+h3
+{
+	font-size: 0.95rem;
+	margin: 0.75rem 0 0.4rem;
+}
+
+.muted
+{
+	color: var(--muted);
+}
+
+/* --------------------------------------------------------------------- the head */
+
+.worker-head
+{
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem 1.25rem;
+	padding: 0.6rem 1rem;
+	border-bottom: 1px solid var(--border);
+	background: var(--panel-bg);
+}
+
+.worker-title
+{
+	font-size: 1.15rem;
+	font-weight: 600;
+}
+
+.worker-kind
+{
+	color: var(--muted);
+	font-weight: 400;
+	margin-right: 0.35rem;
+}
+
+.worker-connection
+{
+	font-size: 0.9rem;
+}
+
+.worker-connection .dot
+{
+	display: inline-block;
+	width: 0.6rem;
+	height: 0.6rem;
+	border-radius: 50%;
+	margin-right: 0.4rem;
+	background: var(--offline);
+}
+
+.worker-connection.online .dot
+{
+	background: var(--online);
+}
+
+.worker-buttons
+{
+	display: flex;
+	gap: 0.4rem;
+	margin-left: auto;
+}
+
+.worker-buttons select
+{
+	width: auto;
+}
+
+.worker-error,
+.worker-paused
+{
+	margin: 0.75rem 1rem 0;
+	padding: 0.4rem 0.75rem;
+}
+
+/* --------------------------------------------------------------------- the body */
+
+.worker-main
+{
+	display: flex;
+	gap: 1rem;
+	padding: 1rem;
+	align-items: flex-start;
+}
+
+.worker-side
+{
+	flex: 0 0 15rem;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.side-item
+{
+	padding: 0.3rem 0;
+	border-bottom: 1px solid var(--border);
+}
+
+.side-item .path
+{
+	overflow-wrap: anywhere;
+}
+
+.worker-content
+{
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.job-card
+{
+	border: 1px solid var(--border);
+	border-radius: 0.4rem;
+	padding: 0.75rem 1rem;
+	margin-bottom: 1rem;
+	background: var(--panel-bg);
+}
+
+.job-card.idle
+{
+	background: transparent;
+}
+
+.job-card-head
+{
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.job-facts
+{
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem 1rem;
+	font-size: 0.85rem;
+	color: var(--muted);
+}
+
+.calls
+{
+	padding-left: 1.5rem;
+	margin: 0;
+}
+
+.call-text
+{
+	cursor: pointer;
+	font-family: var(--bs-font-monospace);
+	font-size: 0.85rem;
+}
+
+.call-result,
+.answer
+{
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	font-size: 0.8rem;
+	background: var(--page-bg);
+	border: 1px solid var(--border);
+	border-radius: 0.3rem;
+	padding: 0.4rem 0.6rem;
+	margin: 0.2rem 0 0.5rem;
+	max-height: 20rem;
+	overflow: auto;
+}
+
+.git-buttons
+{
+	display: flex;
+	gap: 0.4rem;
+	margin: 0.4rem 0;
+}
+
+.status.queued
+{
+	color: var(--muted);
+}
+
+.jobs-head
+{
+	margin-top: 1.25rem;
+}
+
+.jobs
+{
+	font-size: 0.85rem;
+}
+
+.job-row
+{
+	cursor: pointer;
+}
+
+.job-row.selected > td
+{
+	background: var(--selected);
+}
+
+.status
+{
+	font-weight: 600;
+}
+
+.status.done
+{
+	color: var(--online);
+}
+
+.status.failed,
+.status.cancelled
+{
+	color: var(--offline);
+}
+
+.status.running
+{
+	color: var(--running);
+}
+
+@media ( max-width: 800px )
+{
+	.worker-main
+	{
+		flex-direction: column;
+	}
+
+	.worker-side
+	{
+		flex-basis: auto;
+		width: 100%;
+	}
+}

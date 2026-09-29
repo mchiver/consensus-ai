@@ -5,7 +5,7 @@
 // Consensus server, so a project can travel between them and each item is still known by its id.
 //
 //   prj project   pln plan   doc document   ctx context   fld folder   cor corpus
-//   thr thread    rep reply  rev revision   run an LLM session run
+//   thr thread    rep reply  rev revision   run an LLM session run   job a worker's job
 //
 // The Default project keeps the id 'default'.
 
@@ -25,7 +25,8 @@ const THREAD = 'thr';
 const REPLY = 'rep';
 const REVISION = 'rev';
 const RUN = 'run';
-const KINDS = [ PROJECT, PLAN, DOCUMENT, CONTEXT, FOLDER, CORPUS, THREAD, REPLY, REVISION, RUN ];
+const JOB = 'job';
+const KINDS = [ PROJECT, PLAN, DOCUMENT, CONTEXT, FOLDER, CORPUS, THREAD, REPLY, REVISION, RUN, JOB ];
 
 // A proposal's Kind, as its id's kind.
 const PROPOSAL_KINDS = { plan: PLAN, document: DOCUMENT, context: CONTEXT };
@@ -86,6 +87,7 @@ module.exports = {
 	REPLY: REPLY,
 	REVISION: REVISION,
 	RUN: RUN,
+	JOB: JOB,
 	KINDS: KINDS,
 	New: New,
 	Is: Is,

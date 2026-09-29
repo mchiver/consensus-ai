@@ -6,9 +6,11 @@
 //              Project: { Id, Name, Created, Updated, Context, Items },
 //              Proposals: [ { Proposal, Text, Threads, Revisions: [ { Revision, By, At, Reason, Thread?, Note?, Text } ] } ],
 //              Corpora: [ corpus.json ],
-//              ContextServers: [ { Name, Url, Corpus: [ name ], Inference: [ { Name, Type, Model } ] } ] }
+//              Workers: [ { Name, Workspaces: [ name ], Inference: [ { Name, Type, Model } ] } ] }
 //
 // No token is ever written to an export. Search indexes, LLM runs, usage, the trash and attached zips stay behind.
+// A linked corpus (retired with the plan Workers) goes out as it is stored. An export made before Workers names
+// ContextServers where it now names Workers; an import reads either.
 //
 // An import depends only on whether the export's project Id is here:
 //   not here   the project comes in as it is, every id intact
@@ -79,9 +81,9 @@ function clone( value )
 // Export
 
 
-// Export: the project Id as one json object, or null when there is no such project. ContextServers (optional) is
-// asked for a linked corpus's files and for what each server offers.
-async function Export( Store, Id, ContextServers )
+// Export: the project Id as one json object, or null when there is no such project. Workers (optional) says what
+// each worker its runs were sent to offers.
+async function Export( Store, Id, Workers )
 {
 	let project = await Store.ReadProject( Id );
 	if ( !project )
@@ -101,14 +103,10 @@ async function Export( Store, Id, ContextServers )
 	{
 		if ( entry.Node.Kind === 'corpus' )
 		{
-			let corpus = await export_corpus( Store, entry.Node.Id, ContextServers );
+			let corpus = await Store.ReadCorpus( entry.Node.Id );
 			if ( corpus )
 			{
-				corpora.push( corpus );
-				if ( corpus.Link && !servers.includes( corpus.Link.Server ) )
-				{
-					servers.push( corpus.Link.Server );
-				}
+				corpora.push( clone( corpus ) );
 			}
 			continue;
 		}
@@ -139,7 +137,7 @@ async function Export( Store, Id, ContextServers )
 		Project: { Id: project.Id, Name: project.Name, Created: project.Created, Updated: project.Updated, Context: project.Context, Items: project.Items },
 		Proposals: proposals,
 		Corpora: corpora,
-		ContextServers: servers.map( function ( name ) { return server_entry( ContextServers, name ); } ),
+		Workers: servers.map( function ( name ) { return worker_entry( Workers, name ); } ),
 	};
 }
 
@@ -165,33 +163,7 @@ async function read_whole( Store, id )
 }
 
 
-// A corpus as an export carries it: its corpus.json, less nothing but a linked one's Files, which are asked for at
-// its server (the stored list when that server does not answer).
-async function export_corpus( Store, id, ContextServers )
-{
-	let corpus = await Store.ReadCorpus( id );
-	if ( !corpus )
-	{
-		return null;
-	}
-	corpus = clone( corpus );
-	if ( corpus.Link && ContextServers )
-	{
-		try
-		{
-			let listed = await ContextServers.Files( corpus.Link.Server, corpus.Link.Corpus );
-			corpus.Files = listed.map( function ( file ) { return { Path: file.Path, Size: file.Size }; } );
-		}
-		catch ( error )
-		{
-			corpus.Files = corpus.Files || [];
-		}
-	}
-	return corpus;
-}
-
-
-// The context servers a proposal's LLM runs were sent to: a run through a server names "<server> / <item>".
+// The workers a proposal's LLM runs were sent to: a run through a worker names "<worker> / <item>".
 async function run_servers( Store, id )
 {
 	let names = [];
@@ -208,18 +180,17 @@ async function run_servers( Store, id )
 }
 
 
-// A context server as an export names it: never its token.
-function server_entry( ContextServers, name )
+// A worker as an export names it: never its token.
+function worker_entry( Workers, name )
 {
-	let known = ContextServers ? ContextServers.List().find( function ( server ) { return server.Name === name; } ) : null;
+	let known = Workers ? Workers.List().find( function ( worker ) { return worker.Name === name; } ) : null;
 	if ( !known )
 	{
 		return { Name: name };
 	}
 	return {
 		Name: known.Name,
-		Url: known.Url,
-		Corpus: known.Corpus.map( function ( item ) { return item.Name; } ),
+		Workspaces: known.Workspaces.map( function ( workspace ) { return workspace.Name; } ),
 		Inference: known.Inference.map( function ( item ) { return { Name: item.Name, Type: item.Type, Model: item.Model }; } ),
 	};
 }
@@ -570,7 +541,7 @@ function mark_detached( threads, text )
 // Import
 
 
-// Import: the export into this server. Options = { Mode, Preview }. Context = { ContextServers?, Participants:
+// Import: the export into this server. Options = { Mode, Preview }. Context = { Workers?, Participants:
 // [ name ], ChangeProject( id, change ) } where ChangeProject edits a project's tree through its queue.
 // Returns { Problems } for a file that cannot be imported (or a project that is here, with no Mode), { Preview }
 // with Preview, else { Report }.
@@ -611,7 +582,7 @@ async function Import( Store, Exported, Options, Context )
 		Merged: [],
 		Diverged: [],
 		Corpora: [],
-		ContextServers: [],
+		Workers: [],
 		UnknownParticipants: [],
 		Written: [],
 		WrittenCorpora: [],
@@ -638,7 +609,7 @@ async function Import( Store, Exported, Options, Context )
 		}
 		await import_new( Store, Exported, report, context );
 	}
-	report.ContextServers = await check_servers( Exported.ContextServers || [], context.ContextServers );
+	report.Workers = check_workers( Exported.Workers || Exported.ContextServers || [], context.Workers );
 	report.UnknownParticipants = unknown_names( records_of( Exported ), context.Participants || [] );
 	return { Report: report };
 }
@@ -781,7 +752,7 @@ async function write_project( Store, Exported, project_id, name, id_map, folder_
 	}
 	for ( let corpus of corpora_of( Exported ) )
 	{
-		await write_corpus( Store, corpus, id_map[ corpus.Id ], project_id, report, context.ContextServers );
+		await write_corpus( Store, corpus, id_map[ corpus.Id ], project_id, report );
 	}
 	let items = map_tree( Exported.Project.Items, id_map, folder_map );
 	let project = await Store.CreateProject( { Id: project_id, Name: name, Context: id_map[ Exported.Project.Context ], Items: items } );
@@ -858,7 +829,7 @@ async function import_merge( Store, Exported, here, report, context )
 			report.Corpora.push( { Id: corpus.Id, Name: corpus.Name, Source: corpus.Link ? 'linked' : 'attached', State: 'kept as it is here' } );
 			continue;
 		}
-		await write_corpus( Store, corpus, corpus.Id, here.Id, report, context.ContextServers );
+		await write_corpus( Store, corpus, corpus.Id, here.Id, report );
 	}
 	let result = await context.ChangeProject( here.Id, function ( project )
 	{
@@ -888,9 +859,9 @@ function count_made( report, whole )
 }
 
 
-// One corpus from the file written under id in the folder of project_id, and its state for the report. A linked
-// one keeps its link and is checked against its server here; an attached one waits for its zip.
-async function write_corpus( Store, from_file, id, project_id, report, ContextServers )
+// One corpus from the file written under id in the folder of project_id, and its state for the report. An attached
+// one waits for its zip; a linked one (retired) comes in with no files, to be given a zip in its place.
+async function write_corpus( Store, from_file, id, project_id, report )
 {
 	let corpus = clone( from_file );
 	corpus.Id = id;
@@ -909,7 +880,7 @@ async function write_corpus( Store, from_file, id, project_id, report, ContextSe
 	let state = { Id: id, Name: corpus.Name, Source: corpus.Link ? 'linked' : 'attached' };
 	if ( corpus.Link )
 	{
-		Object.assign( state, await check_linked( corpus, from_file.Files, ContextServers ) );
+		state.State = 'linked corpora are retired (plan Workers): replace it with a zip, or give the project a workspace';
 	}
 	else
 	{
@@ -919,46 +890,17 @@ async function write_corpus( Store, from_file, id, project_id, report, ContextSe
 }
 
 
-// A linked corpus against its server here: { State, Missing?, Added? }.
-async function check_linked( corpus, exported_files, ContextServers )
+// Each worker the export names, against this server's: { Name, Present, Online, MissingInference }.
+function check_workers( exported, Workers )
 {
-	let server = corpus.Link.Server;
-	let known = ContextServers ? ContextServers.List().find( function ( candidate ) { return candidate.Name === server; } ) : null;
-	if ( !known )
-	{
-		return { State: 'offline: no context server named "' + server + '" here; add it to consensus.json with its Url and token, then Refresh' };
-	}
-	if ( !ContextServers.Has( server, corpus.Link.Corpus ) )
-	{
-		return { State: 'offline: the context server "' + server + '" ' + ( known.Online ? 'does not offer "' + corpus.Link.Corpus + '"' : 'does not answer' ) };
-	}
-	try
-	{
-		let listed = ( await ContextServers.Files( server, corpus.Link.Corpus ) ).map( function ( file ) { return file.Path; } );
-		let exported = exported_files.map( function ( file ) { return file.Path; } );
-		let missing = exported.filter( function ( path ) { return !listed.includes( path ); } );
-		let added = listed.filter( function ( path ) { return !exported.includes( path ); } );
-		return { State: ( missing.length || added.length ) ? 'linked; its files differ' : 'linked; its files match', Missing: missing, Added: added };
-	}
-	catch ( error )
-	{
-		return { State: 'offline: ' + error.message };
-	}
-}
-
-
-// Each context server the export names, against this server's: { Name, Url, Present, Online, MissingInference }.
-async function check_servers( exported, ContextServers )
-{
-	let known = ContextServers ? ContextServers.List() : [];
+	let known = Workers ? Workers.List() : [];
 	return exported.map( function ( entry )
 	{
-		let here = known.find( function ( server ) { return server.Name === entry.Name; } );
+		let here = known.find( function ( worker ) { return worker.Name === entry.Name; } );
 		let wanted = ( entry.Inference || [] ).map( function ( item ) { return item.Name; } );
 		let offered = here ? here.Inference.map( function ( item ) { return item.Name; } ) : [];
 		return {
 			Name: entry.Name,
-			Url: entry.Url || null,
 			Present: !!here,
 			Online: !!( here && here.Online ),
 			MissingInference: wanted.filter( function ( name ) { return !offered.includes( name ); } ),

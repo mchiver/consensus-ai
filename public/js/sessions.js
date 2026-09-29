@@ -1,11 +1,14 @@
 'use strict';
 
-// Sessions - the LLM session panel of a plan. Send to LLM opens it within the plan's content area; each plan has
-// its own, so sessions in different tabs run at the same time. The panel shapes the prompt (context, parent plans
-// for a Subplan, threads, search) and shows its size, picks where it goes (a destination and model, or Manual copy / paste), and shows the
+// Sessions - the review panel of a plan (plan Review). Review in the header opens it for the whole plan, and Review
+// on a thread opens it for that thread alone, within the plan's content area; each plan has its own, so reviews in
+// different tabs run at the same time. The panel shapes the prompt (context, parent plans for a Subplan, threads,
+// search) and shows its size, picks where it goes (a destination and model, or Manual copy / paste), and shows the
 // run log. A session runs on the server: closing the panel or switching tabs does not stop it.
 //
-//   panel = { Open, Options: { Context, Parents, Threads, Search }, Destination, Model, Size, Preview, Manual, Busy, Result }
+//   panel = { Open, Options: { Context, Parents, Threads, Search, Thread }, Focus, Destination, Model, Size, Preview,
+//             Manual, Busy, Result }
+//     Focus   { Id, Words } of the thread a review of one thread is about; Options.Thread is its id
 //     Size    the prompt's size as the server measures it: { Characters, Tokens, Parts }
 //     Manual  { Prompt, Revision, Context, Run, Answer } while a copy / paste session is under way
 
@@ -21,7 +24,8 @@ angular.module( 'Consensus' ).factory( 'Sessions', [ function ()
 		{
 			panels[ Id ] = {
 				Open: false,
-				Options: { Context: true, Parents: true, Threads: 'open', Search: true },
+				Options: { Context: true, Parents: true, Threads: 'open', Search: true, Thread: null },
+				Focus: null,
 				Destination: null,
 				Model: null,
 				Size: null,
@@ -43,9 +47,52 @@ angular.module( 'Consensus' ).factory( 'Sessions', [ function ()
 	}
 
 
+	// Review of the whole plan: the panel opens (or closes) with no thread in focus.
+	function ReviewPlan( Id )
+	{
+		let panel = Panel( Id );
+		if ( panel.Open && panel.Focus )
+		{
+			focus( panel, null );
+			return panel;
+		}
+		focus( panel, null );
+		return Toggle( Id );
+	}
+
+
+	// Review of one thread: the panel opens with it in focus.
+	function ReviewThread( Id, Thread )
+	{
+		let panel = Panel( Id );
+		focus( panel, Thread );
+		panel.Open = true;
+		return panel;
+	}
+
+
+	function focus( panel, thread )
+	{
+		if ( !thread )
+		{
+			panel.Focus = null;
+			panel.Options.Thread = null;
+			return;
+		}
+		let words = thread.Anchor ? thread.Anchor.Text : ( thread.Replies[ 0 ] ? thread.Replies[ 0 ].Text : thread.Id );
+		panel.Focus = { Id: thread.Id, Words: ( words.length > 80 ) ? words.slice( 0, 80 ) + '…' : words };
+		panel.Options.Thread = thread.Id;
+		panel.Manual = null;
+		panel.Result = null;
+	}
+
+
 	return {
 		Panel: Panel,
 		Toggle: Toggle,
+		ReviewPlan: ReviewPlan,
+		ReviewThread: ReviewThread,
+		Unfocus: function ( panel ) { focus( panel, null ); },
 	};
 } ] )
 
@@ -245,7 +292,7 @@ angular.module( 'Consensus' ).factory( 'Sessions', [ function ()
 
 	function options_query( options )
 	{
-		return '?context=' + ( options.Context ? '1' : '0' ) + '&parents=' + ( options.Parents ? '1' : '0' ) + '&threads=' + encodeURIComponent( options.Threads ) + '&search=' + ( options.Search ? '1' : '0' );
+		return '?context=' + ( options.Context ? '1' : '0' ) + '&parents=' + ( options.Parents ? '1' : '0' ) + '&threads=' + encodeURIComponent( options.Threads ) + '&search=' + ( options.Search ? '1' : '0' ) + ( options.Thread ? '&thread=' + encodeURIComponent( options.Thread ) : '' );
 	}
 
 
@@ -316,6 +363,14 @@ angular.module( 'Consensus' ).factory( 'Sessions', [ function ()
 			size_timer = null;
 			measure( id, panel );
 		}, SIZE_DELAY, false );
+	};
+
+
+	// Back from one thread to the whole plan.
+	$scope.Whole = function ( panel )
+	{
+		Sessions.Unfocus( panel );
+		$scope.Measure();
 	};
 
 
@@ -515,6 +570,15 @@ angular.module( 'Consensus' ).factory( 'Sessions', [ function ()
 		if ( id )
 		{
 			shown();
+		}
+	} );
+
+	// A thread brought into focus, or let go, measures the prompt again.
+	$scope.$watch( function () { let panel = $scope.Panel(); return ( panel && panel.Open ) ? panel.Options.Thread : null; }, function ( thread, before )
+	{
+		if ( thread !== before )
+		{
+			$scope.Measure();
 		}
 	} );
 

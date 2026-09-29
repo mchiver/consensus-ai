@@ -12,11 +12,16 @@ private address. The plan "Build Workflow" in the Consensus project is where the
 
 ## Who does what
 
-- **One-shot LLM** (Send to LLM in the page, for example an Ollama model): one packed prompt, one JSON answer.
-  It reviews, replies, applies resolved threads and keeps the project's context. It never builds.
+- **Review** (Review in the page, on a plan or on one thread): one prompt, one JSON answer. It replies, applies
+  resolved threads, may open threads and plans, and keeps the project's context. Consensus calls the model itself
+  (Claude CLI, Ollama, or Manual copy / paste), or a **worker** runs it beside the code with read-only tools (plans
+  Workers and Review). It never builds.
+- **Build** (Build in the page, plan Build): a worker implements the plan in the project's workspace, runs its
+  tests, and posts a build log the owner accepts or sends back. It does nothing with git; the owner commits and
+  pushes, from the worker's page or outside Consensus.
 - **Agent session** (you): reads and writes the codebase, and works in Consensus through its API. You
-  initialize project contexts and implement plans.
-- Both post as the one `llm` participant. Say which model you are in each build log.
+  initialize project contexts, and implement plans when the owner asks you to rather than pressing Build.
+- All of them post as the one `llm` participant. Say which model you are in each build log.
 
 ## Talking to Consensus
 
@@ -108,4 +113,4 @@ document is answered with a reply holding the exact new text, applied once the o
 
 Create the project, upload the codebase as a zip, and initialize its context (**Initialize context** on the
 context's page, or write it yourself with `PUT /api/proposals/<context id>/text`). After that, plans are
-drafted, reviewed by the one-shot LLM, and discussed in threads as usual.
+drafted, reviewed (Review), and discussed in threads as usual.

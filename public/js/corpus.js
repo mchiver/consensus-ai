@@ -1,7 +1,7 @@
 'use strict';
 
 // Corpus view - an uploaded zip: its files, which were indexed and why the others were not, one file's text,
-// and Replace (a new zip) or Reload (a linked one). Rename and Delete are in its row's menu in the tree. A file is
+// and Replace (a new zip). Rename and Delete are in its row's menu in the tree. A file is
 // shown as plain text, never as HTML: a zip can hold anything.
 
 angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$window', 'State', 'Client', function ( $scope, $window, State, Client )
@@ -105,13 +105,6 @@ angular.module( 'Consensus' ).controller( 'CorpusController', [ '$scope', '$wind
 			State.LoadList();
 		}
 		$scope.$applyAsync();
-	};
-
-
-	// A linked corpus's files, listed again by its context server.
-	$scope.Reload = function ()
-	{
-		load();
 	};
 
 

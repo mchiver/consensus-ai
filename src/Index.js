@@ -408,8 +408,7 @@ async function SearchAll( Store, Query, Limit, Embedder, Ids )
 
 
 //---------------------------------------------------------------------
-// SearchChunks: the same over chunks already weighed (Weigh), wherever they are kept: the context server keeps
-// its corpora's chunks in memory.
+// SearchChunks: the same over chunks already weighed (Weigh), wherever they are kept.
 
 async function SearchChunks( Query, Chunks, Limit, Embedder )
 {

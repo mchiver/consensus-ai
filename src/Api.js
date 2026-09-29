@@ -7,8 +7,9 @@
 // POST /proposals/:id/send calls the LLM (Llm.js); Context.Caller, when given, replaces Llm.Caller (the tests use it).
 // Each project has a context (a proposal of Kind 'context'): every call to the LLM includes it and may change it;
 // POST /projects/:pid/context/initialize asks the LLM to write it from the project.
-// Context.ContextServers (ContextServers.js), when given, reaches the context servers in the settings: a corpus
-// linked from one is read and searched there, and their Inference items are destinations.
+// Context.Workers (Workers.js), when given, holds the workers in the settings (plan Workers): their Inference items
+// are destinations, a review sent to one is queued as a job, and the worker routes under /api/workers take its
+// token instead of a participant's.
 
 const EXPRESS = require( 'express' );
 const RULES = require( './Rules.js' );
@@ -28,14 +29,14 @@ const SEARCH_LIMIT = 10;
 
 //---------------------------------------------------------------------
 // Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Refresh?, Search?, Caller?,
-// ContextServers? }
+// Workers? }
 
 function Attach( App, Context )
 {
 	let store = Context.Store;
 	let settings = Context.Settings;
 	let events = Context.Events;
-	let context_servers = Context.ContextServers || null;
+	let workers = Context.Workers || null;
 	let router = EXPRESS.Router();
 	router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
 	router.use( identify );
@@ -291,21 +292,35 @@ function Attach( App, Context )
 		// when not named).
 		let project_id = ( body.Project === undefined || body.Project === null ) ? STORE.DEFAULT_PROJECT : body.Project;
 		let parent = ( body.Parent === undefined ) ? null : body.Parent;
-		let target = await store.ReadProject( project_id );
+		let result = await create_proposal( request.Participant, { Title: title, Text: text_of( body.Text ), Kind: kind, State: state, Project: project_id, Parent: parent } );
+		if ( result.Refused )
+		{
+			return send_result( response, result );
+		}
+		response.status( 201 ).json( { Proposal: summarize( result.Proposal, [], request.Participant.Name ), Project: result.Project } );
+	} );
+
+
+	// A new plan or document in a project, at Parent (a folder, or a plan for a Subplan), else at its root.
+	// Fields = { Title, Text, Kind, State, Project, Parent }. Returns { Proposal, Project } or a refusal; the route
+	// and the LLM's plan action share it.
+	async function create_proposal( participant, fields )
+	{
+		let target = await store.ReadProject( fields.Project );
 		if ( !target )
 		{
-			return fail( response, 404, 'no such project' );
+			return refused( 404, 'no such project' );
 		}
-		if ( !TREE.CanHold( target.Items, parent, kind ) )
+		if ( !TREE.CanHold( target.Items, fields.Parent, fields.Kind ) )
 		{
-			return fail( response, 400, PARENT_REFUSED );
+			return refused( 400, PARENT_REFUSED );
 		}
-		let proposal = await store.CreateProposal( { Title: title, Text: text_of( body.Text ), By: request.Participant.Name, Kind: kind, State: state } );
-		let placed = await change_project( project_id, null, function ( project )
+		let proposal = await store.CreateProposal( { Title: fields.Title, Text: fields.Text, By: participant.Name, Kind: fields.Kind, State: fields.State } );
+		let placed = await change_project( target.Id, null, function ( project )
 		{
-			if ( !TREE.Insert( project.Items, parent, { Kind: kind, Id: proposal.Id } ) )
+			if ( !TREE.Insert( project.Items, fields.Parent, { Kind: fields.Kind, Id: proposal.Id } ) )
 			{
-				TREE.Insert( project.Items, null, { Kind: kind, Id: proposal.Id } );
+				TREE.Insert( project.Items, null, { Kind: fields.Kind, Id: proposal.Id } );
 			}
 		} );
 		if ( placed.Refused )
@@ -313,8 +328,8 @@ function Attach( App, Context )
 			console.error( 'projects: ' + proposal.Id + ' was created but not placed: ' + placed.Refused.Error );
 		}
 		changed( proposal.Id, 'created' );
-		response.status( 201 ).json( { Proposal: summarize( proposal, [], request.Participant.Name ), Project: project_id } );
-	} );
+		return { Proposal: proposal, Project: target.Id };
+	}
 
 
 	router.get( '/proposals/:id', async function ( request, response )
@@ -334,6 +349,7 @@ function Attach( App, Context )
 			Text: read.Text,
 			Threads: present_threads( read.Threads, read.Text, name ),
 			Llm: ( is_document( read.Proposal ) && !is_context( read.Proposal ) ) ? { Configured: false } : llm_view( request.params.id, read.Threads ),
+			Build: is_document( read.Proposal ) ? null : await build_view( request.params.id, read ),
 		} );
 	} );
 
@@ -533,11 +549,6 @@ function Attach( App, Context )
 		}
 		for ( let corpus of await store.ListCorpora() )
 		{
-			if ( corpus.Link )
-			{
-				views[ corpus.Id ] = linked_view( corpus );
-				continue;
-			}
 			let indexed = corpus.Files.filter( function ( file ) { return file.Indexed; } ).length;
 			views[ corpus.Id ] = { Title: corpus.Name, Files: corpus.Files.length, Indexed: indexed, Created: corpus.Created, Updated: corpus.Updated, Source: 'attached', Waiting: !!corpus.Waiting };
 		}
@@ -550,24 +561,25 @@ function Attach( App, Context )
 		return projects.map( function ( project )
 		{
 			let context = project.Context ? { Id: project.Context, Empty: empty[ project.Id ] } : null;
-			return Object.assign( {}, project, { Items: present_items( project.Items, views ), Context: context } );
+			return Object.assign( {}, project, { Items: present_items( project.Items, views ), Context: context, Workspace: workspace_view( project ) } );
 		} );
 	}
 
 
-	// A linked corpus as the tree shows it: its counts as its context server last told them, or offline.
-	function linked_view( corpus )
+	// A project's workspace as the page shows it: { Worker, Name, Online, Offered, Build }, or null when it names none.
+	function workspace_view( project )
 	{
-		let heard = context_servers ? context_servers.Has( corpus.Link.Server, corpus.Link.Corpus ) : null;
+		if ( !project.Workspace )
+		{
+			return null;
+		}
+		let offered = workers ? workers.Has( project.Workspace.Worker, project.Workspace.Name ) : null;
 		return {
-			Title: corpus.Name,
-			Files: heard ? heard.Files : 0,
-			Indexed: heard ? heard.Indexed : 0,
-			Created: corpus.Created,
-			Updated: corpus.Updated,
-			Linked: corpus.Link.Server + ' / ' + corpus.Link.Corpus,
-			Source: 'linked',
-			Offline: !heard,
+			Worker: project.Workspace.Worker,
+			Name: project.Workspace.Name,
+			Online: !!workers && workers.Online( project.Workspace.Worker ),
+			Offered: !!offered,
+			Build: !!( offered && offered.Build ),
 		};
 	}
 
@@ -642,6 +654,40 @@ function Attach( App, Context )
 	} );
 
 
+	// The project's workspace (plan Workers): { Worker, Name }, one a worker offers now; { Worker: null } clears it.
+	router.put( '/projects/:pid/workspace', async function ( request, response )
+	{
+		if ( request.Participant.Role !== 'owner' )
+		{
+			return fail( response, 403, 'only the owner chooses a project\'s workspace' );
+		}
+		let body = request.body || {};
+		let workspace = null;
+		if ( body.Worker )
+		{
+			let worker = text_of( body.Worker );
+			let name = text_of( body.Name );
+			if ( !workers || !workers.Has( worker, name ) )
+			{
+				return fail( response, 400, 'no worker "' + worker + '" offers a workspace "' + name + '"' );
+			}
+			workspace = { Worker: worker, Name: name };
+		}
+		let result = await change_project( request.params.pid, null, function ( project )
+		{
+			if ( workspace )
+			{
+				project.Workspace = workspace;
+			}
+			else
+			{
+				delete project.Workspace;
+			}
+		} );
+		send_result( response, result, 200, { Project: result.Project, Workspace: workspace } );
+	} );
+
+
 	// Only an empty project is deleted, and never the Default one.
 	router.delete( '/projects/:pid', async function ( request, response )
 	{
@@ -711,7 +757,7 @@ function Attach( App, Context )
 		{
 			return fail( response, 403, 'only the owner or the llm exports a project' );
 		}
-		let exported = await PORT.Export( store, request.params.pid, context_servers );
+		let exported = await PORT.Export( store, request.params.pid, workers );
 		if ( !exported )
 		{
 			return fail( response, 404, 'no such project' );
@@ -733,7 +779,7 @@ function Attach( App, Context )
 		let options = { Mode: body.Mode, Preview: !!body.Preview };
 		let names = participants().map( function ( participant ) { return participant.Name; } );
 		let result = await PORT.Import( store, body.Export, options, {
-			ContextServers: context_servers,
+			Workers: workers,
 			Participants: names,
 			ChangeProject: function ( id, change ) { return change_project( id, null, change ); },
 		} );
@@ -863,47 +909,15 @@ function Attach( App, Context )
 
 
 	// A corpus's files as its project sees them: every file listed, with Indexed and, for one not read, its Reason.
-	// A linked corpus's come from its server, with the entry's Include and Exclude applied. Throws when that server
-	// does not answer.
 	async function corpus_files( corpus )
 	{
-		if ( !corpus.Link )
-		{
-			return corpus.Files;
-		}
-		let why = FILTER.Make( { Include: corpus.Include, Exclude: corpus.Exclude } );
-		let listed = await context_servers.Files( corpus.Link.Server, corpus.Link.Corpus );
-		return listed.map( function ( file )
-		{
-			let reason = why( file.Path );
-			return reason ? { Path: file.Path, Size: file.Size, Modified: file.Modified, Indexed: false, Reason: reason } : file;
-		} );
+		return corpus.Files;
 	}
 
 
-	// One file's text, or null when the corpus does not read it (left out, too large, binary, or not there). Throws
-	// when a linked corpus's server does not answer.
+	// One file's text, or null when the corpus does not read it (left out, too large, binary, or not there).
 	async function corpus_read( corpus, path )
 	{
-		if ( corpus.Link )
-		{
-			if ( FILTER.Make( { Include: corpus.Include, Exclude: corpus.Exclude } )( path ) )
-			{
-				return null;
-			}
-			try
-			{
-				return await context_servers.ReadFile( corpus.Link.Server, corpus.Link.Corpus, path );
-			}
-			catch ( error )
-			{
-				if ( /no indexed file/.test( error.message ) )
-				{
-					return null;
-				}
-				throw error;
-			}
-		}
 		let file = corpus.Files.find( function ( candidate ) { return candidate.Path === path; } );
 		if ( !file || !file.Indexed )
 		{
@@ -963,55 +977,11 @@ function Attach( App, Context )
 
 
 	//-----------------------------------------------------------------
-	// Context servers: what each one offers, as last heard, and a corpus of one linked into a project.
+	// Workers: what each one offers, as last heard (plan Workers).
 
-	router.get( '/context-servers', function ( request, response )
+	router.get( '/workers', function ( request, response )
 	{
-		response.json( { Servers: context_servers ? context_servers.List() : [] } );
-	} );
-
-
-	router.post( '/context-servers/refresh', async function ( request, response )
-	{
-		let servers = context_servers ? await context_servers.Refresh() : [];
-		for ( let project of await store.ListProjects() )
-		{
-			events.Send( { Project: project.Id, Kind: 'project' } );
-		}
-		response.json( { Servers: servers } );
-	} );
-
-
-	// { Server, Corpus, Parent? }: the corpus, as its server offers it, becomes an item of the project.
-	router.post( '/projects/:pid/corpus-link', async function ( request, response )
-	{
-		let body = request.body || {};
-		let server = text_of( body.Server );
-		let name = text_of( body.Corpus );
-		let parent = text_of( body.Parent ) || null;
-		let target = await store.ReadProject( request.params.pid );
-		if ( !target )
-		{
-			return fail( response, 404, 'no such project' );
-		}
-		if ( !TREE.CanHold( target.Items, parent, 'corpus' ) )
-		{
-			return fail( response, 400, 'Parent is not a folder of the project' );
-		}
-		if ( !context_servers || !context_servers.Has( server, name ) )
-		{
-			return fail( response, 400, 'no corpus "' + name + '" is offered by a context server "' + server + '"; refresh the context servers and pick again' );
-		}
-		let corpus = await store.CreateCorpus( { Project: target.Id, Name: name, Link: { Server: server, Corpus: name } } );
-		await change_project( target.Id, null, function ( project )
-		{
-			if ( !TREE.Insert( project.Items, parent, { Kind: 'corpus', Id: corpus.Id } ) )
-			{
-				TREE.Insert( project.Items, null, { Kind: 'corpus', Id: corpus.Id } );
-			}
-		} );
-		events.Send( { Corpus: corpus.Id, Kind: 'created' } );
-		response.status( 201 ).json( { Corpus: corpus, Project: target.Id } );
+		response.json( { Workers: workers ? workers.List() : [] } );
 	} );
 
 
@@ -1021,20 +991,6 @@ function Attach( App, Context )
 		if ( !corpus )
 		{
 			return fail( response, 404, 'no such corpus' );
-		}
-		// A linked corpus's files are asked for now: its server keeps them.
-		if ( corpus.Link )
-		{
-			corpus = Object.assign( {}, corpus );
-			try
-			{
-				corpus.Files = await corpus_files( corpus );
-			}
-			catch ( error )
-			{
-				corpus.Files = [];
-				corpus.Offline = error.message;
-			}
 		}
 		let holder = await store.ProjectOf( corpus.Id );
 		response.json( { Corpus: corpus, Project: holder ? { Id: holder.Id, Name: holder.Name } : null } );
@@ -1048,22 +1004,6 @@ function Attach( App, Context )
 		if ( !corpus )
 		{
 			return fail( response, 404, 'no such corpus' );
-		}
-		if ( corpus.Link )
-		{
-			try
-			{
-				let text = await corpus_read( corpus, path );
-				if ( text === null )
-				{
-					return fail( response, 404, 'no such file in the corpus, or it is left out' );
-				}
-				return response.json( { Path: path, Text: text } );
-			}
-			catch ( error )
-			{
-				return fail( response, 502, error.message );
-			}
 		}
 		let file = corpus.Files.find( function ( candidate ) { return candidate.Path === path; } );
 		if ( !file )
@@ -1083,12 +1023,7 @@ function Attach( App, Context )
 	router.put( '/corpus/:cid', zip_body(), async function ( request, response )
 	{
 		let id = request.params.cid;
-		let linked = await store.ReadCorpus( id );
-		if ( linked && linked.Link )
-		{
-			return fail( response, 409, 'a linked corpus is kept by its context server: there is no zip to replace' );
-		}
-		let extracted = await extract_upload( request.body, linked );
+		let extracted = await extract_upload( request.body, await store.ReadCorpus( id ) );
 		if ( extracted.Refused )
 		{
 			return send_result( response, extracted );
@@ -1107,7 +1042,7 @@ function Attach( App, Context )
 
 
 	// The corpus entry's Include and Exclude: { Include, Exclude }, each a list of patterns or one pattern per line.
-	// An attached zip's files are listed and indexed again under them; a linked corpus is filtered as it is read.
+	// The zip's files are listed and indexed again under them.
 	router.put( '/corpus/:cid/filter', async function ( request, response )
 	{
 		let body = request.body || {};
@@ -1126,22 +1061,19 @@ function Attach( App, Context )
 				return refused( 404, 'no such corpus' );
 			}
 			let changes = { Include: include, Exclude: exclude };
-			if ( !corpus.Link )
+			let extracted = await extract_upload( await store.ReadCorpusZip( id ), changes );
+			if ( extracted.Refused )
 			{
-				let extracted = await extract_upload( await store.ReadCorpusZip( id ), changes );
-				if ( extracted.Refused )
-				{
-					return extracted;
-				}
-				changes.Files = extracted.Files;
+				return extracted;
 			}
+			changes.Files = extracted.Files;
 			return { Corpus: await store.UpdateCorpus( id, changes ) };
 		} );
 		if ( result.Refused )
 		{
 			return send_result( response, result );
 		}
-		corpus_changed( id, result.Corpus.Link ? 'filtered' : 'replaced' );
+		corpus_changed( id, 'replaced' );
 		let holder = await store.ProjectOf( id );
 		if ( holder )
 		{
@@ -1476,25 +1408,38 @@ function Attach( App, Context )
 		{
 			return fail( response, 400, 'Text is required' );
 		}
-		let id = request.params.id;
+		let result = await create_thread( request.params.id, request.Participant, text, body.Anchor || null, !!body.Resolve );
+		if ( result.Refused )
+		{
+			return send_result( response, result );
+		}
+		response.status( 201 ).json( { Thread: result.Thread } );
+	} );
+
+
+	// A new thread on a proposal, on Anchor ({ Text, Prefix?, Suffix? }, found in the text) or the whole document.
+	// With Resolve (the owner's Comment and resolve), resolved as it is posted. Extra fields go on the thread (a
+	// build's threads carry Build). Returns { Thread } or a refusal; the route and the LLM's actions share it.
+	async function create_thread( id, participant, text, anchor_given, resolve, extra )
+	{
 		let result = await store.Queue( id, async function ()
 		{
 			let read = await store.ReadProposal( id );
 			if ( !read )
 			{
-				return fail( response, 404, 'no such proposal' );
+				return refused( 404, 'no such proposal' );
 			}
 			if ( is_document( read.Proposal ) )
 			{
-				return fail( response, 409, 'a Document or a Context has no threads' );
+				return refused( 409, 'a Document or a Context has no threads' );
 			}
 			let anchor = null;
-			if ( body.Anchor )
+			if ( anchor_given )
 			{
-				anchor = place_anchor( body.Anchor, read.Text );
+				anchor = place_anchor( anchor_given, read.Text );
 				if ( !anchor )
 				{
-					return fail( response, 400, 'the anchor text was not found in the proposal' );
+					return refused( 400, 'the anchor text was not found in the proposal' );
 				}
 			}
 			let at = now();
@@ -1507,29 +1452,32 @@ function Attach( App, Context )
 				Resolved: null,
 				Applied: null,
 				Created: at,
-				Replies: [ { Id: new_id( IDS.REPLY ), By: request.Participant.Name, At: at, Text: text } ],
+				Replies: [ { Id: new_id( IDS.REPLY ), By: participant.Name, At: at, Text: text } ],
 			};
-			if ( body.Resolve )
+			if ( extra )
 			{
-				let can = RULES.CanResolve( request.Participant, thread );
+				Object.assign( thread, extra );
+			}
+			if ( resolve )
+			{
+				let can = RULES.CanResolve( participant, thread );
 				if ( !can.Ok )
 				{
-					return fail( response, ( request.Participant.Role === 'owner' ) ? 409 : 403, can.Reason );
+					return refused( ( participant.Role === 'owner' ) ? 409 : 403, can.Reason );
 				}
-				Object.assign( thread, RULES.ResolveEffect( request.Participant, at ) );
+				Object.assign( thread, RULES.ResolveEffect( participant, at ) );
 			}
 			read.Threads.push( thread );
 			await store.WriteThreads( id, read.Threads );
 			await store.UpdateProposal( id, {} );
-			return present_threads( [ thread ], read.Text, request.Participant.Name )[ 0 ];
+			return { Thread: present_threads( [ thread ], read.Text, participant.Name )[ 0 ] };
 		} );
-		if ( !result )
+		if ( !result.Refused )
 		{
-			return;
+			changed( id, ( result.Thread.Status === 'resolved' ) ? 'resolved' : 'thread', result.Thread.Id );
 		}
-		changed( id, ( result.Status === 'resolved' ) ? 'resolved' : 'thread', result.Id );
-		response.status( 201 ).json( { Thread: result } );
-	} );
+		return result;
+	}
 
 
 	// A reply. To a resolved thread it reopens it; a change already applied stays applied. With Resolve (the owner's
@@ -1592,6 +1540,17 @@ function Attach( App, Context )
 		if ( result.Refused )
 		{
 			return fail( response, result.Refused.Status, result.Refused.Error );
+		}
+		if ( is_build_log( result.Thread ) && request.Participant.Role === 'owner' )
+		{
+			if ( result.Resolved )
+			{
+				await build_accepted( request.params.id, result.Thread.Id );
+			}
+			else
+			{
+				build_sent_back( result.Thread );
+			}
 		}
 		response.status( 201 ).json( result );
 	} );
@@ -1663,6 +1622,10 @@ function Attach( App, Context )
 			return;
 		}
 		changed( id, 'resolved', result.Id );
+		if ( is_build_log( result ) )
+		{
+			await build_accepted( id, result.Id );
+		}
 		response.json( { Thread: result } );
 	} );
 
@@ -1780,7 +1743,7 @@ function Attach( App, Context )
 	//-----------------------------------------------------------------
 	// LLM sessions: the owner shapes a prompt (Options), picks where it goes (a Destination, or Manual copy / paste),
 	// and the answer's actions are carried out as the llm participant. Each session's steps are its run log, kept with
-	// the proposal in runs.json. Send to LLM is a session with the first destination and the default options.
+	// the proposal in runs.json. The /send route is a session with the first destination and the default options.
 
 	let calling = {};
 	let recent_calls = [];
@@ -1807,23 +1770,24 @@ function Attach( App, Context )
 	}
 
 
-	// Where a session can send its prompt: the llm participant's own destinations, then each online context server's
-	// Inference items, named "<server> / <item>".
+	// Where a session can send its prompt: the llm participant's own destinations, then each worker's Inference items,
+	// named "<worker> / <item>" (Offline when the worker has not been heard from lately).
 	function destinations_of( llm )
 	{
 		let local = llm ? LLM.Destinations( llm ) : [];
-		if ( !llm || !context_servers )
+		if ( !llm || !workers )
 		{
 			return local;
 		}
 		let remote = [];
-		for ( let server of context_servers.List() )
+		for ( let worker of workers.List() )
 		{
-			for ( let item of server.Inference )
+			for ( let item of worker.Inference )
 			{
 				let call = LLM.CallSettings( { Call: { Kind: item.Type, Model: item.Model || undefined } } );
-				call.Name = server.Name + ' / ' + item.Name;
-				call.Remote = { Server: server.Name, Inference: item.Name };
+				call.Name = worker.Name + ' / ' + item.Name;
+				call.Worker = { Name: worker.Name, Inference: item.Name };
+				call.Offline = !worker.Online;
 				remote.push( call );
 			}
 		}
@@ -1831,16 +1795,9 @@ function Attach( App, Context )
 	}
 
 
-	// The function that sends a prompt for a call: through its context server, or from here.
+	// The function that sends a prompt for a call from here.
 	function caller_for( call )
 	{
-		if ( call.Remote )
-		{
-			return function ( prompt )
-			{
-				return context_servers.Infer( call.Remote.Server, call.Remote.Inference, prompt, call.Model, call.TimeoutSeconds );
-			};
-		}
 		return ( Context.Caller || LLM.Caller )( call );
 	}
 
@@ -1865,12 +1822,13 @@ function Attach( App, Context )
 			Configured: true,
 			Name: llm.Name,
 			Running: !!calling[ id ],
-			Waiting: RULES.WaitingOn( llm.Name, threads, participants() ).length,
+			Waiting: RULES.WaitingOn( llm.Name, threads, participants() ).filter( function ( thread ) { return !is_build_log( thread ); } ).length,
 		};
 	}
 
 
-	// A session's choices, each defaulted: { Context: true, Parents: true, Threads: 'waiting' | 'open' | 'all', Search: true }
+	// A session's choices, each defaulted: { Context: true, Parents: true, Threads: 'waiting' | 'open' | 'all', Search: true,
+	// Thread: null }. Thread: a review of that one thread (plan Review), which alone is sent and acted on.
 	function options_of( given )
 	{
 		let options = given || {};
@@ -1879,11 +1837,12 @@ function Attach( App, Context )
 			Parents: options.Parents !== false,
 			Threads: THREAD_CHOICES.includes( options.Threads ) ? options.Threads : 'open',
 			Search: options.Search !== false,
+			Thread: ( typeof options.Thread === 'string' && options.Thread ) ? options.Thread : null,
 		};
 	}
 
 
-	// The same from a query string: ?context=0&parents=0&threads=waiting&search=0
+	// The same from a query string: ?context=0&parents=0&threads=waiting&search=0&thread=<id>
 	function options_of_query( query )
 	{
 		return options_of( {
@@ -1891,7 +1850,26 @@ function Attach( App, Context )
 			Parents: query.parents !== '0' && query.parents !== 'false',
 			Threads: query.threads,
 			Search: query.search !== '0' && query.search !== 'false',
+			Thread: query.thread,
 		} );
+	}
+
+
+	// A thread a review may act on: contested, or resolved and waiting to be applied.
+	function actable( thread )
+	{
+		return thread.Status === 'contested' || RULES.IsWaiting( thread );
+	}
+
+
+	// The threads an answer may act on: the one in focus when it is actable, else those waiting on the llm.
+	function acting_on( presented, focus )
+	{
+		if ( focus )
+		{
+			return presented.filter( function ( thread ) { return thread.Id === focus && actable( thread ); } );
+		}
+		return presented.filter( function ( thread ) { return thread.WaitingOnMe && !is_build_log( thread ); } );
 	}
 
 
@@ -1902,15 +1880,31 @@ function Attach( App, Context )
 
 
 	// Everything one session needs, for the llm participant: { Prompt, Parts, Read, Waiting, Context }. The threads
-	// sent are those Options.Threads names; the waiting ones are always among them.
-	async function package_for( id, llm, options, turns )
+	// sent are those Options.Threads names; the waiting ones are always among them. With Options.Thread only that
+	// thread is sent, marked as waiting on the llm when it is actable. Tools: the prompt is a worker's (plan Review).
+	async function package_for( id, llm, options, turns, tools )
 	{
 		let chosen = options_of( options );
 		let read = await store.ReadProposal( id );
 		let presented = present_threads( read.Threads, read.Text, llm.Name );
-		let waiting = presented.filter( function ( thread ) { return thread.WaitingOnMe; } );
+		if ( chosen.Thread )
+		{
+			presented = presented.filter( function ( thread ) { return thread.Id === chosen.Thread; } ).map( function ( thread )
+			{
+				if ( !actable( thread ) || thread.WaitingOnMe )
+				{
+					return thread;
+				}
+				return Object.assign( {}, thread, { WaitingOnMe: true, Turn: [ llm.Name ] } );
+			} );
+		}
+		let waiting = acting_on( presented, chosen.Thread );
 		let sent = presented.filter( function ( thread )
 		{
+			if ( chosen.Thread )
+			{
+				return true;
+			}
 			if ( chosen.Threads === 'waiting' )
 			{
 				return thread.WaitingOnMe;
@@ -1940,6 +1934,8 @@ function Attach( App, Context )
 			Participants: participants(),
 			Search: search,
 			Turns: turns || [],
+			Tools: !!tools,
+			Focus: chosen.Thread,
 		} );
 		let prompt = parts.map( function ( part ) { return part.Text; } ).join( '\n' );
 		return { Prompt: prompt, Parts: parts, Read: read, Waiting: waiting, Context: context };
@@ -2039,10 +2035,10 @@ function Attach( App, Context )
 	}
 
 
-	// "2 replies, 1 apply, the context" for an answer's actions.
+	// "2 replies, 1 apply, 1 new thread, the context" for an answer's actions.
 	function actions_words( actions )
 	{
-		let counts = { reply: 0, apply: 0, context: 0 };
+		let counts = { reply: 0, apply: 0, context: 0, thread: 0, plan: 0 };
 		for ( let action of actions )
 		{
 			counts[ action.Kind ] = ( counts[ action.Kind ] || 0 ) + 1;
@@ -2056,6 +2052,14 @@ function Attach( App, Context )
 		{
 			words.push( counts.apply + ( counts.apply === 1 ? ' apply' : ' applies' ) );
 		}
+		if ( counts.thread )
+		{
+			words.push( counts.thread + ( counts.thread === 1 ? ' new thread' : ' new threads' ) );
+		}
+		if ( counts.plan )
+		{
+			words.push( counts.plan + ( counts.plan === 1 ? ' new plan' : ' new plans' ) );
+		}
 		if ( counts.context )
 		{
 			words.push( 'the context' );
@@ -2064,16 +2068,19 @@ function Attach( App, Context )
 	}
 
 
-	// The answer's actions carried out, the results recorded on the threads, and the run log's last step.
-	async function carry_out_answer( id, llm, run_id, actions, revision, context )
+	// The answer's actions carried out, the results recorded on the threads, and the run log's last step. Focus: the
+	// one thread a review of a thread may act on.
+	async function carry_out_answer( id, llm, run_id, actions, revision, context, focus )
 	{
 		let read = await store.ReadProposal( id );
-		let waiting = present_threads( read.Threads, read.Text, llm.Name ).filter( function ( thread ) { return thread.WaitingOnMe; } );
-		let failures = await carry_out( id, llm, waiting, actions, revision, context );
+		let waiting = acting_on( present_threads( read.Threads, read.Text, llm.Name ), focus );
+		let made = { Made: [], Refused: [] };
+		let failures = await carry_out( id, llm, waiting, actions, revision, context, made );
 		await record_call_results( id, failures, true );
-		let refused = Object.keys( failures );
-		let why = refused.map( function ( thread_id ) { return thread_id + ': ' + failures[ thread_id ]; } ).join( '; ' );
-		await log_step( id, run_id, { Text: 'Consensus carried out ' + actions.length + ( actions.length === 1 ? ' action' : ' actions' ) + ', ' + refused.length + ' refused' + ( why ? ' (' + why + ')' : '' ) }, true );
+		let refused = Object.keys( failures ).map( function ( thread_id ) { return thread_id + ': ' + failures[ thread_id ]; } ).concat( made.Refused );
+		let why = refused.join( '; ' );
+		let created = made.Made.length ? ', made ' + made.Made.join( ', ' ) : '';
+		await log_step( id, run_id, { Text: 'Consensus carried out ' + actions.length + ( actions.length === 1 ? ' action' : ' actions' ) + created + ', ' + refused.length + ' refused' + ( why ? ' (' + why + ')' : '' ) }, true );
 		return failures;
 	}
 
@@ -2086,7 +2093,7 @@ function Attach( App, Context )
 		let llm = llm_participant();
 		let destinations = llm ? destinations_of( llm ) : [];
 		response.json( {
-			Destinations: destinations.map( function ( destination ) { return { Name: destination.Name, Kind: destination.Kind, Model: destination.Model || null }; } ),
+			Destinations: destinations.map( function ( destination ) { return { Name: destination.Name, Kind: destination.Kind, Model: destination.Model || null, Worker: destination.Worker ? destination.Worker.Name : null, Offline: !!destination.Offline }; } ),
 			Manual: !!llm,
 		} );
 	} );
@@ -2100,16 +2107,11 @@ function Attach( App, Context )
 		{
 			return fail( response, 404, 'no such destination' );
 		}
-		if ( destination.Remote && destination.Kind === 'ollama' )
+		if ( destination.Worker )
 		{
-			try
-			{
-				return response.json( { Models: await context_servers.Models( destination.Remote.Server, destination.Remote.Inference ) } );
-			}
-			catch ( error )
-			{
-				return fail( response, 502, error.message );
-			}
+			let item = workers.Inference( destination.Worker.Name, destination.Worker.Inference );
+			let models = ( item && item.Models.length ) ? item.Models : ( destination.Model ? [ destination.Model ] : [] );
+			return response.json( { Models: models } );
 		}
 		if ( destination.Kind !== 'ollama' )
 		{
@@ -2215,10 +2217,39 @@ function Attach( App, Context )
 		{
 			return fail( response, 400, 'pick an Ollama model' );
 		}
-		let waiting = RULES.WaitingOn( llm.Name, read.Threads, participants() );
-		if ( waiting.length === 0 )
+		// A review of the plan runs even with nothing waiting: it may open threads and plans (plan Review). A build log
+		// waits for its build, not for a review.
+		let waiting = RULES.WaitingOn( llm.Name, read.Threads, participants() ).filter( function ( thread ) { return !is_build_log( thread ); } );
+		if ( options.Thread )
 		{
-			return fail( response, 409, 'nothing is waiting on the LLM' );
+			let focus = find_thread( read, options.Thread );
+			if ( !focus )
+			{
+				return fail( response, 404, 'no such thread' );
+			}
+			if ( !actable( focus ) )
+			{
+				return fail( response, 409, 'the thread is applied: there is nothing to review' );
+			}
+			waiting = [ focus ];
+		}
+		let workspace = null;
+		if ( call.Worker )
+		{
+			if ( call.Offline )
+			{
+				return fail( response, 409, 'the worker "' + call.Worker.Name + '" is offline' );
+			}
+			let holder = await store.ProjectOf( id );
+			workspace = holder ? holder.Workspace : null;
+			if ( !workspace || workspace.Worker !== call.Worker.Name )
+			{
+				return fail( response, 409, 'the project names no workspace on the worker "' + call.Worker.Name + '": choose one for the project' );
+			}
+			if ( !workers.Has( workspace.Worker, workspace.Name ) )
+			{
+				return fail( response, 409, 'the worker "' + workspace.Worker + '" does not offer the workspace "' + workspace.Name + '" now' );
+			}
 		}
 		if ( calls_in_last_hour() >= call.CallsPerHour )
 		{
@@ -2230,6 +2261,15 @@ function Attach( App, Context )
 		events.Send( { Proposal: id, Kind: 'llm-started' } );
 		response.status( 202 ).json( { Started: true, Run: run_id, Threads: waiting.map( function ( thread ) { return thread.Id; } ) } );
 
+		if ( call.Worker )
+		{
+			queue_review( id, llm, call, options, run_id, workspace ).catch( function ( error )
+			{
+				console.error( 'llm: ' + id + ': ' + error.message );
+				end_session( id, run_id, 'the review was not queued: ' + error.message );
+			} );
+			return;
+		}
 		run_session( id, llm, call, options, run_id ).catch( function ( error )
 		{
 			console.error( 'llm: ' + id + ': ' + error.message );
@@ -2248,7 +2288,7 @@ function Attach( App, Context )
 	} );
 
 
-	// Send to LLM, as it was before the dialog: the first destination, the default choices.
+	// A session with the first destination and the default choices, as Send to LLM was before the dialog.
 	router.post( '/proposals/:id/send', function ( request, response )
 	{
 		return start_session( request, response, {} );
@@ -2319,16 +2359,11 @@ function Attach( App, Context )
 	}
 
 
-	// " (12 files)" for a zip; " (12 files, linked from Workstation)" for a linked corpus, as its server last said.
+	// " (attached, 12 files read)" for a zip.
 	function corpus_words( corpus )
 	{
-		if ( !corpus.Link )
-		{
-			let read = corpus.Files.filter( function ( file ) { return file.Indexed; } ).length;
-			return ' (attached, ' + read + ' files read)';
-		}
-		let view = linked_view( corpus );
-		return view.Offline ? ' (linked from ' + corpus.Link.Server + ', offline)' : ' (linked from ' + corpus.Link.Server + ', ' + view.Indexed + ' files read)';
+		let read = corpus.Files.filter( function ( file ) { return file.Indexed; } ).length;
+		return ' (attached, ' + read + ' files read)';
 	}
 
 
@@ -2532,10 +2567,636 @@ function Attach( App, Context )
 			}
 			let ignored = requests.length ? ' (its requests go unanswered: it was the last answer)' : '';
 			await log_step( id, run_id, { Text: answered_by + ' answered: ' + actions_words( answer.Answer.Actions ) + ignored, Seconds: seconds_since( asked ), Tokens: output } );
-			let failures = await carry_out_answer( id, llm, run_id, answer.Answer.Actions, packed.Read.Proposal.Revision, packed.Context );
+			let failures = await carry_out_answer( id, llm, run_id, answer.Answer.Actions, packed.Read.Proposal.Revision, packed.Context, options.Thread );
 			let failed = Object.keys( failures ).length;
 			log_call( id, call, packed.Waiting, started, turn + ( turn === 1 ? ' answer, ' : ' answers, ' ) + answer.Answer.Actions.length + ' actions' + ( failed ? ', ' + failed + ' refused' : '' ) + ', ' + answer.Usage.Input + ' in, ' + answer.Usage.Output + ' out' );
 			return;
+		}
+	}
+
+
+	// A session is over: its last step, and the proposal free for the next one.
+	function end_session( id, run_id, text )
+	{
+		log_step( id, run_id, text ? { Text: text } : null, true ).catch( function ( error )
+		{
+			console.error( 'llm: ' + id + ': ' + error.message );
+		} ).finally( function ()
+		{
+			delete calling[ id ];
+			events.Send( { Proposal: id, Kind: 'llm-finished' } );
+		} );
+	}
+
+
+	//-----------------------------------------------------------------
+	// Review jobs (plans Workers and Review): a session sent to a worker is queued as a job. The worker runs the
+	// model beside the code with read-only tools, asks the plan tools here, logs its steps, and posts the answer,
+	// which is carried out as a session's is. What the answer needs here is kept in job_state, by job id.
+
+	const WORKER_TOOLS = [ 'list_project', 'read_plan', 'read_revision', 'search' ];
+	let job_state = {};
+
+
+	async function queue_review( id, llm, call, options, run_id, workspace )
+	{
+		let started = Date.now();
+		let packed = await package_for( id, llm, options, [], true );
+		let holder = await store.ProjectOf( id );
+		let job = workers.Queue( call.Worker.Name, {
+			Kind: 'Review',
+			Proposal: id,
+			Title: packed.Read.Proposal.Title,
+			Project: holder ? { Id: holder.Id, Name: holder.Name } : null,
+			Workspace: workspace.Name,
+			Inference: call.Worker.Inference,
+			Model: call.Model || null,
+			Run: run_id,
+			Prompt: packed.Prompt,
+			Schema: LLM.SCHEMA,
+		} );
+		job_state[ job.Id ] = {
+			Llm: llm,
+			Call: call,
+			Revision: packed.Read.Proposal.Revision,
+			Context: packed.Context,
+			Waiting: packed.Waiting,
+			Focus: options.Thread,
+			Started: started,
+		};
+		events.Send( { Kind: 'workers' } );
+		await log_step( id, run_id, { Text: 'Consensus queued the review for ' + call.Name + ', job ' + job.Id, Seconds: seconds_since( started ), Tokens: tokens_of( packed.Prompt ) } );
+	}
+
+
+	// A review's answer, or its error, carried out; the session ends either way.
+	async function finish_review( job, body )
+	{
+		let state = job_state[ job.Id ];
+		delete job_state[ job.Id ];
+		let id = job.Proposal;
+		if ( !state )
+		{
+			return { Error: 'the job is not known here any more' };
+		}
+		let model = ( body.Usage && body.Usage.Model ) || state.Call.Model || state.Call.Kind;
+		let answer = null;
+		let problem = body.Error ? String( body.Error ) : null;
+		if ( !problem )
+		{
+			try
+			{
+				answer = LLM.Parse( body.Answer );
+			}
+			catch ( error )
+			{
+				problem = error.message;
+			}
+		}
+		try
+		{
+			if ( problem )
+			{
+				let failures = {};
+				for ( let thread of state.Waiting )
+				{
+					failures[ thread.Id ] = problem;
+				}
+				await record_call_results( id, failures, false );
+				await log_step( id, job.Run, { Text: model + ' failed on ' + job.Worker + ': ' + problem, Seconds: seconds_since( state.Started ) } );
+				log_call( id, state.Call, state.Waiting, state.Started, 'failed: ' + problem );
+				return { Error: problem };
+			}
+			await record_usage( state.Call, body.Usage );
+			let output = ( body.Usage && body.Usage.Output ) || tokens_of( JSON.stringify( answer ) );
+			await log_step( id, job.Run, { Text: model + ' answered on ' + job.Worker + ': ' + actions_words( answer.Actions ), Seconds: seconds_since( state.Started ), Tokens: output } );
+			let failures = await carry_out_answer( id, state.Llm, job.Run, answer.Actions, state.Revision, state.Context, state.Focus );
+			log_call( id, state.Call, state.Waiting, state.Started, 'a worker\'s answer, ' + answer.Actions.length + ' actions' + ( Object.keys( failures ).length ? ', ' + Object.keys( failures ).length + ' refused' : '' ) );
+			return { Actions: answer.Actions.length, Refused: failures };
+		}
+		finally
+		{
+			end_session( id, job.Run, null );
+			events.Send( { Kind: 'workers' } );
+		}
+	}
+
+
+	if ( workers )
+	{
+		workers.OnOffline( function ( job )
+		{
+			let finish = ( job.Kind === 'Build' ) ? finish_build : finish_review;
+			finish( job, { Error: 'the worker "' + job.Worker + '" went offline' } ).catch( function ( error )
+			{
+				console.error( 'workers: ' + job.Id + ': ' + error.message );
+			} );
+		} );
+	}
+
+
+	// The routes a worker calls, with its own token (Workers.Identify), mounted before the participants' routes.
+	let worker_router = EXPRESS.Router();
+	worker_router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
+
+
+	function identify_worker( request, response, next )
+	{
+		let name = workers ? workers.Identify( request.get( 'Authorization' ) ) : null;
+		if ( !name )
+		{
+			return fail( response, 401, 'unknown worker token' );
+		}
+		request.Worker = name;
+		next();
+	}
+
+
+	// The worker's own job, taken and not yet over (or over, with Over); or null, with the refusal sent.
+	function own_job( request, response, over )
+	{
+		let job = workers.Job( request.params.jid );
+		if ( !job || job.Worker !== request.Worker )
+		{
+			fail( response, 404, 'no such job for this worker' );
+			return null;
+		}
+		if ( job.Status !== 'taken' && !( over && job.Status === 'done' ) )
+		{
+			fail( response, 409, 'the job is ' + job.Status );
+			return null;
+		}
+		return job;
+	}
+
+
+	// Body = { Workspaces: [ { Name, Build? } ], Inference: [ { Name, Type, Model?, Models? } ] }
+	worker_router.post( '/hello', identify_worker, function ( request, response )
+	{
+		workers.Hello( request.Worker, request.body || {} );
+		events.Send( { Kind: 'workers' } );
+		response.json( { Name: request.Worker } );
+	} );
+
+
+	// Held open up to 30 seconds: { Job }, { Change }, or {}. ?busy=1: the worker is running a job, changes only.
+	// A worker that has not said hello since Consensus started is asked to, at once: { Hello: true }.
+	worker_router.get( '/jobs', identify_worker, async function ( request, response )
+	{
+		if ( !workers.Said( request.Worker ) )
+		{
+			workers.Heard( request.Worker );
+			return response.json( { Hello: true } );
+		}
+		let was_online = workers.Online( request.Worker );
+		let next = await workers.Next( request.Worker, request.query.busy === '1' );
+		if ( !was_online )
+		{
+			events.Send( { Kind: 'workers' } );
+		}
+		if ( next && next.Job && ( response.destroyed || request.destroyed ) )
+		{
+			workers.Requeue( next.Job.Id );
+			return;
+		}
+		if ( next && next.Job )
+		{
+			log_step( next.Job.Proposal, next.Job.Run, { Text: request.Worker + ' took job ' + next.Job.Id } ).catch( function () {} );
+		}
+		response.json( next || {} );
+	} );
+
+
+	// Body = { Tool, Plan?, Revision?, Query? }: a plan tool, answered as a request is, within the job's project.
+	worker_router.post( '/jobs/:jid/tool', identify_worker, async function ( request, response )
+	{
+		let job = own_job( request, response );
+		if ( !job )
+		{
+			return;
+		}
+		let body = request.body || {};
+		if ( !WORKER_TOOLS.includes( body.Tool ) )
+		{
+			return fail( response, 400, 'Tool must be one of ' + WORKER_TOOLS.join( ', ' ) );
+		}
+		let holder = await store.ProjectOf( job.Proposal );
+		let result = null;
+		try
+		{
+			result = await answer_request( holder, body );
+		}
+		catch ( error )
+		{
+			result = 'refused: ' + error.message;
+		}
+		response.json( { Result: result } );
+	} );
+
+
+	// Body = { Text, Seconds?, Tokens? }: a step of the job's run log; after a build, its Commit and Push too.
+	worker_router.post( '/jobs/:jid/step', identify_worker, async function ( request, response )
+	{
+		let job = own_job( request, response, true );
+		if ( !job )
+		{
+			return;
+		}
+		let body = request.body || {};
+		let step = { Text: text_of( body.Text ).slice( 0, 500 ) || '(a step)' };
+		if ( typeof body.Seconds === 'number' )
+		{
+			step.Seconds = body.Seconds;
+		}
+		if ( typeof body.Tokens === 'number' )
+		{
+			step.Tokens = body.Tokens;
+		}
+		await log_step( job.Proposal, job.Run, step );
+		response.json( { Logged: true } );
+	} );
+
+
+	// Body = { Answer, Usage: { Model, Input, Output } } or { Error }: the job's answer, carried out as its kind says.
+	worker_router.post( '/jobs/:jid/answer', identify_worker, async function ( request, response )
+	{
+		let job = own_job( request, response );
+		if ( !job )
+		{
+			return;
+		}
+		let body = request.body || {};
+		workers.Finish( job.Id, body.Error ? 'failed' : 'done' );
+		let result = ( job.Kind === 'Build' ) ? await finish_build( job, body ) : await finish_review( job, body );
+		response.json( result );
+	} );
+
+
+	//-----------------------------------------------------------------
+	// Build jobs (plan Build): the owner's Build queues one for the worker that holds the project's workspace. The
+	// worker builds the plan in the workspace, as it is, and its answer comes back as the build log: a contested
+	// whole-document thread, the job's receipt, with the threads the build opened. Resolving the build log accepts the
+	// build: it is applied, the context the build wrote is carried out, and the plan is Finished. A reply sends it back:
+	// Build runs again with the reply, and the new log is a reply on the same thread. Consensus does nothing with git.
+
+	const WORKING = 'Working';
+	const FINISHED = 'Finished';
+
+
+	function is_build_log( thread )
+	{
+		return !!( thread && thread.Build && thread.Build.Log );
+	}
+
+
+	// Where a build of the plan can go and whether it can go now: { Ready, Reason, Destinations, Running, SentBack }.
+	// Destinations are the claude-cli items of the worker holding the project's workspace; SentBack is the build log
+	// the owner replied to last, when there is one.
+	async function build_view( id, read )
+	{
+		let view = { Ready: false, Reason: null, Destinations: [], Running: !!calling[ id ], SentBack: null };
+		let holder = await store.ProjectOf( id );
+		let workspace = holder ? holder.Workspace : null;
+		let reason = null;
+		if ( !workers || !workspace )
+		{
+			reason = 'the project names no workspace';
+		}
+		else if ( !workers.Online( workspace.Worker ) )
+		{
+			reason = 'the worker "' + workspace.Worker + '" is offline';
+		}
+		else
+		{
+			let offered = workers.Has( workspace.Worker, workspace.Name );
+			if ( !offered )
+			{
+				reason = 'the worker "' + workspace.Worker + '" does not offer the workspace "' + workspace.Name + '" now';
+			}
+			else if ( !offered.Build )
+			{
+				reason = 'the workspace "' + workspace.Name + '" has no Build settings on its worker';
+			}
+			let worker = workers.List().find( function ( candidate ) { return candidate.Name === workspace.Worker; } );
+			view.Destinations = worker.Inference.filter( function ( item ) { return item.Type === 'claude-cli'; } ).map( function ( item )
+			{
+				return { Name: worker.Name + ' / ' + item.Name, Model: item.Model || null };
+			} );
+			if ( !reason && !view.Destinations.length )
+			{
+				reason = 'the worker "' + workspace.Worker + '" has no claude-cli inference item';
+			}
+		}
+		let open = read.Threads.filter( function ( thread ) { return !thread.Build && actable( thread ); } );
+		if ( !reason && open.length )
+		{
+			reason = open.length + ( open.length === 1 ? ' thread is' : ' threads are' ) + ' not applied yet';
+		}
+		if ( !reason && view.Running )
+		{
+			reason = 'a review or build of this plan is running';
+		}
+		let log = last_build_log( read.Threads );
+		if ( log && log.Status === 'contested' && log.Replies[ log.Replies.length - 1 ].By !== ( llm_participant() || {} ).Name )
+		{
+			view.SentBack = log.Id;
+		}
+		view.Reason = reason;
+		view.Ready = !reason;
+		return view;
+	}
+
+
+	function last_build_log( threads )
+	{
+		let logs = threads.filter( is_build_log );
+		return logs.length ? logs[ logs.length - 1 ] : null;
+	}
+
+
+	async function set_state( id, state )
+	{
+		if ( !states().includes( state ) )
+		{
+			return;
+		}
+		await store.Queue( id, function () { return store.UpdateProposal( id, { State: state } ); } );
+		changed( id, 'state' );
+	}
+
+
+	// Body = { Destination?, Model? }: one of the build's destinations (the first when none is named).
+	router.post( '/proposals/:id/build', async function ( request, response )
+	{
+		if ( request.Participant.Role !== 'owner' )
+		{
+			return fail( response, 403, 'only the owner builds a plan' );
+		}
+		let llm = llm_participant();
+		if ( !llm )
+		{
+			return fail( response, 409, 'there is no llm participant in consensus.json' );
+		}
+		let id = request.params.id;
+		let read = await store.ReadProposal( id );
+		if ( !read )
+		{
+			return fail( response, 404, 'no such proposal' );
+		}
+		if ( is_document( read.Proposal ) )
+		{
+			return fail( response, 409, 'only a plan is built' );
+		}
+		let view = await build_view( id, read );
+		if ( !view.Ready )
+		{
+			return fail( response, 409, 'the plan cannot be built now: ' + view.Reason );
+		}
+		let body = request.body || {};
+		let named = view.Destinations.find( function ( candidate ) { return candidate.Name === body.Destination; } );
+		if ( body.Destination && !named )
+		{
+			return fail( response, 400, 'no build destination is named "' + body.Destination + '"' );
+		}
+		let destination = destinations_of( llm ).find( function ( candidate ) { return candidate.Name === ( named || view.Destinations[ 0 ] ).Name; } );
+		let call = Object.assign( {}, destination );
+		if ( typeof body.Model === 'string' && body.Model.trim() )
+		{
+			call.Model = body.Model.trim();
+		}
+		if ( calls_in_last_hour() >= call.CallsPerHour )
+		{
+			return fail( response, 409, 'the LLM is paused: ' + call.CallsPerHour + ' calls in the last hour' );
+		}
+		calling[ id ] = true;
+		recent_calls.push( Date.now() );
+		await set_state( id, WORKING );
+		let run_id = await start_run( id, destination.Name + ' (build)', call.Model, { Build: true } );
+		events.Send( { Proposal: id, Kind: 'llm-started' } );
+		response.status( 202 ).json( { Started: true, Run: run_id, SentBack: view.SentBack } );
+
+		queue_build( id, llm, call, run_id, view.SentBack ).catch( function ( error )
+		{
+			console.error( 'build: ' + id + ': ' + error.message );
+			end_session( id, run_id, 'the build was not queued: ' + error.message );
+		} );
+	} );
+
+
+	async function queue_build( id, llm, call, run_id, sent_back )
+	{
+		let started = Date.now();
+		let read = await store.ReadProposal( id );
+		let holder = await store.ProjectOf( id );
+		let back = null;
+		if ( sent_back )
+		{
+			let log = find_thread( read, sent_back );
+			let last_own = -1;
+			log.Replies.forEach( function ( reply, index )
+			{
+				if ( reply.By === llm.Name )
+				{
+					last_own = index;
+				}
+			} );
+			back = {
+				Log: log.Replies[ last_own ].Text,
+				Replies: log.Replies.slice( last_own + 1 ).map( function ( reply ) { return reply.Text; } ),
+			};
+		}
+		let prompt = LLM.BuildPrompt( {
+			Project: holder.Name,
+			Context: await context_of( holder ),
+			MaxCharacters: LLM.ContextSettings( settings ).MaxCharacters,
+			Parents: await plans_of( TREE.Parents( holder.Items, id ), true ),
+			Proposal: read.Proposal,
+			Text: read.Text,
+			SentBack: back,
+		} );
+		let job = workers.Queue( call.Worker.Name, {
+			Kind: 'Build',
+			Proposal: id,
+			Title: read.Proposal.Title,
+			Project: { Id: holder.Id, Name: holder.Name },
+			Workspace: holder.Workspace.Name,
+			Inference: call.Worker.Inference,
+			Model: call.Model || null,
+			Run: run_id,
+			Prompt: prompt,
+			Schema: LLM.BUILD_SCHEMA,
+			SentBack: sent_back || null,
+		} );
+		job_state[ job.Id ] = { Llm: llm, Call: call, Started: started, SentBack: sent_back || null };
+		events.Send( { Kind: 'workers' } );
+		await log_step( id, run_id, { Text: 'Consensus queued the build for ' + call.Name + ', job ' + job.Id + ( sent_back ? ', sent back on ' + sent_back : '' ), Seconds: seconds_since( started ), Tokens: tokens_of( prompt ) } );
+	}
+
+
+	// A build's answer: its threads opened, and its log posted as the receipt (a reply on the log sent back). An error
+	// is logged in the run and, for a build sent back, replied on its log. The session ends either way.
+	async function finish_build( job, body )
+	{
+		let state = job_state[ job.Id ];
+		delete job_state[ job.Id ];
+		let id = job.Proposal;
+		if ( !state )
+		{
+			return { Error: 'the job is not known here any more' };
+		}
+		let model = ( body.Usage && body.Usage.Model ) || state.Call.Model || state.Call.Kind;
+		let answer = null;
+		let problem = body.Error ? String( body.Error ) : null;
+		if ( !problem )
+		{
+			try
+			{
+				answer = LLM.ParseBuild( body.Answer );
+			}
+			catch ( error )
+			{
+				problem = error.message;
+			}
+		}
+		try
+		{
+			if ( problem )
+			{
+				await log_step( id, job.Run, { Text: 'the build failed on ' + job.Worker + ': ' + problem, Seconds: seconds_since( state.Started ) } );
+				if ( state.SentBack )
+				{
+					await add_reply( id, state.SentBack, state.Llm, 'The build failed on ' + job.Worker + ' (job ' + job.Id + '): ' + problem );
+				}
+				return { Error: problem };
+			}
+			await record_usage( state.Call, body.Usage );
+			let opened = [];
+			for ( let question of answer.Threads )
+			{
+				let anchor = question.Anchor ? { Text: question.Anchor } : null;
+				let made = await create_thread( id, state.Llm, question.Text, anchor, false, { Build: { Job: job.Id } } );
+				if ( made.Refused && anchor )
+				{
+					made = await create_thread( id, state.Llm, question.Text + '\n\n(Its anchor, "' + question.Anchor + '", was not found in the plan.)', null, false, { Build: { Job: job.Id } } );
+				}
+				if ( !made.Refused )
+				{
+					opened.push( made.Thread.Id );
+				}
+			}
+			let receipt = build_receipt( job, answer, body.Usage, model, opened );
+			// A round that gives no context keeps the one an earlier round of the same log gave.
+			let fields = { Job: job.Id, Worker: job.Worker, Log: true };
+			if ( answer.Context.trim() )
+			{
+				fields.Context = answer.Context;
+			}
+			let log_id = null;
+			if ( state.SentBack )
+			{
+				let replied = await add_reply( id, state.SentBack, state.Llm, receipt );
+				if ( !replied.Refused )
+				{
+					await set_build_fields( id, state.SentBack, fields );
+					log_id = state.SentBack;
+				}
+			}
+			if ( !log_id )
+			{
+				let made = await create_thread( id, state.Llm, receipt, null, false, { Build: fields } );
+				log_id = made.Refused ? null : made.Thread.Id;
+			}
+			let output = ( body.Usage && body.Usage.Output ) || tokens_of( JSON.stringify( answer ) );
+			await log_step( id, job.Run, { Text: model + ' built on ' + job.Worker + ': the build log ' + ( log_id || '(not posted)' ) + ( opened.length ? ', ' + opened.length + ( opened.length === 1 ? ' thread' : ' threads' ) + ' opened' : '' ), Seconds: seconds_since( state.Started ), Tokens: output } );
+			console.log( 'build: ' + id + ': ' + model + ' on ' + job.Worker + ', ' + seconds_since( state.Started ) + 's, log ' + log_id + ', ' + opened.length + ' threads' );
+			return { Log: log_id, Threads: opened };
+		}
+		finally
+		{
+			end_session( id, job.Run, null );
+			events.Send( { Kind: 'workers' } );
+		}
+	}
+
+
+	// The build log as the owner reads it: the receipt's facts, then the log the model wrote.
+	function build_receipt( job, answer, usage, model, opened )
+	{
+		let tokens = ( usage && ( usage.Input || usage.Output ) ) ? ', ' + ( usage.Input || 0 ).toLocaleString( 'en-US' ) + ' in, ' + ( usage.Output || 0 ).toLocaleString( 'en-US' ) + ' out' : '';
+		let lines = [
+			'**Build log**: job ' + job.Id + ', worker ' + job.Worker + ', workspace ' + job.Workspace + ', ' + model + tokens + '.',
+			'',
+			answer.BuildLog,
+			'',
+		];
+		if ( opened.length )
+		{
+			lines.push( 'Threads this build opened: ' + opened.join( ', ' ) + '.' );
+			lines.push( '' );
+		}
+		lines.push( '_Resolve this thread to accept the build; reply to send it back._' );
+		return lines.join( '\n' );
+	}
+
+
+	async function set_build_fields( id, thread_id, fields )
+	{
+		await store.Queue( id, async function ()
+		{
+			let read = await store.ReadProposal( id );
+			let thread = read ? find_thread( read, thread_id ) : null;
+			if ( thread )
+			{
+				thread.Build = Object.assign( {}, thread.Build || {}, fields );
+				await store.WriteThreads( id, read.Threads );
+			}
+		} );
+		changed( id, 'thread', thread_id );
+	}
+
+
+	// The owner resolved a build log: it is applied (outcome only), the context the build wrote is carried out, the
+	// plan is Finished, and the worker is told, so its page offers Commit.
+	async function build_accepted( id, thread_id )
+	{
+		let llm = llm_participant();
+		let read = await store.ReadProposal( id );
+		let thread = read ? find_thread( read, thread_id ) : null;
+		if ( !llm || !is_build_log( thread ) )
+		{
+			return;
+		}
+		let applied = await apply_outcome( id, thread_id, llm, { Outcome: 'the build is accepted', Revision: read.Proposal.Revision }, true );
+		if ( applied.Refused )
+		{
+			console.error( 'build: ' + id + ': the build log was not applied: ' + applied.Refused.Error );
+		}
+		if ( thread.Build.Context )
+		{
+			let context = await context_of( await store.ProjectOf( id ) );
+			if ( context )
+			{
+				let written = await write_context( context.Id, llm, thread.Build.Context, 'the build of "' + read.Proposal.Title + '" was accepted', context.Revision );
+				if ( written.Refused )
+				{
+					console.error( 'build: ' + id + ': the context was not written: ' + written.Refused.Error );
+				}
+			}
+		}
+		await set_state( id, FINISHED );
+		if ( workers && thread.Build.Worker )
+		{
+			workers.Notify( thread.Build.Worker, { Job: thread.Build.Job, Change: 'accepted', Proposal: id, Title: read.Proposal.Title } );
+		}
+	}
+
+
+	// The owner replied to a build log: the worker is told the build was sent back.
+	function build_sent_back( thread )
+	{
+		if ( workers && thread.Build.Worker )
+		{
+			workers.Notify( thread.Build.Worker, { Job: thread.Build.Job, Change: 'sent back' } );
 		}
 	}
 
@@ -2599,7 +3260,7 @@ function Attach( App, Context )
 			let ignored = answer.Requests.length ? ' (its requests go unanswered)' : '';
 			await log_step( id, run_id, { Text: 'The answer was pasted: ' + actions_words( answer.Actions ) + ignored, Tokens: tokens_of( pasted ) } );
 			let context = ( holder && holder.Context ) ? { Id: holder.Context, Revision: ( typeof body.ContextRevision === 'number' ) ? body.ContextRevision : null } : null;
-			let failures = await carry_out_answer( id, llm, run_id, answer.Actions, body.Revision, context );
+			let failures = await carry_out_answer( id, llm, run_id, answer.Actions, body.Revision, context, ( run && run.Options ) ? run.Options.Thread : null );
 			console.log( 'llm: ' + id + ': a pasted answer, ' + answer.Actions.length + ' actions' + ( Object.keys( failures ).length ? ', ' + Object.keys( failures ).length + ' refused' : '' ) );
 			response.json( { Actions: answer.Actions.length, Refused: failures, Run: run_id } );
 		}
@@ -2644,14 +3305,42 @@ function Attach( App, Context )
 
 	// The answer's actions, in order, each through the same rules as the API. Returns { threadId: reason } for refusals.
 	// Context is the project's context as the call was given it ({ Id, Revision }), or null; one context action is
-	// carried out, made from that revision.
-	async function carry_out( id, llm, waiting, actions, revision, context )
+	// carried out, made from that revision. Made, when given, collects what thread and plan actions made and refused.
+	async function carry_out( id, llm, waiting, actions, revision, context, made )
 	{
 		let failures = {};
 		let current_revision = revision;
 		let context_written = false;
+		let record = made || { Made: [], Refused: [] };
 		for ( let action of actions )
 		{
+			if ( action.Kind === 'thread' )
+			{
+				let anchor = text_of( action.Anchor ).trim() ? { Text: text_of( action.Anchor ).trim() } : null;
+				let opened = await create_thread( id, llm, text_of( action.Text ).trim(), anchor, false );
+				if ( opened.Refused )
+				{
+					record.Refused.push( 'a new thread: ' + opened.Refused.Error );
+				}
+				else
+				{
+					record.Made.push( 'thread ' + opened.Thread.Id );
+				}
+				continue;
+			}
+			if ( action.Kind === 'plan' )
+			{
+				let planned = await plan_from_answer( id, llm, action );
+				if ( planned.Refused )
+				{
+					record.Refused.push( 'the plan "' + text_of( action.Title ).trim() + '": ' + planned.Refused.Error );
+				}
+				else
+				{
+					record.Made.push( 'plan "' + planned.Proposal.Title + '" (' + planned.Proposal.Id + ')' );
+				}
+				continue;
+			}
 			if ( action.Kind === 'context' )
 			{
 				if ( !context || context_written )
@@ -2720,6 +3409,83 @@ function Attach( App, Context )
 			}
 		}
 		return failures;
+	}
+
+
+	// A plan action: a new plan in the reviewed proposal's project, in the first state. Parent names a folder, or a
+	// plan by title or id (a Subplan); none puts it in the reviewed proposal's folder. Returns { Proposal } or a refusal.
+	async function plan_from_answer( id, llm, action )
+	{
+		let holder = await store.ProjectOf( id );
+		if ( !holder )
+		{
+			return refused( 409, 'the proposal is in no project' );
+		}
+		let parent = null;
+		let named = text_of( action.Parent ).trim();
+		if ( named )
+		{
+			parent = await parent_named( holder, named );
+			if ( !parent )
+			{
+				return refused( 400, 'no folder or plan "' + named + '" in the project' );
+			}
+		}
+		else
+		{
+			parent = folder_of( holder.Items, id, null );
+		}
+		return await create_proposal( llm, { Title: text_of( action.Title ).trim(), Text: text_of( action.Text ), Kind: 'plan', State: states()[ 0 ], Project: holder.Id, Parent: parent } );
+	}
+
+
+	// The id of a folder named Name (any case), or of a plan with that id or title, in the project; or null.
+	async function parent_named( project, name )
+	{
+		let wanted = name.toLowerCase();
+		let folder = null;
+		( function walk( nodes )
+		{
+			for ( let node of nodes )
+			{
+				if ( !folder && node.Kind === 'folder' && String( node.Name ).toLowerCase() === wanted )
+				{
+					folder = node.Id;
+				}
+				if ( Array.isArray( node.Items ) )
+				{
+					walk( node.Items );
+				}
+			}
+		} )( project.Items );
+		if ( folder )
+		{
+			return folder;
+		}
+		let plan = item_named( await project_items( project ), name, [ 'plan' ] );
+		return plan ? plan.Id : null;
+	}
+
+
+	// The id of the folder that holds the item Id, however deep in plans; null at the project's root.
+	function folder_of( nodes, id, folder )
+	{
+		for ( let node of nodes )
+		{
+			if ( node.Id === id )
+			{
+				return folder;
+			}
+			if ( Array.isArray( node.Items ) )
+			{
+				let found = folder_of( node.Items, id, ( node.Kind === 'folder' ) ? node.Id : folder );
+				if ( found !== undefined )
+				{
+					return found;
+				}
+			}
+		}
+		return undefined;
 	}
 
 
@@ -2876,7 +3642,7 @@ function Attach( App, Context )
 	}
 
 
-	// A corpus's files, the paths of its text files and a way to read one: from its zip, or from its context server.
+	// A corpus's files, the paths of its text files and a way to read one, from its zip.
 	// Null when neither can be read.
 	async function corpus_texts( corpus )
 	{
@@ -3111,6 +3877,7 @@ function Attach( App, Context )
 		fail( response, status, ( status === 500 ) ? 'internal error: ' + error.message : error.message );
 	} );
 
+	App.use( '/api/workers', worker_router );
 	App.use( '/api', router );
 }
 

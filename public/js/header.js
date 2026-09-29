@@ -1,10 +1,10 @@
 'use strict';
 
 // Header - two lines. The first: the title, Read / Edit / Revisions and the threads toggle. The second: the
-// state picker and the one-line state, then New Comment, New subplan, and Send to LLM (owner). Delete is in the
+// state picker and the one-line state, then New Comment, New subplan, Review and Build (owner). Delete is in the
 // item's menu in the tree. Ctrl+E switches the open item between Edit and Read.
 
-angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Sessions', 'Subplans', function ( $scope, $window, State, Client, Sessions, Subplans )
+angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Sessions', 'Subplans', 'Builds', function ( $scope, $window, State, Client, Sessions, Subplans, Builds )
 {
 	$scope.State = State;
 	$scope.Busy = false;
@@ -159,13 +159,41 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 		{
 			return 'a session is running; its log is in the session panel';
 		}
-		return 'open the session panel: shape the prompt, pick where it goes, and follow the run log (' + llm.Waiting + ' thread' + ( llm.Waiting === 1 ? '' : 's' ) + ' waiting on the LLM)';
+		return 'open the review panel: shape the prompt, pick where it goes, and follow the run log (' + llm.Waiting + ' thread' + ( llm.Waiting === 1 ? '' : 's' ) + ' waiting on the LLM)';
 	};
 
 
-	// Send to LLM opens (or closes) the plan's session panel; the session starts from there.
+	// Review opens (or closes) the plan's review panel for the whole plan; the session starts from there.
 	$scope.Send = function ()
 	{
-		Sessions.Toggle( State.OpenId );
+		Sessions.ReviewPlan( State.OpenId );
+	};
+
+
+	// Build (plan Build): shown for the owner on a plan whose project has a workspace; enabled when it can go now.
+	$scope.CanBuild = function ()
+	{
+		return !!State.Open && !!State.Open.Build && State.Me.Role === 'owner' && State.Open.Build.Reason !== 'the project names no workspace';
+	};
+
+
+	$scope.BuildHint = function ()
+	{
+		let view = State.Open && State.Open.Build;
+		if ( !view )
+		{
+			return '';
+		}
+		if ( !view.Ready )
+		{
+			return 'not now: ' + view.Reason;
+		}
+		return view.SentBack ? 'build again, with your reply to the last build log' : 'the worker builds the plan in the project\'s workspace and posts a build log';
+	};
+
+
+	$scope.Build = function ()
+	{
+		Builds.Open( State.Open );
 	};
 } ] );

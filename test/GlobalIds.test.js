@@ -54,7 +54,7 @@ TEST( 'ids: three letters and three groups of three base36 characters, one kind 
 		ASSERT.equal( id.slice( 0, 3 ), kind );
 		ASSERT.equal( IDS.Is( id, kind ), true );
 	}
-	ASSERT.deepEqual( IDS.KINDS, [ 'prj', 'pln', 'doc', 'ctx', 'fld', 'cor', 'thr', 'rep', 'rev', 'run' ] );
+	ASSERT.deepEqual( IDS.KINDS, [ 'prj', 'pln', 'doc', 'ctx', 'fld', 'cor', 'thr', 'rep', 'rev', 'run', 'job' ] );
 	ASSERT.equal( IDS.Is( 'p95cb55db' ), false );
 	ASSERT.equal( IDS.Is( 'abc-000-000-000' ), false );
 	ASSERT.equal( IDS.Is( IDS.New( IDS.PLAN ), IDS.DOCUMENT ), false );

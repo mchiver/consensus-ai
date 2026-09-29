@@ -6,7 +6,7 @@ documents and uploaded code that give the LLM the context of the work.
 
 A standalone application: Node and Express on the server, AngularJS, Bootstrap, marked and Monaco in the
 page, plain files in a data folder. The browser is the User; Consensus calls the LLM when the User presses
-Send to LLM. Nothing runs anywhere but this workstation, except the LLM the settings name.
+Review, or hands a review or a build to a **worker** that runs beside the code (see Workers).
 
 ## Starting it
 
@@ -40,12 +40,12 @@ opening an item opens its project. A project holds, in folders of any depth:
   the heading; nothing locks, and a state does not depend on the threads.
 - **Documents**: markdown edited in Monaco with revisions, but with no threads and no state. The LLM reads
   them through search; it does not edit them.
-- **Corpora**, of two kinds, marked in the tree: **attached**, a zip uploaded to Consensus and kept in the
-  project's folder (Replace zip uploads a new one in its place); and **linked**, a context server's folder (see
-  Context servers). Both are listed, read, searched and offered to the LLM the same way. Each has its own
-  **Include** and **Exclude**, edited in the corpus view (one pattern per line, as in `.gitignore`; an empty
-  Include means every file, and Exclude wins), which narrow what reaches the project; an attached zip's own
-  `.gitignore` files apply too, each to its folder and below. Any file let in is read unless it is larger than
+- **Corpora**: zips uploaded to Consensus and kept in the project's folder (Replace zip uploads a new one in
+  its place), listed, read, searched and offered to the LLM. Each has its own **Include** and **Exclude**,
+  edited in the corpus view (one pattern per line, as in `.gitignore`; an empty Include means every file, and
+  Exclude wins), which narrow what reaches the project; the zip's own `.gitignore` files apply too, each to
+  its folder and below. (Linked corpora, read through a context server, were retired with the plan Workers: a
+  project's code is now its **workspace** on a worker. One left in the data shows as an empty corpus.) Any file let in is read unless it is larger than
   `MaxFileKilobytes` or binary (it holds a NUL byte): there is no list of file types. The view lists every file,
   which were read and why the others were not, and shows a file's text (as plain text, never as HTML).
 - **Folders**, to organize any of these.
@@ -56,6 +56,9 @@ opening an item opens its project. A project holds, in folders of any depth:
   quoted and the thread so far; the thread gets a reply linking to it and stays open), or on selected text
   (it starts with that text; the parent is not changed). Dropping a plan on the middle of a plan makes it a
   Subplan.
+
+A project may name a **workspace**: a folder a worker offers (**Workspace** in the project's menu), shown under
+the project's name in the tree. A worker's review reads the code there, and a build works there.
 
 The **Default** project is created at first start and never deleted; ad-hoc items live there. Every item
 belongs to exactly one project. The open project carries a solid green dot, the others a hollow circle. Each
@@ -94,14 +97,14 @@ outcome, or the recommendation, in the last reply.
 	consensus.json                   settings: Port, Participants, States, Corpus, optional Embedding
 	usage.json                       the LLM's tokens per day and model
 	projects.json                    { Projects: [ { Id, Name } ] }: every project's name, in display order
-	projects/<id>/project.json       { Id, Context, Created, Updated, Version, Items: [ node ] }  Context: its context's id
+	projects/<id>/project.json       { Id, Context, Created, Updated, Version, Items: [ node ], Workspace?: { Worker, Name } }
 	proposals/<id>/proposal.json     { Id, Title, Kind: plan | document | context, State, Created, Updated, Revision }
 	proposals/<id>/proposal.md       the text at revision Revision
 	proposals/<id>/threads.json      the threads
 	proposals/<id>/revisions/0001.md, 0001.json    every revision's text and record
 	proposals/<id>/index.json        search chunks
 	projects/<project>/corpora/<id>/corpus.json    { Id, Kind: corpus, Name, Created, Updated, Version,
-	                                 Source: attached | linked, Link?: { Server, Corpus }, Include, Exclude, Files }
+	                                 Source: attached, Include, Exclude, Files }
 	projects/<project>/corpora/<id>/corpus.zip     an attached zip, as it came; never unpacked to disk
 	projects/<project>/corpora/<id>/index.json     an attached zip's search chunks
 	trash/<id>/                      a deleted proposal or corpus, moved whole
@@ -112,8 +115,8 @@ to one proposal, corpus or project never interleave; a tree change that names an
 
 A new data folder gets the Default project at its first start, and a new settings file its defaults.
 
-Ids are a kind letter and 8 hex digits: `p…` for a plan or document, `z…` for a corpus, `j…` for a project
-(Default is `default`).
+Ids are `<kind>-xxx-xxx-xxx` (plan Global Ids): `prj pln doc ctx fld cor thr rep rev run job` and three groups of
+three base36 characters; Default is `default`.
 
 ## Settings
 
@@ -128,14 +131,16 @@ Ids are a kind letter and 8 hex digits: `p…` for a plan or document, `z…` fo
 			{ "Name": "llm", "Display": "LLM", "Role": "llm", "Call": { "Kind": "claude-cli", "Command": "claude" } }
 		],
 		"Corpus": { "MaxZipMegabytes": 50, "MaxFileKilobytes": 512 },
-		"Context": { "MaxCharacters": 12000 }
+		"Context": { "MaxCharacters": 12000 },
+		"Workers": [ { "Name": "Workstation", "Token": "…" } ]
 	}
 
 `Host` is the address the server listens on (see Starting it). `States` is the list a plan's state is picked from; a new plan starts in the first. `Corpus` limits
 uploads: a zip over `MaxZipMegabytes` is refused, and a file the corpus lets in is read only when it is no larger
 than `MaxFileKilobytes` and holds no NUL byte. An `Extensions` list left there from before is ignored, with a
 note at start. `Context.MaxCharacters` is the size the LLM
-keeps each project's context under. Restart the server after editing.
+keeps each project's context under. `Workers` are the workers Consensus accepts, each with its own token (see
+Workers). Restart the server after editing.
 
 A request without an `Authorization` header is the participant with the `owner` role: the browser. A
 request with `Authorization: Bearer <token>` is the participant holding that token; give a participant a
@@ -144,38 +149,46 @@ a full participant that is asked to apply resolved threads; `member` takes part 
 
 ## How the LLM takes part
 
-Two kinds of LLM take part, both as the one `llm` participant. The **one-shot LLM** is the one Consensus
-calls (below): it reviews, replies, applies and keeps the project's context, and never builds. An **agent
-session** in the codebase (Claude Code, say) initializes contexts and implements plans through the API;
-`.guides/build-with-consensus.md` is its guide (served at `/instructions`), with the build loop: a plan with every thread applied is
-built on the owner's word, the agent reports in a build log thread, and the owner accepts it by resolving it.
+Every LLM takes part as the one `llm` participant. A **review** answers and applies a plan's threads, may open
+threads and plans of its own, and keeps the project's context; Consensus calls it, or hands it to a worker. A
+**build** implements a plan in its project's workspace, on a worker (see Workers). An **agent session** in the
+codebase (Claude Code, say) works through the API; `.guides/build-with-consensus.md` is its guide (served at
+`/instructions`).
 
-Consensus calls the LLM only when the owner asks. **Send to LLM** in a plan's heading counts the threads waiting
-on the LLM and opens the plan's **session panel**, within the plan's content area: each plan, in its own tab,
-has its own, and sessions in different tabs run at the same time. Closing the panel or switching tabs does not
-stop a session. In the panel:
+Consensus calls the LLM only when the owner asks. **Review** in a plan's heading counts the threads waiting
+on the LLM and opens the plan's **review panel**, within the plan's content area: each plan, in its own tab,
+has its own, and reviews in different tabs run at the same time. Closing the panel or switching tabs does not
+stop a review. **Review** on a selected thread opens the same panel for that thread alone: only it is sent, and
+the LLM may act on it even when it waits on the owner; **Review the whole plan** in the panel lets it go. A
+review of the whole plan runs even with nothing waiting, since it may open threads. In the panel:
 
 - **Prompt:** the project's context on or off, a Subplan's **Parent plans** on or off (every plan above it,
   the top one first, as its text without threads), search on or off, and which threads: only the waiting ones,
   the open ones (the default: finished threads are left out), or all. The prompt's size shows as tokens
   (characters ÷ 4) and characters, with each part's share; **Preview** shows the prompt itself.
 - **Send to:** a destination from the settings (Claude CLI, Ollama with its model picked from what Ollama
-  lists), or **Manual copy / paste**: Copy prompt, give it to any LLM anywhere, paste its answer, Carry out.
+  lists), a worker's ("Workstation / Claude CLI": the review runs beside the code, with tools), or **Manual
+  copy / paste**: Copy prompt, give it to any LLM anywhere, paste its answer, Carry out.
 - **Run log:** each session's steps with their time, duration and size (sent, answered, carried out), kept
   with the plan in `runs.json` (the last 20 sessions).
 
 A session holds the rules, the plan's project and **its context**, the plan's text at the current revision,
 its threads (the waiting ones marked), and for each waiting thread the best passages the search finds **in the
 plan's own project**: its plans, threads, documents and corpus files. It never holds other plans in full.
-The LLM has no tools: it answers with one JSON object,
+It answers with one JSON object,
 
 	{ "Actions": [
-		{ "Thread": "t…", "Kind": "reply", "Reply": "markdown" },
-		{ "Thread": "t…", "Kind": "apply", "Outcome": "one sentence", "Text": "the whole new markdown", "Anchor": "a few words" },
-		{ "Kind": "context", "Text": "the whole new context", "Reason": "one sentence" }
+		{ "Thread": "thr-…", "Kind": "reply", "Reply": "markdown" },
+		{ "Thread": "thr-…", "Kind": "apply", "Outcome": "one sentence", "Text": "the whole new markdown", "Anchor": "a few words" },
+		{ "Kind": "context", "Text": "the whole new context", "Reason": "one sentence" },
+		{ "Kind": "thread", "Text": "a new comment", "Anchor": "a few words, or none for the whole plan" },
+		{ "Kind": "plan", "Title": "…", "Text": "markdown", "Parent": "a folder's name, or a plan's title or id" }
 	] }
 
-An answer may instead **ask for more**, with `"Requests"` beside its actions: `list_project`, `read_plan`,
+A `thread` action opens a contested thread by the llm on the reviewed plan; a `plan` action a new plan in its
+project, in the first state (a plan as Parent makes it a Subplan; none puts it in the reviewed plan's folder). A
+worker's review has read-only tools (see Workers). A review Consensus calls itself has none, but an answer may
+instead **ask for more**, with `"Requests"` beside its actions: `list_project`, `read_plan`,
 `read_revision`, `list_files` (a corpus's files, or one folder's), `read_file` (a file in a corpus; `Corpus`
 names it, and the older `Zip` still works) or `search`, all read-only and within the plan's
 project. Consensus answers them in the next prompt of the same session ("What you asked for"), and the LLM
@@ -185,7 +198,7 @@ and its answer is a step of the run log. With Manual copy / paste, **Carry out**
 
 The final answer's actions are carried out as the llm participant, through the same rules as the API. An action
 that is refused, or a call that fails, leaves a line on its thread (*LLM call failed …*); the next
-successful call clears it, and pressing Send to LLM again is the retry. Each call is a line in the server
+successful call clears it, and pressing Review again is the retry. Each call is a line in the server
 log, and its tokens are added to `usage.json`; the sidebar shows today's, with the rest in its tooltip.
 
 **The project's context.** Every project has one, Default included: a short account of what the project is
@@ -208,8 +221,8 @@ list of one):
 `claude-cli` runs Claude Code headless (`claude -p`) with every tool turned off, on the claude.ai sign-in
 of this workstation; `Model` is optional and passed as `--model`. `ollama` posts to Ollama's chat endpoint,
 held to the answer's format; its `Model` may be left out and picked in the panel. Both also take `CallsPerHour` (default 20: past it the button is refused until
-the hour has passed) and `TimeoutSeconds` (default 300). Send to LLM (the `/send` route) goes to the first
-destination with the default choices. Manual copy / paste needs no setting.
+the hour has passed) and `TimeoutSeconds` (default 300). The `/send` route goes to the first destination with
+the default choices. Manual copy / paste needs no setting.
 
 ## The rules, in plain words
 
@@ -264,48 +277,61 @@ descriptors, and names in UTF-8, flagged or not, or in the old IBM code page. ma
 `.DS_Store` entries are left out. A zip holding a name that climbs out (`..`), starts at a root or names a
 drive, or an encrypted entry, is refused whole with the reason.
 
-## Context servers
+## Workers
 
-A context server is a small server beside Consensus that keeps a **live corpus** (a folder read as it is now,
-rather than a zip uploaded again after each change) and passes prompts to local LLMs. It is optional. Start
-one with its own settings file:
+A worker (plan Workers) runs beside the code, on the machine that holds it, and takes jobs from Consensus: a
+**review** (plan Review) or a **build** (plan Build). It connects out to Consensus, which never connects to it.
+Start one with its own settings file:
 
-	node bin/context-server.js [--settings context-server.json] [--port 3600]
+	node bin/worker.js [--settings worker.json] [--port 3700]
 
-A missing settings file is written with a new `Token` and no items. It holds:
+A missing settings file is written with a new token and no items. It holds:
 
 	{
-	  "Host": "127.0.0.1", "Port": 3600, "Token": "…",
-	  "Corpus": { "MaxFileKilobytes": 512 },
-	  "Embedding": { "Url": "http://127.0.0.1:11434", "Model": "nomic-embed-text" },
+	  "Name": "Workstation",
+	  "Consensus": { "Url": "http://cube4:3500", "Token": "…" },
+	  "Web": { "Host": "127.0.0.1", "Port": 3700 },
 	  "Items": [
-	    { "Kind": "Corpus", "Name": "Code", "Root": "W:\\code\\app", "Include": [], "Exclude": [ ".git/**" ] },
-	    { "Kind": "Inference", "Name": "Ollama", "Type": "ollama", "Url": "http://127.0.0.1:11434" },
-	    { "Kind": "Inference", "Name": "Claude CLI", "Type": "claude-cli" }
-	  ]
+	    { "Kind": "Workspace", "Name": "Code", "Root": "W:/code/app", "Include": [], "Exclude": [ "~data/**" ],
+	      "Build": { "Remote": "origin", "Commands": [ "npm test" ] } },
+	    { "Kind": "Inference", "Name": "Claude CLI", "Type": "claude-cli", "Command": "claude", "Model": "sonnet" },
+	    { "Kind": "Inference", "Name": "Ollama", "Type": "ollama", "Url": "http://127.0.0.1:11434", "Model": "glm-5.3:cloud" }
+	  ],
+	  "MaxRounds": 20,
+	  "TimeoutSeconds": 600
 	}
 
-- `Host` is the address it binds to: 127.0.0.1 by default, or a LAN address for a Consensus elsewhere. Every
-  request must carry the `Token`. It has no write routes, and refuses any path outside a corpus's `Root`,
-  links included.
-- A corpus is the files under `Root` that `Include` and `Exclude` (glob patterns relative to `Root`; an
-  empty `Include` means all, and `Exclude` wins) and every `.gitignore` under `Root` let in. Nothing else is
-  assumed: `.git` is left out only when `Exclude` says so. A file larger than `MaxFileKilobytes`, or binary, is
-  listed but not read; there is no list of file types. It is indexed at start the way Consensus indexes (`Embedding` optional), and again when a file
-  watcher sees a change.
-- An Inference item only passes a prompt to its LLM and returns the answer. The Claude CLI runs as whoever
-  started the context server.
+Consensus accepts it by its name and token in `consensus.json`: `"Workers": [ { "Name": "Workstation", "Token":
+"…" } ]`. The worker says what it offers (hello), then asks for jobs with a request Consensus holds open 30
+seconds; one not heard from in 60 seconds is offline, and its running job fails with the reason on its threads.
+Each Inference item is a destination, "Workstation / Claude CLI". It runs one job at a time.
 
-Consensus is told about context servers in `consensus.json`:
+- A **workspace** is a folder read as it is now: the files under `Root` that `Include`, `Exclude` and every
+  `.gitignore` let in. Nothing is indexed. A project names one (Workspace, in its menu).
+- **A review** runs the model in the workspace with read-only tools, until it answers or reaches `MaxRounds` or
+  `TimeoutSeconds`: glob, grep and read (the workspace's files), and the plan tools list_project, read_plan,
+  read_revision and search (answered by Consensus). With `claude-cli` it is `claude -p` in `Root`, restricted
+  to Read, Grep and Glob there (`Exclude` denied too), the plan tools through a small MCP server (`bin/worker.js
+  --mcp`). With `ollama` the worker runs the tool loop itself, then asks once more with the answer's schema.
+- **A build** (claude-cli only) runs `claude -p` in `Root` with Edit and Write too, and Bash for the
+  workspace's `Build.Commands` only, held to them by a hook (`bin/worker.js --bash-guard`): nothing chained,
+  nothing else. It answers `{ BuildLog, Context, Threads }`. The worker does nothing with git on its own: a build
+  changes the files as they are, on whatever is checked out.
 
-	"ContextServers": [ { "Name": "Desk", "Url": "http://127.0.0.1:3600", "Token": "…" } ]
+**Build** in a plan's heading (owner) is enabled when the project's workspace has `Build` settings on an
+online worker, every thread is applied (the build's own aside), and nothing runs for the plan; its hint says
+why not. It sets the plan to Working and queues the job. The answer comes back as the **build log**, a contested
+whole-document thread (the job's receipt: worker, workspace, model, what was built and how it was checked), with
+the threads the build opened. **Resolving** the build log accepts the build: it is applied (outcome only), the
+context the build wrote is written, and the plan is Finished. **Replying** sends it back: **Build again** runs
+with the reply, and the new log is a reply on the same thread.
 
-It asks each one what it offers at start and on Refresh; one that does not answer shows as offline, and
-nothing else breaks. **+ link** on a project picks a server's corpus and adds it to the project as an item,
-as a zip is: its files are listed and read through the server (Reload lists them again), narrowed by the
-corpus's own Include and Exclude; search asks the server and lists its hits beside ours by rank, and the LLM's
-`list_files`, `read_file` and `list_project` reach it. Each
-Inference item is a destination in the session panel, named "Desk / Ollama".
+The worker's page (`Web.Host:Port`, 127.0.0.1:3700 by default, no token) shows its connection, workspaces and
+models, the running job with each tool call as it happens, and the last 50 jobs (kept in `~worker/jobs.json`),
+each opening to its calls and its answer. It has **Pause**, **Resume**, **Cancel** and **Reload** (the settings
+again), and on an accepted build **Commit** (one commit of the workspace's changes on the checked-out branch,
+titled after the plan, the build log below) and **Push** (that branch to `Build.Remote`): the only git the
+worker runs, pressed by the owner, one at a time.
 
 ## The API
 
@@ -321,7 +347,7 @@ Inference item is a destination in the session panel, named "Desk / Ollama".
 	POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id
 	GET    /api/proposals[?state=]                   plans and documents with their tallies
 	POST   /api/proposals                            { Title, Text, Kind?, State?, Project?, Parent? }
-	GET    /api/proposals/:id                        proposal, project, text, threads with positions, tally, whose turn, Llm
+	GET    /api/proposals/:id                        proposal, project, text, threads with positions, tally, whose turn, Llm, Build
 	PUT    /api/proposals/:id                        { Title }
 	PUT    /api/proposals/:id/state                  { State }  one of the States; not for a document
 	PUT    /api/proposals/:id/text                   { Text, Revision }  a manual edit
@@ -333,14 +359,20 @@ Inference item is a destination in the session panel, named "Desk / Ollama".
 	POST   /api/proposals/:id/threads/:tid/anchor    { Anchor }  re-anchor
 	POST   /api/proposals/:id/threads/:tid/resolve   owner only
 	POST   /api/proposals/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
-	POST   /api/proposals/:id/send                   owner; calls the LLM for what waits on it (202, runs in the background)
+	POST   /api/proposals/:id/session                owner; { Destination, Model?, Options: { Context, Parents, Threads, Search, Thread? } }
+	POST   /api/proposals/:id/send                   owner; the first destination with the default choices (202, in the background)
+	POST   /api/proposals/:id/build                  owner; { Destination?, Model? }  a build on the workspace's worker (202)
+	PUT    /api/projects/:pid/workspace              owner; { Worker, Name } one a worker offers, or { Worker: null }
+	GET    /api/workers                              the workers, as last heard: online, workspaces, inference (never a token)
+	POST   /api/workers/hello                        a worker's token; { Workspaces, Inference }  what it offers
+	GET    /api/workers/jobs[?busy=1]                a worker's token; held open: { Job } | { Change } | { Hello } | {}
+	POST   /api/workers/jobs/:jid/tool               a worker's token; { Tool, ... }  a plan tool, for the job's project
+	POST   /api/workers/jobs/:jid/step               a worker's token; { Text }  a line of the job's run log
+	POST   /api/workers/jobs/:jid/answer             a worker's token; { Answer, Usage } | { Error }
 	POST   /api/projects/:pid/corpus?name=&parent=   the zip as the body (Content-Type: application/zip)
-	GET    /api/context-servers                      what each context server offers, as last heard (never its token)
-	POST   /api/context-servers/refresh              ask them again
-	POST   /api/projects/:pid/corpus-link            { Server, Corpus, Parent? }  a context server's corpus as an item
-	GET    /api/corpus/:cid                          the corpus, its files (a linked one's from its server) and its project
+	GET    /api/corpus/:cid                          the corpus, its files and its project
 	GET    /api/corpus/:cid/file?path=               one indexed file's text
-	PUT    /api/corpus/:cid                          a new zip as the body, in place of the old one (not for a linked one)
+	PUT    /api/corpus/:cid                          a new zip as the body, in place of the old one
 	PUT    /api/corpus/:cid/name                     { Name }
 	PUT    /api/corpus/:cid/filter                   { Include, Exclude }  lists, or one pattern per line
 	DELETE /api/corpus/:cid                          to the trash
@@ -357,7 +389,8 @@ role, 404 not found, 409 not allowed in this state or a stale revision or versio
 ## Layout of the code
 
 	bin/consensus.js      the command line
-	bin/context-server.js a context server, src/ContextServer.js; src/ContextServers.js is Consensus's side
+	bin/worker.js         a worker, src/Worker.js (its page: public/worker/); src/Workspace.js its file tools;
+	                      src/Mcp.js the plan tools for claude; src/Workers.js is Consensus's side
 	src/Server.js         Start( { Data, Port, Host } )
 	src/Api.js            the routes
 	src/Instructions.js   GET /instructions: the agent guide with This server first
@@ -371,7 +404,7 @@ role, 404 not found, 409 not allowed in this state or a stale revision or versio
 	src/Store.js          the data folder
 	src/Participants.js   who is calling, and the States
 	src/Events.js         Server-Sent Events
-	public/               the page: index.html, css/, js/ (one controller per pane)
-	test/                 node --test; Ui.test.js drives a headless browser through test/support/Cdp.js;
+	public/               the page: index.html, css/, js/ (one controller per pane); worker/ the worker's page
+	test/                 node --test; Ui.test.js and WorkerUi.test.js drive a headless browser through test/support/Cdp.js;
 	                      test/support/ZipMaker.js builds test zips byte by byte
 	.plans/               the build plans and the story of this repository

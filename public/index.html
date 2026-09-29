@@ -34,6 +34,7 @@
 		<symbol id="i-save" viewBox="0 0 16 16"><path d="M3 2.5h8l2.5 2.5v8.5h-11zM5 2.5V6h5V2.5M5 13.5v-4h6v4"/></symbol>
 		<symbol id="i-send" viewBox="0 0 16 16"><path d="M2 8l11.5-5.5L9 14l-2-5z"/></symbol>
 		<symbol id="i-sidebar" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M6 2.5v11"/></symbol>
+		<symbol id="i-build" viewBox="0 0 16 16"><path d="M9.5 2.5l4 4-2 2-4-4zM7.5 4.5l-5 5 4 4 5-5"/></symbol>
 		<symbol id="i-sparkle" viewBox="0 0 16 16"><path d="M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z"/></symbol>
 		<symbol id="i-subplan" viewBox="0 0 16 16"><path d="M4 2.5v6a2 2 0 0 0 2 2h6M10 8.5l2 2-2 2"/></symbol>
 		<symbol id="i-target" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/></symbol>
@@ -76,11 +77,9 @@
 				<span class="tree-date" ng-if="DateOf(node) && !IsRenaming(node)">{{ DateOf(node) | day }}</span>
 				<span class="proposal-title" ng-if="!IsRenaming(node)">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
 				<span class="badges" ng-if="!IsRenaming(node)">
-					<span class="badge linked" ng-show="node.Linked" title="kept by a context server: {{ node.Linked }}">linked</span>
 					<span class="badge attached" ng-show="node.Source === 'attached'" title="a zip kept by Consensus, in the project's folder">attached</span>
 					<span class="item-state offline waiting-zip" ng-show="node.Waiting" title="imported without its zip: open it and Replace zip to attach it again">needs its zip</span>
-					<span class="item-state" ng-show="!node.Offline" title="{{ node.Files }} files, {{ node.Indexed }} indexed">{{ node.Files }} files</span>
-					<span class="item-state offline" ng-show="node.Offline" title="its context server does not answer; refresh when it is back">offline</span>
+					<span class="item-state" title="{{ node.Files }} files, {{ node.Indexed }} indexed">{{ node.Files }} files</span>
 				</span>
 				<span class="tree-stamp" ng-if="ShowUpdated && node.Updated" title="updated {{ node.Updated | fullstamp }}">{{ node.Updated | stamp }}</span>
 				<span class="confirm" ng-if="Deleting === node.Id">
@@ -178,16 +177,17 @@
 								<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 							</div>
 						</form>
-						<form class="new-proposal link-form" ng-if="Linking.Project === project.Id" ng-submit="Link()">
-							<select class="form-select form-select-sm" id="link-choice" ng-model="Linking.Picked" ng-options="choice.Label for choice in Linking.Choices" ng-disabled="!Linking.Choices.length"></select>
-							<div class="muted small" ng-show="Linking.Loaded && !Linking.Choices.length">No corpus is offered{{ Linking.Servers.length ? '' : ': no context servers are listed in consensus.json' }}.</div>
-							<div class="muted small" ng-repeat="server in Linking.Servers" ng-show="!server.Online">{{ server.Name }}: offline</div>
+						<form class="new-proposal link-form" ng-if="Choosing.Project === project.Id" ng-submit="ChooseWorkspace()">
+							<select class="form-select form-select-sm" id="workspace-choice" ng-model="Choosing.Picked" ng-options="choice.Label for choice in Choosing.Choices"></select>
+							<div class="muted small" ng-show="Choosing.Loaded && Choosing.Choices.length === 1">No workspace is offered{{ Choosing.Workers.length ? '' : ': no workers are listed in consensus.json' }}.</div>
+							<div class="muted small" ng-repeat="worker in Choosing.Workers" ng-show="!worker.Online">{{ worker.Name }}: offline</div>
 							<div class="new-proposal-buttons">
-								<button class="btn btn-sm btn-primary" type="submit" id="link-submit" ng-disabled="!Linking.Picked"><svg class="icon lead"><use href="#i-link"></use></svg>Link</button>
-								<button class="btn btn-sm btn-outline-secondary" type="button" id="link-refresh" ng-click="RefreshServers()" title="ask the context servers again"><svg class="icon lead"><use href="#i-refresh"></use></svg>Refresh</button>
-								<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelLink()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+								<button class="btn btn-sm btn-primary" type="submit" id="workspace-submit" ng-disabled="!Choosing.Picked"><svg class="icon lead"><use href="#i-check"></use></svg>Choose</button>
+								<button class="btn btn-sm btn-outline-secondary" type="button" id="workspace-refresh" ng-click="RefreshWorkers()" title="list the workers again"><svg class="icon lead"><use href="#i-refresh"></use></svg>Refresh</button>
+								<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelWorkspace()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 							</div>
 						</form>
+						<div class="workspace-line muted small" id="workspace-line" ng-if="project.Workspace" title="the code a worker's review reads, and a build works in (plan Workers)"><svg class="icon lead"><use href="#i-link"></use></svg>{{ project.Workspace.Worker }} / {{ project.Workspace.Name }}<span class="item-state offline" ng-if="!project.Workspace.Online"> offline</span><span class="item-state offline" ng-if="project.Workspace.Online && !project.Workspace.Offered"> not offered</span></div>
 						<div class="clipboard" ng-show="Clipboard" id="clipboard">copied: {{ Clipboard.Name }} <span class="muted">(Ctrl+V or paste)</span> <button class="btn btn-link btn-sm" title="forget it" ng-click="ClearClipboard()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 						<a class="tree-item tree-row context-item" style="--depth: {{ Depth }}" ng-if="project.Context" ng-class="{ open: project.Context.Id === State.OpenId }" ng-href="#/p/{{ project.Context.Id }}" data-id="{{ project.Context.Id }}" title="the project's context: every call to the LLM reads it, and the LLM keeps it up to date">
 							<span class="chevron-space"></span>
@@ -276,7 +276,8 @@
 						<button class="btn btn-sm btn-outline-secondary" id="new-comment" ng-click="CommentOnWhole()" ng-show="State.View === 'read' && HasThreads()" title="a comment on the whole document; Re-anchor puts it on a passage"><svg class="icon lead"><use href="#i-comment"></use></svg>New Comment</button>
 						<button class="btn btn-sm btn-outline-secondary" id="new-subplan" ng-click="NewSubplan()" ng-show="IsPlan()" title="a new plan under this one"><svg class="icon lead"><use href="#i-subplan"></use></svg>New subplan</button>
 						<button class="btn btn-sm btn-primary" id="initialize-context" ng-show="IsContext() && State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="State.Open.Llm.Running || Busy" ng-click="InitializeContext()" title="the LLM writes the context from the project: its plans and documents, the files in its zips, and a few key files"><svg class="icon lead"><use href="#i-sparkle"></use></svg>{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Initialize context' }}</button>
-						<button class="btn btn-sm btn-primary" id="send-button" ng-show="HasThreads() && State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="Busy" ng-click="Send()" title="{{ SendHint() }}"><svg class="icon lead"><use href="#i-send"></use></svg>{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Send to LLM (' + State.Open.Llm.Waiting + ')' }}</button>
+						<button class="btn btn-sm btn-primary" id="send-button" ng-show="HasThreads() && State.Me.Role === 'owner' && State.Open.Llm.Configured" ng-disabled="Busy" ng-click="Send()" title="{{ SendHint() }}"><svg class="icon lead"><use href="#i-send"></use></svg>{{ State.Open.Llm.Running ? 'LLM working&hellip;' : 'Review (' + State.Open.Llm.Waiting + ')' }}</button>
+						<button class="btn btn-sm btn-outline-primary" id="build-button" ng-show="CanBuild()" ng-disabled="!State.Open.Build.Ready || Busy" ng-click="Build()" title="{{ BuildHint() }}"><svg class="icon lead"><use href="#i-build"></use></svg>{{ State.Open.Build.SentBack ? 'Build again' : 'Build' }}</button>
 					</div>
 				</div>
 			</header>
@@ -292,19 +293,23 @@
 			<div class="session-host" ng-controller="SessionController">
 				<aside class="session-panel" id="session-panel" ng-show="IsShown()" floating-panel="IsShown()">
 					<div class="session-head">
-						<span class="session-title">LLM session</span>
+						<span class="session-title">Review</span>
 						<span class="muted small">{{ State.Open.Llm.Waiting }} waiting on the LLM</span>
 						<button type="button" class="btn btn-link btn-sm session-reset" id="session-reset" ng-click="ResetPlace()" title="put the panel back in the center at its first size"><svg class="icon lead"><use href="#i-undo"></use></svg>Reset</button>
 						<button type="button" class="btn-close" aria-label="Close" ng-click="Close()" title="close the panel; a running session goes on"></button>
 					</div>
 					<div class="session-body" ng-if="P">
+						<div class="session-focus" id="session-focus" ng-show="P.Focus">
+							Review of one thread: <span class="session-focus-words">&ldquo;{{ P.Focus.Words }}&rdquo;</span>
+							<button class="btn btn-link btn-sm" id="session-whole" ng-click="Whole(P)" title="review the plan's threads instead">Review the whole plan</button>
+						</div>
 						<div class="session-section">
 							<div class="session-label">Prompt</div>
 							<div class="session-choices">
 								<label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" id="session-context" ng-model="P.Options.Context" ng-change="Measure()"> Context</label>
 								<label class="form-check form-check-inline mb-0" ng-show="HasParents()" title="the text of the plans this one is a Subplan of"><input class="form-check-input" type="checkbox" id="session-parents" ng-model="P.Options.Parents" ng-change="Measure()"> Parent plans</label>
 								<label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" id="session-search" ng-model="P.Options.Search" ng-change="Measure()"> Search</label>
-								<select class="form-select form-select-sm session-threads" id="session-threads" ng-model="P.Options.Threads" ng-change="Measure()">
+								<select class="form-select form-select-sm session-threads" id="session-threads" ng-model="P.Options.Threads" ng-change="Measure()" ng-hide="P.Focus">
 									<option value="waiting">Only waiting threads</option>
 									<option value="open">Open threads</option>
 									<option value="all">All threads</option>
@@ -327,7 +332,7 @@
 									<option value="Manual" ng-if="ManualOffered">Manual copy / paste</option>
 								</select>
 								<select class="form-select form-select-sm" id="session-model" ng-show="IsOllama(P)" ng-model="P.Model" ng-change="PickModel(P)" ng-options="model for model in Models[ P.Destination ]"></select>
-								<button class="btn btn-sm btn-primary" id="session-send" ng-show="P.Destination !== MANUAL" ng-click="Send(P)" ng-disabled="P.Busy || State.Open.Llm.Running || !State.Open.Llm.Waiting" title="{{ State.Open.Llm.Waiting ? 'send the prompt and carry out the answer' : 'nothing is waiting on the LLM' }}"><svg class="icon lead"><use href="#i-send"></use></svg>{{ State.Open.Llm.Running ? 'Running&hellip;' : 'Send' }}</button>
+								<button class="btn btn-sm btn-primary" id="session-send" ng-show="P.Destination !== MANUAL" ng-click="Send(P)" ng-disabled="P.Busy || State.Open.Llm.Running" title="send the prompt and carry out the answer: replies, applies, new threads and plans"><svg class="icon lead"><use href="#i-send"></use></svg>{{ State.Open.Llm.Running ? 'Running&hellip;' : 'Send' }}</button>
 								<button class="btn btn-sm btn-primary" id="session-copy" ng-show="P.Destination === MANUAL" ng-click="CopyPrompt(P)" ng-disabled="P.Busy"><svg class="icon lead"><use href="#i-copy"></use></svg>Copy prompt</button>
 							</div>
 						</div>
@@ -369,7 +374,7 @@
 			<section class="read" ng-controller="ReadController" ng-show="State.View === 'read'">
 				<div class="read-empty" ng-hide="State.Open">
 					<p>Pick a proposal on the left, or create one.</p>
-					<p class="muted">Select a passage of a proposal to comment on it. Send to LLM hands the LLM what is waiting on it.</p>
+					<p class="muted">Select a passage of a proposal to comment on it. Review hands the LLM what is waiting on it.</p>
 				</div>
 				<div class="reanchor-hint alert alert-info" ng-show="State.Reanchoring">
 					Select the passage this thread belongs to, then press Re-anchor.
@@ -445,11 +450,10 @@
 			<section class="corpus-view" ng-controller="CorpusController" ng-show="State.View === 'corpus'">
 				<div class="corpus-head" ng-show="Corpus">
 					<div class="title" id="corpus-name">&#128230; {{ Corpus.Name }}</div>
-					<div class="muted small" id="corpus-summary">{{ Corpus.Files.length }} files, {{ IndexedCount() }} indexed<span ng-hide="Corpus.Link" id="corpus-attached"> &middot; attached, version {{ Corpus.Version }}</span><span ng-show="Corpus.Link" id="corpus-link"> &middot; linked from {{ Corpus.Link.Server }} / {{ Corpus.Link.Corpus }}</span><span ng-show="Project"> &middot; in {{ Project.Name }}</span></div>
+					<div class="muted small" id="corpus-summary">{{ Corpus.Files.length }} files, {{ IndexedCount() }} indexed<span id="corpus-attached"> &middot; attached, version {{ Corpus.Version }}</span><span ng-show="Project"> &middot; in {{ Project.Name }}</span></div>
 					<div class="alert alert-warning py-1 px-2 my-1" ng-show="Corpus.Offline">{{ Corpus.Offline }}</div>
 					<div class="corpus-buttons">
-						<label class="btn btn-sm btn-outline-secondary mb-0" ng-hide="Corpus.Link" ng-class="{ disabled: Busy }" title="upload a new zip in place of this one: its files are indexed again"><svg class="icon lead"><use href="#i-upload"></use></svg>Replace zip<input type="file" accept=".zip,application/zip" hidden on-file="Replace( File )"></label>
-						<button class="btn btn-sm btn-outline-secondary" id="corpus-reload" ng-show="Corpus.Link" ng-click="Reload()" title="list the files again from the context server"><svg class="icon lead"><use href="#i-refresh"></use></svg>Reload</button>
+						<label class="btn btn-sm btn-outline-secondary mb-0" ng-class="{ disabled: Busy }" title="upload a new zip in place of this one: its files are indexed again"><svg class="icon lead"><use href="#i-upload"></use></svg>Replace zip<input type="file" accept=".zip,application/zip" hidden on-file="Replace( File )"></label>
 					</div>
 				</div>
 				<form class="corpus-filter" ng-show="Corpus" ng-submit="SaveFilter()">
@@ -462,7 +466,7 @@
 						<textarea class="form-control form-control-sm" id="corpus-exclude" rows="2" ng-model="Filter.Exclude" placeholder="nothing; or one pattern per line, like .git/**"></textarea>
 					</label>
 					<div class="corpus-filter-buttons">
-						<button class="btn btn-sm btn-primary" type="submit" id="corpus-filter-save" ng-disabled="!FilterChanged() || Busy" title="{{ Corpus.Link ? 'narrow what the context server gives' : 'list and index the zip\'s files again' }}"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+						<button class="btn btn-sm btn-primary" type="submit" id="corpus-filter-save" ng-disabled="!FilterChanged() || Busy" title="list and index the zip's files again"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
 						<button class="btn btn-sm btn-outline-secondary" type="button" ng-show="FilterChanged()" ng-click="ResetFilter()"><svg class="icon lead"><use href="#i-undo"></use></svg>Discard</button>
 						<span class="muted small">Patterns relative to the corpus's root, as in .gitignore. Exclude wins over Include.</span>
 					</div>
@@ -552,6 +556,7 @@
 						<button class="btn btn-sm btn-success reply-resolve-button" ng-show="CanResolve(thread)" ng-click="ReplyAndResolve(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy" title="post your reply as the outcome and resolve the thread"><svg class="icon lead"><use href="#i-check"></use></svg>Reply and resolve</button>
 						<button class="btn btn-sm btn-success resolve-button" ng-show="CanResolve(thread)" ng-click="Resolve(thread)" ng-disabled="Busy" title="accept the outcome or recommendation in the last reply"><svg class="icon lead"><use href="#i-check"></use></svg>Resolve</button>
 						<button class="btn btn-sm btn-outline-secondary reanchor-button" ng-click="Reanchor(thread)" title="{{ thread.Anchor ? 'anchor it to another passage' : 'anchor it to a passage' }}"><svg class="icon lead"><use href="#i-target"></use></svg>Re-anchor</button>
+						<button class="btn btn-sm btn-outline-secondary review-thread" ng-show="CanReview(thread)" ng-click="ReviewThread(thread)" title="the LLM reviews this thread alone: the review panel opens with it in focus"><svg class="icon lead"><use href="#i-send"></use></svg>Review</button>
 						<button class="btn btn-sm btn-outline-secondary subplan-from-thread" ng-show="IsPlan()" ng-click="SubplanFromThread(thread)" ng-disabled="Busy" title="reply with a link to a new Subplan that starts from this thread"><svg class="icon lead"><use href="#i-subplan"></use></svg>Start a new Subplan</button>
 					</div>
 				</div>
@@ -571,6 +576,21 @@
 			<div class="muted small" ng-show="Subplans.Pending.Thread">The thread gets {{ Subplans.Pending.Draft ? 'your reply' : 'a reply' }} with a link to it, and stays open.</div>
 			<div class="thread-buttons">
 				<button class="btn btn-sm btn-primary" type="submit" id="subplan-create" ng-disabled="!Subplans.Pending.Title || Subplans.Busy"><svg class="icon lead"><use href="#i-check"></use></svg>Create</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Cancel()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+			</div>
+		</form>
+	</div>
+
+	<!-- Build: the worker builds the plan in the project's workspace (plan Build). -->
+	<div class="subplan-popup" ng-controller="BuildController" ng-show="Builds.Pending">
+		<form class="subplan-form" ng-if="Builds.Pending" ng-submit="Start()" ng-keydown="Key($event)">
+			<div class="subplan-head">Build &ldquo;{{ Builds.Pending.Title }}&rdquo;</div>
+			<div class="muted small">The worker builds the plan in the project's workspace, as it is, runs its tests, and posts a build log here. Resolve the log to accept the build; reply to send it back. Nothing is done with git.</div>
+			<div class="muted small" id="build-sent-back" ng-show="Builds.Pending.SentBack">You sent the last build back: this build runs again with your reply, and its log is a reply on the same thread.</div>
+			<select class="form-select form-select-sm" id="build-destination" ng-model="Builds.Pending.Destination" ng-change="Picked()" ng-options="destination.Name as destination.Name for destination in Builds.Pending.Destinations"></select>
+			<input class="form-control form-control-sm" type="text" id="build-model" placeholder="model (the worker's default when empty)" ng-model="Builds.Pending.Model">
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-primary" type="submit" id="build-start" ng-disabled="!Builds.Pending.Destination || Builds.Busy"><svg class="icon lead"><use href="#i-build"></use></svg>Build</button>
 				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Cancel()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 			</div>
 		</form>
@@ -626,8 +646,8 @@
 				<div ng-show="Ports.Report.Corpora.length">Corpora:
 					<ul><li ng-repeat="corpus in Ports.Report.Corpora">{{ corpus.Name }} ({{ corpus.Source }}): {{ corpus.State }}<span ng-show="corpus.Missing.length">; missing on its server: {{ corpus.Missing.join( ', ' ) }}</span><span ng-show="corpus.Added.length">; new on its server: {{ corpus.Added.join( ', ' ) }}</span></li></ul>
 				</div>
-				<div ng-show="Ports.Report.ContextServers.length">Context servers:
-					<ul><li ng-repeat="server in Ports.Report.ContextServers">{{ server.Name }}<span ng-show="server.Url"> ({{ server.Url }})</span>: {{ !server.Present ? 'not here: add it to consensus.json with its token' : ( server.Online ? 'online' : 'offline' ) }}<span ng-show="server.MissingInference.length">; missing: {{ server.MissingInference.join( ', ' ) }}</span></li></ul>
+				<div ng-show="Ports.Report.Workers.length">Workers:
+					<ul><li ng-repeat="worker in Ports.Report.Workers">{{ worker.Name }}: {{ !worker.Present ? 'not here: add it to Workers in consensus.json with its token' : ( worker.Online ? 'online' : 'offline' ) }}<span ng-show="worker.MissingInference.length">; missing: {{ worker.MissingInference.join( ', ' ) }}</span></li></ul>
 				</div>
 				<div class="port-warning" ng-show="Ports.Report.UnknownParticipants.length">Participants this server does not know: {{ Ports.Report.UnknownParticipants.join( ', ' ) }}</div>
 				<div class="thread-buttons">
@@ -656,6 +676,7 @@
 	<script src="/js/tabs.js"></script>
 	<script src="/js/sessions.js"></script>
 	<script src="/js/subplans.js"></script>
+	<script src="/js/build.js"></script>
 	<script src="/js/ports.js"></script>
 	<script src="/js/sidebar.js"></script>
 	<script src="/js/header.js"></script>

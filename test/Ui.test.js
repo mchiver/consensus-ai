@@ -1,8 +1,8 @@
 'use strict';
 
 // The page in a real browser (test/support/Cdp.js drives the installed Chrome or Edge headless):
-// the list loads, a selection becomes a thread, Send to LLM brings a reply live, resolve, edit and save, the state picker.
-// The server runs on port 0 over a temporary folder; the LLM behind Send to LLM is played by fake_caller.
+// the list loads, a selection becomes a thread, Review brings a reply live, resolve, edit and save, the state picker.
+// The server runs on port 0 over a temporary folder; the LLM behind Review is played by fake_caller.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -13,9 +13,8 @@ const SERVER = require( '../src/Server.js' );
 const CDP = require( './support/Cdp.js' );
 const MAKER = require( './support/ZipMaker.js' );
 const PARTICIPANTS = require( '../src/Participants.js' );
-const CONTEXT_SERVER = require( '../src/ContextServer.js' );
 
-const CONTEXT_TOKEN = 'ui-context-token-0123456789';
+const WORKER_TOKEN = 'ui-worker-token-0123456789';
 
 const TEXT = '# Browser check\n\nThe first paragraph makes a claim about anchors.\n\n- one list item\n- another list item\n\nA closing paragraph.\n';
 
@@ -23,8 +22,6 @@ let running = null;
 let browser = null;
 let page = null;
 let proposal = null;
-let context = null;
-let corpus_root = null;
 
 
 function count_of( selector )
@@ -58,7 +55,7 @@ function text_of( selector )
 }
 
 
-// The LLM behind Send to LLM, played here: it replies to a contested thread and applies a resolved one.
+// The LLM behind Review, played here: it replies to a contested thread and applies a resolved one.
 function fake_caller()
 {
 	return async function ( Prompt )
@@ -86,13 +83,9 @@ function fake_caller()
 
 TEST.before( async function ()
 {
-	// A context server beside it, offering one corpus to link.
-	corpus_root = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-ui-corpus-' ) );
-	FS.writeFileSync( PATH.join( corpus_root, 'field-notes.md' ), '# Field notes\n\nThe heron waits by the reeds.\n' );
-	context = await CONTEXT_SERVER.Start( { Port: 0, Settings: { Token: CONTEXT_TOKEN, Items: [ { Kind: 'Corpus', Name: 'Notes', Root: corpus_root } ] } } );
 	let data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-ui-' ) );
 	let settings = PARTICIPANTS.DefaultSettings( 0 );
-	settings.ContextServers = [ { Name: 'Desk', Url: context.Url, Token: CONTEXT_TOKEN } ];
+	settings.Workers = [ { Name: 'Desk', Token: WORKER_TOKEN } ];
 	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( settings, null, '	' ) );
 	running = await SERVER.Start( { Data: data, Port: 0, Caller: fake_caller } );
 	let created = await fetch( running.Url + '/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Browser check', Text: TEXT } ) } );
@@ -111,11 +104,6 @@ TEST.after( async function ()
 	if ( running )
 	{
 		await running.Close();
-	}
-	if ( context )
-	{
-		await context.Close();
-		FS.rmSync( corpus_root, { recursive: true, force: true } );
 	}
 } );
 
@@ -153,7 +141,7 @@ TEST( 'a selection becomes an anchored thread', async function ()
 } );
 
 
-// Send to LLM opens the plan's session panel; Send there runs the session with the panel's choices.
+// Review opens the plan's review panel; Send there runs the session with the panel's choices.
 async function send_from_panel()
 {
 	if ( !await page.Evaluate( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' ) )
@@ -166,9 +154,9 @@ async function send_from_panel()
 }
 
 
-TEST( 'Send to LLM opens the session panel; its Send hands the LLM the thread, the reply arrives live, and the run log shows each step', async function ()
+TEST( 'Review opens the review panel; its Send hands the LLM the thread, the reply arrives live, and the run log shows each step', async function ()
 {
-	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (1)"' );
+	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (1)"' );
 	await page.Click( '#send-button' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
 	// the prompt's size, part by part, and its preview
@@ -185,8 +173,8 @@ TEST( 'Send to LLM opens the session panel; its Send hands the LLM the thread, t
 	await page.WaitFor( count_of( '.thread:not(.compose) .reply' ) + ' === 2' );
 	ASSERT.equal( await page.Evaluate( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).pop().textContent.trim()' ), 'Outcome: one item stays.' );
 	await page.WaitFor( text_of( '#state-line' ) + ' === "1 contested, waiting on you 1"' );
-	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (0)"' );
-	await page.WaitFor( 'document.getElementById( "session-send" ).disabled' );
+	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (0)"' );
+	await page.WaitFor( text_of( '#session-send' ) + ' === "Send"' );
 	await page.WaitFor( text_of( '#usage' ) + ' === "LLM today: 1.5k in · 120 out"' );
 	await page.WaitFor( 'document.querySelector( ".run" ) && document.querySelector( ".run" ).querySelectorAll( ".run-step" ).length === 3' );
 	let steps = await page.Evaluate( '[ ...document.querySelector( ".run" ).querySelectorAll( ".run-step .step-text" ) ].map( function ( step ) { return step.textContent.trim(); } )' );
@@ -226,7 +214,7 @@ TEST( 'edit and save make a revision and keep the highlight', async function ()
 
 TEST( 'once the LLM applies, the state picker makes the proposal Working and the sidebar follows', async function ()
 {
-	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (1)"' );
+	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (1)"' );
 	await send_from_panel();
 	await page.WaitFor( text_of( '#state-line' ) + ' === "1 applied"' );
 	await page.Click( '.session-head .btn-close' );
@@ -655,7 +643,7 @@ TEST( 'session: Manual copy / paste makes the prompt, and a pasted answer is car
 	let thread = ( await posted.json() ).Thread;
 	await page.Evaluate( 'window.location.hash = "#/p/' + tab_one.Id + '"; true' );
 	await page.WaitFor( text_of( '.header .title' ) + ' === "Tab one"' );
-	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (1)"' );
+	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (1)"' );
 	await page.Click( '#send-button' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
 	await page.Evaluate( '( function () { let select = document.getElementById( "session-destination" ); select.value = "Manual"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
@@ -680,7 +668,7 @@ TEST( 'session: a pasted answer that asks for more is answered, and Continue giv
 {
 	let posted = await fetch( running.Url + '/api/proposals/' + tab_one.Id + '/threads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Text: 'What does Tab two say?' } ) } );
 	let thread = ( await posted.json() ).Thread;
-	await page.WaitFor( text_of( '#send-button' ) + ' === "Send to LLM (1)"' );
+	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (1)"' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-copy" ) ).display !== "none"' );
 	await page.Click( '#session-copy' );
 	await page.WaitFor( text_of( '#session-turn' ) + ' === "Answer 1 of 5"' );
@@ -783,21 +771,24 @@ TEST( 'subplans: started from the header, selected text, a new thread and a repl
 
 //---------------------------------------------------------------------
 
-TEST( 'context server: + link lists what it offers; the linked corpus opens, its file reads, and search finds it', async function ()
+TEST( 'workspace: the project menu lists what the workers offer; the one chosen shows under the project', async function ()
 {
+	let said = await fetch( running.Url + '/api/workers/hello', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + WORKER_TOKEN },
+		body: JSON.stringify( { Workspaces: [ { Name: 'Code' } ], Inference: [ { Name: 'Claude', Type: 'claude-cli' } ] } ),
+	} );
+	ASSERT.equal( said.status, 200 );
 	await page.Evaluate( 'window.location.hash = "#/p/' + proposal.Id + '"; true' );
-	await menu_pick( '.project.open > .project-head', 'Link a corpus' );
-	await page.WaitFor( 'document.getElementById( "link-choice" ) && document.getElementById( "link-choice" ).selectedOptions.length === 1 && document.getElementById( "link-choice" ).selectedOptions[ 0 ].textContent !== ""' );
-	ASSERT.match( await page.Evaluate( 'document.getElementById( "link-choice" ).selectedOptions[ 0 ].textContent' ), /^Desk \/ Notes \(1 files\)$/ );
-	await page.Click( '#link-submit' );
-	await page.WaitFor( text_of( '#corpus-link' ) + ' === "· linked from Desk / Notes"', 20000 );
-	await page.WaitFor( count_of( '.corpus-file.indexed' ) + ' === 1' );
-	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.querySelector( ".corpus-buttons label" ) ).display' ), 'none' );
-	await page.Click( '.corpus-file.indexed' );
-	await page.WaitFor( text_of( '#corpus-file-text' ) + '.includes( "heron" )' );
-	await page.WaitFor( count_of( '.project.open .tree-item.corpus .badge.linked' ) + ' === 1' );
-	let hits = await ( await fetch( running.Url + '/api/search?q=heron&project=default' ) ).json();
-	ASSERT.equal( hits.Hits[ 0 ].Path, 'field-notes.md' );
+	await menu_pick( '.project.open > .project-head', 'Workspace' );
+	await page.WaitFor( 'document.getElementById( "workspace-choice" ) && document.getElementById( "workspace-choice" ).options.length === 2' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "workspace-choice" ).selectedOptions[ 0 ].textContent' ), '(no workspace)' );
+	await page.Evaluate( 'let select = document.getElementById( "workspace-choice" ); select.selectedIndex = 1; select.dispatchEvent( new Event( "change" ) ); true' );
+	await page.Click( '#workspace-submit' );
+	await page.WaitFor( text_of( '#workspace-line' ) + ' === "Desk / Code"' );
+	let projects = await ( await fetch( running.Url + '/api/projects' ) ).json();
+	let project = projects.Projects.find( function ( candidate ) { return candidate.Id === 'default'; } );
+	ASSERT.deepEqual( project.Workspace, { Worker: 'Desk', Name: 'Code', Online: true, Offered: true, Build: false } );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -1040,6 +1031,81 @@ TEST( 'Ctrl+E: Read to Edit, and back to Read from the editor, keeping the unsav
 	await page.Press( 'e', [ 'Control' ] );
 	await page.WaitFor( 'document.getElementById( "view-edit" ).classList.contains( "btn-secondary" )' );
 	await page.WaitFor( 'monaco.editor.getEditors()[ 0 ].getValue() === ' + EDITED );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'review on a thread: the panel opens with that thread in focus; only it is sent and answered; back to the whole plan', async function ()
+{
+	let made = await ( await fetch( running.Url + '/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Thread review', Text: TEXT } ) } ) ).json();
+	let id = made.Proposal.Id;
+	async function thread_on( words, text )
+	{
+		let posted = await fetch( running.Url + '/api/proposals/' + id + '/threads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Anchor: { Text: words }, Text: text } ) } );
+		return ( await posted.json() ).Thread;
+	}
+	let first = await thread_on( 'one list item', 'Keep this item?' );
+	let second = await thread_on( 'A closing paragraph.', 'Is this needed?' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + id + '"; true' );
+	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (2)"' );
+	await show_all_threads();
+	await page.WaitFor( '!!document.getElementById( "thread-' + first.Id + '" )' );
+	await page.Click( '#thread-' + first.Id );
+	await page.WaitFor( 'getComputedStyle( document.querySelector( "#thread-' + first.Id + ' .review-thread" ) ).display !== "none"' );
+	await page.Click( '#thread-' + first.Id + ' .review-thread' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
+	await page.WaitFor( text_of( '#session-focus' ) + '.includes( "one list item" )' );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "session-threads" ) ).display' ), 'none' );
+	await page.WaitFor( '/\\d tokens/.test( ' + text_of( '#session-size' ) + ' )' );
+	await page.Click( '#session-preview-toggle' );
+	await page.WaitFor( text_of( '#session-preview' ) + '.includes( "You were asked to review one thread, ' + first.Id + '" )' );
+	ASSERT.equal( await page.Evaluate( text_of( '#session-preview' ) + '.includes( "## Thread ' + second.Id + '" )' ), false );
+	await page.Click( '#session-preview-toggle' );
+	// the Manual tests before this one left Manual picked in this browser: send to the llm's own destination
+	await page.Evaluate( '( function () { let select = document.getElementById( "session-destination" ); select.value = select.options[ 0 ].value; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-send" ) ).display !== "none" && !document.getElementById( "session-send" ).disabled' );
+	await page.Click( '#session-send' );
+	await page.WaitFor( count_of( '#thread-' + first.Id + ' .reply' ) + ' === 2' );
+	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (1)"' );
+	ASSERT.equal( await page.Evaluate( count_of( '#thread-' + second.Id + ' .reply' ) ), 1 );
+	await page.Click( '#session-whole' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-focus" ) ).display === "none"' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-threads" ) ).display !== "none"' );
+	await page.Click( '#send-button' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display === "none"' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'build: the button says why it cannot build yet; its dialog picks the worker\'s claude-cli and a model, and the plan goes to Working', async function ()
+{
+	let said = await fetch( running.Url + '/api/workers/hello', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + WORKER_TOKEN },
+		body: JSON.stringify( { Workspaces: [ { Name: 'Code', Build: true } ], Inference: [ { Name: 'Claude', Type: 'claude-cli', Model: 'sonnet' }, { Name: 'Ollama', Type: 'ollama' } ] } ),
+	} );
+	ASSERT.equal( said.status, 200 );
+	let made = await ( await fetch( running.Url + '/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Build me', Text: TEXT } ) } ) ).json();
+	let id = made.Proposal.Id;
+	let open = await ( await fetch( running.Url + '/api/proposals/' + id + '/threads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Text: 'Not settled yet.' } ) } ) ).json();
+	await page.Evaluate( 'window.location.hash = "#/p/' + id + '"; true' );
+	await page.WaitFor( 'document.getElementById( "build-button" ).title === "not now: 1 thread is not applied yet"' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "build-button" ).disabled' ), true );
+	await fetch( running.Url + '/api/proposals/' + id + '/threads/' + open.Thread.Id, { method: 'DELETE' } );
+	await page.WaitFor( '!document.getElementById( "build-button" ).disabled' );
+	await page.Click( '#build-button' );
+	await page.WaitFor( '!!document.getElementById( "build-destination" )' );
+	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#build-destination option" ) ].map( function ( option ) { return option.textContent.trim(); } )' ), [ 'Desk / Claude' ] );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "build-model" ).value' ), 'sonnet' );
+	await page.Evaluate( '( function () { let input = document.getElementById( "build-model" ); input.value = "opus"; input.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.Click( '#build-start' );
+	await page.WaitFor( '!document.getElementById( "build-destination" )' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
+	await page.WaitFor( '[ ...document.querySelectorAll( ".run-step .step-text" ) ].some( function ( step ) { return /queued the build for Desk \\/ Claude/.test( step.textContent ); } )' );
+	await page.WaitFor( 'document.getElementById( "state-picker" ).selectedOptions[ 0 ].textContent === "Working"' );
+	await page.WaitFor( 'document.getElementById( "build-button" ).disabled' );
+	let runs = await ( await fetch( running.Url + '/api/proposals/' + id + '/runs' ) ).json();
+	ASSERT.equal( runs.Runs[ 0 ].Model, 'opus' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 

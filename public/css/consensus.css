@@ -2004,11 +2004,9 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	padding-left: 1.25rem;
 }
 
-/* --------------------------------------------------------------------- context servers */
+/* --------------------------------------------------------------------- workspaces */
 
-/* A corpus kept by a context server, and one whose server does not answer. */
-.badge.linked { background: var(--panel-bg); border-color: var(--icon-zip); }
-
+/* Something that is not there now: a zip to attach again, a worker that does not answer. */
 .item-state.offline
 {
 	color: var(--detached-edge);
@@ -2017,6 +2015,29 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 .link-form select
 {
 	margin-bottom: 0.25rem;
+}
+
+/* The project's workspace, under its name in the tree. */
+.workspace-line
+{
+	padding: 0.1rem 0.5rem 0.1rem calc( var(--row-start) + var(--indent) );
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* The review panel with one thread in focus. */
+.session-focus
+{
+	padding: 0.4rem 0.75rem;
+	border-bottom: 1px solid var(--border);
+	background: var(--resolved-bg);
+	font-size: 0.85rem;
+}
+
+.session-focus-words
+{
+	font-style: italic;
 }
 
 /* A zip kept by Consensus; and a corpus's Include and Exclude, side by side above its files. */

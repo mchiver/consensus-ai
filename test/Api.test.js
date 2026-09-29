@@ -914,7 +914,7 @@ TEST( 'projects: Default holds new proposals; a project and its folders are crea
 
 
 //---------------------------------------------------------------------
-// Send to LLM: the owner's button, the call in the background, the answer carried out as the llm.
+// Review (once Send to LLM): the owner's button, the call in the background, the answer carried out as the llm.
 
 async function wait_idle( id )
 {
@@ -948,14 +948,18 @@ function thread_of( read, thread_id )
 }
 
 
-TEST( 'send: owner only, refused when nothing is waiting on the LLM', async function ()
+TEST( 'send: owner only; with nothing waiting a review still runs, since it may open threads and plans', async function ()
 {
 	let proposal = await create( 'Send refusals' );
 	let read = await call( 'GET', '/api/proposals/' + proposal.Id );
 	ASSERT.deepEqual( read.Body.Llm, { Configured: true, Name: 'llm', Running: false, Waiting: 0 } );
-	let nothing = await call( 'POST', '/api/proposals/' + proposal.Id + '/send' );
-	ASSERT.equal( nothing.Status, 409 );
-	ASSERT.match( nothing.Body.Error, /nothing is waiting/ );
+	llm_answer = async function ()
+	{
+		return { Answer: { Actions: [] }, Usage: { Model: 'fake-model', Input: 10, Output: 1 } };
+	};
+	let nothing = await send_and_wait( proposal.Id );
+	ASSERT.equal( nothing.Status, 202 );
+	ASSERT.deepEqual( nothing.Body.Threads, [] );
 	let as_llm = await call( 'POST', '/api/proposals/' + proposal.Id + '/send', {}, true );
 	ASSERT.equal( as_llm.Status, 403 );
 	let missing = await call( 'POST', '/api/proposals/no-such/send' );
@@ -1202,7 +1206,7 @@ TEST( 'session: the prompt shaped by the choices and sized part by part; a desti
 	await wait_idle( id );
 	let run = ( await call( 'GET', '/api/proposals/' + id + '/runs' ) ).Body.Runs.find( function ( candidate ) { return candidate.Id === started.Body.Run; } );
 	ASSERT.equal( run.Model, 'picked-model' );
-	ASSERT.deepEqual( run.Options, { Context: true, Parents: true, Threads: 'waiting', Search: false } );
+	ASSERT.deepEqual( run.Options, { Context: true, Parents: true, Threads: 'waiting', Search: false, Thread: null } );
 	ASSERT.deepEqual( run.Steps.map( function ( step ) { return step.Text; } ), [ 'Consensus sent the prompt to picked-model', 'picked-model answered: 1 reply', 'Consensus carried out 1 action, 0 refused' ] );
 	ASSERT.equal( run.Steps[ 1 ].Tokens, 40 );
 	ASSERT.ok( run.Steps.every( function ( step ) { return step.At; } ) );

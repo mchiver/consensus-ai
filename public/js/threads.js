@@ -3,7 +3,7 @@
 // Threads pane - filter, highlight, each thread with its anchor words and replies, reply, resolve, and the compose
 // card (Comment, or the owner's Comment and resolve).
 
-angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$timeout', 'State', 'Client', 'Subplans', function ( $scope, $timeout, State, Client, Subplans )
+angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$timeout', 'State', 'Client', 'Subplans', 'Sessions', function ( $scope, $timeout, State, Client, Subplans, Sessions )
 {
 	$scope.State = State;
 	$scope.Busy = false;
@@ -314,6 +314,19 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	$scope.SubplanFromThread = function ( thread )
 	{
 		Subplans.FromThread( thread, State.Drafts[ thread.Id ] );
+	};
+
+
+	// Review on a thread (plan Review): the owner has the LLM review it alone. An applied thread has nothing to review.
+	$scope.CanReview = function ( thread )
+	{
+		return $scope.IsPlan() && $scope.IsOwner() && !!State.Open.Llm && State.Open.Llm.Configured && thread.State !== 'applied';
+	};
+
+
+	$scope.ReviewThread = function ( thread )
+	{
+		Sessions.ReviewThread( State.OpenId, thread );
 	};
 
 

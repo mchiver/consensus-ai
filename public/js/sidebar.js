@@ -339,7 +339,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 			action( 'New plan' + where, 'plus', create_in( 'plan', project ) ),
 			action( 'New document' + where, 'plus', create_in( 'document', project ) ),
 			action( 'New folder' + where, 'plus', create_in( 'folder', project ) ),
-			action( 'Link a corpus', 'link', function () { open_project( project ); $scope.StartLink( project, QUIET ); } ),
+			action( 'Workspace', 'link', function () { open_project( project ); $scope.StartWorkspace( project, QUIET ); } ),
 			action( 'Upload a zip', 'upload', function () { pick_zip( project ); } ),
 			{ Separator: true },
 			action( $scope.Clipboard ? 'Paste ' + $scope.Clipboard.Name : 'Paste', 'paste', function () { $scope.Paste( project, null, QUIET ); }, { Disabled: !$scope.Clipboard } ),
@@ -424,7 +424,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 		}
 		$scope.Renaming = null;
 		$scope.Deleting = null;
-		$scope.Linking = null;
+		$scope.Choosing = null;
 		$scope.Creating = { Kind: kind, Project: project ? project.Id : null, Parent: project ? parent_in( project ) : null, Name: '' };
 	};
 
@@ -528,87 +528,93 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$win
 
 
 	//-----------------------------------------------------------------
-	// Linking: a corpus a context server offers becomes an item of the project (the picked folder, or its root).
-	// Linking = { Project, Parent, Servers, Choices: [ { Label, Server, Corpus } ], Picked, Loaded }
+	// Choosing a workspace: the project's code, on a worker (plan Workers); one of those the workers offer, or none.
+	// Choosing = { Project, Workers, Choices: [ { Label, Worker, Name } ], Picked, Loaded }
 
-	$scope.Linking = null;
+	$scope.Choosing = null;
 
-	function choices_of( servers )
+	function workspace_choices( workers )
 	{
-		let choices = [];
-		for ( let server of servers )
+		let choices = [ { Label: '(no workspace)', Worker: null, Name: null } ];
+		for ( let worker of workers )
 		{
-			for ( let corpus of server.Corpus )
+			for ( let workspace of worker.Workspaces )
 			{
-				choices.push( { Label: server.Name + ' / ' + corpus.Name + ' (' + corpus.Files + ' files)', Server: server.Name, Corpus: corpus.Name } );
+				choices.push( { Label: worker.Name + ' / ' + workspace.Name + ( worker.Online ? '' : ' (offline)' ), Worker: worker.Name, Name: workspace.Name } );
 			}
 		}
 		return choices;
 	}
 
 
-	function show_servers( servers )
+	function show_workers( workers )
 	{
-		if ( !$scope.Linking )
+		let choosing = $scope.Choosing;
+		if ( !choosing )
 		{
 			return;
 		}
-		$scope.Linking.Servers = servers;
-		$scope.Linking.Choices = choices_of( servers );
-		$scope.Linking.Picked = $scope.Linking.Choices[ 0 ] || null;
-		$scope.Linking.Loaded = true;
+		let project = State.Projects.find( function ( candidate ) { return candidate.Id === choosing.Project; } );
+		let current = ( project && project.Workspace ) ? project.Workspace : null;
+		choosing.Workers = workers;
+		choosing.Choices = workspace_choices( workers );
+		choosing.Picked = choosing.Choices.find( function ( choice )
+		{
+			return current ? ( choice.Worker === current.Worker && choice.Name === current.Name ) : !choice.Worker;
+		} ) || choosing.Choices[ 0 ];
+		choosing.Loaded = true;
 	}
 
 
-	$scope.StartLink = async function ( project, event )
+	async function list_workers()
+	{
+		let answer = await State.Act( function () { return Client.Get( '/api/workers' ); } );
+		if ( answer )
+		{
+			show_workers( answer.Workers );
+		}
+		$scope.$applyAsync();
+	}
+
+
+	$scope.StartWorkspace = function ( project, event )
 	{
 		event.stopPropagation();
 		$scope.Creating = null;
 		$scope.Renaming = null;
 		$scope.Deleting = null;
-		$scope.Linking = { Project: project.Id, Parent: parent_in( project ), Servers: [], Choices: [], Picked: null, Loaded: false };
-		let answer = await State.Act( function () { return Client.Get( '/api/context-servers' ); } );
-		if ( answer )
-		{
-			show_servers( answer.Servers );
-		}
-		$scope.$applyAsync();
+		$scope.Choosing = { Project: project.Id, Workers: [], Choices: [], Picked: null, Loaded: false };
+		return list_workers();
 	};
 
 
-	$scope.RefreshServers = async function ()
+	$scope.RefreshWorkers = function ()
 	{
-		let answer = await State.Act( function () { return Client.Post( '/api/context-servers/refresh' ); } );
-		if ( answer )
-		{
-			show_servers( answer.Servers );
-		}
-		$scope.$applyAsync();
+		return list_workers();
 	};
 
 
-	$scope.CancelLink = function ()
+	$scope.CancelWorkspace = function ()
 	{
-		$scope.Linking = null;
+		$scope.Choosing = null;
 	};
 
 
-	$scope.Link = async function ()
+	$scope.ChooseWorkspace = async function ()
 	{
-		let linking = $scope.Linking;
-		if ( !linking || !linking.Picked )
+		let choosing = $scope.Choosing;
+		if ( !choosing || !choosing.Picked )
 		{
 			return;
 		}
 		let answer = await State.Act( function ()
 		{
-			return Client.Post( '/api/projects/' + encodeURIComponent( linking.Project ) + '/corpus-link', { Server: linking.Picked.Server, Corpus: linking.Picked.Corpus, Parent: linking.Parent } );
+			return Client.Put( '/api/projects/' + encodeURIComponent( choosing.Project ) + '/workspace', { Worker: choosing.Picked.Worker, Name: choosing.Picked.Name } );
 		} );
 		if ( answer )
 		{
-			$scope.Linking = null;
+			$scope.Choosing = null;
 			await State.LoadList();
-			$window.location.hash = '#/c/' + encodeURIComponent( answer.Corpus.Id );
 		}
 		$scope.$applyAsync();
 	};
