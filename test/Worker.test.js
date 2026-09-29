@@ -255,6 +255,31 @@ TEST( 'a review job: the worker says hello, takes the job, runs its tools, posts
 } );
 
 
+TEST( 'connected as soon as hello is answered, not only when the first ask for jobs, held open, comes back', async function ()
+{
+	let data = temporary_folder( 'consensus-worker-slow-' );
+	let settings = PARTICIPANTS.DefaultSettings( 0 );
+	settings.Workers = [ { Name: 'Desk', Token: TOKEN } ];
+	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( settings, null, '\t' ) );
+	let slow = await SERVER.Start( { Data: data, Port: 0, Workers: { WaitSeconds: 30 } } );
+	let own = worker_settings();
+	own.Consensus.Url = slow.Url;
+	let worker = await start_worker( { Settings: own } );
+	try
+	{
+		let started = Date.now();
+		await wait_until( function () { return worker.State().Consensus.Connected; }, 'the worker to be connected' );
+		ASSERT.ok( Date.now() - started < 10000 );
+		ASSERT.ok( worker.State().Consensus.Heard );
+	}
+	finally
+	{
+		await worker.Close();
+		await slow.Close();
+	}
+} );
+
+
 TEST( 'ollama: the loop runs the tools the model calls, then asks once more with the answer\'s schema', async function ()
 {
 	let worker = await start_worker();

@@ -313,6 +313,8 @@ async function Start( Options )
 		}
 		await ask( 'POST', '/api/workers/hello', offer );
 		said_hello = true;
+		// Consensus answered: connected now, not only once the first ask for jobs, held open, comes back.
+		connected( true );
 	}
 
 
