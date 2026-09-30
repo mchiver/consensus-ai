@@ -131,7 +131,7 @@ function check_inference( item )
 	return new Promise( function ( resolve )
 	{
 		let command = item.Command || 'claude';
-		CHILD_PROCESS.execFile( command, [ '--version' ], { shell: process.platform === 'win32', timeout: CHECK_TIMEOUT, windowsHide: true }, function ( error, stdout, stderr )
+		CHILD_PROCESS.execFile( command, [ '--version' ], { timeout: CHECK_TIMEOUT, windowsHide: true }, function ( error, stdout, stderr )
 		{
 			if ( error )
 			{
