@@ -333,6 +333,27 @@ again), and on an accepted build **Commit** (one commit of the workspace's chang
 titled after the plan, the build log below) and **Push** (that branch to `Build.Remote`): the only git the
 worker runs, pressed by the owner, one at a time.
 
+## The worker app
+
+The worker app (plan Worker Electron App) is a second way to run workers: one Electron window, run from the
+checkout, that keeps the LLMs in one place and runs a worker per repo, each in a tab of its own.
+
+	npm run app
+
+It keeps `app.json` in Electron's user-data folder (`%APPDATA%/consensus-worker/app.json` on Windows): the one
+Consensus server, `Inference` (the LLMs, as worker.json's Inference items; every worker carries all of them),
+`Workers` (each one workspace: Name, Token, Root, Include, Exclude, Build and AutoStart), `MaxRounds` and
+`TimeoutSeconds`. The **App** tab edits them, validated as the worker validates its own settings; nothing is
+saved while there are problems. **Check** on an LLM runs the CLI with `--version` or lists Ollama's models.
+
+Each worker runs in the app's process on a free port, and its settings are written in worker.json's format to
+`<user data>/workers/<Name>/worker.json` (its jobs in `jobs.json` beside it), so it can also be started from a
+shell with `bin/worker.js --settings`. Each worker has its own token, added to the server's `consensus.json`
+under `Workers` as for any worker. A worker's tab shows the worker's own page, unchanged, with **Stop** and
+**Open in browser** above it; a stopped worker's tab says why it stopped and has **Start**. Workers marked
+AutoStart start with the app; saving the settings stops the workers that were removed and reloads the ones
+running; closing the window stops every worker and quits.
+
 ## The API
 
 	GET    /api/me                                   who this request is, the participants, the States
@@ -391,6 +412,8 @@ role, 404 not found, 409 not allowed in this state or a stale revision or versio
 	bin/consensus.js      the command line
 	bin/worker.js         a worker, src/Worker.js (its page: public/worker/); src/Workspace.js its file tools;
 	                      src/Mcp.js the plan tools for claude; src/Workers.js is Consensus's side
+	worker-app/           the worker app (npm run app): main.js the Electron main process, preload.js its bridge,
+	                      Settings.js app.json, Manager.js the workers it runs, page/ its page
 	src/Server.js         Start( { Data, Port, Host } )
 	src/Api.js            the routes
 	src/Instructions.js   GET /instructions: the agent guide with This server first

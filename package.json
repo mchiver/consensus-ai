@@ -10,7 +10,8 @@
 	},
 	"scripts": {
 		"start": "node bin/consensus.js",
-		"test": "node --test"
+		"test": "node --test",
+		"app": "electron worker-app"
 	},
 	"engines": {
 		"node": ">=22"
@@ -23,5 +24,8 @@
 		"marked": "^18.0.0",
 		"monaco-editor": "0.56.0",
 		"yauzl": "^3.4.0"
+	},
+	"devDependencies": {
+		"electron": "^44.5.1"
 	}
 }

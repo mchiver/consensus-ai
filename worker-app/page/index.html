@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="WorkerApp">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+	<title>Consensus Worker</title>
+	<link rel="stylesheet" href="../../node_modules/bootstrap/dist/css/bootstrap.min.css">
+	<link rel="stylesheet" href="app.css">
+	<script src="../../public/js/theme.js"></script>
+</head>
+<body ng-controller="AppController" ng-cloak>
+
+	<!-- The worker app's page (plan Worker Electron App): the App tab holds the settings (the Consensus server, the LLMs
+	     and the workers); each worker's tab shows the worker's own page, which the main process places over the tab's
+	     area, with Stop and Open in browser above it, or a card with Start when the worker is stopped. -->
+
+	<header class="app-head">
+		<div class="app-title"><span class="app-kind">Consensus</span> Worker</div>
+		<div class="tabs" role="tablist">
+			<button class="tab" ng-class="{ active: Tab === 'app' }" ng-click="Open( 'app' )" id="tab-app">App<span class="dirty" ng-show="Dirty()" title="unsaved changes">•</span></button>
+			<button class="tab" ng-repeat="worker in Workers track by worker.Name" ng-class="{ active: Tab === worker.Name }" ng-click="Open( worker.Name )" title="{{ worker.Status }}{{ worker.Working ? ': ' + worker.Working : '' }}">
+				<span class="dot" ng-class="worker.Status"></span>{{ worker.Name }}
+			</button>
+		</div>
+		<div class="app-buttons">
+			<select class="form-select form-select-sm" ng-model="Theme" ng-change="SetTheme()" title="theme" id="theme-select">
+				<option value="system">System</option>
+				<option value="light">Light</option>
+				<option value="dark">Dark</option>
+			</select>
+			<select class="form-select form-select-sm" ng-model="Scale" ng-change="SetScale()" title="size" id="scale-select">
+				<option value="small">Small</option>
+				<option value="normal">Normal</option>
+				<option value="large">Large</option>
+			</select>
+		</div>
+	</header>
+
+	<main class="app-main">
+
+		<!-- ------------------------------------------------------------ the App tab -->
+		<section class="app-settings" ng-if="Tab === 'app'">
+			<div class="alert alert-danger" ng-show="Problems.length">
+				<div>Not saved. Fix these first:</div>
+				<ul class="mb-0"><li ng-repeat="problem in Problems track by $index">{{ problem }}</li></ul>
+			</div>
+			<div class="alert alert-danger" ng-show="Error">{{ Error }} <button class="btn btn-link btn-sm" ng-click="Error = null">dismiss</button></div>
+			<div class="alert alert-success py-1" ng-show="Notice">{{ Notice }}</div>
+
+			<div class="settings-bar">
+				<div class="muted small">Settings in {{ Path }}</div>
+				<div class="settings-buttons">
+					<button class="btn btn-sm btn-outline-secondary" ng-click="Revert()" ng-disabled="!Dirty()">Revert</button>
+					<button class="btn btn-sm btn-primary" id="save" ng-click="Save()" ng-disabled="!Dirty() || Saving">Save</button>
+				</div>
+			</div>
+
+			<section class="block">
+				<h2>Consensus</h2>
+				<div class="field-row">
+					<label for="consensus-url">Url</label>
+					<input class="form-control form-control-sm" id="consensus-url" ng-model="Form.Consensus.Url" placeholder="http://cube4:3500">
+				</div>
+				<div class="field-row">
+					<label for="max-rounds">Max rounds</label>
+					<input class="form-control form-control-sm narrow" id="max-rounds" type="number" min="1" ng-model="Form.MaxRounds">
+					<label for="timeout-seconds">Timeout (seconds)</label>
+					<input class="form-control form-control-sm narrow" id="timeout-seconds" type="number" min="1" ng-model="Form.TimeoutSeconds">
+				</div>
+			</section>
+
+			<section class="block">
+				<div class="block-head">
+					<h2>LLMs</h2>
+					<button class="btn btn-sm btn-outline-primary" ng-click="AddLlm()">Add</button>
+				</div>
+				<div class="muted small" ng-hide="Form.Inference.length">none yet: every worker carries the LLMs listed here</div>
+				<div class="item" ng-repeat="item in Form.Inference">
+					<div class="item-row" ng-click="Toggle( 'llm', $index )">
+						<span class="caret">{{ IsOpen( 'llm', $index ) ? '▾' : '▸' }}</span>
+						<span class="item-name">{{ item.Name || '(no name)' }}</span>
+						<span class="muted small">{{ item.Type }}<span ng-show="item.Model"> · {{ item.Model }}</span></span>
+					</div>
+					<div class="item-form" ng-show="IsOpen( 'llm', $index )">
+						<div class="field-row">
+							<label>Name</label>
+							<input class="form-control form-control-sm" ng-model="item.Name">
+							<label>Type</label>
+							<select class="form-select form-select-sm narrow" ng-model="item.Type">
+								<option value="claude-cli">claude-cli</option>
+								<option value="ollama">ollama</option>
+							</select>
+						</div>
+						<div class="field-row" ng-if="item.Type === 'claude-cli'">
+							<label>Command</label>
+							<input class="form-control form-control-sm" ng-model="item.Command" placeholder="claude">
+							<label>Model</label>
+							<input class="form-control form-control-sm" ng-model="item.Model" placeholder="(the CLI's default)">
+						</div>
+						<div class="field-row" ng-if="item.Type === 'ollama'">
+							<label>Url</label>
+							<input class="form-control form-control-sm" ng-model="item.Url" placeholder="http://127.0.0.1:11434">
+							<label>Model</label>
+							<select class="form-select form-select-sm" ng-model="item.Model" ng-options="model for model in ModelChoices( item )">
+								<option value="">(none)</option>
+							</select>
+							<button class="btn btn-sm btn-outline-secondary" ng-click="RefreshModels( item )" title="ask the Ollama server for its models">Refresh</button>
+						</div>
+						<div class="field-row">
+							<button class="btn btn-sm btn-outline-secondary" ng-click="Check( item )" ng-disabled="item.Checking">Check</button>
+							<span class="small" ng-class="{ 'text-danger': item.CheckError }" ng-show="item.CheckResult || item.CheckError">{{ item.CheckResult || item.CheckError }}</span>
+							<span class="grow"></span>
+							<button class="btn btn-sm btn-outline-danger" ng-click="RemoveLlm( $index )">Remove</button>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section class="block">
+				<div class="block-head">
+					<h2>Workers</h2>
+					<button class="btn btn-sm btn-outline-primary" ng-click="AddWorker()">Add</button>
+				</div>
+				<div class="muted small" ng-hide="Form.Workers.length">none yet: a worker is one repo, offered to Consensus with every LLM above</div>
+				<div class="item" ng-repeat="worker in Form.Workers">
+					<div class="item-row" ng-click="Toggle( 'worker', $index )">
+						<span class="caret">{{ IsOpen( 'worker', $index ) ? '▾' : '▸' }}</span>
+						<span class="dot" ng-class="StatusOf( worker.Name ).Status"></span>
+						<span class="item-name">{{ worker.Name || '(no name)' }}</span>
+						<span class="muted small">{{ StatusOf( worker.Name ).Status }}</span>
+						<span class="muted small path">{{ worker.Root }}</span>
+						<span class="grow"></span>
+						<a class="small address" ng-show="StatusOf( worker.Name ).Url" ng-click="Copy( StatusOf( worker.Name ).Url, $event )" title="copy the address">{{ StatusOf( worker.Name ).Url }}</a>
+						<button class="btn btn-sm btn-outline-primary" ng-show="Saved( worker ) && StatusOf( worker.Name ).Status === 'stopped'" ng-click="Start( worker.Name, $event )">Start</button>
+						<button class="btn btn-sm btn-outline-secondary" ng-show="StatusOf( worker.Name ).Url" ng-click="Stop( worker.Name, $event )">Stop</button>
+					</div>
+					<div class="item-form" ng-show="IsOpen( 'worker', $index )">
+						<div class="field-row">
+							<label>Name</label>
+							<input class="form-control form-control-sm" ng-model="worker.Name">
+							<label class="check"><input type="checkbox" ng-model="worker.AutoStart"> Start when the app opens</label>
+						</div>
+						<div class="field-row">
+							<label>Root</label>
+							<input class="form-control form-control-sm" ng-model="worker.Root" placeholder="the repo's folder">
+							<button class="btn btn-sm btn-outline-secondary" ng-click="PickFolder( worker )">Browse</button>
+						</div>
+						<div class="field-row top">
+							<label>Include</label>
+							<textarea class="form-control form-control-sm" rows="3" ng-model="worker.IncludeText" placeholder="one pattern per line; none means every file"></textarea>
+							<label>Exclude</label>
+							<textarea class="form-control form-control-sm" rows="3" ng-model="worker.ExcludeText" placeholder="one pattern per line, as in .gitignore"></textarea>
+						</div>
+						<div class="field-row">
+							<label class="check"><input type="checkbox" ng-model="worker.Builds"> Builds</label>
+							<label ng-show="worker.Builds">Remote</label>
+							<input class="form-control form-control-sm narrow" ng-show="worker.Builds" ng-model="worker.Remote" placeholder="origin">
+						</div>
+						<div class="field-row top" ng-show="worker.Builds">
+							<label>Commands</label>
+							<textarea class="form-control form-control-sm" rows="2" ng-model="worker.CommandsText" placeholder="one per line, such as npm test; a build may run only these"></textarea>
+						</div>
+						<div class="field-row">
+							<label>Token</label>
+							<input class="form-control form-control-sm token" readonly ng-model="worker.Token">
+							<button class="btn btn-sm btn-outline-secondary" ng-click="Copy( worker.Token )" title="copy the token, for consensus.json's Workers">Copy</button>
+							<button class="btn btn-sm btn-outline-secondary" ng-click="NewToken( worker )" title="a new token; the server's consensus.json must be updated too">New</button>
+						</div>
+						<div class="muted small">Add to the server's consensus.json: "Workers": [ { "Name": "{{ worker.Name }}", "Token": "…" } ], then restart it.</div>
+						<div class="field-row">
+							<span class="grow"></span>
+							<button class="btn btn-sm btn-outline-danger" ng-click="RemoveWorker( $index )">Remove</button>
+						</div>
+					</div>
+				</div>
+			</section>
+		</section>
+
+		<!-- ------------------------------------------------------------ a worker's tab -->
+		<section class="worker-tab" ng-if="Tab !== 'app'" ng-init="">
+			<div class="worker-bar">
+				<span class="dot" ng-class="Current().Status"></span>
+				<span class="worker-name">{{ Tab }}</span>
+				<span class="muted small">{{ Current().Status }}<span ng-show="Current().Working">: {{ Current().Working }}</span></span>
+				<a class="small address" ng-show="Current().Url" ng-click="Copy( Current().Url )" title="copy the address">{{ Current().Url }}</a>
+				<span class="grow"></span>
+				<button class="btn btn-sm btn-outline-secondary" ng-show="Current().Url" ng-click="OpenBrowser( Current().Url )">Open in browser</button>
+				<button class="btn btn-sm btn-outline-danger" id="stop" ng-show="Current().Url" ng-click="Stop( Tab )" title="cancel a running job and close the worker; Consensus sees it go offline">Stop</button>
+			</div>
+			<div class="view-area" id="view-area" ng-class="{ empty: !Current().Url }">
+				<div class="stopped-card" ng-if="!Current().Url">
+					<h2>{{ Tab }} is {{ Current().Status }}</h2>
+					<div class="muted" ng-show="Current().Stopped">Stopped {{ Current().Stopped.At | date:'medium' }}: {{ Current().Stopped.Why }}</div>
+					<div class="text-danger" ng-show="Current().Error && Current().Error !== Current().Stopped.Why">{{ Current().Error }}</div>
+					<div class="muted small path">{{ Current().Root }}</div>
+					<button class="btn btn-primary mt-2" id="start" ng-click="Start( Tab )" ng-disabled="Current().Status === 'starting'">Start</button>
+				</div>
+			</div>
+		</section>
+
+	</main>
+
+	<script src="../../node_modules/angular/angular.min.js"></script>
+	<script src="app.js"></script>
+</body>
+</html>
