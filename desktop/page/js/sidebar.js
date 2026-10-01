@@ -4,7 +4,9 @@
 // new project, plan and folder, rename and delete; the waiting count, Trash and the Settings button at the
 // bottom. Items and projects move and reorder by drag and drop; items copy by copy and paste.
 // Each project's Context folder comes first, holding its Readme and other documents: neither the folder
-// nor the document is renamed, moved, copied or deleted, and New document goes there.
+// nor the document is renamed, moved, copied or deleted, and New document goes there. In the desktop (plan
+// Consensus Desktop, Step 3) it also shows the desktop's LLM connections (every project) and the project's
+// workspaces, with Open, Rename and Delete in their menus, and New LLM connection and New workspace in its own.
 // A plan holds its Subplans: they fold under it, and a plan dropped into it becomes one.
 // Each row's actions are in its menu (⋯, or a right-click); Delete is there only, confirmed on the row.
 // The tree can be sorted (by name, created or updated) and show each item's last update; both remembered here.
@@ -12,7 +14,7 @@
 const DRAG_TYPE = 'application/x-consensus-item';
 const DRAG_PROJECT_TYPE = 'application/x-consensus-project';
 
-angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', function ( $scope, $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports )
+angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', 'DesktopItems', function ( $scope, $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports, DesktopItems )
 {
 	const OPEN_PROJECT_KEY = 'consensus.project';
 	const FOLDED_KEY = 'consensus.folded';
@@ -21,6 +23,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	const SORTS = [ 'none', 'name', 'created', 'updated' ];
 
 	$scope.State = State;
+	$scope.Items = DesktopItems;
 	$scope.Creating = null;
 	$scope.Renaming = null;
 	$scope.Deleting = null;
@@ -137,6 +140,71 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		}
 		return project.Items[ 0 ].Items.every( function ( node ) { return $scope.IsContextDocument( project, node ); } );
 	}
+
+
+	//-----------------------------------------------------------------
+	// The desktop's items in the Context folder (Step 3): the LLM connections, in every project; the project's
+	// workspaces. They are the desktop's, never the server's.
+
+	$scope.WorkspacesOf = function ( project )
+	{
+		return DesktopItems.WorkspacesOf( project.Id );
+	};
+
+
+	$scope.IsOpenItem = function ( kind, project, id )
+	{
+		let open = State.OpenItem;
+		if ( !open || open.Kind !== kind || open.Id !== id )
+		{
+			return false;
+		}
+		return ( kind !== 'llm' ) || open.Project === project.Id;
+	};
+
+
+	$scope.IsRunning = function ( llm )
+	{
+		return !!DesktopItems.Running[ llm.Id ];
+	};
+
+
+	function desktop_actions( kind, project, item )
+	{
+		let hash = ( kind === 'llm' ) ? '#/llm/' + encodeURIComponent( project.Id ) + '/' + encodeURIComponent( item.Id ) : '#/w/' + encodeURIComponent( item.Id );
+		return [
+			action( 'Open', 'eye', function () { $window.location.hash = hash; } ),
+			action( 'Rename', 'pencil', function () { $scope.StartRename( kind, project, item, QUIET ); } ),
+			{ Separator: true },
+			action( 'Delete', 'trash', function () { $scope.StartDelete( item, QUIET ); }, { Danger: true, Disabled: ( kind === 'llm' ) && $scope.IsRunning( item ) } ),
+		];
+	}
+
+
+	// Delete a desktop item, confirmed inline like the others; its tabs close.
+	$scope.DeleteDesktopItem = async function ( kind, item, event )
+	{
+		event.preventDefault();
+		event.stopPropagation();
+		if ( kind === 'llm' )
+		{
+			await window.Desktop.DeleteLlm( item.Id );
+		}
+		else
+		{
+			await window.Desktop.DeleteWorkspace( item.Id );
+		}
+		$scope.Deleting = null;
+		for ( let tab of Tabs.List.slice() )
+		{
+			if ( ( kind === 'llm' && tab.Kind === 'llm' && String( tab.Id ).endsWith( '/' + item.Id ) ) || ( kind === 'workspace' && tab.Kind === 'w' && tab.Id === item.Id ) )
+			{
+				Tabs.Close( tab );
+			}
+		}
+		await DesktopItems.Reload();
+		$scope.$applyAsync();
+	};
 
 
 	//-----------------------------------------------------------------
@@ -358,10 +426,17 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	{
 		if ( $scope.IsContextFolder( project, node ) )
 		{
-			return [
+			let actions = [
 				action( 'New document', 'plus', create_in( 'document', project ) ),
 				action( $scope.Clipboard ? 'Paste ' + $scope.Clipboard.Name : 'Paste', 'paste', function () { $scope.Paste( project, node, QUIET ); }, { Disabled: !$scope.Clipboard } ),
 			];
+			if ( DesktopItems.Available )
+			{
+				actions.push( { Separator: true } );
+				actions.push( action( 'New LLM connection', 'plus', create_in( 'llm', project ) ) );
+				actions.push( action( 'New workspace', 'plus', create_in( 'workspace', project ) ) );
+			}
+			return actions;
 		}
 		return [
 			action( $scope.Clipboard ? 'Paste ' + $scope.Clipboard.Name : 'Paste', 'paste', function () { $scope.Paste( project, node, QUIET ); }, { Disabled: !$scope.Clipboard } ),
@@ -389,8 +464,8 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	}
 
 
-	// Kind: 'project' | 'folder' | 'item'. A missing item (its record gone) has nothing to do, and nor has the
-	// Readme.
+	// Kind: 'project' | 'folder' | 'item' | 'llm' | 'workspace'. A missing item (its record gone) has nothing to
+	// do, and nor has the Readme.
 	$scope.OpenMenu = function ( kind, project, node, event )
 	{
 		if ( node.Missing || ( kind === 'item' && $scope.IsContextDocument( project, node ) ) )
@@ -399,7 +474,15 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			event.stopPropagation();
 			return;
 		}
-		let actions = ( kind === 'project' ) ? project_actions( project ) : ( ( kind === 'folder' ) ? folder_actions( project, node ) : item_actions( project, node ) );
+		let actions = null;
+		if ( kind === 'llm' || kind === 'workspace' )
+		{
+			actions = desktop_actions( kind, project, node );
+		}
+		else
+		{
+			actions = ( kind === 'project' ) ? project_actions( project ) : ( ( kind === 'folder' ) ? folder_actions( project, node ) : item_actions( project, node ) );
+		}
 		Menus.Show( actions, event, node.Id );
 	};
 
@@ -465,6 +548,8 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			case 'project': return 'Project name';
 			case 'folder': return 'Folder name' + where;
 			case 'document': return 'Document title in Context';
+			case 'llm': return 'LLM connection name';
+			case 'workspace': return 'Workspace name (its folder is picked next)';
 			default: return 'Plan title' + where;
 		}
 	};
@@ -476,6 +561,11 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		let name = ( creating && creating.Name || '' ).trim();
 		if ( !name )
 		{
+			return;
+		}
+		if ( creating.Kind === 'llm' || creating.Kind === 'workspace' )
+		{
+			await create_desktop_item( creating, name );
 			return;
 		}
 		let answer = await State.Act( function ()
@@ -510,6 +600,37 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	};
 
 
+	// A new LLM connection (with the defaults) or workspace (its folder picked now) of the desktop; it opens.
+	async function create_desktop_item( creating, name )
+	{
+		let answer = null;
+		if ( creating.Kind === 'llm' )
+		{
+			answer = await window.Desktop.SaveLlm( { Name: name } );
+		}
+		else
+		{
+			let path = await window.Desktop.PickFolder();
+			if ( !path )
+			{
+				$scope.$applyAsync();
+				return;
+			}
+			answer = await window.Desktop.SaveWorkspace( { Name: name, Project: creating.Project, Path: path } );
+		}
+		if ( answer.Problems )
+		{
+			State.Error = answer.Problems.join( '; ' );
+			$scope.$applyAsync();
+			return;
+		}
+		$scope.Creating = null;
+		await DesktopItems.Reload();
+		$window.location.hash = ( creating.Kind === 'llm' ) ? '#/llm/' + encodeURIComponent( creating.Project ) + '/' + encodeURIComponent( answer.Item.Id ) : '#/w/' + encodeURIComponent( answer.Item.Id );
+		$scope.$applyAsync();
+	}
+
+
 	// A new Subplan under a plan of the tree: its title is asked for in the Subplan form.
 	$scope.NewSubplan = function ( project, node, event )
 	{
@@ -530,6 +651,10 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		$scope.Creating = null;
 		$scope.Deleting = null;
 		$scope.Renaming = { Kind: kind, Project: project.Id, Id: node.Id, Name: ( kind === 'proposal' ) ? node.Title : node.Name };
+		if ( kind === 'llm' || kind === 'workspace' )
+		{
+			$scope.Renaming.Item = node;
+		}
 	};
 
 
@@ -551,6 +676,22 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		let name = ( renaming && renaming.Name || '' ).trim();
 		if ( !name )
 		{
+			return;
+		}
+		if ( renaming.Kind === 'llm' || renaming.Kind === 'workspace' )
+		{
+			let renamed = Object.assign( {}, renaming.Item, { Name: name } );
+			let saved = ( renaming.Kind === 'llm' ) ? await window.Desktop.SaveLlm( renamed ) : await window.Desktop.SaveWorkspace( renamed );
+			if ( saved.Problems )
+			{
+				State.Error = saved.Problems.join( '; ' );
+			}
+			else
+			{
+				$scope.Renaming = null;
+				await DesktopItems.Reload();
+			}
+			$scope.$applyAsync();
 			return;
 		}
 		let answer = await State.Act( function ()

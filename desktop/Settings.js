@@ -1,20 +1,36 @@
 'use strict';
 
 // Settings - the desktop's desktop.json (plan Consensus Desktop, Step 2): the saved servers, the local server's data
-// folder and port, what was open last, and the theme and scale the desktop applies to the page it hosts.
+// folder and port, what was open last, the theme and scale the desktop applies to the page it hosts, and (Step 3)
+// the LLM connections, kept once per desktop, and the workspaces, each with the project it is attached to.
 //
 //   {
 //     "Servers": [ { "Name": "cube4", "Url": "http://cube4:3500" } ],
 //     "Local": { "Data": "W:/code/consensus.git/~data", "Port": 3500 },
 //     "Last": { "Kind": "server", "Name": "cube4" } | { "Kind": "local" } | null,
-//     "Theme": "system", "Scale": "normal"
+//     "Theme": "system", "Scale": "normal",
+//     "Llms": [ { "Id": "llm-…", "Name": "Claude", "Kind": "claude-cli", "Command": "claude", "Arguments": [ "-p", … ],
+//                "Url": "", "Model": "sonnet", "Timeout": 300,
+//                "Checks": { "Instructions": true, "Readme": true, "Documents": true, "Threads": true },
+//                "Prompts": { "Review": "…", "Build": "…", "Session": "" } } ],
+//     "Workspaces": [ { "Id": "wks-…", "Name": "consensus", "Project": "default", "Path": "W:/code/consensus.git",
+//                       "Include": [], "Exclude": [ "~*/**", "node_modules/**", ".git/**" ] } ]
 //   }
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
+const CRYPTO = require( 'crypto' );
+const PACKAGE = require( './Package.js' );
 
 const THEMES = [ 'light', 'dark', 'system' ];
 const SCALES = [ 'small', 'normal', 'large' ];
+const KINDS = [ 'claude-cli', 'ollama' ];
+const DEFAULT_COMMAND = 'claude';
+const DEFAULT_ARGUMENTS = [ '-p', '--output-format', 'text', '--allowedTools', 'Bash,Read,Edit,Write,Glob,Grep,MultiEdit,WebFetch' ];
+const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
+const DEFAULT_TIMEOUT = 300;
+const DEFAULT_EXCLUDE = [ '~*/**', 'node_modules/**', '.git/**' ];
+const ID_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz';
 
 
 //---------------------------------------------------------------------
@@ -28,6 +44,93 @@ function Default()
 		Last: null,
 		Theme: 'system',
 		Scale: 'normal',
+		Llms: [],
+		Workspaces: [],
+	};
+}
+
+
+//---------------------------------------------------------------------
+// NewId( 'llm' | 'wks' ): an id in the server's shape, "<prefix>-xxx-xxx-xxx", from the crypto source.
+
+function NewId( Prefix )
+{
+	let bytes = CRYPTO.randomBytes( 9 );
+	let letters = '';
+	for ( let byte of bytes )
+	{
+		letters += ID_ALPHABET[ byte % ID_ALPHABET.length ];
+	}
+	return Prefix + '-' + letters.slice( 0, 3 ) + '-' + letters.slice( 3, 6 ) + '-' + letters.slice( 6, 9 );
+}
+
+
+function text_of( value, fallback )
+{
+	return ( value === undefined || value === null ) ? ( fallback || '' ) : String( value ).trim();
+}
+
+
+function lines_of( value, fallback )
+{
+	if ( Array.isArray( value ) )
+	{
+		return value.map( function ( line ) { return String( line ).trim(); } ).filter( function ( line ) { return line; } );
+	}
+	if ( typeof value === 'string' )
+	{
+		return lines_of( value.split( /\r?\n/ ) );
+	}
+	return ( fallback || [] ).slice();
+}
+
+
+//---------------------------------------------------------------------
+// FillLlm: one LLM connection with every field present.
+
+function FillLlm( Llm )
+{
+	let given = ( Llm && typeof Llm === 'object' ) ? Llm : {};
+	let kind = KINDS.includes( given.Kind ) ? given.Kind : KINDS[ 0 ];
+	let checks = {};
+	for ( let item of PACKAGE.CHECK_ITEMS )
+	{
+		checks[ item ] = ( given.Checks && given.Checks[ item ] !== undefined ) ? !!given.Checks[ item ] : PACKAGE.DEFAULT_CHECKS[ item ];
+	}
+	let prompts = {};
+	for ( let name of Object.keys( PACKAGE.DEFAULT_PROMPTS ) )
+	{
+		prompts[ name ] = ( given.Prompts && typeof given.Prompts[ name ] === 'string' ) ? given.Prompts[ name ] : PACKAGE.DEFAULT_PROMPTS[ name ];
+	}
+	let timeout = Number( given.Timeout );
+	return {
+		Id: text_of( given.Id ) || NewId( 'llm' ),
+		Name: text_of( given.Name ),
+		Kind: kind,
+		Command: text_of( given.Command ) || DEFAULT_COMMAND,
+		Arguments: Array.isArray( given.Arguments ) ? given.Arguments.map( function ( argument ) { return String( argument ); } ) : DEFAULT_ARGUMENTS.slice(),
+		Url: text_of( given.Url ) || ( ( kind === 'ollama' ) ? DEFAULT_OLLAMA_URL : '' ),
+		Model: text_of( given.Model ),
+		Timeout: ( Number.isFinite( timeout ) && timeout > 0 ) ? Math.round( timeout ) : DEFAULT_TIMEOUT,
+		Checks: checks,
+		Prompts: prompts,
+	};
+}
+
+
+//---------------------------------------------------------------------
+// FillWorkspace: one workspace with every field present.
+
+function FillWorkspace( Workspace )
+{
+	let given = ( Workspace && typeof Workspace === 'object' ) ? Workspace : {};
+	return {
+		Id: text_of( given.Id ) || NewId( 'wks' ),
+		Name: text_of( given.Name ),
+		Project: text_of( given.Project ),
+		Path: text_of( given.Path ).replace( /\\/g, '/' ).replace( /\/+$/, '' ),
+		Include: lines_of( given.Include, [] ),
+		Exclude: lines_of( given.Exclude, ( given.Exclude === undefined ) ? DEFAULT_EXCLUDE : [] ),
 	};
 }
 
@@ -66,6 +169,14 @@ function Fill( Settings )
 	if ( SCALES.includes( given.Scale ) )
 	{
 		settings.Scale = given.Scale;
+	}
+	if ( Array.isArray( given.Llms ) )
+	{
+		settings.Llms = given.Llms.map( FillLlm );
+	}
+	if ( Array.isArray( given.Workspaces ) )
+	{
+		settings.Workspaces = given.Workspaces.map( FillWorkspace );
 	}
 	return settings;
 }
@@ -120,6 +231,59 @@ function Problems( Settings )
 			problems.push( 'server "' + ( server.Name || '?' ) + '": the Url must start with http:// or https://' );
 		}
 	}
+	let llm_names = new Set();
+	for ( let llm of Settings.Llms || [] )
+	{
+		let what = 'LLM connection "' + ( llm.Name || '?' ) + '"';
+		if ( !llm.Name )
+		{
+			problems.push( 'an LLM connection has no Name' );
+		}
+		else if ( llm_names.has( llm.Name ) )
+		{
+			problems.push( what + ' is named twice' );
+		}
+		llm_names.add( llm.Name );
+		if ( !KINDS.includes( llm.Kind ) )
+		{
+			problems.push( what + ': the Kind is "' + llm.Kind + '", not one of ' + KINDS.join( ', ' ) );
+		}
+		if ( llm.Kind === 'claude-cli' && !llm.Command )
+		{
+			problems.push( what + ': a Command is needed' );
+		}
+		if ( llm.Kind === 'ollama' && !/^https?:\/\/\S+$/.test( llm.Url || '' ) )
+		{
+			problems.push( what + ': the Url must start with http:// or https://' );
+		}
+		if ( llm.Kind === 'ollama' && !llm.Model )
+		{
+			problems.push( what + ': a Model is needed' );
+		}
+	}
+	let workspace_names = new Set();
+	for ( let workspace of Settings.Workspaces || [] )
+	{
+		let what = 'workspace "' + ( workspace.Name || '?' ) + '"';
+		let key = workspace.Project + '/' + workspace.Name;
+		if ( !workspace.Name )
+		{
+			problems.push( 'a workspace has no Name' );
+		}
+		else if ( workspace_names.has( key ) )
+		{
+			problems.push( what + ' is named twice in its project' );
+		}
+		workspace_names.add( key );
+		if ( !workspace.Project )
+		{
+			problems.push( what + ' is attached to no project' );
+		}
+		if ( !workspace.Path )
+		{
+			problems.push( what + ' has no Path' );
+		}
+	}
 	return problems;
 }
 
@@ -133,13 +297,37 @@ function ServerNamed( Settings, Name )
 }
 
 
+// LlmById, WorkspaceById: the item with that id, or null.
+function LlmById( Settings, Id )
+{
+	return ( Settings.Llms || [] ).find( function ( llm ) { return llm.Id === Id; } ) || null;
+}
+
+
+function WorkspaceById( Settings, Id )
+{
+	return ( Settings.Workspaces || [] ).find( function ( workspace ) { return workspace.Id === Id; } ) || null;
+}
+
+
 module.exports = {
 	THEMES: THEMES,
 	SCALES: SCALES,
+	KINDS: KINDS,
+	DEFAULT_COMMAND: DEFAULT_COMMAND,
+	DEFAULT_ARGUMENTS: DEFAULT_ARGUMENTS,
+	DEFAULT_OLLAMA_URL: DEFAULT_OLLAMA_URL,
+	DEFAULT_TIMEOUT: DEFAULT_TIMEOUT,
+	DEFAULT_EXCLUDE: DEFAULT_EXCLUDE,
 	Default: Default,
+	NewId: NewId,
+	FillLlm: FillLlm,
+	FillWorkspace: FillWorkspace,
 	Fill: Fill,
 	Read: Read,
 	Write: Write,
 	Problems: Problems,
 	ServerNamed: ServerNamed,
+	LlmById: LlmById,
+	WorkspaceById: WorkspaceById,
 };

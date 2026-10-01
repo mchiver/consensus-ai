@@ -65,7 +65,7 @@
 						<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
 					</span>
 				</div>
-				<div class="folder-body" ng-if="!IsFolded(node)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
+				<div class="folder-body" ng-if="!IsFolded(node)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div><div ng-if="IsContextFolder( project, node ) && Items.Available" ng-include="'desktop-items.html'"></div></div>
 			</div>
 			<a ng-switch-default class="proposal-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document', 'context-item': IsContextDocument( project, node ), parent: node.Items.length }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="IsContextDocument( project, node ) ? null : node.Id" tree-drop="{ Kind: node.Kind === 'plan' ? 'plan' : 'item', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('item', project, node, $event)" title="{{ IsContextDocument( project, node ) ? 'the project\'s Readme: its background, read by everyone who works on the project' : '' }}">
 				<span class="chevron" ng-if="node.Items.length" ng-class="{ folded: IsFolded(node) }" ng-click="ToggleFold(node, $event)" title="{{ IsFolded(node) ? 'show' : 'hide' }} its Subplans"></span>
@@ -96,7 +96,48 @@
 		</div>
 	</script>
 
-	<div class="layout" ng-class="{ 'no-threads': State.Open.Proposal.Kind === 'document' || State.ThreadsHidden, 'no-tree': State.TreeHidden }">
+
+	<!-- The desktop's items in the Context folder (plan Consensus Desktop, Step 3): the LLM connections, in every
+	     project, and the project's workspaces. In a browser there are none. -->
+	<script type="text/ng-template" id="desktop-items.html">
+		<a class="desktop-item tree-item tree-row llm-row" ng-repeat="llm in Items.Llms track by llm.Id" style="--depth: {{ Depth }}" ng-class="{ open: IsOpenItem( 'llm', project, llm.Id ), running: IsRunning( llm ) }" ng-href="#/llm/{{ project.Id }}/{{ llm.Id }}" data-id="{{ llm.Id }}" on-context-menu="OpenMenu('llm', project, llm, $event)" title="an LLM connection of this desktop, shown in every project; opened here, it works on this project">
+			<span class="chevron-space"></span>
+			<span class="tree-icon icon-llm"></span>
+			<form class="rename-form" ng-if="IsRenaming(llm)" ng-submit="Rename()" ng-click="$event.preventDefault(); $event.stopPropagation()">
+				<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
+			</form>
+			<span class="proposal-title" ng-if="!IsRenaming(llm)">{{ llm.Name }}</span>
+			<span class="badges" ng-if="!IsRenaming(llm)">
+				<span class="item-state" title="the connection's kind">{{ llm.Kind }}</span>
+				<span class="badge mine" ng-show="IsRunning( llm )" title="a one-shot is running">running</span>
+			</span>
+			<span class="confirm" ng-if="Deleting === llm.Id">
+				delete?
+				<button class="btn btn-sm btn-danger" ng-click="DeleteDesktopItem('llm', llm, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+				<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+			</span>
+			<span class="row-menu" role="button" ng-class="{ shown: MenuOpenFor(llm) }" ng-if="!IsRenaming(llm) && Deleting !== llm.Id" title="actions" ng-click="OpenMenu('llm', project, llm, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
+		</a>
+		<a class="desktop-item tree-item tree-row workspace-row" ng-repeat="workspace in WorkspacesOf( project ) track by workspace.Id" style="--depth: {{ Depth }}" ng-class="{ open: IsOpenItem( 'workspace', project, workspace.Id ) }" ng-href="#/w/{{ workspace.Id }}" data-id="{{ workspace.Id }}" on-context-menu="OpenMenu('workspace', project, workspace, $event)" title="a workspace of this desktop: the folder {{ workspace.Path }}">
+			<span class="chevron-space"></span>
+			<span class="tree-icon icon-workspace"></span>
+			<form class="rename-form" ng-if="IsRenaming(workspace)" ng-submit="Rename()" ng-click="$event.preventDefault(); $event.stopPropagation()">
+				<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
+			</form>
+			<span class="proposal-title" ng-if="!IsRenaming(workspace)">{{ workspace.Name }}</span>
+			<span class="badges" ng-if="!IsRenaming(workspace)">
+				<span class="item-state" title="{{ workspace.Path }}">workspace</span>
+			</span>
+			<span class="confirm" ng-if="Deleting === workspace.Id">
+				delete?
+				<button class="btn btn-sm btn-danger" ng-click="DeleteDesktopItem('workspace', workspace, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+				<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+			</span>
+			<span class="row-menu" role="button" ng-class="{ shown: MenuOpenFor(workspace) }" ng-if="!IsRenaming(workspace) && Deleting !== workspace.Id" title="actions" ng-click="OpenMenu('workspace', project, workspace, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
+		</a>
+	</script>
+
+	<div class="layout" ng-class="{ 'no-threads': State.Open.Proposal.Kind === 'document' || State.ThreadsHidden || State.View === 'llm' || State.View === 'workspace', 'no-tree': State.TreeHidden }">
 
 		<!-- ============================================================= -->
 		<aside class="sidebar" ng-controller="SidebarController">
@@ -212,7 +253,7 @@
 			<header class="header" ng-controller="HeaderController">
 				<div class="header-row">
 					<div class="title" ng-show="State.Open">{{ IsContext() ? 'Readme of ' + State.Open.Project.Name : State.Open.Proposal.Title }}</div>
-					<div class="title muted" ng-hide="State.Open">{{ State.View === 'waiting' ? 'Waiting on you' : 'Consensus' }}</div>
+					<div class="title muted" ng-hide="State.Open">{{ EmptyTitle() }}</div>
 					<div class="header-views" ng-show="State.Open">
 						<div class="btn-group" role="group">
 							<button class="btn btn-sm" id="view-read" ng-class="State.View === 'read' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('read')"><svg class="icon lead"><use href="#i-eye"></use></svg>Read</button>
@@ -290,6 +331,154 @@
 					<div class="muted small" ng-show="Shown">revision {{ Shown.Revision }}{{ Shown.Revision === State.Open.Proposal.Revision ? ' (current)' : '' }}</div>
 					<article class="markdown" id="revision-view"></article>
 				</div>
+			</section>
+
+
+			<!-- The desktop's LLM page (plan Consensus Desktop, Step 3): the details, the packaging, the buttons, the log. -->
+			<section class="item-view llm-view" ng-controller="LlmController" ng-show="State.View === 'llm'">
+				<div class="muted" ng-hide="Llm">No such LLM connection; it may have been deleted.</div>
+				<form class="item-form" ng-if="Llm && Form" ng-submit="Save()">
+					<div class="view-heading">Details <span class="muted small">kept in this desktop's desktop.json</span></div>
+					<div class="port-error" id="llm-problems" ng-show="Problems.length">
+						<div>Not saved. Fix these first:</div>
+						<ul class="mb-0"><li ng-repeat="problem in Problems track by $index">{{ problem }}</li></ul>
+					</div>
+					<div class="settings-row">
+						<label for="llm-name">Name</label>
+						<input class="form-control form-control-sm" id="llm-name" ng-model="Form.Name" placeholder="Claude">
+						<label for="llm-kind">Kind</label>
+						<select class="form-select form-select-sm item-kind" id="llm-kind" ng-model="Form.Kind" ng-options="kind for kind in Kinds" title="claude-cli: a command run without a shell, the prompt on its standard input; ollama: a local Ollama server (its one-shots are Step 4)"></select>
+						<label for="llm-model">Model</label>
+						<input class="form-control form-control-sm" id="llm-model" ng-model="Form.Model" placeholder="{{ Form.Kind === 'ollama' ? 'required' : 'optional: sonnet, opus' }}">
+						<label for="llm-timeout">Timeout</label>
+						<input class="form-control form-control-sm settings-port" id="llm-timeout" type="number" min="1" ng-model="Form.Timeout" title="seconds a one-shot may take">
+					</div>
+					<div class="settings-row" ng-show="Form.Kind === 'claude-cli'">
+						<label for="llm-command">Command</label>
+						<input class="form-control form-control-sm" id="llm-command" ng-model="Form.Command" placeholder="claude" title="run without a shell; a name on the PATH or a full path">
+					</div>
+					<div class="settings-row top" ng-show="Form.Kind === 'claude-cli'">
+						<label for="llm-arguments">Arguments</label>
+						<textarea class="form-control form-control-sm" id="llm-arguments" rows="3" ng-model="Form.ArgumentsText" title="one argument per line, before --model; the default lets a non-interactive claude use its tools"></textarea>
+					</div>
+					<div class="settings-row" ng-show="Form.Kind === 'ollama'">
+						<label for="llm-url">Url</label>
+						<input class="form-control form-control-sm" id="llm-url" ng-model="Form.Url" placeholder="http://127.0.0.1:11434">
+					</div>
+					<div class="thread-buttons">
+						<button class="btn btn-sm btn-primary" type="submit" id="llm-save" ng-disabled="!Dirty() || Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+						<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Discard()" ng-disabled="!Dirty() || Busy"><svg class="icon lead"><use href="#i-undo"></use></svg>Discard</button>
+						<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-check" ng-click="Check()" ng-disabled="Busy" title="does it answer? claude-cli: the command's --version; ollama: its models"><svg class="icon lead"><use href="#i-check"></use></svg>Check</button>
+						<span class="muted small" ng-show="Saved && !Dirty()">Saved.</span>
+						<span class="small" id="llm-checked" ng-show="Checked" ng-class="Checked.Ok ? 'text-success' : 'text-danger'">{{ Checked.Ok ? Checked.Result : Checked.Error }}</span>
+					</div>
+
+					<div class="view-heading">Packaging <span class="muted small">what the one-shot prompt holds, in this order</span></div>
+					<div class="check-row" ng-repeat="check in Checks">
+						<label title="{{ check.Hint }}"><input type="checkbox" ng-model="Form.Checks[ check.Key ]"> {{ check.Label }}</label>
+					</div>
+					<div class="settings-row top">
+						<label for="llm-review">Review Prompt</label>
+						<textarea class="form-control form-control-sm" id="llm-review" rows="4" ng-model="Form.Prompts.Review" title="the task of the Review button: take the llm's turn on the plan at hand"></textarea>
+						<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ResetPrompt( 'Review' )" title="the default">Reset</button>
+					</div>
+					<div class="settings-row top">
+						<label for="llm-build">Build Prompt</label>
+						<textarea class="form-control form-control-sm" id="llm-build" rows="4" ng-model="Form.Prompts.Build" title="the task of the Build button: build the plan at hand in the workspace"></textarea>
+						<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ResetPrompt( 'Build' )" title="the default">Reset</button>
+					</div>
+					<div class="settings-row top">
+						<label for="llm-session">Session Prompt</label>
+						<textarea class="form-control form-control-sm" id="llm-session" rows="3" ng-model="Form.Prompts.Session" placeholder="appended at the end of every package, for further context or instructions; alone, the task of the Session button" title="appended at the end of every package, after the Review or Build prompt"></textarea>
+						<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ResetPrompt( 'Session' )" title="empty">Reset</button>
+					</div>
+
+					<div class="view-heading">Run <span class="muted small" ng-show="Project">in {{ Project.Name }}</span></div>
+					<div class="settings-row">
+						<label for="llm-plan">Plan</label>
+						<select class="form-select form-select-sm" id="llm-plan" ng-model="Pick.Plan" ng-options="plan.Id as ( plan.Title + ' (' + plan.State + ')' ) for plan in Plans" title="the plan at hand: the one last opened, or another of the project">
+							<option value="">(none)</option>
+						</select>
+						<label for="llm-workspace">Workspace</label>
+						<select class="form-select form-select-sm" id="llm-workspace" ng-model="Pick.Workspace" ng-options="workspace.Id as ( workspace.Name + ' — ' + workspace.Path ) for workspace in Workspaces" title="the folder the command runs in; a build needs one">
+							<option value="">(none)</option>
+						</select>
+					</div>
+					<div class="thread-buttons">
+						<button class="btn btn-sm btn-primary" type="button" id="llm-review-run" ng-click="Run( 'review' )" ng-disabled="!CanRun( 'review' )" title="{{ RunTitle( 'review' ) }}"><svg class="icon lead"><use href="#i-play"></use></svg>Review</button>
+						<button class="btn btn-sm btn-primary" type="button" id="llm-build-run" ng-click="Run( 'build' )" ng-disabled="!CanRun( 'build' )" title="{{ RunTitle( 'build' ) }}"><svg class="icon lead"><use href="#i-play"></use></svg>Build</button>
+						<button class="btn btn-sm btn-primary" type="button" id="llm-session-run" ng-click="Run( 'session' )" ng-disabled="!CanRun( 'session' )" title="{{ RunTitle( 'session' ) }}"><svg class="icon lead"><use href="#i-play"></use></svg>Session</button>
+						<button class="btn btn-sm btn-outline-danger" type="button" id="llm-stop" ng-show="IsRunning()" ng-click="Stop()"><svg class="icon lead"><use href="#i-x"></use></svg>Stop</button>
+						<span class="muted small">Show prompt:</span>
+						<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ShowPrompt( 'review' )" ng-disabled="Busy || !Pick.Plan" title="the review package, before anything is sent"><svg class="icon lead"><use href="#i-eye"></use></svg>Review</button>
+						<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ShowPrompt( 'build' )" ng-disabled="Busy || !Pick.Plan || !Pick.Workspace" title="the build package, before anything is sent"><svg class="icon lead"><use href="#i-eye"></use></svg>Build</button>
+						<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ShowPrompt( 'session' )" ng-disabled="Busy" title="the session package, before anything is sent"><svg class="icon lead"><use href="#i-eye"></use></svg>Session</button>
+					</div>
+					<div class="port-error" id="llm-error" ng-show="Error">{{ Error }}</div>
+					<div class="run-text" ng-if="Prompt">
+						<div class="run-text-head"><b>The {{ Prompt.Kind }} package</b> <span class="muted small">{{ Prompt.Text.length }} characters</span>
+							<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Copy( Prompt.Text )"><svg class="icon lead"><use href="#i-copy"></use></svg>{{ Copied ? 'Copied' : 'Copy' }}</button>
+							<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Prompt = null"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
+						</div>
+						<pre class="run-output" id="llm-prompt">{{ Prompt.Text }}</pre>
+					</div>
+
+					<div class="view-heading">Log <span class="muted small">one record per run, newest first</span></div>
+					<div class="muted small" ng-show="Runs.length === 0">No runs yet.</div>
+					<div class="run-row" ng-repeat="run in Runs track by run.Id" ng-class="[ run.Status, { selected: Shown && Shown.Id === run.Id } ]" ng-click="OpenRun( run )" title="open its prompt and output">
+						<span class="run-status">{{ run.Status }}</span>
+						<span class="run-kind">{{ run.Kind }}</span>
+						<span class="run-plan">{{ run.Plan ? run.Plan.Title : '(no plan)' }}</span>
+						<span class="run-workspace muted">{{ run.Workspace ? run.Workspace.Name : '(no workspace)' }}</span>
+						<span class="run-when muted">{{ run.Started | stamp }}</span>
+						<span class="run-duration muted">{{ Duration( run ) }}</span>
+						<span class="run-error text-danger small" ng-show="run.Error && run.Status !== 'stopped'">{{ run.Error }}</span>
+					</div>
+					<div class="run-text" ng-if="Shown">
+						<div class="run-text-head"><b>Run {{ Shown.Id }}</b> <span class="muted small">{{ Shown.Command }}</span>
+							<button class="btn btn-sm btn-outline-secondary" type="button" ng-show="Shown.Status === 'running'" ng-click="RefreshShown()"><svg class="icon lead"><use href="#i-refresh"></use></svg>Refresh</button>
+							<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Shown = null"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
+						</div>
+						<div class="muted small">Output</div>
+						<pre class="run-output" id="run-output">{{ Shown.Output || '(nothing yet)' }}</pre>
+						<div class="muted small">Prompt <button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Copy( Shown.Prompt )"><svg class="icon lead"><use href="#i-copy"></use></svg>Copy</button></div>
+						<pre class="run-output run-prompt">{{ Shown.Prompt }}</pre>
+					</div>
+				</form>
+			</section>
+
+			<!-- The desktop's workspace page (Step 3): its details. -->
+			<section class="item-view workspace-view" ng-controller="WorkspaceController" ng-show="State.View === 'workspace'">
+				<div class="muted" ng-hide="Workspace">No such workspace; it may have been deleted.</div>
+				<form class="item-form" ng-if="Workspace && Form" ng-submit="Save()">
+					<div class="view-heading">Details <span class="muted small" ng-show="Project">a workspace of {{ Project.Name }}, kept in this desktop's desktop.json</span></div>
+					<div class="port-error" id="workspace-problems" ng-show="Problems.length">
+						<div>Not saved. Fix these first:</div>
+						<ul class="mb-0"><li ng-repeat="problem in Problems track by $index">{{ problem }}</li></ul>
+					</div>
+					<div class="settings-row">
+						<label for="workspace-name">Name</label>
+						<input class="form-control form-control-sm" id="workspace-name" ng-model="Form.Name">
+					</div>
+					<div class="settings-row">
+						<label for="workspace-path">Path</label>
+						<input class="form-control form-control-sm" id="workspace-path" ng-model="Form.Path" placeholder="a folder, empty or full: where a one-shot runs">
+						<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="PickFolder()" ng-disabled="Busy">Browse</button>
+					</div>
+					<div class="settings-row top">
+						<label for="workspace-include">Include</label>
+						<textarea class="form-control form-control-sm" id="workspace-include" rows="3" ng-model="Form.IncludeText" placeholder="patterns, one per line; empty means everything (for the file tools of Step 4)"></textarea>
+					</div>
+					<div class="settings-row top">
+						<label for="workspace-exclude">Exclude</label>
+						<textarea class="form-control form-control-sm" id="workspace-exclude" rows="3" ng-model="Form.ExcludeText" placeholder="patterns, one per line (for the file tools of Step 4)"></textarea>
+					</div>
+					<div class="thread-buttons">
+						<button class="btn btn-sm btn-primary" type="submit" id="workspace-save" ng-disabled="!Dirty() || Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+						<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Discard()" ng-disabled="!Dirty() || Busy"><svg class="icon lead"><use href="#i-undo"></use></svg>Discard</button>
+						<span class="muted small" ng-show="Saved && !Dirty()">Saved.</span>
+					</div>
+				</form>
 			</section>
 
 			<section class="waiting-view" ng-controller="WaitingController" ng-show="State.View === 'waiting'">
@@ -505,6 +694,7 @@
 	<script src="/js/render.js"></script>
 	<script src="/js/editor.js"></script>
 	<script src="/js/app.js"></script>
+	<script src="/js/desktop.js"></script>
 	<script src="/js/menus.js"></script>
 	<script src="/js/tabs.js"></script>
 	<script src="/js/subplans.js"></script>

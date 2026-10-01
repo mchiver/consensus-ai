@@ -4,10 +4,32 @@
 // state picker and the one-line state, then New Comment and New subplan. Delete is in the item's menu in the
 // tree. Ctrl+E switches the open item between Edit and Read.
 
-angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Subplans', function ( $scope, $window, State, Client, Subplans )
+angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Subplans', 'DesktopItems', function ( $scope, $window, State, Client, Subplans, DesktopItems )
 {
 	$scope.State = State;
 	$scope.Busy = false;
+
+
+	// The title when no proposal is open: the waiting view, or the desktop's LLM connection or workspace (Step 3).
+	$scope.EmptyTitle = function ()
+	{
+		if ( State.View === 'waiting' )
+		{
+			return 'Waiting on you';
+		}
+		if ( State.View === 'llm' && State.OpenItem )
+		{
+			let llm = DesktopItems.LlmById( State.OpenItem.Id );
+			let project = State.Projects.find( function ( candidate ) { return candidate.Id === State.OpenItem.Project; } );
+			return 'LLM connection ' + ( llm ? llm.Name : State.OpenItem.Id ) + ( project ? ' in ' + project.Name : '' );
+		}
+		if ( State.View === 'workspace' && State.OpenItem )
+		{
+			let workspace = DesktopItems.WorkspaceById( State.OpenItem.Id );
+			return 'Workspace ' + ( workspace ? workspace.Name : State.OpenItem.Id );
+		}
+		return 'Consensus';
+	};
 
 
 	$scope.SetView = function ( view )

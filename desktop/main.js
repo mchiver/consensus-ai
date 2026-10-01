@@ -5,6 +5,9 @@
 // forwards the page's API calls to the connected server). It can run one local Consensus server (Local.js) over a
 // data folder and connect to it. Settings: desktop.json in Electron's user-data folder (Settings.js). A second
 // server at the same time is a second instance (New window).
+// Step 3: the LLM connections and the workspaces (Settings.js), shown by the page in each project's Context
+// folder; a connection's Check (Llm.js); the one-shots, packaged here from what the connected server says
+// (Package.js) and run by Runs.js, their records in the user-data folder's runs/.
 //
 //   npm run desktop          (electron desktop, from the checkout)
 
@@ -14,14 +17,19 @@ const ELECTRON = require( 'electron' );
 const SETTINGS = require( './Settings.js' );
 const LOCAL = require( './Local.js' );
 const PAGE = require( './Page.js' );
+const LLM = require( './Llm.js' );
+const PACKAGE = require( './Package.js' );
+const RUNS = require( './Runs.js' );
 
 const VERSION = require( '../package.json' ).version;
 const TRY_TIMEOUT = 5000;
+const FETCH_TIMEOUT = 15000;
 
 let settings_path = null;
 let settings = null;
 let page = null;
 let local = null;
+let runs = null;
 let window = null;
 let current = null;		// { Kind: 'server' | 'local', Name, Url, Version } while connected
 let reason = null;		// why the last connection failed, for the connect screen
@@ -193,7 +201,7 @@ function create_window()
 		}
 		event.preventDefault();
 		closing = true;
-		local.Close().catch( function () {} ).then( function ()
+		runs.Close().catch( function () {} ).then( function () { return local.Close(); } ).catch( function () {} ).then( function ()
 		{
 			window.destroy();
 		} );
@@ -285,6 +293,191 @@ function new_window()
 
 
 //---------------------------------------------------------------------
+// The LLM connections and the workspaces (Step 3): saved whole in desktop.json; an item is saved or deleted one
+// at a time, filled in and checked with the rest.
+
+function items_info()
+{
+	let running = runs.List().filter( function ( run ) { return run.Status === 'running'; } );
+	return { Llms: settings.Llms, Workspaces: settings.Workspaces, Running: running, DefaultPrompts: PACKAGE.DEFAULT_PROMPTS, Server: boot_info().Server };
+}
+
+
+function save_item( list_name, filler, item )
+{
+	let filled = filler( item );
+	let list = settings[ list_name ].filter( function ( one ) { return one.Id !== filled.Id; } );
+	let index = settings[ list_name ].findIndex( function ( one ) { return one.Id === filled.Id; } );
+	list.splice( ( index < 0 ) ? list.length : index, 0, filled );
+	let fresh = Object.assign( {}, settings );
+	fresh[ list_name ] = list;
+	let problems = SETTINGS.Problems( fresh );
+	if ( problems.length )
+	{
+		return { Problems: problems };
+	}
+	settings = fresh;
+	save_settings();
+	return { Item: filled };
+}
+
+
+function delete_item( list_name, id )
+{
+	settings[ list_name ] = settings[ list_name ].filter( function ( one ) { return one.Id !== id; } );
+	save_settings();
+	return { Ok: true };
+}
+
+
+//---------------------------------------------------------------------
+// The package of a one-shot: what the connected server says, as the owner, put together by Package.js.
+// Request = { LlmId, Kind, ProjectId, PlanId?, WorkspaceId? } -> { Prompt, Llm, Project, Plan, Workspace, Participant } or { Error }
+
+async function fetch_json( path )
+{
+	let response = await fetch( current.Url + path, { signal: AbortSignal.timeout( FETCH_TIMEOUT ) } );
+	let json = await response.json().catch( function () { return {}; } );
+	if ( !response.ok )
+	{
+		throw new Error( path + ' answered ' + response.status + ( json.Error ? ': ' + json.Error : '' ) );
+	}
+	return json;
+}
+
+
+async function fetch_text( path )
+{
+	let response = await fetch( current.Url + path, { signal: AbortSignal.timeout( FETCH_TIMEOUT ) } );
+	if ( !response.ok )
+	{
+		throw new Error( path + ' answered ' + response.status );
+	}
+	return response.text();
+}
+
+
+function documents_of( items, readme_id )
+{
+	let documents = [];
+	for ( let node of items || [] )
+	{
+		if ( node.Kind === 'document' && node.Id !== readme_id )
+		{
+			documents.push( { Id: node.Id, Title: node.Title } );
+		}
+	}
+	return documents;
+}
+
+
+async function make_package( request )
+{
+	if ( !current )
+	{
+		return { Error: 'not connected to a Consensus server' };
+	}
+	let llm = SETTINGS.LlmById( settings, request.LlmId );
+	if ( !llm )
+	{
+		return { Error: 'no LLM connection with the id ' + request.LlmId };
+	}
+	let workspace = request.WorkspaceId ? SETTINGS.WorkspaceById( settings, request.WorkspaceId ) : null;
+	if ( request.WorkspaceId && !workspace )
+	{
+		return { Error: 'no workspace with the id ' + request.WorkspaceId };
+	}
+	if ( request.Kind === 'build' && !workspace )
+	{
+		return { Error: 'a build needs a workspace' };
+	}
+	try
+	{
+		let me = await fetch_json( '/api/me' );
+		let llm_participant = ( me.Participants || [] ).find( function ( participant ) { return participant.Role === 'llm'; } );
+		let participant = llm_participant ? llm_participant.Name : 'llm';
+		let projects = await fetch_json( '/api/projects' );
+		let project = ( projects.Projects || [] ).find( function ( candidate ) { return candidate.Id === request.ProjectId; } );
+		if ( !project )
+		{
+			return { Error: 'no project with the id ' + request.ProjectId + ' on ' + current.Name };
+		}
+		let context_folder = ( project.Items || [] ).find( function ( node ) { return node.Id === project.ContextFolder; } );
+		let readme_id = project.Context ? project.Context.Id : null;
+		let readme = null;
+		if ( llm.Checks.Readme && readme_id )
+		{
+			let answer = await fetch_json( '/api/proposals/' + encodeURIComponent( readme_id ) );
+			readme = { Id: readme_id, Title: answer.Proposal.Title, Text: answer.Text };
+		}
+		let instructions = llm.Checks.Instructions ? await fetch_text( '/instructions' ) : null;
+		let plan = null;
+		let threads = [];
+		if ( request.PlanId )
+		{
+			let answer = await fetch_json( '/api/proposals/' + encodeURIComponent( request.PlanId ) );
+			plan = { Id: answer.Proposal.Id, Title: answer.Proposal.Title, State: answer.Proposal.State };
+			threads = ( answer.Threads || [] ).filter( function ( thread ) { return ( thread.Turn || [] ).includes( participant ); } );
+		}
+		else if ( request.Kind !== 'session' )
+		{
+			return { Error: 'a ' + request.Kind + ' needs a plan: select one in the tree' };
+		}
+		let prompt = PACKAGE.Build( {
+			Kind: request.Kind,
+			Llm: llm,
+			Server: { Url: current.Url },
+			Project: { Id: project.Id, Name: project.Name },
+			Plan: plan,
+			Workspace: workspace ? { Name: workspace.Name, Path: workspace.Path } : null,
+			Participant: participant,
+			Instructions: instructions,
+			Readme: readme,
+			Documents: documents_of( context_folder ? context_folder.Items : [], readme_id ),
+			Threads: threads,
+		} );
+		return { Prompt: prompt, Llm: llm, Project: { Id: project.Id, Name: project.Name }, Plan: plan, Workspace: workspace, Participant: participant };
+	}
+	catch ( error )
+	{
+		return { Error: 'the package could not be made: ' + error.message };
+	}
+}
+
+
+async function start_run( request )
+{
+	let made = await make_package( request );
+	if ( made.Error )
+	{
+		return made;
+	}
+	try
+	{
+		let run = runs.Start( { Llm: made.Llm, Kind: request.Kind, Project: made.Project, Plan: made.Plan, Workspace: made.Workspace, Prompt: made.Prompt } );
+		return { Run: run };
+	}
+	catch ( error )
+	{
+		return { Error: error.message };
+	}
+}
+
+
+// Every window of the app hears that a run started or ended, and refreshes.
+function broadcast_run( summary )
+{
+	for ( let one of ELECTRON.BrowserWindow.getAllWindows() )
+	{
+		if ( !one.isDestroyed() )
+		{
+			one.webContents.send( 'runs-changed', summary );
+		}
+	}
+}
+
+
+//---------------------------------------------------------------------
 // The bridge's handlers.
 
 function attach_handlers()
@@ -358,7 +551,7 @@ function attach_handlers()
 		{
 			options.defaultPath = current_folder;
 		}
-		let picked = await ELECTRON.dialog.showOpenDialog( window, options );
+		let picked = await ELECTRON.dialog.showOpenDialog( ELECTRON.BrowserWindow.fromWebContents( event.sender ) || window, options );
 		if ( picked.canceled || !picked.filePaths.length )
 		{
 			return null;
@@ -371,6 +564,67 @@ function attach_handlers()
 		new_window();
 		return {};
 	} );
+
+	// Step 3: the items, their check, the package and the runs.
+	ELECTRON.ipcMain.handle( 'items', function ()
+	{
+		return items_info();
+	} );
+
+	ELECTRON.ipcMain.handle( 'llm-save', function ( event, llm )
+	{
+		return save_item( 'Llms', SETTINGS.FillLlm, llm );
+	} );
+
+	ELECTRON.ipcMain.handle( 'llm-delete', function ( event, id )
+	{
+		return delete_item( 'Llms', id );
+	} );
+
+	ELECTRON.ipcMain.handle( 'llm-check', async function ( event, id )
+	{
+		let llm = SETTINGS.LlmById( settings, id );
+		if ( !llm )
+		{
+			return { Ok: false, Error: 'no LLM connection with the id ' + id };
+		}
+		return LLM.Check( llm );
+	} );
+
+	ELECTRON.ipcMain.handle( 'workspace-save', function ( event, workspace )
+	{
+		return save_item( 'Workspaces', SETTINGS.FillWorkspace, workspace );
+	} );
+
+	ELECTRON.ipcMain.handle( 'workspace-delete', function ( event, id )
+	{
+		return delete_item( 'Workspaces', id );
+	} );
+
+	ELECTRON.ipcMain.handle( 'package', function ( event, request )
+	{
+		return make_package( request || {} );
+	} );
+
+	ELECTRON.ipcMain.handle( 'run', function ( event, request )
+	{
+		return start_run( request || {} );
+	} );
+
+	ELECTRON.ipcMain.handle( 'run-stop', function ( event, id )
+	{
+		return { Stopped: runs.Stop( id ) };
+	} );
+
+	ELECTRON.ipcMain.handle( 'runs', function ( event, llm_id )
+	{
+		return { Runs: runs.List( llm_id ), Running: runs.Running( llm_id ) };
+	} );
+
+	ELECTRON.ipcMain.handle( 'run-read', function ( event, id )
+	{
+		return { Run: runs.Read( id ) };
+	} );
 }
 
 
@@ -379,13 +633,16 @@ function attach_handlers()
 async function main()
 {
 	await ELECTRON.app.whenReady();
-	settings_path = PATH.join( ELECTRON.app.getPath( 'userData' ), 'desktop.json' );
+	let user_data = ELECTRON.app.getPath( 'userData' );
+	settings_path = PATH.join( user_data, 'desktop.json' );
 	settings = SETTINGS.Read( settings_path );
 	if ( !require( 'fs' ).existsSync( settings_path ) )
 	{
 		save_settings();
 	}
 	local = LOCAL.Local();
+	runs = RUNS.Runs( { Folder: PATH.join( user_data, 'runs' ) } );
+	runs.OnChange( broadcast_run );
 	page = await PAGE.Serve();
 	attach_handlers();
 	create_window();

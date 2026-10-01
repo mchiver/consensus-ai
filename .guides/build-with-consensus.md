@@ -9,7 +9,9 @@ For an agent session (Claude Code or similar) working on a repo whose plans live
 `curl` (`curl -s http://<server>:<port>/instructions`): a session's web fetch tool may not reach a local or
 private address. The plan "Build Workflow" in the Consensus project is where the build loop was agreed, and
 "Agent Instructions" where this page was. Since the plan "Consensus Desktop" (Step 1), the server calls no LLM
-and reads no code: every LLM takes part through the API, as you do.
+and reads no code: every LLM takes part through the API, as you do. Consensus Desktop (Step 3) can run a model
+once, with this page, the project's Readme and the plan at hand packaged as its prompt: such a one-shot works
+exactly as a session does, through the API, and says in the package which plan, project and folder it is for.
 
 ## Who does what
 

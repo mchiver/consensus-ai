@@ -1,7 +1,8 @@
 'use strict';
 
 // Consensus - the one AngularJS module. State holds what every pane shares; AppController wires the
-// hash routes (#/p/<id>, #/waiting) and the live stream. Every rule is on the server.
+// hash routes (#/p/<id>, #/waiting; in the desktop #/llm/<project>/<id> and #/w/<id>, plan Consensus Desktop,
+// Step 3) and the live stream. Every rule is on the server.
 
 angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensus.Editor' ] )
 
@@ -106,6 +107,8 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		Projects: [],
 		OpenId: null,
 		Open: null,
+		OpenItem: null,
+		LastPlan: {},
 		View: 'read',
 		Filter: 'mine',
 		Selected: null,
@@ -218,6 +221,10 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 				return;
 			}
 			state.Open = answer;
+			if ( answer.Project && answer.Proposal && answer.Proposal.Kind !== 'document' )
+			{
+				state.LastPlan[ answer.Project.Id ] = id;
+			}
 			clear_error();
 		}
 		catch ( error )
@@ -495,13 +502,23 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	$scope.State = State;
 
 
-	// What a hash stands for: { Kind: 'p' | 'waiting', Id? }, or null.
+	// What a hash stands for: { Kind: 'p' | 'waiting' | 'llm' | 'w', Id?, Project? }, or null.
 	function route_of( hash )
 	{
 		let proposal = /^#\/p\/([^/]+)$/.exec( hash );
 		if ( proposal )
 		{
 			return { Kind: 'p', Id: decodeURIComponent( proposal[ 1 ] ) };
+		}
+		let llm = /^#\/llm\/([^/]+)\/([^/]+)$/.exec( hash );
+		if ( llm )
+		{
+			return { Kind: 'llm', Id: decodeURIComponent( llm[ 1 ] ) + '/' + decodeURIComponent( llm[ 2 ] ), Project: decodeURIComponent( llm[ 1 ] ), Item: decodeURIComponent( llm[ 2 ] ) };
+		}
+		let workspace = /^#\/w\/([^/]+)$/.exec( hash );
+		if ( workspace )
+		{
+			return { Kind: 'w', Id: decodeURIComponent( workspace[ 1 ] ), Item: decodeURIComponent( workspace[ 1 ] ) };
 		}
 		if ( hash === '#/waiting' )
 		{
@@ -541,9 +558,22 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		}
 		let tab = Tabs.Visit( { Kind: where.Kind, Id: where.Id, Hash: hash } );
 		Tabs.Announce();
+		State.OpenItem = null;
 		if ( where.Kind === 'p' )
 		{
 			State.OpenProposal( where.Id ).then( function () { Tabs.RestoreView( tab ); } );
+			return;
+		}
+		if ( where.Kind === 'llm' )
+		{
+			State.OpenItem = { Kind: 'llm', Project: where.Project, Id: where.Item };
+			State.OpenProposal( null, 'llm' );
+			return;
+		}
+		if ( where.Kind === 'w' )
+		{
+			State.OpenItem = { Kind: 'workspace', Id: where.Item };
+			State.OpenProposal( null, 'workspace' );
 			return;
 		}
 		State.OpenProposal( null, 'waiting' );

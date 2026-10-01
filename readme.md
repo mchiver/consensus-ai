@@ -219,10 +219,31 @@ changed for the app beyond `/api/me` saying its `Version`. Its settings are `des
 user-data folder (`%APPDATA%/consensus-desktop/` on Windows): `Servers`, `Local` (the data folder and its
 port), `Last`, `Theme` and `Scale`.
 
+**LLM connections and workspaces** (Step 3) are the desktop's own, kept in desktop.json (`Llms`, `Workspaces`)
+and shown in every project's Context folder, never on the server: an LLM connection once per desktop, in every
+project; a workspace, a path to a folder, with the project it is attached to. New LLM connection and New
+workspace are in the Context folder's menu; Open, Rename and Delete in the row's. Each opens in a tab of its
+own. The **LLM page** holds the details (Name; Kind `claude-cli`, a command run without a shell, or `ollama`;
+Command and Arguments, one per line, before `--model`; Model; Timeout; Check), the **packaging** (the items
+checked go into the one-shot prompt, in this order: the server's `/instructions`, the project's Readme, the
+titles and ids of the other Context documents, the threads of the plan at hand waiting on the llm participant;
+then the Review or Build Prompt, and the Session Prompt last; Show prompt and Copy), the **Run** (the plan at
+hand, the one last opened or another of the project, and a workspace; **Review**, **Build** and **Session**
+each package their prompt and run it once; Stop while it runs) and the **log** (one record per run in the
+user-data folder's `runs/<id>.json`: when, which button, the plan, the workspace, the prompt, the output, the
+exit and the duration; newest first; open one to read it). A `claude-cli` one-shot runs the command once in the
+workspace's folder with the package on its standard input; the model works through the API itself, with the
+token in the instructions, and nothing is parsed. The default Arguments let a non-interactive `claude` use its
+tools. The desktop never commits, branches or pushes. An `ollama` connection can be entered and checked; its
+one-shots are Step 4. The **workspace page** holds Name, Path (Browse), Include and Exclude patterns (for the
+file tools of Step 4; in Step 3 the Path is where a one-shot runs).
+
 Layout: `desktop/main.js` the main process, `desktop/preload.js` its bridge, `desktop/Settings.js` desktop.json,
-`desktop/Local.js` the local server, `desktop/Page.js` the server for the page copy, `desktop/page/` the copy and
-the connect screen (`connect.html`, `connect.js`, `connect.css`); `test/Desktop.test.js` covers the settings, the
-page server and the local server with the real `Start`.
+`desktop/Local.js` the local server, `desktop/Page.js` the server for the page copy, `desktop/Package.js` the
+one-shot prompt, `desktop/Llm.js` a connection's check and command line, `desktop/Runs.js` the runs and their
+records, `desktop/page/` the copy (`js/desktop.js` the items, the LLM page and the workspace page) and the
+connect screen (`connect.html`, `connect.js`, `connect.css`); `test/Desktop.test.js` covers the settings, the
+page server, the local server with the real `Start`, the package, the check and the runs.
 
 ## The API
 

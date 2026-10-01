@@ -2,8 +2,8 @@
 
 // Tabs - the open items above the document view, and the windows they can be detached into.
 //
-//   tab = { Key, Kind: 'p' | 'waiting', Id?, Hash, Title?, View?, Filter?, Draft? }
-//     Key    'p:<id>' or 'waiting': one tab per item
+//   tab = { Key, Kind: 'p' | 'waiting' | 'llm' | 'w', Id?, Hash, Title?, View?, Filter?, Draft? }
+//     Key    'p:<id>' or 'waiting': one tab per item; in the desktop 'llm:<project>/<id>' and 'w:<id>' (Step 3)
 //     Hash   the route that shows it (#/p/<id>, #/waiting)
 //     View   read | edit | revisions, for a proposal: each tab comes back as it was left
 //     Filter the threads pane's filter, for a proposal: a new tab starts at Waiting on me
@@ -346,7 +346,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 	function CanDetach( Tab )
 	{
-		return !tabs.Detached && ( Tab.Kind === 'p' || Tab.Kind === 'c' );
+		return !tabs.Detached && ( Tab.Kind === 'p' || Tab.Kind === 'c' || Tab.Kind === 'llm' || Tab.Kind === 'w' );
 	}
 
 
@@ -577,7 +577,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 //---------------------------------------------------------------------
 // TabsController: the strip, and in a detached window its Re-attach bar.
 
-.controller( 'TabsController', [ '$scope', 'State', 'Tabs', 'Menus', function ( $scope, State, Tabs, Menus )
+.controller( 'TabsController', [ '$scope', 'State', 'Tabs', 'Menus', 'DesktopItems', function ( $scope, State, Tabs, Menus, DesktopItems )
 {
 	$scope.State = State;
 	$scope.Tabs = Tabs;
@@ -653,6 +653,24 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		{
 			title = 'Waiting on you';
 		}
+		else if ( tab.Kind === 'llm' )
+		{
+			let parts = String( tab.Id ).split( '/' );
+			let llm = DesktopItems.LlmById( parts[ 1 ] );
+			let project = State.Projects.find( function ( candidate ) { return candidate.Id === parts[ 0 ]; } );
+			if ( llm )
+			{
+				title = llm.Name + ( project ? ' · ' + project.Name : '' );
+			}
+		}
+		else if ( tab.Kind === 'w' )
+		{
+			let workspace = DesktopItems.WorkspaceById( tab.Id );
+			if ( workspace )
+			{
+				title = workspace.Name;
+			}
+		}
 		else
 		{
 			let proposal = proposal_of( tab.Id );
@@ -686,6 +704,14 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		if ( tab.Kind === 'waiting' )
 		{
 			return 'icon-waiting';
+		}
+		if ( tab.Kind === 'llm' )
+		{
+			return 'icon-llm';
+		}
+		if ( tab.Kind === 'w' )
+		{
+			return 'icon-workspace';
 		}
 		if ( context_project( tab.Id ) )
 		{
