@@ -221,7 +221,7 @@ angular.module( 'Consensus' )
 	};
 
 
-	// "3 plans, 1 document, 4 threads, 2 corpora", leaving out the noughts.
+	// "3 plans, 1 document, 4 threads", leaving out the noughts.
 	$scope.MadeLine = function ( made )
 	{
 		let parts = [];
@@ -235,7 +235,6 @@ angular.module( 'Consensus' )
 		add( made.Plans, 'plan', 'plans' );
 		add( made.Documents, 'document', 'documents' );
 		add( made.Threads, 'thread', 'threads' );
-		add( made.Corpora, 'corpus', 'corpora' );
 		return parts.length ? parts.join( ', ' ) : 'nothing new';
 	};
 

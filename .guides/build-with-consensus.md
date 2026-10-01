@@ -8,20 +8,16 @@ API; the chat with the owner carries short summaries and the questions that need
 For an agent session (Claude Code or similar) working on a repo whose plans live in Consensus. Read this with
 `curl` (`curl -s http://<server>:<port>/instructions`): a session's web fetch tool may not reach a local or
 private address. The plan "Build Workflow" in the Consensus project is where the build loop was agreed, and
-"Agent Instructions" where this page was.
+"Agent Instructions" where this page was. Since the plan "Consensus Desktop" (Step 1), the server calls no LLM
+and reads no code: every LLM takes part through the API, as you do.
 
 ## Who does what
 
-- **Review** (Review in the page, on a plan or on one thread): one prompt, one JSON answer. It replies, applies
-  resolved threads, may open threads and plans, and keeps the project's context. Consensus calls the model itself
-  (Claude CLI, Ollama, or Manual copy / paste), or a **worker** runs it beside the code with read-only tools (plans
-  Workers and Review). It never builds.
-- **Build** (Build in the page, plan Build): a worker implements the plan in the project's workspace, runs its
-  tests, and posts a build log the owner accepts or sends back. It does nothing with git; the owner commits and
-  pushes, from the worker's page or outside Consensus.
-- **Agent session** (you): reads and writes the codebase, and works in Consensus through its API. You
-  initialize project contexts, and implement plans when the owner asks you to rather than pressing Build.
-- All of them post as the one `llm` participant. Say which model you are in each build log.
+- **Agent session** (you): reads and writes the codebase, and works in Consensus through its API. You keep the
+  project's Context document, reply and apply, draft plans, and implement plans when the owner asks you to.
+- **The owner**: writes, comments, resolves, and says when a plan is to be built. Git is the owner's: you commit
+  only as the build loop says, and never branch or push on your own.
+- Every LLM posts as the one `llm` participant. Say which model you are in each build log.
 
 ## Talking to Consensus
 
@@ -43,28 +39,29 @@ private address. The plan "Build Workflow" in the Consensus project is where the
 
 - The useful routes:
   - `GET /api/waiting`: the threads waiting on you, across proposals.
-  - `GET /api/projects`: every project with its tree (folders, plans with their states, documents, corpora)
-    and its context's id.
+  - `GET /api/projects`: every project with its tree (folders, plans with their states, documents), the id of
+    its Context document (`Context`) and of its Context folder (`ContextFolder`).
   - `POST /api/projects` `{ Name }`: a new project.
-  - `GET /api/proposals/<id>`: text, revision, threads, project.
-  - `POST /api/proposals` `{ Title, Text, Project, Parent? }`: a new plan (Parent: a folder's or a plan's id).
+  - `GET /api/proposals/<id>`: text, revision, threads, project; `Context: true` for a Context document.
+  - `POST /api/proposals` `{ Title, Text, Project, Parent?, Kind? }`: a new plan (Parent: a folder's or a plan's
+    id), or a document (`Kind: "document"`; it goes in the project's Context folder).
   - `POST /api/proposals/<id>/threads` `{ Text, Anchor?: { Text } }`: a new thread (no Anchor: the whole document).
   - `POST /api/proposals/<id>/threads/<tid>/replies` `{ Text }`
   - `POST /api/proposals/<id>/threads/<tid>/apply` `{ Outcome, Revision, Text?, Anchor?: { Text } }`
   - `POST /api/proposals/<id>/threads/<tid>/anchor` `{ Anchor: { Text } }`: re-anchor a thread.
   - `PUT /api/proposals/<id>/state` `{ State }`
-  - `PUT /api/proposals/<id>/text` `{ Text, Revision }`: an edit, for example to a project's context.
+  - `PUT /api/proposals/<id>/text` `{ Text, Revision }`: an edit, for example to a project's Context document.
 - An anchor's `Text` is matched against the text as it reads, without markdown marks: no backticks or asterisks.
 
 ## Finding your project
 
-List the projects (`GET /api/projects`); the one named after your repo (or holding a corpus of it) is yours. If
-none or more than one fits, ask the owner, and remember the answer for the session.
+List the projects (`GET /api/projects`); the one named after your repo is yours. If none or more than one fits,
+ask the owner, and remember the answer for the session.
 
 ## Loading your context
 
-"Load your context": read your project's context and its tree of plans with their states, and what waits on
-you; report it in a few lines.
+"Load your context": read your project's Context document (its `Context` id) and the other documents of its
+Context folder, its tree of plans with their states, and what waits on you; report it in a few lines.
 
 ## What the owner's words mean
 
@@ -105,12 +102,12 @@ document is answered with a reply holding the exact new text, applied once the o
    - commit the work in your own repo: one commit titled after the plan, with a summary of the build log, no
      attribution trailers;
    - set the plan's state to Finished;
-   - bring the project's context up to date with what changed.
+   - bring the project's Context document up to date with what changed.
 6. **Sent back** (the owner replied to the build log instead): fix what the reply asks, run the tests, and
    reply on the same thread with the new result. Nothing is committed until it is accepted.
 
 ## Starting a project from a codebase
 
-Create the project, upload the codebase as a zip, and initialize its context (**Initialize context** on the
-context's page, or write it yourself with `PUT /api/proposals/<context id>/text`). After that, plans are
-drafted, reviewed (Review), and discussed in threads as usual.
+Create the project and write its Context document yourself (`PUT /api/proposals/<context id>/text`), from the
+codebase you can read: what the project is, where things live, the conventions, and what has been decided.
+After that, plans are drafted and discussed in threads as usual.

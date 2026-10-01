@@ -1,7 +1,7 @@
 'use strict';
 
 // Consensus - the one AngularJS module. State holds what every pane shares; AppController wires the
-// hash routes (#/p/<id>, #/waiting, #/search/<words>) and the live stream. Every rule is on the server.
+// hash routes (#/p/<id>, #/waiting) and the live stream. Every rule is on the server.
 
 angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensus.Editor' ] )
 
@@ -104,8 +104,6 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		States: [],
 		Proposals: [],
 		Projects: [],
-		CorpusId: null,
-		SearchProject: null,
 		OpenId: null,
 		Open: null,
 		View: 'read',
@@ -114,7 +112,6 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		Compose: null,
 		Reanchoring: null,
 		Pending: null,
-		Query: '',
 		Drafts: {},
 		Collapsed: {},
 		Live: false,
@@ -173,13 +170,9 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
-	// OpenProposal( id ): show it; OpenProposal( null, view ): a view without a proposal (waiting, search).
+	// OpenProposal( id ): show it; OpenProposal( null, view ): a view without a proposal (waiting).
 	async function OpenProposal( Id, View )
 	{
-		if ( View !== 'corpus' )
-		{
-			state.CorpusId = null;
-		}
 		if ( !Id )
 		{
 			state.OpenId = null;
@@ -199,7 +192,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			state.Reanchoring = null;
 			SetView( 'read' );
 		}
-		else if ( state.View === 'waiting' || state.View === 'search' )
+		else if ( state.View === 'waiting' )
 		{
 			SetView( 'read' );
 		}
@@ -474,25 +467,6 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 } ] )
 
 
-// A token count, short: 950, 12.4k, 3.2M.
-.filter( 'tokens', [ function ()
-{
-	return function ( Count )
-	{
-		let count = Count || 0;
-		if ( count < 1000 )
-		{
-			return String( count );
-		}
-		if ( count < 1000000 )
-		{
-			return ( count / 1000 ).toFixed( 1 ) + 'k';
-		}
-		return ( count / 1000000 ).toFixed( 1 ) + 'M';
-	};
-} ] )
-
-
 .filter( 'display', [ 'State', function ( State )
 {
 	return function ( Name )
@@ -521,7 +495,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	$scope.State = State;
 
 
-	// What a hash stands for: { Kind: 'p' | 'c' | 'waiting' | 'search', Id?, Query?, Project? }, or null.
+	// What a hash stands for: { Kind: 'p' | 'waiting', Id? }, or null.
 	function route_of( hash )
 	{
 		let proposal = /^#\/p\/([^/]+)$/.exec( hash );
@@ -532,18 +506,6 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		if ( hash === '#/waiting' )
 		{
 			return { Kind: 'waiting' };
-		}
-		let corpus = /^#\/c\/([^/]+)$/.exec( hash );
-		if ( corpus )
-		{
-			return { Kind: 'c', Id: decodeURIComponent( corpus[ 1 ] ) };
-		}
-		// #/search/<words> searches everything; #/search/<project>/<words> one project (the words are encoded, so
-		// they hold no slash).
-		let search = /^#\/search\/(?:([^/]+)\/)?(.*)$/.exec( hash );
-		if ( search )
-		{
-			return { Kind: 'search', Project: search[ 1 ] ? decodeURIComponent( search[ 1 ] ) : null, Query: decodeURIComponent( search[ 2 ] ) };
 		}
 		return null;
 	}
@@ -577,37 +539,28 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			}
 			return;
 		}
-		let tab = Tabs.Visit( { Kind: where.Kind, Id: where.Id, Hash: hash, Query: where.Query } );
+		let tab = Tabs.Visit( { Kind: where.Kind, Id: where.Id, Hash: hash } );
 		Tabs.Announce();
 		if ( where.Kind === 'p' )
 		{
 			State.OpenProposal( where.Id ).then( function () { Tabs.RestoreView( tab ); } );
 			return;
 		}
-		if ( where.Kind === 'waiting' )
-		{
-			State.OpenProposal( null, 'waiting' );
-			return;
-		}
-		if ( where.Kind === 'c' )
-		{
-			State.CorpusId = where.Id;
-			State.OpenProposal( null, 'corpus' );
-			return;
-		}
-		State.SearchProject = where.Project;
-		State.Query = where.Query;
-		State.OpenProposal( null, 'search' );
-		$scope.$broadcast( 'search-requested', State.Query, State.SearchProject );
+		State.OpenProposal( null, 'waiting' );
 	}
 
 
 	function on_change( event )
 	{
+		if ( event.Settings )
+		{
+			State.LoadMe();
+			return;
+		}
 		State.LoadList();
 		if ( event.Kind === 'trashed' )
 		{
-			Tabs.CloseItem( event.Proposal || event.Corpus );
+			Tabs.CloseItem( event.Proposal );
 		}
 		else if ( event.Proposal && event.Proposal === State.OpenId )
 		{

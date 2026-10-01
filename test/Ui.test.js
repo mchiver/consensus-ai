@@ -1,8 +1,9 @@
 'use strict';
 
 // The page in a real browser (test/support/Cdp.js drives the installed Chrome or Edge headless):
-// the list loads, a selection becomes a thread, Review brings a reply live, resolve, edit and save, the state picker.
-// The server runs on port 0 over a temporary folder; the LLM behind Review is played by fake_caller.
+// the list loads, a selection becomes a thread, the llm's reply (over the API) arrives live, resolve, edit and
+// save, the state picker, projects and the Context folder, tabs, subplans, the tree, and the settings popup.
+// The server runs on port 0 over a temporary folder; the llm is played with its token over the API.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -11,10 +12,9 @@ const OS = require( 'os' );
 const PATH = require( 'path' );
 const SERVER = require( '../src/Server.js' );
 const CDP = require( './support/Cdp.js' );
-const MAKER = require( './support/ZipMaker.js' );
 const PARTICIPANTS = require( '../src/Participants.js' );
 
-const WORKER_TOKEN = 'ui-worker-token-0123456789';
+const LLM_TOKEN = 'ui-llm-token-0123456789abcdef';
 
 const TEXT = '# Browser check\n\nThe first paragraph makes a claim about anchors.\n\n- one list item\n- another list item\n\nA closing paragraph.\n';
 
@@ -55,29 +55,20 @@ function text_of( selector )
 }
 
 
-// The LLM behind Review, played here: it replies to a contested thread and applies a resolved one.
-function fake_caller()
+// A request as the owner (no token) or, with as_llm, as the llm participant.
+async function api( method, path, body, as_llm )
 {
-	return async function ( Prompt )
+	let headers = {};
+	if ( body !== undefined )
 	{
-		let actions = [];
-		let project = /Write the context of the project "([^"]+)"/.exec( Prompt );
-		if ( project )
-		{
-			actions.push( { Kind: 'context', Text: '# ' + project[ 1 ] + '\n\nWritten by the LLM.\n', Reason: 'initialized' } );
-		}
-		let reply = /## Thread (thr-[0-9a-z-]+), contested, WAITING ON YOU to reply/.exec( Prompt );
-		if ( reply )
-		{
-			actions.push( { Thread: reply[ 1 ], Kind: 'reply', Reply: 'Outcome: one item stays.' } );
-		}
-		let apply = /## Thread (thr-[0-9a-z-]+), resolved, WAITING ON YOU to apply/.exec( Prompt );
-		if ( apply )
-		{
-			actions.push( { Thread: apply[ 1 ], Kind: 'apply', Outcome: 'one item stays' } );
-		}
-		return { Answer: { Actions: actions }, Usage: { Model: 'fake-model', Input: 1500, Output: 120 } };
-	};
+		headers[ 'Content-Type' ] = 'application/json';
+	}
+	if ( as_llm )
+	{
+		headers.Authorization = 'Bearer ' + LLM_TOKEN;
+	}
+	let response = await fetch( running.Url + path, { method: method, headers: headers, body: ( body === undefined ) ? undefined : JSON.stringify( body ) } );
+	return response.json();
 }
 
 
@@ -85,11 +76,10 @@ TEST.before( async function ()
 {
 	let data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-ui-' ) );
 	let settings = PARTICIPANTS.DefaultSettings( 0 );
-	settings.Workers = [ { Name: 'Desk', Token: WORKER_TOKEN } ];
 	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( settings, null, '	' ) );
-	running = await SERVER.Start( { Data: data, Port: 0, Caller: fake_caller } );
-	let created = await fetch( running.Url + '/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Browser check', Text: TEXT } ) } );
-	proposal = ( await created.json() ).Proposal;
+	running = await SERVER.Start( { Data: data, Port: 0 } );
+	running.Settings.Participants[ 1 ].Token = LLM_TOKEN;
+	proposal = ( await api( 'POST', '/api/proposals', { Title: 'Browser check', Text: TEXT } ) ).Proposal;
 	browser = await CDP.StartBrowser();
 	page = await browser.OpenPage( running.Url + '/#/p/' + proposal.Id );
 } );
@@ -110,13 +100,18 @@ TEST.after( async function ()
 
 //---------------------------------------------------------------------
 
-TEST( 'the list and the proposal load, live', async function ()
+TEST( 'the list and the proposal load, live; the Context folder comes first', async function ()
 {
-	await page.WaitFor( count_of( '.proposal-item' ) + ' === 1', 20000 );
-	ASSERT.equal( await page.Evaluate( text_of( '.proposal-item .proposal-title' ) ), 'Browser check' );
+	await page.WaitFor( count_of( '.tree-item:not(.context-item)' ) + ' === 1', 20000 );
+	ASSERT.equal( await page.Evaluate( text_of( '.tree-item:not(.context-item) .proposal-title' ) ), 'Browser check' );
 	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Browser check"' );
 	await page.WaitFor( text_of( '.connection' ) + ' === "live"' );
 	ASSERT.equal( await page.Evaluate( text_of( '#state-line' ) ), 'no threads yet' );
+	// the Context folder first, holding the Context document
+	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".project.open .project-body > .tree > .tree-node" ).querySelector( ".folder" ).classList.contains( "context-folder" )' ), true );
+	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-folder .folder-name' ) ), 'Context' );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.open .context-folder .tree-item.context-item' ) ), 1 );
+	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-item .proposal-title' ) ), 'Context' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -141,48 +136,14 @@ TEST( 'a selection becomes an anchored thread', async function ()
 } );
 
 
-// Review opens the plan's review panel; Send there runs the session with the panel's choices.
-async function send_from_panel()
+TEST( 'the llm replies over the API, and the reply arrives live', async function ()
 {
-	if ( !await page.Evaluate( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' ) )
-	{
-		await page.Click( '#send-button' );
-	}
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
-	await page.WaitFor( '!document.getElementById( "session-send" ).disabled' );
-	await page.Click( '#session-send' );
-}
-
-
-TEST( 'Review opens the review panel; its Send hands the LLM the thread, the reply arrives live, and the run log shows each step', async function ()
-{
-	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (1)"' );
-	await page.Click( '#send-button' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
-	// the prompt's size, part by part, and its preview
-	await page.WaitFor( '/\\d tokens/.test( ' + text_of( '#session-size' ) + ' )' );
-	ASSERT.match( await page.Evaluate( text_of( '#session-size' ) ), /Rules \d+%/ );
-	await page.Click( '#session-preview-toggle' );
-	await page.WaitFor( '/# The rules/.test( ' + text_of( '#session-preview' ) + ' )' );
-	await page.Click( '#session-preview-toggle' );
-	// only the waiting threads: the size shrinks or stays, never grows
-	let open_size = await page.Evaluate( 'parseInt( ' + text_of( '#session-size b' ) + '.replace( /\\D/g, "" ), 10 )' );
-	await page.Evaluate( '( function () { let select = document.getElementById( "session-threads" ); select.value = "waiting"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
-	await page.WaitFor( 'parseInt( ' + text_of( '#session-size b' ) + '.replace( /\\D/g, "" ), 10 ) <= ' + open_size );
-	await send_from_panel();
+	let threads = ( await api( 'GET', '/api/proposals/' + proposal.Id + '/threads' ) ).Threads;
+	await api( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + threads[ 0 ].Id + '/replies', { Text: 'Outcome: one item stays.' }, true );
 	await page.WaitFor( count_of( '.thread:not(.compose) .reply' ) + ' === 2' );
 	ASSERT.equal( await page.Evaluate( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).pop().textContent.trim()' ), 'Outcome: one item stays.' );
 	await page.WaitFor( text_of( '#state-line' ) + ' === "1 contested, waiting on you 1"' );
-	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (0)"' );
-	await page.WaitFor( text_of( '#session-send' ) + ' === "Send"' );
-	await page.WaitFor( text_of( '#usage' ) + ' === "LLM today: 1.5k in · 120 out"' );
-	await page.WaitFor( 'document.querySelector( ".run" ) && document.querySelector( ".run" ).querySelectorAll( ".run-step" ).length === 3' );
-	let steps = await page.Evaluate( '[ ...document.querySelector( ".run" ).querySelectorAll( ".run-step .step-text" ) ].map( function ( step ) { return step.textContent.trim(); } )' );
-	ASSERT.match( steps[ 0 ], /^Consensus sent the prompt to / );
-	ASSERT.equal( steps[ 1 ], 'fake-model answered: 1 reply' );
-	ASSERT.equal( steps[ 2 ], 'Consensus carried out 1 action, 0 refused' );
-	await page.Click( '.session-head .btn-close' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display === "none"' );
+	await page.WaitFor( text_of( '#waiting-link' ) + ' === "Waiting on you: 1"' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -212,12 +173,11 @@ TEST( 'edit and save make a revision and keep the highlight', async function ()
 } );
 
 
-TEST( 'once the LLM applies, the state picker makes the proposal Working and the sidebar follows', async function ()
+TEST( 'once the llm applies, the state picker makes the proposal Working and the sidebar follows', async function ()
 {
-	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (1)"' );
-	await send_from_panel();
+	let threads = ( await api( 'GET', '/api/proposals/' + proposal.Id + '/threads' ) ).Threads;
+	await api( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + threads[ 0 ].Id + '/apply', { Outcome: 'one item stays' }, true );
 	await page.WaitFor( text_of( '#state-line' ) + ' === "1 applied"' );
-	await page.Click( '.session-head .btn-close' );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).selectedOptions[ 0 ].label' ), 'Proposal' );
 	await page.Evaluate( '( function () { let picker = document.getElementById( "state-picker" ); let option = Array.from( picker.options ).find( function ( candidate ) { return candidate.label === "Working"; } ); picker.value = option.value; picker.dispatchEvent( new Event( "change" ) ); return true; } )()' );
 	await page.WaitFor( text_of( '.tree-item[data-id="' + proposal.Id + '"] .item-state' ) + ' === "Working"' );
@@ -226,7 +186,7 @@ TEST( 'once the LLM applies, the state picker makes the proposal Working and the
 } );
 
 
-TEST( 'a new project opens and closes the others; a folder and a plan are made in it', async function ()
+TEST( 'a new project opens and closes the others; a folder and a plan are made in it; a document goes in the Context folder', async function ()
 {
 	await page.WaitFor( count_of( '.project.open[data-project="default"]' ) + ' === 1' );
 	await page.Click( '#new-project' );
@@ -237,24 +197,26 @@ TEST( 'a new project opens and closes the others; a folder and a plan are made i
 	await page.WaitFor( count_of( '.project.open' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( text_of( '.project.open .project-name' ) ), 'Browser project' );
 	ASSERT.equal( await page.Evaluate( count_of( '.project[data-project="default"] .tree-item' ) ), 0 );
+	await page.WaitFor( count_of( '.project.open .context-folder .context-item' ) + ' === 1' );
 	// a folder, picked as where the plan goes
 	await menu_pick( '.project.open > .project-head', 'New folder' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
 	await page.Type( 'Specs' );
 	await page.Click( '#create-submit' );
-	await page.WaitFor( count_of( '.project.open .folder' ) + ' === 1' );
-	await page.Click( '.project.open .folder-head' );
+	await page.WaitFor( count_of( '.project.open .folder:not(.context-folder)' ) + ' === 1' );
+	await page.Click( '.project.open .folder:not(.context-folder) .folder-head' );
 	await page.WaitFor( count_of( '.project.open .folder-head.target' ) + ' === 1' );
 	await menu_pick( '.project.open > .project-head', 'New plan' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
 	await page.Type( 'Plan in a folder' );
 	await page.Click( '#create-submit' );
-	await page.WaitFor( count_of( '.project.open .folder .tree-item' ) + ' === 1' );
+	await page.WaitFor( count_of( '.project.open .folder:not(.context-folder) .tree-item' ) + ' === 1' );
 	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Plan in a folder"' );
-	ASSERT.equal( await page.Evaluate( text_of( '.project.open .folder .tree-item .proposal-title' ) ), 'Plan in a folder' );
-	// a document: no threads pane, no state picker, no comment button
+	ASSERT.equal( await page.Evaluate( text_of( '.project.open .folder:not(.context-folder) .tree-item .proposal-title' ) ), 'Plan in a folder' );
+	// a document goes in the Context folder, whatever folder is picked: no threads pane, no state picker
 	await menu_pick( '.project.open > .project-head', 'New document' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "create-name" ).placeholder' ), 'Document title in Context' );
 	await page.Type( 'Reference notes' );
 	await page.Click( '#create-submit' );
 	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Reference notes"' );
@@ -262,7 +224,9 @@ TEST( 'a new project opens and closes the others; a folder and a plan are made i
 	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.querySelector( "aside.threads" ) ).display' ), 'none' );
 	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "state-picker" ) ).display' ), 'none' );
 	ASSERT.equal( await page.Evaluate( text_of( '#document-badge' ) ), 'Document' );
-	await page.WaitFor( text_of( '.project.open .tree-item.document .item-state' ) + ' === "document"' );
+	await page.WaitFor( count_of( '.project.open .context-folder .tree-item.document:not(.context-item)' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-folder .tree-item.document:not(.context-item) .item-state' ) ), 'document' );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.open .folder:not(.context-folder) .tree-item.document' ) ), 0 );
 	// opening Default again closes the new project
 	await page.Click( '.project[data-project="default"] .project-head' );
 	await page.WaitFor( count_of( '.project.open[data-project="default"]' ) + ' === 1' );
@@ -273,81 +237,41 @@ TEST( 'a new project opens and closes the others; a folder and a plan are made i
 
 TEST( 'an item dragged onto a project moves there; copy and paste makes a whole copy', async function ()
 {
-	// open the new project again, then drag the document out of its folder onto the project's head: it moves to the root
+	// open the new project again, then drag the plan out of its folder onto the project's head: it moves to the root
 	await page.Click( '.project:not([data-project="default"]) .project-head' );
-	await page.WaitFor( count_of( '.project.open .tree-item.document' ) + ' === 1' );
+	await page.WaitFor( count_of( '.project.open .folder:not(.context-folder) .tree-item' ) + ' === 1' );
 	let moved = await page.Evaluate( '( function () {'
 		+ ' let data = new DataTransfer();'
-		+ ' let item = document.querySelector( ".project.open .tree-item.document" );'
+		+ ' let item = document.querySelector( ".project.open .folder:not(.context-folder) .tree-item" );'
 		+ ' let head = document.querySelector( ".project.open .project-head" );'
 		+ ' item.dispatchEvent( new DragEvent( "dragstart", { bubbles: true, dataTransfer: data } ) );'
 		+ ' head.dispatchEvent( new DragEvent( "dragover", { bubbles: true, cancelable: true, dataTransfer: data } ) );'
 		+ ' head.dispatchEvent( new DragEvent( "drop", { bubbles: true, cancelable: true, dataTransfer: data } ) );'
 		+ ' return data.getData( "application/x-consensus-item" ); } )()' );
-	ASSERT.match( moved, /^doc-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
-	await page.WaitFor( count_of( '.project.open .project-body > .tree > .tree-node > .tree-item.document' ) + ' === 1' );
-	ASSERT.equal( await page.Evaluate( count_of( '.project.open .folder .tree-item.document' ) ), 0 );
+	ASSERT.match( moved, /^pln-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
+	await page.WaitFor( count_of( '.project.open .project-body > .tree > .tree-node > .tree-item' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.open .folder:not(.context-folder) .tree-item' ) ), 0 );
+	// the Context document cannot be dragged
+	ASSERT.equal( await page.Evaluate( '!!document.querySelector( ".project.open .context-item" ).getAttribute( "draggable" )' ), false );
+	ASSERT.equal( await page.Evaluate( '!!document.querySelector( ".project.open .context-folder .folder-head" ).getAttribute( "draggable" )' ), false );
 
-	// copy the plan in the folder, paste at the project's root
-	await menu_pick( '.project.open .folder .tree-item', 'Copy' );
+	// copy the plan at the root, paste at the project's root
+	await menu_pick( '.project.open .project-body > .tree > .tree-node > .tree-item', 'Copy' );
 	await page.WaitFor( text_of( '#clipboard' ) + '.startsWith( "copied: Plan in a folder" )' );
 	await menu_pick( '.project.open > .project-head', 'Paste' );
-	await page.WaitFor( count_of( '.project.open .tree-item' ) + ' === 3' );
+	await page.WaitFor( count_of( '.project.open .tree-item:not(.context-item)' ) + ' === 3' );
 	await page.WaitFor( '[ ...document.querySelectorAll( ".project.open .proposal-title" ) ].some( function ( title ) { return title.textContent.trim() === "Plan in a folder (copy)"; } )' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
 
-TEST( 'a zip uploaded into the project becomes a corpus: its files listed, one read, and found by search', async function ()
+TEST( 'the theme and the scale switch', async function ()
 {
-	let zip = MAKER.Make( [ { Name: 'notes/lighthouse.md', Data: '# Lighthouse\n\nThe keeper winds the clockwork lamp at dusk.\n' }, { Name: 'notes/photo.jpg', Data: 'jpeg\u0000bytes' } ] );
-	await page.WaitFor( count_of( '.project.open .zip-input' ) + ' === 1' );
-	await page.Evaluate( '( function () {'
-		+ ' let bytes = Uint8Array.from( atob( ' + JSON.stringify( zip.toString( 'base64' ) ) + ' ), function ( character ) { return character.charCodeAt( 0 ); } );'
-		+ ' let data = new DataTransfer();'
-		+ ' data.items.add( new File( [ bytes ], "lighthouse.zip", { type: "application/zip" } ) );'
-		+ ' let input = document.querySelector( ".project.open .zip-input" );'
-		+ ' input.files = data.files;'
-		+ ' input.dispatchEvent( new Event( "change" ) );'
-		+ ' return true; } )()' );
-	await page.WaitFor( text_of( '#corpus-summary' ) + '.startsWith( "2 files, 1 indexed" )' );
-	ASSERT.equal( await page.Evaluate( text_of( '#corpus-name' ) ), '📦 lighthouse' );
-	await page.WaitFor( count_of( '.project.open .tree-item.corpus.open' ) + ' === 1' );
-	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.querySelector( "aside.threads" ) ).display' ), 'none' );
-	await page.Click( '.corpus-file.indexed' );
-	await page.WaitFor( '/clockwork lamp/.test( ' + text_of( '#corpus-file-text' ) + ' )' );
-	ASSERT.match( await page.Evaluate( text_of( '.corpus-file:not(.indexed)' ) ), /binary \(holds a NUL byte\)/ );
-	// search finds the file
-	await page.Click( '#search-box' );
-	await page.Type( 'clockwork keeper' );
-	await page.Press( 'Enter' );
-	await page.WaitFor( count_of( '.search-hit.file' ) + ' >= 1', 15000 );
-	ASSERT.match( await page.Evaluate( text_of( '.search-hit.file .search-hit-head' ) ), /notes\/lighthouse\.md/ );
-	await page.WaitFor( text_of( '#search-heading' ) + '.startsWith( "Search in Browser project" )' );
-	// only this project's items: the thread in Default is not among the hits
-	ASSERT.equal( await page.Evaluate( count_of( '.search-hit.thread' ) ), 0 );
-	// a hit opens its corpus at the file
-	await page.Click( '.search-hit.file' );
-	await page.WaitFor( '/clockwork lamp/.test( ' + text_of( '#corpus-file-text' ) + ' )' );
-	await page.Evaluate( 'document.getElementById( "search-box" ).value = ""; document.getElementById( "search-box" ).dispatchEvent( new Event( "input" ) ); true' );
-	ASSERT.deepEqual( page.Errors, [] );
-} );
-
-
-TEST( 'search finds the thread and the theme switches', async function ()
-{
-	// the thread is in Default: open it, so the search box searches there
-	await page.Click( '.project[data-project="default"] .project-head' );
-	await page.WaitFor( count_of( '.project.open[data-project="default"]' ) + ' === 1' );
-	await page.Click( '#search-box' );
-	await page.Type( 'one item stays' );
-	await page.Press( 'Enter' );
-	await page.WaitFor( count_of( '.search-hit' ) + ' >= 1', 15000 );
-	await page.WaitFor( 'document.querySelector( ".search-hit" ).classList.contains( "thread" )', 15000 );
 	await page.Evaluate( 'window.ConsensusTheme.SetTheme( "dark" )' );
 	ASSERT.equal( await page.Evaluate( 'document.documentElement.dataset.bsTheme' ), 'dark' );
 	await page.Evaluate( 'window.ConsensusTheme.SetScale( "large" )' );
 	ASSERT.equal( await page.Evaluate( 'document.documentElement.style.getPropertyValue( "--scale" )' ), '1.15' );
+	await page.Evaluate( 'window.ConsensusTheme.SetTheme( "light" ); window.ConsensusTheme.SetScale( "normal" ); true' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -437,17 +361,24 @@ function drag_to_top( source, target )
 }
 
 
-TEST( 'an item dropped on the top edge of another goes just before it; a project dropped on another\'s head goes before it', async function ()
+TEST( 'an item dropped on the top edge of another goes just before it; the Context folder stays first; a project dropped on another\'s head goes before it', async function ()
 {
 	await page.Click( '.project:not([data-project="default"]) .project-head' );
-	await page.WaitFor( count_of( '.project.open .tree-item.corpus' ) + ' === 1' );
+	await page.WaitFor( count_of( '.project.open .tree-item:not(.context-item)' ) + ' === 3' );
 	function root_titles()
 	{
 		return '[ ...document.querySelectorAll( ".project.open .project-body > .tree > .tree-node" ) ].map( function ( node ) { let title = node.querySelector( ".proposal-title, .folder-name" ); return title ? title.textContent.trim() : ""; } ).join( "|" )';
 	}
-	ASSERT.notEqual( ( await page.Evaluate( root_titles() ) ).split( '|' )[ 0 ], 'lighthouse' );
-	ASSERT.equal( await page.Evaluate( drag_to_top( '.project.open .tree-item.corpus', '.project.open .project-body > .tree > .tree-node:first-child .tree-row' ) ), true );
-	await page.WaitFor( root_titles() + '.split( "|" )[ 0 ] === "lighthouse"' );
+	ASSERT.equal( ( await page.Evaluate( root_titles() ) ).split( '|' )[ 0 ], 'Context' );
+	ASSERT.equal( ( await page.Evaluate( root_titles() ) ).split( '|' )[ 1 ], 'Specs' );
+	// the copy, last at the root, dropped on the top edge of the Specs folder: just before it
+	const COPY = '[ ...document.querySelectorAll( ".project.open .project-body > .tree > .tree-node > .tree-item" ) ].find( function ( item ) { return item.textContent.includes( "(copy)" ); } )';
+	ASSERT.equal( await page.Evaluate( '( function () { let data = new DataTransfer(); let source = ' + COPY + '; let target = document.querySelector( ".project.open .folder:not(.context-folder) .folder-head" ); let y = target.getBoundingClientRect().top + 1; source.dispatchEvent( new DragEvent( "dragstart", { bubbles: true, dataTransfer: data } ) ); target.dispatchEvent( new DragEvent( "dragover", { bubbles: true, cancelable: true, dataTransfer: data, clientY: y } ) ); let shown = target.classList.contains( "drop-before" ); target.dispatchEvent( new DragEvent( "drop", { bubbles: true, cancelable: true, dataTransfer: data, clientY: y } ) ); return shown; } )()' ), true );
+	await page.WaitFor( root_titles() + '.split( "|" )[ 1 ] === "Plan in a folder (copy)"' );
+	// dropped on the top edge of the Context folder: it lands after the folder, which stays first
+	ASSERT.equal( await page.Evaluate( '( function () { let data = new DataTransfer(); let source = document.querySelector( ".project.open .folder:not(.context-folder) .folder-head" ); let target = document.querySelector( ".project.open .context-folder .folder-head" ); let y = target.getBoundingClientRect().top + 1; source.dispatchEvent( new DragEvent( "dragstart", { bubbles: true, dataTransfer: data } ) ); target.dispatchEvent( new DragEvent( "dragover", { bubbles: true, cancelable: true, dataTransfer: data, clientY: y } ) ); let shown = target.classList.contains( "drop-before" ); target.dispatchEvent( new DragEvent( "drop", { bubbles: true, cancelable: true, dataTransfer: data, clientY: y } ) ); return shown; } )()' ), true );
+	await page.WaitFor( root_titles() + '.split( "|" )[ 1 ] === "Specs"' );
+	ASSERT.equal( ( await page.Evaluate( root_titles() ) ).split( '|' )[ 0 ], 'Context' );
 	// the project first, before Default
 	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".project" ) ].map( function ( project ) { return project.dataset.project; } )[ 0 ]' ), 'default' );
 	ASSERT.equal( await page.Evaluate( drag_to_top( '.project:not([data-project="default"]) .project-head', '.project[data-project="default"] .project-head' ) ), true );
@@ -456,24 +387,31 @@ TEST( 'an item dropped on the top edge of another goes just before it; a project
 } );
 
 
-TEST( 'a project\'s context is pinned above its tree; Initialize context has the LLM write it', async function ()
+TEST( 'the Context folder and document: opened, kept as they are, with their own menus', async function ()
 {
 	await page.WaitFor( count_of( '.project.open .context-item' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-item .item-state' ) ), 'empty' );
-	ASSERT.equal( await page.Evaluate( '!!document.querySelector( ".project.open .context-item" ).getAttribute( "draggable" )' ), false );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.open .context-item .row-menu' ) ), 0 );
 	await page.Click( '.project.open .context-item' );
 	await page.WaitFor( text_of( '.header .title' ) + ' === "Context of Browser project"' );
 	await page.WaitFor( 'document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
 	ASSERT.equal( await page.Evaluate( text_of( '#document-badge' ) ), 'Context' );
-	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "send-button" ) ).display' ), 'none' );
 	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "state-picker" ) ).display' ), 'none' );
-	await page.Click( '#initialize-context' );
-	await page.WaitFor( text_of( '#read-view p' ) + ' === "Written by the LLM."', 15000 );
-	await page.WaitFor( text_of( '#revision' ) + ' === "revision 2"' );
+	ASSERT.equal( await page.Evaluate( count_of( '.tab.active .icon-context' ) ), 1 );
+	ASSERT.match( await page.Evaluate( text_of( '.tab.active .tab-title' ) ), /^Context · Browser project$/ );
+	// a right-click on the Context document opens nothing; on the Context folder, New document and Paste only
+	await page.Evaluate( 'document.querySelector( ".project.open .context-item" ).dispatchEvent( new MouseEvent( "contextmenu", { bubbles: true, cancelable: true, clientX: 60, clientY: 120 } ) ); true' );
+	await new Promise( function ( resolve ) { setTimeout( resolve, 200 ); } );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display' ), 'none' );
+	await page.Evaluate( 'document.querySelector( ".project.open .context-folder .folder-head" ).dispatchEvent( new MouseEvent( "contextmenu", { bubbles: true, cancelable: true, clientX: 60, clientY: 100 } ) ); true' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display !== "none"' );
+	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].map( function ( entry ) { return entry.textContent.trim(); } )' ), [ 'New document', 'Paste' ] );
+	await page.Press( 'Escape' );
+	// text written into it clears the empty badge
+	let context = await api( 'GET', '/api/proposals/' + ( await page.Evaluate( 'window.location.hash.slice( 4 )' ) ) );
+	await api( 'PUT', '/api/proposals/' + context.Proposal.Id + '/text', { Text: '# Browser project\n\nWhat it is.\n', Revision: context.Proposal.Revision } );
+	await page.WaitFor( text_of( '#read-view p' ) + ' === "What it is."' );
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".project.open .context-item .item-state" ) ).display === "none"' );
-	await page.Click( '#view-revisions' );
-	await page.WaitFor( '[ ...document.querySelectorAll( ".revision-note" ) ].some( function ( note ) { return note.textContent.trim() === "initialized"; } )' );
-	await page.Click( '#view-read' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -487,8 +425,7 @@ let tab_two = null;
 
 async function created( title )
 {
-	let response = await fetch( running.Url + '/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: title, Text: '# ' + title + '\n\nA line.\n' } ) } );
-	return ( await response.json() ).Proposal;
+	return ( await api( 'POST', '/api/proposals', { Title: title, Text: '# ' + title + '\n\nA line.\n' } ) ).Proposal;
 }
 
 
@@ -637,61 +574,6 @@ TEST( 'tabs: the tab menu closes others, those to the right, or all', async func
 } );
 
 
-TEST( 'session: Manual copy / paste makes the prompt, and a pasted answer is carried out and logged', async function ()
-{
-	let posted = await fetch( running.Url + '/api/proposals/' + tab_one.Id + '/threads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Text: 'Is one line enough?' } ) } );
-	let thread = ( await posted.json() ).Thread;
-	await page.Evaluate( 'window.location.hash = "#/p/' + tab_one.Id + '"; true' );
-	await page.WaitFor( text_of( '.header .title' ) + ' === "Tab one"' );
-	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (1)"' );
-	await page.Click( '#send-button' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
-	await page.Evaluate( '( function () { let select = document.getElementById( "session-destination" ); select.value = "Manual"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-copy" ) ).display !== "none"' );
-	await page.Click( '#session-copy' );
-	// the prompt is made, on the clipboard or shown to copy by hand
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-answer" ) ).display !== "none" && document.getElementById( "session-answer" ).offsetParent !== null' );
-	let answer = JSON.stringify( { Actions: [ { Thread: thread.Id, Kind: 'reply', Reply: 'One line is enough.' } ] } );
-	await page.Evaluate( '( function () { let box = document.getElementById( "session-answer" ); box.value = ' + JSON.stringify( answer ) + '; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
-	await page.WaitFor( '!document.getElementById( "session-carry-out" ).disabled' );
-	await page.Click( '#session-carry-out' );
-	await page.WaitFor( text_of( '#session-result' ) + ' === "Carried out 1 actions, 0 refused."' );
-	await page.WaitFor( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).some( function ( reply ) { return reply.textContent.trim() === "One line is enough."; } )' );
-	await page.WaitFor( 'document.querySelector( ".run" ) && /^Manual/.test( document.querySelector( ".run .run-head" ).textContent.trim() )' );
-	let steps = await page.Evaluate( '[ ...document.querySelector( ".run" ).querySelectorAll( ".run-step .step-text" ) ].map( function ( step ) { return step.textContent.trim(); } )' );
-	ASSERT.deepEqual( steps, [ 'Consensus made the prompt for copying', 'The answer was pasted: 1 reply', 'Consensus carried out 1 action, 0 refused' ] );
-	ASSERT.deepEqual( page.Errors, [] );
-} );
-
-
-TEST( 'session: a pasted answer that asks for more is answered, and Continue gives the next prompt', async function ()
-{
-	let posted = await fetch( running.Url + '/api/proposals/' + tab_one.Id + '/threads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Text: 'What does Tab two say?' } ) } );
-	let thread = ( await posted.json() ).Thread;
-	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (1)"' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-copy" ) ).display !== "none"' );
-	await page.Click( '#session-copy' );
-	await page.WaitFor( text_of( '#session-turn' ) + ' === "Answer 1 of 5"' );
-	function paste( answer )
-	{
-		return '( function () { let box = document.getElementById( "session-answer" ); box.value = ' + JSON.stringify( JSON.stringify( answer ) ) + '; box.dispatchEvent( new Event( "input" ) ); return true; } )()';
-	}
-	await page.Evaluate( paste( { Actions: [], Requests: [ { Tool: 'read_plan', Plan: 'Tab two' } ] } ) );
-	await page.WaitFor( '!document.getElementById( "session-carry-out" ).disabled' );
-	await page.Click( '#session-carry-out' );
-	await page.WaitFor( 'document.getElementById( "session-continue" ).offsetParent !== null' );
-	await page.WaitFor( '[ ...document.querySelector( ".run" ).querySelectorAll( ".run-step .step-text" ) ].some( function ( step ) { return step.textContent.trim() === "Consensus answered read_plan \\"Tab two\\""; } )' );
-	await page.Click( '#session-continue' );
-	await page.WaitFor( text_of( '#session-turn' ) + ' === "Answer 2 of 5"' );
-	await page.Evaluate( paste( { Actions: [ { Thread: thread.Id, Kind: 'reply', Reply: 'Tab two has one line.' } ] } ) );
-	await page.WaitFor( '!document.getElementById( "session-carry-out" ).disabled' );
-	await page.Click( '#session-carry-out' );
-	await page.WaitFor( text_of( '#session-result' ) + ' === "Carried out 1 actions, 0 refused."' );
-	await page.WaitFor( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).some( function ( reply ) { return reply.textContent.trim() === "Tab two has one line."; } )' );
-	ASSERT.deepEqual( page.Errors, [] );
-} );
-
-
 //---------------------------------------------------------------------
 
 TEST( 'subplans: started from the header, selected text, a new thread and a reply; they fold under their parent', async function ()
@@ -715,7 +597,7 @@ TEST( 'subplans: started from the header, selected text, a new thread and a repl
 	}
 	async function threads_of( id )
 	{
-		return ( await ( await fetch( running.Url + '/api/proposals/' + id ) ).json() ).Threads;
+		return ( await api( 'GET', '/api/proposals/' + id ) ).Threads;
 	}
 
 	// from the header: an empty Subplan, opened
@@ -771,78 +653,29 @@ TEST( 'subplans: started from the header, selected text, a new thread and a repl
 
 //---------------------------------------------------------------------
 
-TEST( 'workspace: the project menu lists what the workers offer; the one chosen shows under the project', async function ()
-{
-	let said = await fetch( running.Url + '/api/workers/hello', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + WORKER_TOKEN },
-		body: JSON.stringify( { Workspaces: [ { Name: 'Code' } ], Inference: [ { Name: 'Claude', Type: 'claude-cli' } ] } ),
-	} );
-	ASSERT.equal( said.status, 200 );
-	await page.Evaluate( 'window.location.hash = "#/p/' + proposal.Id + '"; true' );
-	await menu_pick( '.project.open > .project-head', 'Workspace' );
-	await page.WaitFor( 'document.getElementById( "workspace-choice" ) && document.getElementById( "workspace-choice" ).options.length === 2' );
-	ASSERT.equal( await page.Evaluate( 'document.getElementById( "workspace-choice" ).selectedOptions[ 0 ].textContent' ), '(no workspace)' );
-	await page.Evaluate( 'let select = document.getElementById( "workspace-choice" ); select.selectedIndex = 1; select.dispatchEvent( new Event( "change" ) ); true' );
-	await page.Click( '#workspace-submit' );
-	await page.WaitFor( text_of( '#workspace-line' ) + ' === "Desk / Code"' );
-	let projects = await ( await fetch( running.Url + '/api/projects' ) ).json();
-	let project = projects.Projects.find( function ( candidate ) { return candidate.Id === 'default'; } );
-	ASSERT.deepEqual( project.Workspace, { Worker: 'Desk', Name: 'Code', Online: true, Offered: true, Build: false } );
-	ASSERT.deepEqual( page.Errors, [] );
-} );
-
-
-TEST( 'a corpus\'s Include and Exclude are edited in its view; the tree marks it attached', async function ()
-{
-	let zip = MAKER.Make( [ { Name: 'kit/guide.md', Data: '# Guide\n\nThe lantern is trimmed.\n' }, { Name: 'kit/build.log', Data: 'noise' } ] );
-	let made = await fetch( running.Url + '/api/projects/default/corpus?name=kit.zip', { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: zip } );
-	let corpus = ( await made.json() ).Corpus;
-	await page.Evaluate( 'window.location.hash = "#/c/' + corpus.Id + '"; true' );
-	await page.WaitFor( text_of( '#corpus-summary' ) + '.startsWith( "2 files, 2 indexed" )', 20000 );
-	ASSERT.match( await page.Evaluate( text_of( '#corpus-attached' ) ), /attached/ );
-	await page.WaitFor( count_of( '.tree-item[data-id="' + corpus.Id + '"] .badge.attached' ) + ' === 1' );
-	ASSERT.equal( await page.Evaluate( 'document.getElementById( "corpus-filter-save" ).disabled' ), true );
-	await page.Evaluate( '( function () { let box = document.getElementById( "corpus-exclude" ); box.value = "*.log"; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
-	await page.WaitFor( '!document.getElementById( "corpus-filter-save" ).disabled' );
-	await page.Click( '#corpus-filter-save' );
-	await page.WaitFor( text_of( '#corpus-summary' ) + '.startsWith( "2 files, 1 indexed" )' );
-	ASSERT.match( await page.Evaluate( text_of( '.corpus-file:not(.indexed)' ) ), /left out by Exclude/ );
-	await page.WaitFor( 'document.getElementById( "corpus-filter-save" ).disabled' );
-	let saved = await ( await fetch( running.Url + '/api/corpus/' + corpus.Id ) ).json();
-	ASSERT.deepEqual( saved.Corpus.Exclude, [ '*.log' ] );
-	ASSERT.deepEqual( page.Errors, [] );
-} );
-
-
 TEST( 'the tree: it hides and shows; it sorts by name, created and updated; it shows each item\'s last update', async function ()
 {
-	async function post( path, body )
-	{
-		let response = await fetch( running.Url + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( body ) } );
-		return response.json();
-	}
 	async function sort_by( value )
 	{
 		await page.Evaluate( '( function () { let select = document.getElementById( "tree-sort" ); select.value = "' + value + '"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
 	}
 	const TITLES = '[ ...document.querySelectorAll( ".project.open .tree-item:not(.context-item) .proposal-title" ) ].map( function ( title ) { return title.textContent.trim(); } ).join( "," )';
 
-	let project = ( await post( '/api/projects', { Name: 'Sorting' } ) ).Project;
-	let beta = ( await post( '/api/proposals', { Title: 'Beta', Text: '# Beta\n', Project: project.Id } ) ).Proposal;
+	let project = ( await api( 'POST', '/api/projects', { Name: 'Sorting' } ) ).Project;
+	let beta = ( await api( 'POST', '/api/proposals', { Title: 'Beta', Text: '# Beta\n', Project: project.Id } ) ).Proposal;
 	await new Promise( function ( resolve ) { setTimeout( resolve, 20 ); } );
-	let alpha = ( await post( '/api/proposals', { Title: 'Alpha', Text: '# Alpha\n', Project: project.Id } ) ).Proposal;
+	let alpha = ( await api( 'POST', '/api/proposals', { Title: 'Alpha', Text: '# Alpha\n', Project: project.Id } ) ).Proposal;
 	await new Promise( function ( resolve ) { setTimeout( resolve, 20 ); } );
-	await post( '/api/proposals/' + beta.Id + '/threads', { Text: 'A question for the LLM.' } );
+	await api( 'POST', '/api/proposals/' + beta.Id + '/threads', { Text: 'A question for the LLM.' } );
 
 	await page.Evaluate( 'window.location.hash = "#/p/' + alpha.Id + '"; true' );
 	await page.WaitFor( TITLES + ' === "Beta,Alpha"' );
 	await sort_by( 'name' );
 	await page.WaitFor( TITLES + ' === "Alpha,Beta"' );
-	ASSERT.equal( await page.Evaluate( count_of( '.project.open .tree-date' ) ), 0 );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.open .tree-item:not(.context-item) .tree-date' ) ), 0 );
 	await sort_by( 'created' );
 	await page.WaitFor( TITLES + ' === "Beta,Alpha"' );
-	let dates = await page.Evaluate( '[ ...document.querySelectorAll( ".project.open .tree-date" ) ].map( function ( date ) { return date.textContent.trim(); } )' );
+	let dates = await page.Evaluate( '[ ...document.querySelectorAll( ".project.open .tree-item:not(.context-item) .tree-date" ) ].map( function ( date ) { return date.textContent.trim(); } )' );
 	ASSERT.equal( dates.length, 2 );
 	ASSERT.ok( dates.every( function ( date ) { return /^\d{4}-\d{2}-\d{2}$/.test( date ); } ) );
 	await sort_by( 'updated' );
@@ -853,7 +686,7 @@ TEST( 'the tree: it hides and shows; it sorts by name, created and updated; it s
 	// the last update on each row, and on the project's heading
 	ASSERT.equal( await page.Evaluate( count_of( '.project.open .tree-stamp' ) ), 0 );
 	await page.Click( '#show-updated' );
-	await page.WaitFor( count_of( '.project.open .tree-item .tree-stamp' ) + ' === 2' );
+	await page.WaitFor( count_of( '.project.open .tree-item:not(.context-item) .tree-stamp' ) + ' === 2' );
 	ASSERT.equal( await page.Evaluate( count_of( '.project.open > .project-head .tree-stamp' ) ), 1 );
 	await page.Click( '#show-updated' );
 	await page.WaitFor( count_of( '.project.open .tree-stamp' ) + ' === 0' );
@@ -893,17 +726,12 @@ TEST( 'the tree: it hides and shows; it sorts by name, created and updated; it s
 
 TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-document thread; highlight all or open', async function ()
 {
-	async function post( path, body )
-	{
-		let response = await fetch( running.Url + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( body ) } );
-		return response.json();
-	}
 	const MARKED = '[ ...document.querySelectorAll( "#read-view mark.anchor" ) ].map( function ( mark ) { return mark.dataset.threads; } ).join( " " )';
 
 	let plan = await created( 'Highlights' );
-	await fetch( running.Url + '/api/proposals/' + plan.Id + '/text', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Text: '# Highlights\n\nThe first passage.\n\nThe second passage.\n', Revision: plan.Revision } ) } );
-	let open_thread = ( await post( '/api/proposals/' + plan.Id + '/threads', { Text: 'Why first?', Anchor: { Text: 'first passage' } } ) ).Thread;
-	let resolved_thread = ( await post( '/api/proposals/' + plan.Id + '/threads', { Text: 'Keep it.', Anchor: { Text: 'second passage' }, Resolve: true } ) ).Thread;
+	await api( 'PUT', '/api/proposals/' + plan.Id + '/text', { Text: '# Highlights\n\nThe first passage.\n\nThe second passage.\n', Revision: plan.Revision } );
+	let open_thread = ( await api( 'POST', '/api/proposals/' + plan.Id + '/threads', { Text: 'Why first?', Anchor: { Text: 'first passage' } } ) ).Thread;
+	let resolved_thread = ( await api( 'POST', '/api/proposals/' + plan.Id + '/threads', { Text: 'Keep it.', Anchor: { Text: 'second passage' }, Resolve: true } ) ).Thread;
 	ASSERT.equal( resolved_thread.Status, 'resolved' );
 
 	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
@@ -924,7 +752,7 @@ TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-docum
 	await page.WaitFor( '!document.getElementById( "compose-resolve" ).disabled' );
 	await page.Click( '#compose-resolve' );
 	await page.WaitFor( count_of( '.thread.selected' ) + ' === 1' );
-	let threads = ( await ( await fetch( running.Url + '/api/proposals/' + plan.Id + '/threads' ) ).json() ).Threads;
+	let threads = ( await api( 'GET', '/api/proposals/' + plan.Id + '/threads' ) ).Threads;
 	let posted = threads.find( function ( thread ) { return thread.Replies[ 0 ].Text === 'Add a summary at the top.'; } );
 	ASSERT.equal( posted.Status, 'resolved' );
 	ASSERT.equal( posted.Anchor, null );
@@ -932,49 +760,6 @@ TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-docum
 
 	// a whole-document thread can be anchored afterwards
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.selected .reanchor-button" ) ).display !== "none"' );
-	ASSERT.deepEqual( page.Errors, [] );
-} );
-
-
-TEST( 'session panel: it opens centered, moves by its heading, resizes by its corner grip, and Reset centers it again', async function ()
-{
-	const BOX = '( function () { let panel = document.getElementById( "session-panel" ); let area = panel.closest( ".content-area" ); return { Left: panel.offsetLeft, Top: panel.offsetTop, Width: panel.offsetWidth, Height: panel.offsetHeight, AreaWidth: area.clientWidth, AreaHeight: area.clientHeight }; } )()';
-	function centered( box )
-	{
-		return Math.abs( box.Left + box.Width / 2 - box.AreaWidth / 2 ) <= 2;
-	}
-
-	let plan = await created( 'Floating' );
-	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
-	await page.WaitFor( text_of( '.header .title' ) + ' === "Floating"' );
-	await page.Click( '#send-button' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
-	await new Promise( function ( resolve ) { setTimeout( resolve, 100 ); } );
-	let first = await page.Evaluate( BOX );
-	ASSERT.ok( centered( first ), JSON.stringify( first ) );
-
-	// moved by its heading, and remembered
-	await page.Drag( '.session-head .session-title', -5, -60 );
-	let moved = await page.Evaluate( BOX );
-	ASSERT.ok( Math.abs( moved.Top - ( first.Top - 60 ) ) <= 1, JSON.stringify( moved ) );
-	let saved = JSON.parse( await page.Evaluate( 'window.localStorage.getItem( "consensus.session-box" )' ) );
-	ASSERT.deepEqual( [ saved.Left, saved.Top ], [ moved.Left, moved.Top ] );
-
-	// sized by the grip in its corner, within the area
-	await page.Drag( '#session-grip', -60, 50 );
-	await page.WaitFor( '( JSON.parse( window.localStorage.getItem( "consensus.session-box" ) ) || {} ).Width > 0' );
-	let resized = await page.Evaluate( BOX );
-	ASSERT.ok( resized.Width < moved.Width, JSON.stringify( resized ) );
-	ASSERT.ok( resized.Top + resized.Height <= resized.AreaHeight, JSON.stringify( resized ) );
-
-	// Reset: centered again at its first size, and nothing remembered
-	await page.Click( '#session-reset' );
-	await page.WaitFor( 'window.localStorage.getItem( "consensus.session-box" ) === null' );
-	let reset = await page.Evaluate( BOX );
-	ASSERT.ok( centered( reset ), JSON.stringify( reset ) );
-	ASSERT.equal( reset.Width, first.Width );
-	await page.Click( '#session-panel .btn-close' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display === "none"' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -1035,81 +820,6 @@ TEST( 'Ctrl+E: Read to Edit, and back to Read from the editor, keeping the unsav
 } );
 
 
-TEST( 'review on a thread: the panel opens with that thread in focus; only it is sent and answered; back to the whole plan', async function ()
-{
-	let made = await ( await fetch( running.Url + '/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Thread review', Text: TEXT } ) } ) ).json();
-	let id = made.Proposal.Id;
-	async function thread_on( words, text )
-	{
-		let posted = await fetch( running.Url + '/api/proposals/' + id + '/threads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Anchor: { Text: words }, Text: text } ) } );
-		return ( await posted.json() ).Thread;
-	}
-	let first = await thread_on( 'one list item', 'Keep this item?' );
-	let second = await thread_on( 'A closing paragraph.', 'Is this needed?' );
-	await page.Evaluate( 'window.location.hash = "#/p/' + id + '"; true' );
-	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (2)"' );
-	await show_all_threads();
-	await page.WaitFor( '!!document.getElementById( "thread-' + first.Id + '" )' );
-	await page.Click( '#thread-' + first.Id );
-	await page.WaitFor( 'getComputedStyle( document.querySelector( "#thread-' + first.Id + ' .review-thread" ) ).display !== "none"' );
-	await page.Click( '#thread-' + first.Id + ' .review-thread' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
-	await page.WaitFor( text_of( '#session-focus' ) + '.includes( "one list item" )' );
-	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "session-threads" ) ).display' ), 'none' );
-	await page.WaitFor( '/\\d tokens/.test( ' + text_of( '#session-size' ) + ' )' );
-	await page.Click( '#session-preview-toggle' );
-	await page.WaitFor( text_of( '#session-preview' ) + '.includes( "You were asked to review one thread, ' + first.Id + '" )' );
-	ASSERT.equal( await page.Evaluate( text_of( '#session-preview' ) + '.includes( "## Thread ' + second.Id + '" )' ), false );
-	await page.Click( '#session-preview-toggle' );
-	// the Manual tests before this one left Manual picked in this browser: send to the llm's own destination
-	await page.Evaluate( '( function () { let select = document.getElementById( "session-destination" ); select.value = select.options[ 0 ].value; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-send" ) ).display !== "none" && !document.getElementById( "session-send" ).disabled' );
-	await page.Click( '#session-send' );
-	await page.WaitFor( count_of( '#thread-' + first.Id + ' .reply' ) + ' === 2' );
-	await page.WaitFor( text_of( '#send-button' ) + ' === "Review (1)"' );
-	ASSERT.equal( await page.Evaluate( count_of( '#thread-' + second.Id + ' .reply' ) ), 1 );
-	await page.Click( '#session-whole' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-focus" ) ).display === "none"' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-threads" ) ).display !== "none"' );
-	await page.Click( '#send-button' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display === "none"' );
-	ASSERT.deepEqual( page.Errors, [] );
-} );
-
-
-TEST( 'build: the button says why it cannot build yet; its dialog picks the worker\'s claude-cli and a model, and the plan goes to Working', async function ()
-{
-	let said = await fetch( running.Url + '/api/workers/hello', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + WORKER_TOKEN },
-		body: JSON.stringify( { Workspaces: [ { Name: 'Code', Build: true } ], Inference: [ { Name: 'Claude', Type: 'claude-cli', Model: 'sonnet' }, { Name: 'Ollama', Type: 'ollama' } ] } ),
-	} );
-	ASSERT.equal( said.status, 200 );
-	let made = await ( await fetch( running.Url + '/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Build me', Text: TEXT } ) } ) ).json();
-	let id = made.Proposal.Id;
-	let open = await ( await fetch( running.Url + '/api/proposals/' + id + '/threads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Text: 'Not settled yet.' } ) } ) ).json();
-	await page.Evaluate( 'window.location.hash = "#/p/' + id + '"; true' );
-	await page.WaitFor( 'document.getElementById( "build-button" ).title === "not now: 1 thread is not applied yet"' );
-	ASSERT.equal( await page.Evaluate( 'document.getElementById( "build-button" ).disabled' ), true );
-	await fetch( running.Url + '/api/proposals/' + id + '/threads/' + open.Thread.Id, { method: 'DELETE' } );
-	await page.WaitFor( '!document.getElementById( "build-button" ).disabled' );
-	await page.Click( '#build-button' );
-	await page.WaitFor( '!!document.getElementById( "build-destination" )' );
-	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#build-destination option" ) ].map( function ( option ) { return option.textContent.trim(); } )' ), [ 'Desk / Claude' ] );
-	ASSERT.equal( await page.Evaluate( 'document.getElementById( "build-model" ).value' ), 'sonnet' );
-	await page.Evaluate( '( function () { let input = document.getElementById( "build-model" ); input.value = "opus"; input.dispatchEvent( new Event( "input" ) ); return true; } )()' );
-	await page.Click( '#build-start' );
-	await page.WaitFor( '!document.getElementById( "build-destination" )' );
-	await page.WaitFor( 'getComputedStyle( document.getElementById( "session-panel" ) ).display !== "none"' );
-	await page.WaitFor( '[ ...document.querySelectorAll( ".run-step .step-text" ) ].some( function ( step ) { return /queued the build for Desk \\/ Claude/.test( step.textContent ); } )' );
-	await page.WaitFor( 'document.getElementById( "state-picker" ).selectedOptions[ 0 ].textContent === "Working"' );
-	await page.WaitFor( 'document.getElementById( "build-button" ).disabled' );
-	let runs = await ( await fetch( running.Url + '/api/proposals/' + id + '/runs' ) ).json();
-	ASSERT.equal( runs.Runs[ 0 ].Model, 'opus' );
-	ASSERT.deepEqual( page.Errors, [] );
-} );
-
-
 TEST( 'export and import: a project\'s json in a popup; pasted back, the preview offers a copy, and the copy is made', async function ()
 {
 	const HEAD = '.project[data-project="default"] .project-head';
@@ -1117,6 +827,7 @@ TEST( 'export and import: a project\'s json in a popup; pasted back, the preview
 	await page.WaitFor( '( document.getElementById( "export-json" ) || { value: "" } ).value.includes( "consensus-project" )', 20000 );
 	let json = await page.Evaluate( 'document.getElementById( "export-json" ).value' );
 	ASSERT.equal( JSON.parse( json ).Project.Id, 'default' );
+	ASSERT.equal( 'Corpora' in JSON.parse( json ), false );
 	await page.Evaluate( '[ ...document.querySelectorAll( ".port-form button" ) ].find( function ( button ) { return button.textContent.trim() === "Close"; } ).click(); true' );
 	await page.WaitFor( count_of( '#export-json' ) + ' === 0' );
 
@@ -1133,4 +844,37 @@ TEST( 'export and import: a project\'s json in a popup; pasted back, the preview
 	await page.Click( '#import-done' );
 	await page.WaitFor( count_of( '#import-report' ) + ' === 0' );
 	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'settings: the owner edits consensus.json in a popup; problems are shown and nothing saved; a saved state reaches the picker', async function ()
+{
+	await page.Click( '#settings-button' );
+	await page.WaitFor( 'document.getElementById( "settings-host" ) && document.getElementById( "settings-host" ).value === "127.0.0.1"', 20000 );
+	ASSERT.match( await page.Evaluate( 'document.getElementById( "settings-states" ).value' ), /^Proposal\nPlan\nWorking\nFinished$/ );
+	ASSERT.equal( await page.Evaluate( count_of( '.settings-participant' ) ), 2 );
+	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".settings-participant .settings-token" ) ][ 1 ].value' ), LLM_TOKEN );
+	// a participant with no role left: refused, the problem shown, nothing written
+	await page.Click( '#settings-add-participant' );
+	await page.WaitFor( count_of( '.settings-participant' ) + ' === 3' );
+	await page.Click( '#settings-save' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "settings-problems" ) ).display !== "none"' );
+	ASSERT.match( await page.Evaluate( text_of( '#settings-problems' ) ), /a participant has no Name/ );
+	ASSERT.equal( ( await api( 'GET', '/api/settings' ) ).Settings.Participants.length, 2 );
+	// the new participant removed, a state added: saved, and the picker offers it at once
+	await page.Evaluate( '[ ...document.querySelectorAll( ".settings-participant .btn-outline-danger" ) ].pop().click(); true' );
+	await page.WaitFor( count_of( '.settings-participant' ) + ' === 2' );
+	await page.Evaluate( '( function () { let box = document.getElementById( "settings-states" ); box.value = box.value + "\\nShelved"; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.Click( '#settings-save' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "settings-saved" ) ).display !== "none"' );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "settings-restart" ) ).display' ), 'none' );
+	ASSERT.deepEqual( ( await api( 'GET', '/api/me' ) ).States, [ 'Proposal', 'Plan', 'Working', 'Finished', 'Shelved' ] );
+	await page.Click( '#settings-close' );
+	await page.WaitFor( count_of( '.settings-form' ) + ' === 0' );
+	let plan = await created( 'Shelved plan' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+	await page.WaitFor( '[ ...( document.getElementById( "state-picker" ) || { options: [] } ).options ].some( function ( option ) { return option.label === "Shelved"; } )' );
+	// the refused save is a 400 the browser logs as an error; nothing else is
+	ASSERT.deepEqual( page.Errors.filter( function ( error ) { return !/400 \(Bad Request\).*\/api\/settings/.test( error ); } ), [] );
+	page.Errors.length = 0;
 } );

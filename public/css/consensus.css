@@ -30,7 +30,6 @@
 	--icon-folder: #b88a2a;
 	--icon-plan: #0d6efd;
 	--icon-document: #6b7380;
-	--icon-zip: #8a4fd8;
 }
 
 [data-bs-theme="dark"]
@@ -41,7 +40,6 @@
 	--icon-folder: #dcb67a;
 	--icon-plan: #74c0fc;
 	--icon-document: #9aa4b2;
-	--icon-zip: #b197fc;
 
 	--page-bg: #1b1f24;
 	--panel-bg: #22272e;
@@ -375,14 +373,8 @@ html, body
 	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3 M5.5 8h5 M5.5 10.5h5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
 }
 
-.tree-icon.icon-zip
-{
-	background-color: var(--icon-zip);
-	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 4.8l6-3 6 3v6.4l-6 3-6-3z M2 4.8l6 3 6-3 M8 7.8v6.4' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
-	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 4.8l6-3 6 3v6.4l-6 3-6-3z M2 4.8l6 3 6-3 M8 7.8v6.4' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
-}
 
-/* The project's context: a folded map, pinned above the tree. */
+/* The project's Context folder and Context document: a folded map. */
 .tree-icon.icon-context
 {
 	background-color: var(--applied-edge);
@@ -519,7 +511,7 @@ html, body
 	background-color: var(--tree-selected);
 }
 
-/* A plan, document or zip: a link as wide as the sidebar, selected with a full-width highlight. */
+/* A plan or document: a link as wide as the sidebar, selected with a full-width highlight. */
 .tree-item
 {
 	color: inherit;
@@ -985,16 +977,6 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	margin-top: 0.3rem;
 }
 
-.record.failed
-{
-	color: var(--detached-edge);
-}
-
-.usage
-{
-	width: 100%;
-	cursor: default;
-}
 
 .reply-form
 {
@@ -1264,10 +1246,6 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 
 /* --------------------------------------------------------------------- sidebar: search, waiting, theme */
 
-.sidebar-search
-{
-	padding: 0.5rem 0.75rem 0;
-}
 
 .waiting-link
 {
@@ -1349,7 +1327,7 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 
 /* --------------------------------------------------------------------- waiting and search views */
 
-.waiting-view, .search-view
+.waiting-view
 {
 	flex: 1;
 	overflow-y: auto;
@@ -1380,7 +1358,7 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	text-decoration: none;
 }
 
-.waiting-item, .search-hit
+.waiting-item
 {
 	display: block;
 	color: inherit;
@@ -1393,7 +1371,7 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	background: var(--page-bg);
 }
 
-.waiting-item:hover, .search-hit:hover
+.waiting-item:hover
 {
 	background: rgba( 128, 128, 128, 0.08 );
 	color: inherit;
@@ -1401,8 +1379,6 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 
 .waiting-item.reopened { border-left-color: var(--reopened-edge); }
 .waiting-item.resolved { border-left-color: var(--resolved-edge); }
-.search-hit { border-left-color: var(--accent); }
-.search-hit.thread { border-left-color: var(--contested-edge); }
 
 .waiting-item .last
 {
@@ -1415,131 +1391,6 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	-webkit-box-orient: vertical;
 }
 
-.search-hit-head
-{
-	display: flex;
-	gap: 0.75rem;
-	font-size: 0.85rem;
-	color: var(--muted);
-	margin-bottom: 0.2rem;
-}
-
-.search-hit-head .proposal
-{
-	font-weight: 600;
-	color: var(--text);
-}
-
-.search-hit .snippet
-{
-	white-space: pre-wrap;
-	overflow: hidden;
-	display: -webkit-box;
-	-webkit-line-clamp: 4;
-	-webkit-box-orient: vertical;
-}
-
-/* --------------------------------------------------------------------- corpus view */
-
-.corpus-view
-{
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-	min-height: 0;
-	padding: 1rem 1.5rem 0;
-}
-
-.corpus-head
-{
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 0.5rem 1rem;
-	padding-bottom: 0.75rem;
-	border-bottom: 1px solid var(--border);
-}
-
-.corpus-head .title
-{
-	font-weight: 600;
-	font-size: 1.2rem;
-}
-
-.corpus-buttons
-{
-	display: flex;
-	gap: 0.5rem;
-	margin-left: auto;
-	white-space: nowrap;
-}
-
-.corpus-body
-{
-	flex: 1;
-	display: grid;
-	grid-template-columns: minmax( 14rem, 1fr ) 2fr;
-	gap: 1rem;
-	min-height: 0;
-	padding-top: 0.75rem;
-}
-
-.corpus-files, .corpus-text
-{
-	overflow: auto;
-	min-height: 0;
-	padding-bottom: 2rem;
-}
-
-.corpus-file
-{
-	display: flex;
-	justify-content: space-between;
-	gap: 0.5rem;
-	padding: 0.2rem 0.5rem;
-	border-left: 3px solid transparent;
-	color: var(--muted);
-	cursor: default;
-}
-
-.corpus-file .path
-{
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.corpus-file.indexed
-{
-	color: inherit;
-	cursor: pointer;
-}
-
-.corpus-file.indexed:hover
-{
-	background: rgba( 128, 128, 128, 0.12 );
-}
-
-.corpus-file.shown
-{
-	background: rgba( 13, 110, 253, 0.12 );
-	border-left-color: var(--accent);
-}
-
-.corpus-text-path
-{
-	font-weight: 600;
-	margin-bottom: 0.5rem;
-}
-
-.corpus-text pre
-{
-	white-space: pre-wrap;
-	word-break: break-word;
-	font-size: 0.85rem;
-}
-
-.search-hit.file { border-left-color: var(--muted); }
 
 /* --------------------------------------------------------------------- tabs */
 
@@ -1671,16 +1522,10 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='none' stroke='black' stroke-width='1.3'/%3E%3Cpath d='M8 4.5V8l2.5 1.5' fill='none' stroke='black' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E" );
 }
 
-.tree-icon.icon-search
-{
-	background-color: var(--muted);
-	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='6.8' cy='6.8' r='4.3' fill='none' stroke='black' stroke-width='1.4'/%3E%3Cpath d='M10 10l4 4' stroke='black' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" );
-	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='6.8' cy='6.8' r='4.3' fill='none' stroke='black' stroke-width='1.4'/%3E%3Cpath d='M10 10l4 4' stroke='black' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" );
-}
 
-/* --------------------------------------------------------------------- the LLM session panel */
+/* --------------------------------------------------------------------- the content area */
 
-/* The views of the open item share this area; the session panel floats in it, over the plan's content only. */
+/* The views of the open item share this area. */
 .content-area
 {
 	position: relative;
@@ -1692,120 +1537,7 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 
 /* Placed by the floating-panel directive: centered at first, then where it was moved; the grip sizes it. The
    heading stays put and the body scrolls. */
-.session-panel
-{
-	position: absolute;
-	top: 0;
-	left: 0;
-	z-index: 20;
-	display: flex;
-	flex-direction: column;
-	width: min( 42rem, calc( 100% - 2rem ) );
-	max-height: calc( 100% - 1rem );
-	overflow: hidden;
-	background: var(--page-bg);
-	border: 1px solid var(--border);
-	border-radius: 0.4rem;
-	box-shadow: 0 6px 24px rgba( 0, 0, 0, 0.18 );
-	font-size: 0.9rem;
-}
 
-.session-head
-{
-	flex: none;
-	cursor: move;
-	user-select: none;
-	display: flex;
-	align-items: center;
-	gap: 0.75rem;
-	padding: 0.5rem 0.75rem;
-	background: var(--panel-bg);
-	border-bottom: 1px solid var(--border);
-}
-
-.session-title
-{
-	font-weight: 600;
-}
-
-.session-head .session-reset
-{
-	margin-left: auto;
-	padding: 0 0.25rem;
-}
-
-.session-body
-{
-	flex: 1 1 auto;
-	min-height: 0;
-	overflow-y: auto;
-}
-
-/* The corner grip: three short diagonal lines. */
-.session-grip
-{
-	position: absolute;
-	right: 0;
-	bottom: 0;
-	width: 14px;
-	height: 14px;
-	cursor: nwse-resize;
-	background: linear-gradient( 135deg, transparent 0 55%, var(--muted) 55% 62%, transparent 62% 72%, var(--muted) 72% 79%, transparent 79% 89%, var(--muted) 89% 96%, transparent 96% );
-	opacity: 0.6;
-}
-
-.session-grip:hover
-{
-	opacity: 1;
-}
-
-.session-panel.moving
-{
-	opacity: 0.92;
-	box-shadow: 0 10px 32px rgba( 0, 0, 0, 0.28 );
-}
-
-.session-head .btn-close
-{
-	margin-left: 0;
-}
-
-.session-section
-{
-	padding: 0.6rem 0.75rem;
-	border-bottom: 1px solid var(--border);
-}
-
-.session-label
-{
-	font-size: 0.75rem;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	color: var(--muted);
-	margin-bottom: 0.35rem;
-}
-
-.session-choices
-{
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 0.5rem 0.75rem;
-}
-
-.session-choices .form-select
-{
-	width: auto;
-}
-
-.session-size
-{
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 0.25rem 0.75rem;
-	margin-top: 0.5rem;
-}
 
 .size-part
 {
@@ -1813,67 +1545,6 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	color: var(--muted);
 }
 
-.session-preview
-{
-	max-height: 20rem;
-	overflow: auto;
-	margin: 0.5rem 0 0;
-	padding: 0.5rem;
-	background: var(--panel-bg);
-	border-radius: 0.3rem;
-	font-size: 0.75rem;
-	white-space: pre-wrap;
-}
-
-.session-copy-box, #session-answer
-{
-	margin-top: 0.4rem;
-	font-family: var(--bs-font-monospace);
-	font-size: 0.8rem;
-}
-
-.session-turn
-{
-	font-size: 0.75rem;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	color: var(--accent);
-	margin-bottom: 0.3rem;
-}
-
-.session-result
-{
-	padding: 0.4rem 0.75rem;
-	background: var(--applied-bg);
-}
-
-.run + .run
-{
-	margin-top: 0.5rem;
-	padding-top: 0.5rem;
-	border-top: 1px dashed var(--border);
-}
-
-.run-head
-{
-	font-weight: 600;
-	margin-bottom: 0.2rem;
-}
-
-.run-running
-{
-	font-weight: normal;
-	color: var(--accent);
-}
-
-.run-step
-{
-	display: grid;
-	grid-template-columns: auto 1fr auto auto;
-	gap: 0.6rem;
-	font-size: 0.8rem;
-	line-height: 1.5;
-}
 
 .step-at, .step-meta
 {
@@ -2004,73 +1675,6 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	padding-left: 1.25rem;
 }
 
-/* --------------------------------------------------------------------- workspaces */
-
-/* Something that is not there now: a zip to attach again, a worker that does not answer. */
-.item-state.offline
-{
-	color: var(--detached-edge);
-}
-
-.link-form select
-{
-	margin-bottom: 0.25rem;
-}
-
-/* The project's workspace, under its name in the tree. */
-.workspace-line
-{
-	padding: 0.1rem 0.5rem 0.1rem calc( var(--row-start) + var(--indent) );
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-/* The review panel with one thread in focus. */
-.session-focus
-{
-	padding: 0.4rem 0.75rem;
-	border-bottom: 1px solid var(--border);
-	background: var(--resolved-bg);
-	font-size: 0.85rem;
-}
-
-.session-focus-words
-{
-	font-style: italic;
-}
-
-/* A zip kept by Consensus; and a corpus's Include and Exclude, side by side above its files. */
-.badge.attached { background: var(--panel-bg); border-color: var(--icon-folder); }
-
-.corpus-filter
-{
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.5rem 1rem;
-	padding: 0.5rem 0;
-	border-bottom: 1px solid var(--border);
-}
-
-.corpus-filter-field
-{
-	flex: 1 1 16rem;
-	margin: 0;
-}
-
-.corpus-filter-field textarea
-{
-	font-family: var(--bs-font-monospace);
-	font-size: 0.8rem;
-}
-
-.corpus-filter-buttons
-{
-	display: flex;
-	flex-basis: 100%;
-	align-items: center;
-	gap: 0.5rem;
-}
 
 /* --------------------------------------------------------------------- buttons */
 
@@ -2230,4 +1834,75 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 {
 	margin: 0.3rem 0;
 	border-top: 1px solid var(--border);
+}
+
+/* --------------------------------------------------------------------- the settings popup */
+
+.settings-form
+{
+	width: min( 56rem, calc( 100vw - 2rem ) );
+}
+
+.settings-row
+{
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0.4rem 0;
+	flex-wrap: wrap;
+}
+
+.settings-row.top
+{
+	align-items: flex-start;
+}
+
+.settings-row label
+{
+	color: var(--muted);
+	font-size: 0.9em;
+	min-width: 3.5rem;
+}
+
+.settings-row .form-control
+{
+	flex: 1 1 10rem;
+	width: auto;
+}
+
+.settings-row .settings-port
+{
+	flex: 0 0 7rem;
+}
+
+.settings-label
+{
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-weight: 600;
+	margin: 0.6rem 0 0.3rem;
+}
+
+.settings-participant
+{
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	margin: 0.3rem 0;
+}
+
+.settings-participant .form-control, .settings-participant .form-select
+{
+	width: auto;
+}
+
+.settings-participant .settings-name { flex: 1 1 6rem; }
+.settings-participant .settings-display { flex: 1 1 6rem; }
+.settings-participant .settings-role { flex: 0 0 6.5rem; }
+.settings-participant .settings-token { flex: 2 1 12rem; font-family: var(--bs-font-monospace); font-size: 0.8rem; }
+
+.settings-button
+{
+	margin: 0.25rem 0;
 }

@@ -3,14 +3,13 @@
 // ProjectPort - a whole project out to one json object, and back in (the plan "Project Import and Export").
 //
 //   export = { Format: 'consensus-project', Version: 1, Exported,
-//              Project: { Id, Name, Created, Updated, Context, Items },
-//              Proposals: [ { Proposal, Text, Threads, Revisions: [ { Revision, By, At, Reason, Thread?, Note?, Text } ] } ],
-//              Corpora: [ corpus.json ],
-//              Workers: [ { Name, Workspaces: [ name ], Inference: [ { Name, Type, Model } ] } ] }
+//              Project: { Id, Name, Created, Updated, Context, ContextFolder, Items },
+//              Proposals: [ { Proposal, Text, Threads, Revisions: [ { Revision, By, At, Reason, Thread?, Note?, Text } ] } ] }
 //
-// No token is ever written to an export. Search indexes, LLM runs, usage, the trash and attached zips stay behind.
-// A linked corpus (retired with the plan Workers) goes out as it is stored. An export made before Workers names
-// ContextServers where it now names Workers; an import reads either.
+// No token is ever written to an export; the trash stays behind. An export made before plan Consensus Desktop
+// (Step 1) may hold Corpora, Workers or ContextServers and a context proposal of Kind 'context', and name corpus
+// nodes in its tree: an import drops the corpora and the workers, reads the context as the Context document, and
+// makes the Context folder when the tree lacks it.
 //
 // An import depends only on whether the export's project Id is here:
 //   not here   the project comes in as it is, every id intact
@@ -29,7 +28,6 @@ const MODES = [ 'copy', 'merge' ];
 const COPY_PREFIX = 'Copy of ';
 const SAFE_ID = /^[a-z0-9-]+$/;
 const PROPOSAL_KINDS = [ 'plan', 'document', 'context' ];
-const WAITING_REASON = 'waiting for its zip to be attached again';
 const MERGE_BY = 'consensus';
 const SYSTEM_NAMES = [ MERGE_BY ];
 
@@ -77,13 +75,31 @@ function clone( value )
 }
 
 
+// Takes every corpus node out of a tree, at any depth (an export from before Step 1).
+function strip_corpora( items )
+{
+	for ( let index = items.length - 1; index >= 0; index-- )
+	{
+		let node = items[ index ];
+		if ( node && node.Kind === 'corpus' )
+		{
+			items.splice( index, 1 );
+			continue;
+		}
+		if ( node && Array.isArray( node.Items ) )
+		{
+			strip_corpora( node.Items );
+		}
+	}
+}
+
+
 //=====================================================================
 // Export
 
 
-// Export: the project Id as one json object, or null when there is no such project. Workers (optional) says what
-// each worker its runs were sent to offers.
-async function Export( Store, Id, Workers )
+// Export: the project Id as one json object, or null when there is no such project.
+async function Export( Store, Id )
 {
 	let project = await Store.ReadProject( Id );
 	if ( !project )
@@ -91,9 +107,6 @@ async function Export( Store, Id, Workers )
 		return null;
 	}
 	let proposals = [];
-	let corpora = [];
-	let servers = [];
-
 	let proposal_ids = [];
 	if ( project.Context )
 	{
@@ -101,43 +114,25 @@ async function Export( Store, Id, Workers )
 	}
 	for ( let entry of nodes_of( project.Items, null ) )
 	{
-		if ( entry.Node.Kind === 'corpus' )
+		if ( !proposal_ids.includes( entry.Node.Id ) )
 		{
-			let corpus = await Store.ReadCorpus( entry.Node.Id );
-			if ( corpus )
-			{
-				corpora.push( clone( corpus ) );
-			}
-			continue;
+			proposal_ids.push( entry.Node.Id );
 		}
-		proposal_ids.push( entry.Node.Id );
 	}
-
 	for ( let id of proposal_ids )
 	{
 		let whole = await Store.Queue( id, function () { return read_whole( Store, id ); } );
-		if ( !whole )
+		if ( whole )
 		{
-			continue;
-		}
-		proposals.push( whole );
-		for ( let server of await run_servers( Store, id ) )
-		{
-			if ( !servers.includes( server ) )
-			{
-				servers.push( server );
-			}
+			proposals.push( whole );
 		}
 	}
-
 	return {
 		Format: FORMAT,
 		Version: VERSION,
 		Exported: new Date().toISOString(),
-		Project: { Id: project.Id, Name: project.Name, Created: project.Created, Updated: project.Updated, Context: project.Context, Items: project.Items },
+		Project: { Id: project.Id, Name: project.Name, Created: project.Created, Updated: project.Updated, Context: project.Context, ContextFolder: project.ContextFolder || null, Items: project.Items },
 		Proposals: proposals,
-		Corpora: corpora,
-		Workers: servers.map( function ( name ) { return worker_entry( Workers, name ); } ),
 	};
 }
 
@@ -163,41 +158,9 @@ async function read_whole( Store, id )
 }
 
 
-// The workers a proposal's LLM runs were sent to: a run through a worker names "<worker> / <item>".
-async function run_servers( Store, id )
-{
-	let names = [];
-	for ( let run of await Store.ReadRuns( id ) )
-	{
-		let destination = String( run.Destination || '' );
-		let at = destination.indexOf( ' / ' );
-		if ( at > 0 )
-		{
-			names.push( destination.slice( 0, at ) );
-		}
-	}
-	return names;
-}
-
-
-// A worker as an export names it: never its token.
-function worker_entry( Workers, name )
-{
-	let known = Workers ? Workers.List().find( function ( worker ) { return worker.Name === name; } ) : null;
-	if ( !known )
-	{
-		return { Name: name };
-	}
-	return {
-		Name: known.Name,
-		Workspaces: known.Workspaces.map( function ( workspace ) { return workspace.Name; } ),
-		Inference: known.Inference.map( function ( item ) { return { Name: item.Name, Type: item.Type, Model: item.Model }; } ),
-	};
-}
-
-
 //=====================================================================
-// Check: the problems with an export, as sentences; none when it can be imported.
+// Check: the problems with an export, as sentences; none when it can be imported. The export is checked as
+// Normalize leaves it (corpus nodes gone).
 
 
 function Check( Exported )
@@ -233,7 +196,12 @@ function Check( Exported )
 	{
 		problems.push( 'Project.Name is missing' );
 	}
-	let tree_problems = TREE.Validate( project.Items );
+	let items = Array.isArray( project.Items ) ? clone( project.Items ) : project.Items;
+	if ( Array.isArray( items ) )
+	{
+		strip_corpora( items );
+	}
+	let tree_problems = TREE.Validate( items );
 	for ( let problem of tree_problems )
 	{
 		problems.push( 'Project.Items: ' + problem );
@@ -241,10 +209,6 @@ function Check( Exported )
 	if ( !Array.isArray( Exported.Proposals ) )
 	{
 		problems.push( 'Proposals is not a list' );
-	}
-	if ( !Array.isArray( Exported.Corpora ) )
-	{
-		problems.push( 'Corpora is not a list' );
 	}
 	if ( problems.length )
 	{
@@ -262,17 +226,7 @@ function Check( Exported )
 		}
 		proposals[ whole.Proposal.Id ] = whole.Proposal;
 	}
-	let corpora = {};
-	for ( let corpus of Exported.Corpora )
-	{
-		if ( !corpus || !SAFE_ID.test( String( corpus.Id ) ) || typeof corpus.Name !== 'string' || !Array.isArray( corpus.Files ) )
-		{
-			problems.push( 'a corpus has no plain Id, Name or Files' );
-			continue;
-		}
-		corpora[ corpus.Id ] = corpus;
-	}
-	for ( let entry of all_nodes_of( project.Items, null ) )
+	for ( let entry of all_nodes_of( items, null ) )
 	{
 		let node = entry.Node;
 		if ( !SAFE_ID.test( node.Id ) )
@@ -280,19 +234,15 @@ function Check( Exported )
 			problems.push( 'node ' + node.Id + ' is not a plain id' );
 			continue;
 		}
-		if ( node.Kind === 'corpus' && !corpora[ node.Id ] )
-		{
-			problems.push( 'the tree names corpus ' + node.Id + ', which the file does not hold' );
-		}
 		if ( ( node.Kind === 'plan' || node.Kind === 'document' ) && !proposals[ node.Id ] )
 		{
 			problems.push( 'the tree names ' + node.Kind + ' ' + node.Id + ', which the file does not hold' );
 		}
 	}
 	let context = proposals[ project.Context ];
-	if ( !context || context.Kind !== 'context' )
+	if ( !context || ( context.Kind !== 'document' && context.Kind !== 'context' ) )
 	{
-		problems.push( 'Project.Context is not a proposal of Kind context in the file' );
+		problems.push( 'Project.Context is not a document in the file' );
 	}
 	return problems;
 }
@@ -321,6 +271,27 @@ function whole_problem( whole )
 		}
 	}
 	return null;
+}
+
+
+// Normalize: a copy of a checked export as this server keeps projects: corpus nodes out of the tree, no Corpora or
+// Workers, the context proposal a document.
+function Normalize( Exported )
+{
+	let exported = clone( Exported );
+	strip_corpora( exported.Project.Items );
+	delete exported.Corpora;
+	delete exported.Workers;
+	delete exported.ContextServers;
+	for ( let whole of exported.Proposals )
+	{
+		if ( whole.Proposal.Id === exported.Project.Context && whole.Proposal.Kind !== 'document' )
+		{
+			whole.Proposal.Kind = 'document';
+			whole.Proposal.State = null;
+		}
+	}
+	return exported;
 }
 
 
@@ -448,9 +419,13 @@ function MissingRevisionId( Whole )
 }
 
 
-// A newer head brings its title and state along.
+// A newer head brings its title and state along; the Context document keeps its own.
 function take_record( proposal, from )
 {
+	if ( proposal.Kind === 'document' )
+	{
+		return;
+	}
 	proposal.Title = from.Title;
 	proposal.State = from.State;
 }
@@ -541,8 +516,8 @@ function mark_detached( threads, text )
 // Import
 
 
-// Import: the export into this server. Options = { Mode, Preview }. Context = { Workers?, Participants:
-// [ name ], ChangeProject( id, change ) } where ChangeProject edits a project's tree through its queue.
+// Import: the export into this server. Options = { Mode, Preview }. Context = { Participants: [ name ],
+// ChangeProject( id, change ) } where ChangeProject edits a project's tree through its queue.
 // Returns { Problems } for a file that cannot be imported (or a project that is here, with no Mode), { Preview }
 // with Preview, else { Report }.
 async function Import( Store, Exported, Options, Context )
@@ -557,14 +532,15 @@ async function Import( Store, Exported, Options, Context )
 	{
 		return { Problems: problems };
 	}
+	let exported = Normalize( Exported );
 
-	let here = await Store.ReadProject( Exported.Project.Id );
-	let copy_name = COPY_PREFIX + Exported.Project.Name + ' (imported ' + today() + ')';
+	let here = await Store.ReadProject( exported.Project.Id );
+	let copy_name = COPY_PREFIX + exported.Project.Name + ' (imported ' + today() + ')';
 	if ( options.Preview )
 	{
 		return {
 			Preview: {
-				Project: { Id: Exported.Project.Id, Name: Exported.Project.Name, Exists: !!here, NameHere: here ? here.Name : null },
+				Project: { Id: exported.Project.Id, Name: exported.Project.Name, Exists: !!here, NameHere: here ? here.Name : null },
 				Modes: here ? MODES : [],
 				CopyName: copy_name,
 			},
@@ -578,39 +554,35 @@ async function Import( Store, Exported, Options, Context )
 	let context = Context || {};
 	let report = {
 		Project: { Id: null, Name: null, Mode: null },
-		Made: { Plans: 0, Documents: 0, Threads: 0, Corpora: 0 },
+		Made: { Plans: 0, Documents: 0, Threads: 0 },
 		Merged: [],
 		Diverged: [],
-		Corpora: [],
-		Workers: [],
 		UnknownParticipants: [],
 		Written: [],
-		WrittenCorpora: [],
 	};
 	if ( options.Mode === 'copy' )
 	{
-		await import_copy( Store, Exported, copy_name, report, context );
+		await import_copy( Store, exported, copy_name, report );
 	}
 	else if ( here )
 	{
-		let problem = await merge_problem( Store, Exported, here );
+		let problem = await merge_problem( Store, exported, here );
 		if ( problem )
 		{
 			return { Problems: [ problem ] };
 		}
-		await import_merge( Store, Exported, here, report, context );
+		await import_merge( Store, exported, here, report, context );
 	}
 	else
 	{
-		let taken = await taken_ids( Store, Exported );
+		let taken = await taken_ids( Store, exported );
 		if ( taken.length )
 		{
 			return { Problems: [ 'the file holds ' + taken.join( ', ' ) + ', already here in another project: import it with Mode copy' ] };
 		}
-		await import_new( Store, Exported, report, context );
+		await import_new( Store, exported, report );
 	}
-	report.Workers = check_workers( Exported.Workers || Exported.ContextServers || [], context.Workers );
-	report.UnknownParticipants = unknown_names( records_of( Exported ), context.Participants || [] );
+	report.UnknownParticipants = unknown_names( records_of( exported ), context.Participants || [] );
 	return { Report: report };
 }
 
@@ -631,30 +603,13 @@ function records_of( Exported )
 	let wanted = new Set( [ Exported.Project.Context ] );
 	for ( let entry of nodes_of( Exported.Project.Items, null ) )
 	{
-		if ( entry.Node.Kind !== 'corpus' )
-		{
-			wanted.add( entry.Node.Id );
-		}
+		wanted.add( entry.Node.Id );
 	}
 	return Exported.Proposals.filter( function ( whole ) { return wanted.has( whole.Proposal.Id ); } );
 }
 
 
-function corpora_of( Exported )
-{
-	let wanted = new Set();
-	for ( let entry of nodes_of( Exported.Project.Items, null ) )
-	{
-		if ( entry.Node.Kind === 'corpus' )
-		{
-			wanted.add( entry.Node.Id );
-		}
-	}
-	return Exported.Corpora.filter( function ( corpus ) { return wanted.has( corpus.Id ); } );
-}
-
-
-// The file's proposal and corpus ids that something here already has.
+// The file's proposal ids that something here already has.
 async function taken_ids( Store, Exported )
 {
 	let taken = [];
@@ -665,24 +620,17 @@ async function taken_ids( Store, Exported )
 			taken.push( whole.Proposal.Id );
 		}
 	}
-	for ( let corpus of corpora_of( Exported ) )
-	{
-		if ( await Store.ReadCorpus( corpus.Id ) )
-		{
-			taken.push( corpus.Id );
-		}
-	}
 	return taken;
 }
 
 
-// A new id no proposal, corpus or project here has.
+// A new id no proposal or project here has.
 async function fresh_id( Store, kind )
 {
 	while ( true )
 	{
 		let id = IDS.New( kind );
-		let taken = await Store.ReadProposal( id ) || await Store.ReadCorpus( id ) || await Store.ReadProject( id );
+		let taken = await Store.ReadProposal( id ) || await Store.ReadProject( id );
 		if ( !taken )
 		{
 			return id;
@@ -694,18 +642,14 @@ async function fresh_id( Store, kind )
 //---------------------------------------------------------------------
 // New: the project is not here; it comes in with every id intact.
 
-async function import_new( Store, Exported, report, context )
+async function import_new( Store, Exported, report )
 {
 	let id_map = {};
 	for ( let whole of records_of( Exported ) )
 	{
 		id_map[ whole.Proposal.Id ] = whole.Proposal.Id;
 	}
-	for ( let corpus of corpora_of( Exported ) )
-	{
-		id_map[ corpus.Id ] = corpus.Id;
-	}
-	await write_project( Store, Exported, Exported.Project.Id, Exported.Project.Name, id_map, {}, report, context );
+	await write_project( Store, Exported, Exported.Project.Id, Exported.Project.Name, id_map, {}, report );
 	report.Project.Mode = 'new';
 }
 
@@ -713,16 +657,12 @@ async function import_new( Store, Exported, report, context )
 //---------------------------------------------------------------------
 // Copy: a new project, "Copy of <name> (imported <date>)", with every id new.
 
-async function import_copy( Store, Exported, name, report, context )
+async function import_copy( Store, Exported, name, report )
 {
 	let id_map = {};
 	for ( let whole of records_of( Exported ) )
 	{
 		id_map[ whole.Proposal.Id ] = await fresh_id( Store, IDS.ForProposal( whole.Proposal.Kind ) );
-	}
-	for ( let corpus of corpora_of( Exported ) )
-	{
-		id_map[ corpus.Id ] = await fresh_id( Store, IDS.CORPUS );
 	}
 	let folder_map = {};
 	for ( let entry of all_nodes_of( Exported.Project.Items, null ) )
@@ -733,13 +673,13 @@ async function import_copy( Store, Exported, name, report, context )
 		}
 	}
 	let project_id = await fresh_id( Store, IDS.PROJECT );
-	await write_project( Store, Exported, project_id, name, id_map, folder_map, report, context );
+	await write_project( Store, Exported, project_id, name, id_map, folder_map, report );
 	report.Project.Mode = 'copy';
 }
 
 
 // The whole file written as a new project, each item under the id id_map gives it.
-async function write_project( Store, Exported, project_id, name, id_map, folder_map, report, context )
+async function write_project( Store, Exported, project_id, name, id_map, folder_map, report )
 {
 	for ( let whole of records_of( Exported ) )
 	{
@@ -750,12 +690,9 @@ async function write_project( Store, Exported, project_id, name, id_map, folder_
 		count_made( report, written );
 		report.Written.push( id );
 	}
-	for ( let corpus of corpora_of( Exported ) )
-	{
-		await write_corpus( Store, corpus, id_map[ corpus.Id ], project_id, report );
-	}
 	let items = map_tree( Exported.Project.Items, id_map, folder_map );
-	let project = await Store.CreateProject( { Id: project_id, Name: name, Context: id_map[ Exported.Project.Context ], Items: items } );
+	let context_folder = Exported.Project.ContextFolder ? ( folder_map[ Exported.Project.ContextFolder ] || Exported.Project.ContextFolder ) : null;
+	let project = await Store.CreateProject( { Id: project_id, Name: name, Context: id_map[ Exported.Project.Context ], ContextFolder: context_folder, Items: items } );
 	report.Project.Id = project.Id;
 	report.Project.Name = project.Name;
 }
@@ -764,7 +701,7 @@ async function write_project( Store, Exported, project_id, name, id_map, folder_
 //---------------------------------------------------------------------
 // Merge: into the project here. Nothing here is removed.
 
-// The id a file's proposal is merged into: its own, or the project's context for the file's context.
+// The id a file's proposal is merged into: its own, or the project's Context document for the file's.
 function merge_target( Exported, here, id )
 {
 	return ( id === Exported.Project.Context ) ? here.Context : id;
@@ -794,7 +731,7 @@ async function import_merge( Store, Exported, here, report, context )
 {
 	for ( let whole of records_of( Exported ) )
 	{
-		// The file's context lands on the project's context, whatever its id.
+		// The file's context lands on the project's Context document, whatever its id.
 		let id = merge_target( Exported, here, whole.Proposal.Id );
 		let file = clone( whole );
 		file.Proposal.Id = id;
@@ -822,18 +759,18 @@ async function import_merge( Store, Exported, here, report, context )
 			report.Diverged.push( { Id: id, Title: merged.Whole.Proposal.Title, At: merged.Diverged } );
 		}
 	}
-	for ( let corpus of corpora_of( Exported ) )
+	// The file's tree, with its Context document and folder named as they are here.
+	let id_map = {};
+	id_map[ Exported.Project.Context ] = here.Context;
+	let folder_map = {};
+	if ( Exported.Project.ContextFolder && here.ContextFolder )
 	{
-		if ( await Store.ReadCorpus( corpus.Id ) )
-		{
-			report.Corpora.push( { Id: corpus.Id, Name: corpus.Name, Source: corpus.Link ? 'linked' : 'attached', State: 'kept as it is here' } );
-			continue;
-		}
-		await write_corpus( Store, corpus, corpus.Id, here.Id, report );
+		folder_map[ Exported.Project.ContextFolder ] = here.ContextFolder;
 	}
+	let items = map_tree( Exported.Project.Items, id_map, folder_map );
 	let result = await context.ChangeProject( here.Id, function ( project )
 	{
-		add_missing( project.Items, Exported.Project.Items );
+		add_missing( project.Items, items, project.ContextFolder );
 	} );
 	if ( result && result.Refused )
 	{
@@ -856,56 +793,6 @@ function count_made( report, whole )
 		report.Made.Documents += 1;
 	}
 	report.Made.Threads += whole.Threads.length;
-}
-
-
-// One corpus from the file written under id in the folder of project_id, and its state for the report. An attached
-// one waits for its zip; a linked one (retired) comes in with no files, to be given a zip in its place.
-async function write_corpus( Store, from_file, id, project_id, report )
-{
-	let corpus = clone( from_file );
-	corpus.Id = id;
-	if ( corpus.Link )
-	{
-		corpus.Files = [];
-	}
-	else
-	{
-		corpus.Waiting = true;
-		corpus.Files = from_file.Files.map( function ( file ) { return { Path: file.Path, Size: file.Size, Indexed: false, Reason: WAITING_REASON }; } );
-	}
-	await Store.WriteImportedCorpus( project_id, corpus );
-	report.WrittenCorpora.push( id );
-	report.Made.Corpora += 1;
-	let state = { Id: id, Name: corpus.Name, Source: corpus.Link ? 'linked' : 'attached' };
-	if ( corpus.Link )
-	{
-		state.State = 'linked corpora are retired (plan Workers): replace it with a zip, or give the project a workspace';
-	}
-	else
-	{
-		state.State = 'waiting for its zip: attach it again on the corpus';
-	}
-	report.Corpora.push( state );
-}
-
-
-// Each worker the export names, against this server's: { Name, Present, Online, MissingInference }.
-function check_workers( exported, Workers )
-{
-	let known = Workers ? Workers.List() : [];
-	return exported.map( function ( entry )
-	{
-		let here = known.find( function ( worker ) { return worker.Name === entry.Name; } );
-		let wanted = ( entry.Inference || [] ).map( function ( item ) { return item.Name; } );
-		let offered = here ? here.Inference.map( function ( item ) { return item.Name; } ) : [];
-		return {
-			Name: entry.Name,
-			Present: !!here,
-			Online: !!( here && here.Online ),
-			MissingInference: wanted.filter( function ( name ) { return !offered.includes( name ); } ),
-		};
-	} );
 }
 
 
@@ -960,9 +847,9 @@ function map_tree( items, id_map, folder_map )
 
 
 // Every node of Source that Target does not have goes into Target: under its parent from Source when Target has
-// that parent and it takes the node, otherwise at the root. A parent comes before its children, so a folder
-// brought over takes its children with it.
-function add_missing( target, source )
+// that parent and it takes the node, otherwise at the root (a document: in the Context folder). A parent comes
+// before its children, so a folder brought over takes its children with it.
+function add_missing( target, source, context_folder )
 {
 	for ( let entry of all_nodes_of( source, null ) )
 	{
@@ -978,9 +865,9 @@ function add_missing( target, source )
 			shallow.Items = [];
 		}
 		let parent = ( entry.Parent && TREE.Find( target, entry.Parent ) ) ? entry.Parent : null;
-		if ( !TREE.Insert( target, parent, shallow ) )
+		if ( !TREE.Insert( target, parent, shallow, undefined, context_folder ) )
 		{
-			TREE.Insert( target, null, shallow );
+			TREE.Insert( target, ( node.Kind === 'document' ) ? ( context_folder || null ) : null, shallow, undefined, context_folder );
 		}
 	}
 }
@@ -994,6 +881,7 @@ module.exports = {
 	MODES: MODES,
 	Export: Export,
 	Check: Check,
+	Normalize: Normalize,
 	Merge: Merge,
 	Import: Import,
 };

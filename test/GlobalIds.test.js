@@ -81,8 +81,10 @@ TEST( 'revisions: each has an Id and the Parent it was made from; the proposal\'
 	let second = await store.ReadRevision( document.Id, 2 );
 	ASSERT.equal( second.Parent, first.Id );
 	ASSERT.equal( edited.Head, second.Id );
-	ASSERT.equal( IDS.Is( ( await store.CreateProject( { Name: 'P' } ) ).Id, IDS.PROJECT ), true );
-	ASSERT.equal( IDS.Is( ( await store.ListProposals() ).find( function ( proposal ) { return proposal.Kind === 'context'; } ).Id, IDS.CONTEXT ), true );
+	let project = await store.CreateProject( { Name: 'P' } );
+	ASSERT.equal( IDS.Is( project.Id, IDS.PROJECT ), true );
+	ASSERT.equal( IDS.Is( project.Context, IDS.DOCUMENT ), true );
+	ASSERT.equal( IDS.Is( project.ContextFolder, IDS.FOLDER ), true );
 } );
 
 

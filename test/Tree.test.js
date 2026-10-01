@@ -15,7 +15,7 @@ function sample()
 			{ Kind: 'document', Id: 'd1' },
 			{ Kind: 'folder', Id: 'f2', Name: 'Old', Items: [ { Kind: 'plan', Id: 'p2' } ] },
 		] },
-		{ Kind: 'corpus', Id: 'c1' },
+		{ Kind: 'document', Id: 'c1' },
 	];
 }
 
@@ -77,8 +77,8 @@ TEST( 'subplans: a plan holds plans, found, walked, and its list dropped when em
 	TREE.Remove( items, 'p8' );
 	ASSERT.equal( TREE.Find( items, 'p2' ).Node.Items, undefined );
 	ASSERT.equal( TREE.CanHold( items, 'p2', 'plan' ), true );
-	ASSERT.equal( TREE.CanHold( items, 'p2', 'corpus' ), false );
-	ASSERT.equal( TREE.CanHold( items, null, 'corpus' ), true );
+	ASSERT.equal( TREE.CanHold( items, 'p2', 'document' ), false );
+	ASSERT.equal( TREE.CanHold( items, null, 'document' ), true );
 } );
 
 

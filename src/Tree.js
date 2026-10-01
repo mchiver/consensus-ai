@@ -4,12 +4,13 @@
 //
 //   node = { Kind: 'folder', Id, Name, Items: [ node ] }
 //        | { Kind: 'plan', Id, Items?: [ plan node ] }
-//        | { Kind: 'document' | 'corpus', Id }
+//        | { Kind: 'document', Id }
 //
 // A folder's Id is a global fld-… id; every other node's Id is the id of the thing it points to.
-// A plan may hold Subplans: plans only, in its Items. A Parent of null is the project's root.
+// A plan may hold Subplans: plans only, in its Items. A Parent of null is the project's root. A project's Context
+// folder (plan Consensus Desktop) holds documents only, and documents go nowhere else: CanHold and Insert take its id.
 
-const KINDS = [ 'folder', 'plan', 'document', 'corpus' ];
+const KINDS = [ 'folder', 'plan', 'document' ];
 
 
 //---------------------------------------------------------------------
@@ -166,14 +167,28 @@ function Children( Items, Parent )
 
 //---------------------------------------------------------------------
 // CanHold: whether Parent (null for the root, a folder's or a plan's Id) takes a node of Kind. A plan takes plans only.
+// With ContextFolder (the id of the project's Context folder, plan Consensus Desktop), a document goes only into that
+// folder, and that folder takes documents only.
 
-function CanHold( Items, Parent, Kind )
+function CanHold( Items, Parent, Kind, ContextFolder )
 {
-	if ( Parent === null || Parent === undefined )
+	let parent = ( Parent === null || Parent === undefined ) ? null : Parent;
+	if ( ContextFolder )
+	{
+		if ( Kind === 'document' && parent !== ContextFolder )
+		{
+			return false;
+		}
+		if ( parent === ContextFolder && Kind !== 'document' )
+		{
+			return false;
+		}
+	}
+	if ( parent === null )
 	{
 		return true;
 	}
-	let found = Find( Items, Parent );
+	let found = Find( Items, parent );
 	if ( !found )
 	{
 		return false;
@@ -192,11 +207,11 @@ function CanHold( Items, Parent, Kind )
 
 //---------------------------------------------------------------------
 // Insert: puts Node among Parent's children, just before the child Before, or at the end when Before is not
-// given or is not one of them. Returns false when Parent does not take a node of its kind.
+// given or is not one of them. Returns false when Parent does not take a node of its kind (ContextFolder as CanHold).
 
-function Insert( Items, Parent, Node, Before )
+function Insert( Items, Parent, Node, Before, ContextFolder )
 {
-	if ( !CanHold( Items, Parent, Node.Kind ) )
+	if ( !CanHold( Items, Parent, Node.Kind, ContextFolder ) )
 	{
 		return false;
 	}

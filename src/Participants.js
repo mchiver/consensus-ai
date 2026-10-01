@@ -3,27 +3,31 @@
 // Participants - who is calling, from the settings and the request.
 // A request carrying "Authorization: Bearer <token>" is the participant holding that token.
 // A request without one is the participant with the owner role (the browser, on this workstation).
-// The llm participant needs no token: Consensus calls it (see Llm.js). A token lets any participant use the API.
+// A token lets any participant use the API: the llm participant is the one an agent session posts as.
 // Identity is this one small component: user management with sign-in replaces it later.
+// The settings (consensus.json) are checked here too: Host, Port, States and Participants (plan Consensus Desktop,
+// Step 1: the settings modal writes them back through the API).
 
 const CRYPTO = require( 'crypto' );
-const LLM = require( './Llm.js' );
 
 const ROLES = [ 'owner', 'llm', 'member' ];
 const DEFAULT_STATES = [ 'Proposal', 'Plan', 'Working', 'Finished' ];
+const DEFAULT_HOST = '127.0.0.1';
+const SETTINGS_FIELDS = [ 'Port', 'Host', 'States', 'Participants' ];
 
 
 //---------------------------------------------------------------------
-// DefaultSettings: written at first start. Two participants, the user (owner) and the llm, called through Claude Code.
+// DefaultSettings: written at first start. Two participants, the user (owner) and the llm.
 
-function DefaultSettings( Port )
+function DefaultSettings( Port, Host )
 {
 	return {
 		Port: Port,
+		Host: Host || DEFAULT_HOST,
 		States: DEFAULT_STATES.slice(),
 		Participants: [
 			{ Name: 'user', Display: 'User', Role: 'owner' },
-			{ Name: 'llm', Display: 'LLM', Role: 'llm', Call: { Kind: 'claude-cli', Command: 'claude' } },
+			{ Name: 'llm', Display: 'LLM', Role: 'llm' },
 		],
 	};
 }
@@ -82,16 +86,39 @@ function PublicList( Settings )
 
 
 //---------------------------------------------------------------------
-// Validate: the settings' participant list is usable.
+// Validate: the settings are usable: Host and Port when given, States, and the participant list.
 
 function Validate( Settings )
 {
 	let problems = [];
-	let participants = ( Settings && Settings.Participants ) || [];
+	if ( !Settings || typeof Settings !== 'object' )
+	{
+		return [ 'the settings are not an object' ];
+	}
+	if ( Settings.Port !== undefined && !( Number.isInteger( Settings.Port ) && Settings.Port >= 0 && Settings.Port <= 65535 ) )
+	{
+		problems.push( 'Port must be a whole number from 0 to 65535' );
+	}
+	if ( Settings.Host !== undefined && ( typeof Settings.Host !== 'string' || !Settings.Host.trim() || /\s/.test( Settings.Host ) ) )
+	{
+		problems.push( 'Host must be an address with no spaces' );
+	}
+	let participants = Settings.Participants;
+	if ( !Array.isArray( participants ) )
+	{
+		problems.push( 'Participants must be a list' );
+		participants = [];
+	}
 	let names = new Set();
+	let tokens = new Set();
 	for ( let participant of participants )
 	{
-		if ( !participant.Name )
+		if ( !participant || typeof participant !== 'object' )
+		{
+			problems.push( 'a participant is not an object' );
+			continue;
+		}
+		if ( !participant.Name || typeof participant.Name !== 'string' )
 		{
 			problems.push( 'a participant has no Name' );
 			continue;
@@ -105,44 +132,24 @@ function Validate( Settings )
 		{
 			problems.push( 'participant "' + participant.Name + '" has role "' + participant.Role + '", not one of ' + ROLES.join( ', ' ) );
 		}
-		if ( participant.Call )
+		if ( participant.Token !== undefined && participant.Token !== null )
 		{
-			if ( participant.Role !== 'llm' )
+			if ( typeof participant.Token !== 'string' || participant.Token.length < 16 )
 			{
-				problems.push( 'participant "' + participant.Name + '" has a Call but is not an llm' );
+				problems.push( 'participant "' + participant.Name + '": a Token is a string of 16 characters or more' );
 			}
-			for ( let problem of LLM.Validate( participant.Call ) )
+			else if ( tokens.has( participant.Token ) )
 			{
-				problems.push( 'participant "' + participant.Name + '": ' + problem );
+				problems.push( 'participant "' + participant.Name + '" shares its Token with another participant' );
 			}
-		}
-		if ( participant.Destinations !== undefined )
-		{
-			if ( participant.Role !== 'llm' || !Array.isArray( participant.Destinations ) )
-			{
-				problems.push( 'participant "' + participant.Name + '": Destinations must be a list, on an llm' );
-			}
-			else
-			{
-				for ( let destination of participant.Destinations )
-				{
-					for ( let problem of LLM.Validate( destination, true ) )
-					{
-						problems.push( 'participant "' + participant.Name + '": ' + problem );
-					}
-				}
-			}
+			tokens.add( participant.Token );
 		}
 	}
 	if ( !participants.some( is_owner ) )
 	{
 		problems.push( 'no participant has the owner role' );
 	}
-	if ( participants.filter( function ( participant ) { return !!participant.Call; } ).length > 1 )
-	{
-		problems.push( 'only one participant can have a Call' );
-	}
-	if ( Settings && Settings.States !== undefined )
+	if ( Settings.States !== undefined )
 	{
 		let states = Settings.States;
 		let usable = Array.isArray( states ) && states.length > 0 && states.every( function ( state ) { return typeof state === 'string' && state.trim() === state && state.length > 0; } );
@@ -172,9 +179,55 @@ function States( Settings )
 }
 
 
+//---------------------------------------------------------------------
+// Clean: the settings as the modal sends them, kept to the known fields, each participant to its own: Name, Display,
+// Role and Token (none when empty). The result is what Validate checks and what is written.
+
+function Clean( Settings )
+{
+	let given = ( Settings && typeof Settings === 'object' ) ? Settings : {};
+	let clean = {};
+	for ( let field of SETTINGS_FIELDS )
+	{
+		if ( given[ field ] !== undefined )
+		{
+			clean[ field ] = given[ field ];
+		}
+	}
+	if ( typeof clean.Host === 'string' )
+	{
+		clean.Host = clean.Host.trim();
+	}
+	if ( Array.isArray( clean.States ) )
+	{
+		clean.States = clean.States.map( function ( state ) { return ( typeof state === 'string' ) ? state.trim() : state; } );
+	}
+	if ( Array.isArray( clean.Participants ) )
+	{
+		clean.Participants = clean.Participants.map( function ( participant )
+		{
+			let one = ( participant && typeof participant === 'object' ) ? participant : {};
+			let kept = { Name: ( typeof one.Name === 'string' ) ? one.Name.trim() : one.Name, Display: one.Display, Role: one.Role };
+			if ( typeof kept.Display !== 'string' || !kept.Display.trim() )
+			{
+				delete kept.Display;
+			}
+			if ( typeof one.Token === 'string' && one.Token.trim() )
+			{
+				kept.Token = one.Token.trim();
+			}
+			return kept;
+		} );
+	}
+	return clean;
+}
+
+
 module.exports = {
 	ROLES: ROLES,
 	DEFAULT_STATES: DEFAULT_STATES,
+	DEFAULT_HOST: DEFAULT_HOST,
+	SETTINGS_FIELDS: SETTINGS_FIELDS,
 	DefaultSettings: DefaultSettings,
 	NewToken: NewToken,
 	Identify: Identify,
@@ -182,4 +235,5 @@ module.exports = {
 	PublicList: PublicList,
 	Validate: Validate,
 	States: States,
+	Clean: Clean,
 };

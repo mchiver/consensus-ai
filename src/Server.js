@@ -1,10 +1,10 @@
 'use strict';
 
-// Server - Start( { Data, Port, Host, Caller? } ) returns { App, Address, Url, Settings, Store, Events, Close }.
+// Server - Start( { Data, Port, Host } ) returns { App, Address, Url, Settings, Store, Events, Close }.
 // It listens on Host (the option, else the settings' Host, else 127.0.0.1); any address is accepted, and Address.Local
 // says whether it stays on this machine. The data folder is ~data beside package.json unless given.
-// Caller, for tests only, replaces how the LLM is called (see Llm.Caller); Workers, for tests only, is Workers.Open's
-// Options.
+// The settings are read once at start and changed in place by the settings routes (Api.js); Host and Port take
+// effect at the next start.
 
 const PATH = require( 'path' );
 const FS = require( 'fs' );
@@ -13,51 +13,10 @@ const STORE = require( './Store.js' );
 const PARTICIPANTS = require( './Participants.js' );
 const EVENTS = require( './Events.js' );
 const API = require( './Api.js' );
-const INDEX = require( './Index.js' );
 const INSTRUCTIONS = require( './Instructions.js' );
-const CORPUS = require( './Corpus.js' );
-const VECTORS = require( './Vectors.js' );
-const LLM = require( './Llm.js' );
-const WORKERS = require( './Workers.js' );
-
-
-// A first start over an existing data folder indexes every proposal once; later starts only what is stale.
-async function index_missing( store, refresh )
-{
-	for ( let proposal of await store.ListProposals() )
-	{
-		let index = await store.ReadIndex( proposal.Id );
-		let current = index.length > 0 && index.every( function ( chunk ) { return chunk.Revision === proposal.Revision; } );
-		if ( !current )
-		{
-			await refresh( proposal.Id );
-		}
-	}
-}
-
-// The same for the uploaded corpora: one whose index is missing or older than its zip is indexed again.
-async function index_missing_corpora( store, refresh_corpus )
-{
-	for ( let corpus of await store.ListCorpora() )
-	{
-		let index = await store.ReadCorpusIndex( corpus.Id );
-		let current = index.length > 0 && index.every( function ( chunk ) { return chunk.Revision === corpus.Version; } );
-		if ( !current )
-		{
-			try
-			{
-				await refresh_corpus( corpus.Id );
-			}
-			catch ( error )
-			{
-				console.error( 'index: corpus ' + corpus.Id + ': ' + error.message );
-			}
-		}
-	}
-}
 
 const DEFAULT_PORT = 3500;
-const DEFAULT_HOST = '127.0.0.1';
+const DEFAULT_HOST = PARTICIPANTS.DEFAULT_HOST;
 const LOCAL_HOSTS = [ '127.0.0.1', 'localhost', '::1' ];
 const DEFAULT_DATA = PATH.join( __dirname, '..', '~data' );
 const PUBLIC_FOLDER = PATH.join( __dirname, '..', 'public' );
@@ -72,14 +31,11 @@ async function Start( Options )
 	let settings_written = false;
 	if ( !settings )
 	{
-		settings = PARTICIPANTS.DefaultSettings( DEFAULT_PORT );
-		settings.Host = DEFAULT_HOST;
-		settings.Corpus = CORPUS.Limits( {} );
-		settings.Context = LLM.ContextSettings( {} );
+		settings = PARTICIPANTS.DefaultSettings( DEFAULT_PORT, DEFAULT_HOST );
 		await store.WriteSettings( settings );
 		settings_written = true;
 	}
-	let problems = PARTICIPANTS.Validate( settings ).concat( WORKERS.Validate( settings ) );
+	let problems = PARTICIPANTS.Validate( settings );
 	if ( problems.length )
 	{
 		throw new Error( 'settings ' + store.SettingsPath() + ': ' + problems.join( '; ' ) );
@@ -91,39 +47,11 @@ async function Start( Options )
 	let port = ( options.Port !== undefined ) ? options.Port : ( settings.Port || DEFAULT_PORT );
 	let host = options.Host || settings.Host || DEFAULT_HOST;
 
-	// The search index: ours always; Ollama vectors when the settings name a model.
-	let embedder = VECTORS.Embedder( settings );
-	function refresh( id )
-	{
-		return INDEX.Refresh( store, id, embedder );
-	}
-	// The workers in the settings: each says hello when it connects (plan Workers).
-	let workers = WORKERS.Open( settings, options.Workers );
-	// Ids, when given, limits the search to those items (a project's).
-	async function search( query, limit, ids )
-	{
-		return await INDEX.SearchAll( store, query, limit, embedder, ids );
-	}
-	// A corpus is indexed from its zip, within the settings' limits.
-	async function refresh_corpus( id )
-	{
-		let corpus = await store.ReadCorpus( id );
-		let zip = corpus ? await store.ReadCorpusZip( id ) : null;
-		if ( !zip )
-		{
-			return null;
-		}
-		let extracted = await CORPUS.Extract( zip, CORPUS.Limits( settings ), corpus );
-		return INDEX.RefreshCorpus( store, corpus, extracted.Texts, embedder );
-	}
-	await index_missing( store, refresh );
-	await index_missing_corpora( store, refresh_corpus );
-
 	let app = EXPRESS();
 	app.disable( 'x-powered-by' );
 	let events = EVENTS.Hub();
 	events.Attach( app, '/api/events' );
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Refresh: refresh, RefreshCorpus: refresh_corpus, Search: search, Caller: options.Caller, Workers: workers } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events } );
 	INSTRUCTIONS.Attach( app, { Settings: settings } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
@@ -136,7 +64,6 @@ async function Start( Options )
 
 	async function Close()
 	{
-		workers.Close();
 		events.Close();
 		server.closeAllConnections();
 		await new Promise( function ( resolve ) { server.close( resolve ); } );
@@ -151,7 +78,6 @@ async function Start( Options )
 		SettingsWritten: settings_written,
 		Store: store,
 		Events: events,
-		Workers: workers,
 		Close: Close,
 	};
 }

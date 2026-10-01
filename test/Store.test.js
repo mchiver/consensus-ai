@@ -1,6 +1,7 @@
 'use strict';
 
-// The data folder, on a temporary folder: create, write, revisions, queueing, atomic write, trash.
+// The data folder, on a temporary folder: create, write, revisions, queueing, atomic write, trash, projects with their
+// Context folder, and the migration of a data folder from before plan Consensus Desktop.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -88,9 +89,6 @@ TEST( 'proposal changes and threads are written whole', async function ()
 	ASSERT.equal( updated.State, 'Working' );
 	await store.WriteThreads( proposal.Id, [ { Id: 't1' } ] );
 	ASSERT.deepEqual( ( await store.ReadProposal( proposal.Id ) ).Threads, [ { Id: 't1' } ] );
-	ASSERT.deepEqual( await store.ReadIndex( proposal.Id ), [] );
-	await store.WriteIndex( proposal.Id, [ { Chunk: 1 } ] );
-	ASSERT.deepEqual( await store.ReadIndex( proposal.Id ), [ { Chunk: 1 } ] );
 } );
 
 
@@ -176,7 +174,15 @@ TEST( 'projects: in the master\'s order, new ones last; created, written with a 
 	ASSERT.match( alpha.Id, /^prj-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
 	ASSERT.equal( alpha.Name, 'Alpha work' );
 	ASSERT.equal( alpha.Version, 1 );
-	ASSERT.deepEqual( alpha.Items, [] );
+	// a new project holds its Context folder, first, with its Context document
+	ASSERT.equal( alpha.Items.length, 1 );
+	ASSERT.equal( alpha.Items[ 0 ].Id, alpha.ContextFolder );
+	ASSERT.equal( alpha.Items[ 0 ].Name, 'Context' );
+	ASSERT.deepEqual( alpha.Items[ 0 ].Items, [ { Kind: 'document', Id: alpha.Context } ] );
+	ASSERT.equal( IDS.Is( alpha.ContextFolder, IDS.FOLDER ), true );
+	ASSERT.equal( ( await store.ReadProposal( alpha.Context ) ).Proposal.Kind, 'document' );
+	ASSERT.equal( ( await store.ReadProposal( alpha.Context ) ).Proposal.Title, 'Context' );
+	ASSERT.equal( ( await store.ProjectOf( alpha.Context ) ).Id, alpha.Id );
 	function names( projects ) { return projects.map( function ( p ) { return p.Name; } ); }
 	ASSERT.deepEqual( names( await store.ListProjects() ), [ 'Default', 'Zebra', 'Alpha work' ] );
 	// the name lives in the master, not in project.json
@@ -187,7 +193,7 @@ TEST( 'projects: in the master\'s order, new ones last; created, written with a 
 	alpha.Name = 'Alpha, renamed';
 	let written = await store.WriteProject( alpha );
 	ASSERT.equal( written.Version, 2 );
-	ASSERT.deepEqual( ( await store.ReadProject( alpha.Id ) ).Items, [ { Kind: 'plan', Id: 'p1' } ] );
+	ASSERT.deepEqual( ( await store.ReadProject( alpha.Id ) ).Items[ 1 ], { Kind: 'plan', Id: 'p1' } );
 	ASSERT.equal( ( await store.ReadProject( alpha.Id ) ).Name, 'Alpha, renamed' );
 	ASSERT.equal( ( await store.ProjectOf( 'p1' ) ).Id, alpha.Id );
 	ASSERT.equal( await store.ProjectOf( 'p2' ), null );
@@ -235,29 +241,50 @@ TEST( 'proposals list newest updated first', async function ()
 } );
 
 
-TEST( 'corpora are kept in their project\'s folder: made, moved, copied, updated, trashed', async function ()
+TEST( 'migration: a data folder from before Consensus Desktop gets its Context folders, loses its corpora and the LLM\'s files', async function ()
 {
 	let folder = temporary_folder();
+	// A project as the old server kept it: a context proposal of Kind context, a corpus in its tree and folder, and a plan.
+	FS.mkdirSync( PATH.join( folder, 'proposals', 'ctx-aaa-aaa-aaa', 'revisions' ), { recursive: true } );
+	FS.writeFileSync( PATH.join( folder, 'proposals', 'ctx-aaa-aaa-aaa', 'proposal.json' ), JSON.stringify( { Id: 'ctx-aaa-aaa-aaa', Title: 'Context', Kind: 'context', State: null, Created: 't', Updated: 't', Revision: 1 } ) );
+	FS.writeFileSync( PATH.join( folder, 'proposals', 'ctx-aaa-aaa-aaa', 'proposal.md' ), '# Context\n' );
+	FS.writeFileSync( PATH.join( folder, 'proposals', 'ctx-aaa-aaa-aaa', 'threads.json' ), '[]' );
+	FS.writeFileSync( PATH.join( folder, 'proposals', 'ctx-aaa-aaa-aaa', 'index.json' ), '[]' );
+	FS.mkdirSync( PATH.join( folder, 'proposals', 'pln-bbb-bbb-bbb', 'revisions' ), { recursive: true } );
+	FS.writeFileSync( PATH.join( folder, 'proposals', 'pln-bbb-bbb-bbb', 'proposal.json' ), JSON.stringify( { Id: 'pln-bbb-bbb-bbb', Title: 'Plan', Kind: 'plan', State: 'Proposal', Created: 't', Updated: 't', Revision: 1 } ) );
+	FS.writeFileSync( PATH.join( folder, 'proposals', 'pln-bbb-bbb-bbb', 'proposal.md' ), '# Plan\n' );
+	FS.writeFileSync( PATH.join( folder, 'proposals', 'pln-bbb-bbb-bbb', 'threads.json' ), '[]' );
+	FS.writeFileSync( PATH.join( folder, 'proposals', 'pln-bbb-bbb-bbb', 'runs.json' ), '[]' );
+	FS.mkdirSync( PATH.join( folder, 'projects', 'default', 'corpora', 'cor-ccc-ccc-ccc' ), { recursive: true } );
+	FS.writeFileSync( PATH.join( folder, 'projects', 'default', 'corpora', 'cor-ccc-ccc-ccc', 'corpus.json' ), JSON.stringify( { Id: 'cor-ccc-ccc-ccc', Kind: 'corpus', Name: 'repo', Updated: 't', Files: [] } ) );
+	FS.writeFileSync( PATH.join( folder, 'projects', 'default', 'project.json' ), JSON.stringify( {
+		Id: 'default', Context: 'ctx-aaa-aaa-aaa', Created: 't', Updated: 't', Version: 3, Workspace: { Worker: 'w', Name: 'x' },
+		Items: [ { Kind: 'folder', Id: 'fld-ddd-ddd-ddd', Name: 'Drafts', Items: [ { Kind: 'plan', Id: 'pln-bbb-bbb-bbb' }, { Kind: 'corpus', Id: 'cor-ccc-ccc-ccc' } ] } ],
+	} ) );
+	FS.writeFileSync( PATH.join( folder, 'projects.json' ), JSON.stringify( { Projects: [ { Id: 'default', Name: 'Default' } ] } ) );
+	FS.writeFileSync( PATH.join( folder, 'usage.json' ), '{}' );
+
 	let store = STORE.Open( folder );
-	await store.Prepare();
-	let other = await store.CreateProject( { Name: 'Other' } );
-	let made = await store.CreateCorpus( { Project: other.Id, Name: 'repo', Zip: Buffer.from( 'zip' ), Files: [] } );
-	ASSERT.equal( made.Source, 'attached' );
-	ASSERT.deepEqual( [ made.Include, made.Exclude ], [ [], [] ] );
-	ASSERT.equal( FS.existsSync( PATH.join( folder, 'projects', other.Id, 'corpora', made.Id, 'corpus.zip' ) ), true );
-	let linked = await store.CreateCorpus( { Name: 'docs', Link: { Server: 'Desk', Corpus: 'Docs' } } );
-	ASSERT.equal( linked.Source, 'linked' );
-	ASSERT.equal( FS.existsSync( PATH.join( folder, 'projects', 'default', 'corpora', linked.Id, 'corpus.zip' ) ), false );
+	let lines = await store.Prepare();
+	ASSERT.equal( lines.length, 3, lines.join( '\n' ) );
+	ASSERT.match( lines[ 0 ], /^projects\/default: the Context folder made, fld-.*, 1 corpora to the trash$/ );
+	ASSERT.equal( lines[ 1 ], 'usage.json: removed' );
+	ASSERT.equal( lines[ 2 ], 'proposals: 2 runs.json and index.json files removed' );
 
-	ASSERT.equal( await store.MoveCorpus( made.Id, 'default' ), true );
-	ASSERT.equal( FS.existsSync( PATH.join( folder, 'projects', 'default', 'corpora', made.Id, 'corpus.json' ) ), true );
-	ASSERT.equal( ( await store.ReadCorpusZip( made.Id ) ).toString(), 'zip' );
-	let copy = await store.CopyCorpus( made.Id, other.Id );
-	ASSERT.equal( FS.existsSync( PATH.join( folder, 'projects', other.Id, 'corpora', copy.Id, 'corpus.zip' ) ), true );
-	let updated = await store.UpdateCorpus( made.Id, { Include: [ '**/*.md' ], Files: [] } );
-	ASSERT.deepEqual( [ updated.Include, updated.Version ], [ [ '**/*.md' ], 2 ] );
-	ASSERT.equal( await store.TrashCorpus( copy.Id ), true );
-	ASSERT.equal( await store.ReadCorpus( copy.Id ), null );
-	ASSERT.deepEqual( ( await store.ListCorpora() ).map( function ( corpus ) { return corpus.Id; } ).sort(), [ made.Id, linked.Id ].sort() );
+	let project = await store.ReadProject( 'default' );
+	ASSERT.equal( project.Context, 'ctx-aaa-aaa-aaa' );
+	ASSERT.equal( project.Items[ 0 ].Id, project.ContextFolder );
+	ASSERT.deepEqual( project.Items[ 0 ].Items, [ { Kind: 'document', Id: 'ctx-aaa-aaa-aaa' } ] );
+	ASSERT.deepEqual( project.Items[ 1 ], { Kind: 'folder', Id: 'fld-ddd-ddd-ddd', Name: 'Drafts', Items: [ { Kind: 'plan', Id: 'pln-bbb-bbb-bbb' } ] } );
+	ASSERT.equal( 'Workspace' in project, false );
+	ASSERT.equal( ( await store.ReadProposal( 'ctx-aaa-aaa-aaa' ) ).Proposal.Kind, 'document' );
+	ASSERT.equal( FS.existsSync( PATH.join( folder, 'trash', 'cor-ccc-ccc-ccc', 'corpus.json' ) ), true );
+	ASSERT.equal( FS.existsSync( PATH.join( folder, 'projects', 'default', 'corpora', 'cor-ccc-ccc-ccc' ) ), false );
+	ASSERT.equal( FS.existsSync( PATH.join( folder, 'usage.json' ) ), false );
+	ASSERT.equal( FS.existsSync( PATH.join( folder, 'proposals', 'ctx-aaa-aaa-aaa', 'index.json' ) ), false );
+	ASSERT.equal( FS.existsSync( PATH.join( folder, 'proposals', 'pln-bbb-bbb-bbb', 'runs.json' ) ), false );
+	ASSERT.equal( ( await store.ListTrash() ).map( function ( item ) { return item.Kind; } ).join( ',' ), 'corpus' );
 
+	// A second start does nothing more.
+	ASSERT.deepEqual( await STORE.Open( folder ).Prepare(), [] );
 } );

@@ -2,9 +2,9 @@
 
 // Tabs - the open items above the document view, and the windows they can be detached into.
 //
-//   tab = { Key, Kind: 'p' | 'c' | 'waiting' | 'search', Id?, Hash, Title?, Query?, View?, Filter?, Draft? }
-//     Key    'p:<id>', 'c:<id>', 'waiting' or 'search': one tab per item
-//     Hash   the route that shows it (#/p/<id>, #/c/<id>, #/waiting, #/search/...)
+//   tab = { Key, Kind: 'p' | 'waiting', Id?, Hash, Title?, View?, Filter?, Draft? }
+//     Key    'p:<id>' or 'waiting': one tab per item
+//     Hash   the route that shows it (#/p/<id>, #/waiting)
 //     View   read | edit | revisions, for a proposal: each tab comes back as it was left
 //     Filter the threads pane's filter, for a proposal: a new tab starts at Waiting on me
 //     Draft  { Text, Base }: an unsaved edit, kept while its tab is not the one shown
@@ -645,20 +645,6 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	}
 
 
-	function corpus_title( id )
-	{
-		for ( let project of State.Projects )
-		{
-			let node = node_in( project.Items, id );
-			if ( node && node.Title )
-			{
-				return node.Title;
-			}
-		}
-		return null;
-	}
-
-
 	// A tab's title, found afresh each time so a rename shows at once; the last one found is kept for a reload.
 	$scope.Title = function ( tab )
 	{
@@ -667,21 +653,13 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		{
 			title = 'Waiting on you';
 		}
-		else if ( tab.Kind === 'search' )
-		{
-			title = 'Search: ' + ( tab.Query || '' );
-		}
-		else if ( tab.Kind === 'c' )
-		{
-			title = corpus_title( tab.Id );
-		}
 		else
 		{
 			let proposal = proposal_of( tab.Id );
-			if ( proposal && proposal.Kind === 'context' )
+			let project = context_project( tab.Id );
+			if ( project )
 			{
-				let project = State.Projects.find( function ( candidate ) { return candidate.Context && candidate.Context.Id === tab.Id; } );
-				title = 'Context' + ( project ? ' · ' + project.Name : '' );
+				title = 'Context · ' + project.Name;
 			}
 			else if ( proposal )
 			{
@@ -696,23 +674,26 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	};
 
 
+	// The project whose Context document the item is, or null.
+	function context_project( id )
+	{
+		return State.Projects.find( function ( candidate ) { return candidate.Context && candidate.Context.Id === id; } ) || null;
+	}
+
+
 	$scope.Icon = function ( tab )
 	{
-		if ( tab.Kind === 'c' )
-		{
-			return 'icon-zip';
-		}
 		if ( tab.Kind === 'waiting' )
 		{
 			return 'icon-waiting';
 		}
-		if ( tab.Kind === 'search' )
+		if ( context_project( tab.Id ) )
 		{
-			return 'icon-search';
+			return 'icon-context';
 		}
 		let proposal = proposal_of( tab.Id );
 		let kind = proposal ? proposal.Kind : 'plan';
-		return ( kind === 'document' ) ? 'icon-document' : ( ( kind === 'context' ) ? 'icon-context' : 'icon-plan' );
+		return ( kind === 'document' ) ? 'icon-document' : 'icon-plan';
 	};
 
 

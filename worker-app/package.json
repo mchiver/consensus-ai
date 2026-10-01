@@ -1,7 +1,0 @@
-{
-	"name": "consensus-worker",
-	"version": "0.1.0",
-	"description": "The worker app: configures the LLMs, runs a worker per repo and shows each in a tab (plan Worker Electron App). Run from the checkout with npm run app.",
-	"private": true,
-	"main": "main.js"
-}
