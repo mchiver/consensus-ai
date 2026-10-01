@@ -6,9 +6,9 @@
 // The server holds the core of Consensus only (plan Consensus Desktop, Step 1): projects and their trees, plans with
 // their threads and revisions, documents, the turn (Waiting), export and import, and the settings. The LLM takes part
 // through the API as a participant, from wherever it runs.
-// Each project has a Context folder (project.ContextFolder), first in its tree, holding its Context document
+// Each project has a Context folder (project.ContextFolder), first in its tree, holding its Readme
 // (project.Context) and any other document: a document goes nowhere else, and that folder holds nothing else. Neither
-// the folder nor the Context document is renamed, moved, copied or deleted.
+// the folder nor the Readme is renamed, moved, copied or deleted.
 
 const EXPRESS = require( 'express' );
 const RULES = require( './Rules.js' );
@@ -22,7 +22,7 @@ const VERSION = require( '../package.json' ).version;
 
 const BODY_LIMIT = '64mb';	// a project import is one json body, every revision of every plan in it
 const PARENT_REFUSED = 'Parent is not a folder of the project, or a plan (which holds plans only); a document goes in the Context folder, which holds documents only';
-const CONTEXT_KEPT = 'the Context folder and the Context document stay as they are: never renamed, moved, copied or deleted';
+const CONTEXT_KEPT = 'the Context folder and its Readme stay as they are: never renamed, moved, copied or deleted';
 
 
 //---------------------------------------------------------------------
@@ -169,7 +169,7 @@ function Attach( App, Context )
 	}
 
 
-	// The Context folder or the Context document of a project.
+	// The Context folder or the Readme of a project.
 	function is_context_item( project, id )
 	{
 		return !!project && ( id === project.Context || id === project.ContextFolder );
@@ -641,7 +641,7 @@ function Attach( App, Context )
 	}
 
 
-	// A project is empty when its tree holds only the Context folder with only the Context document.
+	// A project is empty when its tree holds only the Context folder with only the Readme.
 	function only_context( project )
 	{
 		if ( project.Items.length !== 1 )
@@ -692,7 +692,7 @@ function Attach( App, Context )
 	} );
 
 
-	// Only an empty project is deleted, and never the Default one. Its Context document goes to the trash with it.
+	// Only an empty project is deleted, and never the Default one. Its Readme goes to the trash with it.
 	router.delete( '/projects/:pid', async function ( request, response )
 	{
 		let id = request.params.pid;
@@ -933,7 +933,7 @@ function Attach( App, Context )
 
 
 	// Move: into a folder or a project's root, at the end or just before a child of it; within a project or
-	// into another. The Context folder and the Context document stay where they are.
+	// into another. The Context folder and the Readme stay where they are.
 	router.post( '/items/:id/move', async function ( request, response )
 	{
 		let id = request.params.id;
@@ -1015,7 +1015,7 @@ function Attach( App, Context )
 
 	// A copy of a plan or document is whole (text, threads, revisions) under a new id; a folder's copy holds a
 	// copy of everything in it, and a plan's copy a copy of its Subplans, with new ids throughout. The Context
-	// folder and the Context document are not copied.
+	// folder and the Readme are not copied.
 	router.post( '/items/:id/copy', async function ( request, response )
 	{
 		let id = request.params.id;

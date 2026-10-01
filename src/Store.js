@@ -12,16 +12,16 @@
 //                                             Thread?, Note? }  Parent: the Id of the revision the text was made from
 //   <folder>/projects.json                    { Projects: [ { Id, Name } ] }  every project's name, in display order
 //   <folder>/projects/<id>/project.json       { Id, Context, ContextFolder, Created, Updated, Version, Items: [ node ] }
-//                                             (see Tree.js)  Context: the id of the project's Context document;
+//                                             (see Tree.js)  Context: the id of the project's Readme;
 //                                             ContextFolder: the id of the Context folder that holds it, first in Items
 //   <folder>/trash/<id>/                      a deleted proposal, moved whole (or a corpus from before Step 1)
 //
-// Ids are global (Ids.js): pln-…, doc-… a proposal (ctx-… a Context document made before plan Consensus Desktop),
+// Ids are global (Ids.js): pln-…, doc-… a proposal (ctx-… a Readme made before plan Consensus Desktop),
 // prj-… a project (the Default project is 'default'), fld-… a folder, rev-… a revision.
 //
 // Prepare, at start, also migrates a data folder from before plan Consensus Desktop, Step 1: each project's context
-// proposal becomes its Context document in a new Context folder, corpora go to the trash, and the LLM's files
-// (usage.json, runs.json, index.json) are removed.
+// proposal becomes its Readme in a new Context folder (a Readme still titled Context is renamed), corpora go to the
+// trash, and the LLM's files (usage.json, runs.json, index.json) are removed.
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -38,7 +38,8 @@ const PROJECTS_FOLDER = 'projects';
 const CORPORA_FOLDER = 'corpora';
 const DEFAULT_PROJECT = 'default';
 const CONTEXT_FOLDER_NAME = 'Context';
-const CONTEXT_TITLE = 'Context';
+const CONTEXT_TITLE = 'Readme';
+const OLD_CONTEXT_TITLE = 'Context';
 const RETIRED_FILES = [ 'usage.json' ];
 const RETIRED_PROPOSAL_FILES = [ 'runs.json', 'index.json' ];
 const RENAME_ATTEMPTS = 10;
@@ -506,7 +507,7 @@ function Open( Folder )
 
 
 	// Parameters: { Name, Id?, Context?, ContextFolder?, Items? }  Id for the Default project, or an imported one. A new
-	// project goes to the end of the order, with its Context document (empty until someone writes it) in its Context
+	// project goes to the end of the order, with its Readme (empty until someone writes it) in its Context
 	// folder, first in its tree; an imported one brings its Context (the id of a document already written), its
 	// ContextFolder and its Items, and gets the folder made when the tree lacks it.
 	async function CreateProject( Parameters )
@@ -536,14 +537,14 @@ function Open( Folder )
 	}
 
 
-	// A project's Context document: a document titled Context, with no text yet.
+	// A project's Readme: a document titled Readme, in its Context folder, with no text yet.
 	async function create_context()
 	{
 		return await CreateProposal( { Title: CONTEXT_TITLE, Text: '', By: 'consensus', Kind: 'document' } );
 	}
 
 
-	// The Context folder in Items, first, holding the Context document: the one named by ContextFolder when the tree
+	// The Context folder in Items, first, holding the Readme: the one named by ContextFolder when the tree
 	// has it (an import), else a new one, with the document moved into it from wherever the tree had it. Returns the
 	// folder's id.
 	function ensure_context_folder( items, context_id, context_folder )
@@ -651,7 +652,7 @@ function Open( Folder )
 	}
 
 
-	// The project whose tree holds the item Id, or whose Context document it is, or null.
+	// The project whose tree holds the item Id, or whose Readme it is, or null.
 	async function ProjectOf( Id )
 	{
 		for ( let project of await ListProjects() )
@@ -719,7 +720,7 @@ function Open( Folder )
 	}
 
 
-	// Migrate: each project without a ContextFolder gets one, first in its tree, holding its Context document (the
+	// Migrate: each project without a ContextFolder gets one, first in its tree, holding its Readme (the
 	// context proposal, now of Kind document); corpus nodes leave the tree and their folders go to the trash. The
 	// LLM's files are removed. Nothing happens to a project that has its Context folder already.
 	async function migrate()
@@ -739,7 +740,7 @@ function Open( Folder )
 			if ( !stored.Context || !await read_json_or_null( PATH.join( proposal_folder( stored.Context ), 'proposal.json' ) ) )
 			{
 				stored.Context = ( await create_context() ).Id;
-				lines.push( 'projects/' + project.Id + ': a new Context document, ' + stored.Context );
+				lines.push( 'projects/' + project.Id + ': a new Readme, ' + stored.Context );
 			}
 			let context = await read_json_or_null( PATH.join( proposal_folder( stored.Context ), 'proposal.json' ) );
 			if ( context.Kind !== 'document' )
@@ -761,6 +762,18 @@ function Open( Folder )
 			delete stored.Workspace;
 			await write_json( project_file( project.Id ), stored );
 			lines.push( 'projects/' + project.Id + ': the Context folder made, ' + stored.ContextFolder + ( corpora.length ? ', ' + corpora.length + ' corpora to the trash' : '' ) );
+		}
+		// A Readme still titled Context (from before the thread that renamed it, on plan Consensus Desktop, Step 2).
+		for ( let project of await ListProjects() )
+		{
+			let context = project.Context ? await read_json_or_null( PATH.join( proposal_folder( project.Context ), 'proposal.json' ) ) : null;
+			if ( context && context.Title === OLD_CONTEXT_TITLE )
+			{
+				context.Title = CONTEXT_TITLE;
+				context.Updated = new Date().toISOString();
+				await write_json( PATH.join( proposal_folder( project.Context ), 'proposal.json' ), context );
+				lines.push( 'projects/' + project.Id + ': the Context document renamed Readme' );
+			}
 		}
 		for ( let name of RETIRED_FILES )
 		{

@@ -659,7 +659,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 			let project = context_project( tab.Id );
 			if ( project )
 			{
-				title = 'Context · ' + project.Name;
+				title = 'Readme · ' + project.Name;
 			}
 			else if ( proposal )
 			{
@@ -674,7 +674,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	};
 
 
-	// The project whose Context document the item is, or null.
+	// The project whose Readme the item is, or null.
 	function context_project( id )
 	{
 		return State.Projects.find( function ( candidate ) { return candidate.Context && candidate.Context.Id === id; } ) || null;

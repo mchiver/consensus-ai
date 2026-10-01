@@ -45,12 +45,12 @@
 
 	<!-- One level of a project's tree; folders, and plans with Subplans, include it again for their own items. Depth
 	     is the level: 1 at a project's root, one more in each folder or plan. Every row is one line: chevron, icon,
-	     name, then its badges. The project's Context folder (first at the root) and its Context document are kept as
+	     name, then its badges. The project's Context folder (first at the root) and its Readme are kept as
 	     they are: no rename, move, copy or delete; the folder holds documents only. -->
 	<script type="text/ng-template" id="tree-nodes.html">
 		<div class="tree-node" ng-repeat="node in Sorted( node ? node.Items : project.Items ) track by node.Id" ng-switch="node.Kind">
 			<div ng-switch-when="folder" class="folder" ng-class="{ 'context-folder': IsContextFolder( project, node ) }" data-id="{{ node.Id }}">
-				<div class="folder-head tree-row" style="--depth: {{ Depth }}" ng-class="{ target: IsTarget(node) }" ng-click="PickFolder(project, node)" title="{{ IsContextFolder( project, node ) ? 'the project\'s Context folder: its Context document and other documents; nothing else goes here' : ( IsTarget(node) ? 'new items go here; click again for the project root' : 'click to put new items here; drag to move or reorder' ) }}" drag-item="IsContextFolder( project, node ) ? null : node.Id" tree-drop="{ Kind: 'folder', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('folder', project, node, $event)">
+				<div class="folder-head tree-row" style="--depth: {{ Depth }}" ng-class="{ target: IsTarget(node) }" ng-click="PickFolder(project, node)" title="{{ IsContextFolder( project, node ) ? 'the project\'s Context folder: its Readme and other documents; nothing else goes here' : ( IsTarget(node) ? 'new items go here; click again for the project root' : 'click to put new items here; drag to move or reorder' ) }}" drag-item="IsContextFolder( project, node ) ? null : node.Id" tree-drop="{ Kind: 'folder', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('folder', project, node, $event)">
 					<span class="chevron" ng-class="{ folded: IsFolded(node) }" ng-click="ToggleFold(node, $event)"></span>
 					<span class="tree-icon" ng-class="IsContextFolder( project, node ) ? 'icon-context' : ( IsFolded(node) ? 'icon-folder' : 'icon-folder-open' )"></span>
 					<form class="rename-form" ng-if="IsRenaming(node)" ng-submit="Rename()" ng-click="$event.stopPropagation()">
@@ -67,7 +67,7 @@
 				</div>
 				<div class="folder-body" ng-if="!IsFolded(node)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
 			</div>
-			<a ng-switch-default class="proposal-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document', 'context-item': IsContextDocument( project, node ), parent: node.Items.length }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="IsContextDocument( project, node ) ? null : node.Id" tree-drop="{ Kind: node.Kind === 'plan' ? 'plan' : 'item', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('item', project, node, $event)" title="{{ IsContextDocument( project, node ) ? 'the project\'s Context document: its background, read by everyone who works on the project' : '' }}">
+			<a ng-switch-default class="proposal-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document', 'context-item': IsContextDocument( project, node ), parent: node.Items.length }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="IsContextDocument( project, node ) ? null : node.Id" tree-drop="{ Kind: node.Kind === 'plan' ? 'plan' : 'item', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('item', project, node, $event)" title="{{ IsContextDocument( project, node ) ? 'the project\'s Readme: its background, read by everyone who works on the project' : '' }}">
 				<span class="chevron" ng-if="node.Items.length" ng-class="{ folded: IsFolded(node) }" ng-click="ToggleFold(node, $event)" title="{{ IsFolded(node) ? 'show' : 'hide' }} its Subplans"></span>
 				<span class="chevron-space" ng-if="!node.Items.length"></span>
 				<span class="tree-icon" ng-class="IsContextDocument( project, node ) ? 'icon-context' : ( node.Kind === 'document' ? 'icon-document' : 'icon-plan' )"></span>
@@ -77,7 +77,7 @@
 				<span class="tree-date" ng-if="DateOf(node) && !IsRenaming(node)">{{ DateOf(node) | day }}</span>
 				<span class="proposal-title" ng-if="!IsRenaming(node)">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
 				<span class="badges" ng-if="!IsRenaming(node)">
-					<span class="item-state" ng-if="IsContextDocument( project, node )" ng-show="project.Context.Empty" title="the Context document has no text yet">empty</span>
+					<span class="item-state" ng-if="IsContextDocument( project, node )" ng-show="project.Context.Empty" title="the Readme has no text yet">empty</span>
 					<span class="item-state" ng-if="!IsContextDocument( project, node )" title="{{ node.Kind === 'document' ? 'a document: no threads, no state' : 'state' }}">{{ node.Kind === 'document' ? 'document' : node.State }}</span>
 					<span class="badge contested" ng-show="node.Tally.Contested" title="contested">{{ node.Tally.Contested }}</span>
 					<span class="badge mine" ng-show="node.Tally.WaitingOn[State.Me.Name]" title="waiting on you">you {{ node.Tally.WaitingOn[State.Me.Name] }}</span>
@@ -211,7 +211,7 @@
 
 			<header class="header" ng-controller="HeaderController">
 				<div class="header-row">
-					<div class="title" ng-show="State.Open">{{ IsContext() ? 'Context of ' + State.Open.Project.Name : State.Open.Proposal.Title }}</div>
+					<div class="title" ng-show="State.Open">{{ IsContext() ? 'Readme of ' + State.Open.Project.Name : State.Open.Proposal.Title }}</div>
 					<div class="title muted" ng-hide="State.Open">{{ State.View === 'waiting' ? 'Waiting on you' : 'Consensus' }}</div>
 					<div class="header-views" ng-show="State.Open">
 						<div class="btn-group" role="group">
@@ -224,7 +224,7 @@
 				</div>
 				<div class="header-row" ng-show="State.Open">
 					<div class="state-line">
-						<span class="document-badge" id="document-badge" ng-show="State.Open.Proposal.Kind === 'document'">{{ IsContext() ? 'Context' : 'Document' }}</span>
+						<span class="document-badge" id="document-badge" ng-show="State.Open.Proposal.Kind === 'document'">{{ IsContext() ? 'Readme' : 'Document' }}</span>
 						<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="State.Open.Proposal.Kind !== 'document'" title="the proposal's state: anyone can change it" ng-model="PickedState" ng-change="SetState()" ng-disabled="Busy" ng-options="name for name in StateOptions()"></select>
 						<span id="state-line">{{ State.Open.Proposal.StateLine }}</span>
 						<span class="revision" id="revision">revision {{ State.Open.Proposal.Revision }}</span>

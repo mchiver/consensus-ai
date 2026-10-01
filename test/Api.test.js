@@ -715,7 +715,7 @@ TEST( 'a Document is edited and kept like a Plan, has no threads and no state, a
 	ASSERT.equal( document.StateLine, 'a document' );
 	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'X', Text: '', Kind: 'document', State: 'Plan' } ) ).Status, 400 );
 	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'X', Text: '', Kind: 'poem' } ) ).Status, 400 );
-	// in its project's Context folder, after the Context document
+	// in its project's Context folder, after the Readme
 	let default_project = ( await call( 'GET', '/api/projects' ) ).Body.Projects[ 0 ];
 	let context_folder = default_project.Items[ 0 ];
 	ASSERT.equal( context_folder.Id, default_project.ContextFolder );
@@ -739,7 +739,7 @@ TEST( 'a Document is edited and kept like a Plan, has no threads and no state, a
 } );
 
 
-TEST( 'the Context folder: first in every project, holding the Context document; never renamed, moved, copied or deleted; documents only, and documents nowhere else', async function ()
+TEST( 'the Context folder: first in every project, holding the Readme; never renamed, moved, copied or deleted; documents only, and documents nowhere else', async function ()
 {
 	let project = ( await call( 'POST', '/api/projects', { Name: 'Contextual' } ) ).Body.Project;
 	ASSERT.equal( project.Items[ 0 ].Id, project.ContextFolder );
@@ -748,7 +748,7 @@ TEST( 'the Context folder: first in every project, holding the Context document;
 	let shown = await project_named( project.Id );
 	ASSERT.deepEqual( shown.Context, { Id: project.Context, Empty: true } );
 	ASSERT.equal( shown.ContextFolder, project.ContextFolder );
-	ASSERT.equal( shown.Items[ 0 ].Items[ 0 ].Title, 'Context' );
+	ASSERT.equal( shown.Items[ 0 ].Items[ 0 ].Title, 'Readme' );
 	let read = await call( 'GET', '/api/proposals/' + project.Context );
 	ASSERT.equal( read.Body.Context, true );
 	ASSERT.equal( read.Body.Proposal.Kind, 'document' );
@@ -787,7 +787,7 @@ TEST( 'the Context folder: first in every project, holding the Context document;
 	ASSERT.deepEqual( moved.Body.Project.Items[ 0 ].Items.map( function ( item ) { return item.Id; } ), [ other.Context, notes.Id ] );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + notes.Id + '/move', { Project: project.Id } ) ).Status, 400 );
 
-	// a project with only its Context folder is empty, and deleted with its Context document
+	// a project with only its Context folder is empty, and deleted with its Readme
 	await call( 'DELETE', '/api/proposals/' + plan.Id );
 	await call( 'DELETE', '/api/projects/' + project.Id + '/folders/' + specs.Id );
 	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + project.Id ) ).Status, 200 );

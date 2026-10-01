@@ -54,9 +54,9 @@ opening an item opens its project. A project holds, in folders of any depth:
 project's **Context** document (a short account of what the project is and what has been decided, for
 everyone who works on it) and any other document. The folder holds documents only, flat, and documents go
 nowhere else: **New document** (in the project's menu, or the folder's) puts one there, and a document
-dropped elsewhere is refused. Neither the folder nor the Context document is renamed, moved, copied or
+dropped elsewhere is refused. Neither the folder nor the Readme is renamed, moved, copied or
 deleted; the other documents are items like any other. An agent session reads the folder's documents for the
-project's background. The Context document is a document like the others: revisions, no threads, no state.
+project's background. The Readme is a document like the others: revisions, no threads, no state.
 
 The **Default** project is created at first start and never deleted; ad-hoc items live there. Every item
 belongs to exactly one project. The open project carries a solid green dot, the others a hollow circle. Each
@@ -109,11 +109,11 @@ is refused.
 
 A new data folder gets the Default project at its first start, and a new settings file its defaults. A data
 folder from before Step 1 is migrated at the first start, once: each project's context proposal becomes its
-Context document in a new Context folder, corpora go to the trash, and the LLM's files (`usage.json`,
+Readme in a new Context folder, corpora go to the trash, and the LLM's files (`usage.json`,
 `runs.json`, `index.json`) are removed; the console says what was done.
 
 Ids are `<kind>-xxx-xxx-xxx` (plan Global Ids): `prj pln doc fld thr rep rev` and three groups of three base36
-characters; Default is `default`. A Context document made before Step 1 keeps its `ctx-…` id.
+characters; Default is `default`. A Readme made before Step 1 keeps its `ctx-…` id.
 
 ## Settings
 
@@ -191,7 +191,7 @@ its Context folder and documents, folders, plans, Subplans, threads and every re
 it is, every id intact; one that is here is imported as a copy ("Copy of <name> (imported <date>)", every id
 new) or merged (revisions matched by id; a conflict gets a merge revision with the newer text; nothing here
 is removed). An export from before Step 1 is read too: its corpora and workers are dropped, its context
-becomes the Context document, and the Context folder is made.
+becomes the Readme, and the Context folder is made.
 
 ## The desktop
 
@@ -243,11 +243,11 @@ page server and the local server with the real `Start`.
 	POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id
 	GET    /api/proposals[?state=]                   plans and documents with their tallies
 	POST   /api/proposals                            { Title, Text, Kind?, State?, Project?, Parent? }  a document with no Parent goes in the Context folder
-	GET    /api/proposals/:id                        proposal, project, text, threads with positions, tally, whose turn; Context: true for a Context document
-	PUT    /api/proposals/:id                        { Title }  not the Context document
+	GET    /api/proposals/:id                        proposal, project, text, threads with positions, tally, whose turn; Context: true for a Readme
+	PUT    /api/proposals/:id                        { Title }  not the Readme
 	PUT    /api/proposals/:id/state                  { State }  one of the States; not for a document
 	PUT    /api/proposals/:id/text                   { Text, Revision }  a manual edit
-	DELETE /api/proposals/:id                        to the trash; not the Context document
+	DELETE /api/proposals/:id                        to the trash; not the Readme
 	GET    /api/proposals/:id/revisions[/:n]         the record; a revision's text
 	GET    /api/proposals/:id/threads[?status=]      all | contested | resolved | applied | reopened | detached | mine
 	POST   /api/proposals/:id/threads                { Anchor: { Text, Prefix?, Suffix? } | null, Text, Resolve? }  not for a document

@@ -107,11 +107,11 @@ TEST( 'the list and the proposal load, live; the Context folder comes first', as
 	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Browser check"' );
 	await page.WaitFor( text_of( '.connection' ) + ' === "live"' );
 	ASSERT.equal( await page.Evaluate( text_of( '#state-line' ) ), 'no threads yet' );
-	// the Context folder first, holding the Context document
+	// the Context folder first, holding the Readme
 	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".project.open .project-body > .tree > .tree-node" ).querySelector( ".folder" ).classList.contains( "context-folder" )' ), true );
 	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-folder .folder-name' ) ), 'Context' );
 	ASSERT.equal( await page.Evaluate( count_of( '.project.open .context-folder .tree-item.context-item' ) ), 1 );
-	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-item .proposal-title' ) ), 'Context' );
+	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-item .proposal-title' ) ), 'Readme' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -251,7 +251,7 @@ TEST( 'an item dragged onto a project moves there; copy and paste makes a whole 
 	ASSERT.match( moved, /^pln-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
 	await page.WaitFor( count_of( '.project.open .project-body > .tree > .tree-node > .tree-item' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( count_of( '.project.open .folder:not(.context-folder) .tree-item' ) ), 0 );
-	// the Context document cannot be dragged
+	// the Readme cannot be dragged
 	ASSERT.equal( await page.Evaluate( '!!document.querySelector( ".project.open .context-item" ).getAttribute( "draggable" )' ), false );
 	ASSERT.equal( await page.Evaluate( '!!document.querySelector( ".project.open .context-folder .folder-head" ).getAttribute( "draggable" )' ), false );
 
@@ -387,19 +387,19 @@ TEST( 'an item dropped on the top edge of another goes just before it; the Conte
 } );
 
 
-TEST( 'the Context folder and document: opened, kept as they are, with their own menus', async function ()
+TEST( 'the Context folder and its Readme: opened, kept as they are, with their own menus', async function ()
 {
 	await page.WaitFor( count_of( '.project.open .context-item' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-item .item-state' ) ), 'empty' );
 	ASSERT.equal( await page.Evaluate( count_of( '.project.open .context-item .row-menu' ) ), 0 );
 	await page.Click( '.project.open .context-item' );
-	await page.WaitFor( text_of( '.header .title' ) + ' === "Context of Browser project"' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Readme of Browser project"' );
 	await page.WaitFor( 'document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
-	ASSERT.equal( await page.Evaluate( text_of( '#document-badge' ) ), 'Context' );
+	ASSERT.equal( await page.Evaluate( text_of( '#document-badge' ) ), 'Readme' );
 	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "state-picker" ) ).display' ), 'none' );
 	ASSERT.equal( await page.Evaluate( count_of( '.tab.active .icon-context' ) ), 1 );
-	ASSERT.match( await page.Evaluate( text_of( '.tab.active .tab-title' ) ), /^Context · Browser project$/ );
-	// a right-click on the Context document opens nothing; on the Context folder, New document and Paste only
+	ASSERT.match( await page.Evaluate( text_of( '.tab.active .tab-title' ) ), /^Readme · Browser project$/ );
+	// a right-click on the Readme opens nothing; on the Context folder, New document and Paste only
 	await page.Evaluate( 'document.querySelector( ".project.open .context-item" ).dispatchEvent( new MouseEvent( "contextmenu", { bubbles: true, cancelable: true, clientX: 60, clientY: 120 } ) ); true' );
 	await new Promise( function ( resolve ) { setTimeout( resolve, 200 ); } );
 	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display' ), 'none' );

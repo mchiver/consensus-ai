@@ -61,7 +61,7 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 	};
 
 
-	// The open document is its project's Context document.
+	// The open document is its project's Readme.
 	$scope.IsContext = function ()
 	{
 		return !!State.Open && !!State.Open.Context;

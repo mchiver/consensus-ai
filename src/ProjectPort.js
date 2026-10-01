@@ -8,7 +8,7 @@
 //
 // No token is ever written to an export; the trash stays behind. An export made before plan Consensus Desktop
 // (Step 1) may hold Corpora, Workers or ContextServers and a context proposal of Kind 'context', and name corpus
-// nodes in its tree: an import drops the corpora and the workers, reads the context as the Context document, and
+// nodes in its tree: an import drops the corpora and the workers, reads the context as the Readme, and
 // makes the Context folder when the tree lacks it.
 //
 // An import depends only on whether the export's project Id is here:
@@ -419,7 +419,7 @@ function MissingRevisionId( Whole )
 }
 
 
-// A newer head brings its title and state along; the Context document keeps its own.
+// A newer head brings its title and state along; the Readme keeps its own.
 function take_record( proposal, from )
 {
 	if ( proposal.Kind === 'document' )
@@ -701,7 +701,7 @@ async function write_project( Store, Exported, project_id, name, id_map, folder_
 //---------------------------------------------------------------------
 // Merge: into the project here. Nothing here is removed.
 
-// The id a file's proposal is merged into: its own, or the project's Context document for the file's.
+// The id a file's proposal is merged into: its own, or the project's Readme for the file's.
 function merge_target( Exported, here, id )
 {
 	return ( id === Exported.Project.Context ) ? here.Context : id;
@@ -731,7 +731,7 @@ async function import_merge( Store, Exported, here, report, context )
 {
 	for ( let whole of records_of( Exported ) )
 	{
-		// The file's context lands on the project's Context document, whatever its id.
+		// The file's context lands on the project's Readme, whatever its id.
 		let id = merge_target( Exported, here, whole.Proposal.Id );
 		let file = clone( whole );
 		file.Proposal.Id = id;
@@ -759,7 +759,7 @@ async function import_merge( Store, Exported, here, report, context )
 			report.Diverged.push( { Id: id, Title: merged.Whole.Proposal.Title, At: merged.Diverged } );
 		}
 	}
-	// The file's tree, with its Context document and folder named as they are here.
+	// The file's tree, with its Readme and folder named as they are here.
 	let id_map = {};
 	id_map[ Exported.Project.Context ] = here.Context;
 	let folder_map = {};

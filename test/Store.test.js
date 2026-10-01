@@ -174,14 +174,14 @@ TEST( 'projects: in the master\'s order, new ones last; created, written with a 
 	ASSERT.match( alpha.Id, /^prj-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
 	ASSERT.equal( alpha.Name, 'Alpha work' );
 	ASSERT.equal( alpha.Version, 1 );
-	// a new project holds its Context folder, first, with its Context document
+	// a new project holds its Context folder, first, with its Readme
 	ASSERT.equal( alpha.Items.length, 1 );
 	ASSERT.equal( alpha.Items[ 0 ].Id, alpha.ContextFolder );
 	ASSERT.equal( alpha.Items[ 0 ].Name, 'Context' );
 	ASSERT.deepEqual( alpha.Items[ 0 ].Items, [ { Kind: 'document', Id: alpha.Context } ] );
 	ASSERT.equal( IDS.Is( alpha.ContextFolder, IDS.FOLDER ), true );
 	ASSERT.equal( ( await store.ReadProposal( alpha.Context ) ).Proposal.Kind, 'document' );
-	ASSERT.equal( ( await store.ReadProposal( alpha.Context ) ).Proposal.Title, 'Context' );
+	ASSERT.equal( ( await store.ReadProposal( alpha.Context ) ).Proposal.Title, 'Readme' );
 	ASSERT.equal( ( await store.ProjectOf( alpha.Context ) ).Id, alpha.Id );
 	function names( projects ) { return projects.map( function ( p ) { return p.Name; } ); }
 	ASSERT.deepEqual( names( await store.ListProjects() ), [ 'Default', 'Zebra', 'Alpha work' ] );
@@ -266,10 +266,11 @@ TEST( 'migration: a data folder from before Consensus Desktop gets its Context f
 
 	let store = STORE.Open( folder );
 	let lines = await store.Prepare();
-	ASSERT.equal( lines.length, 3, lines.join( '\n' ) );
+	ASSERT.equal( lines.length, 4, lines.join( '\n' ) );
 	ASSERT.match( lines[ 0 ], /^projects\/default: the Context folder made, fld-.*, 1 corpora to the trash$/ );
-	ASSERT.equal( lines[ 1 ], 'usage.json: removed' );
-	ASSERT.equal( lines[ 2 ], 'proposals: 2 runs.json and index.json files removed' );
+	ASSERT.equal( lines[ 1 ], 'projects/default: the Context document renamed Readme' );
+	ASSERT.equal( lines[ 2 ], 'usage.json: removed' );
+	ASSERT.equal( lines[ 3 ], 'proposals: 2 runs.json and index.json files removed' );
 
 	let project = await store.ReadProject( 'default' );
 	ASSERT.equal( project.Context, 'ctx-aaa-aaa-aaa' );
@@ -278,6 +279,7 @@ TEST( 'migration: a data folder from before Consensus Desktop gets its Context f
 	ASSERT.deepEqual( project.Items[ 1 ], { Kind: 'folder', Id: 'fld-ddd-ddd-ddd', Name: 'Drafts', Items: [ { Kind: 'plan', Id: 'pln-bbb-bbb-bbb' } ] } );
 	ASSERT.equal( 'Workspace' in project, false );
 	ASSERT.equal( ( await store.ReadProposal( 'ctx-aaa-aaa-aaa' ) ).Proposal.Kind, 'document' );
+	ASSERT.equal( ( await store.ReadProposal( 'ctx-aaa-aaa-aaa' ) ).Proposal.Title, 'Readme' );
 	ASSERT.equal( FS.existsSync( PATH.join( folder, 'trash', 'cor-ccc-ccc-ccc', 'corpus.json' ) ), true );
 	ASSERT.equal( FS.existsSync( PATH.join( folder, 'projects', 'default', 'corpora', 'cor-ccc-ccc-ccc' ) ), false );
 	ASSERT.equal( FS.existsSync( PATH.join( folder, 'usage.json' ) ), false );

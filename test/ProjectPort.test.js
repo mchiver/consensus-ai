@@ -114,7 +114,7 @@ TEST.before( async function ()
 	bare = await start();
 
 	// The project on the origin: a folder with a plan and its Subplan, a document in the Context folder, a thread,
-	// and a Context document with text.
+	// and a Readme with text.
 	alpha = ( await call( origin, 'POST', '/api/projects', { Name: 'Alpha' } ) ).Body.Project;
 	let folder = ( await call( origin, 'POST', '/api/projects/' + alpha.Id + '/folders', { Name: 'Drafts' } ) ).Body.Folder;
 	ids.Folder = folder.Id;

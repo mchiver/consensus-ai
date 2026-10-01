@@ -3,7 +3,7 @@
 // Sidebar - the project tree: one project open at a time, its folders and items with their tallies;
 // new project, plan and folder, rename and delete; the waiting count, Trash and the Settings button at the
 // bottom. Items and projects move and reorder by drag and drop; items copy by copy and paste.
-// Each project's Context folder comes first, holding its Context document and other documents: neither the folder
+// Each project's Context folder comes first, holding its Readme and other documents: neither the folder
 // nor the document is renamed, moved, copied or deleted, and New document goes there.
 // A plan holds its Subplans: they fold under it, and a plan dropped into it becomes one.
 // Each row's actions are in its menu (⋯, or a right-click); Delete is there only, confirmed on the row.
@@ -110,7 +110,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 
 	//-----------------------------------------------------------------
-	// The Context folder and the Context document of a project.
+	// The Context folder and the Readme of a project.
 
 	$scope.IsContextFolder = function ( project, node )
 	{
@@ -124,7 +124,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	};
 
 
-	// A project holds only its Context folder with only its Context document: it can be deleted.
+	// A project holds only its Context folder with only its Readme: it can be deleted.
 	function only_context( project )
 	{
 		if ( project.Items.length === 0 )
@@ -390,7 +390,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 
 	// Kind: 'project' | 'folder' | 'item'. A missing item (its record gone) has nothing to do, and nor has the
-	// Context document.
+	// Readme.
 	$scope.OpenMenu = function ( kind, project, node, event )
 	{
 		if ( node.Missing || ( kind === 'item' && $scope.IsContextDocument( project, node ) ) )
