@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="Consensus">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Consensus</title>
+	<link rel="icon" href="data:,">
+	<link rel="stylesheet" href="/vendor/bootstrap.min.css">
+	<link rel="stylesheet" href="/css/consensus.css">
+	<script src="/js/theme.js"></script>
+</head>
+<body ng-controller="AppController" ng-cloak>
+
+	<!-- The icons, drawn once and used by id: <svg class="icon"><use href="#i-name"></use></svg>. 16 x 16, stroked in
+	     the current color. -->
+	<svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+		<symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="0.9"/><circle cx="8" cy="8" r="0.9"/><circle cx="12.5" cy="8" r="0.9"/></symbol>
+		<symbol id="i-caret" viewBox="0 0 16 16"><path d="M4.5 6.5L8 10l3.5-3.5"/></symbol>
+		<symbol id="i-arrow" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4"/></symbol>
+		<symbol id="i-attach" viewBox="0 0 16 16"><path d="M7 13.5H2.5V9M2.5 13.5L9 7M9 2.5h4.5v4.5"/></symbol>
+		<symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7"/></symbol>
+		<symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></symbol>
+		<symbol id="i-comment" viewBox="0 0 16 16"><path d="M2.5 3h11v8h-6l-3 2.5V11h-2z"/></symbol>
+		<symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/></symbol>
+		<symbol id="i-detach" viewBox="0 0 16 16"><path d="M9 2.5h4.5V7M13.5 2.5L7 9M11.5 9.5v4h-9v-9h4"/></symbol>
+		<symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></symbol>
+		<symbol id="i-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></symbol>
+		<symbol id="i-link" viewBox="0 0 16 16"><path d="M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1a2.5 2.5 0 0 1-3.5-3.5l1-1"/></symbol>
+		<symbol id="i-paste" viewBox="0 0 16 16"><path d="M5.5 3.5h-2v10h9v-10h-2M6 2.5h4v2H6z"/></symbol>
+		<symbol id="i-pencil" viewBox="0 0 16 16"><path d="M11 2.5l2.5 2.5L6 12.5H3.5V10z"/></symbol>
+		<symbol id="i-play" viewBox="0 0 16 16"><path d="M5 3l8 5-8 5z"/></symbol>
+		<symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+		<symbol id="i-refresh" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5v3h-3"/></symbol>
+		<symbol id="i-reply" viewBox="0 0 16 16"><path d="M6 4L2.5 7.5 6 11M2.5 7.5H10a3.5 3.5 0 0 1 3.5 3.5v1"/></symbol>
+		<symbol id="i-save" viewBox="0 0 16 16"><path d="M3 2.5h8l2.5 2.5v8.5h-11zM5 2.5V6h5V2.5M5 13.5v-4h6v4"/></symbol>
+		<symbol id="i-sidebar" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M6 2.5v11"/></symbol>
+		<symbol id="i-subplan" viewBox="0 0 16 16"><path d="M4 2.5v6a2 2 0 0 0 2 2h6M10 8.5l2 2-2 2"/></symbol>
+		<symbol id="i-target" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/></symbol>
+		<symbol id="i-threads" viewBox="0 0 16 16"><path d="M1.5 3h8v6h-4L3 11V9H1.5zM11.5 6h3v6H13v1.5L11 12H7.5v-1"/></symbol>
+		<symbol id="i-trash" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9"/></symbol>
+		<symbol id="i-undo" viewBox="0 0 16 16"><path d="M4 6h6a3 3 0 0 1 0 6H7M6.5 3.5L4 6l2.5 2.5"/></symbol>
+		<symbol id="i-upload" viewBox="0 0 16 16"><path d="M8 11V3M4.5 6.5L8 3l3.5 3.5M3 13h10"/></symbol>
+		<symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
+	</svg>
+
+	<!-- One level of a project's tree; folders, and plans with Subplans, include it again for their own items. Depth
+	     is the level: 1 at a project's root, one more in each folder or plan. Every row is one line: chevron, icon,
+	     name, then its badges. The project's Context folder (first at the root) and its Context document are kept as
+	     they are: no rename, move, copy or delete; the folder holds documents only. -->
+	<script type="text/ng-template" id="tree-nodes.html">
+		<div class="tree-node" ng-repeat="node in Sorted( node ? node.Items : project.Items ) track by node.Id" ng-switch="node.Kind">
+			<div ng-switch-when="folder" class="folder" ng-class="{ 'context-folder': IsContextFolder( project, node ) }" data-id="{{ node.Id }}">
+				<div class="folder-head tree-row" style="--depth: {{ Depth }}" ng-class="{ target: IsTarget(node) }" ng-click="PickFolder(project, node)" title="{{ IsContextFolder( project, node ) ? 'the project\'s Context folder: its Context document and other documents; nothing else goes here' : ( IsTarget(node) ? 'new items go here; click again for the project root' : 'click to put new items here; drag to move or reorder' ) }}" drag-item="IsContextFolder( project, node ) ? null : node.Id" tree-drop="{ Kind: 'folder', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('folder', project, node, $event)">
+					<span class="chevron" ng-class="{ folded: IsFolded(node) }" ng-click="ToggleFold(node, $event)"></span>
+					<span class="tree-icon" ng-class="IsContextFolder( project, node ) ? 'icon-context' : ( IsFolded(node) ? 'icon-folder' : 'icon-folder-open' )"></span>
+					<form class="rename-form" ng-if="IsRenaming(node)" ng-submit="Rename()" ng-click="$event.stopPropagation()">
+						<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
+					</form>
+					<span class="folder-name" ng-if="!IsRenaming(node)">{{ node.Name }}</span>
+					<span class="count">{{ ItemCount(node.Items) }}</span>
+					<button class="row-menu" ng-class="{ shown: MenuOpenFor(node) }" ng-hide="Deleting === node.Id" title="actions" ng-click="OpenMenu('folder', project, node, $event)"><svg class="icon"><use href="#i-more"></use></svg></button>
+					<span class="confirm" ng-show="Deleting === node.Id">
+						delete?
+						<button class="btn btn-sm btn-danger" ng-click="Delete('folder', project, node, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+						<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+					</span>
+				</div>
+				<div class="folder-body" ng-if="!IsFolded(node)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
+			</div>
+			<a ng-switch-default class="proposal-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document', 'context-item': IsContextDocument( project, node ), parent: node.Items.length }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" drag-item="IsContextDocument( project, node ) ? null : node.Id" tree-drop="{ Kind: node.Kind === 'plan' ? 'plan' : 'item', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('item', project, node, $event)" title="{{ IsContextDocument( project, node ) ? 'the project\'s Context document: its background, read by everyone who works on the project' : '' }}">
+				<span class="chevron" ng-if="node.Items.length" ng-class="{ folded: IsFolded(node) }" ng-click="ToggleFold(node, $event)" title="{{ IsFolded(node) ? 'show' : 'hide' }} its Subplans"></span>
+				<span class="chevron-space" ng-if="!node.Items.length"></span>
+				<span class="tree-icon" ng-class="IsContextDocument( project, node ) ? 'icon-context' : ( node.Kind === 'document' ? 'icon-document' : 'icon-plan' )"></span>
+				<form class="rename-form" ng-if="IsRenaming(node)" ng-submit="Rename()" ng-click="$event.preventDefault(); $event.stopPropagation()">
+					<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
+				</form>
+				<span class="tree-date" ng-if="DateOf(node) && !IsRenaming(node)">{{ DateOf(node) | day }}</span>
+				<span class="proposal-title" ng-if="!IsRenaming(node)">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
+				<span class="badges" ng-if="!IsRenaming(node)">
+					<span class="item-state" ng-if="IsContextDocument( project, node )" ng-show="project.Context.Empty" title="the Context document has no text yet">empty</span>
+					<span class="item-state" ng-if="!IsContextDocument( project, node )" title="{{ node.Kind === 'document' ? 'a document: no threads, no state' : 'state' }}">{{ node.Kind === 'document' ? 'document' : node.State }}</span>
+					<span class="badge contested" ng-show="node.Tally.Contested" title="contested">{{ node.Tally.Contested }}</span>
+					<span class="badge mine" ng-show="node.Tally.WaitingOn[State.Me.Name]" title="waiting on you">you {{ node.Tally.WaitingOn[State.Me.Name] }}</span>
+					<span class="badge resolved" ng-show="node.Tally.Resolved" title="resolved, waiting to be applied">{{ node.Tally.Resolved }}</span>
+					<span class="badge applied" ng-show="node.Tally.Applied" title="applied">{{ node.Tally.Applied }}</span>
+				</span>
+				<span class="tree-stamp" ng-if="ShowUpdated && node.Updated && !IsRenaming(node)" title="updated {{ node.Updated | fullstamp }}">{{ node.Updated | stamp }}</span>
+				<span class="confirm" ng-if="Deleting === node.Id">
+					to the trash?
+					<button class="btn btn-sm btn-danger confirm-delete-item" ng-click="Delete('proposal', project, node, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+					<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+				</span>
+				<span class="row-menu" role="button" ng-class="{ shown: MenuOpenFor(node) }" ng-if="!IsRenaming(node) && !node.Missing && Deleting !== node.Id && !IsContextDocument( project, node )" title="actions" ng-click="OpenMenu('item', project, node, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
+			</a>
+			<div class="folder-body subplans" ng-if="node.Kind === 'plan' && node.Items.length && !IsFolded(node)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
+		</div>
+	</script>
+
+	<div class="layout" ng-class="{ 'no-threads': State.Open.Proposal.Kind === 'document' || State.ThreadsHidden, 'no-tree': State.TreeHidden }">
+
+		<!-- ============================================================= -->
+		<aside class="sidebar" ng-controller="SidebarController">
+			<div class="sidebar-top">
+				<div class="brand">Consensus</div>
+				<button class="btn btn-sm btn-primary" id="new-project" ng-click="StartCreate('project')"><svg class="icon lead"><use href="#i-plus"></use></svg>New project</button>
+				<button class="btn btn-sm btn-outline-secondary" id="import-project" ng-click="StartImport()" title="import a project exported from this or another Consensus server"><svg class="icon lead"><use href="#i-upload"></use></svg>Import</button>
+			</div>
+			<form class="new-proposal" ng-if="Creating.Kind === 'project'" ng-submit="Create()">
+				<input class="form-control form-control-sm" type="text" id="create-name" placeholder="{{ CreatePlaceholder() }}" ng-model="Creating.Name" auto-focus>
+				<div class="new-proposal-buttons">
+					<button class="btn btn-sm btn-primary" type="submit" id="create-submit" ng-disabled="!Creating.Name"><svg class="icon lead"><use href="#i-check"></use></svg>Create</button>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+				</div>
+			</form>
+
+			<a class="waiting-link" ng-href="#/waiting" ng-class="{ open: State.View === 'waiting' }" id="waiting-link">Waiting on you: {{ WaitingCount() }}</a>
+
+			<div class="tree-controls">
+				<select class="form-select form-select-sm" id="tree-sort" ng-model="Sort" ng-change="SetSort()" title="sort the tree; the project's own order is kept">
+					<option value="none">Sort: none</option>
+					<option value="name">Sort: name</option>
+					<option value="created">Sort: created</option>
+					<option value="updated">Sort: updated</option>
+				</select>
+				<button class="btn btn-sm" id="show-updated" ng-class="ShowUpdated ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="ToggleUpdated()" title="{{ ShowUpdated ? 'hide' : 'show' }} when each item was last updated"><svg class="icon lead"><use href="#i-clock"></use></svg>Updated</button>
+			</div>
+
+			<div class="projects">
+				<div class="project" ng-repeat="project in State.Projects track by project.Id" ng-class="{ open: IsOpen(project) }" data-project="{{ project.Id }}">
+					<div class="project-head" ng-click="ToggleProject(project)" title="{{ IsOpen(project) ? 'close' : 'open' }} this project; drag to reorder the projects; drop an item here to move it to the root" drag-project="project.Id" tree-drop="{ Kind: 'project', Project: project.Id, Id: project.Id }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('project', project, project, $event)">
+						<span class="chevron" ng-class="{ folded: !IsOpen(project) }"></span>
+						<span class="project-dot" ng-class="{ open: IsOpen(project) }"></span>
+						<form class="rename-form" ng-if="IsRenaming(project)" ng-submit="Rename()" ng-click="$event.stopPropagation()">
+							<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
+						</form>
+						<span class="project-name" ng-if="!IsRenaming(project)">{{ project.Name }}</span>
+						<span class="count">{{ ItemCount(project.Items) }}</span>
+						<span class="tree-stamp" ng-if="ShowUpdated && project.Updated" title="updated {{ project.Updated | fullstamp }}">{{ project.Updated | stamp }}</span>
+						<button class="row-menu" ng-class="{ shown: MenuOpenFor(project), current: IsOpen(project) }" ng-hide="Deleting === project.Id" title="actions" ng-click="OpenMenu('project', project, project, $event)"><svg class="icon"><use href="#i-more"></use></svg></button>
+						<span class="confirm" ng-show="Deleting === project.Id">
+							delete?
+							<button class="btn btn-sm btn-danger" ng-click="Delete('project', project, project, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+							<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+						</span>
+					</div>
+					<div class="project-body" ng-if="IsOpen(project)" ng-init="Depth = 1">
+						<form class="new-proposal" ng-if="Creating.Project === project.Id" ng-submit="Create()">
+							<input class="form-control form-control-sm" type="text" id="create-name" placeholder="{{ CreatePlaceholder() }}" ng-model="Creating.Name" auto-focus>
+							<div class="new-proposal-buttons">
+								<button class="btn btn-sm btn-primary" type="submit" id="create-submit" ng-disabled="!Creating.Name"><svg class="icon lead"><use href="#i-check"></use></svg>Create</button>
+								<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+							</div>
+						</form>
+						<div class="clipboard" ng-show="Clipboard" id="clipboard">copied: {{ Clipboard.Name }} <span class="muted">(Ctrl+V or paste)</span> <button class="btn btn-link btn-sm" title="forget it" ng-click="ClearClipboard()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
+						<div class="list-empty" ng-show="project.Items.length === 0">empty</div>
+						<div class="tree" ng-include="'tree-nodes.html'"></div>
+					</div>
+				</div>
+			</div>
+
+			<div class="list-heading trash-heading" ng-click="ToggleTrash()">Trash <span class="count">{{ ShowingTrash ? '▾' : '▸' }}</span></div>
+			<div ng-show="ShowingTrash">
+				<div class="list-empty" ng-show="Trash.length === 0">empty</div>
+				<div class="proposal-item trashed" ng-repeat="proposal in Trash">
+					<div class="proposal-title">{{ proposal.Title }}</div>
+					<div class="muted small">{{ proposal.Updated | when }}</div>
+				</div>
+			</div>
+
+			<div class="sidebar-bottom">
+				<span class="me" ng-show="State.Me">you are {{ State.Me.Display }} ({{ State.Me.Role }})</span>
+				<span class="connection" ng-class="{ live: State.Live }" title="live updates">{{ State.Live ? 'live' : 'offline' }}</span>
+				<button class="btn btn-sm btn-outline-secondary settings-button" id="settings-button" ng-show="State.Me.Role === 'owner'" ng-click="OpenSettings()" title="the server's settings: consensus.json"><svg class="icon lead"><use href="#i-gear"></use></svg>Settings</button>
+				<div class="theme-controls">
+					<select class="form-select form-select-sm" ng-model="Theme" ng-change="SetTheme()" title="theme" id="theme-select">
+						<option value="system">System</option>
+						<option value="light">Light</option>
+						<option value="dark">Dark</option>
+					</select>
+					<select class="form-select form-select-sm" ng-model="Scale" ng-change="SetScale()" title="size" id="scale-select">
+						<option value="small">Small</option>
+						<option value="normal">Normal</option>
+						<option value="large">Large</option>
+					</select>
+				</div>
+			</div>
+		</aside>
+
+		<div class="splitter" data-splitter="sidebar"></div>
+
+		<!-- ============================================================= -->
+		<main class="main">
+			<!-- The open items, one tab each; in a detached window, a bar to put it back. -->
+			<div class="tabs-area" ng-controller="TabsController">
+				<div class="tabs-row" ng-show="!Tabs.Detached">
+					<button class="tree-toggle" id="tree-toggle" ng-class="{ off: State.TreeHidden }" ng-click="ToggleTree()" title="{{ State.TreeHidden ? 'show' : 'hide' }} the project tree"><svg class="icon"><use href="#i-sidebar"></use></svg></button>
+					<nav class="tab-strip" ng-show="Tabs.List.length">
+						<div class="tab" ng-repeat="tab in Tabs.List track by tab.Key" ng-class="{ active: tab.Key === Tabs.ActiveKey, out: Tabs.IsOut(tab.Key) }" data-key="{{ tab.Key }}" ng-click="Open(tab)" tab-drag="tab.Key" on-tab-drop="MoveTab( Key, Before )" on-context-menu="OpenTabMenu(tab, $event)" title="{{ Title(tab) }}{{ Tabs.IsOut(tab.Key) ? ' (in its own window)' : '' }}">
+							<span class="tree-icon" ng-class="Icon(tab)"></span>
+							<span class="tab-title">{{ Title(tab) }}</span>
+							<button class="tab-button tab-menu" ng-class="{ shown: MenuOpenFor(tab) }" title="close, detach, re-attach" ng-click="OpenTabMenu(tab, $event)"><svg class="icon"><use href="#i-caret"></use></svg></button>
+							<button class="tab-button close-tab" title="close" ng-click="Close(tab, $event)"><svg class="icon"><use href="#i-x"></use></svg></button>
+						</div>
+					</nav>
+				</div>
+				<div class="detached-bar" ng-show="Tabs.Detached">
+					<span class="muted">In its own window</span>
+					<button class="btn btn-sm btn-outline-secondary" id="reattach" ng-click="Reattach()" title="put it back as a tab in the main window"><svg class="icon lead"><use href="#i-attach"></use></svg>Re-attach</button>
+				</div>
+			</div>
+
+			<header class="header" ng-controller="HeaderController">
+				<div class="header-row">
+					<div class="title" ng-show="State.Open">{{ IsContext() ? 'Context of ' + State.Open.Project.Name : State.Open.Proposal.Title }}</div>
+					<div class="title muted" ng-hide="State.Open">{{ State.View === 'waiting' ? 'Waiting on you' : 'Consensus' }}</div>
+					<div class="header-views" ng-show="State.Open">
+						<div class="btn-group" role="group">
+							<button class="btn btn-sm" id="view-read" ng-class="State.View === 'read' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('read')"><svg class="icon lead"><use href="#i-eye"></use></svg>Read</button>
+							<button class="btn btn-sm" id="view-edit" ng-class="State.View === 'edit' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('edit')"><svg class="icon lead"><use href="#i-pencil"></use></svg>Edit</button>
+							<button class="btn btn-sm" id="view-revisions" ng-class="State.View === 'revisions' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('revisions')"><svg class="icon lead"><use href="#i-clock"></use></svg>Revisions</button>
+						</div>
+						<button class="btn btn-sm" id="threads-toggle" ng-show="HasThreads()" ng-class="State.ThreadsHidden ? 'btn-outline-secondary' : 'btn-secondary'" ng-click="ToggleThreads()" title="{{ State.ThreadsHidden ? 'show' : 'hide' }} the threads"><svg class="icon lead"><use href="#i-threads"></use></svg>Threads</button>
+					</div>
+				</div>
+				<div class="header-row" ng-show="State.Open">
+					<div class="state-line">
+						<span class="document-badge" id="document-badge" ng-show="State.Open.Proposal.Kind === 'document'">{{ IsContext() ? 'Context' : 'Document' }}</span>
+						<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="State.Open.Proposal.Kind !== 'document'" title="the proposal's state: anyone can change it" ng-model="PickedState" ng-change="SetState()" ng-disabled="Busy" ng-options="name for name in StateOptions()"></select>
+						<span id="state-line">{{ State.Open.Proposal.StateLine }}</span>
+						<span class="revision" id="revision">revision {{ State.Open.Proposal.Revision }}</span>
+					</div>
+					<div class="header-buttons">
+						<button class="btn btn-sm btn-outline-secondary" id="new-comment" ng-click="CommentOnWhole()" ng-show="State.View === 'read' && HasThreads()" title="a comment on the whole document; Re-anchor puts it on a passage"><svg class="icon lead"><use href="#i-comment"></use></svg>New Comment</button>
+						<button class="btn btn-sm btn-outline-secondary" id="new-subplan" ng-click="NewSubplan()" ng-show="IsPlan()" title="a new plan under this one"><svg class="icon lead"><use href="#i-subplan"></use></svg>New subplan</button>
+					</div>
+				</div>
+			</header>
+
+			<div class="main-error alert alert-danger" ng-show="State.Error">
+				{{ State.Error }}
+				<button type="button" class="btn-close" aria-label="Close" ng-click="State.ClearError()"></button>
+			</div>
+
+			<!-- The views of the open item. -->
+			<div class="content-area">
+
+			<section class="read" ng-controller="ReadController" ng-show="State.View === 'read'">
+				<div class="read-empty" ng-hide="State.Open">
+					<p>Pick a proposal on the left, or create one.</p>
+					<p class="muted">Select a passage of a proposal to comment on it. Waiting on you lists the threads that are your turn.</p>
+				</div>
+				<div class="reanchor-hint alert alert-info" ng-show="State.Reanchoring">
+					Select the passage this thread belongs to, then press Re-anchor.
+					<button class="btn btn-sm btn-outline-secondary" ng-click="CancelReanchor()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+				</div>
+				<article class="markdown" id="read-view" ng-show="State.Open"></article>
+				<button class="comment-button btn btn-sm btn-primary" id="comment-button" ng-click="CommentOnSelection()"><svg class="icon lead"><use href="#i-comment"></use></svg>{{ State.Reanchoring ? 'Re-anchor here' : 'Comment' }}</button>
+				<button class="comment-button btn btn-sm btn-secondary" id="subplan-button" ng-click="SubplanFromSelection()" title="a new Subplan that starts with the selected text"><svg class="icon lead"><use href="#i-subplan"></use></svg>Start a new Subplan</button>
+			</section>
+
+			<section class="edit-view" ng-controller="EditController" ng-show="State.View === 'edit'">
+				<div class="edit-bar">
+					<span class="alert alert-warning py-1 px-2 m-0" ng-show="Stale">The text changed on the server since you started editing. Copy what you need, then discard and edit again.</span>
+					<span class="muted" ng-show="!Stale">Editing revision {{ Base }}. Ctrl+S saves.</span>
+					<span class="edit-buttons">
+						<button class="btn btn-sm" id="preview-toggle" ng-class="State.PreviewHidden ? 'btn-outline-secondary' : 'btn-secondary'" ng-click="TogglePreview()" title="{{ State.PreviewHidden ? 'show' : 'hide' }} the preview"><svg class="icon lead"><use href="#i-eye"></use></svg>Preview</button>
+						<button class="btn btn-sm btn-primary" id="save-button" ng-click="Save()" ng-disabled="!Dirty || Stale || Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+						<button class="btn btn-sm btn-outline-secondary" ng-click="Discard()"><svg class="icon lead"><use href="#i-undo"></use></svg>{{ Dirty ? 'Discard' : 'Close' }}</button>
+					</span>
+				</div>
+				<div class="edit-body" ng-class="{ 'no-preview': State.PreviewHidden }">
+					<div class="editor" id="editor"></div>
+					<div class="splitter" data-splitter="preview"></div>
+					<div class="edit-preview"><article class="markdown" id="edit-preview"></article></div>
+				</div>
+			</section>
+
+			<section class="revisions" ng-controller="RevisionsController" ng-show="State.View === 'revisions'">
+				<div class="revision-list">
+					<div class="revision-row" ng-repeat="revision in Revisions" ng-class="{ selected: revision.Revision === Shown.Revision }" ng-click="Show(revision)">
+						<span class="revision-number">{{ revision.Revision }}</span>
+						<span class="revision-reason" ng-class="revision.Reason">{{ revision.Reason }}</span>
+						<span class="revision-by">{{ revision.By | display }}</span>
+						<span class="revision-at">{{ revision.At | when }}</span>
+						<span class="revision-note" ng-show="revision.Note" title="{{ revision.Note }}">{{ revision.Note }}</span>
+						<span class="revision-thread" ng-show="revision.Thread" ng-class="{ deleted: !ThreadExists(revision.Thread) }" ng-click="OpenThread(revision, $event)" title="{{ ThreadExists(revision.Thread) ? 'the thread it applied' : 'the thread it applied was deleted' }}">{{ ThreadLabel(revision.Thread) }}</span>
+					</div>
+				</div>
+				<div class="revision-text">
+					<div class="muted small" ng-show="Shown">revision {{ Shown.Revision }}{{ Shown.Revision === State.Open.Proposal.Revision ? ' (current)' : '' }}</div>
+					<article class="markdown" id="revision-view"></article>
+				</div>
+			</section>
+
+			<section class="waiting-view" ng-controller="WaitingController" ng-show="State.View === 'waiting'">
+				<div class="view-heading">Waiting on you <span class="muted">{{ Items.length }}</span></div>
+				<div class="muted" ng-show="Items.length === 0">Nothing waits on you.</div>
+				<div class="waiting-group" ng-repeat="group in Groups">
+					<div class="waiting-proposal"><a ng-href="#/p/{{ group.Proposal.Id }}">{{ group.Proposal.Title }}</a> <span class="muted small">{{ group.Proposal.State }}</span></div>
+					<a class="waiting-item" ng-repeat="item in group.Items" ng-class="item.Thread.State" ng-href="#/p/{{ group.Proposal.Id }}" ng-click="Open(item)">
+						<div class="thread-head">
+							<span class="state-badge" ng-class="item.Thread.State">{{ item.Thread.State }}</span>
+							<span class="muted">{{ item.Thread.Anchor ? '“' + item.Thread.Anchor.Text + '”' : 'the whole document' }}</span>
+						</div>
+						<div class="last"><b>{{ item.Thread.Replies[item.Thread.Replies.length - 1].By | display }}</b>: {{ item.Thread.Replies[item.Thread.Replies.length - 1].Text }}</div>
+					</a>
+				</div>
+			</section>
+
+			</div>
+		</main>
+
+		<div class="splitter" data-splitter="threads"></div>
+
+		<!-- ============================================================= -->
+		<aside class="threads" ng-controller="ThreadsController">
+			<div class="threads-top">
+				<select class="form-select form-select-sm" id="thread-filter" ng-model="State.Filter" ng-options="option.Value as option.Label for option in Filters"></select>
+				<span class="count">{{ Threads().length }}</span>
+				<select class="form-select form-select-sm" id="thread-highlight" ng-model="State.Highlight" ng-change="SetHighlight()" ng-options="option.Value as option.Label for option in Highlights" title="which threads' passages are highlighted in the text"></select>
+			</div>
+
+			<div class="thread compose" ng-show="State.Compose">
+				<div class="thread-anchor" ng-show="State.Compose.Anchor">&ldquo;{{ State.Compose.Anchor.Text }}&rdquo;</div>
+				<div class="thread-anchor whole" ng-hide="State.Compose.Anchor">the whole document</div>
+				<textarea class="form-control form-control-sm" rows="3" ng-model="State.Compose.Text" placeholder="Your comment" id="compose-text"></textarea>
+				<div class="thread-buttons">
+					<button class="btn btn-sm btn-primary" id="compose-post" ng-click="Post()" ng-disabled="!State.Compose.Text || Busy"><svg class="icon lead"><use href="#i-comment"></use></svg>Comment</button>
+					<button class="btn btn-sm btn-success" id="compose-resolve" ng-show="IsOwner()" ng-click="Post(true)" ng-disabled="!State.Compose.Text || Busy" title="post your comment as the outcome and resolve the thread"><svg class="icon lead"><use href="#i-check"></use></svg>Comment and resolve</button>
+					<button class="btn btn-sm btn-outline-secondary" id="compose-subplan" ng-show="IsPlan()" ng-click="SubplanFromCompose()" ng-disabled="Busy" title="post this thread with a link to a new Subplan that starts from it"><svg class="icon lead"><use href="#i-subplan"></use></svg>Start a new Subplan</button>
+					<button class="btn btn-sm btn-outline-secondary" ng-click="CancelCompose()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+				</div>
+			</div>
+
+			<div class="threads-empty" ng-show="State.Open && Threads().length === 0 && !State.Compose">no threads {{ State.Filter === 'all' ? '' : 'match this filter' }}</div>
+
+			<div class="thread" ng-repeat="thread in Threads()" ng-class="[ thread.State, { selected: thread.Id === State.Selected, detached: thread.Detached, mine: thread.WaitingOnMe } ]" id="thread-{{ thread.Id }}" ng-click="Select(thread)">
+				<div class="thread-head">
+					<span class="state-badge" ng-class="thread.State">{{ thread.State }}</span>
+					<span class="detached-badge" ng-show="thread.Detached">detached</span>
+					<span class="turn" ng-show="thread.Turn.length">waiting on {{ thread.Turn.join(', ') }}</span>
+					<span class="turn none" ng-hide="thread.Turn.length">nothing to do</span>
+					<span class="thread-delete" ng-show="CanDelete()">
+						<button class="btn btn-link btn-sm delete-thread" ng-hide="Deleting === thread.Id" title="delete this thread" ng-click="StartDelete(thread, $event)"><svg class="icon"><use href="#i-x"></use></svg></button>
+						<span class="confirm" ng-show="Deleting === thread.Id">
+							delete?
+							<button class="btn btn-sm btn-danger confirm-delete-thread" ng-click="Delete(thread, $event)" ng-disabled="Busy"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+							<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+						</span>
+					</span>
+				</div>
+				<div class="thread-anchor" ng-show="thread.Anchor" ng-click="ScrollToAnchor(thread, $event)" title="show in the text">&ldquo;{{ thread.Anchor.Text }}&rdquo;</div>
+				<div class="thread-anchor whole" ng-hide="thread.Anchor">the whole document</div>
+
+				<div class="reply-controls" ng-show="thread.Replies.length > 1">
+					<button class="btn btn-link btn-sm" ng-click="CollapseEarlier(thread, $event)">collapse earlier</button>
+					<button class="btn btn-link btn-sm" ng-click="ExpandAll(thread, $event)">expand all</button>
+				</div>
+
+				<div class="reply" ng-repeat="reply in thread.Replies" ng-class="{ collapsed: IsCollapsed(reply) }">
+					<div class="reply-head">
+						<span class="reply-badge" ng-click="ToggleReply(reply, $event)" title="{{ reply.At | fullstamp }}"><span class="caret">{{ IsCollapsed(reply) ? '&#9656;' : '&#9662;' }}</span> <span class="by">{{ reply.By | display }}</span> <span class="at">{{ reply.At | stamp }}</span></span>
+					</div>
+					<div class="reply-text" ng-hide="IsCollapsed(reply)" ng-bind-html="reply.Text | markdown"></div>
+				</div>
+
+				<div class="record" ng-show="thread.Resolved">resolved by {{ thread.Resolved.By | display }} {{ thread.Resolved.At | when }}</div>
+				<div class="record" ng-show="thread.Applied">applied by {{ thread.Applied.By | display }} at revision {{ thread.Applied.Revision }}: {{ thread.Applied.Outcome }}</div>
+
+				<div class="reply-form" ng-show="thread.Id === State.Selected">
+					<textarea class="form-control form-control-sm reply-box" rows="2" ng-model="State.Drafts[thread.Id]" placeholder="Reply{{ thread.Status === 'resolved' ? ' (reopens the thread)' : '' }}"></textarea>
+					<div class="thread-buttons">
+						<button class="btn btn-sm btn-primary reply-button" ng-click="Reply(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy"><svg class="icon lead"><use href="#i-reply"></use></svg>Reply</button>
+						<button class="btn btn-sm btn-success reply-resolve-button" ng-show="CanResolve(thread)" ng-click="ReplyAndResolve(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy" title="post your reply as the outcome and resolve the thread"><svg class="icon lead"><use href="#i-check"></use></svg>Reply and resolve</button>
+						<button class="btn btn-sm btn-success resolve-button" ng-show="CanResolve(thread)" ng-click="Resolve(thread)" ng-disabled="Busy" title="accept the outcome or recommendation in the last reply"><svg class="icon lead"><use href="#i-check"></use></svg>Resolve</button>
+						<button class="btn btn-sm btn-outline-secondary reanchor-button" ng-click="Reanchor(thread)" title="{{ thread.Anchor ? 'anchor it to another passage' : 'anchor it to a passage' }}"><svg class="icon lead"><use href="#i-target"></use></svg>Re-anchor</button>
+						<button class="btn btn-sm btn-outline-secondary subplan-from-thread" ng-show="IsPlan()" ng-click="SubplanFromThread(thread)" ng-disabled="Busy" title="reply with a link to a new Subplan that starts from this thread"><svg class="icon lead"><use href="#i-subplan"></use></svg>Start a new Subplan</button>
+					</div>
+				</div>
+			</div>
+		</aside>
+
+	</div>
+
+	<!-- A new Subplan: its title, and what it starts with. -->
+	<div class="subplan-popup" ng-controller="SubplanController" ng-show="Subplans.Pending">
+		<form class="subplan-form" ng-if="Subplans.Pending" ng-submit="Create()" ng-keydown="Key($event)">
+			<div class="subplan-head">New Subplan under &ldquo;{{ Subplans.Pending.Parent.Title }}&rdquo;</div>
+			<input class="form-control form-control-sm" type="text" id="subplan-title" placeholder="Subplan title" ng-model="Subplans.Pending.Title" auto-focus>
+			<div class="muted small" ng-show="Subplans.Pending.Seed">It starts with:</div>
+			<pre class="subplan-seed" ng-show="Subplans.Pending.Seed">{{ Subplans.Pending.Seed }}</pre>
+			<div class="muted small" ng-show="Subplans.Pending.Compose">The thread is posted with a link to it.</div>
+			<div class="muted small" ng-show="Subplans.Pending.Thread">The thread gets {{ Subplans.Pending.Draft ? 'your reply' : 'a reply' }} with a link to it, and stays open.</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-primary" type="submit" id="subplan-create" ng-disabled="!Subplans.Pending.Title || Subplans.Busy"><svg class="icon lead"><use href="#i-check"></use></svg>Create</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Cancel()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+			</div>
+		</form>
+	</div>
+
+	<!-- The server's settings (consensus.json), edited whole by the owner (plan Consensus Desktop, Step 1). -->
+	<div class="subplan-popup settings-popup" ng-controller="SettingsController" ng-show="Panel.Open" ng-keydown="Key($event)">
+		<form class="subplan-form settings-form" ng-if="Panel.Open" ng-submit="Save()">
+			<div class="subplan-head">Settings <span class="muted small">{{ Panel.Path }}</span></div>
+			<div class="port-error" id="settings-problems" ng-show="Panel.Problems.length">
+				<div>Not saved. Fix these first:</div>
+				<ul class="mb-0"><li ng-repeat="problem in Panel.Problems track by $index">{{ problem }}</li></ul>
+			</div>
+			<div class="alert alert-warning py-1 px-2 my-1 small" id="settings-restart" ng-show="Panel.Restart">Host and Port take effect when the server is started again.</div>
+			<div class="settings-row">
+				<label for="settings-host">Host</label>
+				<input class="form-control form-control-sm" id="settings-host" ng-model="Panel.Form.Host" placeholder="127.0.0.1" title="the address the server listens on at its next start; 0.0.0.0 is every interface">
+				<label for="settings-port">Port</label>
+				<input class="form-control form-control-sm settings-port" id="settings-port" type="number" min="0" max="65535" ng-model="Panel.Form.Port" title="the port at its next start">
+			</div>
+			<div class="settings-row top">
+				<label for="settings-states">States</label>
+				<textarea class="form-control form-control-sm" id="settings-states" rows="4" ng-model="Panel.Form.StatesText" placeholder="one state per line; a new plan starts in the first" title="the states a plan is picked from, one per line; one in use by a plan cannot be removed"></textarea>
+			</div>
+			<div class="settings-label">Participants <button class="btn btn-sm btn-outline-secondary" type="button" id="settings-add-participant" ng-click="AddParticipant()"><svg class="icon lead"><use href="#i-plus"></use></svg>Add</button></div>
+			<div class="settings-participant" ng-repeat="participant in Panel.Form.Participants">
+				<input class="form-control form-control-sm settings-name" ng-model="participant.Name" placeholder="name" title="the name threads and revisions record">
+				<input class="form-control form-control-sm settings-display" ng-model="participant.Display" placeholder="shown as" title="how the page shows the participant">
+				<select class="form-select form-select-sm settings-role" ng-model="participant.Role" ng-options="role for role in Roles" title="owner: resolves threads and writes the settings; llm: applies resolved threads; member: takes part"></select>
+				<input class="form-control form-control-sm settings-token" ng-model="participant.Token" placeholder="token (none)" title="the token the participant sends as Authorization: Bearer; none for the browser's owner">
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="NewToken( participant )" title="a new random token"><svg class="icon lead"><use href="#i-refresh"></use></svg>New</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CopyToken( participant )" ng-disabled="!participant.Token" title="copy the token"><svg class="icon lead"><use href="#i-copy"></use></svg>Copy</button>
+				<button class="btn btn-sm btn-outline-danger" type="button" ng-click="RemoveParticipant( $index )" title="remove this participant"><svg class="icon"><use href="#i-x"></use></svg></button>
+			</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-primary" type="submit" id="settings-save" ng-disabled="Panel.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="settings-close" ng-click="Close()"><svg class="icon lead"><use href="#i-x"></use></svg>{{ Panel.Saved ? 'Close' : 'Cancel' }}</button>
+				<span class="muted small" id="settings-saved" ng-show="Panel.Saved">Saved.</span>
+			</div>
+		</form>
+	</div>
+
+	<!-- Export and import a whole project. -->
+	<div class="subplan-popup port-popup" ng-controller="PortController" ng-show="Ports.Open" ng-keydown="Key($event)">
+		<div class="subplan-form port-form" ng-if="Ports.Open === 'export'">
+			<div class="subplan-head">Export &ldquo;{{ Ports.Project.Name }}&rdquo;</div>
+			<div class="muted small">The whole project as json: its Context folder and documents, folders, plans, Subplans, threads and every revision. No tokens.</div>
+			<div class="muted small" ng-show="Ports.Busy">Exporting…</div>
+			<textarea class="form-control form-control-sm port-json" id="export-json" rows="12" readonly ng-model="Ports.Json" ng-hide="Ports.Busy"></textarea>
+			<div class="port-error" ng-show="Ports.Error">{{ Ports.Error }}</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-primary" type="button" id="export-copy" ng-click="Copy()" ng-disabled="!Ports.Json"><svg class="icon lead"><use href="#i-copy"></use></svg>{{ Ports.Copied ? 'Copied' : 'Copy' }}</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="export-download" ng-click="Download()" ng-disabled="!Ports.Json"><svg class="icon lead"><use href="#i-save"></use></svg>Download</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Close()"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
+			</div>
+		</div>
+
+		<div class="subplan-form port-form" ng-if="Ports.Open === 'import'">
+			<div class="subplan-head">Import a project</div>
+
+			<div ng-hide="Ports.Report">
+				<div class="muted small">Paste an exported project, or load its file.</div>
+				<textarea class="form-control form-control-sm port-json" id="import-json" rows="10" ng-model="Ports.Json" ng-change="Ports.Preview = null" placeholder="{ &quot;Format&quot;: &quot;consensus-project&quot;, … }"></textarea>
+				<div class="port-preview" ng-show="Ports.Preview">
+					<div ng-hide="Ports.Preview.Project.Exists">&ldquo;{{ Ports.Preview.Project.Name }}&rdquo; is not here: it comes in as it is, every id kept.</div>
+					<div ng-show="Ports.Preview.Project.Exists">
+						&ldquo;{{ Ports.Preview.Project.NameHere }}&rdquo; is already here. Import it as a copy, <strong>{{ Ports.Preview.CopyName }}</strong>, with every id new; or merge it into the one here, adding what is new and removing nothing.
+					</div>
+				</div>
+				<div class="port-error" ng-show="Ports.Error">{{ Ports.Error }}</div>
+				<div class="thread-buttons">
+					<label class="btn btn-sm btn-outline-secondary mb-0" ng-class="{ disabled: Ports.Busy }"><svg class="icon lead"><use href="#i-upload"></use></svg>Load file<input type="file" accept=".json,application/json" hidden on-file="Load( File )"></label>
+					<button class="btn btn-sm btn-outline-secondary" type="button" id="import-preview" ng-click="Preview()" ng-disabled="!Ports.Json || Ports.Busy" ng-hide="Ports.Preview"><svg class="icon lead"><use href="#i-eye"></use></svg>Preview</button>
+					<button class="btn btn-sm btn-primary" type="button" id="import-new" ng-click="Import()" ng-show="Ports.Preview && !Ports.Preview.Project.Exists" ng-disabled="Ports.Busy"><svg class="icon lead"><use href="#i-check"></use></svg>Import</button>
+					<button class="btn btn-sm btn-primary" type="button" id="import-copy" ng-click="Import('copy')" ng-show="Ports.Preview.Project.Exists" ng-disabled="Ports.Busy"><svg class="icon lead"><use href="#i-copy"></use></svg>Import as a Copy</button>
+					<button class="btn btn-sm btn-primary" type="button" id="import-merge" ng-click="Import('merge')" ng-show="Ports.Preview.Project.Exists" ng-disabled="Ports.Busy"><svg class="icon lead"><use href="#i-check"></use></svg>Merge Existing</button>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Close()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+				</div>
+			</div>
+
+			<div class="port-report" id="import-report" ng-if="Ports.Report">
+				<div><strong>{{ Ports.Report.Project.Name }}</strong>: {{ Ports.Report.Project.Mode === 'merge' ? 'merged' : ( Ports.Report.Project.Mode === 'copy' ? 'imported as a copy' : 'imported' ) }}.</div>
+				<div>Made: {{ MadeLine( Ports.Report.Made ) }}.</div>
+				<div ng-show="Ports.Report.Merged.length">Merged:
+					<ul><li ng-repeat="item in Ports.Report.Merged">{{ item.Title }}: {{ MergedLine( item ) }}</li></ul>
+				</div>
+				<div class="port-warning" ng-show="Ports.Report.Diverged.length">Diverged, the text here kept:
+					<ul><li ng-repeat="item in Ports.Report.Diverged">{{ item.Title }}, at revision {{ item.At }}</li></ul>
+				</div>
+				<div class="port-warning" ng-show="Ports.Report.UnknownParticipants.length">Participants this server does not know: {{ Ports.Report.UnknownParticipants.join( ', ' ) }}</div>
+				<div class="thread-buttons">
+					<button class="btn btn-sm btn-primary" type="button" id="import-done" ng-click="Close()"><svg class="icon lead"><use href="#i-check"></use></svg>Done</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- The one popup menu: a row's actions, a tab's. -->
+	<div class="popup-menu" id="popup-menu" ng-controller="MenuController" ng-show="Menus.Open" role="menu">
+		<div ng-repeat="item in Menus.Open.Items" ng-class="item.Separator ? 'menu-separator' : 'menu-item'">
+			<button type="button" class="menu-button" ng-if="!item.Separator" ng-class="{ danger: item.Danger }" ng-disabled="item.Disabled" ng-click="Pick(item, $event)" role="menuitem"><svg class="icon lead" ng-if="item.Icon"><use ng-attr-href="#i-{{ item.Icon }}"></use></svg>{{ item.Label }}</button>
+		</div>
+	</div>
+
+	<script src="/vendor/angular.min.js"></script>
+	<script src="/vendor/marked.umd.js"></script>
+	<script src="/vendor/monaco/loader.js"></script>
+	<script src="/js/layout.js"></script>
+	<script src="/js/client.js"></script>
+	<script src="/js/render.js"></script>
+	<script src="/js/editor.js"></script>
+	<script src="/js/app.js"></script>
+	<script src="/js/menus.js"></script>
+	<script src="/js/tabs.js"></script>
+	<script src="/js/subplans.js"></script>
+	<script src="/js/ports.js"></script>
+	<script src="/js/settings.js"></script>
+	<script src="/js/sidebar.js"></script>
+	<script src="/js/header.js"></script>
+	<script src="/js/read.js"></script>
+	<script src="/js/edit.js"></script>
+	<script src="/js/revisions.js"></script>
+	<script src="/js/waiting.js"></script>
+	<script src="/js/threads.js"></script>
+</body>
+</html>

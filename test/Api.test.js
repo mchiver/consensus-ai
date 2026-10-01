@@ -166,6 +166,7 @@ TEST( 'identity: no header is the owner, the token is the llm, a wrong token is 
 	ASSERT.equal( owner.Status, 200 );
 	ASSERT.deepEqual( owner.Body.Me, { Name: 'user', Display: 'User', Role: 'owner' } );
 	ASSERT.equal( owner.Body.Participants.some( function ( participant ) { return 'Token' in participant; } ), false );
+	ASSERT.equal( owner.Body.Version, require( '../package.json' ).version );
 	let llm = await call( 'GET', '/api/me', undefined, true );
 	ASSERT.equal( llm.Body.Me.Name, 'llm' );
 	let wrong = await call( 'GET', '/api/me', undefined, 'Bearer nope' );

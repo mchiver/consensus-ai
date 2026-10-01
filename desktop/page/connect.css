@@ -1,0 +1,172 @@
+/* The connect screen. Tokens on :root, as the Consensus page; Bootstrap's data-bs-theme carries light and dark;
+   --scale the size. */
+
+:root
+{
+	--scale: 1;
+	--page-bg: #ffffff;
+	--panel-bg: #f6f7f9;
+	--border: #dfe3e8;
+	--text: #1f2328;
+	--muted: #6b7380;
+	--accent: #0d6efd;
+}
+
+[data-bs-theme="dark"]
+{
+	--page-bg: #1b1f24;
+	--panel-bg: #22272e;
+	--border: #373e47;
+	--text: #e6edf3;
+	--muted: #9aa4b2;
+	--accent: #74c0fc;
+}
+
+html
+{
+	font-size: calc( 15px * var(--scale) );
+}
+
+body
+{
+	background: var(--page-bg);
+	color: var(--text);
+	margin: 0;
+	min-height: 100vh;
+}
+
+[ng-cloak]
+{
+	display: none !important;
+}
+
+h2
+{
+	font-size: 1.05rem;
+	margin: 0;
+}
+
+.muted
+{
+	color: var(--muted);
+}
+
+.grow
+{
+	flex: 1 1 auto;
+}
+
+/* --------------------------------------------------------------------- the head */
+
+.connect-head
+{
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.6rem 1rem;
+	border-bottom: 1px solid var(--border);
+	background: var(--panel-bg);
+}
+
+.connect-title
+{
+	font-size: 1.15rem;
+	font-weight: 600;
+}
+
+.connect-kind
+{
+	color: var(--muted);
+	font-weight: 400;
+}
+
+.connect-controls
+{
+	display: flex;
+	gap: 0.4rem;
+}
+
+.connect-controls .form-select
+{
+	width: auto;
+}
+
+/* --------------------------------------------------------------------- the main area */
+
+.connect-main
+{
+	max-width: 60rem;
+	margin: 0 auto;
+	padding: 1rem;
+}
+
+.block
+{
+	border: 1px solid var(--border);
+	border-radius: 0.4rem;
+	background: var(--panel-bg);
+	padding: 0.75rem 1rem;
+	margin-bottom: 0.75rem;
+}
+
+.block-head
+{
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-bottom: 0.5rem;
+}
+
+.server-row
+{
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.4rem 0.2rem;
+	border-top: 1px solid var(--border);
+}
+
+.server-name
+{
+	font-weight: 600;
+}
+
+.server-url
+{
+	font-family: var(--bs-font-monospace);
+}
+
+.server-form
+{
+	border-top: 1px solid var(--border);
+	padding-top: 0.5rem;
+}
+
+.field-row
+{
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0.35rem 0;
+	flex-wrap: wrap;
+}
+
+.field-row label
+{
+	color: var(--muted);
+	font-size: 0.9em;
+	min-width: 4rem;
+}
+
+.field-row .form-control
+{
+	flex: 1 1 12rem;
+	width: auto;
+}
+
+.tried
+{
+	margin: 0.2rem 0 0.4rem;
+}

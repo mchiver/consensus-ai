@@ -18,6 +18,7 @@ const STORE = require( './Store.js' );
 const TREE = require( './Tree.js' );
 const PORT = require( './ProjectPort.js' );
 const IDS = require( './Ids.js' );
+const VERSION = require( '../package.json' ).version;
 
 const BODY_LIMIT = '64mb';	// a project import is one json body, every revision of every plan in it
 const PARENT_REFUSED = 'Parent is not a folder of the project, or a plan (which holds plans only); a document goes in the Context folder, which holds documents only';
@@ -222,7 +223,7 @@ function Attach( App, Context )
 
 	router.get( '/me', function ( request, response )
 	{
-		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Participants: participants(), States: states() } );
+		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Participants: participants(), States: states(), Version: VERSION } );
 	} );
 
 

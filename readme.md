@@ -193,6 +193,37 @@ new) or merged (revisions matched by id; a conflict gets a merge revision with t
 is removed). An export from before Step 1 is read too: its corpora and workers are dropped, its context
 becomes the Context document, and the Context folder is made.
 
+## The desktop
+
+Consensus Desktop (plan Consensus Desktop, Step 2) is an Electron client for any Consensus server, run from the
+checkout:
+
+	npm run desktop
+
+It opens on the **connect screen**: the saved servers (Connect, Edit, Remove), **Add server** (a Name and a Url,
+tried before it is saved; the screen says which Consensus version answers and warns when it differs from the
+app's), and the **Local server**: a data folder (Browse), Start and Stop, and Connect once it runs. A local
+server is Consensus itself, started in the app's process over that folder on `127.0.0.1` and the folder's port,
+with `consensus.json` written at a first start as the command line does; closing the window stops it. Once
+connected, the window shows the desktop's own copy of the Consensus page, pointed at the server's API; the
+**Server** menu has Connect to another, Reload, the local server's Start and Stop, and **New window**, which
+starts another instance of the app for a second server. A tab's Detach opens a window of the app. What was
+open last is reopened at the next start, or the connect screen says why it could not be.
+
+The desktop's page is its own copy, `desktop/page/` (the server's `public/` is frozen after Step 1 and the copy
+is developed on from there; `client.js` prefixes the API's base URL the desktop hands it, and `theme.js` keeps
+the theme and the scale in the desktop's settings). The copy is served from the app's own origin on
+`127.0.0.1`, and that same origin forwards `/api` (the events stream included) and `/instructions` to the
+connected server: the base URL stays the page's own origin, and the server, which sends no CORS headers, is not
+changed for the app beyond `/api/me` saying its `Version`. Its settings are `desktop.json` in Electron's
+user-data folder (`%APPDATA%/consensus-desktop/` on Windows): `Servers`, `Local` (the data folder and its
+port), `Last`, `Theme` and `Scale`.
+
+Layout: `desktop/main.js` the main process, `desktop/preload.js` its bridge, `desktop/Settings.js` desktop.json,
+`desktop/Local.js` the local server, `desktop/Page.js` the server for the page copy, `desktop/page/` the copy and
+the connect screen (`connect.html`, `connect.js`, `connect.css`); `test/Desktop.test.js` covers the settings, the
+page server and the local server with the real `Start`.
+
 ## The API
 
 	GET    /api/me                                   who this request is, the participants, the States

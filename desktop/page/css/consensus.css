@@ -1,0 +1,1908 @@
+/* Consensus - the page. Tokens on :root; Bootstrap's data-bs-theme carries light and dark. */
+
+:root
+{
+	--sidebar-width: 260px;
+	--threads-width: 400px;
+	--scale: 1;
+
+	--page-bg: #ffffff;
+	--panel-bg: #f6f7f9;
+	--border: #dfe3e8;
+	--text: #1f2328;
+	--muted: #6b7380;
+	--accent: #0d6efd;
+
+	--contested-bg: #fff3bf;
+	--contested-edge: #e0b400;
+	--reopened-bg: #ffe0c2;
+	--reopened-edge: #e07a00;
+	--resolved-bg: #d8ecff;
+	--resolved-edge: #2b8de0;
+	--applied-bg: #d9f5e0;
+	--applied-edge: #2fa45a;
+	--detached-edge: #c0392b;
+	--mine-edge: #7c3aed;
+
+	--tree-guide: rgba( 128, 128, 128, 0.35 );
+	--tree-hover: rgba( 128, 128, 128, 0.12 );
+	--tree-selected: rgba( 13, 110, 253, 0.14 );
+	--icon-folder: #b88a2a;
+	--icon-plan: #0d6efd;
+	--icon-document: #6b7380;
+}
+
+[data-bs-theme="dark"]
+{
+	--tree-guide: rgba( 160, 170, 180, 0.3 );
+	--tree-hover: rgba( 160, 170, 180, 0.12 );
+	--tree-selected: rgba( 116, 192, 252, 0.18 );
+	--icon-folder: #dcb67a;
+	--icon-plan: #74c0fc;
+	--icon-document: #9aa4b2;
+
+	--page-bg: #1b1f24;
+	--panel-bg: #22272e;
+	--border: #373e47;
+	--text: #e6edf3;
+	--muted: #9aa4b2;
+
+	--contested-bg: #5a4a00;
+	--contested-edge: #ffd43b;
+	--reopened-bg: #5c3300;
+	--reopened-edge: #ff922b;
+	--resolved-bg: #123a5e;
+	--resolved-edge: #74c0fc;
+	--applied-bg: #14432a;
+	--applied-edge: #69db7c;
+	--detached-edge: #ff6b6b;
+	--mine-edge: #b197fc;
+}
+
+html, body
+{
+	height: 100%;
+	margin: 0;
+	background: var(--page-bg);
+	color: var(--text);
+	font-size: calc( 15px * var(--scale) );
+}
+
+[ng-cloak]
+{
+	display: none !important;
+}
+
+.muted
+{
+	color: var(--muted);
+}
+
+/* --------------------------------------------------------------------- layout */
+
+.layout
+{
+	display: grid;
+	grid-template-columns: var(--sidebar-width) 6px 1fr 6px var(--threads-width);
+	height: 100vh;
+	overflow: hidden;
+}
+
+/* A Document has no threads: the threads pane and its splitter give their room to the text. */
+.layout.no-threads
+{
+	grid-template-columns: var(--sidebar-width) 6px 1fr 0 0;
+}
+
+.layout.no-threads > .threads, .layout.no-threads > .splitter[data-splitter="threads"]
+{
+	display: none;
+}
+
+/* The project tree hidden: the sidebar and its splitter are not shown, so the grid has three columns, as in a
+   detached window. */
+.layout.no-tree
+{
+	grid-template-columns: 1fr 6px var(--threads-width);
+}
+
+.layout.no-tree.no-threads
+{
+	grid-template-columns: 1fr 0 0;
+}
+
+.layout.no-tree > .sidebar, .layout.no-tree > .splitter[data-splitter="sidebar"]
+{
+	display: none;
+}
+
+/* --------------------------------------------------------------------- icons */
+
+/* The symbols are drawn once, out of sight; each icon uses one by id and strokes it in the text's color. */
+.icon-sprite
+{
+	position: absolute;
+	width: 0;
+	height: 0;
+	overflow: hidden;
+}
+
+.icon
+{
+	flex: none;
+	width: 1em;
+	height: 1em;
+	vertical-align: -0.125em;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.splitter
+{
+	cursor: col-resize;
+	background: var(--border);
+}
+
+.splitter:hover, .splitter.dragging
+{
+	background: var(--accent);
+}
+
+.sidebar, .threads
+{
+	background: var(--panel-bg);
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+}
+
+.main
+{
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	overflow: hidden;
+}
+
+/* --------------------------------------------------------------------- sidebar */
+
+.sidebar-top
+{
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.75rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.brand
+{
+	font-weight: 600;
+	font-size: 1.1rem;
+}
+
+.new-proposal
+{
+	padding: 0.75rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.new-proposal-buttons
+{
+	display: flex;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+}
+
+.list-heading
+{
+	padding: 0.75rem 0.75rem 0.25rem;
+	font-size: 0.8rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--muted);
+}
+
+.list-heading .count, .threads-top .count
+{
+	float: right;
+	font-weight: normal;
+}
+
+.list-empty
+{
+	padding: 0.25rem 0.75rem 0.5rem;
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+
+.proposal-item
+{
+	display: block;
+	padding: 0.5rem 0.75rem;
+	color: inherit;
+	text-decoration: none;
+	border-left: 3px solid transparent;
+}
+
+.proposal-item:hover
+{
+	background-color: rgba( 128, 128, 128, 0.12 );
+}
+
+.proposal-title
+{
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.badges
+{
+	display: flex;
+	gap: 0.3rem;
+	flex-wrap: wrap;
+	margin-top: 0.2rem;
+}
+
+.badge
+{
+	color: var(--text);
+	font-weight: 500;
+	border: 1px solid transparent;
+}
+
+.badge.contested { background: var(--contested-bg); border-color: var(--contested-edge); }
+.badge.mine { background: transparent; border-color: var(--mine-edge); color: var(--mine-edge); }
+.badge.resolved { background: var(--resolved-bg); border-color: var(--resolved-edge); }
+.badge.applied { background: var(--applied-bg); border-color: var(--applied-edge); }
+
+/* --------------------------------------------------------------------- sidebar: the project tree */
+
+/* The VS Code explorer look: one-line rows as wide as the sidebar, an indent per level with a guide line
+   under each folder's chevron, chevrons on folders, and an icon per kind. --depth is the row's level. */
+
+.sidebar
+{
+	--indent: calc( 16px * var(--scale) );
+	--row-start: 8px;
+}
+
+.project-head, .tree-row
+{
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+	min-height: calc( 1.9rem );
+	padding: 0.1rem 0.5rem 0.1rem var(--row-start);
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+}
+
+/* An open project's buttons go to a second line rather than squeeze its name away. */
+.project-head
+{
+	font-weight: 600;
+	border-top: 1px solid var(--border);
+	flex-wrap: wrap;
+}
+
+.tree-row
+{
+	padding-left: calc( var(--row-start) + var(--depth) * var(--indent) );
+	background-image: repeating-linear-gradient( to right, transparent 0, transparent calc( var(--indent) / 2 - 0.5px ), var(--tree-guide) calc( var(--indent) / 2 - 0.5px ), var(--tree-guide) calc( var(--indent) / 2 + 0.5px ), transparent calc( var(--indent) / 2 + 0.5px ), transparent var(--indent) );
+	background-position: calc( var(--row-start) + var(--indent) ) 0;
+	background-size: max( 0px, calc( ( var(--depth) - 1 ) * var(--indent) ) ) 100%;
+	background-repeat: no-repeat;
+}
+
+.project-head:hover, .tree-row:hover
+{
+	background-color: var(--tree-hover);
+}
+
+.project.open > .project-head
+{
+	background-color: rgba( 128, 128, 128, 0.08 );
+}
+
+.chevron, .chevron-space
+{
+	flex: none;
+	width: var(--indent);
+	height: var(--indent);
+}
+
+.chevron
+{
+	background-color: var(--muted);
+	-webkit-mask: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 3.5l4.5 4.5L6 12.5' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" ) center / 100% no-repeat;
+	mask: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 3.5l4.5 4.5L6 12.5' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" ) center / 100% no-repeat;
+	transform: rotate( 90deg );
+	transition: transform 0.1s;
+}
+
+.chevron.folded
+{
+	transform: none;
+}
+
+.tree-icon
+{
+	flex: none;
+	width: var(--indent);
+	height: var(--indent);
+	background-color: var(--icon-document);
+	-webkit-mask-position: center;
+	mask-position: center;
+	-webkit-mask-size: 100%;
+	mask-size: 100%;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+}
+
+.tree-icon.icon-folder
+{
+	background-color: var(--icon-folder);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5h4.3l1.5 1.5h7.2v8h-13z' fill='black'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5h4.3l1.5 1.5h7.2v8h-13z' fill='black'/%3E%3C/svg%3E" );
+}
+
+.tree-icon.icon-folder-open
+{
+	background-color: var(--icon-folder);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 12.5v-9h4.3l1.5 1.5h5.2v1.5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M1.5 13l2.3-6h11l-2.3 6z' fill='black'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 12.5v-9h4.3l1.5 1.5h5.2v1.5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M1.5 13l2.3-6h11l-2.3 6z' fill='black'/%3E%3C/svg%3E" );
+}
+
+.tree-icon.icon-plan
+{
+	background-color: var(--icon-plan);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2.5' y='1.5' width='11' height='13' rx='1.5' fill='none' stroke='black' stroke-width='1.2'/%3E%3Cpath d='M4.8 5.2l1 1 1.8-2M4.8 10.2l1 1 1.8-2M9 5.5h2.5M9 10.5h2.5' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2.5' y='1.5' width='11' height='13' rx='1.5' fill='none' stroke='black' stroke-width='1.2'/%3E%3Cpath d='M4.8 5.2l1 1 1.8-2M4.8 10.2l1 1 1.8-2M9 5.5h2.5M9 10.5h2.5' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
+}
+
+.tree-icon.icon-document
+{
+	background-color: var(--icon-document);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3 M5.5 8h5 M5.5 10.5h5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3 M5.5 8h5 M5.5 10.5h5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
+}
+
+
+/* The project's Context folder and Context document: a folded map. */
+.tree-icon.icon-context
+{
+	background-color: var(--applied-edge);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5l4-1.5 5 1.5 4-1.5v10.5l-4 1.5-5-1.5-4 1.5z M5.5 2v10.5 M10.5 3.5V14' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5l4-1.5 5 1.5 4-1.5v10.5l-4 1.5-5-1.5-4 1.5z M5.5 2v10.5 M10.5 3.5V14' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
+}
+
+.context-item .proposal-title
+{
+	font-weight: 600;
+}
+
+.project-name, .folder-name, .tree-row .proposal-title
+{
+	overflow: hidden;
+	text-overflow: ellipsis;
+	flex: 0 1 auto;
+	min-width: 0;
+}
+
+.tree-row .proposal-title
+{
+	flex: 1 1 auto;
+}
+
+.project-head .count, .folder-head .count
+{
+	font-size: 0.75rem;
+	font-weight: normal;
+	color: var(--muted);
+}
+
+.caret
+{
+	display: inline-block;
+	width: 0.8rem;
+	color: var(--muted);
+	font-weight: normal;
+}
+
+/* A row's actions: one ⋯ at its right end, shown on hover, on the current row, and while its menu is open. */
+.row-menu
+{
+	flex: none;
+	margin-left: auto;
+	display: inline-flex;
+	align-items: center;
+	padding: 0.1rem 0.3rem;
+	border: 0;
+	border-radius: 0.25rem;
+	background: none;
+	color: var(--muted);
+	font-size: 0.95rem;
+	line-height: 1;
+	cursor: pointer;
+	visibility: hidden;
+}
+
+.tree-row .badges + .row-menu, .tree-row .tree-stamp + .row-menu
+{
+	margin-left: 0.2rem;
+}
+
+.project-head:hover .row-menu, .tree-row:hover .row-menu, .tree-row.open .row-menu, .row-menu.current, .row-menu.shown
+{
+	visibility: visible;
+}
+
+.row-menu:hover, .row-menu.shown
+{
+	background: var(--tree-hover);
+	color: var(--accent);
+}
+
+/* The open project's solid green dot; a hollow circle for the others. */
+.project-dot
+{
+	flex: none;
+	width: 0.55rem;
+	height: 0.55rem;
+	border-radius: 50%;
+	border: 1.5px solid var(--muted);
+}
+
+.project-dot.open
+{
+	background: var(--applied-edge);
+	border-color: var(--applied-edge);
+}
+
+.project-head .confirm, .folder-head .confirm, .tree-item .confirm
+{
+	margin-left: auto;
+	font-weight: normal;
+	font-size: 0.8rem;
+}
+
+.rename-form
+{
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.folder-head.target
+{
+	background-color: var(--tree-selected);
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.item-state
+{
+	font-size: 0.7rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--muted);
+	align-self: center;
+}
+
+/* Where a drop lands: a line above or below the row, or an outline for into a folder or a project's root. */
+.sidebar .tree-row.drop-before, .sidebar .project-head.drop-before
+{
+	box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.sidebar .tree-row.drop-after, .sidebar .project-head.drop-after
+{
+	box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.sidebar .tree-row.drop-into, .sidebar .project-head.drop-into
+{
+	outline: 2px dashed var(--accent);
+	outline-offset: -2px;
+	background-color: var(--tree-selected);
+}
+
+/* A plan or document: a link as wide as the sidebar, selected with a full-width highlight. */
+.tree-item
+{
+	color: inherit;
+	text-decoration: none;
+	border-left: 0;
+}
+
+.tree-item.open
+{
+	background-color: var(--tree-selected);
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.tree-row .badges
+{
+	flex: none;
+	flex-wrap: nowrap;
+	margin: 0 0 0 auto;
+	align-items: center;
+}
+
+.tree-row .badge
+{
+	font-size: 0.65rem;
+	padding: 0.2em 0.45em;
+}
+
+.clipboard
+{
+	padding: 0.25rem 0.75rem;
+	font-size: 0.8rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	background: rgba( 13, 110, 253, 0.08 );
+}
+
+.clipboard .btn
+{
+	padding: 0 0.25rem;
+	text-decoration: none;
+}
+
+.tree-item.missing
+{
+	color: var(--muted);
+	font-style: italic;
+}
+
+.sidebar-bottom
+{
+	margin-top: auto;
+	padding: 0.75rem;
+	border-top: 1px solid var(--border);
+	font-size: 0.85rem;
+	color: var(--muted);
+	display: flex;
+	justify-content: space-between;
+}
+
+.connection::before
+{
+	content: '\25CF ';
+	color: var(--detached-edge);
+}
+
+.connection.live::before
+{
+	color: var(--applied-edge);
+}
+
+/* --------------------------------------------------------------------- header */
+
+/* Two lines: the title with Read / Edit / Revisions and the threads toggle, then the state with the actions
+   pulled to the right. */
+.header
+{
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	padding: 0.6rem 1.25rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.header-row
+{
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem 1rem;
+	flex-wrap: wrap;
+	min-width: 0;
+}
+
+.header .title
+{
+	font-weight: 600;
+	font-size: 1.2rem;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.header-views
+{
+	display: flex;
+	gap: 0.5rem;
+	margin-left: auto;
+}
+
+.state-line
+{
+	font-size: 0.9rem;
+	color: var(--muted);
+	display: flex;
+	gap: 0.75rem;
+	align-items: center;
+}
+
+.header-buttons
+{
+	margin-left: auto;
+}
+
+.state-line .revision
+{
+	font-size: 0.8rem;
+	white-space: nowrap;
+}
+
+.document-badge
+{
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	padding: 0.1rem 0.4rem;
+	border-radius: 0.25rem;
+	border: 1px solid var(--border);
+	color: var(--muted);
+}
+
+.state-picker
+{
+	display: inline-block;
+	width: auto;
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	padding-top: 0.05rem;
+	padding-bottom: 0.05rem;
+}
+
+.header-buttons
+{
+	display: flex;
+	gap: 0.5rem;
+	white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------- read view */
+
+.read
+{
+	position: relative;
+	flex: 1;
+	overflow-y: auto;
+	padding: 1.5rem 2rem 4rem;
+}
+
+.read-empty
+{
+	max-width: 40rem;
+	margin: 4rem auto;
+	text-align: center;
+	color: var(--muted);
+}
+
+.markdown
+{
+	max-width: 52rem;
+	margin: 0 auto;
+	line-height: 1.6;
+}
+
+.markdown h1 { font-size: 1.8rem; margin-top: 1.5rem; }
+.markdown h2 { font-size: 1.4rem; margin-top: 1.5rem; }
+.markdown h3 { font-size: 1.15rem; margin-top: 1.25rem; }
+.markdown pre { background: var(--panel-bg); padding: 0.75rem; border-radius: 0.3rem; overflow-x: auto; }
+.markdown code { font-size: 0.9em; }
+.markdown blockquote { border-left: 3px solid var(--border); margin-left: 0; padding-left: 1rem; color: var(--muted); }
+.markdown table { border-collapse: collapse; }
+.markdown th, .markdown td { border: 1px solid var(--border); padding: 0.25rem 0.5rem; }
+
+mark.anchor
+{
+	padding: 0.05em 0;
+	color: inherit;
+	cursor: pointer;
+	border-bottom: 2px solid transparent;
+	background: var(--contested-bg);
+	border-bottom-color: var(--contested-edge);
+}
+
+mark.anchor.reopened { background: var(--reopened-bg); border-bottom-color: var(--reopened-edge); }
+mark.anchor.resolved { background: var(--resolved-bg); border-bottom-color: var(--resolved-edge); }
+mark.anchor.applied { background: var(--applied-bg); border-bottom-color: var(--applied-edge); }
+mark.anchor.selected { outline: 2px solid var(--accent); outline-offset: 1px; }
+mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
+
+.markdown .flash
+{
+	animation: flash 1.6s ease-out;
+}
+
+@keyframes flash
+{
+	0% { background: var(--resolved-bg); }
+	100% { background: transparent; }
+}
+
+.comment-button
+{
+	position: absolute;
+	display: none;
+	z-index: 10;
+	box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.25 );
+}
+
+.comment-button.shown
+{
+	display: block;
+}
+
+.read-error
+{
+	position: sticky;
+	bottom: 0;
+}
+
+/* --------------------------------------------------------------------- threads */
+
+.threads-top
+{
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.75rem;
+	border-bottom: 1px solid var(--border);
+}
+
+/* The filter and the Highlight picker share the row, the count between them. */
+.threads-top .form-select
+{
+	flex: 1 1 0;
+	min-width: 0;
+	width: auto;
+}
+
+.threads-top .count
+{
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+
+.threads-empty
+{
+	padding: 1rem 0.75rem;
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+
+.thread
+{
+	margin: 0.6rem 0.75rem 0;
+	padding: 0.6rem 0.75rem;
+	background: var(--page-bg);
+	border: 1px solid var(--border);
+	border-left: 4px solid var(--contested-edge);
+	border-radius: 0.3rem;
+	cursor: pointer;
+}
+
+.thread.reopened { border-left-color: var(--reopened-edge); }
+.thread.resolved { border-left-color: var(--resolved-edge); }
+.thread.applied { border-left-color: var(--applied-edge); }
+.thread.detached { border-style: dashed; }
+.thread.selected { box-shadow: 0 0 0 2px var(--accent); }
+.thread.compose { border-left-color: var(--accent); cursor: default; }
+
+.thread-head
+{
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+	font-size: 0.8rem;
+	margin-bottom: 0.3rem;
+}
+
+.state-badge
+{
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 0.05rem 0.4rem;
+	border-radius: 0.25rem;
+	background: var(--contested-bg);
+	border: 1px solid var(--contested-edge);
+}
+
+.state-badge.reopened { background: var(--reopened-bg); border-color: var(--reopened-edge); }
+.state-badge.resolved { background: var(--resolved-bg); border-color: var(--resolved-edge); }
+.state-badge.applied { background: var(--applied-bg); border-color: var(--applied-edge); }
+
+.detached-badge
+{
+	color: var(--detached-edge);
+	border: 1px solid var(--detached-edge);
+	padding: 0.05rem 0.4rem;
+	border-radius: 0.25rem;
+}
+
+.turn
+{
+	margin-left: auto;
+	color: var(--muted);
+}
+
+.thread.mine .turn
+{
+	color: var(--mine-edge);
+	font-weight: 600;
+}
+
+.thread-anchor
+{
+	font-style: italic;
+	color: var(--muted);
+	margin-bottom: 0.4rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+}
+
+.thread-anchor.whole
+{
+	font-style: normal;
+	font-size: 0.85rem;
+}
+
+.reply
+{
+	margin: 0.4rem 0;
+	padding-top: 0.4rem;
+	border-top: 1px solid var(--border);
+}
+
+.reply-head
+{
+	font-size: 0.8rem;
+	color: var(--muted);
+}
+
+.reply-head .by
+{
+	font-weight: 600;
+	color: var(--text);
+}
+
+.reply-head
+{
+	margin-bottom: 0.2rem;
+}
+
+.reply-badge
+{
+	display: inline-block;
+	padding: 0.05rem 0.4rem;
+	border-radius: 0.25rem;
+	border: 1px solid var(--border);
+	cursor: pointer;
+	user-select: none;
+}
+
+.reply-badge:hover
+{
+	border-color: var(--muted);
+}
+
+.reply-badge .caret
+{
+	display: inline-block;
+	width: 0.7rem;
+}
+
+.reply.collapsed .reply-head
+{
+	margin-bottom: 0;
+}
+
+.reply-controls
+{
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.5rem;
+}
+
+.reply-controls .btn
+{
+	padding: 0;
+	font-size: 0.75rem;
+	color: var(--muted);
+	text-decoration: none;
+}
+
+.reply-controls .btn:hover
+{
+	color: var(--text);
+}
+
+.reply-text
+{
+	word-wrap: break-word;
+}
+
+.reply-text p,
+.reply-text ul,
+.reply-text ol,
+.reply-text pre,
+.reply-text blockquote
+{
+	margin: 0 0 0.4rem 0;
+}
+
+.reply-text > :last-child
+{
+	margin-bottom: 0;
+}
+
+.reply-text ul,
+.reply-text ol
+{
+	padding-left: 1.2rem;
+}
+
+.reply-text pre
+{
+	white-space: pre-wrap;
+}
+
+.reply-text blockquote
+{
+	padding-left: 0.6rem;
+	border-left: 3px solid var(--border);
+	color: var(--muted);
+}
+
+.record
+{
+	font-size: 0.8rem;
+	color: var(--muted);
+	margin-top: 0.3rem;
+}
+
+
+.reply-form
+{
+	margin-top: 0.5rem;
+}
+
+.thread-buttons
+{
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 0.4rem;
+}
+
+/* --------------------------------------------------------------------- header actions, errors, trash */
+
+.header-buttons
+{
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+/* A thread's delete: an × at the end of its first line, confirmed inline. */
+.thread-delete .btn
+{
+	padding: 0 0.3rem;
+	line-height: 1;
+	font-size: 1rem;
+	color: var(--muted);
+	text-decoration: none;
+}
+
+.thread-delete .btn.btn-danger, .thread-delete .btn.btn-outline-secondary
+{
+	font-size: 0.75rem;
+	padding: 0.05rem 0.4rem;
+}
+
+.thread-delete .btn.btn-danger
+{
+	color: #ffffff;
+}
+
+.thread-delete .delete-thread:hover
+{
+	color: var(--detached-edge);
+}
+
+.thread-delete .confirm
+{
+	font-size: 0.8rem;
+}
+
+.confirm
+{
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	font-size: 0.9rem;
+}
+
+.main-error
+{
+	margin: 0.5rem 1.25rem 0;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.5rem 0.75rem;
+}
+
+.trash-heading
+{
+	cursor: pointer;
+	margin-top: 0.5rem;
+}
+
+.proposal-item.trashed
+{
+	color: var(--muted);
+}
+
+.reanchor-hint
+{
+	max-width: 52rem;
+	margin: 0 auto 1rem;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.5rem 0.75rem;
+}
+
+/* --------------------------------------------------------------------- edit view */
+
+.edit-view
+{
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.edit-bar
+{
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.5rem 1.25rem;
+	border-bottom: 1px solid var(--border);
+	font-size: 0.9rem;
+}
+
+.edit-buttons
+{
+	margin-left: auto;
+	display: flex;
+	gap: 0.5rem;
+}
+
+.editor
+{
+	flex: 1;
+	min-height: 0;
+	min-width: 0;
+}
+
+/* --------------------------------------------------------------------- revisions view */
+
+.revisions
+{
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.revision-list
+{
+	max-height: 35%;
+	overflow-y: auto;
+	border-bottom: 1px solid var(--border);
+	background: var(--panel-bg);
+}
+
+.revision-row
+{
+	display: flex;
+	gap: 1rem;
+	align-items: baseline;
+	padding: 0.4rem 1.25rem;
+	cursor: pointer;
+	font-size: 0.9rem;
+	border-left: 3px solid transparent;
+}
+
+.revision-row:hover
+{
+	background: rgba( 128, 128, 128, 0.12 );
+}
+
+.revision-row.selected
+{
+	background: rgba( 13, 110, 253, 0.12 );
+	border-left-color: var(--accent);
+}
+
+.revision-number
+{
+	font-weight: 600;
+	min-width: 2rem;
+}
+
+.revision-reason
+{
+	text-transform: uppercase;
+	font-size: 0.75rem;
+	letter-spacing: 0.04em;
+	padding: 0.05rem 0.4rem;
+	border-radius: 0.25rem;
+	border: 1px solid var(--border);
+}
+
+.revision-reason.apply { background: var(--applied-bg); border-color: var(--applied-edge); }
+.revision-reason.edit { background: var(--contested-bg); border-color: var(--contested-edge); }
+.revision-reason.context { background: var(--resolved-bg); border-color: var(--resolved-edge); }
+
+/* Why a revision was made, when it says (the LLM's reason for a context change). */
+.revision-note
+{
+	color: var(--muted);
+	font-style: italic;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 30rem;
+}
+
+.revision-at
+{
+	color: var(--muted);
+}
+
+.revision-thread
+{
+	color: var(--accent);
+	font-style: italic;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 30rem;
+}
+
+.revision-thread.deleted
+{
+	color: var(--muted);
+	cursor: default;
+}
+
+.revision-text
+{
+	flex: 1;
+	overflow-y: auto;
+	padding: 1rem 2rem 4rem;
+}
+
+.revision-text .markdown
+{
+	margin-top: 0.5rem;
+}
+
+/* --------------------------------------------------------------------- editor with preview */
+
+:root
+{
+	--preview-width: 45%;
+}
+
+.edit-body
+{
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: 1fr 6px var(--preview-width);
+}
+
+.edit-preview
+{
+	overflow-y: auto;
+	padding: 1rem 1.5rem 4rem;
+	border-left: 1px solid var(--border);
+}
+
+.edit-preview .markdown
+{
+	max-width: none;
+}
+
+/* The preview hidden: the editor takes the whole width. */
+.edit-body.no-preview
+{
+	grid-template-columns: 1fr 0 0;
+}
+
+.edit-body.no-preview > .splitter, .edit-body.no-preview > .edit-preview
+{
+	display: none;
+}
+
+/* --------------------------------------------------------------------- sidebar: search, waiting, theme */
+
+
+.waiting-link
+{
+	display: block;
+	margin: 0.5rem 0.75rem 0;
+	padding: 0.4rem 0.6rem;
+	border-radius: 0.3rem;
+	border: 1px solid var(--mine-edge);
+	color: var(--mine-edge);
+	text-decoration: none;
+	font-size: 0.9rem;
+}
+
+/* Sort and Show updated, above the projects. */
+.tree-controls
+{
+	display: flex;
+	gap: 0.4rem;
+	margin: 0.5rem 0.75rem 0;
+}
+
+.tree-controls .form-select
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	width: auto;
+}
+
+.tree-controls .btn
+{
+	flex: none;
+	white-space: nowrap;
+}
+
+/* The date before an item's name when the tree is sorted by a date, and its last update at the row's end. */
+.tree-date
+{
+	flex: none;
+	color: var(--muted);
+	font-size: 0.8rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.tree-stamp
+{
+	flex: none;
+	margin-left: auto;
+	padding-left: 0.4rem;
+	color: var(--muted);
+	font-size: 0.72rem;
+	font-weight: normal;
+}
+
+.waiting-link.open, .waiting-link:hover
+{
+	background: rgba( 124, 58, 237, 0.12 );
+	color: var(--mine-edge);
+}
+
+.sidebar-bottom
+{
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.theme-controls
+{
+	display: flex;
+	gap: 0.5rem;
+	width: 100%;
+}
+
+.theme-controls select
+{
+	font-size: 0.8rem;
+	padding: 0.1rem 1.5rem 0.1rem 0.4rem;
+	background-position: right 0.4rem center;
+}
+
+/* --------------------------------------------------------------------- waiting and search views */
+
+.waiting-view
+{
+	flex: 1;
+	overflow-y: auto;
+	padding: 1.5rem 2rem 4rem;
+}
+
+.view-heading
+{
+	font-weight: 600;
+	font-size: 1.2rem;
+	margin-bottom: 0.75rem;
+}
+
+.waiting-group
+{
+	margin-bottom: 1.25rem;
+}
+
+.waiting-proposal
+{
+	font-weight: 600;
+	margin-bottom: 0.3rem;
+}
+
+.waiting-proposal a
+{
+	color: inherit;
+	text-decoration: none;
+}
+
+.waiting-item
+{
+	display: block;
+	color: inherit;
+	text-decoration: none;
+	padding: 0.5rem 0.75rem;
+	margin-bottom: 0.4rem;
+	border: 1px solid var(--border);
+	border-left: 4px solid var(--contested-edge);
+	border-radius: 0.3rem;
+	background: var(--page-bg);
+}
+
+.waiting-item:hover
+{
+	background: rgba( 128, 128, 128, 0.08 );
+	color: inherit;
+}
+
+.waiting-item.reopened { border-left-color: var(--reopened-edge); }
+.waiting-item.resolved { border-left-color: var(--resolved-edge); }
+
+.waiting-item .last
+{
+	color: var(--muted);
+	font-size: 0.9rem;
+	white-space: pre-wrap;
+	overflow: hidden;
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+}
+
+
+/* --------------------------------------------------------------------- tabs */
+
+/* The tree's toggle, then the tabs. */
+.tabs-row
+{
+	display: flex;
+	align-items: stretch;
+	background: var(--panel-bg);
+	border-bottom: 1px solid var(--border);
+}
+
+.tree-toggle
+{
+	flex: none;
+	display: flex;
+	align-items: center;
+	padding: 0.35rem 0.6rem;
+	border: none;
+	border-right: 1px solid var(--border);
+	background: transparent;
+	color: var(--accent);
+	font-size: 1rem;
+}
+
+.tree-toggle.off
+{
+	color: var(--muted);
+}
+
+.tree-toggle:hover
+{
+	background: var(--tree-hover);
+}
+
+.tab-strip
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	overflow-x: auto;
+	scrollbar-width: thin;
+}
+
+.tab
+{
+	--indent: calc( 16px * var(--scale) );
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	flex: 0 0 auto;
+	max-width: 16rem;
+	padding: 0.35rem 0.4rem 0.35rem 0.7rem;
+	border-right: 1px solid var(--border);
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+	font-size: 0.85rem;
+	color: var(--muted);
+}
+
+.tab:hover
+{
+	background-color: var(--tree-hover);
+}
+
+.tab.active
+{
+	background: var(--page-bg);
+	color: var(--text);
+	box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.tab.drop-before
+{
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.tab.drop-after
+{
+	box-shadow: inset -2px 0 0 var(--accent);
+}
+
+.tab-title
+{
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+
+.tab-button
+{
+	border: 0;
+	background: none;
+	color: var(--muted);
+	padding: 0 0.2rem;
+	line-height: 1;
+	border-radius: 0.2rem;
+	visibility: hidden;
+}
+
+.tab:hover .tab-button, .tab.active .tab-button, .tab-button.shown
+{
+	visibility: visible;
+}
+
+/* A tab whose item is in its own window: ghosted, and it does not open; its menu brings it back or closes it. */
+.tab.out
+{
+	cursor: default;
+	font-style: italic;
+}
+
+.tab.out .tree-icon, .tab.out .tab-title
+{
+	opacity: 0.45;
+}
+
+.tab-button:hover
+{
+	background-color: var(--tree-hover);
+	color: var(--text);
+}
+
+.tree-icon.icon-waiting
+{
+	background-color: var(--mine-edge);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='none' stroke='black' stroke-width='1.3'/%3E%3Cpath d='M8 4.5V8l2.5 1.5' fill='none' stroke='black' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='none' stroke='black' stroke-width='1.3'/%3E%3Cpath d='M8 4.5V8l2.5 1.5' fill='none' stroke='black' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E" );
+}
+
+
+/* --------------------------------------------------------------------- the content area */
+
+/* The views of the open item share this area. */
+.content-area
+{
+	position: relative;
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+/* Placed by the floating-panel directive: centered at first, then where it was moved; the grip sizes it. The
+   heading stays put and the body scrolls. */
+
+
+.size-part
+{
+	font-size: 0.8rem;
+	color: var(--muted);
+}
+
+
+.step-at, .step-meta
+{
+	color: var(--muted);
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+/* A detached window: one item, no sidebar and no strip, a bar to put it back. */
+.detached-bar
+{
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.35rem 1.25rem;
+	background: var(--panel-bg);
+	border-bottom: 1px solid var(--border);
+	font-size: 0.85rem;
+}
+
+/* The sidebar and its splitter are not shown, so the grid has three columns: main, the splitter, the threads. */
+.detached-window .layout
+{
+	grid-template-columns: 1fr 6px var(--threads-width);
+}
+
+.detached-window .layout.no-threads
+{
+	grid-template-columns: 1fr 0 0;
+}
+
+.detached-window .layout > .sidebar, .detached-window .layout > .splitter[data-splitter="sidebar"]
+{
+	display: none;
+}
+
+/* --------------------------------------------------------------------- subplans */
+
+/* The new Subplan form: over the page, near the top, like a small dialog. */
+.subplan-popup
+{
+	position: fixed;
+	inset: 0;
+	z-index: 50;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding-top: 12vh;
+	background: rgba( 0, 0, 0, 0.25 );
+}
+
+.subplan-form
+{
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	width: min( 34rem, calc( 100% - 2rem ) );
+	padding: 1rem;
+	background: var(--page-bg);
+	color: var(--text);
+	border: 1px solid var(--border);
+	border-radius: 0.4rem;
+	box-shadow: 0 6px 24px rgba( 0, 0, 0, 0.25 );
+	font-size: 0.9rem;
+}
+
+.subplan-head
+{
+	font-weight: 600;
+}
+
+.subplan-seed
+{
+	max-height: 12rem;
+	overflow: auto;
+	margin: 0;
+	padding: 0.5rem;
+	white-space: pre-wrap;
+	font-size: 0.8rem;
+	background: var(--panel-bg);
+	border: 1px solid var(--border);
+	border-radius: 0.25rem;
+}
+
+/* --------------------------------------------------------------------- export and import */
+
+/* New project and Import sit together at the right of the brand. */
+.sidebar-top #new-project
+{
+	margin-left: auto;
+	margin-right: 0.35rem;
+}
+
+/* The export and import popup is the Subplan form, wider, with the json in a monospace box. */
+.port-form
+{
+	width: min( 46rem, calc( 100% - 2rem ) );
+	max-height: 80vh;
+	overflow: auto;
+}
+
+.port-json
+{
+	font-family: var(--bs-font-monospace);
+	font-size: 0.75rem;
+	white-space: pre;
+}
+
+.port-preview
+{
+	margin-top: 0.5rem;
+	padding: 0.5rem;
+	background: var(--panel-bg);
+	border: 1px solid var(--border);
+	border-radius: 0.25rem;
+}
+
+.port-error,
+.port-warning
+{
+	color: var(--detached-edge);
+}
+
+.port-report ul
+{
+	margin: 0.15rem 0 0.35rem;
+	padding-left: 1.25rem;
+}
+
+
+/* --------------------------------------------------------------------- buttons */
+
+/* Color by purpose: Bootstrap's primary (blue), success (green: resolve and accept) and danger (red: delete) as they
+   are; every other button a tinted neutral. Each has an icon before its label; on hover it lifts, deepens and casts
+   a soft shadow, and pressed it settles back. */
+:root
+{
+	--button-neutral-bg: rgba( 13, 110, 253, 0.06 );
+	--button-neutral-hover: rgba( 13, 110, 253, 0.16 );
+	--button-neutral-border: #c4ccd6;
+	--button-shadow: rgba( 0, 0, 0, 0.2 );
+	--button-motion: 120ms ease;
+}
+
+[data-bs-theme="dark"]
+{
+	--button-neutral-bg: rgba( 116, 192, 252, 0.08 );
+	--button-neutral-hover: rgba( 116, 192, 252, 0.2 );
+	--button-neutral-border: #4a5360;
+	--button-shadow: rgba( 0, 0, 0, 0.55 );
+}
+
+.btn-outline-secondary
+{
+	--bs-btn-color: var(--text);
+	--bs-btn-bg: var(--button-neutral-bg);
+	--bs-btn-border-color: var(--button-neutral-border);
+	--bs-btn-hover-color: var(--text);
+	--bs-btn-hover-bg: var(--button-neutral-hover);
+	--bs-btn-hover-border-color: var(--accent);
+	--bs-btn-active-color: var(--text);
+	--bs-btn-active-bg: var(--button-neutral-hover);
+	--bs-btn-active-border-color: var(--accent);
+	--bs-btn-disabled-color: var(--muted);
+	--bs-btn-disabled-bg: transparent;
+	--bs-btn-disabled-border-color: var(--border);
+}
+
+.btn-outline-danger
+{
+	--bs-btn-bg: rgba( 220, 53, 69, 0.06 );
+}
+
+.btn, .tab-button, .tree-toggle
+{
+	transition: transform var(--button-motion), box-shadow var(--button-motion), background-color var(--button-motion), border-color var(--button-motion), color var(--button-motion);
+}
+
+.btn:not(.btn-link):not(:disabled):hover
+{
+	transform: translateY( -1px );
+	box-shadow: 0 3px 8px var(--button-shadow);
+}
+
+.btn:not(.btn-link):not(:disabled):active
+{
+	transform: translateY( 0 );
+	box-shadow: 0 1px 2px var(--button-shadow);
+}
+
+/* The icon before a label; an icon alone (the row buttons) stands for its title. */
+.icon.lead
+{
+	margin-right: 0.35em;
+}
+
+.btn .icon, .tab-button .icon
+{
+	transition: transform var(--button-motion);
+}
+
+.btn-link:not(:disabled):hover, .tab-button:hover
+{
+	color: var(--accent);
+}
+
+.btn-link:not(:disabled):hover > .icon:not(.lead), .tab-button:hover > .icon, .tree-toggle:hover > .icon
+{
+	transform: scale( 1.2 );
+}
+
+.btn-link[title^="delete"]:hover, .tab-button.close-tab:hover
+{
+	color: var(--bs-danger);
+}
+
+@media ( prefers-reduced-motion: reduce )
+{
+	.btn, .tab-button, .tree-toggle, .btn .icon, .tab-button .icon, .tree-toggle .icon
+	{
+		transition: none;
+	}
+
+	.btn:not(.btn-link):not(:disabled):hover, .btn:not(.btn-link):not(:disabled):active
+	{
+		transform: none;
+	}
+
+	.btn-link:not(:disabled):hover > .icon:not(.lead), .tab-button:hover > .icon, .tree-toggle:hover > .icon
+	{
+		transform: none;
+	}
+}
+
+/* --------------------------------------------------------------------- the popup menu */
+
+.popup-menu
+{
+	position: fixed;
+	z-index: 100;
+	min-width: 12rem;
+	padding: 0.3rem 0;
+	background: var(--page-bg);
+	border: 1px solid var(--border);
+	border-radius: 0.4rem;
+	box-shadow: 0 8px 24px var(--button-shadow);
+	font-size: 0.88rem;
+}
+
+.menu-button
+{
+	display: flex;
+	align-items: center;
+	width: 100%;
+	padding: 0.3rem 0.9rem;
+	border: 0;
+	background: none;
+	color: var(--text);
+	text-align: left;
+	white-space: nowrap;
+}
+
+.menu-button:not(:disabled):hover
+{
+	background: var(--button-neutral-hover);
+}
+
+.menu-button .icon.lead
+{
+	margin-right: 0.6em;
+	color: var(--muted);
+}
+
+.menu-button.danger, .menu-button.danger .icon.lead
+{
+	color: var(--bs-danger);
+}
+
+.menu-button:disabled
+{
+	color: var(--muted);
+	opacity: 0.55;
+}
+
+.menu-separator
+{
+	margin: 0.3rem 0;
+	border-top: 1px solid var(--border);
+}
+
+/* --------------------------------------------------------------------- the settings popup */
+
+.settings-form
+{
+	width: min( 56rem, calc( 100vw - 2rem ) );
+}
+
+.settings-row
+{
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0.4rem 0;
+	flex-wrap: wrap;
+}
+
+.settings-row.top
+{
+	align-items: flex-start;
+}
+
+.settings-row label
+{
+	color: var(--muted);
+	font-size: 0.9em;
+	min-width: 3.5rem;
+}
+
+.settings-row .form-control
+{
+	flex: 1 1 10rem;
+	width: auto;
+}
+
+.settings-row .settings-port
+{
+	flex: 0 0 7rem;
+}
+
+.settings-label
+{
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-weight: 600;
+	margin: 0.6rem 0 0.3rem;
+}
+
+.settings-participant
+{
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	margin: 0.3rem 0;
+}
+
+.settings-participant .form-control, .settings-participant .form-select
+{
+	width: auto;
+}
+
+.settings-participant .settings-name { flex: 1 1 6rem; }
+.settings-participant .settings-display { flex: 1 1 6rem; }
+.settings-participant .settings-role { flex: 0 0 6.5rem; }
+.settings-participant .settings-token { flex: 2 1 12rem; font-family: var(--bs-font-monospace); font-size: 0.8rem; }
+
+.settings-button
+{
+	margin: 0.25rem 0;
+}

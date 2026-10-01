@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="Connect">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Consensus Desktop</title>
+	<link rel="icon" href="data:,">
+	<link rel="stylesheet" href="/vendor/bootstrap.min.css">
+	<link rel="stylesheet" href="/connect.css">
+	<script src="/js/theme.js"></script>
+</head>
+<body ng-controller="ConnectController" ng-cloak>
+
+	<!-- The connect screen (plan Consensus Desktop, Step 2): the saved servers, one to add, and the local server. -->
+
+	<header class="connect-head">
+		<div class="connect-title"><span class="connect-kind">Consensus</span> Desktop <span class="muted small">{{ Version }}</span></div>
+		<div class="connect-controls">
+			<select class="form-select form-select-sm" ng-model="Theme" ng-change="SetTheme()" title="theme" id="theme-select">
+				<option value="system">System</option>
+				<option value="light">Light</option>
+				<option value="dark">Dark</option>
+			</select>
+			<select class="form-select form-select-sm" ng-model="Scale" ng-change="SetScale()" title="size" id="scale-select">
+				<option value="small">Small</option>
+				<option value="normal">Normal</option>
+				<option value="large">Large</option>
+			</select>
+		</div>
+	</header>
+
+	<main class="connect-main">
+		<div class="alert alert-info py-2" id="connected" ng-show="Server">Connected to <b>{{ Server.Name }}</b> at {{ Server.Url }}<span ng-show="Server.Version"> (Consensus {{ Server.Version }})</span>.</div>
+		<div class="alert alert-warning py-2" id="reason" ng-show="Reason">{{ Reason }}</div>
+		<div class="alert alert-danger py-2" ng-show="Error">{{ Error }} <button class="btn btn-link btn-sm" ng-click="Error = null">dismiss</button></div>
+
+		<section class="block">
+			<div class="block-head">
+				<h2>Servers</h2>
+				<button class="btn btn-sm btn-outline-primary" id="add-server" ng-click="StartAdd()" ng-hide="Editing">Add server</button>
+			</div>
+			<div class="muted small" ng-hide="Settings.Servers.length || Editing">none yet: add the address of a Consensus server, such as http://cube4:3500</div>
+			<div class="server-row" ng-repeat="server in Settings.Servers" ng-hide="Editing && Editing.Original === server">
+				<div class="server-name">{{ server.Name }}</div>
+				<div class="muted small server-url">{{ server.Url }}</div>
+				<span class="grow"></span>
+				<button class="btn btn-sm btn-primary connect-server" ng-click="Connect( server )" ng-disabled="Busy">Connect</button>
+				<button class="btn btn-sm btn-outline-secondary" ng-click="StartEdit( server )" ng-disabled="Busy">Edit</button>
+				<button class="btn btn-sm btn-outline-danger" ng-click="Remove( server )" ng-disabled="Busy">Remove</button>
+			</div>
+			<form class="server-form" ng-if="Editing" ng-submit="Save( false )">
+				<div class="field-row">
+					<label for="server-name">Name</label>
+					<input class="form-control form-control-sm" id="server-name" ng-model="Editing.Name" placeholder="cube4" auto-focus>
+					<label for="server-url">Url</label>
+					<input class="form-control form-control-sm" id="server-url" ng-model="Editing.Url" placeholder="http://cube4:3500">
+					<button class="btn btn-sm btn-outline-secondary" type="button" id="try-server" ng-click="Try()" ng-disabled="!Editing.Url || Busy">Try</button>
+				</div>
+				<div class="small tried" id="tried" ng-show="Editing.Tried">
+					<span ng-show="Editing.Tried.Ok">Consensus {{ Editing.Tried.Version || '(older than 0.2.0)' }} answers; you are {{ Editing.Tried.Me.Display }} ({{ Editing.Tried.Me.Role }}).<span class="text-warning" ng-show="Editing.Tried.Version !== Version"> Its version differs from this app's {{ Version }}.</span></span>
+					<span class="text-danger" ng-hide="Editing.Tried.Ok">{{ Editing.Tried.Error }}</span>
+				</div>
+				<div class="field-row">
+					<button class="btn btn-sm btn-primary" type="submit" id="save-server" ng-disabled="!Editing.Name || !Editing.Url || Busy">Save</button>
+					<button class="btn btn-sm btn-primary" type="button" id="save-connect" ng-click="Save( true )" ng-disabled="!Editing.Name || !Editing.Url || Busy">Save and connect</button>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelEdit()">Cancel</button>
+				</div>
+			</form>
+		</section>
+
+		<section class="block">
+			<div class="block-head">
+				<h2>Local server</h2>
+				<span class="muted small" id="local-status">{{ Local ? 'running at ' + Local.Url + ' over ' + Local.Data : 'not running' }}</span>
+			</div>
+			<div class="field-row">
+				<label for="local-data">Data folder</label>
+				<input class="form-control form-control-sm" id="local-data" ng-model="LocalData" placeholder="a folder for its data; consensus.json is written there at first start" ng-disabled="Local">
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="PickFolder()" ng-disabled="Local || Busy">Browse</button>
+			</div>
+			<div class="field-row">
+				<button class="btn btn-sm btn-outline-primary" id="local-start" ng-hide="Local" ng-click="LocalStart()" ng-disabled="!LocalData || Busy">Start</button>
+				<button class="btn btn-sm btn-outline-danger" id="local-stop" ng-show="Local" ng-click="LocalStop()" ng-disabled="Busy">Stop</button>
+				<button class="btn btn-sm btn-primary" id="local-connect" ng-show="Local" ng-click="ConnectLocal()" ng-disabled="Busy">Connect</button>
+			</div>
+		</section>
+
+		<div class="muted small">Another server at the same time: <a href="" ng-click="NewWindow()">New window</a> starts another instance of the app.</div>
+	</main>
+
+	<script src="/vendor/angular.min.js"></script>
+	<script src="/connect.js"></script>
+</body>
+</html>

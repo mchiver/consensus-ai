@@ -1,13 +1,14 @@
 {
 	"name": "consensus",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Collaborative proposal building and approval: the User and the LLM work a proposal through, thread by thread, until it is approved as a Plan.",
 	"private": true,
 	"license": "MIT",
 	"main": "src/Server.js",
 	"scripts": {
 		"start": "node bin/consensus.js",
-		"test": "node --test"
+		"test": "node --test",
+		"desktop": "electron desktop"
 	},
 	"engines": {
 		"node": ">=22"
@@ -21,5 +22,8 @@
 	},
 	"bin": {
 		"consensus": "bin/consensus.js"
+	},
+	"devDependencies": {
+		"electron": "^44.5.1"
 	}
 }
