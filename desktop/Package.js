@@ -9,7 +9,8 @@
 //     Llm: { Name, Checks: { Instructions, Readme, Documents, Threads }, Prompts: { Review, Build, Session } },
 //     Server: { Url },  Project: { Id, Name },  Plan: { Id, Title, State } | null,  Workspace: { Name, Path } | null,
 //     Participant: 'llm',
-//     Instructions: text | null,  Readme: { Id, Title, Text } | null,  Documents: [ { Id, Title } ],
+//     Instructions: text | null,  InstructionsTitle?: 'Agent instructions',  DocumentsHint?: how to read one,
+//     Readme: { Id, Title, Text } | null,  Documents: [ { Id, Title } ],
 //     Threads: [ { Id, Status, Anchor, Replies: [ { By, At, Text } ] } ],
 //   } ) -> text
 
@@ -132,7 +133,7 @@ function Build( Request )
 
 	if ( checks.Instructions && request.Instructions )
 	{
-		heading( lines, 'Agent instructions' );
+		heading( lines, request.InstructionsTitle || 'Agent instructions' );
 		push_text( lines, request.Instructions );
 	}
 	if ( checks.Readme && request.Readme )
@@ -143,7 +144,7 @@ function Build( Request )
 	if ( checks.Documents && request.Documents && request.Documents.length )
 	{
 		heading( lines, 'Other documents of the Context folder' );
-		lines.push( 'Read one through the API: GET /api/proposals/<id>.' );
+		lines.push( request.DocumentsHint || 'Read one through the API: GET /api/proposals/<id>.' );
 		lines.push( '' );
 		for ( let document of request.Documents )
 		{

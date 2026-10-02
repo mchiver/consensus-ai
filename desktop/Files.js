@@ -7,6 +7,8 @@
 //
 //   Walk( Path, Include, Exclude, Limit? ) -> { Count, Files: [ the first Limit paths ], Truncated }
 //   Matches( Pattern, Path ) -> boolean
+//   Within( Root, Include, Exclude, Path ) -> { Ok: true, Relative, Absolute } | { Ok: false, Error }
+//     (Step 4: whether a path a tool names is a file the workspace includes; its folders are checked as the walk does)
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -148,8 +150,48 @@ function Walk( Path, Include, Exclude, Limit )
 }
 
 
+//---------------------------------------------------------------------
+// Within: a path the model names, relative to the workspace or absolute inside it, as the walk would see it.
+
+function Within( Root, Include, Exclude, Path )
+{
+	let root = PATH.resolve( String( Root || '' ) );
+	let given = String( Path || '' ).trim().replace( /\\/g, '/' );
+	if ( !given )
+	{
+		return { Ok: false, Error: 'a Path is needed' };
+	}
+	let absolute = PATH.resolve( root, given );
+	let relative = PATH.relative( root, absolute ).replace( /\\/g, '/' );
+	if ( !relative || relative === '..' || relative.startsWith( '../' ) || PATH.isAbsolute( relative ) )
+	{
+		return { Ok: false, Error: given + ' is outside the workspace' };
+	}
+	let excluded = matcher( Exclude );
+	let parts = relative.split( '/' );
+	for ( let index = 1; index < parts.length; index++ )
+	{
+		if ( excluded( parts.slice( 0, index ).join( '/' ), true ) )
+		{
+			return { Ok: false, Error: relative + ' is in a folder the workspace excludes' };
+		}
+	}
+	if ( excluded( relative, false ) )
+	{
+		return { Ok: false, Error: relative + ' is a file the workspace excludes' };
+	}
+	let patterns = ( Include || [] ).filter( function ( pattern ) { return String( pattern ).trim(); } );
+	if ( patterns.length && !matcher( patterns )( relative, false ) )
+	{
+		return { Ok: false, Error: relative + ' is not a file the workspace includes (' + patterns.join( ', ' ) + ')' };
+	}
+	return { Ok: true, Relative: relative, Absolute: absolute };
+}
+
+
 module.exports = {
 	DEFAULT_LIMIT: DEFAULT_LIMIT,
 	Matches: Matches,
 	Walk: Walk,
+	Within: Within,
 };

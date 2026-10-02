@@ -12,6 +12,8 @@ private address. The plan "Build Workflow" in the Consensus project is where the
 and reads no code: every LLM takes part through the API, as you do. Consensus Desktop (Step 3) can run a model
 once, with this page, the project's Readme and the plan at hand packaged as its prompt: such a one-shot works
 exactly as a session does, through the API, and says in the package which plan, project and folder it is for.
+A local model run by the desktop (Step 4) does not call the API itself: the desktop runs its tools, the
+Consensus ones included, and gives it this page's rules in its own words.
 
 ## Who does what
 

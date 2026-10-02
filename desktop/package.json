@@ -1,6 +1,6 @@
 {
 	"name": "consensus-desktop",
-	"version": "0.2.0",
+	"version": "0.4.0",
 	"description": "Consensus Desktop: a client for any Consensus server, with its own copy of the page and one local server (plan Consensus Desktop, Step 2). Run from the checkout with npm run desktop.",
 	"private": true,
 	"main": "main.js"

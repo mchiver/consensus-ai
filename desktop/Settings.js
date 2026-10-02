@@ -10,13 +10,15 @@
 //     "Last": { "Kind": "server", "Name": "cube4" } | { "Kind": "local" } | null,
 //     "Theme": "system", "Scale": "normal",
 //     "Llms": [ { "Id": "llm-…", "Name": "Claude", "Kind": "claude-cli", "Command": "claude", "Arguments": [ "-p", … ],
-//                "Url": "", "Model": "sonnet", "Timeout": 300,
+//                "Url": "", "Model": "sonnet", "Timeout": 300, "Context": 32768, "Rounds": 30,
 //                "Checks": { "Instructions": true, "Readme": true, "Documents": true, "Threads": true },
 //                "Unchecked": { "Documents": [ "doc-…" ], "Threads": [ "thr-…" ] },
 //                "Prompts": { "Review": "…", "Build": "…", "Session": "" } } ],
 //     "Workspaces": [ { "Id": "wks-…", "Name": "consensus", "Project": "default", "Path": "W:/code/consensus.git",
-//                       "Include": [], "Exclude": [ "~*/**", "node_modules/**", ".git/**" ] } ]
+//                       "Include": [], "Exclude": [ "~*/**", "node_modules/**", ".git/**" ], "Commands": [ "npm test" ] } ]
 //   }
+//   Step 4: Context (the model's window, Ollama's num_ctx) and Rounds (the most tool rounds a run takes) on an ollama
+//   connection; Commands (the command lines a run may execute, none by default) on a workspace.
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -32,6 +34,9 @@ const DEFAULT_COMMAND = 'claude';
 const DEFAULT_ARGUMENTS = [ '-p', '--output-format', 'text', '--allowedTools', 'Bash,Read,Edit,Write,Glob,Grep,MultiEdit,WebFetch' ];
 const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
 const DEFAULT_TIMEOUT = 300;
+const DEFAULT_CONTEXT = 32768;
+const DEFAULT_ROUNDS = 30;
+const SHELL_OPERATORS = /[|&;<>$`()]/;
 const DEFAULT_EXCLUDE = [ '~*/**', 'node_modules/**', '.git/**' ];
 const ID_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz';
 
@@ -106,6 +111,8 @@ function FillLlm( Llm )
 		prompts[ name ] = ( given.Prompts && typeof given.Prompts[ name ] === 'string' ) ? given.Prompts[ name ] : PACKAGE.DEFAULT_PROMPTS[ name ];
 	}
 	let timeout = Number( given.Timeout );
+	let context = Number( given.Context );
+	let rounds = Number( given.Rounds );
 	let unchecked = ( given.Unchecked && typeof given.Unchecked === 'object' ) ? given.Unchecked : {};
 	return {
 		Id: text_of( given.Id ) || NewId( 'llm' ),
@@ -116,6 +123,8 @@ function FillLlm( Llm )
 		Url: text_of( given.Url ) || ( ( kind === 'ollama' ) ? DEFAULT_OLLAMA_URL : '' ),
 		Model: text_of( given.Model ),
 		Timeout: ( Number.isFinite( timeout ) && timeout > 0 ) ? Math.round( timeout ) : DEFAULT_TIMEOUT,
+		Context: ( Number.isFinite( context ) && context > 0 ) ? Math.round( context ) : DEFAULT_CONTEXT,
+		Rounds: ( Number.isFinite( rounds ) && rounds > 0 ) ? Math.round( rounds ) : DEFAULT_ROUNDS,
 		Checks: checks,
 		Prompts: prompts,
 		Unchecked: { Documents: lines_of( unchecked.Documents, [] ), Threads: lines_of( unchecked.Threads, [] ) },
@@ -136,6 +145,7 @@ function FillWorkspace( Workspace )
 		Path: text_of( given.Path ).replace( /\\/g, '/' ).replace( /\/+$/, '' ),
 		Include: lines_of( given.Include, [] ),
 		Exclude: lines_of( given.Exclude, ( given.Exclude === undefined ) ? DEFAULT_EXCLUDE : [] ),
+		Commands: lines_of( given.Commands, [] ),
 	};
 }
 
@@ -288,6 +298,13 @@ function Problems( Settings )
 		{
 			problems.push( what + ' has no Path' );
 		}
+		for ( let command of workspace.Commands || [] )
+		{
+			if ( SHELL_OPERATORS.test( command ) )
+			{
+				problems.push( what + ': the command "' + command + '" chains, pipes, redirects or substitutes; one plain command per line' );
+			}
+		}
 	}
 	return problems;
 }
@@ -324,6 +341,8 @@ module.exports = {
 	DEFAULT_ARGUMENTS: DEFAULT_ARGUMENTS,
 	DEFAULT_OLLAMA_URL: DEFAULT_OLLAMA_URL,
 	DEFAULT_TIMEOUT: DEFAULT_TIMEOUT,
+	DEFAULT_CONTEXT: DEFAULT_CONTEXT,
+	DEFAULT_ROUNDS: DEFAULT_ROUNDS,
 	DEFAULT_EXCLUDE: DEFAULT_EXCLUDE,
 	Default: Default,
 	NewId: NewId,

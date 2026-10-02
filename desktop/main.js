@@ -8,6 +8,8 @@
 // Step 3: the LLM connections and the workspaces (Settings.js), shown by the page in each project's Context
 // folder; a connection's Check (Llm.js); the one-shots, packaged here from what the connected server says
 // (Package.js) and run by Runs.js, their records in the user-data folder's runs/.
+// Step 4: an ollama connection's one-shot gets the desktop's tool instructions (Tools.js) in place of the agent
+// guide, and its Consensus tools the llm participant's token, read from the server's settings as the owner.
 //
 //   npm run desktop          (electron desktop, from the checkout)
 
@@ -21,6 +23,7 @@ const LLM = require( './Llm.js' );
 const PACKAGE = require( './Package.js' );
 const RUNS = require( './Runs.js' );
 const FILES = require( './Files.js' );
+const TOOLS = require( './Tools.js' );
 
 const VERSION = require( '../package.json' ).version;
 const TRY_TIMEOUT = 5000;
@@ -484,7 +487,12 @@ async function make_package( request )
 			let answer = await fetch_json( '/api/proposals/' + encodeURIComponent( readme_id ) );
 			readme = { Id: readme_id, Title: answer.Proposal.Title, Text: answer.Text };
 		}
-		let instructions = llm.Checks.Instructions ? await fetch_text( '/instructions' ) : null;
+		let is_ollama = ( llm.Kind === 'ollama' );
+		let instructions = null;
+		if ( llm.Checks.Instructions )
+		{
+			instructions = is_ollama ? tools_for( request.Kind, workspace, project.Id, null ).Instructions() : await fetch_text( '/instructions' );
+		}
 		let plan = null;
 		let threads = [];
 		if ( request.PlanId )
@@ -506,6 +514,8 @@ async function make_package( request )
 			Workspace: workspace ? { Name: workspace.Name, Path: workspace.Path } : null,
 			Participant: participant,
 			Instructions: instructions,
+			InstructionsTitle: is_ollama ? 'Tool instructions' : 'Agent instructions',
+			DocumentsHint: is_ollama ? 'Read one with the read_document tool.' : undefined,
 			Readme: readme,
 			Documents: documents_of( context_folder ? context_folder.Items : [], readme_id ).filter( function ( document ) { return !llm.Unchecked.Documents.includes( document.Id ); } ),
 			Threads: threads,
@@ -519,6 +529,27 @@ async function make_package( request )
 }
 
 
+// The tools of an ollama run (Step 4): over the workspace and the connected server, as the llm participant.
+function tools_for( kind, workspace, project_id, token )
+{
+	return TOOLS.Tools( { Kind: kind, Workspace: workspace, Server: { Url: current.Url, Token: token, Project: project_id } } );
+}
+
+
+// The llm participant's token, from the server's settings (the owner reads them): what the Consensus tools post with.
+async function llm_token()
+{
+	let answer = await fetch_json( '/api/settings' );
+	let participants = ( answer.Settings && answer.Settings.Participants ) || [];
+	let llm_participant = participants.find( function ( participant ) { return participant.Role === 'llm'; } );
+	if ( !llm_participant || !llm_participant.Token )
+	{
+		throw new Error( 'the server has no llm participant with a Token; the owner sets one in its settings' );
+	}
+	return llm_participant.Token;
+}
+
+
 async function start_run( request )
 {
 	let made = await make_package( request );
@@ -528,7 +559,12 @@ async function start_run( request )
 	}
 	try
 	{
-		let run = runs.Start( { Llm: made.Llm, Kind: request.Kind, Project: made.Project, Plan: made.Plan, Workspace: made.Workspace, Prompt: made.Prompt } );
+		let server = null;
+		if ( made.Llm.Kind === 'ollama' )
+		{
+			server = { Url: current.Url, Token: await llm_token(), Project: made.Project.Id };
+		}
+		let run = runs.Start( { Llm: made.Llm, Kind: request.Kind, Project: made.Project, Plan: made.Plan, Workspace: made.Workspace, Prompt: made.Prompt, Server: server } );
 		return { Run: run };
 	}
 	catch ( error )

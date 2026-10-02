@@ -225,7 +225,8 @@ project; a workspace, a path to a folder, with the project it is attached to. Ne
 workspace are in the Context folder's menu (whose count includes them); Open, Rename and Delete in the row's.
 Each opens in a tab of its own. The **LLM page** (plan UI Tweaks IV) has a head with **Details…** (a popup:
 Name; Kind `claude-cli`, a command run without a shell, or `ollama`; Command and Arguments, one per line, before
-`--model`; Model; Timeout; Check, which tries the form as entered) and **Packaging…** (a popup: the items that
+`--model`; Model; Timeout; for `ollama` Context, the model's window in tokens, and Rounds, the most tool rounds a run
+takes; Check, which tries the form as entered and, for `ollama`, says whether the Model calls tools) and **Packaging…** (a popup: the items that
 go into the one-shot prompt, in this order: the server's `/instructions`, the project's Readme, the other
 Context documents listed by title and each checkable, the threads of the plan at hand waiting on the llm
 participant listed by anchor and each checkable; the unchecked ids are remembered per connection, so a new
@@ -233,19 +234,39 @@ document or thread is in by default; then the Review, Build and Session Prompts 
 the prompt as the form stands, with its character count and an estimated token count at four characters each,
 and Copy), then **Run** (the plan at hand in the page's own picker, in the tree's order with its folders and
 indentation and each plan's unresolved threads, defaulting to the plan last opened; a workspace; **Review**,
-**Build** and **Session** each package their prompt and run it once, disabled only while a run is going, for
-`ollama`, or for what they lack, with the reason shown beside them; Stop while it runs) and the **log** (one
+**Build** and **Session** each package their prompt and run it once, disabled only while a run is going or for
+what they lack, with the reason shown beside them; Stop while it runs) and the **log** (one
 record per run in the user-data folder's `runs/<id>.json`: when, which button, the project, the plan, the
-workspace, the prompt, the output, the exit and the duration; the page shows the project's runs, newest first;
-a run opens in a popup, its output and prompt rendered as markdown or shown as source, each with its size and
-Copy). A `claude-cli` one-shot runs the command once in the workspace's folder
+workspace, the prompt, the output, the exit and the duration, and for a local model the rounds and the tokens;
+the page shows the project's runs, newest first; a run opens in a popup, its output and prompt rendered as
+markdown or shown as source, each with its size and Copy). A `claude-cli` one-shot runs the command once in the workspace's folder
 with the package on its standard input; the model works through the API itself, with the token in the
 instructions, and nothing is parsed. The default Arguments let a non-interactive `claude` use its tools. The
-desktop never commits, branches or pushes. An `ollama` connection can be entered and checked; its one-shots
-are Step 4. The **workspace page** holds Name, Path (Browse), Include and Exclude globs (`**` crosses folders;
-one without a slash matches at any depth; an excluded folder is not entered), and below them the files the
-workspace includes, walked again on every change (the first 500, with the count). In Step 3 the Path is where
-a one-shot runs; the patterns serve the file tools of Step 4.
+desktop never commits, branches or pushes.
+
+An `ollama` one-shot (Step 4: Local Models) runs in the desktop: a local model has no tools of its own, so
+`Ollama.js` runs the tool loop over Ollama's chat endpoint, one request per round with the connection's Context
+as `num_ctx`, and `Tools.js` carries out each call the model makes and sends the result back, until the model
+answers without a call, the Rounds run out (one last request without tools asks for the answer), the Timeout
+passes, or Stop aborts the request in flight. The tools: over the workspace, `glob`, `grep` and `read` within
+its Include and Exclude, and for Build and Session `write`, `edit` (one occurrence, or refused) and `run`,
+which executes one of the workspace's **Commands** (one per line on the workspace page, none by default; a
+command exactly or with arguments after it; nothing that chains, pipes, redirects or substitutes, on the list or
+in a call); over the connected server, as the llm participant with the Token the server's settings hold,
+`list_project`, `read_plan`, `read_document`, `waiting`, `reply`, `apply` (the current revision supplied),
+`thread` and `set_state`, each held to the project the connection was opened from, a server's refusal going
+back to the model as the tool's result. The package is the same, except that the agent instructions (which say
+how to call the API with the token) are replaced by the desktop's tool instructions, so the token never enters
+a local model's prompt. The run keeps its `Transcript` as entries (a round's text, a call with its arguments, its
+whole result and how long it took, the answer) and its Output as the markdown rendered from them (a heading per
+round, each call in bold with its result fenced and clipped at 2,000 characters, the answer under its own
+heading), both growing with every call; every window hears each call, so the run popup follows a run as it
+goes. The popup shows the transcript as blocks per round, each call a row that unfolds to its whole result,
+and the answer rendered; Source shows the markdown. A Review gets the read-only file tools, a Build and a Session
+every tool the workspace allows; without a workspace, the Consensus tools only. The **workspace page** holds
+Name, Path (Browse), Include and Exclude globs (`**` crosses folders; one without a slash matches at any depth;
+an excluded folder is not entered), Commands, and below them the files the workspace includes, walked again on
+every change (the first 500, with the count).
 
 The page's **theme** is a palette: System, Light, Sepia, Paper, Solarized Light, Dark, Slate, Solarized Dark,
 Nord or Midnight (`data-theme` on the page; `data-bs-theme` light or dark for Bootstrap), and the editor takes

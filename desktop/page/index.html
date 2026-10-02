@@ -412,7 +412,7 @@
 							<label for="llm-name">Name</label>
 							<input class="form-control form-control-sm" id="llm-name" ng-model="Details.Form.Name" placeholder="Claude" auto-focus>
 							<label for="llm-kind">Kind</label>
-							<select class="form-select form-select-sm item-kind" id="llm-kind" ng-model="Details.Form.Kind" ng-options="kind for kind in Kinds" title="claude-cli: a command run without a shell, the prompt on its standard input; ollama: a local Ollama server (its one-shots are Step 4)"></select>
+							<select class="form-select form-select-sm item-kind" id="llm-kind" ng-model="Details.Form.Kind" ng-options="kind for kind in Kinds" title="claude-cli: a command run without a shell, the prompt on its standard input; ollama: a local Ollama server, run through the desktop's tools"></select>
 						</div>
 						<div class="settings-row">
 							<label for="llm-model">Model</label>
@@ -432,10 +432,16 @@
 							<label for="llm-url">Url</label>
 							<input class="form-control form-control-sm" id="llm-url" ng-model="Details.Form.Url" placeholder="http://127.0.0.1:11434">
 						</div>
+						<div class="settings-row" ng-show="Details.Form.Kind === 'ollama'">
+							<label for="llm-context">Context</label>
+							<input class="form-control form-control-sm settings-port" id="llm-context" type="number" min="1" ng-model="Details.Form.Context" title="the model's context window in tokens (Ollama's num_ctx); Preview shows the package's estimated tokens">
+							<label for="llm-rounds">Rounds</label>
+							<input class="form-control form-control-sm settings-port" id="llm-rounds" type="number" min="1" ng-model="Details.Form.Rounds" title="the most tool rounds a run may take">
+						</div>
 						<div class="thread-buttons">
 							<button class="btn btn-sm btn-primary" type="submit" id="llm-save" ng-disabled="Details.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
 							<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-cancel" ng-click="CloseDetails()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
-							<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-check" ng-click="CheckDetails()" ng-disabled="Details.Busy" title="does it answer, as entered here? claude-cli: the command's --version; ollama: its models"><svg class="icon lead"><use href="#i-check"></use></svg>Check</button>
+							<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-check" ng-click="CheckDetails()" ng-disabled="Details.Busy" title="does it answer, as entered here? claude-cli: the command's --version; ollama: its models, and whether the Model calls tools"><svg class="icon lead"><use href="#i-check"></use></svg>Check</button>
 							<span class="small" id="llm-checked" ng-show="Details.Checked" ng-class="Details.Checked.Ok ? 'text-success' : 'text-danger'">{{ Details.Checked.Ok ? Details.Checked.Result : Details.Checked.Error }}</span>
 						</div>
 					</form>
@@ -503,6 +509,7 @@
 							<span class="run-when muted">{{ RunPopup.Run.Started | stamp }}</span>
 							<span class="run-duration muted">{{ Duration( RunPopup.Run ) }}</span>
 							<span class="muted small" ng-show="RunPopup.Run.Exit !== null">exit {{ RunPopup.Run.Exit }}</span>
+							<span class="muted small run-spent" id="run-spent" ng-show="Spent( RunPopup.Run )">{{ Spent( RunPopup.Run ) }}</span>
 							<span class="run-error text-danger small" ng-show="RunPopup.Run.Error && RunPopup.Run.Status !== 'stopped'">{{ RunPopup.Run.Error }}</span>
 						</div>
 						<div class="muted small run-command">{{ RunPopup.Run.Command }}{{ RunPopup.Run.Workspace ? ' in ' + RunPopup.Run.Workspace.Path : '' }}</div>
@@ -516,7 +523,25 @@
 								<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Copy( RunPopup.Run.Output, RunPopup ); RunPopup.Copied = 'output'" ng-disabled="!RunPopup.Run.Output"><svg class="icon lead"><use href="#i-copy"></use></svg>{{ RunPopup.Copied === 'output' ? 'Copied' : 'Copy' }}</button>
 							</div>
 							<pre class="run-output" id="run-output" ng-if="RunPopup.Source">{{ RunPopup.Run.Output || '(nothing yet)' }}</pre>
-							<div class="run-output run-rendered markdown" id="run-output-rendered" ng-if="!RunPopup.Source" ng-bind-html="( RunPopup.Run.Output || '*(nothing yet)*' ) | markdown"></div>
+							<div class="run-output run-rendered markdown" id="run-output-rendered" ng-if="!RunPopup.Source && !RunPopup.Run.Transcript" ng-bind-html="( RunPopup.Run.Output || '*(nothing yet)*' ) | markdown"></div>
+							<!-- A local model's transcript (Step 4): a block per round, each call a row that unfolds to its whole result, the answer rendered. -->
+							<div class="run-output run-transcript" id="run-transcript" ng-if="!RunPopup.Source && RunPopup.Run.Transcript">
+								<div class="muted" ng-if="!RunPopup.Run.Transcript.length">(nothing yet)</div>
+								<div class="transcript-entry" ng-repeat="entry in RunPopup.Run.Transcript track by $index" ng-class="entry.Kind">
+									<div class="transcript-round" ng-if="RoundStarts( RunPopup.Run.Transcript, $index )">Round {{ entry.Round }}</div>
+									<div class="transcript-text markdown" ng-if="entry.Kind === 'text'" ng-bind-html="entry.Text | markdown"></div>
+									<div class="transcript-call" ng-if="entry.Kind === 'call'">
+										<button class="transcript-toggle" type="button" ng-click="RunPopup.Open[ $index ] = !RunPopup.Open[ $index ]" title="the whole result">{{ RunPopup.Open[ $index ] ? '▾' : '▸' }}</button>
+										<code class="transcript-described">{{ entry.Described }}</code>
+										<span class="muted small">{{ entry.Duration }} s · {{ entry.Result | size }}</span>
+										<pre class="transcript-result" ng-if="RunPopup.Open[ $index ]">{{ entry.Result || '(empty)' }}</pre>
+									</div>
+									<div class="transcript-answer" ng-if="entry.Kind === 'answer'">
+										<div class="transcript-round">Answer{{ entry.Nudged ? ' (asked for after ' + entry.Round + ' rounds)' : '' }}</div>
+										<div class="markdown" ng-bind-html="entry.Text | markdown"></div>
+									</div>
+								</div>
+							</div>
 						</div>
 						<div class="run-text">
 							<div class="run-text-head"><b>Prompt</b> <span class="muted small" id="run-prompt-size">{{ RunPopup.Run.Prompt | size }}</span>
@@ -554,6 +579,10 @@
 					<div class="settings-row top">
 						<label for="workspace-exclude">Exclude</label>
 						<textarea class="form-control form-control-sm" id="workspace-exclude" rows="3" ng-model="Form.ExcludeText" placeholder="globs, one per line; an excluded folder is not entered"></textarea>
+					</div>
+					<div class="settings-row top">
+						<label for="workspace-commands">Commands</label>
+						<textarea class="form-control form-control-sm" id="workspace-commands" rows="2" ng-model="Form.CommandsText" placeholder="the commands a local model may run here, one per line (npm test); none by default; nothing that chains or pipes" title="a run tool executes one of these, exactly or with arguments after it"></textarea>
 					</div>
 					<div class="thread-buttons">
 						<button class="btn btn-sm btn-primary" type="submit" id="workspace-save" ng-disabled="!Dirty() || Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>

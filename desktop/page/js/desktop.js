@@ -222,12 +222,16 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 	$scope.$watch( function () { return [ State.View, State.OpenItem ? State.OpenItem.Kind + '/' + State.OpenItem.Project + '/' + State.OpenItem.Id : null, DesktopItems.Llms, DesktopItems.Workspaces, State.Projects ]; }, load, true );
 
 
-	// A run started or ended: the log and the tree follow.
+	// A run started, called a tool or ended: the log and the tree follow, and the popup showing that run re-reads it.
 	$scope.$on( 'runs-changed', function ( event, summary )
 	{
 		if ( $scope.Llm && summary.Llm && summary.Llm.Id === $scope.Llm.Id )
 		{
 			load_runs();
+			if ( $scope.RunPopup && $scope.RunPopup.Run.Id === summary.Id )
+			{
+				$scope.RefreshRun();
+			}
 			if ( summary.Status !== 'running' )
 			{
 				State.LoadList();
@@ -283,6 +287,8 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 			Url: llm.Url,
 			Model: llm.Model,
 			Timeout: llm.Timeout,
+			Context: llm.Context,
+			Rounds: llm.Rounds,
 		};
 	}
 
@@ -303,6 +309,8 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 			Url: form.Url,
 			Model: form.Model,
 			Timeout: form.Timeout,
+			Context: form.Context,
+			Rounds: form.Rounds,
 		} );
 	}
 
@@ -567,7 +575,7 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 	};
 
 
-	// Why a button is disabled, or '' when it can run: a run going, ollama, no plan, no workspace.
+	// Why a button is disabled, or '' when it can run: a run going, no plan, no workspace.
 	$scope.Reason = function ( kind )
 	{
 		if ( !$scope.Llm )
@@ -577,10 +585,6 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 		if ( $scope.IsRunning() )
 		{
 			return 'a run is going';
-		}
-		if ( $scope.Llm.Kind === 'ollama' )
-		{
-			return 'an ollama one-shot is Step 4';
 		}
 		if ( kind !== 'session' && !$scope.Pick.Plan )
 		{
@@ -658,7 +662,7 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 		let answer = await window.Desktop.ReadRun( run.Id );
 		if ( answer.Run )
 		{
-			$scope.RunPopup = { Run: answer.Run, Source: false, Copied: null };
+			$scope.RunPopup = { Run: answer.Run, Source: false, Copied: null, Open: {} };
 		}
 		$scope.$applyAsync();
 	};
@@ -672,6 +676,34 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 			$scope.RunPopup.Run = answer.Run || $scope.RunPopup.Run;
 			$scope.$applyAsync();
 		}
+	};
+
+
+	// The transcript's round headings: before the first entry of a round that is not the answer.
+	$scope.RoundStarts = function ( transcript, index )
+	{
+		let entry = transcript[ index ];
+		if ( entry.Kind === 'answer' )
+		{
+			return false;
+		}
+		return index === 0 || transcript[ index - 1 ].Round !== entry.Round || transcript[ index - 1 ].Kind === 'answer';
+	};
+
+
+	// A local model's run: its rounds and the tokens Ollama counted (Step 4); '' for a command's run.
+	$scope.Spent = function ( run )
+	{
+		if ( !run || run.Rounds === null || run.Rounds === undefined )
+		{
+			return '';
+		}
+		let words = run.Rounds + ( run.Rounds === 1 ? ' round' : ' rounds' );
+		if ( run.Usage )
+		{
+			words += ' · ' + Number( run.Usage.Prompt || 0 ).toLocaleString() + ' prompt + ' + Number( run.Usage.Answer || 0 ).toLocaleString() + ' answer tokens';
+		}
+		return words;
 	};
 
 
@@ -716,6 +748,7 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 			Path: workspace.Path,
 			IncludeText: ( workspace.Include || [] ).join( '\n' ),
 			ExcludeText: ( workspace.Exclude || [] ).join( '\n' ),
+			CommandsText: ( workspace.Commands || [] ).join( '\n' ),
 		};
 	}
 
@@ -735,6 +768,7 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 			Path: form.Path,
 			Include: lines( form.IncludeText ),
 			Exclude: lines( form.ExcludeText ),
+			Commands: lines( form.CommandsText ),
 		};
 	}
 

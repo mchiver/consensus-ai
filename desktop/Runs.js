@@ -5,10 +5,15 @@
 // the output, the exit status and the duration. One run at a time per connection; a run is stopped with Stop, and
 // killed when it takes longer than the connection's Timeout. The command runs without a shell, in the workspace's
 // folder when there is one, with the prompt on its standard input; its output (stdout, then stderr) is kept.
+// Step 4: an ollama connection runs through Ollama.js instead of a child process: the tool loop in this process, with
+// the tools of Tools.js over the workspace and the connected server; the Transcript (Ollama.js's entries) is kept
+// whole and the Output is its markdown, both growing with every call, and every window hears each call; Rounds and
+// Usage are kept; Stop aborts the request in flight.
 //
 //   Runs( { Folder, Spawn? } ) -> { Start( Request ), Stop( Id ), List( LlmId? ), Read( Id ), Running( LlmId ), OnChange( Handler ), Close() }
-//   Request = { Llm, Kind, Project: { Id, Name }, Plan: { Id, Title } | null, Workspace: { Id, Name, Path } | null, Prompt }
-//   record  = { Id, Llm: { Id, Name }, Kind, Project, Plan, Workspace, Started, Ended, Duration, Status, Exit, Error, Prompt, Output }
+//   Request = { Llm, Kind, Project: { Id, Name }, Plan: { Id, Title } | null, Workspace: { Id, Name, Path, Include, Exclude, Commands } | null,
+//               Prompt, Server?: { Url, Token, Project } (an ollama run's Consensus tools) }
+//   record  = { Id, Llm: { Id, Name }, Kind, Project, Plan, Workspace, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
 //   Status  = 'running' | 'done' | 'failed' | 'stopped'
 
 const FS = require( 'fs' );
@@ -16,8 +21,11 @@ const PATH = require( 'path' );
 const CHILD_PROCESS = require( 'child_process' );
 const SETTINGS = require( './Settings.js' );
 const LLM = require( './Llm.js' );
+const OLLAMA = require( './Ollama.js' );
+const TOOLS = require( './Tools.js' );
 
 const OUTPUT_LIMIT = 2 * 1024 * 1024;
+const PROGRESS_DELAY = 250;
 
 
 function Runs( Options )
@@ -66,6 +74,7 @@ function Runs( Options )
 		let summary = Object.assign( {}, record );
 		delete summary.Prompt;
 		delete summary.Output;
+		delete summary.Transcript;
 		summary.OutputLength = ( record.Output || '' ).length;
 		return summary;
 	}
@@ -81,10 +90,6 @@ function Runs( Options )
 		{
 			throw new Error( 'an LLM connection is needed' );
 		}
-		if ( llm.Kind !== 'claude-cli' )
-		{
-			throw new Error( 'a one-shot through an ' + llm.Kind + ' connection is Step 4; only claude-cli runs today' );
-		}
 		if ( running[ llm.Id ] )
 		{
 			throw new Error( 'the connection "' + llm.Name + '" is already running "' + running[ llm.Id ].Record.Id + '"; stop it or wait for it' );
@@ -93,7 +98,8 @@ function Runs( Options )
 		{
 			throw new Error( 'the workspace\'s folder does not exist: ' + Request.Workspace.Path );
 		}
-		let line = LLM.CommandLine( llm );
+		let is_ollama = ( llm.Kind === 'ollama' );
+		let line = is_ollama ? { Command: 'ollama', Arguments: [ llm.Model, 'at', llm.Url ] } : LLM.CommandLine( llm );
 		let record = {
 			Id: SETTINGS.NewId( 'run' ),
 			Llm: { Id: llm.Id, Name: llm.Name },
@@ -110,7 +116,14 @@ function Runs( Options )
 			Error: null,
 			Prompt: Request.Prompt || '',
 			Output: '',
+			Rounds: null,
+			Usage: null,
+			Transcript: is_ollama ? [] : null,
 		};
+		if ( is_ollama )
+		{
+			return start_ollama( llm, Request, record );
+		}
 		let child = null;
 		try
 		{
@@ -192,7 +205,89 @@ function Runs( Options )
 
 
 	//-----------------------------------------------------------------
-	// Stop( Id ): the run is killed; its record says stopped.
+	// An ollama run: the loop of Ollama.js with the tools of Tools.js; the transcript is the Output as it grows.
+
+	function start_ollama( llm, Request, record )
+	{
+		let abort = new AbortController();
+		let state = { Record: record, Child: null, Abort: abort, Timer: null, Stopped: false, Timed: false, Progress: null };
+		let tools = TOOLS.Tools( { Kind: Request.Kind, Workspace: Request.Workspace || null, Server: Request.Server || null } );
+		running[ llm.Id ] = state;
+		write( record );
+		changed( record );
+
+		function end( status, error )
+		{
+			if ( record.Status !== 'running' )
+			{
+				return;
+			}
+			clearTimeout( state.Timer );
+			clearTimeout( state.Progress );
+			delete running[ llm.Id ];
+			record.Ended = new Date().toISOString();
+			record.Duration = Math.round( ( new Date( record.Ended ) - new Date( record.Started ) ) / 1000 );
+			record.Status = status;
+			record.Exit = ( status === 'done' ) ? 0 : null;
+			record.Error = error || null;
+			write( record );
+			changed( record );
+		}
+
+		// An entry of the transcript: kept, rendered, written, and told to every window (a few times a second at most).
+		function progress( entry )
+		{
+			if ( record.Output.length >= OUTPUT_LIMIT )
+			{
+				return;
+			}
+			record.Transcript.push( entry );
+			record.Output = OLLAMA.Render( record.Transcript );
+			write( record );
+			if ( !state.Progress )
+			{
+				state.Progress = setTimeout( function ()
+				{
+					state.Progress = null;
+					if ( record.Status === 'running' )
+					{
+						changed( record );
+					}
+				}, PROGRESS_DELAY );
+			}
+		}
+
+		state.Timer = setTimeout( function ()
+		{
+			state.Timed = true;
+			abort.abort();
+		}, ( llm.Timeout || SETTINGS.DEFAULT_TIMEOUT ) * 1000 );
+
+		OLLAMA.Run( { Llm: llm, Prompt: record.Prompt, Tools: tools, Signal: abort.signal, OnProgress: progress } ).then( function ( result )
+		{
+			record.Rounds = result.Rounds;
+			record.Usage = result.Usage;
+			end( 'done', null );
+		} ).catch( function ( error )
+		{
+			if ( state.Timed )
+			{
+				end( 'failed', 'Ollama took longer than ' + ( llm.Timeout || SETTINGS.DEFAULT_TIMEOUT ) + ' seconds' );
+				return;
+			}
+			if ( state.Stopped )
+			{
+				end( 'stopped', 'stopped' );
+				return;
+			}
+			end( 'failed', error.message );
+		} );
+		return summary_of( record );
+	}
+
+
+	//-----------------------------------------------------------------
+	// Stop( Id ): the run is killed (a command) or aborted (a local model); its record says stopped.
 
 	function Stop( Id )
 	{
@@ -202,7 +297,14 @@ function Runs( Options )
 			if ( state.Record.Id === Id )
 			{
 				state.Stopped = true;
-				state.Child.kill();
+				if ( state.Child )
+				{
+					state.Child.kill();
+				}
+				else
+				{
+					state.Abort.abort();
+				}
 				return true;
 			}
 		}

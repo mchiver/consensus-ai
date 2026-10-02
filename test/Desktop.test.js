@@ -362,7 +362,6 @@ TEST( 'a run keeps its record: the prompt on stdin, the output, the exit, the du
 	let heard = [];
 	runs.OnChange( function ( summary ) { heard.push( summary.Status ); } );
 	ASSERT.deepEqual( runs.List(), [] );
-	ASSERT.throws( function () { runs.Start( { Llm: SETTINGS.FillLlm( { Name: 'o', Kind: 'ollama', Model: 'm' } ), Kind: 'review', Prompt: 'x' } ); }, /Step 4/ );
 	ASSERT.throws( function () { runs.Start( { Llm: echo, Kind: 'review', Prompt: 'x', Workspace: { Id: 'w', Name: 'w', Path: PATH.join( folder, 'missing' ) } } ); }, /does not exist/ );
 
 	let started = runs.Start( { Llm: echo, Kind: 'review', Project: { Id: 'default', Name: 'Consensus' }, Plan: { Id: 'pln-1', Title: 'Step 3' }, Workspace: { Id: 'wks-1', Name: 'here', Path: folder }, Prompt: 'hello there' } );
