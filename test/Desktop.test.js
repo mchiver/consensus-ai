@@ -15,6 +15,7 @@ const PAGE = require( '../desktop/Page.js' );
 const PACKAGE = require( '../desktop/Package.js' );
 const LLM = require( '../desktop/Llm.js' );
 const RUNS = require( '../desktop/Runs.js' );
+const FILES = require( '../desktop/Files.js' );
 const SERVER = require( '../src/Server.js' );
 
 const VERSION = require( '../package.json' ).version;
@@ -71,6 +72,12 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	ASSERT.equal( FS.readdirSync( folder ).some( function ( name ) { return name.endsWith( '.tmp' ); } ), false );
 	ASSERT.deepEqual( SETTINGS.Fill( { Last: { Kind: 'local', Name: 'ignored' } } ).Last, { Kind: 'local' } );
 	ASSERT.deepEqual( SETTINGS.Fill( { Last: { Kind: 'elsewhere' } } ).Last, null );
+	// the palettes (plan UI Tweaks IV): any of them is a Theme; the dark ones are named
+	ASSERT.equal( SETTINGS.Fill( { Theme: 'nord' } ).Theme, 'nord' );
+	ASSERT.equal( SETTINGS.Fill( { Theme: 'neon' } ).Theme, 'system' );
+	ASSERT.equal( SETTINGS.DARK_THEMES.includes( 'nord' ), true );
+	ASSERT.equal( SETTINGS.DARK_THEMES.includes( 'sepia' ), false );
+	ASSERT.equal( SETTINGS.DARK_THEMES.every( function ( theme ) { return SETTINGS.THEMES.includes( theme ); } ), true );
 	ASSERT.deepEqual( SETTINGS.ServerNamed( settings, 'cube4' ), { Name: 'cube4', Url: 'http://cube4:3500' } );
 	ASSERT.equal( SETTINGS.ServerNamed( settings, 'nope' ), null );
 } );
@@ -233,6 +240,8 @@ TEST( 'settings: LLM connections and workspaces are filled in with ids and defau
 	ASSERT.deepEqual( claude.Arguments, SETTINGS.DEFAULT_ARGUMENTS );
 	ASSERT.equal( claude.Timeout, 120 );
 	ASSERT.deepEqual( claude.Checks, { Instructions: true, Readme: false, Documents: true, Threads: true } );
+	ASSERT.deepEqual( claude.Unchecked, { Documents: [], Threads: [] } );
+	ASSERT.deepEqual( SETTINGS.FillLlm( { Name: 'u', Unchecked: { Documents: [ 'doc-1', ' ' ], Threads: 'thr-1\nthr-2' } } ).Unchecked, { Documents: [ 'doc-1' ], Threads: [ 'thr-1', 'thr-2' ] } );
 	ASSERT.equal( claude.Prompts.Review, PACKAGE.DEFAULT_PROMPTS.Review );
 	ASSERT.equal( claude.Prompts.Session, 'Be brief.' );
 	let local = settings.Llms[ 1 ];
@@ -403,4 +412,50 @@ TEST( 'a run keeps its record: the prompt on stdin, the output, the exit, the du
 	ASSERT.equal( runs.List()[ 0 ].Id, timed.Id );
 	ASSERT.equal( runs.Read( 'run-nothing' ), null );
 	await runs.Close();
+} );
+
+
+//---------------------------------------------------------------------
+// UI Tweaks IV: the files a workspace includes
+
+TEST( 'the files of a workspace: globs over relative paths, excluded folders not entered, the list capped', function ()
+{
+	ASSERT.equal( FILES.Matches( '*.js', 'a.js' ), true );
+	ASSERT.equal( FILES.Matches( '*.js', 'src/a.js' ), true );		// no slash: at any depth
+	ASSERT.equal( FILES.Matches( 'src/*.js', 'src/a.js' ), true );
+	ASSERT.equal( FILES.Matches( 'src/*.js', 'src/deep/a.js' ), false );
+	ASSERT.equal( FILES.Matches( 'src/**/*.js', 'src/deep/er/a.js' ), true );
+	ASSERT.equal( FILES.Matches( 'src/**/*.js', 'src/a.js' ), true );
+	ASSERT.equal( FILES.Matches( 'src/**', 'src/deep/a.js' ), true );
+	ASSERT.equal( FILES.Matches( '~*/**', '~data/x.json' ), true );
+	ASSERT.equal( FILES.Matches( '~*/**', 'data/x.json' ), false );
+	ASSERT.equal( FILES.Matches( 'a?c', 'abc' ), true );
+	ASSERT.equal( FILES.Matches( 'a?c', 'a/c' ), false );
+	ASSERT.equal( FILES.Matches( '.git/**', '.git/HEAD' ), true );
+
+	let folder = temporary_folder( 'desktop-files-' );
+	FS.mkdirSync( PATH.join( folder, 'src', 'deep' ), { recursive: true } );
+	FS.mkdirSync( PATH.join( folder, 'node_modules', 'thing' ), { recursive: true } );
+	FS.mkdirSync( PATH.join( folder, '~data' ), { recursive: true } );
+	FS.mkdirSync( PATH.join( folder, '.git' ), { recursive: true } );
+	FS.writeFileSync( PATH.join( folder, 'readme.md' ), '# r' );
+	FS.writeFileSync( PATH.join( folder, 'src', 'a.js' ), '' );
+	FS.writeFileSync( PATH.join( folder, 'src', 'deep', 'b.js' ), '' );
+	FS.writeFileSync( PATH.join( folder, 'src', 'deep', 'c.txt' ), '' );
+	FS.writeFileSync( PATH.join( folder, 'node_modules', 'thing', 'index.js' ), '' );
+	FS.writeFileSync( PATH.join( folder, '~data', 'x.json' ), '' );
+	FS.writeFileSync( PATH.join( folder, '.git', 'HEAD' ), '' );
+	let all = FILES.Walk( folder, [], SETTINGS.DEFAULT_EXCLUDE );
+	ASSERT.deepEqual( all, { Count: 4, Files: [ 'readme.md', 'src/a.js', 'src/deep/b.js', 'src/deep/c.txt' ], Truncated: false } );
+	let everything = FILES.Walk( folder, [], [] );
+	ASSERT.equal( everything.Count, 7 );
+	let only_js = FILES.Walk( folder, [ '**/*.js' ], SETTINGS.DEFAULT_EXCLUDE );
+	ASSERT.deepEqual( only_js.Files, [ 'src/a.js', 'src/deep/b.js' ] );
+	let no_deep = FILES.Walk( folder, [], SETTINGS.DEFAULT_EXCLUDE.concat( [ 'src/deep' ] ) );
+	ASSERT.deepEqual( no_deep.Files, [ 'readme.md', 'src/a.js' ] );
+	let capped = FILES.Walk( folder, [], SETTINGS.DEFAULT_EXCLUDE, 2 );
+	ASSERT.deepEqual( capped, { Count: 4, Files: [ 'readme.md', 'src/a.js' ], Truncated: true } );
+	ASSERT.equal( FILES.Walk( PATH.join( folder, 'nope' ), [], [] ).Count, 0 );
+	ASSERT.match( FILES.Walk( PATH.join( folder, 'nope' ), [], [] ).Error, /not a folder/ );
+	ASSERT.equal( FILES.Walk( '', [], [] ).Error, 'no Path' );
 } );

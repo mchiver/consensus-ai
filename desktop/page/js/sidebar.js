@@ -7,7 +7,8 @@
 // nor the document is renamed, moved, copied or deleted, and New document goes there. In the desktop (plan
 // Consensus Desktop, Step 3) it also shows the desktop's LLM connections (every project) and the project's
 // workspaces, with Open, Rename and Delete in their menus, and New LLM connection and New workspace in its own.
-// A plan holds its Subplans: they fold under it, and a plan dropped into it becomes one.
+// A plan holds its Subplans: they fold under it, and a plan dropped into it becomes one. A click on a folder's
+// row folds it; New plan and New folder in its menu create in it (plan UI Tweaks IV).
 // Each row's actions are in its menu (⋯, or a right-click); Delete is there only, confirmed on the row.
 // The tree can be sorted (by name, created or updated) and show each item's last update; both remembered here.
 
@@ -27,11 +28,11 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	$scope.Creating = null;
 	$scope.Renaming = null;
 	$scope.Deleting = null;
-	$scope.Target = null;
 	$scope.ShowingTrash = false;
 	$scope.Trash = [];
 	$scope.Theme = window.ConsensusTheme.Get().Theme;
 	$scope.Scale = window.ConsensusTheme.Get().Scale;
+	$scope.Palettes = window.ConsensusTheme.PALETTES;
 	$scope.OpenProjectId = read_stored( OPEN_PROJECT_KEY, 'default' );
 	let folded = read_stored( FOLDED_KEY, [] );
 	$scope.Sort = read_stored( SORT_KEY, 'none' );
@@ -223,10 +224,6 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		$scope.Creating = null;
 		$scope.Renaming = null;
 		$scope.Deleting = null;
-		if ( $scope.Target && $scope.Target.Project !== $scope.OpenProjectId )
-		{
-			$scope.Target = null;
-		}
 	};
 
 
@@ -263,28 +260,27 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	};
 
 
-	// A folder picked as where new items go; picking it again goes back to the project's root.
-	$scope.PickFolder = function ( project, node )
+	// A folder is unfolded, so what was just made in it shows.
+	function unfold( id )
 	{
-		if ( $scope.IsTarget( node ) )
+		if ( folded.includes( id ) )
 		{
-			$scope.Target = null;
-			return;
+			folded = folded.filter( function ( one ) { return one !== id; } );
+			write_stored( FOLDED_KEY, folded );
 		}
-		$scope.Target = { Project: project.Id, Folder: node.Id, Name: node.Name };
-	};
-
-
-	$scope.IsTarget = function ( node )
-	{
-		return !!$scope.Target && $scope.Target.Folder === node.Id;
-	};
-
-
-	function parent_in( project )
-	{
-		return ( $scope.Target && $scope.Target.Project === project.Id ) ? $scope.Target.Folder : null;
 	}
+
+
+	// A folder's count: its items; the Context folder's also the desktop's LLM connections and the project's workspaces.
+	$scope.FolderCount = function ( project, node )
+	{
+		let count = $scope.ItemCount( node.Items );
+		if ( $scope.IsContextFolder( project, node ) && DesktopItems.Available )
+		{
+			count += DesktopItems.Llms.length + DesktopItems.WorkspacesOf( project.Id ).length;
+		}
+		return count;
+	};
 
 
 	//-----------------------------------------------------------------
@@ -388,12 +384,16 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	}
 
 
-	function create_in( kind, project )
+	function create_in( kind, project, parent )
 	{
 		return function ()
 		{
 			open_project( project );
-			$scope.StartCreate( kind, project, QUIET );
+			if ( parent )
+			{
+				unfold( parent );
+			}
+			$scope.StartCreate( kind, project, QUIET, parent || null );
 		};
 	}
 
@@ -407,11 +407,10 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 	function project_actions( project )
 	{
-		let where = ( $scope.Target && $scope.Target.Project === project.Id ) ? ' in ' + $scope.Target.Name : '';
 		return [
-			action( 'New plan' + where, 'plus', create_in( 'plan', project ) ),
+			action( 'New plan', 'plus', create_in( 'plan', project ) ),
 			action( 'New document in Context', 'plus', create_in( 'document', project ) ),
-			action( 'New folder' + where, 'plus', create_in( 'folder', project ) ),
+			action( 'New folder', 'plus', create_in( 'folder', project ) ),
 			{ Separator: true },
 			action( $scope.Clipboard ? 'Paste ' + $scope.Clipboard.Name : 'Paste', 'paste', function () { $scope.Paste( project, null, QUIET ); }, { Disabled: !$scope.Clipboard } ),
 			action( 'Rename', 'pencil', function () { $scope.StartRename( 'project', project, project, QUIET ); } ),
@@ -439,6 +438,9 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			return actions;
 		}
 		return [
+			action( 'New plan', 'plus', create_in( 'plan', project, node.Id ) ),
+			action( 'New folder', 'plus', create_in( 'folder', project, node.Id ) ),
+			{ Separator: true },
 			action( $scope.Clipboard ? 'Paste ' + $scope.Clipboard.Name : 'Paste', 'paste', function () { $scope.Paste( project, node, QUIET ); }, { Disabled: !$scope.Clipboard } ),
 			action( 'Copy', 'copy', function () { $scope.CopyItem( node ); } ),
 			action( 'Rename', 'pencil', function () { $scope.StartRename( 'folder', project, node, QUIET ); } ),
@@ -510,10 +512,11 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 
 	//-----------------------------------------------------------------
-	// Creating: { Kind: 'project' | 'plan' | 'document' | 'folder', Project?, Parent?, Name }  A document goes in the
-	// project's Context folder, whatever folder is picked.
+	// Creating: { Kind: 'project' | 'plan' | 'document' | 'folder' | 'llm' | 'workspace', Project?, Parent?, Name }
+	// Parent is the folder a plan or folder goes in (its menu's New plan or New folder), else the root; a document
+	// goes in the project's Context folder.
 
-	$scope.StartCreate = function ( kind, project, event )
+	$scope.StartCreate = function ( kind, project, event, Parent )
 	{
 		if ( event )
 		{
@@ -521,7 +524,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		}
 		$scope.Renaming = null;
 		$scope.Deleting = null;
-		let parent = project ? parent_in( project ) : null;
+		let parent = Parent || null;
 		if ( kind === 'document' && project )
 		{
 			parent = project.ContextFolder || null;
@@ -542,15 +545,14 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		{
 			return '';
 		}
-		let where = ( $scope.Creating.Parent && $scope.Target ) ? ' in ' + $scope.Target.Name : '';
 		switch ( $scope.Creating.Kind )
 		{
 			case 'project': return 'Project name';
-			case 'folder': return 'Folder name' + where;
+			case 'folder': return 'Folder name';
 			case 'document': return 'Document title in Context';
 			case 'llm': return 'LLM connection name';
 			case 'workspace': return 'Workspace name (its folder is picked next)';
-			default: return 'Plan title' + where;
+			default: return 'Plan title';
 		}
 	};
 
@@ -588,7 +590,6 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			{
 				$scope.OpenProjectId = answer.Project.Id;
 				write_stored( OPEN_PROJECT_KEY, answer.Project.Id );
-				$scope.Target = null;
 			}
 			if ( creating.Kind === 'plan' || creating.Kind === 'document' )
 			{
@@ -771,10 +772,6 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			if ( kind === 'proposal' )
 			{
 				Tabs.CloseItem( node.Id );
-			}
-			if ( $scope.Target && ( $scope.Target.Folder === node.Id || $scope.Target.Project === node.Id ) )
-			{
-				$scope.Target = null;
 			}
 			await State.LoadList();
 		}
@@ -968,8 +965,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			if ( project )
 			{
 				event.preventDefault();
-				let folder = ( $scope.Target && $scope.Target.Project === project.Id ) ? { Id: $scope.Target.Folder } : null;
-				$scope.Paste( project, folder );
+				$scope.Paste( project, null );
 			}
 		}
 	}

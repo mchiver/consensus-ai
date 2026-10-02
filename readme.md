@@ -222,21 +222,36 @@ port), `Last`, `Theme` and `Scale`.
 **LLM connections and workspaces** (Step 3) are the desktop's own, kept in desktop.json (`Llms`, `Workspaces`)
 and shown in every project's Context folder, never on the server: an LLM connection once per desktop, in every
 project; a workspace, a path to a folder, with the project it is attached to. New LLM connection and New
-workspace are in the Context folder's menu; Open, Rename and Delete in the row's. Each opens in a tab of its
-own. The **LLM page** holds the details (Name; Kind `claude-cli`, a command run without a shell, or `ollama`;
-Command and Arguments, one per line, before `--model`; Model; Timeout; Check), the **packaging** (the items
-checked go into the one-shot prompt, in this order: the server's `/instructions`, the project's Readme, the
-titles and ids of the other Context documents, the threads of the plan at hand waiting on the llm participant;
-then the Review or Build Prompt, and the Session Prompt last; Show prompt and Copy), the **Run** (the plan at
-hand, the one last opened or another of the project, and a workspace; **Review**, **Build** and **Session**
-each package their prompt and run it once; Stop while it runs) and the **log** (one record per run in the
-user-data folder's `runs/<id>.json`: when, which button, the plan, the workspace, the prompt, the output, the
-exit and the duration; newest first; open one to read it). A `claude-cli` one-shot runs the command once in the
-workspace's folder with the package on its standard input; the model works through the API itself, with the
-token in the instructions, and nothing is parsed. The default Arguments let a non-interactive `claude` use its
-tools. The desktop never commits, branches or pushes. An `ollama` connection can be entered and checked; its
-one-shots are Step 4. The **workspace page** holds Name, Path (Browse), Include and Exclude patterns (for the
-file tools of Step 4; in Step 3 the Path is where a one-shot runs).
+workspace are in the Context folder's menu (whose count includes them); Open, Rename and Delete in the row's.
+Each opens in a tab of its own. The **LLM page** (plan UI Tweaks IV) has a head with **Details…** (a popup:
+Name; Kind `claude-cli`, a command run without a shell, or `ollama`; Command and Arguments, one per line, before
+`--model`; Model; Timeout; Check, which tries the form as entered) and **Packaging…** (a popup: the items that
+go into the one-shot prompt, in this order: the server's `/instructions`, the project's Readme, the other
+Context documents listed by title and each checkable, the threads of the plan at hand waiting on the llm
+participant listed by anchor and each checkable; the unchecked ids are remembered per connection, so a new
+document or thread is in by default; then the Review, Build and Session Prompts with Reset; Preview packages
+the prompt as the form stands, with its character count and an estimated token count at four characters each,
+and Copy), then **Run** (the plan at hand in the page's own picker, in the tree's order with its folders and
+indentation and each plan's unresolved threads, defaulting to the plan last opened; a workspace; **Review**,
+**Build** and **Session** each package their prompt and run it once, disabled only while a run is going, for
+`ollama`, or for what they lack, with the reason shown beside them; Stop while it runs) and the **log** (one
+record per run in the user-data folder's `runs/<id>.json`: when, which button, the project, the plan, the
+workspace, the prompt, the output, the exit and the duration; the page shows the project's runs, newest first;
+a run opens in a popup, its output and prompt rendered as markdown or shown as source, each with its size and
+Copy). A `claude-cli` one-shot runs the command once in the workspace's folder
+with the package on its standard input; the model works through the API itself, with the token in the
+instructions, and nothing is parsed. The default Arguments let a non-interactive `claude` use its tools. The
+desktop never commits, branches or pushes. An `ollama` connection can be entered and checked; its one-shots
+are Step 4. The **workspace page** holds Name, Path (Browse), Include and Exclude globs (`**` crosses folders;
+one without a slash matches at any depth; an excluded folder is not entered), and below them the files the
+workspace includes, walked again on every change (the first 500, with the count). In Step 3 the Path is where
+a one-shot runs; the patterns serve the file tools of Step 4.
+
+The page's **theme** is a palette: System, Light, Sepia, Paper, Solarized Light, Dark, Slate, Solarized Dark,
+Nord or Midnight (`data-theme` on the page; `data-bs-theme` light or dark for Bootstrap), and the editor takes
+its colours; the desktop's title bar and menu bar follow it light or dark. The editor and the read view scroll
+past the end of the text. In the tree a click on a folder folds it, and a folder's menu has New plan and New
+folder, which create in it.
 
 Layout: `desktop/main.js` the main process, `desktop/preload.js` its bridge, `desktop/Settings.js` desktop.json,
 `desktop/Local.js` the local server, `desktop/Page.js` the server for the page copy, `desktop/Package.js` the

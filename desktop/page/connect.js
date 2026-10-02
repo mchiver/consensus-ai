@@ -33,6 +33,7 @@ angular.module( 'Connect', [] )
 	$scope.Busy = false;
 	$scope.Theme = window.ConsensusTheme.Get().Theme;
 	$scope.Scale = window.ConsensusTheme.Get().Scale;
+	$scope.Palettes = window.ConsensusTheme.PALETTES;
 
 
 	async function load()

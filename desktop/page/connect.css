@@ -170,3 +170,76 @@ h2
 {
 	margin: 0.2rem 0 0.4rem;
 }
+
+/* --------------------------------------------------------------------- the palettes (plan UI Tweaks IV) */
+
+/* Each palette sets the page's tokens; data-bs-theme (light or dark) still carries Bootstrap's own. */
+[data-theme="sepia"]
+{
+	--page-bg: #f4ecd8;
+	--panel-bg: #ebe1c8;
+	--border: #d8cbab;
+	--text: #3b2f1e;
+	--muted: #7a6a4f;
+	--accent: #8a5a1e;
+}
+
+[data-theme="paper"]
+{
+	--page-bg: #ffffff;
+	--panel-bg: #f0f0f0;
+	--border: #2b2b2b;
+	--text: #000000;
+	--muted: #333333;
+	--accent: #0000cc;
+}
+
+[data-theme="solarized-light"]
+{
+	--page-bg: #fdf6e3;
+	--panel-bg: #eee8d5;
+	--border: #d6cfb8;
+	--text: #586e75;
+	--muted: #93a1a1;
+	--accent: #268bd2;
+}
+
+[data-theme="slate"]
+{
+	--page-bg: #1e2530;
+	--panel-bg: #27303d;
+	--border: #3b4654;
+	--text: #dbe3ee;
+	--muted: #95a3b5;
+	--accent: #6cb6ff;
+}
+
+[data-theme="solarized-dark"]
+{
+	--page-bg: #002b36;
+	--panel-bg: #073642;
+	--border: #0f4a57;
+	--text: #93a1a1;
+	--muted: #657b83;
+	--accent: #268bd2;
+}
+
+[data-theme="nord"]
+{
+	--page-bg: #2e3440;
+	--panel-bg: #3b4252;
+	--border: #4c566a;
+	--text: #eceff4;
+	--muted: #a3adc2;
+	--accent: #88c0d0;
+}
+
+[data-theme="midnight"]
+{
+	--page-bg: #000000;
+	--panel-bg: #0d0d0d;
+	--border: #2a2a2a;
+	--text: #e6e6e6;
+	--muted: #9a9a9a;
+	--accent: #4da3ff;
+}

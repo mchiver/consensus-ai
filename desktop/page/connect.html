@@ -16,11 +16,7 @@
 	<header class="connect-head">
 		<div class="connect-title"><span class="connect-kind">Consensus</span> Desktop <span class="muted small">{{ Version }}</span></div>
 		<div class="connect-controls">
-			<select class="form-select form-select-sm" ng-model="Theme" ng-change="SetTheme()" title="theme" id="theme-select">
-				<option value="system">System</option>
-				<option value="light">Light</option>
-				<option value="dark">Dark</option>
-			</select>
+			<select class="form-select form-select-sm" ng-model="Theme" ng-change="SetTheme()" title="theme" id="theme-select" ng-options="palette.Id as palette.Label for palette in Palettes"></select>
 			<select class="form-select form-select-sm" ng-model="Scale" ng-change="SetScale()" title="size" id="scale-select">
 				<option value="small">Small</option>
 				<option value="normal">Normal</option>

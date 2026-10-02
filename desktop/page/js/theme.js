@@ -1,14 +1,27 @@
 'use strict';
 
-// Theme - light, dark or system, and small, normal or large. Applied before the page renders, from
-// localStorage; Bootstrap's data-bs-theme carries the colours and --scale the size. Announces changes
-// on the document as a 'consensus-theme' event, so the editor can follow.
+// Theme - a palette (light, dark, system, or one of the assortment: plan UI Tweaks IV) and small, normal or large.
+// Applied before the page renders, from localStorage; Bootstrap's data-bs-theme carries light or dark, data-theme
+// the palette, and --scale the size. Announces changes on the document as a 'consensus-theme' event, so the editor
+// can follow.
 // The desktop's copy (plan Consensus Desktop, Step 2): hosted by the desktop (window.ConsensusDesktop), the theme and
 // the scale come from its settings and go back to them, in place of the browser's storage.
 
 ( function ()
 {
-	const THEMES = [ 'light', 'dark', 'system' ];
+	const PALETTES = [
+		{ Id: 'system', Label: 'System', Dark: null },
+		{ Id: 'light', Label: 'Light', Dark: false },
+		{ Id: 'sepia', Label: 'Sepia', Dark: false },
+		{ Id: 'paper', Label: 'Paper', Dark: false },
+		{ Id: 'solarized-light', Label: 'Solarized Light', Dark: false },
+		{ Id: 'dark', Label: 'Dark', Dark: true },
+		{ Id: 'slate', Label: 'Slate', Dark: true },
+		{ Id: 'solarized-dark', Label: 'Solarized Dark', Dark: true },
+		{ Id: 'nord', Label: 'Nord', Dark: true },
+		{ Id: 'midnight', Label: 'Midnight', Dark: true },
+	];
+	const THEMES = PALETTES.map( function ( palette ) { return palette.Id; } );
 	const SCALES = { small: 0.875, normal: 1, large: 1.15 };
 	let current = { Theme: 'system', Scale: 'normal' };
 	let media = window.matchMedia( '(prefers-color-scheme: dark)' );
@@ -57,21 +70,40 @@
 	}
 
 
+	function palette_of( id )
+	{
+		return PALETTES.find( function ( palette ) { return palette.Id === id; } ) || PALETTES[ 0 ];
+	}
+
+
 	function IsDark()
 	{
-		if ( current.Theme === 'system' )
+		let palette = palette_of( current.Theme );
+		if ( palette.Dark === null )
 		{
 			return media.matches;
 		}
-		return current.Theme === 'dark';
+		return palette.Dark;
+	}
+
+
+	// Palette: the palette in effect; for System, light or dark as the system says.
+	function Palette()
+	{
+		if ( current.Theme === 'system' )
+		{
+			return media.matches ? 'dark' : 'light';
+		}
+		return current.Theme;
 	}
 
 
 	function apply()
 	{
 		document.documentElement.dataset.bsTheme = IsDark() ? 'dark' : 'light';
+		document.documentElement.dataset.theme = Palette();
 		document.documentElement.style.setProperty( '--scale', String( SCALES[ current.Scale ] || 1 ) );
-		document.dispatchEvent( new CustomEvent( 'consensus-theme', { detail: { Dark: IsDark(), Scale: current.Scale } } ) );
+		document.dispatchEvent( new CustomEvent( 'consensus-theme', { detail: { Dark: IsDark(), Theme: Palette(), Scale: current.Scale } } ) );
 	}
 
 
@@ -101,7 +133,7 @@
 
 	function Get()
 	{
-		return { Theme: current.Theme, Scale: current.Scale, Dark: IsDark() };
+		return { Theme: current.Theme, Scale: current.Scale, Dark: IsDark(), Palette: Palette() };
 	}
 
 
@@ -118,10 +150,12 @@
 
 	window.ConsensusTheme = {
 		THEMES: THEMES,
+		PALETTES: PALETTES,
 		SCALES: Object.keys( SCALES ),
 		SetTheme: SetTheme,
 		SetScale: SetScale,
 		Get: Get,
 		IsDark: IsDark,
+		Palette: Palette,
 	};
 } )();

@@ -2,11 +2,12 @@
 
 // Desktop - the LLM connections and the workspaces (plan Consensus Desktop, Step 3): the desktop's own items,
 // read through window.Desktop (preload.js) and shown in every project's Context folder by the sidebar. Each opens
-// in a tab of its own: the LLM page (its details, the packaging checks, the prompts, the Review, Build and Session
-// buttons, and its log of runs) and the workspace page (its details). In a browser, without the desktop, there are
-// no items and nothing here shows.
+// in a tab of its own: the LLM page (a head with Details… and Packaging… popups, the Run with its plan picker and
+// the Review, Build and Session buttons, and the log of runs, a run opened in a popup; plan UI Tweaks IV) and the
+// workspace page (its details, and the files it includes). In a browser, without the desktop, there are no items
+// and nothing here shows.
 //
-//   DesktopItems  { Available, Loaded, Llms, Workspaces, Running, Reload(), LlmById( id ), WorkspaceById( id ), WorkspacesOf( project id ) }
+//   DesktopItems  { Available, Loaded, Llms, Workspaces, Running, DefaultPrompts, Reload(), LlmById( id ), WorkspaceById( id ), WorkspacesOf( project id ) }
 //   routes        #/llm/<project id>/<llm id>   #/w/<workspace id>
 
 angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function ( $rootScope )
@@ -18,6 +19,7 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 		Llms: [],
 		Workspaces: [],
 		Running: {},
+		DefaultPrompts: {},
 	};
 
 
@@ -89,93 +91,76 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 
 
 //---------------------------------------------------------------------
+// A text's size, for the prompts and the outputs: "12,345 characters · ≈ 3,086 tokens" (four characters per token).
+
+.filter( 'size', [ function ()
+{
+	return function ( Text )
+	{
+		let length = String( Text || '' ).length;
+		return length.toLocaleString() + ' characters · ≈ ' + Math.round( length / 4 ).toLocaleString() + ' tokens';
+	};
+} ] )
+
+
+//---------------------------------------------------------------------
 // LlmController: the LLM page, for the connection and the project the route names.
 
-.controller( 'LlmController', [ '$scope', '$window', 'State', 'DesktopItems', function ( $scope, $window, State, DesktopItems )
+.controller( 'LlmController', [ '$scope', '$window', '$timeout', 'State', 'DesktopItems', function ( $scope, $window, $timeout, State, DesktopItems )
 {
 	const KINDS = [ 'claude-cli', 'ollama' ];
-	const CHECKS = [
-		{ Key: 'Instructions', Label: 'Agent Instructions', Hint: 'the connected server\'s /instructions page: the guide, with the server\'s address and token first' },
-		{ Key: 'Readme', Label: 'Readme', Hint: 'the project\'s Readme, whole' },
-		{ Key: 'Documents', Label: 'List of other Context documents', Hint: 'their titles and ids, for the model to read through the API' },
-		{ Key: 'Threads', Label: 'List of "waiting on llm" threads', Hint: 'the threads of the plan at hand waiting on the llm participant, each with its anchor and replies' },
-	];
 
 	$scope.State = State;
 	$scope.Items = DesktopItems;
 	$scope.Kinds = KINDS;
-	$scope.Checks = CHECKS;
 	$scope.Llm = null;			// the saved one
-	$scope.Form = null;			// the form's copy
 	$scope.Project = null;
-	$scope.Plans = [];
+	$scope.PlanRows = [];		// the project's folders and plans, in the tree's order, with their depth and unresolved (contested) threads
 	$scope.Workspaces = [];
 	$scope.Pick = { Plan: null, Workspace: null };
+	$scope.PickerOpen = false;
 	$scope.Runs = [];
-	$scope.Shown = null;		// a run opened from the log, whole
-	$scope.Prompt = null;		// Show prompt's package
-	$scope.Checked = null;
-	$scope.Problems = [];
 	$scope.Error = null;
-	$scope.Saved = false;
-	$scope.Copied = false;
 	$scope.Busy = false;
+	$scope.Details = null;		// the Details popup: { Form, Problems, Checked, Busy }
+	$scope.Packaging = null;	// the Packaging popup: { Form, Lists, Preview, Problems, Busy, Copied }
+	$scope.RunPopup = null;		// a run opened from the log: { Run, Source, Copied }
 
 
-	function to_form( llm )
-	{
-		return {
-			Name: llm.Name,
-			Kind: llm.Kind,
-			Command: llm.Command,
-			ArgumentsText: ( llm.Arguments || [] ).join( '\n' ),
-			Url: llm.Url,
-			Model: llm.Model,
-			Timeout: llm.Timeout,
-			Checks: Object.assign( {}, llm.Checks ),
-			Prompts: Object.assign( {}, llm.Prompts ),
-		};
-	}
+	//-----------------------------------------------------------------
+	// The page follows the route: the connection and the project it was opened from.
 
-
-	function from_form( form )
-	{
-		return {
-			Id: $scope.Llm.Id,
-			Name: form.Name,
-			Kind: form.Kind,
-			Command: form.Command,
-			Arguments: String( form.ArgumentsText || '' ).split( /\r?\n/ ).map( function ( line ) { return line.trim(); } ).filter( function ( line ) { return line; } ),
-			Url: form.Url,
-			Model: form.Model,
-			Timeout: form.Timeout,
-			Checks: form.Checks,
-			Prompts: form.Prompts,
-		};
-	}
-
-
-	// The project's plans, top down, with their depth.
-	function plans_of( items, depth, into )
+	function rows_of( items, depth, into )
 	{
 		for ( let node of items || [] )
 		{
 			if ( node.Kind === 'folder' )
 			{
-				plans_of( node.Items, depth + 1, into );
+				let before = into.length;
+				into.push( { Kind: 'folder', Id: node.Id, Title: node.Name, Depth: depth } );
+				rows_of( node.Items, depth + 1, into );
+				if ( into.length === before + 1 )
+				{
+					into.pop();		// a folder with no plans is not listed
+				}
 				continue;
 			}
 			if ( node.Kind !== 'document' && !node.Missing )
 			{
-				into.push( { Id: node.Id, Title: node.Title, State: node.State, Depth: depth } );
-				plans_of( node.Items, depth + 1, into );
+				into.push( { Kind: 'plan', Id: node.Id, Title: node.Title, State: node.State, Depth: depth, Unresolved: ( node.Tally && node.Tally.Contested ) || 0 } );
+				rows_of( node.Items, depth + 1, into );
 			}
 		}
 		return into;
 	}
 
 
-	// The page follows the route: the connection and the project it was opened from.
+	function plan_rows()
+	{
+		return $scope.PlanRows.filter( function ( row ) { return row.Kind === 'plan'; } );
+	}
+
+
 	function load()
 	{
 		let open = State.OpenItem;
@@ -188,29 +173,24 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 		let changed = !$scope.Llm || $scope.Llm.Id !== open.Id || !$scope.Project || $scope.Project.Id !== open.Project;
 		$scope.Llm = llm;
 		$scope.Project = project;
-		$scope.Plans = project ? plans_of( project.Items, 0, [] ) : [];
+		$scope.PlanRows = project ? rows_of( project.Items, 0, [] ) : [];
 		$scope.Workspaces = project ? DesktopItems.WorkspacesOf( project.Id ) : [];
 		if ( changed )
 		{
-			$scope.Form = llm ? to_form( llm ) : null;
-			$scope.Shown = null;
-			$scope.Prompt = null;
-			$scope.Checked = null;
-			$scope.Problems = [];
+			$scope.Details = null;
+			$scope.Packaging = null;
+			$scope.RunPopup = null;
+			$scope.PickerOpen = false;
 			$scope.Error = null;
-			$scope.Saved = false;
 			$scope.Pick = { Plan: null, Workspace: null };
 			load_runs();
 		}
-		else if ( llm && !$scope.Form )
-		{
-			$scope.Form = to_form( llm );
-		}
 		// the plan at hand: the one picked, else the plan last opened in this project
-		if ( !$scope.Plans.some( function ( plan ) { return plan.Id === $scope.Pick.Plan; } ) )
+		let plans = plan_rows();
+		if ( !plans.some( function ( plan ) { return plan.Id === $scope.Pick.Plan; } ) )
 		{
 			let last = State.LastPlan ? State.LastPlan[ open.Project ] : null;
-			$scope.Pick.Plan = $scope.Plans.some( function ( plan ) { return plan.Id === last; } ) ? last : ( $scope.Plans.length ? $scope.Plans[ 0 ].Id : null );
+			$scope.Pick.Plan = plans.some( function ( plan ) { return plan.Id === last; } ) ? last : ( plans.length ? plans[ 0 ].Id : null );
 		}
 		if ( !$scope.Workspaces.some( function ( workspace ) { return workspace.Id === $scope.Pick.Workspace; } ) )
 		{
@@ -227,11 +207,13 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 			return;
 		}
 		let answer = await window.Desktop.Runs( $scope.Llm.Id );
-		$scope.Runs = answer.Runs || [];
-		if ( $scope.Shown )
+		// the log shows this project's runs only
+		let project_id = $scope.Project ? $scope.Project.Id : null;
+		$scope.Runs = ( answer.Runs || [] ).filter( function ( run ) { return run.Project && run.Project.Id === project_id; } );
+		if ( $scope.RunPopup )
 		{
-			let fresh = await window.Desktop.ReadRun( $scope.Shown.Id );
-			$scope.Shown = fresh.Run || null;
+			let fresh = await window.Desktop.ReadRun( $scope.RunPopup.Run.Id );
+			$scope.RunPopup.Run = fresh.Run || $scope.RunPopup.Run;
 		}
 		$scope.$applyAsync();
 	}
@@ -255,90 +237,328 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 	} );
 
 
-	//-----------------------------------------------------------------
-	// The details and the prompts
-
-	$scope.Dirty = function ()
+	// The popups close from their own buttons through these, on the controller's scope: an assignment inside a
+	// popup's form (a child scope, under ng-if) would only shadow the variable there.
+	$scope.CloseDetails = function ()
 	{
-		return !!$scope.Llm && !!$scope.Form && JSON.stringify( from_form( $scope.Form ) ) !== JSON.stringify( Object.assign( {}, $scope.Llm, { Id: $scope.Llm.Id } ) );
+		$scope.Details = null;
 	};
 
 
-	$scope.Save = async function ()
+	$scope.ClosePackaging = function ()
 	{
-		if ( !$scope.Llm || !$scope.Form || $scope.Busy )
+		$scope.Packaging = null;
+	};
+
+
+	$scope.CloseRun = function ()
+	{
+		$scope.RunPopup = null;
+	};
+
+
+	// Escape closes the popup and the picker.
+	$scope.Key = function ( event )
+	{
+		if ( event.key === 'Escape' )
+		{
+			$scope.CloseDetails();
+			$scope.ClosePackaging();
+			$scope.CloseRun();
+			$scope.PickerOpen = false;
+		}
+	};
+
+
+	//-----------------------------------------------------------------
+	// The Details popup: saved whole, or cancelled; Check tries the form as it stands.
+
+	function details_form( llm )
+	{
+		return {
+			Name: llm.Name,
+			Kind: llm.Kind,
+			Command: llm.Command,
+			ArgumentsText: ( llm.Arguments || [] ).join( '\n' ),
+			Url: llm.Url,
+			Model: llm.Model,
+			Timeout: llm.Timeout,
+		};
+	}
+
+
+	function lines( text )
+	{
+		return String( text || '' ).split( /\r?\n/ ).map( function ( line ) { return line.trim(); } ).filter( function ( line ) { return line; } );
+	}
+
+
+	function from_details( form )
+	{
+		return Object.assign( {}, $scope.Llm, {
+			Name: form.Name,
+			Kind: form.Kind,
+			Command: form.Command,
+			Arguments: lines( form.ArgumentsText ),
+			Url: form.Url,
+			Model: form.Model,
+			Timeout: form.Timeout,
+		} );
+	}
+
+
+	$scope.OpenDetails = function ()
+	{
+		if ( $scope.Llm )
+		{
+			$scope.Details = { Form: details_form( $scope.Llm ), Problems: [], Checked: null, Busy: false };
+		}
+	};
+
+
+	$scope.CheckDetails = async function ()
+	{
+		let popup = $scope.Details;
+		if ( !popup || popup.Busy )
 		{
 			return;
 		}
-		$scope.Busy = true;
-		$scope.Problems = [];
-		$scope.Saved = false;
-		let answer = await window.Desktop.SaveLlm( from_form( $scope.Form ) );
+		popup.Busy = true;
+		popup.Checked = null;
+		popup.Checked = await window.Desktop.CheckLlm( from_details( popup.Form ) );
+		popup.Busy = false;
+		$scope.$applyAsync();
+	};
+
+
+	$scope.SaveDetails = async function ()
+	{
+		let popup = $scope.Details;
+		if ( !popup || popup.Busy )
+		{
+			return;
+		}
+		popup.Busy = true;
+		popup.Problems = [];
+		let answer = await window.Desktop.SaveLlm( from_details( popup.Form ) );
 		if ( answer.Problems )
 		{
-			$scope.Problems = answer.Problems;
+			popup.Problems = answer.Problems;
+			popup.Busy = false;
 		}
 		else
 		{
 			await DesktopItems.Reload();
 			$scope.Llm = DesktopItems.LlmById( answer.Item.Id );
-			$scope.Form = to_form( $scope.Llm );
-			$scope.Saved = true;
+			$scope.Details = null;
 		}
-		$scope.Busy = false;
-		$scope.$applyAsync();
-	};
-
-
-	$scope.Discard = function ()
-	{
-		if ( $scope.Llm )
-		{
-			$scope.Form = to_form( $scope.Llm );
-			$scope.Problems = [];
-		}
-	};
-
-
-	$scope.ResetPrompt = function ( name )
-	{
-		if ( $scope.Form )
-		{
-			$scope.Form.Prompts[ name ] = ( DesktopItems.DefaultPrompts || {} )[ name ] || '';
-		}
-	};
-
-
-	// Check: the saved connection answers (the form is saved first when it changed).
-	$scope.Check = async function ()
-	{
-		if ( !$scope.Llm || $scope.Busy )
-		{
-			return;
-		}
-		if ( $scope.Dirty() )
-		{
-			await $scope.Save();
-			if ( $scope.Problems.length )
-			{
-				return;
-			}
-		}
-		$scope.Busy = true;
-		$scope.Checked = null;
-		$scope.Checked = await window.Desktop.CheckLlm( $scope.Llm.Id );
-		$scope.Busy = false;
 		$scope.$applyAsync();
 	};
 
 
 	//-----------------------------------------------------------------
-	// The buttons: Show prompt, Review, Build, Session; the log
+	// The Packaging popup: the checks, the lists of documents and threads (each checkable, the unchecked ids kept),
+	// the prompts, and a Preview of the package as the form stands.
 
-	function request( kind )
+	function packaging_form( llm )
 	{
-		return { LlmId: $scope.Llm.Id, Kind: kind, ProjectId: $scope.Project ? $scope.Project.Id : null, PlanId: $scope.Pick.Plan || null, WorkspaceId: $scope.Pick.Workspace || null };
+		return {
+			Checks: Object.assign( {}, llm.Checks ),
+			Prompts: Object.assign( {}, llm.Prompts ),
+			Unchecked: { Documents: ( llm.Unchecked.Documents || [] ).slice(), Threads: ( llm.Unchecked.Threads || [] ).slice() },
+		};
 	}
+
+
+	function from_packaging( form )
+	{
+		return Object.assign( {}, $scope.Llm, { Checks: form.Checks, Prompts: form.Prompts, Unchecked: form.Unchecked } );
+	}
+
+
+	$scope.OpenPackaging = async function ()
+	{
+		if ( !$scope.Llm )
+		{
+			return;
+		}
+		let popup = { Form: packaging_form( $scope.Llm ), Lists: { Documents: [], Threads: [] }, Preview: null, Problems: [], Busy: true, Copied: false };
+		$scope.Packaging = popup;
+		let answer = await window.Desktop.PackageLists( { ProjectId: $scope.Project ? $scope.Project.Id : null, PlanId: $scope.Pick.Plan || null } );
+		if ( answer.Error )
+		{
+			popup.Problems = [ answer.Error ];
+		}
+		else
+		{
+			popup.Lists = { Documents: answer.Documents || [], Threads: answer.Threads || [] };
+		}
+		popup.Busy = false;
+		$scope.$applyAsync();
+	};
+
+
+	$scope.IsChecked = function ( list, id )
+	{
+		return !!$scope.Packaging && !$scope.Packaging.Form.Unchecked[ list ].includes( id );
+	};
+
+
+	$scope.ToggleChecked = function ( list, id )
+	{
+		if ( !$scope.Packaging )
+		{
+			return;
+		}
+		let unchecked = $scope.Packaging.Form.Unchecked[ list ];
+		if ( unchecked.includes( id ) )
+		{
+			$scope.Packaging.Form.Unchecked[ list ] = unchecked.filter( function ( one ) { return one !== id; } );
+		}
+		else
+		{
+			unchecked.push( id );
+		}
+		$scope.Packaging.Preview = null;
+	};
+
+
+	$scope.ResetPrompt = function ( name )
+	{
+		if ( $scope.Packaging )
+		{
+			$scope.Packaging.Form.Prompts[ name ] = ( DesktopItems.DefaultPrompts || {} )[ name ] || '';
+		}
+	};
+
+
+	function request( kind, overrides )
+	{
+		let made = { LlmId: $scope.Llm.Id, Kind: kind, ProjectId: $scope.Project ? $scope.Project.Id : null, PlanId: $scope.Pick.Plan || null, WorkspaceId: $scope.Pick.Workspace || null };
+		if ( overrides )
+		{
+			made.Overrides = overrides;
+		}
+		return made;
+	}
+
+
+	// Preview: the package for the plan and workspace picked in Run, with the checks and prompts as the form stands.
+	$scope.Preview = async function ( kind )
+	{
+		let popup = $scope.Packaging;
+		if ( !popup || popup.Busy )
+		{
+			return;
+		}
+		popup.Busy = true;
+		popup.Copied = false;
+		popup.Problems = [];
+		let answer = await window.Desktop.Package( request( kind, { Checks: popup.Form.Checks, Prompts: popup.Form.Prompts, Unchecked: popup.Form.Unchecked } ) );
+		if ( answer.Error )
+		{
+			popup.Problems = [ answer.Error ];
+			popup.Preview = null;
+		}
+		else
+		{
+			popup.Preview = { Kind: kind, Text: answer.Prompt };
+		}
+		popup.Busy = false;
+		$scope.$applyAsync();
+	};
+
+
+	$scope.SavePackaging = async function ()
+	{
+		let popup = $scope.Packaging;
+		if ( !popup || popup.Busy )
+		{
+			return;
+		}
+		popup.Busy = true;
+		popup.Problems = [];
+		let answer = await window.Desktop.SaveLlm( from_packaging( popup.Form ) );
+		if ( answer.Problems )
+		{
+			popup.Problems = answer.Problems;
+			popup.Busy = false;
+		}
+		else
+		{
+			await DesktopItems.Reload();
+			$scope.Llm = DesktopItems.LlmById( answer.Item.Id );
+			$scope.Packaging = null;
+		}
+		$scope.$applyAsync();
+	};
+
+
+	$scope.Copy = function ( text, holder )
+	{
+		if ( text && navigator.clipboard )
+		{
+			navigator.clipboard.writeText( text ).then( function ()
+			{
+				if ( holder )
+				{
+					holder.Copied = true;
+				}
+				$scope.$applyAsync();
+			} ).catch( function () {} );
+		}
+	};
+
+
+	//-----------------------------------------------------------------
+	// Run: the plan picker (the page's own list, in the tree's order), the workspace, the buttons.
+
+	$scope.TogglePicker = function ( event )
+	{
+		event.stopPropagation();
+		$scope.PickerOpen = !$scope.PickerOpen;
+	};
+
+
+	$scope.PickPlan = function ( row )
+	{
+		if ( row.Kind === 'plan' )
+		{
+			$scope.Pick.Plan = row.Id;
+			$scope.PickerOpen = false;
+		}
+	};
+
+
+	$scope.ClearPlan = function ()
+	{
+		$scope.Pick.Plan = null;
+		$scope.PickerOpen = false;
+	};
+
+
+	$scope.PickedPlan = function ()
+	{
+		return plan_rows().find( function ( plan ) { return plan.Id === $scope.Pick.Plan; } ) || null;
+	};
+
+
+	function close_picker()
+	{
+		if ( $scope.PickerOpen )
+		{
+			$scope.$applyAsync( function () { $scope.PickerOpen = false; } );
+		}
+	}
+
+	document.addEventListener( 'mousedown', function ( event )
+	{
+		if ( $scope.PickerOpen && !event.target.closest( '.picker' ) )
+		{
+			close_picker();
+		}
+	}, true );
+	$scope.$on( '$destroy', function () { close_picker(); } );
 
 
 	$scope.IsRunning = function ()
@@ -347,81 +567,52 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 	};
 
 
-	$scope.CanRun = function ( kind )
+	// Why a button is disabled, or '' when it can run: a run going, ollama, no plan, no workspace.
+	$scope.Reason = function ( kind )
 	{
-		if ( !$scope.Llm || $scope.Busy || $scope.IsRunning() || $scope.Dirty() || $scope.Llm.Kind !== 'claude-cli' )
+		if ( !$scope.Llm )
 		{
-			return false;
+			return 'no connection';
 		}
-		if ( kind === 'build' )
+		if ( $scope.IsRunning() )
 		{
-			return !!$scope.Pick.Plan && !!$scope.Pick.Workspace;
+			return 'a run is going';
 		}
-		if ( kind === 'review' )
-		{
-			return !!$scope.Pick.Plan;
-		}
-		return true;
-	};
-
-
-	$scope.RunTitle = function ( kind )
-	{
-		if ( $scope.Llm && $scope.Llm.Kind === 'ollama' )
+		if ( $scope.Llm.Kind === 'ollama' )
 		{
 			return 'an ollama one-shot is Step 4';
-		}
-		if ( $scope.Dirty() )
-		{
-			return 'save the details first';
-		}
-		if ( kind === 'build' && !$scope.Pick.Workspace )
-		{
-			return 'a build needs a workspace';
 		}
 		if ( kind !== 'session' && !$scope.Pick.Plan )
 		{
 			return 'pick the plan at hand';
 		}
-		return 'package the ' + kind + ' prompt and run it once';
+		if ( kind === 'build' && !$scope.Pick.Workspace )
+		{
+			return 'a build needs a workspace';
+		}
+		return '';
 	};
 
 
-	$scope.ShowPrompt = async function ( kind )
+	$scope.CanRun = function ( kind )
 	{
-		if ( !$scope.Llm || $scope.Busy )
-		{
-			return;
-		}
-		$scope.Busy = true;
-		$scope.Error = null;
-		$scope.Copied = false;
-		let answer = await window.Desktop.Package( request( kind ) );
-		if ( answer.Error )
-		{
-			$scope.Error = answer.Error;
-			$scope.Prompt = null;
-		}
-		else
-		{
-			$scope.Prompt = { Kind: kind, Text: answer.Prompt };
-			$scope.Shown = null;
-		}
-		$scope.Busy = false;
-		$scope.$applyAsync();
+		return !$scope.Busy && $scope.Reason( kind ) === '';
 	};
 
 
-	$scope.Copy = function ( text )
+	// The reasons shown beside the buttons: one line per button that cannot run, the same reason named once.
+	$scope.Reasons = function ()
 	{
-		if ( text && navigator.clipboard )
+		let seen = [];
+		for ( let kind of [ 'review', 'build', 'session' ] )
 		{
-			navigator.clipboard.writeText( text ).then( function ()
+			let reason = $scope.Reason( kind );
+			if ( reason && !seen.includes( reason ) )
 			{
-				$scope.Copied = true;
-				$scope.$applyAsync();
-			} ).catch( function () {} );
+				seen.push( reason );
+			}
 		}
+		return seen.join( '; ' );
 	};
 
 
@@ -440,7 +631,6 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 		}
 		else
 		{
-			$scope.Prompt = null;
 			DesktopItems.Running[ $scope.Llm.Id ] = answer.Run;
 			await load_runs();
 			await $scope.OpenRun( answer.Run );
@@ -460,27 +650,26 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 	};
 
 
+	//-----------------------------------------------------------------
+	// The log: a run opens in a popup, its output and prompt rendered as markdown, or as source.
+
 	$scope.OpenRun = async function ( run )
 	{
-		if ( $scope.Shown && $scope.Shown.Id === run.Id )
-		{
-			$scope.Shown = null;
-			$scope.$applyAsync();
-			return;
-		}
 		let answer = await window.Desktop.ReadRun( run.Id );
-		$scope.Shown = answer.Run || null;
-		$scope.Prompt = null;
+		if ( answer.Run )
+		{
+			$scope.RunPopup = { Run: answer.Run, Source: false, Copied: null };
+		}
 		$scope.$applyAsync();
 	};
 
 
-	$scope.RefreshShown = async function ()
+	$scope.RefreshRun = async function ()
 	{
-		if ( $scope.Shown )
+		if ( $scope.RunPopup )
 		{
-			let answer = await window.Desktop.ReadRun( $scope.Shown.Id );
-			$scope.Shown = answer.Run || null;
+			let answer = await window.Desktop.ReadRun( $scope.RunPopup.Run.Id );
+			$scope.RunPopup.Run = answer.Run || $scope.RunPopup.Run;
 			$scope.$applyAsync();
 		}
 	};
@@ -502,10 +691,12 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 
 
 //---------------------------------------------------------------------
-// WorkspaceController: the workspace page.
+// WorkspaceController: the workspace page, and the files it includes as the form stands.
 
-.controller( 'WorkspaceController', [ '$scope', 'State', 'DesktopItems', function ( $scope, State, DesktopItems )
+.controller( 'WorkspaceController', [ '$scope', '$timeout', 'State', 'DesktopItems', function ( $scope, $timeout, State, DesktopItems )
 {
+	const WALK_DELAY = 400;
+
 	$scope.State = State;
 	$scope.Items = DesktopItems;
 	$scope.Workspace = null;
@@ -514,6 +705,8 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 	$scope.Problems = [];
 	$scope.Saved = false;
 	$scope.Busy = false;
+	$scope.Files = { Count: 0, Files: [], Truncated: false, Error: null, Busy: false };
+	let walk_timer = null;
 
 
 	function to_form( workspace )
@@ -567,6 +760,33 @@ angular.module( 'Consensus' ).factory( 'DesktopItems', [ '$rootScope', function 
 
 
 	$scope.$watch( function () { return [ State.View, State.OpenItem ? State.OpenItem.Kind + '/' + State.OpenItem.Id : null, DesktopItems.Workspaces, State.Projects ]; }, load, true );
+
+
+	// The files follow the form: walked again, a moment after the last change.
+	async function walk()
+	{
+		if ( !$scope.Form || !DesktopItems.Available )
+		{
+			return;
+		}
+		$scope.Files.Busy = true;
+		let answer = await window.Desktop.Files( { Path: $scope.Form.Path, Include: lines( $scope.Form.IncludeText ), Exclude: lines( $scope.Form.ExcludeText ) } );
+		$scope.Files = { Count: answer.Count || 0, Files: answer.Files || [], Truncated: !!answer.Truncated, Error: answer.Error || null, Busy: false };
+		$scope.$applyAsync();
+	}
+
+
+	$scope.$watch( function () { return $scope.Form ? [ $scope.Form.Path, $scope.Form.IncludeText, $scope.Form.ExcludeText ] : null; }, function ( form )
+	{
+		if ( walk_timer )
+		{
+			$timeout.cancel( walk_timer );
+		}
+		if ( form )
+		{
+			walk_timer = $timeout( walk, WALK_DELAY, false );
+		}
+	}, true );
 
 
 	$scope.Dirty = function ()

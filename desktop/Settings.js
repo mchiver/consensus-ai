@@ -12,6 +12,7 @@
 //     "Llms": [ { "Id": "llm-…", "Name": "Claude", "Kind": "claude-cli", "Command": "claude", "Arguments": [ "-p", … ],
 //                "Url": "", "Model": "sonnet", "Timeout": 300,
 //                "Checks": { "Instructions": true, "Readme": true, "Documents": true, "Threads": true },
+//                "Unchecked": { "Documents": [ "doc-…" ], "Threads": [ "thr-…" ] },
 //                "Prompts": { "Review": "…", "Build": "…", "Session": "" } } ],
 //     "Workspaces": [ { "Id": "wks-…", "Name": "consensus", "Project": "default", "Path": "W:/code/consensus.git",
 //                       "Include": [], "Exclude": [ "~*/**", "node_modules/**", ".git/**" ] } ]
@@ -22,7 +23,9 @@ const PATH = require( 'path' );
 const CRYPTO = require( 'crypto' );
 const PACKAGE = require( './Package.js' );
 
-const THEMES = [ 'light', 'dark', 'system' ];
+// The palettes (plan UI Tweaks IV), as theme.js names them; the dark ones set the native bars dark.
+const THEMES = [ 'system', 'light', 'sepia', 'paper', 'solarized-light', 'dark', 'slate', 'solarized-dark', 'nord', 'midnight' ];
+const DARK_THEMES = [ 'dark', 'slate', 'solarized-dark', 'nord', 'midnight' ];
 const SCALES = [ 'small', 'normal', 'large' ];
 const KINDS = [ 'claude-cli', 'ollama' ];
 const DEFAULT_COMMAND = 'claude';
@@ -103,6 +106,7 @@ function FillLlm( Llm )
 		prompts[ name ] = ( given.Prompts && typeof given.Prompts[ name ] === 'string' ) ? given.Prompts[ name ] : PACKAGE.DEFAULT_PROMPTS[ name ];
 	}
 	let timeout = Number( given.Timeout );
+	let unchecked = ( given.Unchecked && typeof given.Unchecked === 'object' ) ? given.Unchecked : {};
 	return {
 		Id: text_of( given.Id ) || NewId( 'llm' ),
 		Name: text_of( given.Name ),
@@ -114,6 +118,7 @@ function FillLlm( Llm )
 		Timeout: ( Number.isFinite( timeout ) && timeout > 0 ) ? Math.round( timeout ) : DEFAULT_TIMEOUT,
 		Checks: checks,
 		Prompts: prompts,
+		Unchecked: { Documents: lines_of( unchecked.Documents, [] ), Threads: lines_of( unchecked.Threads, [] ) },
 	};
 }
 
@@ -312,6 +317,7 @@ function WorkspaceById( Settings, Id )
 
 module.exports = {
 	THEMES: THEMES,
+	DARK_THEMES: DARK_THEMES,
 	SCALES: SCALES,
 	KINDS: KINDS,
 	DEFAULT_COMMAND: DEFAULT_COMMAND,

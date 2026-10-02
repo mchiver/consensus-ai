@@ -20,6 +20,7 @@ const PAGE = require( './Page.js' );
 const LLM = require( './Llm.js' );
 const PACKAGE = require( './Package.js' );
 const RUNS = require( './Runs.js' );
+const FILES = require( './Files.js' );
 
 const VERSION = require( '../package.json' ).version;
 const TRY_TIMEOUT = 5000;
@@ -42,6 +43,18 @@ let closing = false;
 function save_settings()
 {
 	SETTINGS.Write( settings_path, settings );
+}
+
+
+// The window's title bar and menu bar follow the theme, light or dark (plan UI Tweaks IV); System follows the system.
+function apply_native_theme()
+{
+	if ( settings.Theme === 'system' )
+	{
+		ELECTRON.nativeTheme.themeSource = 'system';
+		return;
+	}
+	ELECTRON.nativeTheme.themeSource = SETTINGS.DARK_THEMES.includes( settings.Theme ) ? 'dark' : 'light';
 }
 
 
@@ -371,6 +384,62 @@ function documents_of( items, readme_id )
 }
 
 
+// The first words of a thread's last reply, for the packaging popup's list.
+function last_words( thread )
+{
+	let replies = thread.Replies || [];
+	let last = replies.length ? replies[ replies.length - 1 ] : null;
+	if ( !last )
+	{
+		return '';
+	}
+	let words = String( last.Text || '' ).replace( /\s+/g, ' ' ).trim();
+	return last.By + ': ' + ( ( words.length > 90 ) ? words.slice( 0, 90 ) + '…' : words );
+}
+
+
+// The lists the packaging popup checks: the other Context documents of the project, and the threads of the plan
+// waiting on the llm participant. Request = { ProjectId, PlanId? }
+async function package_lists( request )
+{
+	if ( !current )
+	{
+		return { Error: 'not connected to a Consensus server' };
+	}
+	try
+	{
+		let me = await fetch_json( '/api/me' );
+		let llm_participant = ( me.Participants || [] ).find( function ( participant ) { return participant.Role === 'llm'; } );
+		let participant = llm_participant ? llm_participant.Name : 'llm';
+		let projects = await fetch_json( '/api/projects' );
+		let project = ( projects.Projects || [] ).find( function ( candidate ) { return candidate.Id === request.ProjectId; } );
+		if ( !project )
+		{
+			return { Error: 'no project with the id ' + request.ProjectId };
+		}
+		let context_folder = ( project.Items || [] ).find( function ( node ) { return node.Id === project.ContextFolder; } );
+		let documents = documents_of( context_folder ? context_folder.Items : [], project.Context ? project.Context.Id : null );
+		let threads = [];
+		if ( request.PlanId )
+		{
+			let answer = await fetch_json( '/api/proposals/' + encodeURIComponent( request.PlanId ) );
+			for ( let thread of answer.Threads || [] )
+			{
+				if ( ( thread.Turn || [] ).includes( participant ) )
+				{
+					threads.push( { Id: thread.Id, Status: thread.Status, Anchor: thread.Anchor ? thread.Anchor.Text : null, Last: last_words( thread ) } );
+				}
+			}
+		}
+		return { Documents: documents, Threads: threads, Participant: participant };
+	}
+	catch ( error )
+	{
+		return { Error: 'the lists could not be read: ' + error.message };
+	}
+}
+
+
 async function make_package( request )
 {
 	if ( !current )
@@ -381,6 +450,11 @@ async function make_package( request )
 	if ( !llm )
 	{
 		return { Error: 'no LLM connection with the id ' + request.LlmId };
+	}
+	if ( request.Overrides && typeof request.Overrides === 'object' )
+	{
+		// a preview of what the packaging popup holds before it is saved
+		llm = SETTINGS.FillLlm( Object.assign( {}, llm, request.Overrides, { Id: llm.Id } ) );
 	}
 	let workspace = request.WorkspaceId ? SETTINGS.WorkspaceById( settings, request.WorkspaceId ) : null;
 	if ( request.WorkspaceId && !workspace )
@@ -417,7 +491,7 @@ async function make_package( request )
 		{
 			let answer = await fetch_json( '/api/proposals/' + encodeURIComponent( request.PlanId ) );
 			plan = { Id: answer.Proposal.Id, Title: answer.Proposal.Title, State: answer.Proposal.State };
-			threads = ( answer.Threads || [] ).filter( function ( thread ) { return ( thread.Turn || [] ).includes( participant ); } );
+			threads = ( answer.Threads || [] ).filter( function ( thread ) { return ( thread.Turn || [] ).includes( participant ) && !llm.Unchecked.Threads.includes( thread.Id ); } );
 		}
 		else if ( request.Kind !== 'session' )
 		{
@@ -433,7 +507,7 @@ async function make_package( request )
 			Participant: participant,
 			Instructions: instructions,
 			Readme: readme,
-			Documents: documents_of( context_folder ? context_folder.Items : [], readme_id ),
+			Documents: documents_of( context_folder ? context_folder.Items : [], readme_id ).filter( function ( document ) { return !llm.Unchecked.Documents.includes( document.Id ); } ),
 			Threads: threads,
 		} );
 		return { Prompt: prompt, Llm: llm, Project: { Id: project.Id, Name: project.Name }, Plan: plan, Workspace: workspace, Participant: participant };
@@ -498,6 +572,7 @@ function attach_handlers()
 			settings.Scale = change.Scale;
 		}
 		save_settings();
+		apply_native_theme();
 	} );
 
 	ELECTRON.ipcMain.handle( 'settings', function ()
@@ -581,14 +656,30 @@ function attach_handlers()
 		return delete_item( 'Llms', id );
 	} );
 
-	ELECTRON.ipcMain.handle( 'llm-check', async function ( event, id )
+	ELECTRON.ipcMain.handle( 'llm-check', async function ( event, id_or_llm )
 	{
-		let llm = SETTINGS.LlmById( settings, id );
+		if ( id_or_llm && typeof id_or_llm === 'object' )
+		{
+			return LLM.Check( SETTINGS.FillLlm( id_or_llm ) );
+		}
+		let llm = SETTINGS.LlmById( settings, id_or_llm );
 		if ( !llm )
 		{
-			return { Ok: false, Error: 'no LLM connection with the id ' + id };
+			return { Ok: false, Error: 'no LLM connection with the id ' + id_or_llm };
 		}
 		return LLM.Check( llm );
+	} );
+
+	ELECTRON.ipcMain.handle( 'package-lists', function ( event, request )
+	{
+		return package_lists( request || {} );
+	} );
+
+	// The files a workspace includes, for its page: Request = { Path, Include, Exclude }
+	ELECTRON.ipcMain.handle( 'files', function ( event, request )
+	{
+		let filled = SETTINGS.FillWorkspace( Object.assign( { Name: 'x', Project: 'x' }, request || {} ) );
+		return FILES.Walk( filled.Path, filled.Include, filled.Exclude );
 	} );
 
 	ELECTRON.ipcMain.handle( 'workspace-save', function ( event, workspace )
@@ -640,6 +731,7 @@ async function main()
 	{
 		save_settings();
 	}
+	apply_native_theme();
 	local = LOCAL.Local();
 	runs = RUNS.Runs( { Folder: PATH.join( user_data, 'runs' ) } );
 	runs.OnChange( broadcast_run );
