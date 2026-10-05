@@ -6,7 +6,25 @@ The server itself calls no model, reads no code and indexes nothing. Every LLM t
 
 The settings list the participants. The llm participant holds a **token**; a request with `Authorization: Bearer <token>` is that participant. **Settings** at the bottom of the sidebar shows the participants: **New** makes a token, **Copy** copies it. See [Settings and themes](settings.html).
 
-The page at `/instructions` on your server is the LLM's guide: how to call the API, what the owner's words mean, and the build loop. It starts with a **This server** section holding the API's address and the llm token, so one line starts an agent session: "read the instructions at `http://127.0.0.1:3500/instructions`".
+## Giving an LLM the instructions
+
+Your server serves its own guide for LLMs at `/instructions`: what Consensus is, how to call the API, what your words mean ("check consensus", "your turn", "build it"), and the build loop. Its first section, **This server**, holds the API's address as the request reached it and the llm participant's token, so an LLM that has read the page has everything it needs to take part. Nothing is installed or configured on the LLM's side.
+
+How you hand the page over depends on what runs the LLM:
+
+- **An agent session** (Claude Code, or another coding agent with a shell) open on your repository: one line in the chat starts it.
+
+  > Read the instructions at `http://127.0.0.1:3500/instructions` with curl, then load your context.
+
+  Say "with curl": an agent's web-fetch tool often refuses a local or private address, and curl does not. "Load your context" has it read the project's Readme, the tree of plans and what waits on it, and report back in a few lines. From then on, "your turn in Consensus" is the whole prompt. Give the address the agent can reach: `127.0.0.1` for a server on the same machine, the server's name on your network otherwise.
+
+- **A one-shot from the desktop**: nothing to do. The packaged prompt starts with the server's `/instructions` (the Packaging popup lists it, checked by default), so the model is briefed on every run.
+
+- **A local model through Ollama**: the desktop swaps the page for its own tool instructions, because the model works through the desktop's tools rather than the API, and the token never enters its prompt.
+
+- **Anything else** that can make HTTP requests: fetch the page, give it to the model as its system or first message, and let it call the API as the page says.
+
+The page is the guide the repository keeps at `.guides/build-with-consensus.md`; the server only puts This server at the top. Keep it in mind when the server listens beyond your machine: anyone who can reach it reads the token there.
 
 ## Your turn in Consensus
 
