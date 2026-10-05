@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Working with an LLM - Consensus-AI guide</title>
+	<meta name="description" content="The Consensus-AI user guide: Working with an LLM.">
+	<link rel="icon" href="../images/mark.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="../css/bootstrap.min.css">
+	<link rel="stylesheet" href="../css/site.css">
+	<script src="../js/site.js"></script>
+</head>
+<body class="guide-page">
+
+	<header class="site-header">
+		<div class="container site-header-row">
+			<a class="brand" href="../index.html"><img class="brand-mark" src="../images/mark.svg" alt="">Consensus-AI</a>
+			<nav class="site-nav">
+				<a href="getting-started.html" class="active">Guide</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">GitHub</a>
+				<button class="theme-toggle" type="button" data-theme-toggle title="light or dark"><span class="theme-sun" aria-hidden="true">&#9728;</span><span class="theme-moon" aria-hidden="true">&#9790;</span><span class="visually-hidden">Toggle the theme</span></button>
+			</nav>
+		</div>
+	</header>
+
+	<div class="container guide-layout">
+		<aside class="guide-side">
+			<div class="guide-side-title">The guide</div>
+			<nav class="guide-nav">
+				<a class="guide-link" href="getting-started.html">Getting started</a>
+				<a class="guide-link" href="projects.html">Projects, plans and documents</a>
+				<a class="guide-link" href="threads.html">Threads</a>
+				<a class="guide-link" href="editing.html">Editing and revisions</a>
+				<a class="guide-link active" href="llm.html">Working with an LLM</a>
+				<a class="guide-link" href="settings.html">Settings and themes</a>
+				<a class="guide-link" href="export-import.html">Export and import</a>
+				<a class="guide-link" href="api.html">The API</a>
+			</nav>
+		</aside>
+		<main class="guide-main">
+			<article class="guide-article">
+<h1 id="working-with-an-llm">Working with an LLM</h1>
+<p>The server itself calls no model, reads no code and indexes nothing. Every LLM takes part as the <strong>llm</strong> participant, through the API, from wherever it runs: a coding agent in your repository, a one-shot run from the desktop, or a local model. What they all do is the same: read what waits on them, reply, apply what you resolved, draft plans, and build what a finished plan says.</p>
+<h2 id="the-llm-participant-and-its-token">The llm participant and its token</h2>
+<p>The settings list the participants. The llm participant holds a <strong>token</strong>; a request with <code>Authorization: Bearer &lt;token&gt;</code> is that participant. <strong>Settings</strong> at the bottom of the sidebar shows the participants: <strong>New</strong> makes a token, <strong>Copy</strong> copies it. See <a href="settings.html">Settings and themes</a>.</p>
+<p>The page at <code>/instructions</code> on your server is the LLM&#39;s guide: how to call the API, what the owner&#39;s words mean, and the build loop. It starts with a <strong>This server</strong> section holding the API&#39;s address and the llm token, so one line starts an agent session: &quot;read the instructions at <code>http://127.0.0.1:3500/instructions</code>&quot;.</p>
+<h2 id="your-turn-in-consensus">Your turn in Consensus</h2>
+<p>The loop you will use most, with an agent session such as Claude Code open on your repository:</p>
+<ol>
+<li>You comment on a plan, or resolve threads. The plan&#39;s row shows what waits on the llm.</li>
+<li>You tell the session &quot;your turn in Consensus&quot;. It fetches what waits on it, replies to the contested threads, and applies the resolved ones: one revision each, with the outcome recorded on the thread.</li>
+<li>You read its replies in the threads pane, resolve what you agree with, answer what you do not, and say &quot;your turn&quot; again.</li>
+</ol>
+<p>Two words of yours have a fixed meaning for the session. &quot;Check consensus&quot; means report what changed and act on nothing. A message holding a question is answered only; its instructions wait for a message with no question.</p>
+<h2 id="the-build-loop">The build loop</h2>
+<p>When every thread of a plan is resolved and applied, you say &quot;build it&quot;. The session sets the plan&#39;s state to Working, implements what the plan says, runs the tests, and posts one thread on the whole plan: the <strong>build log</strong>, saying what was built, where, how it was checked, and which model built it.</p>
+<figure class="shot"><img class="light-only" src="../images/build-log.png" alt="A build log: one whole-document thread, applied once the owner accepted it."><img class="dark-only" src="../images/build-log-dark.png" alt="A build log: one whole-document thread, applied once the owner accepted it."><figcaption>A build log: one whole-document thread, applied once the owner accepted it.</figcaption></figure>
+<p>You accept by resolving the build log; the session applies it, commits the work in your repository, sets the plan to Finished and brings the project&#39;s Readme up to date. You send it back by replying instead: it fixes what the reply asks and reports again on the same thread. Nothing is committed until it is accepted, and nothing in Consensus ever branches, commits or pushes on its own.</p>
+<h2 id="in-the-desktop-connections-and-workspaces">In the desktop: connections and workspaces</h2>
+<p>Consensus Desktop runs an LLM for you, once per click. Its <strong>LLM connections</strong> and <strong>workspaces</strong> are the desktop&#39;s own, kept in its settings and shown in every project&#39;s Context folder, never on the server.</p>
+<ul>
+<li>An <strong>LLM connection</strong> is a model and how to run it: <strong>Details</strong> names it, picks the kind, <code>claude-cli</code> (a command run without a shell) or <code>ollama</code>, the command and its arguments, the model, a timeout, and for Ollama the context window and the most tool rounds a run takes. <strong>Check</strong> tries the connection as entered.</li>
+<li>A <strong>workspace</strong> is a folder on your machine attached to a project, with Include and Exclude globs, and the <strong>Commands</strong> a model may run, one per line, none by default.</li>
+</ul>
+<figure class="shot"><img class="light-only" src="../images/desktop-llm.png" alt="The LLM page: the connection, the plan and workspace pickers, Review, Build and Session, and the log of runs."><img class="dark-only" src="../images/desktop-llm-dark.png" alt="The LLM page: the connection, the plan and workspace pickers, Review, Build and Session, and the log of runs."><figcaption>The LLM page: the connection, the plan and workspace pickers, Review, Build and Session, and the log of runs.</figcaption></figure>
+<p>The <strong>LLM page</strong> packages a prompt from the server&#39;s instructions, the project&#39;s Readme, the other Context documents you check, and the threads of the plan at hand that wait on the llm; <strong>Packaging</strong> picks the pieces and previews the result with its size. Then one of three buttons runs it once:</p>
+<ul>
+<li><strong>Review</strong> reads the workspace and the plan, replies and applies. Read-only file tools.</li>
+<li><strong>Build</strong> implements the plan in the workspace, with write, edit and the commands you allowed.</li>
+<li><strong>Session</strong> is a build with your own prompt.</li>
+</ul>
+<p>Every run is logged, newest first, and opens in a popup with its prompt and its output rendered or as source.</p>
+<figure class="shot"><img class="light-only" src="../images/desktop-run.png" alt="A finished run in its popup."><img class="dark-only" src="../images/desktop-run-dark.png" alt="A finished run in its popup."><figcaption>A finished run in its popup.</figcaption></figure>
+<p>A <code>claude-cli</code> run hands the package to the command on its standard input; the model works through the API itself. An <code>ollama</code> run keeps the model&#39;s tools in the desktop: the desktop carries out each call the model makes (over the workspace, and over the server as the llm participant) and sends the result back, round by round, until the model answers. The token never enters a local model&#39;s prompt. The desktop never commits, branches or pushes.</p>
+
+			</article>
+			<nav class="guide-pager">
+				<a class="guide-previous" href="editing.html">&larr; Editing and revisions</a>
+				<a class="guide-next" href="settings.html">Next: Settings and themes &rarr;</a>
+			</nav>
+		</main>
+	</div>
+
+	<footer class="site-footer">
+		<div class="container site-footer-row">
+			<span>Consensus-AI is free software under the MIT license.</span>
+			<nav>
+				<a href="getting-started.html">Guide</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">Repository</a>
+			</nav>
+		</div>
+	</footer>
+
+	<div class="lightbox" id="lightbox" hidden><img alt=""><button type="button" class="lightbox-close" title="close">&times;</button></div>
+</body>
+</html>

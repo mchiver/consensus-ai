@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Getting started - Consensus-AI guide</title>
+	<meta name="description" content="The Consensus-AI user guide: Getting started.">
+	<link rel="icon" href="../images/mark.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="../css/bootstrap.min.css">
+	<link rel="stylesheet" href="../css/site.css">
+	<script src="../js/site.js"></script>
+</head>
+<body class="guide-page">
+
+	<header class="site-header">
+		<div class="container site-header-row">
+			<a class="brand" href="../index.html"><img class="brand-mark" src="../images/mark.svg" alt="">Consensus-AI</a>
+			<nav class="site-nav">
+				<a href="getting-started.html" class="active">Guide</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">GitHub</a>
+				<button class="theme-toggle" type="button" data-theme-toggle title="light or dark"><span class="theme-sun" aria-hidden="true">&#9728;</span><span class="theme-moon" aria-hidden="true">&#9790;</span><span class="visually-hidden">Toggle the theme</span></button>
+			</nav>
+		</div>
+	</header>
+
+	<div class="container guide-layout">
+		<aside class="guide-side">
+			<div class="guide-side-title">The guide</div>
+			<nav class="guide-nav">
+				<a class="guide-link active" href="getting-started.html">Getting started</a>
+				<a class="guide-link" href="projects.html">Projects, plans and documents</a>
+				<a class="guide-link" href="threads.html">Threads</a>
+				<a class="guide-link" href="editing.html">Editing and revisions</a>
+				<a class="guide-link" href="llm.html">Working with an LLM</a>
+				<a class="guide-link" href="settings.html">Settings and themes</a>
+				<a class="guide-link" href="export-import.html">Export and import</a>
+				<a class="guide-link" href="api.html">The API</a>
+			</nav>
+		</aside>
+		<main class="guide-main">
+			<article class="guide-article">
+<h1 id="getting-started">Getting started</h1>
+<p>Consensus-AI is a web application you run yourself. It keeps your plans as plain files in a folder, shows them in a browser, and lets an LLM take part through its API. This page gets it running in the three ways there are: from the checkout, in Docker, and as the desktop application.</p>
+<p>The code is public at <a href="https://github.com/mchiver/consensus-ai">github.com/mchiver/consensus-ai</a>. An installer is coming; until then, every way starts from the checkout.</p>
+<h2 id="from-the-checkout">From the checkout</h2>
+<p>You need Node 22 or later and git.</p>
+<pre><code>git clone https://github.com/mchiver/consensus-ai.git
+cd consensus-ai
+npm install
+node bin/consensus.js
+</code></pre>
+<p>The server prints its address, its data folder and its settings file:</p>
+<pre><code>Consensus at http://127.0.0.1:3500/ (listening on 127.0.0.1)
+data folder W:\consensus-ai\~data
+settings written to W:\consensus-ai\~data\consensus.json
+</code></pre>
+<p>Open <code>http://127.0.0.1:3500/</code> in a browser. You are the owner, and you see the <strong>Default</strong> project with its Context folder and an empty Readme.</p>
+<figure class="shot"><img class="light-only" src="../images/first-start.png" alt="The page at first start: the Default project and its Readme."><img class="dark-only" src="../images/first-start-dark.png" alt="The page at first start: the Default project and its Readme."><figcaption>The page at first start: the Default project and its Readme.</figcaption></figure>
+<p>Three options change where and how it runs:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>--data &lt;folder&gt;</code></td>
+<td>the data folder; <code>~data/</code> beside the checkout by default</td>
+</tr>
+<tr>
+<td><code>--port &lt;port&gt;</code></td>
+<td>the port; 3500 by default</td>
+</tr>
+<tr>
+<td><code>--host &lt;address&gt;</code></td>
+<td>the address to listen on; <code>127.0.0.1</code> by default, <code>0.0.0.0</code> for every interface</td>
+</tr>
+</tbody></table>
+<p>Listening beyond your own machine is a decision: anyone who can reach the server acts as the owner. Keep it on <code>127.0.0.1</code> unless the network is yours.</p>
+<h2 id="in-docker">In Docker</h2>
+<p>The repository holds a <code>Dockerfile</code> and a <code>compose.yaml</code>. From the checkout:</p>
+<pre><code>docker build -t consensus:latest .
+docker compose up -d
+</code></pre>
+<p>The server listens on port 3500 and keeps its data in the <code>consensus-data</code> volume. <code>docker compose down</code> stops it; the volume stays. The <code>compose.yaml</code> as shipped publishes the port on every IPv4 address of the host, because it is written for a server on a private network; edit it for your own.</p>
+<h2 id="the-desktop">The desktop</h2>
+<p>Consensus Desktop is the same page in a window of its own, able to connect to any Consensus server and to run one locally. From the checkout:</p>
+<pre><code>npm run desktop
+</code></pre>
+<p>It opens on the <strong>connect screen</strong>.</p>
+<figure class="shot"><img class="light-only" src="../images/desktop-connect.png" alt="The connect screen: saved servers, Add server, and the local server."><img class="dark-only" src="../images/desktop-connect-dark.png" alt="The connect screen: saved servers, Add server, and the local server."><figcaption>The connect screen: saved servers, Add server, and the local server.</figcaption></figure>
+<ul>
+<li><strong>Servers</strong> lists the servers you saved. <strong>Add server</strong> asks for a name and a URL, tries the address before saving it, and says which Consensus version answers.</li>
+<li><strong>Local server</strong> runs Consensus inside the app over a data folder you pick with Browse. Start it, then Connect. Closing the window stops it.</li>
+</ul>
+<p>Once connected, the window shows the page, and the <strong>Server</strong> menu has Connect to another, Reload, the local server&#39;s Start and Stop, and New window for a second server. The desktop also brings LLM connections and workspaces of its own; the page <a href="llm.html">Working with an LLM</a> covers them.</p>
+<h2 id="what-to-do-first">What to do first</h2>
+<ol>
+<li>Open the Readme in the Context folder and write a few lines about what the project is for. Every LLM that works on the project reads it.</li>
+<li>Make a plan with <strong>New plan</strong> in the project&#39;s menu, and write a draft.</li>
+<li>Select a sentence of the draft and comment on it. That is a thread, and the rest of this guide is about what happens next.</li>
+</ol>
+
+			</article>
+			<nav class="guide-pager">
+				<span></span>
+				<a class="guide-next" href="projects.html">Next: Projects, plans and documents &rarr;</a>
+			</nav>
+		</main>
+	</div>
+
+	<footer class="site-footer">
+		<div class="container site-footer-row">
+			<span>Consensus-AI is free software under the MIT license.</span>
+			<nav>
+				<a href="getting-started.html">Guide</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">Repository</a>
+			</nav>
+		</div>
+	</footer>
+
+	<div class="lightbox" id="lightbox" hidden><img alt=""><button type="button" class="lightbox-close" title="close">&times;</button></div>
+</body>
+</html>

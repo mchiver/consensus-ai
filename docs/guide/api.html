@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>The API - Consensus-AI guide</title>
+	<meta name="description" content="The Consensus-AI user guide: The API.">
+	<link rel="icon" href="../images/mark.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="../css/bootstrap.min.css">
+	<link rel="stylesheet" href="../css/site.css">
+	<script src="../js/site.js"></script>
+</head>
+<body class="guide-page">
+
+	<header class="site-header">
+		<div class="container site-header-row">
+			<a class="brand" href="../index.html"><img class="brand-mark" src="../images/mark.svg" alt="">Consensus-AI</a>
+			<nav class="site-nav">
+				<a href="getting-started.html" class="active">Guide</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">GitHub</a>
+				<button class="theme-toggle" type="button" data-theme-toggle title="light or dark"><span class="theme-sun" aria-hidden="true">&#9728;</span><span class="theme-moon" aria-hidden="true">&#9790;</span><span class="visually-hidden">Toggle the theme</span></button>
+			</nav>
+		</div>
+	</header>
+
+	<div class="container guide-layout">
+		<aside class="guide-side">
+			<div class="guide-side-title">The guide</div>
+			<nav class="guide-nav">
+				<a class="guide-link" href="getting-started.html">Getting started</a>
+				<a class="guide-link" href="projects.html">Projects, plans and documents</a>
+				<a class="guide-link" href="threads.html">Threads</a>
+				<a class="guide-link" href="editing.html">Editing and revisions</a>
+				<a class="guide-link" href="llm.html">Working with an LLM</a>
+				<a class="guide-link" href="settings.html">Settings and themes</a>
+				<a class="guide-link" href="export-import.html">Export and import</a>
+				<a class="guide-link active" href="api.html">The API</a>
+			</nav>
+		</aside>
+		<main class="guide-main">
+			<article class="guide-article">
+<h1 id="the-api">The API</h1>
+<p>Everything the Consensus-AI page does goes through the API, and so does everything an LLM does. It is plain HTTP with JSON bodies. A request with no <code>Authorization</code> header is the owner; a request with <code>Authorization: Bearer &lt;token&gt;</code> is the participant holding that token. Errors are <code>{ &quot;Error&quot;: &quot;...&quot; }</code> with the status: 400 a bad body, 401 an unknown token, 403 not allowed for this role, 404 not found, 409 not allowed in this state or a stale revision.</p>
+<h2 id="four-calls">Four calls</h2>
+<p>What waits on the caller, across every project:</p>
+<pre><code>curl -s -H &quot;Authorization: Bearer &lt;token&gt;&quot; http://127.0.0.1:3500/api/waiting
+</code></pre>
+<p>A reply on a thread:</p>
+<pre><code>curl -s -X POST -H &quot;Authorization: Bearer &lt;token&gt;&quot; -H &quot;Content-Type: application/json&quot; \
+  -d &#39;{ &quot;Text&quot;: &quot;Agreed; the wording I will apply: ...&quot; }&#39; \
+  http://127.0.0.1:3500/api/proposals/&lt;plan id&gt;/threads/&lt;thread id&gt;/replies
+</code></pre>
+<p>Applying a resolved thread, with the new text of the whole plan and the revision it was made from:</p>
+<pre><code>curl -s -X POST -H &quot;Authorization: Bearer &lt;token&gt;&quot; -H &quot;Content-Type: application/json&quot; \
+  -d &#39;{ &quot;Outcome&quot;: &quot;The section now says ...&quot;, &quot;Revision&quot;: 4, &quot;Text&quot;: &quot;# The plan\n\n...&quot; }&#39; \
+  http://127.0.0.1:3500/api/proposals/&lt;plan id&gt;/threads/&lt;thread id&gt;/apply
+</code></pre>
+<p>A new thread on a passage of the text:</p>
+<pre><code>curl -s -X POST -H &quot;Authorization: Bearer &lt;token&gt;&quot; -H &quot;Content-Type: application/json&quot; \
+  -d &#39;{ &quot;Text&quot;: &quot;Is this the right default?&quot;, &quot;Anchor&quot;: { &quot;Text&quot;: &quot;the words to anchor to&quot; } }&#39; \
+  http://127.0.0.1:3500/api/proposals/&lt;plan id&gt;/threads
+</code></pre>
+<p>An anchor&#39;s <code>Text</code> is matched against the text as it reads, without markdown marks: no backticks or asterisks.</p>
+<h2 id="the-routes">The routes</h2>
+<pre><code>GET    /api/me                                   who this request is, the participants, the States
+GET    /api/settings                             owner; the settings as they are, and the file&#39;s path
+PUT    /api/settings                             owner; { Settings }  the whole file, checked
+GET    /api/projects                             every project with its tree; Context and ContextFolder
+POST   /api/projects                             { Name }
+PUT    /api/projects/:pid                        { Name, Version? }
+DELETE /api/projects/:pid                        an empty project; never Default
+POST   /api/projects/:pid/folders                { Name, Parent?, Version? }
+PUT    /api/projects/:pid/folders/:fid           { Name, Version? }
+DELETE /api/projects/:pid/folders/:fid           an empty folder
+POST   /api/projects/:pid/move                   { Before }  the project in the display order
+GET    /api/projects/:pid/export                 owner or llm; the project as one json object
+POST   /api/projects/import                      owner or llm; { Export, Mode?, Preview? }
+POST   /api/items/:id/move                       { Project, Parent?, Before? }
+POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id
+GET    /api/proposals[?state=]                   plans and documents with their tallies
+POST   /api/proposals                            { Title, Text, Kind?, State?, Project?, Parent? }
+GET    /api/proposals/:id                        text, threads with positions, tally, whose turn
+PUT    /api/proposals/:id                        { Title }
+PUT    /api/proposals/:id/state                  { State }
+PUT    /api/proposals/:id/text                   { Text, Revision }  a manual edit
+DELETE /api/proposals/:id                        to the trash
+GET    /api/proposals/:id/revisions[/:n]         the record; a revision&#39;s text
+GET    /api/proposals/:id/threads[?status=]      all | contested | resolved | applied | reopened | detached | mine
+POST   /api/proposals/:id/threads                { Anchor: { Text, Prefix?, Suffix? } | null, Text, Resolve? }
+POST   /api/proposals/:id/threads/:tid/replies   { Text, Resolve? }  reopens a resolved thread
+POST   /api/proposals/:id/threads/:tid/anchor    { Anchor }  re-anchor
+POST   /api/proposals/:id/threads/:tid/resolve   owner only
+DELETE /api/proposals/:id/threads/:tid           owner only
+POST   /api/proposals/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
+GET    /api/trash                                what is there
+GET    /api/waiting                              everything waiting on the caller, in every project
+GET    /api/events                               Server-Sent Events: { Proposal | Project, Kind, Thread? }
+</code></pre>
+<h2 id="the-rules-in-plain-words">The rules, in plain words</h2>
+<ul>
+<li>A thread is <strong>contested</strong> until the owner resolves it. Resolving accepts the outcome the last reply states.</li>
+<li>A resolved thread is <strong>resolved</strong>, waiting to be applied, until a participant applies it. Applying makes it <strong>applied</strong> and records who, when, the revision and the outcome.</li>
+<li>Any reply to a resolved or applied thread <strong>reopens</strong> it. Reopening never reverts a change already applied.</li>
+<li>A contested thread waits on everyone except the one who replied last. A resolved thread waits on every llm participant. An applied thread waits on nobody.</li>
+<li>A plan&#39;s state is set by anyone at any time and does not depend on its threads.</li>
+<li>Editing is allowed at any time and makes a new revision. A manual edit changes no thread&#39;s status.</li>
+<li>Anchors hold to the visible text. After every change each anchor is found again; one that cannot be found is detached, and can be re-anchored.</li>
+<li>A text change carries the revision it was made from; a stale one is refused with the current revision.</li>
+</ul>
+<h2 id="live-events">Live events</h2>
+<p><code>GET /api/events</code> is a stream of Server-Sent Events: one event per change, naming the proposal or project and the kind of change. The page uses it to stay in step; a client of your own can too.</p>
+
+			</article>
+			<nav class="guide-pager">
+				<a class="guide-previous" href="export-import.html">&larr; Export and import</a>
+				<a class="guide-next" href="../index.html">Back to the start &rarr;</a>
+			</nav>
+		</main>
+	</div>
+
+	<footer class="site-footer">
+		<div class="container site-footer-row">
+			<span>Consensus-AI is free software under the MIT license.</span>
+			<nav>
+				<a href="getting-started.html">Guide</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">Repository</a>
+			</nav>
+		</div>
+	</footer>
+
+	<div class="lightbox" id="lightbox" hidden><img alt=""><button type="button" class="lightbox-close" title="close">&times;</button></div>
+</body>
+</html>

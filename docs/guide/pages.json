@@ -1,0 +1,10 @@
+[
+	{ "File": "getting-started.md", "Title": "Getting started" },
+	{ "File": "projects.md", "Title": "Projects, plans and documents" },
+	{ "File": "threads.md", "Title": "Threads" },
+	{ "File": "editing.md", "Title": "Editing and revisions" },
+	{ "File": "llm.md", "Title": "Working with an LLM" },
+	{ "File": "settings.md", "Title": "Settings and themes" },
+	{ "File": "export-import.md", "Title": "Export and import" },
+	{ "File": "api.md", "Title": "The API" }
+]

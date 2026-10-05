@@ -309,4 +309,7 @@ module.exports = {
 	KEYS: KEYS,
 	FindBrowser: FindBrowser,
 	StartBrowser: StartBrowser,
+	// A page target that already exists (the desktop's window, started with --remote-debugging-port), by its
+	// webSocketDebuggerUrl from /json/list; the same page object OpenPage gives.
+	Attach: open_target,
 };

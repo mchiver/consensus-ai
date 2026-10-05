@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Editing and revisions - Consensus-AI guide</title>
+	<meta name="description" content="The Consensus-AI user guide: Editing and revisions.">
+	<link rel="icon" href="../images/mark.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="../css/bootstrap.min.css">
+	<link rel="stylesheet" href="../css/site.css">
+	<script src="../js/site.js"></script>
+</head>
+<body class="guide-page">
+
+	<header class="site-header">
+		<div class="container site-header-row">
+			<a class="brand" href="../index.html"><img class="brand-mark" src="../images/mark.svg" alt="">Consensus-AI</a>
+			<nav class="site-nav">
+				<a href="getting-started.html" class="active">Guide</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">GitHub</a>
+				<button class="theme-toggle" type="button" data-theme-toggle title="light or dark"><span class="theme-sun" aria-hidden="true">&#9728;</span><span class="theme-moon" aria-hidden="true">&#9790;</span><span class="visually-hidden">Toggle the theme</span></button>
+			</nav>
+		</div>
+	</header>
+
+	<div class="container guide-layout">
+		<aside class="guide-side">
+			<div class="guide-side-title">The guide</div>
+			<nav class="guide-nav">
+				<a class="guide-link" href="getting-started.html">Getting started</a>
+				<a class="guide-link" href="projects.html">Projects, plans and documents</a>
+				<a class="guide-link" href="threads.html">Threads</a>
+				<a class="guide-link active" href="editing.html">Editing and revisions</a>
+				<a class="guide-link" href="llm.html">Working with an LLM</a>
+				<a class="guide-link" href="settings.html">Settings and themes</a>
+				<a class="guide-link" href="export-import.html">Export and import</a>
+				<a class="guide-link" href="api.html">The API</a>
+			</nav>
+		</aside>
+		<main class="guide-main">
+			<article class="guide-article">
+<h1 id="editing-and-revisions">Editing and revisions</h1>
+<p>A plan or document opens in <strong>Read</strong>, the rendered text. <strong>Edit</strong> opens the editor beside a live preview; <strong>Revisions</strong> shows the record. The three are in the heading, and Ctrl+E switches between Read and Edit, from the editor too.</p>
+<figure class="shot"><img class="light-only" src="../images/edit.png" alt="Edit: the editor beside the live preview."><img class="dark-only" src="../images/edit-dark.png" alt="Edit: the editor beside the live preview."><figcaption>Edit: the editor beside the live preview.</figcaption></figure>
+<h2 id="editing">Editing</h2>
+<p>The editor is Monaco, the editor of VS Code, so the keys you know work: multiple cursors, find and replace, folding. Ctrl+S saves. <strong>Preview</strong> in the editor&#39;s heading hides or shows the preview, and the choice is remembered in the browser.</p>
+<p>Editing is allowed at any time and makes a new revision. A manual edit changes no thread&#39;s status, and the anchors follow the text, so you can tidy a plan while its threads are open.</p>
+<p>Two people cannot overwrite each other: a save carries the revision it was made from, and a stale one is refused. The page reloads the newer text rather than losing it.</p>
+<h2 id="revisions">Revisions</h2>
+<p>Every save, and every applied thread, is a revision. <strong>Revisions</strong> lists them, newest first: who, when, which thread was applied and its outcome, and the text as it stood. The document keeps no change log of its own; the revisions and the applied records are the record.</p>
+<figure class="shot"><img class="light-only" src="../images/revisions.png" alt="Revisions: the record, with the text at each one."><img class="dark-only" src="../images/revisions-dark.png" alt="Revisions: the record, with the text at each one."><figcaption>Revisions: the record, with the text at each one.</figcaption></figure>
+<h2 id="tabs">Tabs</h2>
+<p>Every item you open, and Waiting on you, opens in a <strong>tab</strong> above the document: one tab per item, dragged to reorder, closed with ×. Each tab comes back as you left it, Read, Edit or Revisions, an unsaved edit included. Open tabs survive a page reload, not a browser restart; with none open, the start page shows.</p>
+<figure class="shot"><img class="light-only" src="../images/tabs.png" alt="The tab strip."><img class="dark-only" src="../images/tabs-dark.png" alt="The tab strip."><figcaption>The tab strip.</figcaption></figure>
+<p>A tab&#39;s menu (the ▾ beside its ×, or a right-click) has Close, Close others, Close to the right, Close all, and <strong>Detach</strong>, which opens the item in its own browser window, without the sidebar; allow pop-ups for the page. Its tab stays in the strip, ghosted, and its menu has <strong>Re-attach</strong> and Close. Re-attach in the window does the same. Two windows, and two browser tabs, stay in step: every change is pushed live.</p>
+<h2 id="the-threads-pane-and-the-tree">The threads pane and the tree</h2>
+<p>The heading&#39;s <strong>Threads</strong> button hides or shows the threads pane, and the sidebar can be hidden too; each is remembered in the browser. A document gives the threads pane&#39;s room to the text.</p>
+
+			</article>
+			<nav class="guide-pager">
+				<a class="guide-previous" href="threads.html">&larr; Threads</a>
+				<a class="guide-next" href="llm.html">Next: Working with an LLM &rarr;</a>
+			</nav>
+		</main>
+	</div>
+
+	<footer class="site-footer">
+		<div class="container site-footer-row">
+			<span>Consensus-AI is free software under the MIT license.</span>
+			<nav>
+				<a href="getting-started.html">Guide</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">Repository</a>
+			</nav>
+		</div>
+	</footer>
+
+	<div class="lightbox" id="lightbox" hidden><img alt=""><button type="button" class="lightbox-close" title="close">&times;</button></div>
+</body>
+</html>

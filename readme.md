@@ -321,6 +321,22 @@ Errors are `{ "Error": "..." }` with the status: 400 bad body (`Problems` lists 
 unknown token, 403 not allowed for this role, 404 not found, 409 not allowed in this state or a stale
 revision or version (with the current `Revision` or `Version`).
 
+## The website
+
+`docs/` is the public site, Consensus-AI's landing page and user guide (plan Documentation), published as it is to
+the S3 bucket `consensus-ai.liquicode.com` and served at http://consensus-ai.liquicode.com. The guide is markdown in
+`docs/guide/`, one page each in `pages.json`'s order, rendered into `template.html` by the build, with the rendered
+pages committed beside their sources. The screenshots in `docs/images/` are made by a script, never by hand:
+
+	node bin/docs.js build          renders the guide, copies Bootstrap into docs/css/, checks every link and image
+	node bin/docs.js screenshots    the 30 pictures, light and dark, from a seeded server and the desktop
+	node bin/docs.js publish        build, then aws s3 sync docs/ to the bucket with the default AWS profile
+
+The screenshot script seeds a server over `~docs-demo/` in the checkout with the demo project in `docs/demo/`,
+drives a headless Chrome or Edge through `test/support/Cdp.js`, then starts the desktop with its own user-data
+folder for its pictures; `test/Docs.test.js` runs both the build and the script over a copy of `docs/`. The official
+name is Consensus-AI wherever the site names the product; the prose says Consensus.
+
 ## Layout of the code
 
 	bin/consensus.js      the command line
@@ -339,4 +355,6 @@ revision or version (with the current `Revision` or `Version`).
 	test/                 node --test; Ui.test.js drives a headless browser through test/support/Cdp.js
 	.plans/               the build plans and the story of this repository
 	.guides/              build-with-consensus.md, the agent session's guide
+	docs/                 the website: index.html, guide/, template.html, css/, js/, images/, demo/
+	bin/docs.js           the website's build, screenshots and publish
 	Dockerfile, compose.yaml    the image (plan Docker Image): the server on port 3500, its data in /data

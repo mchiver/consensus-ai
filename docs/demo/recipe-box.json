@@ -1,0 +1,322 @@
+{
+	"Format": "consensus-project",
+	"Version": 1,
+	"Exported": "2026-10-05T04:48:32.081Z",
+	"Project": {
+		"Id": "prj-t0e-hoa-8xr",
+		"Name": "Recipe Box",
+		"Created": "2026-10-05T04:48:30.865Z",
+		"Updated": "2026-10-05T04:48:31.881Z",
+		"Context": "doc-b4j-c7k-rpl",
+		"ContextFolder": "fld-1qa-wzf-506",
+		"Items": [
+			{
+				"Kind": "folder",
+				"Id": "fld-1qa-wzf-506",
+				"Name": "Context",
+				"Items": [
+					{
+						"Kind": "document",
+						"Id": "doc-b4j-c7k-rpl"
+					},
+					{
+						"Kind": "document",
+						"Id": "doc-000-0v4-58v"
+					}
+				]
+			},
+			{
+				"Kind": "folder",
+				"Id": "fld-8ps-ghm-jke",
+				"Name": "Plans",
+				"Items": [
+					{
+						"Kind": "plan",
+						"Id": "pln-cnv-udx-lns"
+					},
+					{
+						"Kind": "plan",
+						"Id": "pln-ey2-67z-f7y",
+						"Items": [
+							{
+								"Kind": "plan",
+								"Id": "pln-bat-go6-bzz"
+							}
+						]
+					}
+				]
+			}
+		]
+	},
+	"Proposals": [
+		{
+			"Proposal": {
+				"Id": "doc-b4j-c7k-rpl",
+				"Title": "Readme",
+				"Kind": "document",
+				"State": null,
+				"Created": "2026-10-05T04:48:30.865Z",
+				"Updated": "2026-10-05T04:48:31.002Z",
+				"Revision": 2,
+				"Head": "rev-9v1-1zu-0ej"
+			},
+			"Text": "# Recipe Box\n\nA small app for the recipes we cook every week: pick the week's recipes, and the shopping list writes itself.\n\nDecided so far: a web page and a phone layout from the same code; recipes are markdown files in a folder; no accounts, one household per install.\n",
+			"Threads": [],
+			"Revisions": [
+				{
+					"Id": "rev-sx7-v3y-llr",
+					"Parent": null,
+					"Revision": 1,
+					"By": "consensus",
+					"At": "2026-10-05T04:48:30.865Z",
+					"Reason": "create",
+					"Text": ""
+				},
+				{
+					"Id": "rev-9v1-1zu-0ej",
+					"Parent": "rev-sx7-v3y-llr",
+					"Revision": 2,
+					"By": "user",
+					"At": "2026-10-05T04:48:31.002Z",
+					"Reason": "edit",
+					"Text": "# Recipe Box\n\nA small app for the recipes we cook every week: pick the week's recipes, and the shopping list writes itself.\n\nDecided so far: a web page and a phone layout from the same code; recipes are markdown files in a folder; no accounts, one household per install.\n"
+				}
+			]
+		},
+		{
+			"Proposal": {
+				"Id": "doc-000-0v4-58v",
+				"Title": "Design notes",
+				"Kind": "document",
+				"State": null,
+				"Created": "2026-10-05T04:48:31.210Z",
+				"Updated": "2026-10-05T04:48:31.210Z",
+				"Revision": 1,
+				"Head": "rev-m94-6xr-dwn"
+			},
+			"Text": "# Design notes\n\nThe phone layout comes first: the list is used in the store, one-handed.\n\nUnits are kept as written in the recipe; adding up happens only when the units agree.\n",
+			"Threads": [],
+			"Revisions": [
+				{
+					"Id": "rev-m94-6xr-dwn",
+					"Parent": null,
+					"Revision": 1,
+					"By": "user",
+					"At": "2026-10-05T04:48:31.210Z",
+					"Reason": "create",
+					"Text": "# Design notes\n\nThe phone layout comes first: the list is used in the store, one-handed.\n\nUnits are kept as written in the recipe; adding up happens only when the units agree.\n"
+				}
+			]
+		},
+		{
+			"Proposal": {
+				"Id": "pln-cnv-udx-lns",
+				"Title": "Search",
+				"Kind": "plan",
+				"State": "Finished",
+				"Created": "2026-10-05T04:48:31.465Z",
+				"Updated": "2026-10-05T04:48:31.926Z",
+				"Revision": 1,
+				"Head": "rev-0ym-4xs-gb3"
+			},
+			"Text": "# Search\n\nSearch finds a recipe by its title, by an ingredient, or by a word of its method. Results come as you type, best match first.\n\n## Rules\n\n- A title match outranks an ingredient match, which outranks a method match.\n- Search ignores case and accents.\n- An empty search shows every recipe, newest first.\n",
+			"Threads": [
+				{
+					"Id": "thr-5el-xmv-1ra",
+					"Anchor": null,
+					"Detached": false,
+					"Status": "resolved",
+					"Reopened": false,
+					"Resolved": {
+						"By": "user",
+						"At": "2026-10-05T04:48:31.906Z"
+					},
+					"Applied": {
+						"By": "llm",
+						"At": "2026-10-05T04:48:31.916Z",
+						"Revision": 1,
+						"RevisionId": "rev-0ym-4xs-gb3",
+						"Outcome": "The build was accepted as reported; no text change."
+					},
+					"Created": "2026-10-05T04:48:31.894Z",
+					"Replies": [
+						{
+							"Id": "rep-huq-eqp-yh5",
+							"By": "llm",
+							"At": "2026-10-05T04:48:31.894Z",
+							"Text": "**Build log** (Claude Code, Claude Opus 5.5)\n\nBuilt `src/Search.js` (the index and the ranking), `public/js/search.js` (the box and the live results) and the search page. Title, ingredient and method matches are ranked as the plan says; case and accents are folded.\n\nChecked with `test/Search.test.js`: 14 tests, all passing, including the empty search and an accented ingredient."
+						}
+					]
+				}
+			],
+			"Revisions": [
+				{
+					"Id": "rev-0ym-4xs-gb3",
+					"Parent": null,
+					"Revision": 1,
+					"By": "user",
+					"At": "2026-10-05T04:48:31.465Z",
+					"Reason": "create",
+					"Text": "# Search\n\nSearch finds a recipe by its title, by an ingredient, or by a word of its method. Results come as you type, best match first.\n\n## Rules\n\n- A title match outranks an ingredient match, which outranks a method match.\n- Search ignores case and accents.\n- An empty search shows every recipe, newest first.\n"
+				}
+			]
+		},
+		{
+			"Proposal": {
+				"Id": "pln-ey2-67z-f7y",
+				"Title": "Shopping list",
+				"Kind": "plan",
+				"State": "Proposal",
+				"Created": "2026-10-05T04:48:31.539Z",
+				"Updated": "2026-10-05T04:48:32.060Z",
+				"Revision": 2,
+				"Head": "rev-epx-sa4-na1"
+			},
+			"Text": "# Shopping list\n\nThe shopping list is made from the recipes picked for the week: one list per week, grouped by aisle, with each item checked off as it goes into the basket.\n\n## What goes on it\n\n- Every ingredient of every recipe picked for the week, added up across recipes.\n- Pantry staples are on the list too, marked as staples, until the pantry is tracked.\n- An item added by hand stays on the list until it is checked off.\n\n## On the phone\n\nThe list is one screen. A tap checks an item off; a swipe removes it. Checked items drop to the bottom.\n",
+			"Threads": [
+				{
+					"Id": "thr-e6b-y3v-btx",
+					"Anchor": {
+						"Text": "Pantry staples are on the list too, marked as staples, until the pantry is tracked.",
+						"Prefix": " week, added up across recipes. ",
+						"Suffix": " An item added by hand stays on "
+					},
+					"Detached": false,
+					"Status": "resolved",
+					"Reopened": false,
+					"Resolved": {
+						"By": "user",
+						"At": "2026-10-05T04:48:31.973Z"
+					},
+					"Applied": {
+						"By": "llm",
+						"At": "2026-10-05T04:48:31.989Z",
+						"Revision": 2,
+						"RevisionId": "rev-epx-sa4-na1",
+						"Outcome": "Staples stay on the list, marked, until the pantry is tracked."
+					},
+					"Created": "2026-10-05T04:48:31.953Z",
+					"Replies": [
+						{
+							"Id": "rep-djv-0wt-fps",
+							"By": "user",
+							"At": "2026-10-05T04:48:31.953Z",
+							"Text": "We do not track the pantry yet, so \"unless the pantry says they are out\" cannot work. Leave staples on the list, but marked."
+						},
+						{
+							"Id": "rep-0zp-9d5-4je",
+							"By": "llm",
+							"At": "2026-10-05T04:48:31.963Z",
+							"Text": "Agreed. The wording I will apply: \"Pantry staples are on the list too, marked as staples, until the pantry is tracked.\""
+						}
+					]
+				},
+				{
+					"Id": "thr-b9h-1xf-xgp",
+					"Anchor": {
+						"Text": "a swipe removes it",
+						"Prefix": "reen. A tap checks an item off; ",
+						"Suffix": ". Checked items drop to the bott"
+					},
+					"Detached": false,
+					"Status": "resolved",
+					"Reopened": false,
+					"Resolved": {
+						"By": "user",
+						"At": "2026-10-05T04:48:32.025Z"
+					},
+					"Applied": null,
+					"Created": "2026-10-05T04:48:32.005Z",
+					"Replies": [
+						{
+							"Id": "rep-odn-gb9-xkx",
+							"By": "user",
+							"At": "2026-10-05T04:48:32.005Z",
+							"Text": "A swipe is too easy to do by accident, in a store, with one hand."
+						},
+						{
+							"Id": "rep-8wp-s8g-bht",
+							"By": "llm",
+							"At": "2026-10-05T04:48:32.015Z",
+							"Text": "Agreed: a swipe asks first. The wording I will apply: \"A tap checks an item off; a swipe, confirmed, removes it.\""
+						}
+					]
+				},
+				{
+					"Id": "thr-sb1-wtn-d83",
+					"Anchor": {
+						"Text": "grouped by aisle",
+						"Prefix": "or the week: one list per week, ",
+						"Suffix": ", with each item checked off as "
+					},
+					"Detached": false,
+					"Status": "contested",
+					"Reopened": false,
+					"Resolved": null,
+					"Applied": null,
+					"Created": "2026-10-05T04:48:32.032Z",
+					"Replies": [
+						{
+							"Id": "rep-2y8-pux-fnt",
+							"By": "user",
+							"At": "2026-10-05T04:48:32.032Z",
+							"Text": "Whose aisles? Every store is laid out differently."
+						},
+						{
+							"Id": "rep-506-7ab-aca",
+							"By": "llm",
+							"At": "2026-10-05T04:48:32.058Z",
+							"Text": "The store's, once the app knows one. Until then I recommend grouping by the recipe's own sections: produce, dairy, meat, dry goods. A store layout would be a plan of its own. Shall I write that in?"
+						}
+					]
+				}
+			],
+			"Revisions": [
+				{
+					"Id": "rev-nob-qp0-l75",
+					"Parent": null,
+					"Revision": 1,
+					"By": "user",
+					"At": "2026-10-05T04:48:31.539Z",
+					"Reason": "create",
+					"Text": "# Shopping list\n\nThe shopping list is made from the recipes picked for the week: one list per week, grouped by aisle, with each item checked off as it goes into the basket.\n\n## What goes on it\n\n- Every ingredient of every recipe picked for the week, added up across recipes.\n- Pantry staples are left off unless the pantry says they are out.\n- An item added by hand stays on the list until it is checked off.\n\n## On the phone\n\nThe list is one screen. A tap checks an item off; a swipe removes it. Checked items drop to the bottom.\n"
+				},
+				{
+					"Id": "rev-epx-sa4-na1",
+					"Parent": "rev-nob-qp0-l75",
+					"Revision": 2,
+					"By": "llm",
+					"At": "2026-10-05T04:48:31.980Z",
+					"Reason": "apply",
+					"Thread": "thr-e6b-y3v-btx",
+					"Text": "# Shopping list\n\nThe shopping list is made from the recipes picked for the week: one list per week, grouped by aisle, with each item checked off as it goes into the basket.\n\n## What goes on it\n\n- Every ingredient of every recipe picked for the week, added up across recipes.\n- Pantry staples are on the list too, marked as staples, until the pantry is tracked.\n- An item added by hand stays on the list until it is checked off.\n\n## On the phone\n\nThe list is one screen. A tap checks an item off; a swipe removes it. Checked items drop to the bottom.\n"
+				}
+			]
+		},
+		{
+			"Proposal": {
+				"Id": "pln-bat-go6-bzz",
+				"Title": "Quantities",
+				"Kind": "plan",
+				"State": "Proposal",
+				"Created": "2026-10-05T04:48:31.778Z",
+				"Updated": "2026-10-05T04:48:31.778Z",
+				"Revision": 1,
+				"Head": "rev-ueg-cf3-ud2"
+			},
+			"Text": "# Quantities\n\nWhen two recipes want the same ingredient, the list shows one line with the quantities added up: 200 g and 300 g make 500 g. Quantities in different units stay on two lines until the units are settled.\n",
+			"Threads": [],
+			"Revisions": [
+				{
+					"Id": "rev-ueg-cf3-ud2",
+					"Parent": null,
+					"Revision": 1,
+					"By": "user",
+					"At": "2026-10-05T04:48:31.778Z",
+					"Reason": "create",
+					"Text": "# Quantities\n\nWhen two recipes want the same ingredient, the list shows one line with the quantities added up: 200 g and 300 g make 500 g. Quantities in different units stay on two lines until the units are settled.\n"
+				}
+			]
+		}
+	]
+}
