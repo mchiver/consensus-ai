@@ -27,7 +27,7 @@ The folder holds documents only. **New document** in the project's menu, or the 
 
 ## Making things
 
-- **New project** at the top of the sidebar.
+- **+ Project** at the top of the sidebar makes a new project.
 - **New plan**, **New folder** and **New document** in a project's menu; New plan and New folder in a folder's menu too, which create in it.
 - **New Subplan** in a plan's menu, or **New subplan** in the heading of a plan with none yet. From a thread being written or replied to, **Start a new Subplan** starts one with the anchored passage and the thread so far quoted, and the thread gets a reply linking to it. Selected text can start one too: the Subplan starts with that text, and the parent is not changed.
 

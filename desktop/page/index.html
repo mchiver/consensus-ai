@@ -151,7 +151,7 @@
 		<aside class="sidebar" ng-controller="SidebarController">
 			<div class="sidebar-top">
 				<div class="brand">Consensus</div>
-				<button class="btn btn-sm btn-primary" id="new-project" ng-click="StartCreate('project')"><svg class="icon lead"><use href="#i-plus"></use></svg>New project</button>
+				<button class="btn btn-sm btn-primary" id="new-project" ng-click="StartCreate('project')" title="a new project"><svg class="icon lead"><use href="#i-plus"></use></svg>Project</button>
 				<button class="btn btn-sm btn-outline-secondary" id="import-project" ng-click="StartImport()" title="import a project exported from this or another Consensus server"><svg class="icon lead"><use href="#i-upload"></use></svg>Import</button>
 			</div>
 			<form class="new-proposal" ng-if="Creating.Kind === 'project'" ng-submit="Create()">
