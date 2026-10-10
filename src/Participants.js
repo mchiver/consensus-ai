@@ -11,7 +11,8 @@
 const CRYPTO = require( 'crypto' );
 
 const ROLES = [ 'owner', 'llm', 'member' ];
-const DEFAULT_STATES = [ 'Proposal', 'Plan', 'Working', 'Finished' ];
+const DEFAULT_STATES = [ 'Draft', 'Plan', 'Working', 'Finished' ];
+const RENAMED_STATE = { From: 'Proposal', To: 'Draft' };	// plan UI Tweaks V: the first state's new name, migrated at start
 const DEFAULT_HOST = '127.0.0.1';
 const SETTINGS_FIELDS = [ 'Port', 'Host', 'States', 'Participants' ];
 
@@ -226,6 +227,7 @@ function Clean( Settings )
 module.exports = {
 	ROLES: ROLES,
 	DEFAULT_STATES: DEFAULT_STATES,
+	RENAMED_STATE: RENAMED_STATE,
 	DEFAULT_HOST: DEFAULT_HOST,
 	SETTINGS_FIELDS: SETTINGS_FIELDS,
 	DefaultSettings: DefaultSettings,

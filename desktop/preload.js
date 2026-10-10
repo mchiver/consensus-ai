@@ -24,8 +24,11 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	Scale: BOOT.Scale,
 	Server: BOOT.Server,
 	Reason: BOOT.Reason || null,
+	Remembered: BOOT.Remembered || {},
 	SetTheme: function ( Theme ) { ELECTRON.ipcRenderer.send( 'theme', { Theme: Theme } ); },
 	SetScale: function ( Scale ) { ELECTRON.ipcRenderer.send( 'theme', { Scale: Scale } ); },
+	// The page's remembered state (stored.js, plan UI Tweaks V): a value by key into desktop.json; null forgets it.
+	Remember: function ( Key, Value ) { ELECTRON.ipcRenderer.send( 'remember', { Key: Key, Value: Value } ); },
 } );
 
 

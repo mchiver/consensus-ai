@@ -10,7 +10,7 @@ The address the server listens on and its port. `127.0.0.1` listens on this mach
 
 ## States
 
-The states a plan's state is picked from, one per line: Proposal, Plan, Working and Finished by default. A new plan starts in the first. A state still used by a plan cannot be removed.
+The states a plan's state is picked from, one per line: Draft, Plan, Working and Finished by default. A new plan starts in the first. A state still used by a plan cannot be removed. The first state was called Proposal before; a server whose list still names Proposal and not Draft renames it once at its next start, in the settings and in every plan in that state.
 
 ## Participants
 
@@ -32,7 +32,7 @@ The settings are `consensus.json` in the data folder, written at first start:
 {
 	"Port": 3500,
 	"Host": "127.0.0.1",
-	"States": [ "Proposal", "Plan", "Working", "Finished" ],
+	"States": [ "Draft", "Plan", "Working", "Finished" ],
 	"Participants": [
 		{ "Name": "user", "Display": "User", "Role": "owner" },
 		{ "Name": "llm", "Display": "LLM", "Role": "llm" }

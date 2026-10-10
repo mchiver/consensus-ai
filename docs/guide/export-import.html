@@ -43,8 +43,9 @@
 <h1 id="export-and-import">Export and import</h1>
 <p>A project travels as one JSON file: its Context folder and documents, folders, plans, Subplans, threads and every revision, with no tokens. That is how a project moves between servers, and how it is backed up on its own.</p>
 <h2 id="export">Export</h2>
-<p><strong>Export project</strong> in a project&#39;s menu downloads the file. The same comes from the API at <code>GET /api/projects/&lt;id&gt;/export</code>.</p>
-<figure class="shot"><img class="light-only" src="../images/menu.png" alt="A project's menu, with Export project."><img class="dark-only" src="../images/menu-dark.png" alt="A project's menu, with Export project."><figcaption>A project's menu, with Export project.</figcaption></figure>
+<p><strong>Export</strong> in a project&#39;s menu shows the file, to copy or download. The same comes from the API at <code>GET /api/projects/&lt;id&gt;/export</code>.</p>
+<p>A folder, a plan or a document exports the same way, from its menu or <code>GET /api/items/&lt;id&gt;/export</code>: the same format, holding that item and what is under it, with no Readme. Such a file imports as a project of its own (it gets an empty Readme) or, as any file does, into a project.</p>
+<figure class="shot"><img class="light-only" src="../images/menu.png" alt="A project's menu, with Export."><img class="dark-only" src="../images/menu-dark.png" alt="A project's menu, with Export."><figcaption>A project's menu, with Export.</figcaption></figure>
 <h2 id="import">Import</h2>
 <p><strong>Import</strong> at the top of the sidebar asks for an exported file. What happens depends on whether the project is already here:</p>
 <ul>
@@ -52,6 +53,8 @@
 <li>A project already here is imported as a <strong>copy</strong> (&quot;Copy of <name> (imported <date>)&quot;, every id new) or <strong>merged</strong>: revisions are matched by id, a conflict gets a merge revision with the newer text, and nothing here is removed. Import asks which.</li>
 </ul>
 <p>The same goes through <code>POST /api/projects/import</code> with the export as the body.</p>
+<h2 id="into-a-project">Into a project</h2>
+<p><strong>Paste</strong> in a project&#39;s or folder&#39;s menu imports the file on the clipboard into that project, at its root or in the folder, every id new. A project&#39;s file comes in as a folder named after the project, holding its folders and plans; its Readme and Context folder stay out. An item&#39;s file comes in as its item; a document goes only into the Context folder. The API does the same with <code>Into: { Project, Parent? }</code> in the import&#39;s body, and <code>Preview: true</code> says what would be made.</p>
 <h2 id="older-exports">Older exports</h2>
 <p>An export from an older Consensus is read too: its corpora and workers are dropped, its context becomes the Readme, and the Context folder is made.</p>
 

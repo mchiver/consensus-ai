@@ -37,7 +37,7 @@ The sidebar is a tree of projects. One project is open at a time: opening one cl
 opening an item opens its project. A project holds, in folders of any depth:
 
 - **Plans**: what is discussed and commented on. Each has a **state**, one of the settings' `States` (by
-  default Proposal, Plan, Working, Finished). Anyone changes it at any time from the picker in the heading;
+  default Draft, Plan, Working, Finished). Anyone changes it at any time from the picker in the heading;
   nothing locks, and a state does not depend on the threads.
 - **Documents**: markdown edited in Monaco with revisions, but with no threads and no state. Documents live
   only in the project's **Context** folder.
@@ -64,14 +64,18 @@ row's actions are in its menu: **⋯** at the row's end (on hover, and on the cu
 and drop: drop an item on the top or bottom edge of a row to put it just before or after that row, on the
 middle of a folder to move it inside, or on a project's heading to move it to that project's root (the
 Context folder stays first); drop a project's heading on another's to reorder the projects. Rename an item
-from its menu (a plan or document: only its title changes); copy it (its menu, or Ctrl+C on the open item)
-and paste it (Paste in a project's or folder's menu, or Ctrl+V into the open project) for a whole copy under
-a new id: a plan's text, threads and revisions, a folder's whole contents. Delete is in the menu only,
+from its menu (a plan or document: only its title changes); copy it (its menu, or Ctrl+C on the open item),
+which puts its export json on the system clipboard, and paste it (Paste in a project's or folder's menu, or
+Ctrl+V into the open project), which imports what the clipboard holds there, every id new: a plan's text,
+threads, revisions and Subplans, a folder's whole contents, a project as a folder named after it (plan UI
+Tweaks V; Export in the menu shows the same json for any item). Delete is in the menu only,
 confirmed on the row: a plan or document goes to the trash; a project or folder is deleted only when empty
 (a project: when it holds only its Context folder and document). Trash is at the bottom of the sidebar.
 
-The heading's **Threads** button hides or shows the threads pane, and the editor's **Preview** button its
-preview; each is remembered in the browser. The owner deletes a thread with the × on its first line; a
+The button at the right end of the tab strip hides or shows the threads pane (its mirror at the left end the
+tree), and the editor's **Preview** button its preview; each is remembered in the browser. A selected thread
+stays listed whatever the filter. Selecting text in Read offers Copy (the text as it reads), Comment and Start
+a new Subplan. The owner deletes a thread with the × on its first line; a
 revision that applied a deleted thread keeps its text and shows "(deleted thread)".
 
 Every item you open (plan or document), and Waiting on you, opens in a **tab** above the document: one tab
@@ -122,7 +126,7 @@ characters; Default is `default`. A Readme made before Step 1 keeps its `ctx-…
 	{
 		"Port": 3500,
 		"Host": "127.0.0.1",
-		"States": [ "Proposal", "Plan", "Working", "Finished" ],
+		"States": [ "Draft", "Plan", "Working", "Finished" ],
 		"Participants": [
 			{ "Name": "user", "Display": "User", "Role": "owner" },
 			{ "Name": "llm", "Display": "LLM", "Role": "llm" }
@@ -144,6 +148,8 @@ used by a plan, and the rest are shown, and nothing is saved while there are pro
 once at start, so an edit of the file by hand needs a restart.
 
 Theme and size are not settings: the page keeps them in the browser's storage, per user and per server.
+The first state was called Proposal before plan UI Tweaks V: a settings list that still names Proposal and
+not Draft is renamed once at start, with every plan in that state.
 
 ## How the LLM takes part
 
@@ -185,8 +191,13 @@ in step: every change is a Server-Sent Event.
 
 ## Export and import
 
-A project goes out as one json object (**Export project** in its menu; `GET /api/projects/:pid/export`):
-its Context folder and documents, folders, plans, Subplans, threads and every revision, with no tokens.
+A project goes out as one json object (**Export** in its menu; `GET /api/projects/:pid/export`):
+its Context folder and documents, folders, plans, Subplans, threads and every revision, with no tokens. A
+folder, plan or document goes out the same way (`GET /api/items/:id/export`): the same format with that item
+as its content and no Readme (`Context: null`); it imports as a project of its own, with an empty Readme, or
+into a project (`Into: { Project, Parent? }` in the import's body: every id new, a project's file as a folder
+named after it without its Readme and Context folder, a document only into the Context folder), which is
+what the tree's Paste does (plan UI Tweaks V).
 **Import** (the sidebar's button; `POST /api/projects/import`) brings one in: a project not here comes in as
 it is, every id intact; one that is here is imported as a copy ("Copy of <name> (imported <date>)", every id
 new) or merged (revisions matched by id; a conflict gets a merge revision with the newer text; nothing here
@@ -217,7 +228,14 @@ the theme and the scale in the desktop's settings). The copy is served from the 
 connected server: the base URL stays the page's own origin, and the server, which sends no CORS headers, is not
 changed for the app beyond `/api/me` saying its `Version`. Its settings are `desktop.json` in Electron's
 user-data folder (`%APPDATA%/consensus-desktop/` on Windows): `Servers`, `Local` (the data folder and its
-port), `Last`, `Theme` and `Scale`.
+port), `Last`, `Theme` and `Scale`. `Theme` is the default, set from the connect screen; a server entry (or
+`Local`) may hold a `Theme` of its own, set from the page's picker while connected (plan UI Tweaks V). The page
+remembers its tree state (the open project, the folds, the sort, the tabs) per server, under the server's
+address, and the look (hidden panes, widths) for all, in desktop.json's `Remembered` (`desktop/page/js/stored.js`
+through the preload's `Remember`: the page's origin gets a new port at every start, so its localStorage would
+not survive a restart; in a browser the same keys are in localStorage); the
+connection panel at the bottom of the sidebar shows the server's address, with its name and version in the
+tooltip.
 
 **LLM connections and workspaces** (Step 3) are the desktop's own, kept in desktop.json (`Llms`, `Workspaces`)
 and shown in every project's Context folder, never on the server: an LLM connection once per desktop, in every
@@ -295,7 +313,8 @@ page server, the local server with the real `Start`, the package, the check and 
 	DELETE /api/projects/:pid/folders/:fid           an empty folder; not the Context folder
 	POST   /api/projects/:pid/move                   { Before }  the project in the display order
 	GET    /api/projects/:pid/export                 owner or llm; the project as one json object
-	POST   /api/projects/import                      owner or llm; { Export, Mode?, Preview? }
+	POST   /api/projects/import                      owner or llm; { Export, Mode?, Preview?, Into? }  Into: { Project, Parent? } writes the file's items there, every id new
+	GET    /api/items/:id/export                     owner or llm; a folder, plan or document as one json object of the same format
 	POST   /api/items/:id/move                       { Project, Parent?, Before? }  a plan, document or folder; a document only into a Context folder
 	POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id
 	GET    /api/proposals[?state=]                   plans and documents with their tallies

@@ -28,7 +28,7 @@
 
 angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$timeout', 'State', 'Menus', function ( $window, $rootScope, $timeout, State, Menus )
 {
-	const STORAGE_KEY = 'consensus.tabs';
+	const STORAGE_KEY = 'tabs';		// per server (stored.js); a detached window keeps its one tab in its session
 	const CHANNEL_NAME = 'consensus-windows';
 	const REATTACH_WAIT = 700;
 	const VIEWS = [ 'read', 'edit', 'revisions' ];
@@ -46,35 +46,84 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 
 	//-----------------------------------------------------------------
-	// Kept in this window's session only; a blocked storage keeps the tabs for this page's life.
+	// The main window's tabs are kept per server in localStorage (plan UI Tweaks V), so a restart brings them back; a
+	// detached window keeps its one tab in its own session, as before. A blocked storage keeps the tabs for this
+	// page's life.
 
 	function load()
 	{
-		try
+		let saved = null;
+		if ( tabs.Detached )
 		{
-			let saved = JSON.parse( $window.sessionStorage.getItem( STORAGE_KEY ) || 'null' );
-			if ( saved && Array.isArray( saved.Tabs ) )
+			try
 			{
-				tabs.List = saved.Tabs;
-				tabs.ActiveKey = saved.Active || null;
+				saved = JSON.parse( $window.sessionStorage.getItem( 'consensus.' + STORAGE_KEY ) || 'null' );
+			}
+			catch ( error )
+			{
+				saved = null;
 			}
 		}
-		catch ( error )
+		else
 		{
-			tabs.List = [];
+			saved = window.ConsensusStored.Read( STORAGE_KEY, null, true );
+		}
+		if ( saved && Array.isArray( saved.Tabs ) )
+		{
+			tabs.List = saved.Tabs;
+			tabs.ActiveKey = saved.Active || null;
 		}
 	}
 
 
 	function save()
 	{
-		try
+		let saved = { Tabs: tabs.List, Active: tabs.ActiveKey };
+		if ( tabs.Detached )
 		{
-			$window.sessionStorage.setItem( STORAGE_KEY, JSON.stringify( { Tabs: tabs.List, Active: tabs.ActiveKey } ) );
+			try
+			{
+				$window.sessionStorage.setItem( 'consensus.' + STORAGE_KEY, JSON.stringify( saved ) );
+			}
+			catch ( error )
+			{
+				// not kept; the tab lasts as long as the window
+			}
+			return;
 		}
-		catch ( error )
+		window.ConsensusStored.Write( STORAGE_KEY, saved, true );
+	}
+
+
+	// A remembered tab whose proposal is in no project any more (deleted while the app was closed) is dropped
+	// silently once the projects are loaded; the strip moves to a neighbour when it was the active one.
+	function prune( projects )
+	{
+		if ( !Array.isArray( projects ) || !projects.length )
 		{
-			// not kept; the tabs last as long as the page
+			return;
+		}
+		let known = {};
+		function walk( items )
+		{
+			for ( let node of items || [] )
+			{
+				known[ node.Id ] = true;
+				walk( node.Items );
+			}
+		}
+		for ( let project of projects )
+		{
+			if ( project.Context && project.Context.Id )
+			{
+				known[ project.Context.Id ] = true;
+			}
+			walk( project.Items );
+		}
+		let gone = tabs.List.filter( function ( tab ) { return tab.Kind === 'p' && !known[ tab.Id ]; } );
+		if ( gone.length )
+		{
+			CloseMany( gone );
 		}
 	}
 
@@ -550,6 +599,8 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 	start();
 
+	$rootScope.$watch( function () { return State.Projects; }, prune );
+
 	tabs.KeyOf = KeyOf;
 	tabs.Active = Active;
 	tabs.Visit = Visit;
@@ -742,10 +793,23 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	};
 
 
-	// The button at the left of the strip hides or shows the project tree.
+	// The button at the left of the strip hides or shows the project tree; its mirror at the right, the threads pane
+	// (plan UI Tweaks V), shown for a plan: a document has no threads.
 	$scope.ToggleTree = function ()
 	{
 		State.SetTreeHidden( !State.TreeHidden );
+	};
+
+
+	$scope.HasThreads = function ()
+	{
+		return !!State.Open && State.Open.Proposal.Kind !== 'document';
+	};
+
+
+	$scope.ToggleThreads = function ()
+	{
+		State.SetThreadsHidden( !State.ThreadsHidden );
 	};
 
 

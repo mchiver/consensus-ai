@@ -5,8 +5,8 @@
 // the LLM connections, kept once per desktop, and the workspaces, each with the project it is attached to.
 //
 //   {
-//     "Servers": [ { "Name": "cube4", "Url": "http://cube4:3500" } ],
-//     "Local": { "Data": "W:/code/consensus.git/~data", "Port": 3500 },
+//     "Servers": [ { "Name": "cube4", "Url": "http://cube4:3500", "Theme": null } ],
+//     "Local": { "Data": "W:/code/consensus.git/~data", "Port": 3500, "Theme": null },
 //     "Last": { "Kind": "server", "Name": "cube4" } | { "Kind": "local" } | null,
 //     "Theme": "system", "Scale": "normal",
 //     "Llms": [ { "Id": "llm-…", "Name": "Claude", "Kind": "claude-cli", "Command": "claude", "Arguments": [ "-p", … ],
@@ -19,6 +19,11 @@
 //   }
 //   Step 4: Context (the model's window, Ollama's num_ctx) and Rounds (the most tool rounds a run takes) on an ollama
 //   connection; Commands (the command lines a run may execute, none by default) on a workspace.
+//   Plan UI Tweaks V: Theme is the default; a server (or Local) with a Theme of its own shows in it (ThemeFor), set by
+//   the page's picker while connected; the connect screen's picker sets the default. Remembered holds the page's
+//   view state by key ("consensus.<server address>.<name>" per server, "consensus.<name>" shared: the open project,
+//   the folds, the tabs, the sort, the hidden panes, the widths), since the page's origin changes port at every
+//   start and its localStorage would not survive a restart.
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -48,12 +53,13 @@ function Default()
 {
 	return {
 		Servers: [],
-		Local: { Data: '', Port: null },
+		Local: { Data: '', Port: null, Theme: null },
 		Last: null,
 		Theme: 'system',
 		Scale: 'normal',
 		Llms: [],
 		Workspaces: [],
+		Remembered: {},
 	};
 }
 
@@ -162,12 +168,12 @@ function Fill( Settings )
 		settings.Servers = given.Servers.map( function ( server )
 		{
 			let one = ( server && typeof server === 'object' ) ? server : {};
-			return { Name: String( one.Name || '' ).trim(), Url: String( one.Url || '' ).trim().replace( /\/+$/, '' ) };
+			return { Name: String( one.Name || '' ).trim(), Url: String( one.Url || '' ).trim().replace( /\/+$/, '' ), Theme: theme_or_null( one.Theme ) };
 		} );
 	}
 	if ( given.Local && typeof given.Local === 'object' )
 	{
-		settings.Local = { Data: String( given.Local.Data || '' ), Port: Number.isInteger( given.Local.Port ) ? given.Local.Port : null };
+		settings.Local = { Data: String( given.Local.Data || '' ), Port: Number.isInteger( given.Local.Port ) ? given.Local.Port : null, Theme: theme_or_null( given.Local.Theme ) };
 	}
 	if ( given.Last && typeof given.Last === 'object' && ( given.Last.Kind === 'server' || given.Last.Kind === 'local' ) )
 	{
@@ -193,7 +199,92 @@ function Fill( Settings )
 	{
 		settings.Workspaces = given.Workspaces.map( FillWorkspace );
 	}
+	if ( given.Remembered && typeof given.Remembered === 'object' && !Array.isArray( given.Remembered ) )
+	{
+		settings.Remembered = JSON.parse( JSON.stringify( given.Remembered ) );
+	}
 	return settings;
+}
+
+
+//---------------------------------------------------------------------
+// Remember: a value under Key in Remembered (a json value), or forgotten when Value is null or undefined. Returns
+// whether anything changed.
+
+function Remember( Settings, Key, Value )
+{
+	if ( typeof Key !== 'string' || !Key || Key.length > 512 )
+	{
+		return false;
+	}
+	if ( Value === null || Value === undefined )
+	{
+		if ( Settings.Remembered[ Key ] === undefined )
+		{
+			return false;
+		}
+		delete Settings.Remembered[ Key ];
+		return true;
+	}
+	let text = JSON.stringify( Value );
+	if ( text === undefined || text === JSON.stringify( Settings.Remembered[ Key ] ) )
+	{
+		return false;
+	}
+	Settings.Remembered[ Key ] = JSON.parse( text );
+	return true;
+}
+
+
+// A server's own theme: one of the palettes, or null for the default.
+function theme_or_null( Theme )
+{
+	return THEMES.includes( Theme ) ? Theme : null;
+}
+
+
+//---------------------------------------------------------------------
+// ThemeFor: the theme the page shows for what is connected (Current: { Kind: 'server', Name } | { Kind: 'local' } |
+// null): the server's own when it has one, else the default. SetThemeFor: sets that server's own theme (or the
+// default when nothing is connected).
+
+function ThemeFor( Settings, Current )
+{
+	let own = null;
+	if ( Current && Current.Kind === 'local' )
+	{
+		own = Settings.Local ? Settings.Local.Theme : null;
+	}
+	else if ( Current && Current.Kind === 'server' )
+	{
+		let server = ServerNamed( Settings, Current.Name );
+		own = server ? server.Theme : null;
+	}
+	return own || Settings.Theme;
+}
+
+
+function SetThemeFor( Settings, Current, Theme )
+{
+	if ( !THEMES.includes( Theme ) )
+	{
+		return;
+	}
+	if ( Current && Current.Kind === 'local' )
+	{
+		Settings.Local.Theme = Theme;
+		return;
+	}
+	if ( Current && Current.Kind === 'server' )
+	{
+		let server = ServerNamed( Settings, Current.Name );
+		if ( server )
+		{
+			server.Theme = Theme;
+			return;
+		}
+	}
+	Settings.Theme = Theme;
 }
 
 
@@ -335,6 +426,9 @@ function WorkspaceById( Settings, Id )
 module.exports = {
 	THEMES: THEMES,
 	DARK_THEMES: DARK_THEMES,
+	ThemeFor: ThemeFor,
+	SetThemeFor: SetThemeFor,
+	Remember: Remember,
 	SCALES: SCALES,
 	KINDS: KINDS,
 	DEFAULT_COMMAND: DEFAULT_COMMAND,

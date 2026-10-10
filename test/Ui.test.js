@@ -178,7 +178,7 @@ TEST( 'once the llm applies, the state picker makes the proposal Working and the
 	let threads = ( await api( 'GET', '/api/proposals/' + proposal.Id + '/threads' ) ).Threads;
 	await api( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + threads[ 0 ].Id + '/apply', { Outcome: 'one item stays' }, true );
 	await page.WaitFor( text_of( '#state-line' ) + ' === "1 applied"' );
-	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).selectedOptions[ 0 ].label' ), 'Proposal' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).selectedOptions[ 0 ].label' ), 'Draft' );
 	await page.Evaluate( '( function () { let picker = document.getElementById( "state-picker" ); let option = Array.from( picker.options ).find( function ( candidate ) { return candidate.label === "Working"; } ); picker.value = option.value; picker.dispatchEvent( new Event( "change" ) ); return true; } )()' );
 	await page.WaitFor( text_of( '.tree-item[data-id="' + proposal.Id + '"] .item-state' ) + ' === "Working"' );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).selectedOptions[ 0 ].label' ), 'Working' );
@@ -851,7 +851,7 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 {
 	await page.Click( '#settings-button' );
 	await page.WaitFor( 'document.getElementById( "settings-host" ) && document.getElementById( "settings-host" ).value === "127.0.0.1"', 20000 );
-	ASSERT.match( await page.Evaluate( 'document.getElementById( "settings-states" ).value' ), /^Proposal\nPlan\nWorking\nFinished$/ );
+	ASSERT.match( await page.Evaluate( 'document.getElementById( "settings-states" ).value' ), /^Draft\nPlan\nWorking\nFinished$/ );
 	ASSERT.equal( await page.Evaluate( count_of( '.settings-participant' ) ), 2 );
 	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".settings-participant .settings-token" ) ][ 1 ].value' ), LLM_TOKEN );
 	// a participant with no role left: refused, the problem shown, nothing written
@@ -868,7 +868,7 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	await page.Click( '#settings-save' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "settings-saved" ) ).display !== "none"' );
 	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "settings-restart" ) ).display' ), 'none' );
-	ASSERT.deepEqual( ( await api( 'GET', '/api/me' ) ).States, [ 'Proposal', 'Plan', 'Working', 'Finished', 'Shelved' ] );
+	ASSERT.deepEqual( ( await api( 'GET', '/api/me' ) ).States, [ 'Draft', 'Plan', 'Working', 'Finished', 'Shelved' ] );
 	await page.Click( '#settings-close' );
 	await page.WaitFor( count_of( '.settings-form' ) + ' === 0' );
 	let plan = await created( 'Shelved plan' );

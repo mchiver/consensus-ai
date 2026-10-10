@@ -408,7 +408,7 @@ async function open_plan( Page, Url, Id )
 {
 	await Page.Evaluate( 'location.hash = ' + JSON.stringify( '#/p/' + Id ) + '; true' );
 	await Page.WaitFor( 'angular.element( document.body ).injector().get( "State" ).OpenId === ' + JSON.stringify( Id ) + ' && ' + count_of( '#read-view h1' ) + ' === 1', 20000 );
-	await Page.WaitFor( 'document.querySelector( ".connection" ) && document.querySelector( ".connection" ).textContent.trim() === "live"', 20000 );
+	await Page.WaitFor( 'document.querySelector( ".connection" ) && document.querySelector( ".connection" ).classList.contains( "live" )', 20000 );
 	await show_all_threads( Page );
 	await wait( 400 );
 }

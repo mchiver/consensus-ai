@@ -433,3 +433,240 @@ TEST( 'an export from before Consensus Desktop: corpora and workers dropped, the
 	ASSERT.equal( context.Context, true );
 	ASSERT.equal( context.Text, '# Alpha\n\nThe context of Alpha.\n' );
 } );
+
+
+//---------------------------------------------------------------------
+// Items out and in (plan UI Tweaks V): a folder, a plan or a document as a file of the same format, and any file
+// Into a project's root or folder with every id new.
+
+async function item_export_of( server, id )
+{
+	let result = await call( server, 'GET', '/api/items/' + id + '/export' );
+	ASSERT.equal( result.Status, 200 );
+	return result.Body;
+}
+
+
+function ids_in( items )
+{
+	return JSON.stringify( shape( items ) );
+}
+
+
+// The plan and document nodes under items, in tree order.
+function proposal_nodes( items )
+{
+	let found = [];
+	for ( let node of items )
+	{
+		if ( node.Kind !== 'folder' )
+		{
+			found.push( node );
+		}
+		if ( Array.isArray( node.Items ) )
+		{
+			found = found.concat( proposal_nodes( node.Items ) );
+		}
+	}
+	return found;
+}
+
+
+// What an import of these items makes: the counts a report says.
+async function counts_of( server, items )
+{
+	let counts = { Plans: 0, Documents: 0, Threads: 0 };
+	for ( let node of proposal_nodes( items ) )
+	{
+		let read = await text_of( server, node.Id );
+		counts[ ( node.Kind === 'plan' ) ? 'Plans' : 'Documents' ] += 1;
+		counts.Threads += read.Threads.length;
+	}
+	return counts;
+}
+
+
+// The origin's Drafts folder as the tree has it now (earlier tests added to it).
+async function drafts_folder()
+{
+	return ( await project_of( origin, alpha.Id ) ).Items.find( function ( node ) { return node.Id === ids.Folder; } );
+}
+
+
+TEST( 'item export: a folder with its plans and subplans, a plan with its subplans, a document; the Readme and the Context folder refused', async function ()
+{
+	let folder_file = await item_export_of( origin, ids.Folder );
+	ASSERT.equal( folder_file.Format, 'consensus-project' );
+	ASSERT.equal( folder_file.Version, 1 );
+	ASSERT.match( folder_file.Project.Id, /^prj-/ );
+	ASSERT.equal( folder_file.Project.Name, 'Drafts' );
+	ASSERT.equal( folder_file.Project.Context, null );
+	ASSERT.equal( folder_file.Project.ContextFolder, null );
+	let drafts = await drafts_folder();
+	ASSERT.deepEqual( shape( folder_file.Project.Items ), shape( [ drafts ] ) );
+	ASSERT.deepEqual( folder_file.Proposals.map( function ( whole ) { return whole.Proposal.Id; } ).sort(), proposal_nodes( [ drafts ] ).map( function ( node ) { return node.Id; } ).sort() );
+	ASSERT.equal( folder_file.Proposals.length >= 2, true );
+	ASSERT.deepEqual( PORT.Check( folder_file ), [] );
+
+	let plan_file = await item_export_of( origin, ids.Plan );
+	ASSERT.equal( plan_file.Project.Name, 'Plan' );
+	ASSERT.deepEqual( shape( plan_file.Project.Items ), [ { Kind: 'plan', Id: ids.Plan, Items: [ { Kind: 'plan', Id: ids.Subplan } ] } ] );
+	ASSERT.equal( plan_file.Proposals.length, 2 );
+	let plan_whole = plan_file.Proposals.find( function ( whole ) { return whole.Proposal.Id === ids.Plan; } );
+	ASSERT.equal( plan_whole.Threads[ 0 ].Id, ids.Thread );
+	ASSERT.equal( plan_whole.Revisions.length >= 1, true );
+
+	let document_file = await item_export_of( origin, ids.Document );
+	ASSERT.equal( document_file.Project.Name, 'Notes' );
+	ASSERT.deepEqual( shape( document_file.Project.Items ), [ { Kind: 'document', Id: ids.Document } ] );
+	ASSERT.equal( document_file.Proposals.length, 1 );
+
+	ASSERT.equal( ( await call( origin, 'GET', '/api/items/' + alpha.Context + '/export' ) ).Status, 409 );
+	ASSERT.equal( ( await call( origin, 'GET', '/api/items/' + alpha.ContextFolder + '/export' ) ).Status, 409 );
+	ASSERT.equal( ( await call( origin, 'GET', '/api/items/fld-no-such/export' ) ).Status, 404 );
+	let llm_token = PARTICIPANTS.NewToken();
+	origin.Settings.Participants[ 1 ].Token = llm_token;
+	ASSERT.equal( ( await call( origin, 'GET', '/api/items/' + ids.Plan + '/export', undefined, 'Bearer ' + llm_token ) ).Status, 200 );
+} );
+
+
+TEST( 'import Into a root and Into a folder: new ids, the counts in the report, the preview writes nothing', async function ()
+{
+	let home = await project_of( bare, 'default' );
+	let folder_file = await item_export_of( origin, ids.Folder );
+	let drafts = await drafts_folder();
+	let expected = await counts_of( origin, [ drafts ] );
+
+	let preview = await import_into( bare, { Export: folder_file, Preview: true, Into: { Project: 'default' } } );
+	ASSERT.equal( preview.Status, 200 );
+	ASSERT.deepEqual( preview.Body.Preview.Made, expected );
+	ASSERT.equal( preview.Body.Preview.Into.Project, 'default' );
+	ASSERT.deepEqual( shape( ( await project_of( bare, 'default' ) ).Items ), shape( home.Items ) );
+
+	let result = await import_into( bare, { Export: folder_file, Into: { Project: 'default' } } );
+	ASSERT.equal( result.Status, 201 );
+	let report = result.Body.Report;
+	ASSERT.deepEqual( report.Project, { Id: 'default', Name: home.Name, Mode: 'into' } );
+	ASSERT.deepEqual( report.Made, expected );
+	ASSERT.equal( report.Into.Parent, null );
+	ASSERT.equal( report.Into.Nodes.length, 1 );
+	ASSERT.equal( report.Written.length, expected.Plans + expected.Documents );
+	let after = await project_of( bare, 'default' );
+	let brought = after.Items.find( function ( node ) { return node.Id === report.Into.Nodes[ 0 ]; } );
+	ASSERT.equal( brought.Kind, 'folder' );
+	ASSERT.equal( brought.Name, 'Drafts' );
+	ASSERT.notEqual( brought.Id, ids.Folder );
+	ASSERT.equal( brought.Items.length, drafts.Items.length );
+	ASSERT.equal( brought.Items[ 0 ].Items.length, 1 );
+	for ( let id of [ ids.Folder, ids.Plan, ids.Subplan ] )
+	{
+		ASSERT.equal( ids_in( after.Items ).includes( id ), false );
+	}
+	let brought_plan = await text_of( bare, brought.Items[ 0 ].Id );
+	ASSERT.equal( brought_plan.Proposal.Title, 'Plan' );
+	ASSERT.equal( brought_plan.Text, ( await text_of( origin, ids.Plan ) ).Text );
+	ASSERT.equal( brought_plan.Threads.length >= 1, true );
+	ASSERT.equal( brought_plan.Threads[ 0 ].Id, ids.Thread );	// a thread keeps its id, as in a copy import
+
+	// Into a folder: the plan's file, with its subplan.
+	let target = ( await call( bare, 'POST', '/api/projects/default/folders', { Name: 'Target' } ) ).Body.Folder;
+	let plan_file = await item_export_of( origin, ids.Plan );
+	let into_folder = await import_into( bare, { Export: plan_file, Into: { Project: 'default', Parent: target.Id } } );
+	ASSERT.equal( into_folder.Status, 201 );
+	ASSERT.equal( into_folder.Body.Report.Into.Parent, target.Id );
+	let folder_after = ( await project_of( bare, 'default' ) ).Items.find( function ( node ) { return node.Id === target.Id; } );
+	ASSERT.equal( folder_after.Items.length, 1 );
+	ASSERT.equal( folder_after.Items[ 0 ].Kind, 'plan' );
+	ASSERT.equal( folder_after.Items[ 0 ].Items.length, 1 );
+	ASSERT.equal( ( await text_of( bare, folder_after.Items[ 0 ].Id ) ).Proposal.Title, 'Plan' );
+
+	// The same file again: another copy, new ids again.
+	let again = await import_into( bare, { Export: plan_file, Into: { Project: 'default', Parent: target.Id } } );
+	ASSERT.equal( again.Status, 201 );
+	ASSERT.notEqual( again.Body.Report.Into.Nodes[ 0 ], into_folder.Body.Report.Into.Nodes[ 0 ] );
+} );
+
+
+TEST( 'import Into: a project\'s file goes in as a folder named after it, without its Readme and Context folder', async function ()
+{
+	let project_file = await export_of( origin, alpha.Id );
+	let outside = ( await project_of( origin, alpha.Id ) ).Items.filter( function ( node ) { return node.Id !== alpha.ContextFolder; } );
+	let expected = await counts_of( origin, outside );
+	let result = await import_into( bare, { Export: project_file, Into: { Project: 'default' } } );
+	ASSERT.equal( result.Status, 201 );
+	let report = result.Body.Report;
+	ASSERT.deepEqual( report.Made, expected );
+	let after = await project_of( bare, 'default' );
+	let brought = after.Items.find( function ( node ) { return node.Id === report.Into.Nodes[ 0 ]; } );
+	ASSERT.equal( brought.Kind, 'folder' );
+	ASSERT.equal( brought.Name, 'Alpha' );
+	ASSERT.deepEqual( brought.Items.map( function ( node ) { return node.Name; } ), [ 'Drafts' ] );
+	ASSERT.equal( ids_in( after.Items ).includes( alpha.Context ), false );
+	ASSERT.equal( ids_in( after.Items ).includes( alpha.ContextFolder ), false );
+	ASSERT.equal( ids_in( after.Items ).includes( ids.Document ), false );
+} );
+
+
+TEST( 'import Into: a document goes into the Context folder only; a missing project or folder is refused; nothing is written on a refusal', async function ()
+{
+	let home = await project_of( bare, 'default' );
+	let document_file = await item_export_of( origin, ids.Document );
+	let before = ( await call( bare, 'GET', '/api/proposals' ) ).Body;
+	let at_root = await import_into( bare, { Export: document_file, Into: { Project: 'default' } } );
+	ASSERT.equal( at_root.Status, 400 );
+	ASSERT.match( at_root.Body.Problems[ 0 ], /does not take a document/ );
+	ASSERT.deepEqual( ( await call( bare, 'GET', '/api/proposals' ) ).Body, before );
+
+	let in_context = await import_into( bare, { Export: document_file, Into: { Project: 'default', Parent: home.ContextFolder } } );
+	ASSERT.equal( in_context.Status, 201 );
+	ASSERT.deepEqual( in_context.Body.Report.Made, { Plans: 0, Documents: 1, Threads: 0 } );
+	let context_folder = ( await project_of( bare, 'default' ) ).Items[ 0 ];
+	ASSERT.equal( context_folder.Id, home.ContextFolder );
+	ASSERT.equal( context_folder.Items[ context_folder.Items.length - 1 ].Id, in_context.Body.Report.Into.Nodes[ 0 ] );
+	ASSERT.equal( ( await text_of( bare, in_context.Body.Report.Into.Nodes[ 0 ] ) ).Proposal.Title, 'Notes' );
+
+	let folder_file = await item_export_of( origin, ids.Folder );
+	ASSERT.equal( ( await import_into( bare, { Export: folder_file, Into: { Project: 'default', Parent: home.ContextFolder } } ) ).Status, 400 );
+	ASSERT.equal( ( await import_into( bare, { Export: folder_file, Into: { Project: 'prj-no-such' } } ) ).Status, 400 );
+	ASSERT.equal( ( await import_into( bare, { Export: folder_file, Into: { Project: 'default', Parent: 'fld-no-such' } } ) ).Status, 400 );
+	ASSERT.equal( ( await import_into( bare, { Export: folder_file, Into: 'default' } ) ).Status, 400 );
+} );
+
+
+TEST( 'an item\'s file imports as a new project too, with an empty Readme', async function ()
+{
+	let folder_file = await item_export_of( origin, ids.Folder );
+	ASSERT.deepEqual( ( await import_into( bare, { Export: folder_file, Preview: true } ) ).Body.Preview.Project.Exists, false );
+	// Its plans are on this server already (brought over by the merge test), so it comes in as a copy.
+	let result = await import_into( bare, { Export: folder_file, Mode: 'copy' } );
+	ASSERT.equal( result.Status, 201, JSON.stringify( result.Body ) );
+	ASSERT.equal( result.Body.Report.Project.Mode, 'copy' );
+	let made = await project_of( bare, result.Body.Report.Project.Id );
+	ASSERT.match( made.Name, /^Copy of Drafts \(imported / );
+	ASSERT.equal( made.Items[ 0 ].Id, made.ContextFolder );
+	ASSERT.equal( made.Items[ 0 ].Items[ 0 ].Id, made.Context.Id );
+	ASSERT.equal( ( await text_of( bare, made.Context.Id ) ).Text, '' );
+	ASSERT.equal( made.Items.length, 2 );
+	ASSERT.equal( made.Items[ 1 ].Name, 'Drafts' );
+	ASSERT.notEqual( made.Items[ 1 ].Id, ids.Folder );
+	ASSERT.equal( ( await text_of( bare, made.Items[ 1 ].Items[ 0 ].Id ) ).Proposal.Title, 'Plan' );
+
+	// A file with no plan here comes in as it is.
+	let fresh = await start();
+	let as_new = await import_into( fresh, { Export: folder_file } );
+	ASSERT.equal( as_new.Status, 201, JSON.stringify( as_new.Body ) );
+	ASSERT.equal( as_new.Body.Report.Project.Mode, 'new' );
+	let made_new = await project_of( fresh, as_new.Body.Report.Project.Id );
+	ASSERT.equal( made_new.Name, 'Drafts' );
+	ASSERT.equal( made_new.Items[ 1 ].Id, ids.Folder );
+	ASSERT.equal( ( await text_of( fresh, ids.Plan ) ).Proposal.Title, 'Plan' );
+	await fresh.Close();
+
+	let document_file = await item_export_of( origin, ids.Document );
+	let as_project = await import_into( bare, { Export: document_file, Mode: 'copy' } );
+	ASSERT.equal( as_project.Status, 201 );
+	let made_too = await project_of( bare, as_project.Body.Report.Project.Id );
+	ASSERT.equal( made_too.Items.length, 1 );
+	ASSERT.equal( made_too.Items[ 0 ].Items.length, 2 );
+	ASSERT.equal( made_too.Items[ 0 ].Items[ 1 ].Kind, 'document' );
+} );

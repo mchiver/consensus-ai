@@ -560,6 +560,11 @@ html, body
 	background: rgba( 13, 110, 253, 0.08 );
 }
 
+.clipboard.error
+{
+	background: rgba( 220, 53, 69, 0.1 );
+}
+
 .clipboard .btn
 {
 	padding: 0 0.25rem;
@@ -1436,6 +1441,19 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 .tree-toggle:hover
 {
 	background: var(--tree-hover);
+}
+
+/* The threads toggle (plan UI Tweaks V): the tree toggle's mirror, at the right end of the tabs row. */
+.threads-toggle
+{
+	margin-left: auto;
+	border-right: none;
+	border-left: 1px solid var(--border);
+}
+
+.threads-toggle .icon
+{
+	transform: scaleX( -1 );
 }
 
 .tab-strip

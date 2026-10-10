@@ -770,9 +770,31 @@ function Attach( App, Context )
 	} );
 
 
-	// Body = { Export, Mode?, Preview? }  Preview: true writes nothing and answers whether the project is here. A
-	// project that is here needs Mode: 'copy' or 'merge'. Without Preview the import is written and answered with
-	// its report.
+	// A folder, a plan or a document as one file of the same format (plan UI Tweaks V); the Readme and the Context
+	// folder are not exported on their own.
+	router.get( '/items/:id/export', async function ( request, response )
+	{
+		if ( !may_port( request.Participant ) )
+		{
+			return fail( response, 403, 'only the owner or the llm exports an item' );
+		}
+		let exported = await PORT.ExportItem( store, request.params.id );
+		if ( !exported )
+		{
+			return fail( response, 404, 'no such item in any project' );
+		}
+		if ( exported.Context )
+		{
+			return fail( response, 409, CONTEXT_KEPT );
+		}
+		response.json( exported );
+	} );
+
+
+	// Body = { Export, Mode?, Preview?, Into? }  Preview: true writes nothing and answers whether the project is
+	// here. A project that is here needs Mode: 'copy' or 'merge'. Into: { Project, Parent? } writes the file's items
+	// into that project's root or folder instead, every id new (plan UI Tweaks V). Without Preview the import is
+	// written and answered with its report.
 	router.post( '/projects/import', async function ( request, response )
 	{
 		if ( !may_port( request.Participant ) )
@@ -780,7 +802,7 @@ function Attach( App, Context )
 			return fail( response, 403, 'only the owner or the llm imports a project' );
 		}
 		let body = request.body || {};
-		let options = { Mode: body.Mode, Preview: !!body.Preview };
+		let options = { Mode: body.Mode, Preview: !!body.Preview, Into: body.Into };
 		let names = participants().map( function ( participant ) { return participant.Name; } );
 		let result = await PORT.Import( store, body.Export, options, {
 			Participants: names,

@@ -33,7 +33,7 @@ Resolving means agreeing with how the thread was deliberated and decided, not wi
 
 ## Whose turn
 
-The sidebar's **Waiting on you** shows every thread waiting on you, across projects, and opens the Waiting tab. The threads pane filters by state and by whose turn it is, and a plan's row shows a "you" badge with the count.
+The sidebar's **Waiting on you** shows every thread waiting on you, across projects, and opens the Waiting tab. The threads pane filters by state and by whose turn it is, and a plan's row shows a "you" badge with the count. Clicking an anchored passage selects its thread, and the selected thread stays listed whatever the filter, until another is picked or the selection is cleared.
 
 ![The Waiting tab: everything waiting on you.](../images/waiting.png)
 

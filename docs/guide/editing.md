@@ -20,7 +20,7 @@ Every save, and every applied thread, is a revision. **Revisions** lists them, n
 
 ## Tabs
 
-Every item you open, and Waiting on you, opens in a **tab** above the document: one tab per item, dragged to reorder, closed with ×. Each tab comes back as you left it, Read, Edit or Revisions, an unsaved edit included. Open tabs survive a page reload, not a browser restart; with none open, the start page shows.
+Every item you open, and Waiting on you, opens in a **tab** above the document: one tab per item, dragged to reorder, closed with ×. Each tab comes back as you left it, Read, Edit or Revisions, an unsaved edit included. Open tabs come back after a restart, per server; a tab whose item is gone from the server is dropped. With none open, the start page shows.
 
 ![The tab strip.](../images/tabs.png)
 
@@ -28,4 +28,8 @@ A tab's menu (the ▾ beside its ×, or a right-click) has Close, Close others, 
 
 ## The threads pane and the tree
 
-The heading's **Threads** button hides or shows the threads pane, and the sidebar can be hidden too; each is remembered in the browser. A document gives the threads pane's room to the text.
+The small button at the right end of the tab strip hides or shows the threads pane, and its mirror at the left end the project tree; each is remembered in the browser. A document gives the threads pane's room to the text.
+
+The project tree's state, the open project, the folded folders, the sort order and the open tabs, is remembered per server; the look of the page, the hidden panes and the pane widths, is shared by every server.
+
+Selecting text in Read offers **Copy**, which copies the text as it reads, beside Comment and Start a new Subplan.

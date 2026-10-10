@@ -51,7 +51,8 @@ PUT    /api/projects/:pid/folders/:fid           { Name, Version? }
 DELETE /api/projects/:pid/folders/:fid           an empty folder
 POST   /api/projects/:pid/move                   { Before }  the project in the display order
 GET    /api/projects/:pid/export                 owner or llm; the project as one json object
-POST   /api/projects/import                      owner or llm; { Export, Mode?, Preview? }
+POST   /api/projects/import                      owner or llm; { Export, Mode?, Preview?, Into? }  Into: { Project, Parent? } writes the file's items there, every id new
+GET    /api/items/:id/export                     owner or llm; a folder, plan or document as one json object of the same format
 POST   /api/items/:id/move                       { Project, Parent?, Before? }
 POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id
 GET    /api/proposals[?state=]                   plans and documents with their tallies

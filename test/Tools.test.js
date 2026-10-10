@@ -204,7 +204,7 @@ async function start_consensus()
 	let data = temporary_folder( 'desktop-tools-server-' );
 	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( {
 		Port: 0, Host: '127.0.0.1',
-		States: [ 'Proposal', 'Working', 'Finished' ],
+		States: [ 'Draft', 'Working', 'Finished' ],
 		Participants: [ { Name: 'user', Display: 'User', Role: 'owner' }, { Name: 'llm', Display: 'LLM', Role: 'llm', Token: TOKEN } ],
 	} ) );
 	return SERVER.Start( { Data: data, Port: 0 } );
@@ -231,12 +231,12 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 
 		let listed = await tools.Call( 'list_project', {} );
 		ASSERT.match( listed, new RegExp( '^Project ' + project.Name + ' \\(' + project.Id + '\\), its Readme is ' ) );
-		ASSERT.match( listed, new RegExp( '- plan The plan \\(' + plan.Id + ', Proposal' ) );
+		ASSERT.match( listed, new RegExp( '- plan The plan \\(' + plan.Id + ', Draft' ) );
 		ASSERT.match( listed, new RegExp( '  - document Notes \\(' + document.Id + '\\)' ) );
 		ASSERT.doesNotMatch( listed, /Elsewhere/ );
 
 		let read = await tools.Call( 'read_plan', { Id: plan.Id } );
-		ASSERT.match( read, new RegExp( '^# The plan \\(' + plan.Id + '\\), state Proposal, revision 1\n\n# The plan\n\nA first line.' ) );
+		ASSERT.match( read, new RegExp( '^# The plan \\(' + plan.Id + '\\), state Draft, revision 1\n\n# The plan\n\nA first line.' ) );
 		ASSERT.match( read, /## Threads \(2\)/ );
 		ASSERT.match( read, new RegExp( '### Thread ' + resolved.Id + ' \\(resolved, on "A second line."\\)\n\nuser \\(.*\\): Say third.' ) );
 		ASSERT.match( read, new RegExp( '### Thread ' + contested.Id + ' \\(contested, on the whole document\\)' ) );

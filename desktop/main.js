@@ -49,15 +49,40 @@ function save_settings()
 }
 
 
+// The page's remembered state changes often (a fold, a tab): written a moment after the last change.
+let remember_timer = null;
+
+function save_settings_soon()
+{
+	if ( remember_timer )
+	{
+		clearTimeout( remember_timer );
+	}
+	remember_timer = setTimeout( function ()
+	{
+		remember_timer = null;
+		save_settings();
+	}, 300 );
+}
+
+
+// The theme in use: the connected server's own, or the default (plan UI Tweaks V).
+function theme_in_use()
+{
+	return SETTINGS.ThemeFor( settings, current );
+}
+
+
 // The window's title bar and menu bar follow the theme, light or dark (plan UI Tweaks IV); System follows the system.
 function apply_native_theme()
 {
-	if ( settings.Theme === 'system' )
+	let theme = theme_in_use();
+	if ( theme === 'system' )
 	{
 		ELECTRON.nativeTheme.themeSource = 'system';
 		return;
 	}
-	ELECTRON.nativeTheme.themeSource = SETTINGS.DARK_THEMES.includes( settings.Theme ) ? 'dark' : 'light';
+	ELECTRON.nativeTheme.themeSource = SETTINGS.DARK_THEMES.includes( theme ) ? 'dark' : 'light';
 }
 
 
@@ -127,6 +152,7 @@ async function connect( where )
 	reason = null;
 	settings.Last = ( target.Kind === 'local' ) ? { Kind: 'local' } : { Kind: 'server', Name: target.Name };
 	save_settings();
+	apply_native_theme();
 	show_page();
 	return { Ok: true, Version: tried.Version };
 }
@@ -136,6 +162,7 @@ function disconnect()
 {
 	current = null;
 	page.SetTarget( null );
+	apply_native_theme();
 	show_connect();
 }
 
@@ -168,8 +195,9 @@ function boot_info()
 	return {
 		Base: '',		// the page's own origin: Page.js forwards /api to the connected server
 		Version: VERSION,
-		Theme: settings.Theme,
+		Theme: theme_in_use(),
 		Scale: settings.Scale,
+		Remembered: settings.Remembered,
 		Server: current ? { Kind: current.Kind, Name: current.Name, Url: current.Url, Version: current.Version } : null,
 		Reason: reason,
 		Local: local ? local.Running() : null,
@@ -597,11 +625,21 @@ function attach_handlers()
 		event.returnValue = boot_info();
 	} );
 
+	// The page's remembered state (stored.js): a value by key, into desktop.json.
+	ELECTRON.ipcMain.on( 'remember', function ( event, change )
+	{
+		if ( change && SETTINGS.Remember( settings, change.Key, change.Value ) )
+		{
+			save_settings_soon();
+		}
+	} );
+
+	// The page's picker sets the connected server's own theme; the connect screen's (nothing connected) the default.
 	ELECTRON.ipcMain.on( 'theme', function ( event, change )
 	{
 		if ( change && SETTINGS.THEMES.includes( change.Theme ) )
 		{
-			settings.Theme = change.Theme;
+			SETTINGS.SetThemeFor( settings, current, change.Theme );
 		}
 		if ( change && SETTINGS.SCALES.includes( change.Scale ) )
 		{
@@ -776,6 +814,12 @@ async function main()
 	create_window();
 	ELECTRON.app.on( 'window-all-closed', function ()
 	{
+		if ( remember_timer )
+		{
+			clearTimeout( remember_timer );
+			remember_timer = null;
+			save_settings();
+		}
 		page.Close().catch( function () {} ).then( function () { ELECTRON.app.quit(); } );
 	} );
 	// What was open last: a saved server, or the local server (started again over its folder); on failure, the

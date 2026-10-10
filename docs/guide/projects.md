@@ -14,7 +14,7 @@ Each row's actions are in its menu: the **⋯** at the row's end, or a right-cli
 
 ## What a project holds
 
-- **Plans** are what you discuss. A plan has text, threads and a **state**: one of the states in the settings, Proposal, Plan, Working and Finished by default. Anyone changes the state at any time from the picker in the heading; nothing locks, and a state does not depend on the threads.
+- **Plans** are what you discuss. A plan has text, threads and a **state**: one of the states in the settings, Draft, Plan, Working and Finished by default. Anyone changes the state at any time from the picker in the heading; nothing locks, and a state does not depend on the threads.
 - **Documents** are markdown with revisions, but no threads and no state. Documents live only in the project's Context folder.
 - **Folders** organize plans, as deep as you like.
 - **Subplans**: a plan can hold plans, and only plans. A Subplan is a full plan of its own, with its own threads and state; the tie is organizational. Subplans fold under their parent, and move, copy and go to the trash with it.
@@ -37,8 +37,10 @@ The **Default** project is there from the first start and is never deleted; ad-h
 
 Everything reorders by drag and drop. Drop an item on the top or bottom edge of a row to put it before or after that row, on the middle of a folder to move it inside, on the middle of a plan to make it a Subplan, or on a project's heading to move it to that project's root. Drop a project's heading on another's to reorder the projects.
 
-**Rename** is in the menu; for a plan or document only its title changes. **Copy** (the menu, or Ctrl+C on the open item) and **Paste** (in a project's or folder's menu, or Ctrl+V into the open project) make a whole copy under a new id: a plan's text, threads and revisions, or a folder's whole contents.
+**Rename** is in the menu; for a plan or document only its title changes. **Copy** (the menu, or Ctrl+C on the open item) puts the item's export, the same JSON a project's Export makes, on the clipboard, and **Paste** (in a project's or folder's menu, or Ctrl+V into the open project) imports what the clipboard holds there, every id new: a plan with its text, threads, revisions and Subplans, a folder with its whole contents, or a project, which comes in as a folder named after it (its Readme and Context folder stay out). The clipboard is the system's, so an item pastes into another project, into the app connected to another server, or into a file; a Template project on any server is one use. **Export** in the menu shows the same JSON, to copy or download.
+
+A row's menu reads, for a project: New Folder, New Draft, Copy, Paste, Rename, Export, Delete; for a folder the same, creating in it; for the Context folder: New Document, New Workspace, New LLM (in the desktop), Paste; for a plan: New Subplan, New Comment, Copy, Rename, Export, Delete; for a document: Copy, Rename, Export, Delete. "New Draft" is named after the first of the settings' states.
 
 **Delete** is in the menu only, confirmed on the row. A plan or document goes to the **Trash** at the bottom of the sidebar; a project or folder is deleted only when it is empty.
 
-Every item belongs to exactly one project. To reuse one elsewhere, copy it and move the copy.
+Every item belongs to exactly one project. To reuse one elsewhere, copy it and paste it there.

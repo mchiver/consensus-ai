@@ -44,6 +44,11 @@ async function Start( Options )
 	{
 		console.log( 'prepared ' + line );
 	}
+	let renamed = await rename_state( store, settings );
+	if ( renamed )
+	{
+		console.log( renamed );
+	}
 	let port = ( options.Port !== undefined ) ? options.Port : ( settings.Port || DEFAULT_PORT );
 	let host = options.Host || settings.Host || DEFAULT_HOST;
 
@@ -127,6 +132,33 @@ function url_host( host )
 		return '127.0.0.1';
 	}
 	return host.includes( ':' ) ? '[' + host + ']' : host;
+}
+
+
+// The first state's new name (plan UI Tweaks V): a settings list that still has the old name and not the new one is
+// changed in place and written back, and every plan in the old state is put in the new one, with no revision. A list
+// the owner named otherwise is left alone. Returns the line to log, or null when nothing was renamed.
+async function rename_state( store, settings )
+{
+	let from = PARTICIPANTS.RENAMED_STATE.From;
+	let to = PARTICIPANTS.RENAMED_STATE.To;
+	let states = Array.isArray( settings.States ) ? settings.States : [];
+	if ( !states.includes( from ) || states.includes( to ) )
+	{
+		return null;
+	}
+	settings.States = states.map( function ( state ) { return ( state === from ) ? to : state; } );
+	await store.WriteSettings( settings );
+	let count = 0;
+	for ( let proposal of await store.ListProposals() )
+	{
+		if ( proposal.Kind === 'plan' && proposal.State === from )
+		{
+			await store.UpdateProposal( proposal.Id, { State: to } );
+			count += 1;
+		}
+	}
+	return 'renamed state ' + from + ' to ' + to + ' in the settings and ' + count + ' plan' + ( ( count === 1 ) ? '' : 's' );
 }
 
 

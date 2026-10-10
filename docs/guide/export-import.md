@@ -4,9 +4,11 @@ A project travels as one JSON file: its Context folder and documents, folders, p
 
 ## Export
 
-**Export project** in a project's menu downloads the file. The same comes from the API at `GET /api/projects/<id>/export`.
+**Export** in a project's menu shows the file, to copy or download. The same comes from the API at `GET /api/projects/<id>/export`.
 
-![A project's menu, with Export project.](../images/menu.png)
+A folder, a plan or a document exports the same way, from its menu or `GET /api/items/<id>/export`: the same format, holding that item and what is under it, with no Readme. Such a file imports as a project of its own (it gets an empty Readme) or, as any file does, into a project.
+
+![A project's menu, with Export.](../images/menu.png)
 
 ## Import
 
@@ -16,6 +18,10 @@ A project travels as one JSON file: its Context folder and documents, folders, p
 - A project already here is imported as a **copy** ("Copy of <name> (imported <date>)", every id new) or **merged**: revisions are matched by id, a conflict gets a merge revision with the newer text, and nothing here is removed. Import asks which.
 
 The same goes through `POST /api/projects/import` with the export as the body.
+
+## Into a project
+
+**Paste** in a project's or folder's menu imports the file on the clipboard into that project, at its root or in the folder, every id new. A project's file comes in as a folder named after the project, holding its folders and plans; its Readme and Context folder stay out. An item's file comes in as its item; a document goes only into the Context folder. The API does the same with `Into: { Project, Parent? }` in the import's body, and `Preview: true` says what would be made.
 
 ## Older exports
 

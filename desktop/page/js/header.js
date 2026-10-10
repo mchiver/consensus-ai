@@ -1,8 +1,8 @@
 'use strict';
 
-// Header - two lines. The first: the title, Read / Edit / Revisions and the threads toggle. The second: the
-// state picker and the one-line state, then New Comment and New subplan. Delete is in the item's menu in the
-// tree. Ctrl+E switches the open item between Edit and Read.
+// Header - two lines. The first: the title and Read / Edit / Revisions (the threads toggle is in the tabs row,
+// tabs.js, since plan UI Tweaks V). The second: the state picker and the one-line state, then New Comment and New
+// subplan. Delete is in the item's menu in the tree. Ctrl+E switches the open item between Edit and Read.
 
 angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Subplans', 'DesktopItems', function ( $scope, $window, State, Client, Subplans, DesktopItems )
 {

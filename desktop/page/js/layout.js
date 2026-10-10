@@ -1,7 +1,7 @@
 'use strict';
 
 // Layout - the splitters: sidebar, threads pane, and the preview beside the editor.
-// Widths live in CSS variables and are remembered in localStorage.
+// Widths live in CSS variables and are remembered (stored.js, shared by every server; plan UI Tweaks V).
 
 ( function ()
 {
@@ -13,15 +13,7 @@
 	{
 		for ( let name of Object.keys( VARIABLES ) )
 		{
-			let saved = null;
-			try
-			{
-				saved = window.localStorage.getItem( 'consensus.' + VARIABLES[ name ] );
-			}
-			catch ( error )
-			{
-				saved = null;
-			}
+			let saved = window.ConsensusStored.Read( 'width.' + name, null, false );
 			if ( saved )
 			{
 				document.documentElement.style.setProperty( VARIABLES[ name ], saved );
@@ -34,14 +26,7 @@
 	{
 		let clamped = Math.max( MINIMUM, Math.min( MAXIMUM, width ) );
 		document.documentElement.style.setProperty( VARIABLES[ name ], clamped + 'px' );
-		try
-		{
-			window.localStorage.setItem( 'consensus.' + VARIABLES[ name ], clamped + 'px' );
-		}
-		catch ( error )
-		{
-			// storage is a convenience only
-		}
+		window.ConsensusStored.Write( 'width.' + name, clamped + 'px', false );
 	}
 
 

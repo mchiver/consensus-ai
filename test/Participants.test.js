@@ -81,8 +81,8 @@ TEST( 'validation names the problems: participants, tokens, Host and Port', func
 TEST( 'States: the settings\' list, or the defaults; a bad list is named', function ()
 {
 	let settings = PARTICIPANTS.DefaultSettings( 3500 );
-	ASSERT.deepEqual( settings.States, [ 'Proposal', 'Plan', 'Working', 'Finished' ] );
-	ASSERT.deepEqual( PARTICIPANTS.States( settings ), [ 'Proposal', 'Plan', 'Working', 'Finished' ] );
+	ASSERT.deepEqual( settings.States, [ 'Draft', 'Plan', 'Working', 'Finished' ] );
+	ASSERT.deepEqual( PARTICIPANTS.States( settings ), [ 'Draft', 'Plan', 'Working', 'Finished' ] );
 	ASSERT.deepEqual( PARTICIPANTS.States( { States: [ 'Draft', 'Done' ] } ), [ 'Draft', 'Done' ] );
 	ASSERT.deepEqual( PARTICIPANTS.States( {} ), PARTICIPANTS.DEFAULT_STATES );
 	function problems( states )

@@ -182,7 +182,7 @@ TEST( 'settings: the owner reads and writes consensus.json whole; problems are r
 	let read = await call( 'GET', '/api/settings' );
 	ASSERT.equal( read.Status, 200 );
 	ASSERT.equal( read.Body.Path, running.Store.SettingsPath() );
-	ASSERT.deepEqual( read.Body.Settings.States, [ 'Proposal', 'Plan', 'Working', 'Finished' ] );
+	ASSERT.deepEqual( read.Body.Settings.States, [ 'Draft', 'Plan', 'Working', 'Finished' ] );
 	ASSERT.equal( read.Body.Settings.Participants[ 1 ].Token, token );
 
 	// problems: none written
@@ -191,17 +191,17 @@ TEST( 'settings: the owner reads and writes consensus.json whole; problems are r
 	ASSERT.deepEqual( bad.Body.Problems, [ 'no participant has the owner role' ] );
 	let plan = await create( 'In a state' );
 	await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Working' } );
-	let in_use = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read.Body.Settings, { States: [ 'Proposal', 'Finished' ] } ) } );
+	let in_use = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read.Body.Settings, { States: [ 'Draft', 'Finished' ] } ) } );
 	ASSERT.equal( in_use.Status, 400 );
 	ASSERT.match( in_use.Body.Problems[ 0 ], /"Working" is used by the plan "In a state"/ );
-	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.States, [ 'Proposal', 'Plan', 'Working', 'Finished' ] );
+	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.States, [ 'Draft', 'Plan', 'Working', 'Finished' ] );
 
 	// written: the states, a member with a token, the display; the file and the running server follow at once
 	let member_token = PARTICIPANTS.NewToken();
 	let fresh = {
 		Port: read.Body.Settings.Port,
 		Host: read.Body.Settings.Host,
-		States: [ 'Proposal', 'Plan', 'Working', 'Finished', 'Shelved' ],
+		States: [ 'Draft', 'Plan', 'Working', 'Finished', 'Shelved' ],
 		Participants: [ { Name: 'user', Display: 'Owner', Role: 'owner' }, { Name: 'llm', Display: 'LLM', Role: 'llm', Token: token }, { Name: 'ann', Display: 'Ann', Role: 'member', Token: member_token } ],
 		Workers: [ { Name: 'gone' } ],
 	};
@@ -233,7 +233,7 @@ TEST( 'settings: the owner reads and writes consensus.json whole; problems are r
 TEST( 'a proposal is created, listed with its tally, read, and retitled', async function ()
 {
 	let proposal = await create( 'First proposal' );
-	ASSERT.equal( proposal.State, 'Proposal' );
+	ASSERT.equal( proposal.State, 'Draft' );
 	ASSERT.equal( proposal.Revision, 1 );
 	ASSERT.equal( proposal.StateLine, 'no threads yet' );
 	let list = await call( 'GET', '/api/proposals' );
@@ -505,7 +505,7 @@ TEST( 'state: anyone sets any of the States at any time; an edit or a comment le
 	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'Named', Text: TEXT, State: 'Plan' } ) ).Body.Proposal.State, 'Plan' );
 	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'Bad', Text: TEXT, State: 'Nope' } ) ).Status, 400 );
 	let me = await call( 'GET', '/api/me' );
-	ASSERT.deepEqual( me.Body.States, [ 'Proposal', 'Plan', 'Working', 'Finished', 'Shelved' ] );
+	ASSERT.deepEqual( me.Body.States, [ 'Draft', 'Plan', 'Working', 'Finished', 'Shelved' ] );
 } );
 
 
@@ -810,7 +810,7 @@ TEST( 'projects: Default holds new proposals; a project and its folders are crea
 	let node = default_project.Items.find( function ( item ) { return item.Id === loose.Id; } );
 	ASSERT.equal( node.Kind, 'plan' );
 	ASSERT.equal( node.Title, 'Loose' );
-	ASSERT.equal( node.State, 'Proposal' );
+	ASSERT.equal( node.State, 'Draft' );
 	ASSERT.equal( node.StateLine, 'no threads yet' );
 	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + loose.Id ) ).Body.Project.Id, 'default' );
 

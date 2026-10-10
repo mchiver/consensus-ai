@@ -17,6 +17,12 @@
 //     copy     a new project, "Copy of <name> (imported <yyyy-mm-dd>)", every id in it new
 //     merge    into the project here: newer revisions, threads, replies, resolve / apply records and tree nodes
 //              are added; nothing here is removed
+//
+// A folder, a plan or a document goes out in the same format (ExportItem, plan UI Tweaks V): the Project record is
+// made for the file (a fresh id, the item's name, Context null) and Items holds the one node. Such a file, with no
+// Readme, imports as a project too (it gets an empty Readme), and any file imports Into a project's root or folder
+// with every id new: an item's file as its node, a project's file as a folder named after the project, its Readme
+// and Context folder left out.
 
 const TREE = require( './Tree.js' );
 const ANCHORS = require( './Anchors.js' );
@@ -137,6 +143,47 @@ async function Export( Store, Id )
 }
 
 
+// ExportItem: the folder, plan or document Id as one file, or null when no project holds it, or { Context: true }
+// for the Readme or the Context folder, which are not exported on their own.
+async function ExportItem( Store, Id )
+{
+	let project = await Store.ProjectOf( Id );
+	let found = project ? TREE.Find( project.Items, Id ) : null;
+	if ( !found )
+	{
+		return null;
+	}
+	if ( Id === project.Context || Id === project.ContextFolder )
+	{
+		return { Context: true };
+	}
+	let node = clone( found.Node );
+	let proposals = [];
+	for ( let entry of nodes_of( [ node ], null ) )
+	{
+		let whole = await Store.Queue( entry.Node.Id, function () { return read_whole( Store, entry.Node.Id ); } );
+		if ( whole )
+		{
+			proposals.push( whole );
+		}
+	}
+	let name = node.Name;
+	if ( node.Kind !== 'folder' )
+	{
+		let own = proposals.find( function ( whole ) { return whole.Proposal.Id === node.Id; } );
+		name = own ? own.Proposal.Title : node.Id;
+	}
+	let now = new Date().toISOString();
+	return {
+		Format: FORMAT,
+		Version: VERSION,
+		Exported: now,
+		Project: { Id: IDS.New( IDS.PROJECT ), Name: name, Created: now, Updated: now, Context: null, ContextFolder: null, Items: [ node ] },
+		Proposals: proposals,
+	};
+}
+
+
 // A proposal whole: its record, text, threads and every revision with its text; null when there is none.
 async function read_whole( Store, id )
 {
@@ -240,7 +287,7 @@ function Check( Exported )
 		}
 	}
 	let context = proposals[ project.Context ];
-	if ( !context || ( context.Kind !== 'document' && context.Kind !== 'context' ) )
+	if ( project.Context !== null && ( !context || ( context.Kind !== 'document' && context.Kind !== 'context' ) ) )
 	{
 		problems.push( 'Project.Context is not a document in the file' );
 	}
@@ -528,11 +575,20 @@ async function Import( Store, Exported, Options, Context )
 	{
 		problems.push( 'Mode must be one of ' + MODES.join( ', ' ) );
 	}
+	let into = into_of( options.Into );
+	if ( options.Into !== undefined && options.Into !== null && !into )
+	{
+		problems.push( 'Into must be { Project, Parent? }' );
+	}
 	if ( problems.length )
 	{
 		return { Problems: problems };
 	}
 	let exported = Normalize( Exported );
+	if ( into )
+	{
+		return await import_into( Store, exported, into, options.Preview, Context || {} );
+	}
 
 	let here = await Store.ReadProject( exported.Project.Id );
 	let copy_name = COPY_PREFIX + exported.Project.Name + ' (imported ' + today() + ')';
@@ -584,6 +640,127 @@ async function Import( Store, Exported, Options, Context )
 	}
 	report.UnknownParticipants = unknown_names( records_of( exported ), context.Participants || [] );
 	return { Report: report };
+}
+
+
+// Into, as given: { Project, Parent } with Parent null for the root, or null when it is not that shape.
+function into_of( Into )
+{
+	if ( !Into || typeof Into !== 'object' || typeof Into.Project !== 'string' || !Into.Project )
+	{
+		return null;
+	}
+	let parent = ( Into.Parent === undefined || Into.Parent === null || Into.Parent === '' ) ? null : Into.Parent;
+	if ( parent !== null && typeof parent !== 'string' )
+	{
+		return null;
+	}
+	return { Project: Into.Project, Parent: parent };
+}
+
+
+//---------------------------------------------------------------------
+// Into: the file's items into a project here, at its root or in a folder, every id new. A project's file goes in
+// as one folder named after the project, holding its folders and plans; its Readme and Context folder stay out. An
+// item's file goes in as its node. Documents go only into the Context folder, as the tree's rules say; a target that
+// cannot hold what the file brings refuses it, and nothing is written.
+
+async function import_into( Store, Exported, Into, Preview, Context )
+{
+	let project = await Store.ReadProject( Into.Project );
+	if ( !project )
+	{
+		return { Problems: [ 'no such project: ' + Into.Project ] };
+	}
+	if ( Into.Parent !== null && !TREE.Find( project.Items, Into.Parent ) )
+	{
+		return { Problems: [ 'the project has no folder ' + Into.Parent ] };
+	}
+	let brought = brought_items( Exported );
+	let proposal_ids = nodes_of( brought, null ).map( function ( entry ) { return entry.Node.Id; } );
+	let wholes = Exported.Proposals.filter( function ( whole ) { return proposal_ids.includes( whole.Proposal.Id ); } );
+	let id_map = {};
+	for ( let whole of wholes )
+	{
+		id_map[ whole.Proposal.Id ] = await fresh_id( Store, IDS.ForProposal( whole.Proposal.Kind ) );
+	}
+	let folder_map = {};
+	for ( let entry of all_nodes_of( brought, null ) )
+	{
+		if ( entry.Node.Kind === 'folder' )
+		{
+			folder_map[ entry.Node.Id ] = IDS.New( IDS.FOLDER );
+		}
+	}
+	let nodes = map_tree( brought, id_map, folder_map );
+	if ( Exported.Project.Context !== null )
+	{
+		nodes = [ { Kind: 'folder', Id: IDS.New( IDS.FOLDER ), Name: Exported.Project.Name, Items: nodes } ];
+	}
+	for ( let node of nodes )
+	{
+		if ( !TREE.CanHold( project.Items, Into.Parent, node.Kind, project.ContextFolder ) )
+		{
+			return { Problems: [ 'the target does not take a ' + node.Kind + ( ( Into.Parent === null ) ? ' at the root' : ' in that folder' ) ] };
+		}
+	}
+	let report = {
+		Project: { Id: project.Id, Name: project.Name, Mode: 'into' },
+		Into: { Project: project.Id, Parent: Into.Parent, Nodes: nodes.map( function ( node ) { return node.Id; } ) },
+		Made: { Plans: 0, Documents: 0, Threads: 0 },
+		Merged: [],
+		Diverged: [],
+		UnknownParticipants: [],
+		Written: [],
+	};
+	for ( let whole of wholes )
+	{
+		count_made( report, whole );
+	}
+	if ( Preview )
+	{
+		return { Preview: { Project: { Id: project.Id, Name: project.Name, Exists: true, NameHere: project.Name }, Into: report.Into, Made: report.Made, Modes: [], CopyName: null } };
+	}
+	for ( let whole of wholes )
+	{
+		let id = id_map[ whole.Proposal.Id ];
+		let written = clone( whole );
+		written.Proposal.Id = id;
+		await Store.Queue( id, function () { return Store.WriteWholeProposal( written ); } );
+		report.Written.push( id );
+	}
+	let outcome = await Context.ChangeProject( project.Id, function ( changed )
+	{
+		for ( let node of nodes )
+		{
+			if ( !TREE.Insert( changed.Items, Into.Parent, node, undefined, changed.ContextFolder ) )
+			{
+				return { Refused: true, Status: 400, Message: 'the target does not take a ' + node.Kind };
+			}
+		}
+	} );
+	if ( outcome && outcome.Refused )
+	{
+		return { Problems: [ outcome.Message || 'the project refused the items' ] };
+	}
+	report.UnknownParticipants = unknown_names( wholes, Context.Participants || [] );
+	return { Report: report };
+}
+
+
+// The nodes a file brings Into a project: its tree without the Context folder and the Readme.
+function brought_items( Exported )
+{
+	let items = clone( Exported.Project.Items );
+	if ( Exported.Project.ContextFolder )
+	{
+		TREE.Remove( items, Exported.Project.ContextFolder );
+	}
+	if ( Exported.Project.Context && TREE.Find( items, Exported.Project.Context ) )
+	{
+		TREE.Remove( items, Exported.Project.Context );
+	}
+	return items;
 }
 
 
@@ -880,6 +1057,7 @@ module.exports = {
 	VERSION: VERSION,
 	MODES: MODES,
 	Export: Export,
+	ExportItem: ExportItem,
 	Check: Check,
 	Normalize: Normalize,
 	Merge: Merge,

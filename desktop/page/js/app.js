@@ -61,37 +61,22 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 
 .factory( 'State', [ 'Client', '$rootScope', function ( Client, $rootScope )
 {
-	const THREADS_HIDDEN_KEY = 'consensus.threads-hidden';
-	const PREVIEW_HIDDEN_KEY = 'consensus.preview-hidden';
-	const TREE_HIDDEN_KEY = 'consensus.tree-hidden';
-	const HIGHLIGHT_KEY = 'consensus.highlight';
+	// The look, shared by every server (stored.js, plan UI Tweaks V).
+	const THREADS_HIDDEN_KEY = 'threads-hidden';
+	const PREVIEW_HIDDEN_KEY = 'preview-hidden';
+	const TREE_HIDDEN_KEY = 'tree-hidden';
+	const HIGHLIGHT_KEY = 'highlight';
 
 
-	// Remembered in this browser only; a blocked or empty storage falls back to the default.
 	function recall( key, fallback )
 	{
-		try
-		{
-			let value = window.localStorage.getItem( key );
-			return ( value === null ) ? fallback : JSON.parse( value );
-		}
-		catch ( error )
-		{
-			return fallback;
-		}
+		return window.ConsensusStored.Read( key, fallback, false );
 	}
 
 
 	function remember( key, value )
 	{
-		try
-		{
-			window.localStorage.setItem( key, JSON.stringify( value ) );
-		}
-		catch ( error )
-		{
-			// not remembered; nothing else depends on it
-		}
+		window.ConsensusStored.Write( key, value, false );
 	}
 
 

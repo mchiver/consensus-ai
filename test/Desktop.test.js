@@ -48,7 +48,7 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	let folder = temporary_folder( 'desktop-settings-' );
 	let path = PATH.join( folder, 'desktop.json' );
 	let read = SETTINGS.Read( path );
-	ASSERT.deepEqual( read, { Servers: [], Local: { Data: '', Port: null }, Last: null, Theme: 'system', Scale: 'normal', Llms: [], Workspaces: [] } );
+	ASSERT.deepEqual( read, { Servers: [], Local: { Data: '', Port: null, Theme: null }, Last: null, Theme: 'system', Scale: 'normal', Llms: [], Workspaces: [], Remembered: {} } );
 
 	let settings = SETTINGS.Fill( {
 		Servers: [ { Name: ' cube4 ', Url: 'http://cube4:3500/' } ],
@@ -59,13 +59,14 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 		Extra: true,
 	} );
 	ASSERT.deepEqual( settings, {
-		Servers: [ { Name: 'cube4', Url: 'http://cube4:3500' } ],
-		Local: { Data: folder, Port: 3500 },
+		Servers: [ { Name: 'cube4', Url: 'http://cube4:3500', Theme: null } ],
+		Local: { Data: folder, Port: 3500, Theme: null },
 		Last: { Kind: 'server', Name: 'cube4' },
 		Theme: 'dark',
 		Scale: 'normal',
 		Llms: [],
 		Workspaces: [],
+		Remembered: {},
 	} );
 	SETTINGS.Write( path, settings );
 	ASSERT.deepEqual( SETTINGS.Read( path ), settings );
@@ -78,7 +79,40 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	ASSERT.equal( SETTINGS.DARK_THEMES.includes( 'nord' ), true );
 	ASSERT.equal( SETTINGS.DARK_THEMES.includes( 'sepia' ), false );
 	ASSERT.equal( SETTINGS.DARK_THEMES.every( function ( theme ) { return SETTINGS.THEMES.includes( theme ); } ), true );
-	ASSERT.deepEqual( SETTINGS.ServerNamed( settings, 'cube4' ), { Name: 'cube4', Url: 'http://cube4:3500' } );
+
+	// a theme per server (plan UI Tweaks V): the server's own, else the default; set for what is connected
+	let themed = SETTINGS.Fill( { Theme: 'sepia', Servers: [ { Name: 'a', Url: 'http://a:1', Theme: 'nord' }, { Name: 'b', Url: 'http://b:1', Theme: 'neon' } ], Local: { Theme: 'slate' } } );
+	ASSERT.equal( themed.Servers[ 0 ].Theme, 'nord' );
+	ASSERT.equal( themed.Servers[ 1 ].Theme, null );
+	ASSERT.equal( themed.Local.Theme, 'slate' );
+	ASSERT.equal( SETTINGS.ThemeFor( themed, null ), 'sepia' );
+	ASSERT.equal( SETTINGS.ThemeFor( themed, { Kind: 'server', Name: 'a' } ), 'nord' );
+	ASSERT.equal( SETTINGS.ThemeFor( themed, { Kind: 'server', Name: 'b' } ), 'sepia' );
+	ASSERT.equal( SETTINGS.ThemeFor( themed, { Kind: 'server', Name: 'nobody' } ), 'sepia' );
+	ASSERT.equal( SETTINGS.ThemeFor( themed, { Kind: 'local' } ), 'slate' );
+	SETTINGS.SetThemeFor( themed, { Kind: 'server', Name: 'b' }, 'midnight' );
+	SETTINGS.SetThemeFor( themed, { Kind: 'local' }, 'paper' );
+	SETTINGS.SetThemeFor( themed, null, 'light' );
+	SETTINGS.SetThemeFor( themed, { Kind: 'server', Name: 'a' }, 'neon' );
+	ASSERT.equal( themed.Servers[ 1 ].Theme, 'midnight' );
+	ASSERT.equal( themed.Local.Theme, 'paper' );
+	ASSERT.equal( themed.Theme, 'light' );
+	ASSERT.equal( themed.Servers[ 0 ].Theme, 'nord' );
+	SETTINGS.Write( path, themed );
+	ASSERT.equal( SETTINGS.ThemeFor( SETTINGS.Read( path ), { Kind: 'server', Name: 'b' } ), 'midnight' );
+
+	// the page's remembered state (plan UI Tweaks V): kept by key in desktop.json, forgotten with null
+	let kept = SETTINGS.Fill( { Remembered: { 'consensus.a:1.project': 'default', 'consensus.threads-hidden': true }, Extra: 1 } );
+	ASSERT.deepEqual( kept.Remembered, { 'consensus.a:1.project': 'default', 'consensus.threads-hidden': true } );
+	ASSERT.equal( SETTINGS.Remember( kept, 'consensus.a:1.tabs', { Tabs: [ { Key: 'p:x' } ], Active: 'p:x' } ), true );
+	ASSERT.equal( SETTINGS.Remember( kept, 'consensus.a:1.tabs', { Tabs: [ { Key: 'p:x' } ], Active: 'p:x' } ), false );
+	ASSERT.equal( SETTINGS.Remember( kept, 'consensus.threads-hidden', null ), true );
+	ASSERT.equal( SETTINGS.Remember( kept, 'consensus.threads-hidden', null ), false );
+	ASSERT.equal( SETTINGS.Remember( kept, '', 1 ), false );
+	SETTINGS.Write( path, kept );
+	ASSERT.deepEqual( SETTINGS.Read( path ).Remembered, { 'consensus.a:1.project': 'default', 'consensus.a:1.tabs': { Tabs: [ { Key: 'p:x' } ], Active: 'p:x' } } );
+	ASSERT.deepEqual( SETTINGS.Fill( { Remembered: [ 1 ] } ).Remembered, {} );
+	ASSERT.deepEqual( SETTINGS.ServerNamed( settings, 'cube4' ), { Name: 'cube4', Url: 'http://cube4:3500', Theme: null } );
 	ASSERT.equal( SETTINGS.ServerNamed( settings, 'nope' ), null );
 } );
 
@@ -171,7 +205,7 @@ TEST( 'the local server starts over a data folder with the real Start, answers w
 	await ASSERT.rejects( local.Start( '' ), /a data folder is needed/ );
 
 	let folder = temporary_folder( 'desktop-local-' );
-	let settings = { Port: 0, Host: '127.0.0.1', States: [ 'Proposal', 'Done' ], Participants: [ { Name: 'user', Display: 'User', Role: 'owner' } ] };
+	let settings = { Port: 0, Host: '127.0.0.1', States: [ 'Draft', 'Done' ], Participants: [ { Name: 'user', Display: 'User', Role: 'owner' } ] };
 	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( settings ) );
 	let running = await local.Start( folder );
 	ASSERT.match( running.Url, /^http:\/\/127\.0\.0\.1:\d+$/ );
@@ -181,7 +215,7 @@ TEST( 'the local server starts over a data folder with the real Start, answers w
 	ASSERT.deepEqual( local.Running(), running );
 	let me = await ( await fetch( running.Url + '/api/me' ) ).json();
 	ASSERT.equal( me.Version, VERSION );
-	ASSERT.deepEqual( me.States, [ 'Proposal', 'Done' ] );
+	ASSERT.deepEqual( me.States, [ 'Draft', 'Done' ] );
 	ASSERT.equal( me.Me.Role, 'owner' );
 	// over the same folder: as it is
 	ASSERT.deepEqual( await local.Start( folder ), running );

@@ -200,7 +200,7 @@
 								<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 							</div>
 						</form>
-						<div class="clipboard" ng-show="Clipboard" id="clipboard">copied: {{ Clipboard.Name }} <span class="muted">(Ctrl+V or paste)</span> <button class="btn btn-link btn-sm" title="forget it" ng-click="ClearClipboard()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
+						<div class="clipboard" ng-show="Notice" ng-class="{ error: Notice.Error }" id="clipboard">{{ Notice.Text }} <button class="btn btn-link btn-sm" title="dismiss" ng-click="ClearNotice()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 						<div class="list-empty" ng-show="project.Items.length === 0">empty</div>
 						<div class="tree" ng-include="'tree-nodes.html'"></div>
 					</div>
@@ -218,7 +218,7 @@
 
 			<div class="sidebar-bottom">
 				<span class="me" ng-show="State.Me">you are {{ State.Me.Display }} ({{ State.Me.Role }})</span>
-				<span class="connection" ng-class="{ live: State.Live }" title="live updates">{{ State.Live ? 'live' : 'offline' }}</span>
+				<span class="connection" id="connection" ng-class="{ live: State.Live }" title="{{ ConnectionTitle() }}">{{ ServerLabel() }}</span>
 				<button class="btn btn-sm btn-outline-secondary settings-button" id="settings-button" ng-show="State.Me.Role === 'owner'" ng-click="OpenSettings()" title="the server's settings: consensus.json"><svg class="icon lead"><use href="#i-gear"></use></svg>Settings</button>
 				<div class="theme-controls">
 					<select class="form-select form-select-sm" ng-model="Theme" ng-change="SetTheme()" title="theme" id="theme-select" ng-options="palette.Id as palette.Label for palette in Palettes"></select>
@@ -247,6 +247,7 @@
 							<button class="tab-button close-tab" title="close" ng-click="Close(tab, $event)"><svg class="icon"><use href="#i-x"></use></svg></button>
 						</div>
 					</nav>
+					<button class="tree-toggle threads-toggle" id="threads-toggle" ng-show="HasThreads()" ng-class="{ off: State.ThreadsHidden }" ng-click="ToggleThreads()" title="{{ State.ThreadsHidden ? 'show' : 'hide' }} the threads"><svg class="icon"><use href="#i-sidebar"></use></svg></button>
 				</div>
 				<div class="detached-bar" ng-show="Tabs.Detached">
 					<span class="muted">In its own window</span>
@@ -264,7 +265,6 @@
 							<button class="btn btn-sm" id="view-edit" ng-class="State.View === 'edit' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('edit')"><svg class="icon lead"><use href="#i-pencil"></use></svg>Edit</button>
 							<button class="btn btn-sm" id="view-revisions" ng-class="State.View === 'revisions' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('revisions')"><svg class="icon lead"><use href="#i-clock"></use></svg>Revisions</button>
 						</div>
-						<button class="btn btn-sm" id="threads-toggle" ng-show="HasThreads()" ng-class="State.ThreadsHidden ? 'btn-outline-secondary' : 'btn-secondary'" ng-click="ToggleThreads()" title="{{ State.ThreadsHidden ? 'show' : 'hide' }} the threads"><svg class="icon lead"><use href="#i-threads"></use></svg>Threads</button>
 					</div>
 				</div>
 				<div class="header-row" ng-show="State.Open">
@@ -299,6 +299,7 @@
 					<button class="btn btn-sm btn-outline-secondary" ng-click="CancelReanchor()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 				</div>
 				<article class="markdown" id="read-view" ng-show="State.Open"></article>
+				<button class="comment-button btn btn-sm btn-outline-secondary" id="copy-button" ng-click="CopySelection()" title="copy the selected text as it reads"><svg class="icon lead"><use href="#i-copy"></use></svg>Copy</button>
 				<button class="comment-button btn btn-sm btn-primary" id="comment-button" ng-click="CommentOnSelection()"><svg class="icon lead"><use href="#i-comment"></use></svg>{{ State.Reanchoring ? 'Re-anchor here' : 'Comment' }}</button>
 				<button class="comment-button btn btn-sm btn-secondary" id="subplan-button" ng-click="SubplanFromSelection()" title="a new Subplan that starts with the selected text"><svg class="icon lead"><use href="#i-subplan"></use></svg>Start a new Subplan</button>
 			</section>
@@ -806,6 +807,7 @@
 	<script src="/vendor/angular.min.js"></script>
 	<script src="/vendor/marked.umd.js"></script>
 	<script src="/vendor/monaco/loader.js"></script>
+	<script src="/js/stored.js"></script>
 	<script src="/js/layout.js"></script>
 	<script src="/js/client.js"></script>
 	<script src="/js/render.js"></script>

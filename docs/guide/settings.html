@@ -46,7 +46,7 @@
 <h2 id="host-and-port">Host and port</h2>
 <p>The address the server listens on and its port. <code>127.0.0.1</code> listens on this machine only; <code>0.0.0.0</code> on every interface. Both take effect at the next start, and the popup says so.</p>
 <h2 id="states">States</h2>
-<p>The states a plan&#39;s state is picked from, one per line: Proposal, Plan, Working and Finished by default. A new plan starts in the first. A state still used by a plan cannot be removed.</p>
+<p>The states a plan&#39;s state is picked from, one per line: Draft, Plan, Working and Finished by default. A new plan starts in the first. A state still used by a plan cannot be removed. The first state was called Proposal before; a server whose list still names Proposal and not Draft renames it once at its next start, in the settings and in every plan in that state.</p>
 <h2 id="participants">Participants</h2>
 <p>Each participant has a name, a display name, a role and, for one that calls the API from outside, a token.</p>
 <ul>
@@ -61,7 +61,7 @@
 <pre><code>{
 	&quot;Port&quot;: 3500,
 	&quot;Host&quot;: &quot;127.0.0.1&quot;,
-	&quot;States&quot;: [ &quot;Proposal&quot;, &quot;Plan&quot;, &quot;Working&quot;, &quot;Finished&quot; ],
+	&quot;States&quot;: [ &quot;Draft&quot;, &quot;Plan&quot;, &quot;Working&quot;, &quot;Finished&quot; ],
 	&quot;Participants&quot;: [
 		{ &quot;Name&quot;: &quot;user&quot;, &quot;Display&quot;: &quot;User&quot;, &quot;Role&quot;: &quot;owner&quot; },
 		{ &quot;Name&quot;: &quot;llm&quot;, &quot;Display&quot;: &quot;LLM&quot;, &quot;Role&quot;: &quot;llm&quot; }

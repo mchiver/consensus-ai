@@ -1,9 +1,9 @@
 'use strict';
 
 // Read view - the rendered markdown with each anchored passage highlighted (every thread's, or only the open ones'
-// and the selected one's, as the Highlight picker says); a selection offers Comment and, on a
-// plan, Start a new Subplan (or Re-anchor here, while a thread is being re-anchored); clicking a highlight opens
-// its thread.
+// and the selected one's, as the Highlight picker says); a selection offers Copy (the text as it reads), Comment
+// and, on a plan, Start a new Subplan (or Re-anchor here, while a thread is being re-anchored); clicking a highlight
+// opens its thread.
 
 angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeout', 'State', 'Render', 'Client', 'Subplans', function ( $scope, $timeout, State, Render, Client, Subplans )
 {
@@ -11,6 +11,7 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 	let view = document.getElementById( 'read-view' );
 	let button = document.getElementById( 'comment-button' );
 	let subplan_button = document.getElementById( 'subplan-button' );
+	let copy_button = document.getElementById( 'copy-button' );
 	let section = view.parentNode;
 	let pending_anchor = null;
 
@@ -44,37 +45,91 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 	{
 		button.classList.remove( 'shown' );
 		subplan_button.classList.remove( 'shown' );
+		copy_button.classList.remove( 'shown' );
 		pending_anchor = null;
 	}
 
 
+	// The selection, when it is some of the view's text; else null.
+	function view_selection()
+	{
+		let selection = window.getSelection();
+		if ( !State.Open || !selection || selection.isCollapsed || selection.rangeCount === 0 )
+		{
+			return null;
+		}
+		let range = selection.getRangeAt( 0 );
+		if ( !view.contains( range.commonAncestorContainer ) )
+		{
+			return null;
+		}
+		return selection;
+	}
+
+
+	// The buttons under a selection: Copy always; Comment (or Re-anchor here) when the selection anchors, on a plan;
+	// Start a new Subplan on a plan that is not being re-anchored.
 	function offer_comment()
 	{
-		let is_document = !!State.Open && State.Open.Proposal.Kind === 'document';
-		let anchor = is_document ? null : Render.SelectionAnchor( view );
-		if ( !anchor )
+		let selection = view_selection();
+		if ( !selection )
 		{
 			hide_button();
 			return;
 		}
-		let range = window.getSelection().getRangeAt( 0 );
-		let rect = range.getBoundingClientRect();
+		let is_document = State.Open.Proposal.Kind === 'document';
+		let anchor = is_document ? null : Render.SelectionAnchor( view );
+		let rect = selection.getRangeAt( 0 ).getBoundingClientRect();
 		let section_rect = section.getBoundingClientRect();
 		let top = rect.bottom - section_rect.top + section.scrollTop + 6;
 		let left = rect.left - section_rect.left + section.scrollLeft;
-		left = Math.max( 8, Math.min( left, section.clientWidth - button.offsetWidth - 16 ) );
-		button.style.top = top + 'px';
-		button.style.left = left + 'px';
-		button.classList.add( 'shown' );
+		left = Math.max( 8, Math.min( left, section.clientWidth - copy_button.offsetWidth - 16 ) );
+		let shown = [ copy_button ];
 		pending_anchor = anchor;
-		let is_plan = ( State.Open.Proposal.Kind || 'plan' ) === 'plan';
-		if ( is_plan && !State.Reanchoring )
+		if ( anchor )
 		{
-			subplan_button.style.top = top + 'px';
-			subplan_button.style.left = ( left + button.offsetWidth + 6 ) + 'px';
-			subplan_button.classList.add( 'shown' );
+			shown.push( button );
+			let is_plan = ( State.Open.Proposal.Kind || 'plan' ) === 'plan';
+			if ( is_plan && !State.Reanchoring )
+			{
+				shown.push( subplan_button );
+			}
+		}
+		else
+		{
+			button.classList.remove( 'shown' );
+			subplan_button.classList.remove( 'shown' );
+		}
+		for ( let one of shown )
+		{
+			one.style.top = top + 'px';
+			one.style.left = left + 'px';
+			one.classList.add( 'shown' );
+			left += one.offsetWidth + 6;
 		}
 	}
+
+
+	// Copy: the selected text as it reads, to the clipboard; the selection is cleared, as after Comment.
+	$scope.CopySelection = async function ()
+	{
+		let selection = view_selection();
+		if ( !selection )
+		{
+			return;
+		}
+		let text = selection.toString();
+		try
+		{
+			await navigator.clipboard.writeText( text );
+		}
+		catch ( error )
+		{
+			document.execCommand( 'copy' );
+		}
+		window.getSelection().removeAllRanges();
+		hide_button();
+	};
 
 
 	$scope.SubplanFromSelection = function ()
@@ -192,6 +247,10 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 		else if ( pending.Scroll )
 		{
 			Render.ScrollToText( view, pending.Scroll );
+		}
+		else if ( pending.Compose )
+		{
+			State.StartCompose( null );
 		}
 	}
 
