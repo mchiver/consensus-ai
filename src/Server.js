@@ -1,6 +1,6 @@
 'use strict';
 
-// Server - Start( { Config, Port, Scope } ) returns { App, Address, Url, Settings, Store, Events, Close }.
+// Server - Start( { Config, Port, Scope, Project } ) returns { App, Address, Url, Settings, Store, Events, Close, ... }.
 // The config folder (plan Run Shapes, Step 1) is <user>/.consensus unless given (Data is the older name of the same
 // option); its consensus.json holds the settings, whose Projects list the project folders (Step 2: Store.js). The server
 // listens as the Scope says (the option, else the settings', else Local): Local on 127.0.0.1, Public on 0.0.0.0, and
@@ -8,7 +8,9 @@
 // the desktop. The settings are read once at start and changed in place by the settings routes (Api.js); Scope and
 // Port take effect at the next start. Step 3: the server runs the LLMs: the settings' Llms (Llms.js) are filled and
 // checked, the desktop's workspaces from before are moved into the projects, and the runs (Runs.js, their records in
-// <config>/runs/) and the Runner are attached to the API; a run's changes go out over the events.
+// <config>/runs/) and the Runner are attached to the API; a run's changes go out over the events. Step 4: Project
+// (a folder on the command line) loads that project alone, Scope None taken as Local for it; the configured port in
+// use (another instance) gives way to a free one, PortTaken saying which was taken.
 
 const PATH = require( 'path' );
 const OS = require( 'os' );
@@ -58,10 +60,11 @@ async function Start( Options )
 	{
 		throw new Error( 'settings ' + store.SettingsPath() + ': ' + problems.join( '; ' ) );
 	}
-	for ( let line of await store.Prepare( settings ) )
+	for ( let line of await store.Prepare( settings, { Project: options.Project } ) )
 	{
 		console.log( 'prepared ' + line );
 	}
+	let project = store.Isolated() ? await store.ReadProject( store.Isolated() ) : null;
 	for ( let line of await migrate_workspaces( store, settings ) )
 	{
 		console.log( line );
@@ -73,6 +76,12 @@ async function Start( Options )
 	}
 	let port = ( options.Port !== undefined ) ? options.Port : ( settings.Port || DEFAULT_PORT );
 	let scope = PARTICIPANTS.SCOPES.includes( options.Scope ) ? options.Scope : PARTICIPANTS.Scope( settings );
+	let scope_forced = false;
+	if ( project && scope === 'None' )
+	{
+		scope = 'Local';
+		scope_forced = true;
+	}
 	let host = PARTICIPANTS.HostOf( scope );
 
 	let app = EXPRESS();
@@ -94,7 +103,26 @@ async function Start( Options )
 		app.use( EXPRESS.static( PUBLIC_FOLDER ) );
 	}
 
-	let server = host ? await listen( app, host, port ) : null;
+	let server = null;
+	let port_taken = null;
+	if ( host )
+	{
+		try
+		{
+			server = await listen( app, host, port );
+		}
+		catch ( error )
+		{
+			// The configured port in use (another instance, plan Run Shapes, Step 4): a free one is taken instead; a port
+			// asked for on the command line is not given up.
+			if ( error.code !== 'EADDRINUSE' || options.Port !== undefined )
+			{
+				throw error;
+			}
+			port_taken = port;
+			server = await listen( app, host, 0 );
+		}
+	}
 	let address = server ? server.address() : null;
 	url = server ? 'http://' + url_host( host ) + ':' + address.port : null;
 
@@ -115,6 +143,9 @@ async function Start( Options )
 		Scope: scope,
 		Address: server ? { Host: host, Port: address.port, Local: ( scope === 'Local' ) } : null,
 		Url: url,
+		Project: project,
+		PortTaken: port_taken,
+		ScopeForced: scope_forced,
 		Settings: settings,
 		SettingsWritten: settings_written,
 		Store: store,

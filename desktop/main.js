@@ -8,7 +8,10 @@
 // consensus.json, where desktop.json is moved in once. With --headless there is no window. A second server at the
 // same time is a second instance (New window). Plan Run Shapes, Step 3: the LLM connections, the workspaces and
 // the runs the desktop kept (Consensus Desktop, Steps 3 and 4) are the server's: the page gets them from the API;
-// desktop.json's connections and workspaces are moved in once (Settings.js, then the server's migration).
+// desktop.json's connections and workspaces are moved in once (Settings.js, then the server's migration). Plan Run
+// Shapes, Step 4: a project folder on the command line (`consensus <path>`) opens the app on this machine's server
+// with that project alone, whatever was open last; Open folder in new window starts another instance that way; the
+// configured port in use leaves the server a free one (Server.js).
 //
 //   npm run desktop          (electron desktop, from the checkout)
 
@@ -33,6 +36,7 @@ let window = null;
 let current = null;		// { Kind: 'server' | 'local', Name, Url, Version } while connected
 let reason = null;		// why the last connection failed, for the connect screen
 let closing = false;
+let isolated = false;	// a project on the command line: this machine's server, that project alone, Last untouched
 
 
 //---------------------------------------------------------------------
@@ -155,8 +159,11 @@ async function connect( where )
 	current = { Kind: target.Kind, Name: target.Name, Url: tried.Url, Version: tried.Version };
 	page.SetTarget( current.Url );
 	reason = null;
-	settings.Last = ( target.Kind === 'local' ) ? { Kind: 'local' } : { Kind: 'server', Name: target.Name };
-	save_settings();
+	if ( !isolated )
+	{
+		settings.Last = ( target.Kind === 'local' ) ? { Kind: 'local' } : { Kind: 'server', Name: target.Name };
+		save_settings();
+	}
 	apply_native_theme();
 	show_page();
 	return { Ok: true, Version: tried.Version };
@@ -272,6 +279,7 @@ function build_menu()
 				{ label: 'Reload', accelerator: 'CmdOrCtrl+R', click: function () { if ( window ) { window.webContents.reload(); } } },
 				{ type: 'separator' },
 				{ label: 'New window', accelerator: 'CmdOrCtrl+N', click: function () { new_window(); } },
+				{ label: 'Open folder in new window…', accelerator: 'CmdOrCtrl+Shift+O', click: function () { open_folder_window(); } },
 				{ type: 'separator' },
 				{ role: 'quit' },
 			],
@@ -301,7 +309,7 @@ function local_running()
 	{
 		return null;
 	}
-	return { Url: running.Url, Port: running.Address.Port, Scope: running.Scope, Config: store.Folder };
+	return { Url: running.Url, Port: running.Address.Port, Scope: running.Scope, Config: store.Folder, Project: running.Project ? { Name: running.Project.Name, Path: running.Project.Path } : null };
 }
 
 
@@ -333,11 +341,40 @@ function own_arguments( argv )
 }
 
 
-// Another instance of the app, with the same desktop.json, on its own connect screen.
-function new_window()
+// Another instance of the app, over the same config, on its own connect screen; with Arguments, as the command line
+// would start it (a project folder: that project alone).
+function new_window( Arguments )
 {
-	let child = CHILD_PROCESS.spawn( process.execPath, [ ELECTRON.app.getAppPath() ], { detached: true, stdio: 'ignore' } );
+	let child = CHILD_PROCESS.spawn( process.execPath, [ ELECTRON.app.getAppPath() ].concat( Arguments || [] ), { detached: true, stdio: 'ignore' } );
 	child.unref();
+}
+
+
+// Open folder in new window: a folder picked, opened in another instance on that project alone (`consensus <path>`).
+async function open_folder_window()
+{
+	let picked = await pick_folder( window, null );
+	if ( picked )
+	{
+		new_window( [ picked ] );
+	}
+}
+
+
+// The folder dialog, for the page's + Project and the menu. Returns the folder with forward slashes, or null.
+async function pick_folder( owner, current_folder )
+{
+	let options = { properties: [ 'openDirectory', 'createDirectory' ] };
+	if ( current_folder )
+	{
+		options.defaultPath = current_folder;
+	}
+	let picked = await ELECTRON.dialog.showOpenDialog( owner || window, options );
+	if ( picked.canceled || !picked.filePaths.length )
+	{
+		return null;
+	}
+	return picked.filePaths[ 0 ].replace( /\\/g, '/' );
 }
 
 
@@ -409,19 +446,9 @@ function attach_handlers()
 		return { Running: local_running() };
 	} );
 
-	ELECTRON.ipcMain.handle( 'folder', async function ( event, current_folder )
+	ELECTRON.ipcMain.handle( 'folder', function ( event, current_folder )
 	{
-		let options = { properties: [ 'openDirectory', 'createDirectory' ] };
-		if ( current_folder )
-		{
-			options.defaultPath = current_folder;
-		}
-		let picked = await ELECTRON.dialog.showOpenDialog( ELECTRON.BrowserWindow.fromWebContents( event.sender ) || window, options );
-		if ( picked.canceled || !picked.filePaths.length )
-		{
-			return null;
-		}
-		return picked.filePaths[ 0 ].replace( /\\/g, '/' );
+		return pick_folder( ELECTRON.BrowserWindow.fromWebContents( event.sender ), current_folder );
 	} );
 
 	ELECTRON.ipcMain.handle( 'new-window', function ()
@@ -454,6 +481,7 @@ async function main()
 		ELECTRON.app.exit( 0 );
 		return;
 	}
+	isolated = !!options.Project;
 	await ELECTRON.app.whenReady();
 	let user_data = ELECTRON.app.getPath( 'userData' );
 	running = await start_server( options );
@@ -497,10 +525,10 @@ async function main()
 		}
 		page.Close().catch( function () {} ).then( function () { return running.Close(); } ).catch( function () {} ).then( function () { ELECTRON.app.quit(); } );
 	} );
-	// What was open last: a saved server, else this machine's server when it runs; on failure, the connect screen
-	// says why.
+	// What was open last: a saved server, else this machine's server when it runs; a project on the command line is on
+	// this machine's server whatever was last; on failure, the connect screen says why.
 	let opened = false;
-	if ( settings.Last && settings.Last.Kind === 'server' )
+	if ( !isolated && settings.Last && settings.Last.Kind === 'server' )
 	{
 		opened = ( await connect( { Kind: 'server', Name: settings.Last.Name } ) ).Ok;
 	}

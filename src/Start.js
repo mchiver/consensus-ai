@@ -3,22 +3,24 @@
 // Start - the one start module both entry points share (plan Run Shapes, Step 1): the command line parsed, the
 // server started from the config folder, and the lines that say what was started. bin/consensus.js is the headless
 // form, for a plain node install and the Docker image; the desktop (desktop/main.js) runs the same and then opens
-// its window, unless --headless.
+// its window, unless --headless. Step 4: a project folder on the command line (`consensus <path>`, or --project)
+// opens an instance on that project alone, its .consensus made when missing; the lines name the projects loaded.
 //
-//   Parse( argv ) -> { Config?, Port?, Scope?, Headless, Help }   throws on an argument it does not know
+//   Parse( argv ) -> { Config?, Port?, Scope?, Project?, Headless, Help }   throws on an argument it does not know
 //   Run( options, log ) -> running (src/Server.js's), after log( line ) for each line about it
+//   Lines( running ) -> the lines a start prints
 //   USAGE: the usage line
 
 const SERVER = require( './Server.js' );
 const PARTICIPANTS = require( './Participants.js' );
 
-const USAGE = 'usage: consensus [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]';
+const USAGE = 'usage: consensus [<path> | --project <folder>] [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]';
 const SCOPE_NAMES = { none: 'None', local: 'Local', public: 'Public' };
 
 
 //---------------------------------------------------------------------
 // Parse: the arguments after the program's. --data is --config's older name, kept for one release; --host is gone,
-// Scope took its place, and the message says so. --project and a bare path are Step 4's.
+// Scope took its place, and the message says so. A bare path is --project's folder; one at a time.
 
 function Parse( argv )
 {
@@ -65,7 +67,16 @@ function Parse( argv )
 		}
 		else if ( argument === '--project' || !argument.startsWith( '-' ) )
 		{
-			throw new Error( 'a project folder on the command line is not supported yet' );
+			let project = ( argument === '--project' ) ? value_after( argv, index, argument ) : argument;
+			if ( options.Project !== undefined )
+			{
+				throw new Error( 'one project folder at a time: "' + options.Project + '" and "' + project + '"' );
+			}
+			options.Project = project;
+			if ( argument === '--project' )
+			{
+				index++;
+			}
 		}
 		else
 		{
@@ -93,8 +104,8 @@ function value_after( argv, index, argument )
 async function Run( Options, Log )
 {
 	let log = Log || function () {};
-	let running = await SERVER.Start( { Config: Options.Config, Port: Options.Port, Scope: Options.Scope } );
-	for ( let line of Lines( running ) )
+	let running = await SERVER.Start( { Config: Options.Config, Port: Options.Port, Scope: Options.Scope, Project: Options.Project } );
+	for ( let line of await Lines( running ) )
 	{
 		log( line );
 	}
@@ -102,13 +113,23 @@ async function Run( Options, Log )
 }
 
 
-// Lines: what a start prints: the address and the scope, a warning for Public, the config folder and the settings.
-function Lines( Running )
+// Lines: what a start prints: the address and the scope (the port taken instead of one in use, Scope None taken as
+// Local for a project on the command line), a warning for Public, the config folder, the settings, and the projects
+// loaded, each with its folder (the one project of an isolated instance says so).
+async function Lines( Running )
 {
 	let lines = [];
 	if ( Running.Server )
 	{
 		lines.push( 'Consensus at ' + Running.Url + '/ (Scope ' + Running.Scope + ', listening on ' + Running.Address.Host + ')' );
+		if ( Running.PortTaken !== null && Running.PortTaken !== undefined )
+		{
+			lines.push( 'port ' + Running.PortTaken + ' is in use: listening on ' + Running.Address.Port + ' instead' );
+		}
+		if ( Running.ScopeForced )
+		{
+			lines.push( 'Scope None taken as Local: a project on the command line needs this machine\'s server' );
+		}
 		if ( Running.Scope === 'Public' )
 		{
 			lines.push( 'warning: listening beyond this machine; anyone who can reach it acts as the owner, and reads the llm token at /instructions' );
@@ -120,6 +141,15 @@ function Lines( Running )
 	}
 	lines.push( 'config folder ' + Running.Store.Folder );
 	lines.push( ( Running.SettingsWritten ? 'settings written to ' : 'settings from ' ) + Running.Store.SettingsPath() );
+	if ( Running.Project )
+	{
+		lines.push( 'project ' + Running.Project.Name + ' at ' + Running.Project.Path + ' (this project only)' );
+		return lines;
+	}
+	for ( let project of await Running.Store.ListProjects() )
+	{
+		lines.push( 'project ' + project.Name + ' at ' + project.Path );
+	}
 	return lines;
 }
 

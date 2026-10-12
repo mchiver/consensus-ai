@@ -23,7 +23,9 @@
 // trash/, all in the config folder) into a folder per project under <config>/projects/<name>/, and a data folder from
 // before plan Consensus Desktop, Step 1, on the way (each project's context proposal becomes its Readme in a Context
 // folder, corpora go to the trash, the LLM's files are removed). A project folder the settings list and the disk lacks
-// is skipped, with a line, and kept in the list (Missing).
+// is skipped, with a line, and kept in the list (Missing). Prepare with { Project: path } (plan Run Shapes, Step 4:
+// `consensus <path>`) registers that folder's project alone, making its .consensus when missing, and puts it first in
+// the list (Isolated gives its id).
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -66,6 +68,7 @@ function Open( Folder )
 	let roots = {};		// project id -> { Id, Path, Home }
 	let homes = {};		// proposal id -> { Project, Archived }
 	let missing = [];	// [ { Path, Error } ]
+	let isolated = null;	// the project id when Prepare was given one project (Step 4), else null
 	let settings = null;
 
 
@@ -321,6 +324,12 @@ function Open( Folder )
 	function Missing()
 	{
 		return missing.slice();
+	}
+
+
+	function Isolated()
+	{
+		return isolated;
 	}
 
 
@@ -1005,17 +1014,23 @@ function Open( Folder )
 	//-----------------------------------------------------------------
 	// Prepare: run at start with the settings. A config folder from before Step 2 is migrated into project folders
 	// (below); the settings' Projects are registered (a missing folder is skipped, with a line, and kept in the list);
-	// a config with no project at all gets a Default one. Returns a line for each thing it did; the settings are
-	// written when the list changed.
+	// a config with no project at all gets a Default one. With Options.Project (Step 4) that folder's project is the
+	// only one registered. Returns a line for each thing it did; the settings are written when the list changed.
 
-	async function Prepare( Settings )
+	async function Prepare( Settings, Options )
 	{
 		settings = Settings || {};
+		let options = Options || {};
 		let lines = [];
 		let before = JSON.stringify( projects_list() );
 		lines = lines.concat( await migrate_old_layout() );
 		missing = [];
-		for ( let entry of projects_list() )
+		isolated = null;
+		if ( options.Project )
+		{
+			lines = lines.concat( await prepare_one( options.Project ) );
+		}
+		for ( let entry of ( options.Project ? [] : projects_list() ) )
 		{
 			let path = PATH.resolve( String( entry.Path || '' ) );
 			if ( root_at( path ) )
@@ -1040,7 +1055,7 @@ function Open( Folder )
 			}
 		}
 		// A project folder under <config>/projects/ that the list does not name (a list rewritten by hand) joins it.
-		for ( let name of await folder_names( PATH.join( folder, PROJECTS_FOLDER ) ) )
+		for ( let name of ( options.Project ? [] : await folder_names( PATH.join( folder, PROJECTS_FOLDER ) ) ) )
 		{
 			let path = PATH.join( folder, PROJECTS_FOLDER, name );
 			if ( !root_at( path ) && FS.existsSync( PATH.join( home_path( path ), PROJECT_FILE ) ) )
@@ -1062,6 +1077,36 @@ function Open( Folder )
 		{
 			await write_projects_list();
 		}
+		return lines;
+	}
+
+
+	// One project only (plan Run Shapes, Step 4: `consensus <path>`): the folder's project is registered and no other, a
+	// folder without a .consensus gets one, named after the folder, and the folder goes to the front of the settings' list
+	// (the most recent first; the list keeps every other folder as it was). A folder that is not there is refused.
+	async function prepare_one( Path )
+	{
+		let path = PATH.resolve( String( Path ) );
+		let stat = FS.existsSync( path ) ? FS.statSync( path ) : null;
+		if ( !stat || !stat.isDirectory() )
+		{
+			throw new Error( 'no such folder: ' + path );
+		}
+		let lines = [];
+		let project = await register( path );
+		if ( !project )
+		{
+			if ( FS.existsSync( PATH.join( home_path( path ), PROJECT_FILE ) ) )
+			{
+				throw new Error( 'the project at ' + path + ' could not be read: ' + PATH.join( HOME_FOLDER, PROJECT_FILE ) + ' has no Id' );
+			}
+			project = await CreateProject( { Name: PATH.basename( path ) || 'project', Path: path } );
+			lines.push( 'project ' + project.Name + ' created at ' + path );
+		}
+		let list = projects_list().filter( function ( entry ) { return PATH.resolve( String( entry.Path || '' ) ) !== path; } );
+		list.unshift( { Path: path } );
+		settings.Projects = list;
+		isolated = project.Id;
 		return lines;
 	}
 
@@ -1326,6 +1371,7 @@ function Open( Folder )
 		ProjectOf: ProjectOf,
 		Roots: Roots,
 		Missing: Missing,
+		Isolated: Isolated,
 		TrashProposal: TrashProposal,
 		ListTrash: ListTrash,
 		Prepare: Prepare,

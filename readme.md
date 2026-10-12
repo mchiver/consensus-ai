@@ -15,15 +15,19 @@ window, with a server of its own inside.
 ## Starting it
 
 	npm install
-	node bin/consensus.js [--config <folder>] [--port 3500] [--scope none|local|public] [--headless]
+	node bin/consensus.js [<path> | --project <folder>] [--config <folder>] [--port 3500] [--scope none|local|public] [--headless]
 
 One program, two entry points over one start module (`src/Start.js`, plan Run Shapes, Step 1): this one, headless,
 for a plain node install and the Docker image, and the desktop (below), which opens a window as well. Both read
 the global config, `consensus.json` in the config folder: `.consensus` in the user's folder by default, or the
 `--config` folder (`--data` is its older name, kept for one release); the projects live there too until Step 2.
 The server listens as the settings' `Scope` says: `Local` on 127.0.0.1, `Public` on 0.0.0.0, `None` not at all;
-`--scope` overrides it for one start, and `--port` the port. It prints its address and scope, the config folder
-and the settings file. Open `http://127.0.0.1:3500/` in a browser.
+`--scope` overrides it for one start, and `--port` the port (the configured port in use gives way to a free one,
+plan Run Shapes, Step 4; a port given on the command line does not). A path, or `--project <folder>`, serves
+that project alone, the way an editor opens a folder (Step 4): its `.consensus` is made when missing, named
+after the folder, the folder goes first in the settings' `Projects`, and Scope None is taken as Local for it.
+It prints its address and scope, the config folder, the settings file and the projects loaded. Open
+`http://127.0.0.1:3500/` in a browser.
 
 Security is relaxed for now: a request without a token is the owner, so anyone who can reach a server
 listening beyond this machine acts as the owner, and reads the llm token at `/instructions`.
@@ -236,16 +240,19 @@ checkout:
 	npm run desktop
 
 Since plan Run Shapes (Step 1) the app is the second entry point over `src/Start.js`: it takes the command
-line's `--config`, `--port`, `--scope` and `--headless` (from the checkout, `npm run desktop -- --config …`),
-starts **this machine's server** from the global config as its Scope says (none with Scope None; a port in use
-leaves the app a client only, with the reason on the connect screen), and opens on it, or on the saved server
-that was open last. With `--headless` there is no window: the server runs and prints what the command line
+line's path, `--config`, `--port`, `--scope` and `--headless` (from the checkout, `npm run desktop -- --config …`),
+starts **this machine's server** from the global config as its Scope says (none with Scope None; the configured
+port in use gives way to a free one; a port asked for that is in use leaves the app a client only, with the
+reason on the connect screen), and opens on it, or on the saved server that was open last; with a project
+folder on the command line (Step 4) it opens on this machine's server with that project alone, whatever was
+last, and leaves Last as it was. With `--headless` there is no window: the server runs and prints what the command line
 prints. The **connect screen** has the saved servers (Connect, Edit, Remove), **Add server** (a Name and a Url,
 tried before it is saved; the screen says which Consensus version answers and warns when it differs from the
 app's), and **This machine**: the app's own server, with its address, scope and config folder, and Connect.
 Once connected, the window shows the Consensus page, pointed at the server's API; the
-**Server** menu has Connect to another, Reload, and **New window**, which starts another instance of the app
-(over the same config; its server takes the port only if it is free). A tab's Detach opens a window of the app.
+**Server** menu has Connect to another, Reload, **New window**, which starts another instance of the app (over
+the same config, on a free port when the configured one is taken), and **Open folder in new window**, which
+starts one on a folder alone, as `consensus <path>` does. A tab's Detach opens a window of the app.
 
 The page the window shows is the server's `public/`, the one page since plan Run Shapes, Step 3 (the desktop's
 own copy, `desktop/page/`, developed on while `public/` was frozen, became `public/` again; `desktop/page/`

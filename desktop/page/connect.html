@@ -67,7 +67,7 @@
 		<section class="block">
 			<div class="block-head">
 				<h2>This machine</h2>
-				<span class="muted small" id="local-status">{{ Local ? 'Consensus at ' + Local.Url + ' (Scope ' + Local.Scope + ') over ' + Local.Config : 'no server on this machine: its Scope is None, or it could not start' }}</span>
+				<span class="muted small" id="local-status">{{ Local ? 'Consensus at ' + Local.Url + ' (Scope ' + Local.Scope + ') over ' + Local.Config + ( Local.Project ? ', on the project ' + Local.Project.Name + ' alone (' + Local.Project.Path + ')' : '' ) : 'no server on this machine: its Scope is None, or it could not start' }}</span>
 			</div>
 			<div class="field-row">
 				<button class="btn btn-sm btn-primary" id="local-connect" ng-show="Local" ng-click="ConnectLocal()" ng-disabled="Busy">Connect</button>
@@ -79,7 +79,7 @@
 			</div>
 		</section>
 
-		<div class="muted small">Another server at the same time: <a href="" ng-click="NewWindow()">New window</a> starts another instance of the app.</div>
+		<div class="muted small">Another server at the same time: <a href="" ng-click="NewWindow()">New window</a> starts another instance of the app; the Server menu's Open folder in new window starts one on a project folder alone, as <code>consensus &lt;path&gt;</code> does.</div>
 	</main>
 
 	<script src="/vendor/angular.min.js"></script>

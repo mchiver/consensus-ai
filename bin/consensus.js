@@ -3,8 +3,9 @@
 
 // consensus - the headless entry point (plan Run Shapes, Step 1): starts the server from the command line, with no
 // window. The desktop's executable is the other entry point; both go through src/Start.js.
-//   node bin/consensus.js [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]
-// --headless is accepted here and does nothing: this form never has a window.
+//   node bin/consensus.js [<path> | --project <folder>] [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]
+// --headless is accepted here and does nothing: this form never has a window. A path (plan Run Shapes, Step 4) serves
+// that project alone, its .consensus made when missing.
 
 const START = require( '../src/Start.js' );
 

@@ -50,14 +50,15 @@ cd consensus-ai
 npm install
 node bin/consensus.js
 </code></pre>
-<p>The server prints its address and scope, its config folder and its settings file:</p>
+<p>The server prints its address and scope, its config folder, its settings file and the projects it loaded:</p>
 <pre><code>Consensus at http://127.0.0.1:3500/ (Scope Local, listening on 127.0.0.1)
 config folder C:\Users\you\.consensus
 settings written to C:\Users\you\.consensus\consensus.json
+project Default at C:\Users\you\.consensus\projects\Default
 </code></pre>
 <p>Open <code>http://127.0.0.1:3500/</code> in a browser. You are the owner, and you see the <strong>Default</strong> project with its Context folder and an empty Readme.</p>
 <figure class="shot"><img class="light-only" src="../images/first-start.png" alt="The page at first start: the Default project and its Readme."><img class="dark-only" src="../images/first-start-dark.png" alt="The page at first start: the Default project and its Readme."><figcaption>The page at first start: the Default project and its Readme.</figcaption></figure>
-<p>The config folder holds the settings, and the projects that were made with no folder of their own; a project is a folder with a <code>.consensus</code> in it (the page <a href="settings.html">Settings</a> has the layout). Four options change where and how it runs:</p>
+<p>The config folder holds the settings, and the projects that were made with no folder of their own; a project is a folder with a <code>.consensus</code> in it (the page <a href="settings.html">Settings</a> has the layout). A path and four options change where and how it runs:</p>
 <table>
 <thead>
 <tr>
@@ -66,16 +67,20 @@ settings written to C:\Users\you\.consensus\consensus.json
 </tr>
 </thead>
 <tbody><tr>
+<td><code>&lt;path&gt;</code>, or <code>--project &lt;folder&gt;</code></td>
+<td>one project alone, the way an editor opens a folder: the folder&#39;s project is served and no other, its <code>.consensus</code> made when it has none (named after the folder, with an empty Readme), and the folder goes to the top of the settings&#39; project list, so a plain start shows it next time; <code>consensus .</code> is the folder you are in</td>
+</tr>
+<tr>
 <td><code>--config &lt;folder&gt;</code></td>
 <td>the config folder; <code>.consensus</code> in your user folder by default (<code>--data</code> is its older name)</td>
 </tr>
 <tr>
 <td><code>--port &lt;port&gt;</code></td>
-<td>the port; the settings&#39; Port, 3500 by default</td>
+<td>the port; the settings&#39; Port, 3500 by default. When that port is in use (another instance), a free one is taken and printed, so two folders can be open at once; a port given here is not given up</td>
 </tr>
 <tr>
 <td><code>--scope none</code>, <code>local</code> or <code>public</code></td>
-<td>for this start, in place of the settings&#39; Scope: <code>local</code> listens on this machine only, <code>public</code> on every interface, <code>none</code> starts no server</td>
+<td>for this start, in place of the settings&#39; Scope: <code>local</code> listens on this machine only, <code>public</code> on every interface, <code>none</code> starts no server (taken as <code>local</code> when a path is given: that project needs its server)</td>
 </tr>
 <tr>
 <td><code>--headless</code></td>
@@ -90,17 +95,18 @@ docker compose up -d
 </code></pre>
 <p>The image runs the server with <code>--config /data --scope public --port 3500 --headless</code>: it listens on port 3500 and keeps its config and data in the <code>consensus-data</code> volume. <code>docker compose down</code> stops it; the volume stays. The <code>compose.yaml</code> as shipped publishes the port on every IPv4 address of the host, because it is written for a server on a private network; edit it for your own.</p>
 <h2 id="the-desktop">The desktop</h2>
-<p>Consensus Desktop is the same page in a window of its own, with a Consensus server of its own inside. It is the other entry point of the one program: it takes the same <code>--config</code>, <code>--port</code>, <code>--scope</code> and <code>--headless</code>, starts the server from the config folder as its Scope says, and keeps its own settings (the saved servers, the themes, the remembered view) in that same settings file. From the checkout:</p>
+<p>Consensus Desktop is the same page in a window of its own, with a Consensus server of its own inside. It is the other entry point of the one program: it takes the same path, <code>--config</code>, <code>--port</code>, <code>--scope</code> and <code>--headless</code>, starts the server from the config folder as its Scope says, and keeps its own settings (the saved servers, the themes, the remembered view) in that same settings file. From the checkout:</p>
 <pre><code>npm run desktop
+npm run desktop -- W:\projects\tic-tac-toe
 npm run desktop -- --config W:\consensus --headless
 </code></pre>
-<p>It opens on its own server, or, when a saved server was open last, on that one; the <strong>connect screen</strong> is where the rest is.</p>
+<p>It opens on its own server, or, when a saved server was open last, on that one; with a path it opens on its own server with that project alone, whatever was open last. The <strong>connect screen</strong> is where the rest is.</p>
 <figure class="shot"><img class="light-only" src="../images/desktop-connect.png" alt="The connect screen: saved servers, Add server, and this machine."><img class="dark-only" src="../images/desktop-connect-dark.png" alt="The connect screen: saved servers, Add server, and this machine."><figcaption>The connect screen: saved servers, Add server, and this machine.</figcaption></figure>
 <ul>
 <li><strong>Servers</strong> lists the servers you saved. <strong>Add server</strong> asks for a name and a URL, tries the address before saving it, and says which Consensus version answers.</li>
-<li><strong>This machine</strong> is the app&#39;s own server: it starts with the app, from the settings&#39; Scope and Port, and stops with it. Connect opens it. With Scope None there is none, and the app is a client of the saved servers only; a port already in use shows the reason here.</li>
+<li><strong>This machine</strong> is the app&#39;s own server: it starts with the app, from the settings&#39; Scope and Port, and stops with it. Connect opens it. With Scope None there is none, and the app is a client of the saved servers only; the configured port in use gives way to a free one, and a port asked for on the command line that is in use shows the reason here. With a path on the command line the line says which project the server is on alone.</li>
 </ul>
-<p>Once connected, the window shows the page, and the <strong>Server</strong> menu has Connect to another, Reload, and New window for a second instance. <code>--headless</code> runs the server with no window at all, printing what the command line prints. A desktop.json from before is moved into the settings file at the first start, its LLM connections becoming the server&#39;s and its workspaces going into their projects. The LLM connections are the server&#39;s, run by it; the page <a href="llm.html">Working with an LLM</a> covers them.</p>
+<p>Once connected, the window shows the page, and the <strong>Server</strong> menu has Connect to another, Reload, New window for a second instance, and Open folder in new window, which starts one on a folder alone, as <code>consensus &lt;path&gt;</code> does: that window shows the folder&#39;s project and nothing else. <code>--headless</code> runs the server with no window at all, printing what the command line prints. A desktop.json from before is moved into the settings file at the first start, its LLM connections becoming the server&#39;s and its workspaces going into their projects. The LLM connections are the server&#39;s, run by it; the page <a href="llm.html">Working with an LLM</a> covers them.</p>
 <h2 id="what-to-do-first">What to do first</h2>
 <ol>
 <li>Open the Readme in the Context folder and write a few lines about what the project is for. Every LLM that works on the project reads it.</li>
