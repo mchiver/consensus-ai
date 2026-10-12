@@ -39,7 +39,7 @@ An anchor's `Text` is matched against the text as it reads, without markdown mar
 ## The routes
 
 ```
-GET    /api/me                                   who this request is, the participants, the States
+GET    /api/me                                   who this request is, the participants, the States, the server's Name and Version
 GET    /api/settings                             owner; the settings as they are, and the file's path
 PUT    /api/settings                             owner; { Settings }  the whole file, checked
 GET    /api/projects                             every project with its tree; Context and ContextFolder

@@ -223,13 +223,15 @@ function Attach( App, Context )
 
 	router.get( '/me', function ( request, response )
 	{
-		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Participants: participants(), States: states(), Version: VERSION } );
+		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Participants: participants(), States: states(), Version: VERSION, Server: settings.Name || null } );
 	} );
 
 
 	//-----------------------------------------------------------------
-	// Settings: consensus.json, read and written whole by the owner (the settings modal). Everything applies at once
-	// but Host and Port, which take effect at the next start; the answer says when a restart is needed.
+	// Settings: consensus.json, read whole and written by the owner (the settings modal): the server's fields (Name,
+	// Port, Scope, States, Participants) replace what the file has, and any other field (the desktop's, plan Run Shapes)
+	// stays as it is. Everything applies at once but Scope and Port, which take effect at the next start; the answer
+	// says when a restart is needed.
 
 	router.get( '/settings', function ( request, response )
 	{
@@ -264,13 +266,15 @@ function Attach( App, Context )
 		{
 			return fail( response, 400, 'the settings have problems: ' + problems[ 0 ], { Problems: problems } );
 		}
-		let restart = ( clean.Host !== settings.Host ) || ( clean.Port !== settings.Port );
-		await store.WriteSettings( clean );
-		for ( let key of Object.keys( settings ) )
+		let before = { Scope: PARTICIPANTS.Scope( settings ), Port: settings.Port };
+		for ( let field of PARTICIPANTS.SETTINGS_FIELDS )
 		{
-			delete settings[ key ];
+			delete settings[ field ];
 		}
 		Object.assign( settings, clean );
+		PARTICIPANTS.Migrate( settings );
+		let restart = ( settings.Scope !== before.Scope ) || ( settings.Port !== before.Port );
+		await store.WriteSettings( settings );
 		events.Send( { Settings: true, Kind: 'settings' } );
 		response.json( { Settings: settings, Restart: restart } );
 	} );

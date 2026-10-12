@@ -1,6 +1,7 @@
 'use strict';
 
-// Identity by token and by its absence, and the settings' checks (Host, Port, States, Participants) and Clean.
+// Identity by token and by its absence, and the settings' checks (Name, Scope, Port, States, Participants), Migrate
+// and Clean.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -11,8 +12,10 @@ TEST( 'default settings hold the user as owner and the llm, with no token and no
 {
 	let settings = PARTICIPANTS.DefaultSettings( 3500 );
 	ASSERT.equal( settings.Port, 3500 );
-	ASSERT.equal( settings.Host, '127.0.0.1' );
-	ASSERT.equal( PARTICIPANTS.DefaultSettings( 3500, '0.0.0.0' ).Host, '0.0.0.0' );
+	ASSERT.equal( settings.Scope, 'Local' );
+	ASSERT.equal( settings.Name, require( 'os' ).hostname() );
+	ASSERT.equal( PARTICIPANTS.DefaultSettings( 3500, 'Public' ).Scope, 'Public' );
+	ASSERT.equal( PARTICIPANTS.DefaultSettings( 3500, '0.0.0.0' ).Scope, 'Local' );
 	ASSERT.equal( settings.Participants.length, 2 );
 	ASSERT.deepEqual( settings.Participants[ 0 ], { Name: 'user', Display: 'User', Role: 'owner' } );
 	ASSERT.deepEqual( settings.Participants[ 1 ], { Name: 'llm', Display: 'LLM', Role: 'llm' } );
@@ -48,7 +51,7 @@ TEST( 'the public view drops the token', function ()
 } );
 
 
-TEST( 'validation names the problems: participants, tokens, Host and Port', function ()
+TEST( 'validation names the problems: participants, tokens, Name, Scope and Port', function ()
 {
 	ASSERT.deepEqual( PARTICIPANTS.Validate( { Participants: [ { Name: 'a', Role: 'member' } ] } ), [ 'no participant has the owner role' ] );
 	let problems = PARTICIPANTS.Validate( { Participants: [ { Name: 'a', Role: 'owner' }, { Name: 'a', Role: 'king' }, { Role: 'llm' } ] } );
@@ -70,9 +73,11 @@ TEST( 'validation names the problems: participants, tokens, Host and Port', func
 	let settings = PARTICIPANTS.DefaultSettings( 3500 );
 	ASSERT.match( PARTICIPANTS.Validate( Object.assign( {}, settings, { Port: 70000 } ) )[ 0 ], /Port must be/ );
 	ASSERT.match( PARTICIPANTS.Validate( Object.assign( {}, settings, { Port: '3500' } ) )[ 0 ], /Port must be/ );
-	ASSERT.match( PARTICIPANTS.Validate( Object.assign( {}, settings, { Host: '' } ) )[ 0 ], /Host must be/ );
-	ASSERT.match( PARTICIPANTS.Validate( Object.assign( {}, settings, { Host: 'a b' } ) )[ 0 ], /Host must be/ );
-	ASSERT.deepEqual( PARTICIPANTS.Validate( Object.assign( {}, settings, { Host: '0.0.0.0', Port: 0 } ) ), [] );
+	ASSERT.match( PARTICIPANTS.Validate( Object.assign( {}, settings, { Scope: '' } ) )[ 0 ], /Scope must be one of None, Local, Public/ );
+	ASSERT.match( PARTICIPANTS.Validate( Object.assign( {}, settings, { Scope: 'local' } ) )[ 0 ], /Scope must be/ );
+	ASSERT.match( PARTICIPANTS.Validate( Object.assign( {}, settings, { Name: ' ' } ) )[ 0 ], /Name must be a name/ );
+	ASSERT.deepEqual( PARTICIPANTS.Validate( Object.assign( {}, settings, { Scope: 'Public', Port: 0 } ) ), [] );
+	ASSERT.deepEqual( PARTICIPANTS.Validate( { Participants: settings.Participants } ), [] );
 	ASSERT.deepEqual( PARTICIPANTS.Validate( { Participants: 'nobody' } ), [ 'Participants must be a list', 'no participant has the owner role' ] );
 	ASSERT.deepEqual( PARTICIPANTS.Validate( null ), [ 'the settings are not an object' ] );
 } );
@@ -98,11 +103,31 @@ TEST( 'States: the settings\' list, or the defaults; a bad list is named', funct
 } );
 
 
+TEST( 'a settings file from before: Host becomes Scope, a missing Scope is Local, a missing Name is the machine\'s', function ()
+{
+	let local = { Host: '127.0.0.1', Port: 3500, Participants: [ { Name: 'user', Role: 'owner' } ] };
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( local ), [ 'Host "127.0.0.1" became Scope Local', 'Name set to ' + require( 'os' ).hostname() ] );
+	ASSERT.deepEqual( [ local.Scope, 'Host' in local, local.Name ], [ 'Local', false, require( 'os' ).hostname() ] );
+	let everywhere = { Host: '0.0.0.0', Name: 'cube4' };
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( everywhere ), [ 'Host "0.0.0.0" became Scope Public' ] );
+	ASSERT.equal( everywhere.Scope, 'Public' );
+	ASSERT.equal( PARTICIPANTS.Migrate( { Host: 'localhost', Name: 'x' } )[ 0 ], 'Host "localhost" became Scope Local' );
+	let bare = { Name: 'x' };
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( bare ), [ 'Scope set to Local' ] );
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( bare ), [] );
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( { Name: 'x', Scope: 'Public' } ), [] );
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( { Name: 'x', Scope: 'public' } ), [ 'Scope set to Local' ] );
+	ASSERT.deepEqual( [ PARTICIPANTS.HostOf( 'None' ), PARTICIPANTS.HostOf( 'Local' ), PARTICIPANTS.HostOf( 'Public' ), PARTICIPANTS.HostOf( 'x' ) ], [ null, '127.0.0.1', '0.0.0.0', '127.0.0.1' ] );
+	ASSERT.deepEqual( [ PARTICIPANTS.Scope( {} ), PARTICIPANTS.Scope( { Scope: 'None' } ), PARTICIPANTS.Scope( null ) ], [ 'Local', 'None', 'Local' ] );
+} );
+
+
 TEST( 'Clean keeps the known fields only, trims, and drops empty tokens and displays', function ()
 {
 	let clean = PARTICIPANTS.Clean( {
 		Port: 3501,
-		Host: ' cube4 ',
+		Name: ' cube4 ',
+		Scope: ' Public ',
 		States: [ ' Draft ', 'Done' ],
 		Participants: [ { Name: ' user ', Display: '', Role: 'owner', Token: '  ', Call: { Kind: 'x' } }, { Name: 'llm', Display: 'LLM', Role: 'llm', Token: ' tok-0123456789abcdef ' } ],
 		Workers: [ { Name: 'gone' } ],
@@ -110,7 +135,8 @@ TEST( 'Clean keeps the known fields only, trims, and drops empty tokens and disp
 	} );
 	ASSERT.deepEqual( clean, {
 		Port: 3501,
-		Host: 'cube4',
+		Name: 'cube4',
+		Scope: 'Public',
 		States: [ 'Draft', 'Done' ],
 		Participants: [ { Name: 'user', Role: 'owner' }, { Name: 'llm', Display: 'LLM', Role: 'llm', Token: 'tok-0123456789abcdef' } ],
 	} );

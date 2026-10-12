@@ -2,11 +2,11 @@
 
 **Settings** at the bottom of the sidebar opens the server's settings in a popup, for the owner. Theme and size are beside it, for everyone.
 
-![The settings popup: host and port, the states, the participants.](../images/settings.png)
+![The settings popup: name, scope and port, the states, the participants.](../images/settings.png)
 
-## Host and port
+## Name, scope and port
 
-The address the server listens on and its port. `127.0.0.1` listens on this machine only; `0.0.0.0` on every interface. Both take effect at the next start, and the popup says so.
+The server's name, shown to its clients; its Scope, which says whether it listens and for whom: **Local** on this machine only, **Public** on every interface, **None** not at all (the desktop then is a client of other servers only); and its port. Scope and Port take effect at the next start, and the popup says so.
 
 ## States
 
@@ -22,16 +22,17 @@ Each participant has a name, a display name, a role and, for one that calls the 
 
 **New** makes a token, **Copy** copies it. There must be exactly one owner, and no name twice.
 
-Saving writes the whole file and applies it at once, Host and Port excepted. The server's own checks apply, and nothing is saved while there are problems; the popup lists them.
+Saving writes these fields and applies them at once, Scope and Port excepted. The server's own checks apply, and nothing is saved while there are problems; the popup lists them.
 
 ## The settings file
 
-The settings are `consensus.json` in the data folder, written at first start:
+The settings are `consensus.json` in the config folder, written at first start:
 
 ```
 {
+	"Name": "cube4",
 	"Port": 3500,
-	"Host": "127.0.0.1",
+	"Scope": "Local",
 	"States": [ "Draft", "Plan", "Working", "Finished" ],
 	"Participants": [
 		{ "Name": "user", "Display": "User", "Role": "owner" },
@@ -40,15 +41,15 @@ The settings are `consensus.json` in the data folder, written at first start:
 }
 ```
 
-The file is read once at start, so an edit by hand needs a restart; the popup does not.
+The desktop keeps its own fields in the same file (`Servers`, `Last`, `Theme`, `Scale`, `Llms`, `Workspaces`, `Remembered`), which the popup never touches. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a `Host`, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine's.
 
 ## Theme and size
 
 Light, dark or the system's theme, and three sizes, are at the bottom of the sidebar. They are kept in the browser, per user and per server, not in the settings. The desktop offers a wider choice of palettes, from Sepia and Paper to Nord and Midnight, and its title bar follows.
 
-## The data folder
+## The config folder
 
-Everything is plain files in the data folder, `~data/` beside the checkout by default:
+Everything is plain files in the config folder, `.consensus` in your user folder by default, or the one `--config` names:
 
 ```
 consensus.json                   the settings

@@ -38,8 +38,6 @@ ELECTRON.contextBridge.exposeInMainWorld( 'Desktop', {
 	Save: function ( Settings ) { return invoke( 'save', Settings ); },
 	Try: function ( Url ) { return invoke( 'try', Url ); },
 	Connect: function ( Where ) { return invoke( 'connect', Where ); },
-	LocalStart: function ( Data ) { return invoke( 'local-start', Data ); },
-	LocalStop: function () { return invoke( 'local-stop' ); },
 	LocalStatus: function () { return invoke( 'local-status' ); },
 	PickFolder: function ( Current ) { return invoke( 'folder', Current ); },
 	NewWindow: function () { return invoke( 'new-window' ); },

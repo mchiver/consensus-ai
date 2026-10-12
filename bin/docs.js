@@ -590,6 +590,7 @@ async function wait_for_target( Port, Test, TimeoutMs )
 async function desktop_pictures( Url, Demo, Folder, Log )
 {
 	const CDP = require( '../test/support/Cdp.js' );
+	const PARTICIPANTS = require( '../src/Participants.js' );
 	let electron = require( 'electron' );
 	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-docs-desktop-' ) );
 	let workspace = PATH.join( DEMO_ROOT, 'recipe-box' );
@@ -599,18 +600,21 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 	FS.writeFileSync( PATH.join( workspace, 'src', 'List.js' ), '\'use strict\';\n\n// List - the shopping list (plan Shopping list).\n' );
 	let stand_in = PATH.join( DEMO_ROOT, 'claude-one-shot.js' );
 	FS.writeFileSync( stand_in, REVIEW_STAND_IN );
-	let settings = {
+	// The desktop's global config (plan Run Shapes): its own server not started (Scope None), the seeded one saved.
+	let config = PATH.join( DEMO_ROOT, 'desktop-config' );
+	FS.mkdirSync( config, { recursive: true } );
+	let settings = Object.assign( PARTICIPANTS.DefaultSettings( 3500, 'None' ), {
+		Name: 'Recipe Box desktop',
 		Servers: [ { Name: 'Recipe Box server', Url: Url } ],
-		Local: { Data: PATH.join( DEMO_ROOT, 'data' ), Port: 3500 },
 		Last: null,
 		Theme: 'light',
 		Scale: 'normal',
 		Llms: [ { Id: 'llm-doc-cla-ude', Name: 'Claude Code', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Model: 'opus', Timeout: 120 } ],
 		Workspaces: [ { Id: 'wks-doc-rec-ipe', Name: 'recipe-box', Project: Demo.Id, Path: workspace, Include: [], Exclude: [ 'node_modules/**' ], Commands: [ 'npm test' ] } ],
-	};
-	FS.writeFileSync( PATH.join( user_data, 'desktop.json' ), JSON.stringify( settings, null, '\t' ) );
+	} );
+	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( settings, null, '\t' ) );
 
-	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );
+	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data, '--config', config ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );
 	let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
 	let files = [];
 	let page = null;

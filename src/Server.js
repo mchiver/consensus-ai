@@ -1,12 +1,15 @@
 'use strict';
 
-// Server - Start( { Data, Port, Host } ) returns { App, Address, Url, Settings, Store, Events, Close }.
-// It listens on Host (the option, else the settings' Host, else 127.0.0.1); any address is accepted, and Address.Local
-// says whether it stays on this machine. The data folder is ~data beside package.json unless given.
-// The settings are read once at start and changed in place by the settings routes (Api.js); Host and Port take
-// effect at the next start.
+// Server - Start( { Config, Port, Scope } ) returns { App, Address, Url, Settings, Store, Events, Close }.
+// The config folder (plan Run Shapes, Step 1) is <user>/.consensus unless given (Data is the older name of the same
+// option); its consensus.json holds the settings, and the projects live in it as well until Step 2. The server
+// listens as the Scope says (the option, else the settings', else Local): Local on 127.0.0.1, Public on 0.0.0.0, and
+// None not at all, in which case Address, Url and Server are null and the settings and the store are still there for
+// the desktop. The settings are read once at start and changed in place by the settings routes (Api.js); Scope and
+// Port take effect at the next start.
 
 const PATH = require( 'path' );
+const OS = require( 'os' );
 const FS = require( 'fs' );
 const EXPRESS = require( 'express' );
 const STORE = require( './Store.js' );
@@ -16,9 +19,7 @@ const API = require( './Api.js' );
 const INSTRUCTIONS = require( './Instructions.js' );
 
 const DEFAULT_PORT = 3500;
-const DEFAULT_HOST = PARTICIPANTS.DEFAULT_HOST;
-const LOCAL_HOSTS = [ '127.0.0.1', 'localhost', '::1' ];
-const DEFAULT_DATA = PATH.join( __dirname, '..', '~data' );
+const DEFAULT_CONFIG = PATH.join( OS.homedir(), '.consensus' );
 const PUBLIC_FOLDER = PATH.join( __dirname, '..', 'public' );
 
 
@@ -26,14 +27,20 @@ async function Start( Options )
 {
 	let options = Options || {};
 
-	let store = STORE.Open( options.Data || DEFAULT_DATA );
+	let store = STORE.Open( options.Config || options.Data || DEFAULT_CONFIG );
 	let settings = await store.ReadSettings();
 	let settings_written = false;
 	if ( !settings )
 	{
-		settings = PARTICIPANTS.DefaultSettings( DEFAULT_PORT, DEFAULT_HOST );
+		settings = PARTICIPANTS.DefaultSettings( DEFAULT_PORT, options.Scope );
 		await store.WriteSettings( settings );
 		settings_written = true;
+	}
+	let migrated = PARTICIPANTS.Migrate( settings );
+	if ( migrated.length )
+	{
+		await store.WriteSettings( settings );
+		console.log( 'settings brought up to date: ' + migrated.join( '; ' ) );
 	}
 	let problems = PARTICIPANTS.Validate( settings );
 	if ( problems.length )
@@ -50,7 +57,8 @@ async function Start( Options )
 		console.log( renamed );
 	}
 	let port = ( options.Port !== undefined ) ? options.Port : ( settings.Port || DEFAULT_PORT );
-	let host = options.Host || settings.Host || DEFAULT_HOST;
+	let scope = PARTICIPANTS.SCOPES.includes( options.Scope ) ? options.Scope : PARTICIPANTS.Scope( settings );
+	let host = PARTICIPANTS.HostOf( scope );
 
 	let app = EXPRESS();
 	app.disable( 'x-powered-by' );
@@ -64,21 +72,25 @@ async function Start( Options )
 		app.use( EXPRESS.static( PUBLIC_FOLDER ) );
 	}
 
-	let server = await listen( app, host, port );
-	let address = server.address();
+	let server = host ? await listen( app, host, port ) : null;
+	let address = server ? server.address() : null;
 
 	async function Close()
 	{
 		events.Close();
-		server.closeAllConnections();
-		await new Promise( function ( resolve ) { server.close( resolve ); } );
+		if ( server )
+		{
+			server.closeAllConnections();
+			await new Promise( function ( resolve ) { server.close( resolve ); } );
+		}
 	}
 
 	return {
 		App: app,
 		Server: server,
-		Address: { Host: host, Port: address.port, Local: LOCAL_HOSTS.includes( host ) },
-		Url: 'http://' + url_host( host ) + ':' + address.port,
+		Scope: scope,
+		Address: server ? { Host: host, Port: address.port, Local: ( scope === 'Local' ) } : null,
+		Url: server ? 'http://' + url_host( host ) + ':' + address.port : null,
 		Settings: settings,
 		SettingsWritten: settings_written,
 		Store: store,
@@ -177,5 +189,5 @@ module.exports = {
 	Start: Start,
 	AttachVendor: attach_vendor,
 	DEFAULT_PORT: DEFAULT_PORT,
-	DEFAULT_DATA: DEFAULT_DATA,
+	DEFAULT_CONFIG: DEFAULT_CONFIG,
 };

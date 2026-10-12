@@ -2,9 +2,11 @@
 
 // main - the desktop's main process (plan Consensus Desktop, Step 2): one window that opens on the connect screen
 // and, once connected, shows the desktop's own copy of the Consensus page (served by Page.js on 127.0.0.1, which
-// forwards the page's API calls to the connected server). It can run one local Consensus server (Local.js) over a
-// data folder and connect to it. Settings: desktop.json in Electron's user-data folder (Settings.js). A second
-// server at the same time is a second instance (New window).
+// forwards the page's API calls to the connected server). Plan Run Shapes, Step 1: the app is the second entry
+// point over src/Start.js: it takes the command line's --config, --port, --scope and --headless, starts this
+// machine's server from the global config as the Scope says, and keeps its own settings (Settings.js) in that same
+// consensus.json, where desktop.json is moved in once. With --headless there is no window. A second server at the
+// same time is a second instance (New window).
 // Step 3: the LLM connections and the workspaces (Settings.js), shown by the page in each project's Context
 // folder; a connection's Check (Llm.js); the one-shots, packaged here from what the connected server says
 // (Package.js) and run by Runs.js, their records in the user-data folder's runs/.
@@ -17,7 +19,7 @@ const PATH = require( 'path' );
 const CHILD_PROCESS = require( 'child_process' );
 const ELECTRON = require( 'electron' );
 const SETTINGS = require( './Settings.js' );
-const LOCAL = require( './Local.js' );
+const START = require( '../src/Start.js' );
 const PAGE = require( './Page.js' );
 const LLM = require( './Llm.js' );
 const PACKAGE = require( './Package.js' );
@@ -28,11 +30,13 @@ const TOOLS = require( './Tools.js' );
 const VERSION = require( '../package.json' ).version;
 const TRY_TIMEOUT = 5000;
 const FETCH_TIMEOUT = 15000;
+// Electron's own switches, which stay on the command line the app parses.
+const ELECTRON_SWITCH = /^--(remote-debugging-port|user-data-dir|inspect|enable-logging|no-sandbox|disable-gpu|trace-warnings)/;
 
-let settings_path = null;
+let running = null;		// src/Server.js's, from START.Run: this machine's server, or none with Scope None
+let store = null;
 let settings = null;
 let page = null;
-let local = null;
 let runs = null;
 let window = null;
 let current = null;		// { Kind: 'server' | 'local', Name, Url, Version } while connected
@@ -45,7 +49,17 @@ let closing = false;
 
 function save_settings()
 {
-	SETTINGS.Write( settings_path, settings );
+	store.WriteSettings( settings ).catch( function ( error )
+	{
+		console.error( 'the settings could not be written: ' + error.message );
+	} );
+}
+
+
+// The settings as the pages see them: the desktop's fields, never the participants' tokens.
+function desktop_settings()
+{
+	return SETTINGS.Fill( settings );
 }
 
 
@@ -125,12 +139,12 @@ async function connect( where )
 	let target = null;
 	if ( where && where.Kind === 'local' )
 	{
-		let running = local.Running();
-		if ( !running )
+		let served = local_running();
+		if ( !served )
 		{
-			return { Ok: false, Error: 'the local server is not running' };
+			return { Ok: false, Error: 'this machine runs no server' };
 		}
-		target = { Kind: 'local', Name: 'Local server', Url: running.Url };
+		target = { Kind: 'local', Name: settings.Name || 'This machine', Url: served.Url };
 	}
 	else
 	{
@@ -200,7 +214,7 @@ function boot_info()
 		Remembered: settings.Remembered,
 		Server: current ? { Kind: current.Kind, Name: current.Name, Url: current.Url, Version: current.Version } : null,
 		Reason: reason,
-		Local: local ? local.Running() : null,
+		Local: local_running(),
 	};
 }
 
@@ -245,7 +259,7 @@ function create_window()
 		}
 		event.preventDefault();
 		closing = true;
-		runs.Close().catch( function () {} ).then( function () { return local.Close(); } ).catch( function () {} ).then( function ()
+		runs.Close().catch( function () {} ).then( function ()
 		{
 			window.destroy();
 		} );
@@ -258,20 +272,16 @@ function create_window()
 
 
 //---------------------------------------------------------------------
-// The menu: Server (Connect to another, Reload, the local server's Start and Stop, New window), View, Quit.
+// The menu: Server (Connect to another, Reload, New window), View, Quit.
 
 function build_menu()
 {
-	let running = local ? local.Running() : null;
 	let template = [
 		{
 			label: 'Server',
 			submenu: [
 				{ label: current ? 'Connect to another…' : 'Connect…', click: function () { disconnect(); } },
 				{ label: 'Reload', accelerator: 'CmdOrCtrl+R', click: function () { if ( window ) { window.webContents.reload(); } } },
-				{ type: 'separator' },
-				{ label: 'Start local server', enabled: !running && !!settings.Local.Data, click: function () { start_local( settings.Local.Data ).then( function ( started ) { if ( started.Ok && !current ) { show_connect(); } } ); } },
-				{ label: 'Stop local server', enabled: !!running, click: function () { stop_local(); } },
 				{ type: 'separator' },
 				{ label: 'New window', accelerator: 'CmdOrCtrl+N', click: function () { new_window(); } },
 				{ type: 'separator' },
@@ -295,36 +305,43 @@ function build_menu()
 
 
 //---------------------------------------------------------------------
-// The local server
+// This machine's server: the config's own, started with the app by START.Run as the Scope says (plan Run Shapes).
 
-async function start_local( data )
+function local_running()
+{
+	if ( !running || !running.Server )
+	{
+		return null;
+	}
+	return { Url: running.Url, Port: running.Address.Port, Scope: running.Scope, Config: store.Folder };
+}
+
+
+// The server from the command line's options. The settings' problems stop the app; a port in use does not: the app
+// opens as a client only, over the settings read with Scope None, and the connect screen says why.
+async function start_server( options )
 {
 	try
 	{
-		let running = await local.Start( data );
-		settings.Local = { Data: running.Data, Port: running.Port };
-		save_settings();
-		build_menu();
-		return { Ok: true, Running: running };
+		return await START.Run( options, console.log );
 	}
 	catch ( error )
 	{
-		return { Ok: false, Error: error.message };
+		if ( !/EADDRINUSE|EACCES/.test( error.message ) )
+		{
+			throw error;
+		}
+		reason = 'this machine\'s server could not start: ' + error.message;
+		console.error( reason );
+		return START.Run( Object.assign( {}, options, { Scope: 'None' } ), console.log );
 	}
 }
 
 
-async function stop_local()
+// The app's own arguments: after the executable (and, from the checkout, the app folder), Electron's switches left out.
+function own_arguments( argv )
 {
-	let was_connected_to_it = !!current && current.Kind === 'local';
-	await local.Stop();
-	build_menu();
-	if ( was_connected_to_it )
-	{
-		reason = 'the local server was stopped';
-		disconnect();
-	}
-	return { Ok: true };
+	return argv.slice( ELECTRON.app.isPackaged ? 1 : 2 ).filter( function ( argument ) { return !ELECTRON_SWITCH.test( argument ); } );
 }
 
 
@@ -342,8 +359,8 @@ function new_window()
 
 function items_info()
 {
-	let running = runs.List().filter( function ( run ) { return run.Status === 'running'; } );
-	return { Llms: settings.Llms, Workspaces: settings.Workspaces, Running: running, DefaultPrompts: PACKAGE.DEFAULT_PROMPTS, Server: boot_info().Server };
+	let in_progress = runs.List().filter( function ( run ) { return run.Status === 'running'; } );
+	return { Llms: settings.Llms, Workspaces: settings.Workspaces, Running: in_progress, DefaultPrompts: PACKAGE.DEFAULT_PROMPTS, Server: boot_info().Server };
 }
 
 
@@ -360,7 +377,7 @@ function save_item( list_name, filler, item )
 	{
 		return { Problems: problems };
 	}
-	settings = fresh;
+	settings[ list_name ] = list;
 	save_settings();
 	return { Item: filled };
 }
@@ -651,7 +668,7 @@ function attach_handlers()
 
 	ELECTRON.ipcMain.handle( 'settings', function ()
 	{
-		return { Settings: settings, Path: settings_path, Version: VERSION, Server: boot_info().Server, Reason: reason, Local: local.Running() };
+		return { Settings: desktop_settings(), Path: store.SettingsPath(), Version: VERSION, Server: boot_info().Server, Reason: reason, Local: local_running() };
 	} );
 
 	ELECTRON.ipcMain.handle( 'save', function ( event, fresh )
@@ -662,10 +679,10 @@ function attach_handlers()
 		{
 			return { Problems: problems };
 		}
-		settings = filled;
+		SETTINGS.Apply( settings, filled );
 		save_settings();
 		build_menu();
-		return { Settings: settings };
+		return { Settings: desktop_settings() };
 	} );
 
 	ELECTRON.ipcMain.handle( 'try', function ( event, url )
@@ -678,19 +695,9 @@ function attach_handlers()
 		return connect( where );
 	} );
 
-	ELECTRON.ipcMain.handle( 'local-start', function ( event, data )
-	{
-		return start_local( data );
-	} );
-
-	ELECTRON.ipcMain.handle( 'local-stop', function ()
-	{
-		return stop_local();
-	} );
-
 	ELECTRON.ipcMain.handle( 'local-status', function ()
 	{
-		return { Running: local.Running() };
+		return { Running: local_running() };
 	} );
 
 	ELECTRON.ipcMain.handle( 'folder', async function ( event, current_folder )
@@ -797,18 +804,52 @@ function attach_handlers()
 
 async function main()
 {
+	let options = null;
+	try
+	{
+		options = START.Parse( own_arguments( process.argv ) );
+	}
+	catch ( error )
+	{
+		console.error( error.message );
+		console.error( START.USAGE );
+		ELECTRON.app.exit( 1 );
+		return;
+	}
+	if ( options.Help )
+	{
+		console.log( START.USAGE );
+		ELECTRON.app.exit( 0 );
+		return;
+	}
 	await ELECTRON.app.whenReady();
 	let user_data = ELECTRON.app.getPath( 'userData' );
-	settings_path = PATH.join( user_data, 'desktop.json' );
-	settings = SETTINGS.Read( settings_path );
-	if ( !require( 'fs' ).existsSync( settings_path ) )
+	running = await start_server( options );
+	store = running.Store;
+	settings = running.Settings;
+	let moved = SETTINGS.MoveIn( settings, PATH.join( user_data, 'desktop.json' ) );
+	if ( moved.length )
 	{
-		save_settings();
+		moved.forEach( function ( line ) { console.log( line ); } );
+		await store.WriteSettings( settings );
 	}
 	apply_native_theme();
-	local = LOCAL.Local();
 	runs = RUNS.Runs( { Folder: PATH.join( user_data, 'runs' ) } );
 	runs.OnChange( broadcast_run );
+	if ( options.Headless )
+	{
+		if ( !running.Server )
+		{
+			console.log( 'nothing to run without a window: --scope local or public starts the server' );
+			await running.Close();
+			ELECTRON.app.exit( 1 );
+			return;
+		}
+		console.log( 'no window (--headless); Ctrl+C stops the server' );
+		process.on( 'SIGINT', quit_headless );
+		process.on( 'SIGTERM', quit_headless );
+		return;
+	}
 	page = await PAGE.Serve();
 	attach_handlers();
 	create_window();
@@ -820,31 +861,29 @@ async function main()
 			remember_timer = null;
 			save_settings();
 		}
-		page.Close().catch( function () {} ).then( function () { ELECTRON.app.quit(); } );
+		page.Close().catch( function () {} ).then( function () { return running.Close(); } ).catch( function () {} ).then( function () { ELECTRON.app.quit(); } );
 	} );
-	// What was open last: a saved server, or the local server (started again over its folder); on failure, the
-	// connect screen says why.
+	// What was open last: a saved server, else this machine's server when it runs; on failure, the connect screen
+	// says why.
 	let opened = false;
-	if ( settings.Last && settings.Last.Kind === 'local' && settings.Local.Data )
-	{
-		let started = await start_local( settings.Local.Data );
-		if ( started.Ok )
-		{
-			opened = ( await connect( { Kind: 'local' } ) ).Ok;
-		}
-		else
-		{
-			reason = started.Error;
-		}
-	}
-	else if ( settings.Last && settings.Last.Kind === 'server' )
+	if ( settings.Last && settings.Last.Kind === 'server' )
 	{
 		opened = ( await connect( { Kind: 'server', Name: settings.Last.Name } ) ).Ok;
+	}
+	else if ( local_running() )
+	{
+		opened = ( await connect( { Kind: 'local' } ) ).Ok;
 	}
 	if ( !opened )
 	{
 		show_connect();
 	}
+}
+
+
+function quit_headless()
+{
+	runs.Close().catch( function () {} ).then( function () { return running.Close(); } ).catch( function () {} ).then( function () { ELECTRON.app.exit( 0 ); } );
 }
 
 

@@ -15,27 +15,28 @@ npm install
 node bin/consensus.js
 ```
 
-The server prints its address, its data folder and its settings file:
+The server prints its address and scope, its config folder and its settings file:
 
 ```
-Consensus at http://127.0.0.1:3500/ (listening on 127.0.0.1)
-data folder W:\consensus-ai\~data
-settings written to W:\consensus-ai\~data\consensus.json
+Consensus at http://127.0.0.1:3500/ (Scope Local, listening on 127.0.0.1)
+config folder C:\Users\you\.consensus
+settings written to C:\Users\you\.consensus\consensus.json
 ```
 
 Open `http://127.0.0.1:3500/` in a browser. You are the owner, and you see the **Default** project with its Context folder and an empty Readme.
 
 ![The page at first start: the Default project and its Readme.](../images/first-start.png)
 
-Three options change where and how it runs:
+The config folder holds everything: the settings and, for now, the projects. Four options change where and how it runs:
 
 | Option | What it does |
 | --- | --- |
-| `--data <folder>` | the data folder; `~data/` beside the checkout by default |
-| `--port <port>` | the port; 3500 by default |
-| `--host <address>` | the address to listen on; `127.0.0.1` by default, `0.0.0.0` for every interface |
+| `--config <folder>` | the config folder; `.consensus` in your user folder by default (`--data` is its older name) |
+| `--port <port>` | the port; the settings' Port, 3500 by default |
+| `--scope none`, `local` or `public` | for this start, in place of the settings' Scope: `local` listens on this machine only, `public` on every interface, `none` starts no server |
+| `--headless` | accepted here and does nothing: this form never has a window |
 
-Listening beyond your own machine is a decision: anyone who can reach the server acts as the owner. Keep it on `127.0.0.1` unless the network is yours.
+Listening beyond your own machine is a decision: anyone who can reach the server acts as the owner. Keep the Scope Local unless the network is yours. A settings file from before, with a `Host`, is brought up to date at the next start: a local address becomes Scope Local, any other Public.
 
 ## In Docker
 
@@ -46,24 +47,25 @@ docker build -t consensus:latest .
 docker compose up -d
 ```
 
-The server listens on port 3500 and keeps its data in the `consensus-data` volume. `docker compose down` stops it; the volume stays. The `compose.yaml` as shipped publishes the port on every IPv4 address of the host, because it is written for a server on a private network; edit it for your own.
+The image runs the server with `--config /data --scope public --port 3500 --headless`: it listens on port 3500 and keeps its config and data in the `consensus-data` volume. `docker compose down` stops it; the volume stays. The `compose.yaml` as shipped publishes the port on every IPv4 address of the host, because it is written for a server on a private network; edit it for your own.
 
 ## The desktop
 
-Consensus Desktop is the same page in a window of its own, able to connect to any Consensus server and to run one locally. From the checkout:
+Consensus Desktop is the same page in a window of its own, with a Consensus server of its own inside. It is the other entry point of the one program: it takes the same `--config`, `--port`, `--scope` and `--headless`, starts the server from the config folder as its Scope says, and keeps its own settings (the saved servers, the LLM connections, the workspaces, the themes) in that same settings file. From the checkout:
 
 ```
 npm run desktop
+npm run desktop -- --config W:\consensus --headless
 ```
 
-It opens on the **connect screen**.
+It opens on its own server, or, when a saved server was open last, on that one; the **connect screen** is where the rest is.
 
-![The connect screen: saved servers, Add server, and the local server.](../images/desktop-connect.png)
+![The connect screen: saved servers, Add server, and this machine.](../images/desktop-connect.png)
 
 - **Servers** lists the servers you saved. **Add server** asks for a name and a URL, tries the address before saving it, and says which Consensus version answers.
-- **Local server** runs Consensus inside the app over a data folder you pick with Browse. Start it, then Connect. Closing the window stops it.
+- **This machine** is the app's own server: it starts with the app, from the settings' Scope and Port, and stops with it. Connect opens it. With Scope None there is none, and the app is a client of the saved servers only; a port already in use shows the reason here.
 
-Once connected, the window shows the page, and the **Server** menu has Connect to another, Reload, the local server's Start and Stop, and New window for a second server. The desktop also brings LLM connections and workspaces of its own; the page [Working with an LLM](llm.html) covers them.
+Once connected, the window shows the page, and the **Server** menu has Connect to another, Reload, and New window for a second instance. `--headless` runs the server with no window at all, printing what the command line prints. A desktop.json from before is moved into the settings file at the first start. The desktop also brings LLM connections and workspaces of its own; the page [Working with an LLM](llm.html) covers them.
 
 ## What to do first
 

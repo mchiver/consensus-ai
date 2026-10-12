@@ -13,11 +13,15 @@ Consensus"); the desktop application (Step 2) and local LLMs and workspaces (Ste
 ## Starting it
 
 	npm install
-	node bin/consensus.js [--data <folder>] [--port 3500] [--host <address>]
+	node bin/consensus.js [--config <folder>] [--port 3500] [--scope none|local|public] [--headless]
 
-The server listens on the settings' `Host`, `127.0.0.1` by default; `--host` overrides it, and `0.0.0.0`
-listens on every interface. It prints its address, the data folder and the settings file. Open
-`http://127.0.0.1:3500/` in a browser.
+One program, two entry points over one start module (`src/Start.js`, plan Run Shapes, Step 1): this one, headless,
+for a plain node install and the Docker image, and the desktop (below), which opens a window as well. Both read
+the global config, `consensus.json` in the config folder: `.consensus` in the user's folder by default, or the
+`--config` folder (`--data` is its older name, kept for one release); the projects live there too until Step 2.
+The server listens as the settings' `Scope` says: `Local` on 127.0.0.1, `Public` on 0.0.0.0, `None` not at all;
+`--scope` overrides it for one start, and `--port` the port. It prints its address and scope, the config folder
+and the settings file. Open `http://127.0.0.1:3500/` in a browser.
 
 Security is relaxed for now: a request without a token is the owner, so anyone who can reach a server
 listening beyond this machine acts as the owner, and reads the llm token at `/instructions`.
@@ -92,11 +96,11 @@ The owner settles a contested thread in one of two ways. **Reply and resolve** p
 resolves the thread with it: that reply is the outcome the LLM applies. **Resolve** with no reply accepts the
 outcome, or the recommendation, in the last reply.
 
-## The data folder
+## The config folder
 
-`~data/` beside `package.json` by default, or the `--data` folder. Plain files:
+`.consensus` in the user's folder by default, or the `--config` folder. Plain files:
 
-	consensus.json                   settings: Port, Host, States, Participants
+	consensus.json                   settings: Name, Port, Scope, States, Participants, and the desktop's fields
 	projects.json                    { Projects: [ { Id, Name } ] }: every project's name, in display order
 	projects/<id>/project.json       { Id, Context, ContextFolder, Created, Updated, Version, Items: [ node ] }
 	proposals/<id>/proposal.json     { Id, Title, Kind: plan | document, State, Created, Updated, Revision }
@@ -111,8 +115,10 @@ document and `ContextFolder` of the folder that holds it, first in `Items`. Ever
 atomic, and writes to one proposal or project never interleave; a tree change that names an older `Version`
 is refused.
 
-A new data folder gets the Default project at its first start, and a new settings file its defaults. A data
-folder from before Step 1 is migrated at the first start, once: each project's context proposal becomes its
+A new config folder gets the Default project at its first start, and a new settings file its defaults. A settings
+file from before Run Shapes, with a `Host`, is brought up to date at the next start (a local address becomes Scope
+Local, any other Public; a missing Name becomes the machine's). A data folder from before Step 1 is migrated at
+the first start, once: each project's context proposal becomes its
 Readme in a new Context folder, corpora go to the trash, and the LLM's files (`usage.json`,
 `runs.json`, `index.json`) are removed; the console says what was done.
 
@@ -124,8 +130,9 @@ characters; Default is `default`. A Readme made before Step 1 keeps its `ctx-…
 `consensus.json` is written at first start:
 
 	{
+		"Name": "cube4",
 		"Port": 3500,
-		"Host": "127.0.0.1",
+		"Scope": "Local",
 		"States": [ "Draft", "Plan", "Working", "Finished" ],
 		"Participants": [
 			{ "Name": "user", "Display": "User", "Role": "owner" },
@@ -133,17 +140,18 @@ characters; Default is `default`. A Readme made before Step 1 keeps its `ctx-…
 		]
 	}
 
-`Host` is the address the server listens on (see Starting it) and `Port` its port. `States` is the list a
+`Name` is the server's, shown to clients in `/api/me`; `Scope` says whether and for whom it listens (see Starting
+it) and `Port` its port. `States` is the list a
 plan's state is picked from; a new plan starts in the first. A request without an `Authorization` header is
 the participant with the `owner` role: the browser. A request with `Authorization: Bearer <token>` is the
 participant holding that token; give a participant a `Token` to let it use the API from outside. Roles:
 `owner` resolves threads and edits the settings; `llm` is a full participant that is asked to apply resolved
 threads; `member` takes part in discussion.
 
-**Settings** at the bottom of the sidebar (owner) edits the file in a popup: Host and Port, the States one
-per line, and the participants with their display names, roles and tokens (New makes a token, Copy copies
-it). Saving writes the whole file and applies it at once, Host and Port excepted, which take effect at the
-next start (the popup says so). The server's own checks apply: no owner, a name used twice, a state still
+**Settings** at the bottom of the sidebar (owner) edits the file in a popup: Name, Scope and Port, the States
+one per line, and the participants with their display names, roles and tokens (New makes a token, Copy copies
+it). Saving writes these fields, the desktop's untouched, and applies them at once, Scope and Port excepted,
+which take effect at the next start (the popup says so). The server's own checks apply: no owner, a name used twice, a state still
 used by a plan, and the rest are shown, and nothing is saved while there are problems. The settings are read
 once at start, so an edit of the file by hand needs a restart.
 
@@ -211,33 +219,37 @@ checkout:
 
 	npm run desktop
 
-It opens on the **connect screen**: the saved servers (Connect, Edit, Remove), **Add server** (a Name and a Url,
+Since plan Run Shapes (Step 1) the app is the second entry point over `src/Start.js`: it takes the command
+line's `--config`, `--port`, `--scope` and `--headless` (from the checkout, `npm run desktop -- --config …`),
+starts **this machine's server** from the global config as its Scope says (none with Scope None; a port in use
+leaves the app a client only, with the reason on the connect screen), and opens on it, or on the saved server
+that was open last. With `--headless` there is no window: the server runs and prints what the command line
+prints. The **connect screen** has the saved servers (Connect, Edit, Remove), **Add server** (a Name and a Url,
 tried before it is saved; the screen says which Consensus version answers and warns when it differs from the
-app's), and the **Local server**: a data folder (Browse), Start and Stop, and Connect once it runs. A local
-server is Consensus itself, started in the app's process over that folder on `127.0.0.1` and the folder's port,
-with `consensus.json` written at a first start as the command line does; closing the window stops it. Once
-connected, the window shows the desktop's own copy of the Consensus page, pointed at the server's API; the
-**Server** menu has Connect to another, Reload, the local server's Start and Stop, and **New window**, which
-starts another instance of the app for a second server. A tab's Detach opens a window of the app. What was
-open last is reopened at the next start, or the connect screen says why it could not be.
+app's), and **This machine**: the app's own server, with its address, scope and config folder, and Connect.
+Once connected, the window shows the desktop's own copy of the Consensus page, pointed at the server's API; the
+**Server** menu has Connect to another, Reload, and **New window**, which starts another instance of the app
+(over the same config; its server takes the port only if it is free). A tab's Detach opens a window of the app.
 
 The desktop's page is its own copy, `desktop/page/` (the server's `public/` is frozen after Step 1 and the copy
 is developed on from there; `client.js` prefixes the API's base URL the desktop hands it, and `theme.js` keeps
 the theme and the scale in the desktop's settings). The copy is served from the app's own origin on
 `127.0.0.1`, and that same origin forwards `/api` (the events stream included) and `/instructions` to the
 connected server: the base URL stays the page's own origin, and the server, which sends no CORS headers, is not
-changed for the app beyond `/api/me` saying its `Version`. Its settings are `desktop.json` in Electron's
-user-data folder (`%APPDATA%/consensus-desktop/` on Windows): `Servers`, `Local` (the data folder and its
-port), `Last`, `Theme` and `Scale`. `Theme` is the default, set from the connect screen; a server entry (or
-`Local`) may hold a `Theme` of its own, set from the page's picker while connected (plan UI Tweaks V). The page
-remembers its tree state (the open project, the folds, the sort, the tabs) per server, under the server's
-address, and the look (hidden panes, widths) for all, in desktop.json's `Remembered` (`desktop/page/js/stored.js`
+changed for the app beyond `/api/me` saying its `Version` and `Name`. Its settings are the desktop's fields of
+the global config, `consensus.json` in the config folder (`desktop.json` in Electron's user-data folder before
+Run Shapes; moved in once at the first start and renamed `.moved`): `Servers`, `Local` (this machine's server:
+its `Theme`), `Last`, `Theme`, `Scale`, `Llms`, `Workspaces` and `Remembered`; the pages are handed those
+fields only, never the participants' tokens. `Theme` is the default, set from the connect screen; a server
+entry (or `Local`) may hold a `Theme` of its own, set from the page's picker while connected (plan UI Tweaks V).
+The page remembers its tree state (the open project, the folds, the sort, the tabs) per server, under the
+server's address, and the look (hidden panes, widths) for all, in the config's `Remembered` (`desktop/page/js/stored.js`
 through the preload's `Remember`: the page's origin gets a new port at every start, so its localStorage would
 not survive a restart; in a browser the same keys are in localStorage); the
 connection panel at the bottom of the sidebar shows the server's address, with its name and version in the
 tooltip.
 
-**LLM connections and workspaces** (Step 3) are the desktop's own, kept in desktop.json (`Llms`, `Workspaces`)
+**LLM connections and workspaces** (Step 3) are the desktop's own, kept in the config (`Llms`, `Workspaces`)
 and shown in every project's Context folder, never on the server: an LLM connection once per desktop, in every
 project; a workspace, a path to a folder, with the project it is attached to. New LLM connection and New
 workspace are in the Context folder's menu (whose count includes them); Open, Rename and Delete in the row's.
@@ -292,18 +304,19 @@ its colours; the desktop's title bar and menu bar follow it light or dark. The e
 past the end of the text. In the tree a click on a folder folds it, and a folder's menu has New plan and New
 folder, which create in it.
 
-Layout: `desktop/main.js` the main process, `desktop/preload.js` its bridge, `desktop/Settings.js` desktop.json,
-`desktop/Local.js` the local server, `desktop/Page.js` the server for the page copy, `desktop/Package.js` the
+Layout: `desktop/main.js` the main process, `desktop/preload.js` its bridge, `desktop/Settings.js` the desktop's
+fields of the config, `desktop/Page.js` the server for the page copy, `desktop/Package.js` the
 one-shot prompt, `desktop/Llm.js` a connection's check and command line, `desktop/Runs.js` the runs and their
 records, `desktop/page/` the copy (`js/desktop.js` the items, the LLM page and the workspace page) and the
 connect screen (`connect.html`, `connect.js`, `connect.css`); `test/Desktop.test.js` covers the settings, the
-page server, the local server with the real `Start`, the package, the check and the runs.
+page server, the package, the check and the runs; `test/Start.test.js` the start module and the headless entry
+point.
 
 ## The API
 
-	GET    /api/me                                   who this request is, the participants, the States
+	GET    /api/me                                   who this request is, the participants, the States, the server's Name and Version
 	GET    /api/settings                             owner; the settings as they are, and the file's path
-	PUT    /api/settings                             owner; { Settings }  the whole file, checked; Restart says when Host or Port changed
+	PUT    /api/settings                             owner; { Settings }  the server's fields, checked, the rest kept; Restart says when Scope or Port changed
 	GET    /api/projects                             every project with its tree, each item with title, state, tally; Context and ContextFolder
 	POST   /api/projects                             { Name }
 	PUT    /api/projects/:pid                        { Name, Version? }
@@ -358,8 +371,9 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 
 ## Layout of the code
 
-	bin/consensus.js      the command line
-	src/Server.js         Start( { Data, Port, Host } )
+	bin/consensus.js      the headless entry point
+	src/Start.js          the start module both entry points share: the arguments, Run, the lines
+	src/Server.js         Start( { Config, Port, Scope } )
 	src/Api.js            the routes
 	src/Instructions.js   GET /instructions: the agent guide with This server first
 	src/Rules.js          the consensus rules, pure functions

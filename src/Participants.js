@@ -5,26 +5,33 @@
 // A request without one is the participant with the owner role (the browser, on this workstation).
 // A token lets any participant use the API: the llm participant is the one an agent session posts as.
 // Identity is this one small component: user management with sign-in replaces it later.
-// The settings (consensus.json) are checked here too: Host, Port, States and Participants (plan Consensus Desktop,
-// Step 1: the settings modal writes them back through the API).
+// The settings (consensus.json) are checked here too: Name, Port, Scope, States and Participants (plan Consensus
+// Desktop, Step 1: the settings modal writes them back through the API). Plan Run Shapes, Step 1: Scope (None, Local,
+// Public) says whether the server listens and for whom, in place of Host; Name is the server's; a file from before
+// is brought up to date by Migrate.
 
 const CRYPTO = require( 'crypto' );
+const OS = require( 'os' );
 
 const ROLES = [ 'owner', 'llm', 'member' ];
 const DEFAULT_STATES = [ 'Draft', 'Plan', 'Working', 'Finished' ];
 const RENAMED_STATE = { From: 'Proposal', To: 'Draft' };	// plan UI Tweaks V: the first state's new name, migrated at start
-const DEFAULT_HOST = '127.0.0.1';
-const SETTINGS_FIELDS = [ 'Port', 'Host', 'States', 'Participants' ];
+const SCOPES = [ 'None', 'Local', 'Public' ];
+const DEFAULT_SCOPE = 'Local';
+const SCOPE_HOSTS = { None: null, Local: '127.0.0.1', Public: '0.0.0.0' };
+const LOCAL_HOSTS = [ '127.0.0.1', 'localhost', '::1' ];
+const SETTINGS_FIELDS = [ 'Name', 'Port', 'Scope', 'States', 'Participants' ];
 
 
 //---------------------------------------------------------------------
 // DefaultSettings: written at first start. Two participants, the user (owner) and the llm.
 
-function DefaultSettings( Port, Host )
+function DefaultSettings( Port, Scope )
 {
 	return {
+		Name: OS.hostname(),
 		Port: Port,
-		Host: Host || DEFAULT_HOST,
+		Scope: SCOPES.includes( Scope ) ? Scope : DEFAULT_SCOPE,
 		States: DEFAULT_STATES.slice(),
 		Participants: [
 			{ Name: 'user', Display: 'User', Role: 'owner' },
@@ -87,7 +94,50 @@ function PublicList( Settings )
 
 
 //---------------------------------------------------------------------
-// Validate: the settings are usable: Host and Port when given, States, and the participant list.
+// Scope: the settings' Scope, Local when the file has none. HostOf: the address a Scope listens on, null for None.
+
+function Scope( Settings )
+{
+	return ( Settings && SCOPES.includes( Settings.Scope ) ) ? Settings.Scope : DEFAULT_SCOPE;
+}
+
+
+function HostOf( Scope_ )
+{
+	return SCOPES.includes( Scope_ ) ? SCOPE_HOSTS[ Scope_ ] : SCOPE_HOSTS[ DEFAULT_SCOPE ];
+}
+
+
+//---------------------------------------------------------------------
+// Migrate: a settings file from before plan Run Shapes, changed in place: Host becomes Scope (a local address Local,
+// any other Public), a missing Scope is Local, a missing Name is the machine's. Returns a line for each change.
+
+function Migrate( Settings )
+{
+	let lines = [];
+	if ( Settings.Host !== undefined )
+	{
+		let host = String( Settings.Host || '' ).trim();
+		Settings.Scope = ( !host || LOCAL_HOSTS.includes( host ) ) ? 'Local' : 'Public';
+		delete Settings.Host;
+		lines.push( 'Host ' + JSON.stringify( host ) + ' became Scope ' + Settings.Scope );
+	}
+	if ( !SCOPES.includes( Settings.Scope ) )
+	{
+		Settings.Scope = DEFAULT_SCOPE;
+		lines.push( 'Scope set to ' + DEFAULT_SCOPE );
+	}
+	if ( typeof Settings.Name !== 'string' || !Settings.Name.trim() )
+	{
+		Settings.Name = OS.hostname();
+		lines.push( 'Name set to ' + Settings.Name );
+	}
+	return lines;
+}
+
+
+//---------------------------------------------------------------------
+// Validate: the settings are usable: Name, Scope and Port when given, States, and the participant list.
 
 function Validate( Settings )
 {
@@ -100,9 +150,13 @@ function Validate( Settings )
 	{
 		problems.push( 'Port must be a whole number from 0 to 65535' );
 	}
-	if ( Settings.Host !== undefined && ( typeof Settings.Host !== 'string' || !Settings.Host.trim() || /\s/.test( Settings.Host ) ) )
+	if ( Settings.Scope !== undefined && !SCOPES.includes( Settings.Scope ) )
 	{
-		problems.push( 'Host must be an address with no spaces' );
+		problems.push( 'Scope must be one of ' + SCOPES.join( ', ' ) );
+	}
+	if ( Settings.Name !== undefined && ( typeof Settings.Name !== 'string' || !Settings.Name.trim() ) )
+	{
+		problems.push( 'Name must be a name' );
 	}
 	let participants = Settings.Participants;
 	if ( !Array.isArray( participants ) )
@@ -195,9 +249,13 @@ function Clean( Settings )
 			clean[ field ] = given[ field ];
 		}
 	}
-	if ( typeof clean.Host === 'string' )
+	if ( typeof clean.Name === 'string' )
 	{
-		clean.Host = clean.Host.trim();
+		clean.Name = clean.Name.trim();
+	}
+	if ( typeof clean.Scope === 'string' )
+	{
+		clean.Scope = clean.Scope.trim();
 	}
 	if ( Array.isArray( clean.States ) )
 	{
@@ -228,9 +286,13 @@ module.exports = {
 	ROLES: ROLES,
 	DEFAULT_STATES: DEFAULT_STATES,
 	RENAMED_STATE: RENAMED_STATE,
-	DEFAULT_HOST: DEFAULT_HOST,
+	SCOPES: SCOPES,
+	DEFAULT_SCOPE: DEFAULT_SCOPE,
 	SETTINGS_FIELDS: SETTINGS_FIELDS,
 	DefaultSettings: DefaultSettings,
+	Scope: Scope,
+	HostOf: HostOf,
+	Migrate: Migrate,
 	NewToken: NewToken,
 	Identify: Identify,
 	Public: Public,

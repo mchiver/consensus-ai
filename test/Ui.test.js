@@ -850,7 +850,9 @@ TEST( 'export and import: a project\'s json in a popup; pasted back, the preview
 TEST( 'settings: the owner edits consensus.json in a popup; problems are shown and nothing saved; a saved state reaches the picker', async function ()
 {
 	await page.Click( '#settings-button' );
-	await page.WaitFor( 'document.getElementById( "settings-host" ) && document.getElementById( "settings-host" ).value === "127.0.0.1"', 20000 );
+	// public/ is the frozen page: its popup still shows a Host box, empty since the settings have Scope instead (plan Run
+	// Shapes); the desktop's page shows Name and Scope, which its smoke covers
+	await page.WaitFor( 'document.getElementById( "settings-port" ) && document.getElementById( "settings-port" ).value === "0"', 20000 );
 	ASSERT.match( await page.Evaluate( 'document.getElementById( "settings-states" ).value' ), /^Draft\nPlan\nWorking\nFinished$/ );
 	ASSERT.equal( await page.Evaluate( count_of( '.settings-participant' ) ), 2 );
 	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".settings-participant .settings-token" ) ][ 1 ].value' ), LLM_TOKEN );

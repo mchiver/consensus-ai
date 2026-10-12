@@ -713,10 +713,12 @@
 				<div>Not saved. Fix these first:</div>
 				<ul class="mb-0"><li ng-repeat="problem in Panel.Problems track by $index">{{ problem }}</li></ul>
 			</div>
-			<div class="alert alert-warning py-1 px-2 my-1 small" id="settings-restart" ng-show="Panel.Restart">Host and Port take effect when the server is started again.</div>
+			<div class="alert alert-warning py-1 px-2 my-1 small" id="settings-restart" ng-show="Panel.Restart">Scope and Port take effect when the server is started again.</div>
 			<div class="settings-row">
-				<label for="settings-host">Host</label>
-				<input class="form-control form-control-sm" id="settings-host" ng-model="Panel.Form.Host" placeholder="127.0.0.1" title="the address the server listens on at its next start; 0.0.0.0 is every interface">
+				<label for="settings-name">Name</label>
+				<input class="form-control form-control-sm" id="settings-name" ng-model="Panel.Form.Name" placeholder="this server's name" title="the server's name, shown to its clients">
+				<label for="settings-scope">Scope</label>
+				<select class="form-select form-select-sm settings-scope" id="settings-scope" ng-model="Panel.Form.Scope" ng-options="scope for scope in Scopes" title="at its next start: Local listens on this machine only, Public on every interface, None starts no server"></select>
 				<label for="settings-port">Port</label>
 				<input class="form-control form-control-sm settings-port" id="settings-port" type="number" min="0" max="65535" ng-model="Panel.Form.Port" title="the port at its next start">
 			</div>

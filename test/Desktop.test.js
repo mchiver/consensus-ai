@@ -1,8 +1,8 @@
 'use strict';
 
-// The desktop (plan Consensus Desktop, Step 2), without Electron: its settings module (desktop.json read, filled,
-// written, checked), the page server that serves its copy of the Consensus page and the vendor files, and the local
-// Consensus server started and stopped with the real Start over a temporary folder.
+// The desktop (plan Consensus Desktop, Step 2), without Electron: its settings module (the desktop's fields of the
+// global config, filled, applied, moved in from desktop.json once: plan Run Shapes, Step 1), and the page server
+// that serves its copy of the Consensus page and the vendor files.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -10,7 +10,6 @@ const FS = require( 'fs' );
 const OS = require( 'os' );
 const PATH = require( 'path' );
 const SETTINGS = require( '../desktop/Settings.js' );
-const LOCAL = require( '../desktop/Local.js' );
 const PAGE = require( '../desktop/Page.js' );
 const PACKAGE = require( '../desktop/Package.js' );
 const LLM = require( '../desktop/Llm.js' );
@@ -48,7 +47,7 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	let folder = temporary_folder( 'desktop-settings-' );
 	let path = PATH.join( folder, 'desktop.json' );
 	let read = SETTINGS.Read( path );
-	ASSERT.deepEqual( read, { Servers: [], Local: { Data: '', Port: null, Theme: null }, Last: null, Theme: 'system', Scale: 'normal', Llms: [], Workspaces: [], Remembered: {} } );
+	ASSERT.deepEqual( read, { Servers: [], Local: { Theme: null }, Last: null, Theme: 'system', Scale: 'normal', Llms: [], Workspaces: [], Remembered: {} } );
 
 	let settings = SETTINGS.Fill( {
 		Servers: [ { Name: ' cube4 ', Url: 'http://cube4:3500/' } ],
@@ -60,7 +59,7 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	} );
 	ASSERT.deepEqual( settings, {
 		Servers: [ { Name: 'cube4', Url: 'http://cube4:3500', Theme: null } ],
-		Local: { Data: folder, Port: 3500, Theme: null },
+		Local: { Theme: null },
 		Last: { Kind: 'server', Name: 'cube4' },
 		Theme: 'dark',
 		Scale: 'normal',
@@ -196,64 +195,48 @@ TEST( 'the page server serves the desktop\'s copy of the page, the connect scree
 
 
 //---------------------------------------------------------------------
-// The local server
+// The desktop's fields in the global config (plan Run Shapes, Step 1)
 
-TEST( 'the local server starts over a data folder with the real Start, answers with its version, and stops', async function ()
+TEST( 'Apply puts the desktop\'s fields on the global config in place; MoveIn takes them from desktop.json once, else the defaults', function ()
 {
-	let local = LOCAL.Local();
-	ASSERT.equal( local.Running(), null );
-	await ASSERT.rejects( local.Start( '' ), /a data folder is needed/ );
-
-	let folder = temporary_folder( 'desktop-local-' );
-	let settings = { Port: 0, Host: '127.0.0.1', States: [ 'Draft', 'Done' ], Participants: [ { Name: 'user', Display: 'User', Role: 'owner' } ] };
-	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( settings ) );
-	let running = await local.Start( folder );
-	ASSERT.match( running.Url, /^http:\/\/127\.0\.0\.1:\d+$/ );
-	ASSERT.equal( running.Port > 0, true );
-	ASSERT.equal( running.Data, PATH.resolve( folder ) );
-	ASSERT.equal( running.SettingsWritten, false );
-	ASSERT.deepEqual( local.Running(), running );
-	let me = await ( await fetch( running.Url + '/api/me' ) ).json();
-	ASSERT.equal( me.Version, VERSION );
-	ASSERT.deepEqual( me.States, [ 'Draft', 'Done' ] );
-	ASSERT.equal( me.Me.Role, 'owner' );
-	// over the same folder: as it is
-	ASSERT.deepEqual( await local.Start( folder ), running );
-
-	// over another folder, with no consensus.json: the defaults are written there, and the first server is stopped
-	let other = temporary_folder( 'desktop-local-other-' );
-	let second = await local.Start( other, 0 );
-	ASSERT.notEqual( second.Url, running.Url );
-	ASSERT.equal( second.SettingsWritten, true );
-	ASSERT.equal( FS.existsSync( PATH.join( other, 'consensus.json' ) ), true );
-	ASSERT.equal( JSON.parse( FS.readFileSync( PATH.join( other, 'consensus.json' ), 'utf8' ) ).Port, 3500 );
-	ASSERT.equal( ( await fetch( second.Url + '/api/projects' ) ).status, 200 );
-	await ASSERT.rejects( fetch( running.Url + '/api/me', { signal: AbortSignal.timeout( 2000 ) } ) );
-
-	await local.Stop();
-	ASSERT.equal( local.Running(), null );
-	await ASSERT.rejects( fetch( second.Url + '/api/me', { signal: AbortSignal.timeout( 2000 ) } ) );
-	await local.Stop();
-	await local.Close();
-} );
-
-
-TEST( 'the local server with a stand-in Start: a failure is thrown, and leaves nothing running', async function ()
-{
-	let local = LOCAL.Local( { Start: async function ( options )
-	{
-		if ( options.Data.endsWith( 'broken' ) )
-		{
-			throw new Error( 'settings: no participant has the owner role' );
-		}
-		return { Url: 'http://127.0.0.1:1', Address: { Port: 1 }, SettingsWritten: false, Close: async function () {} };
-	} } );
-	await ASSERT.rejects( local.Start( PATH.join( OS.tmpdir(), 'broken' ) ), /no participant has the owner role/ );
-	ASSERT.equal( local.Running(), null );
-	let fine = await local.Start( PATH.join( OS.tmpdir(), 'fine' ) );
-	ASSERT.equal( fine.Port, 1 );
-	await local.Close();
-	ASSERT.equal( local.Running(), null );
+	let config = { Name: 'here', Port: 3500, Scope: 'Local', States: [ 'Draft' ], Participants: [ { Name: 'user', Role: 'owner', Token: 'a-token-long-enough-0123' } ] };
+	let folder = temporary_folder( 'desktop-movein-' );
+	let path = PATH.join( folder, 'desktop.json' );
+	SETTINGS.Write( path, SETTINGS.Fill( { Servers: [ { Name: 'cube4', Url: 'http://cube4:3500' } ], Local: { Data: 'W:/old', Port: 3500, Theme: 'nord' }, Last: { Kind: 'local' }, Theme: 'dark', Remembered: { 'consensus.x': 1 } } ) );
+	let lines = SETTINGS.MoveIn( config, path );
+	ASSERT.equal( lines.length, 1 );
+	ASSERT.match( lines[ 0 ], /desktop\.json moved into the config/ );
+	ASSERT.equal( FS.existsSync( path ), false );
+	ASSERT.equal( FS.existsSync( path + '.moved' ), true );
+	ASSERT.deepEqual( config.Servers, [ { Name: 'cube4', Url: 'http://cube4:3500', Theme: null } ] );
+	ASSERT.deepEqual( config.Local, { Theme: 'nord' } );
+	ASSERT.deepEqual( config.Last, { Kind: 'local' } );
+	ASSERT.equal( config.Theme, 'dark' );
+	ASSERT.deepEqual( config.Remembered, { 'consensus.x': 1 } );
+	ASSERT.deepEqual( config.Llms, [] );
+	ASSERT.deepEqual( [ config.Name, config.Scope, config.Participants[ 0 ].Token ], [ 'here', 'Local', 'a-token-long-enough-0123' ] );
+	// once: a config with its desktop fields is left alone; one written by hand gets the fields it lacks
+	ASSERT.deepEqual( SETTINGS.MoveIn( config, path ), [] );
+	let by_hand = { Name: 'h', Scope: 'None', Participants: [], Servers: [ { Name: 's', Url: 'http://s:1' } ], Theme: 'light' };
+	ASSERT.deepEqual( SETTINGS.MoveIn( by_hand, path ), [ 'the desktop\'s settings filled in: Local, Last, Scale, Llms, Workspaces, Remembered' ] );
+	ASSERT.deepEqual( [ by_hand.Servers[ 0 ].Theme, by_hand.Theme, by_hand.Scale, by_hand.Remembered, by_hand.Scope ], [ null, 'light', 'normal', {}, 'None' ] );
+	ASSERT.equal( SETTINGS.Remember( {}, 'k', 1 ), true );
+	// no desktop.json: the defaults
+	let fresh = { Name: 'n', Scope: 'Local', Participants: [] };
+	ASSERT.match( SETTINGS.MoveIn( fresh, PATH.join( folder, 'none.json' ) )[ 0 ], /start with the defaults/ );
+	ASSERT.deepEqual( fresh.Servers, [] );
+	ASSERT.equal( fresh.Theme, 'system' );
+	ASSERT.deepEqual( Object.keys( fresh ).sort(), [ 'Name', 'Participants', 'Scope' ].concat( SETTINGS.DESKTOP_FIELDS ).sort() );
+	// Apply: in place, the server's fields untouched, the desktop's all replaced
+	let same = config;
+	SETTINGS.Apply( config, SETTINGS.Fill( Object.assign( {}, config, { Theme: 'sepia', Servers: [] } ) ) );
+	ASSERT.equal( same, config );
+	ASSERT.equal( config.Theme, 'sepia' );
+	ASSERT.deepEqual( config.Servers, [] );
+	ASSERT.deepEqual( config.Local, { Theme: 'nord' } );
+	ASSERT.equal( config.Name, 'here' );
+	// Fill gives the pages the desktop's fields only: no participants, no tokens
+	ASSERT.equal( 'Participants' in SETTINGS.Fill( config ), false );
 } );
 
 

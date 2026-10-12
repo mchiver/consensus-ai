@@ -1,8 +1,9 @@
 'use strict';
 
 // The connect screen (plan Consensus Desktop, Step 2): the saved servers with Connect, Edit and Remove; Add server,
-// tried before it is saved; the local server's data folder, Start and Stop; and what the app is connected to.
-// Everything goes through window.Desktop (preload.js) to the main process.
+// tried before it is saved; this machine's server, the config's own, started with the app as its Scope says (plan
+// Run Shapes, Step 1); and what the app is connected to. Everything goes through window.Desktop (preload.js) to
+// the main process.
 
 angular.module( 'Connect', [] )
 
@@ -25,9 +26,8 @@ angular.module( 'Connect', [] )
 	$scope.Version = window.ConsensusDesktop.Version;
 	$scope.Server = window.ConsensusDesktop.Server;
 	$scope.Reason = window.ConsensusDesktop.Reason;
-	$scope.Settings = { Servers: [], Local: { Data: '' } };
+	$scope.Settings = { Servers: [] };
 	$scope.Local = null;
-	$scope.LocalData = '';
 	$scope.Editing = null;
 	$scope.Error = null;
 	$scope.Busy = false;
@@ -43,7 +43,6 @@ angular.module( 'Connect', [] )
 			let answer = await window.Desktop.Settings();
 			$scope.Settings = answer.Settings;
 			$scope.Local = answer.Local;
-			$scope.LocalData = answer.Settings.Local.Data || '';
 			$scope.Server = answer.Server;
 			$scope.Reason = answer.Reason;
 		}
@@ -155,46 +154,7 @@ angular.module( 'Connect', [] )
 
 
 	//-----------------------------------------------------------------
-	// The local server
-
-	$scope.PickFolder = async function ()
-	{
-		let picked = await window.Desktop.PickFolder( $scope.LocalData || undefined );
-		if ( picked )
-		{
-			$scope.LocalData = picked;
-		}
-		$scope.$applyAsync();
-	};
-
-
-	$scope.LocalStart = async function ()
-	{
-		$scope.Busy = true;
-		$scope.Error = null;
-		let answer = await window.Desktop.LocalStart( $scope.LocalData );
-		if ( answer.Ok )
-		{
-			$scope.Local = answer.Running;
-		}
-		else
-		{
-			$scope.Error = answer.Error;
-		}
-		$scope.Busy = false;
-		$scope.$applyAsync();
-	};
-
-
-	$scope.LocalStop = async function ()
-	{
-		$scope.Busy = true;
-		await window.Desktop.LocalStop();
-		$scope.Local = null;
-		$scope.Busy = false;
-		$scope.$applyAsync();
-	};
-
+	// This machine's server
 
 	$scope.ConnectLocal = async function ()
 	{

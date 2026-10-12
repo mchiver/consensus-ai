@@ -42,9 +42,9 @@
 			<article class="guide-article">
 <h1 id="settings-and-themes">Settings and themes</h1>
 <p><strong>Settings</strong> at the bottom of the sidebar opens the server&#39;s settings in a popup, for the owner. Theme and size are beside it, for everyone.</p>
-<figure class="shot"><img class="light-only" src="../images/settings.png" alt="The settings popup: host and port, the states, the participants."><img class="dark-only" src="../images/settings-dark.png" alt="The settings popup: host and port, the states, the participants."><figcaption>The settings popup: host and port, the states, the participants.</figcaption></figure>
-<h2 id="host-and-port">Host and port</h2>
-<p>The address the server listens on and its port. <code>127.0.0.1</code> listens on this machine only; <code>0.0.0.0</code> on every interface. Both take effect at the next start, and the popup says so.</p>
+<figure class="shot"><img class="light-only" src="../images/settings.png" alt="The settings popup: name, scope and port, the states, the participants."><img class="dark-only" src="../images/settings-dark.png" alt="The settings popup: name, scope and port, the states, the participants."><figcaption>The settings popup: name, scope and port, the states, the participants.</figcaption></figure>
+<h2 id="name-scope-and-port">Name, scope and port</h2>
+<p>The server&#39;s name, shown to its clients; its Scope, which says whether it listens and for whom: <strong>Local</strong> on this machine only, <strong>Public</strong> on every interface, <strong>None</strong> not at all (the desktop then is a client of other servers only); and its port. Scope and Port take effect at the next start, and the popup says so.</p>
 <h2 id="states">States</h2>
 <p>The states a plan&#39;s state is picked from, one per line: Draft, Plan, Working and Finished by default. A new plan starts in the first. A state still used by a plan cannot be removed. The first state was called Proposal before; a server whose list still names Proposal and not Draft renames it once at its next start, in the settings and in every plan in that state.</p>
 <h2 id="participants">Participants</h2>
@@ -55,12 +55,13 @@
 <li><strong>member</strong> takes part in discussion.</li>
 </ul>
 <p><strong>New</strong> makes a token, <strong>Copy</strong> copies it. There must be exactly one owner, and no name twice.</p>
-<p>Saving writes the whole file and applies it at once, Host and Port excepted. The server&#39;s own checks apply, and nothing is saved while there are problems; the popup lists them.</p>
+<p>Saving writes these fields and applies them at once, Scope and Port excepted. The server&#39;s own checks apply, and nothing is saved while there are problems; the popup lists them.</p>
 <h2 id="the-settings-file">The settings file</h2>
-<p>The settings are <code>consensus.json</code> in the data folder, written at first start:</p>
+<p>The settings are <code>consensus.json</code> in the config folder, written at first start:</p>
 <pre><code>{
+	&quot;Name&quot;: &quot;cube4&quot;,
 	&quot;Port&quot;: 3500,
-	&quot;Host&quot;: &quot;127.0.0.1&quot;,
+	&quot;Scope&quot;: &quot;Local&quot;,
 	&quot;States&quot;: [ &quot;Draft&quot;, &quot;Plan&quot;, &quot;Working&quot;, &quot;Finished&quot; ],
 	&quot;Participants&quot;: [
 		{ &quot;Name&quot;: &quot;user&quot;, &quot;Display&quot;: &quot;User&quot;, &quot;Role&quot;: &quot;owner&quot; },
@@ -68,11 +69,11 @@
 	]
 }
 </code></pre>
-<p>The file is read once at start, so an edit by hand needs a restart; the popup does not.</p>
+<p>The desktop keeps its own fields in the same file (<code>Servers</code>, <code>Last</code>, <code>Theme</code>, <code>Scale</code>, <code>Llms</code>, <code>Workspaces</code>, <code>Remembered</code>), which the popup never touches. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a <code>Host</code>, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine&#39;s.</p>
 <h2 id="theme-and-size">Theme and size</h2>
 <p>Light, dark or the system&#39;s theme, and three sizes, are at the bottom of the sidebar. They are kept in the browser, per user and per server, not in the settings. The desktop offers a wider choice of palettes, from Sepia and Paper to Nord and Midnight, and its title bar follows.</p>
-<h2 id="the-data-folder">The data folder</h2>
-<p>Everything is plain files in the data folder, <code>~data/</code> beside the checkout by default:</p>
+<h2 id="the-config-folder">The config folder</h2>
+<p>Everything is plain files in the config folder, <code>.consensus</code> in your user folder by default, or the one <code>--config</code> names:</p>
 <pre><code>consensus.json                   the settings
 projects.json                    every project&#39;s name, in display order
 projects/&lt;id&gt;/project.json       a project&#39;s tree

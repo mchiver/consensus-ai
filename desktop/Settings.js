@@ -1,12 +1,13 @@
 'use strict';
 
-// Settings - the desktop's desktop.json (plan Consensus Desktop, Step 2): the saved servers, the local server's data
-// folder and port, what was open last, the theme and scale the desktop applies to the page it hosts, and (Step 3)
+// Settings - the desktop's fields of the global config (plan Run Shapes, Step 1: consensus.json in the config folder,
+// shared with the server's Name, Port, Scope, States and Participants; desktop.json before, moved in once by MoveIn):
+// the saved servers, what was open last, the theme and scale the desktop applies to the page it hosts, and (Step 3)
 // the LLM connections, kept once per desktop, and the workspaces, each with the project it is attached to.
 //
 //   {
 //     "Servers": [ { "Name": "cube4", "Url": "http://cube4:3500", "Theme": null } ],
-//     "Local": { "Data": "W:/code/consensus.git/~data", "Port": 3500, "Theme": null },
+//     "Local": { "Theme": null },                 this machine's server (the config's own) and its theme
 //     "Last": { "Kind": "server", "Name": "cube4" } | { "Kind": "local" } | null,
 //     "Theme": "system", "Scale": "normal",
 //     "Llms": [ { "Id": "llm-…", "Name": "Claude", "Kind": "claude-cli", "Command": "claude", "Arguments": [ "-p", … ],
@@ -44,6 +45,7 @@ const DEFAULT_ROUNDS = 30;
 const SHELL_OPERATORS = /[|&;<>$`()]/;
 const DEFAULT_EXCLUDE = [ '~*/**', 'node_modules/**', '.git/**' ];
 const ID_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz';
+const DESKTOP_FIELDS = [ 'Servers', 'Local', 'Last', 'Theme', 'Scale', 'Llms', 'Workspaces', 'Remembered' ];
 
 
 //---------------------------------------------------------------------
@@ -53,7 +55,7 @@ function Default()
 {
 	return {
 		Servers: [],
-		Local: { Data: '', Port: null, Theme: null },
+		Local: { Theme: null },
 		Last: null,
 		Theme: 'system',
 		Scale: 'normal',
@@ -173,7 +175,7 @@ function Fill( Settings )
 	}
 	if ( given.Local && typeof given.Local === 'object' )
 	{
-		settings.Local = { Data: String( given.Local.Data || '' ), Port: Number.isInteger( given.Local.Port ) ? given.Local.Port : null, Theme: theme_or_null( given.Local.Theme ) };
+		settings.Local = { Theme: theme_or_null( given.Local.Theme ) };
 	}
 	if ( given.Last && typeof given.Last === 'object' && ( given.Last.Kind === 'server' || given.Last.Kind === 'local' ) )
 	{
@@ -216,6 +218,10 @@ function Remember( Settings, Key, Value )
 	if ( typeof Key !== 'string' || !Key || Key.length > 512 )
 	{
 		return false;
+	}
+	if ( !Settings.Remembered || typeof Settings.Remembered !== 'object' )
+	{
+		Settings.Remembered = {};
 	}
 	if ( Value === null || Value === undefined )
 	{
@@ -289,7 +295,51 @@ function SetThemeFor( Settings, Current, Theme )
 
 
 //---------------------------------------------------------------------
-// Read: desktop.json, filled in; the defaults when there is no file.
+// Apply: the desktop's fields of Filled (Fill's shape) onto Settings, in place, the server's fields untouched.
+
+function Apply( Settings, Filled )
+{
+	for ( let field of DESKTOP_FIELDS )
+	{
+		Settings[ field ] = Filled[ field ];
+	}
+	return Settings;
+}
+
+
+//---------------------------------------------------------------------
+// MoveIn: the desktop's fields into the global config, once: a config with no Servers yet takes them from desktop.json
+// at Path when the file exists (renamed .moved afterwards), else from the defaults. Returns the lines to log. A
+// config that has its Servers already keeps them, and any of the desktop's fields it lacks (a file written by hand)
+// is filled in with its default.
+
+function MoveIn( Settings, Path )
+{
+	if ( Array.isArray( Settings.Servers ) )
+	{
+		let missing = DESKTOP_FIELDS.filter( function ( field ) { return Settings[ field ] === undefined; } );
+		Apply( Settings, Fill( Settings ) );
+		return missing.length ? [ 'the desktop\'s settings filled in: ' + missing.join( ', ' ) ] : [];
+	}
+	let lines = [];
+	let from = {};
+	if ( Path && FS.existsSync( Path ) )
+	{
+		from = JSON.parse( FS.readFileSync( Path, 'utf8' ) );
+		FS.renameSync( Path, Path + '.moved' );
+		lines.push( 'desktop.json moved into the config: ' + Path );
+	}
+	else
+	{
+		lines.push( 'the desktop\'s settings start with the defaults' );
+	}
+	Apply( Settings, Fill( from ) );
+	return lines;
+}
+
+
+//---------------------------------------------------------------------
+// Read: a file in the desktop's shape (desktop.json), filled in; the defaults when there is no file.
 
 function Read( Path )
 {
@@ -438,11 +488,14 @@ module.exports = {
 	DEFAULT_CONTEXT: DEFAULT_CONTEXT,
 	DEFAULT_ROUNDS: DEFAULT_ROUNDS,
 	DEFAULT_EXCLUDE: DEFAULT_EXCLUDE,
+	DESKTOP_FIELDS: DESKTOP_FIELDS,
 	Default: Default,
 	NewId: NewId,
 	FillLlm: FillLlm,
 	FillWorkspace: FillWorkspace,
 	Fill: Fill,
+	Apply: Apply,
+	MoveIn: MoveIn,
 	Read: Read,
 	Write: Write,
 	Problems: Problems,

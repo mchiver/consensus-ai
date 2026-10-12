@@ -11,7 +11,7 @@
 </head>
 <body ng-controller="ConnectController" ng-cloak>
 
-	<!-- The connect screen (plan Consensus Desktop, Step 2): the saved servers, one to add, and the local server. -->
+	<!-- The connect screen (plan Consensus Desktop, Step 2): the saved servers, one to add, and this machine's server. -->
 
 	<header class="connect-head">
 		<div class="connect-title"><span class="connect-kind">Consensus</span> Desktop <span class="muted small">{{ Version }}</span></div>
@@ -66,18 +66,12 @@
 
 		<section class="block">
 			<div class="block-head">
-				<h2>Local server</h2>
-				<span class="muted small" id="local-status">{{ Local ? 'running at ' + Local.Url + ' over ' + Local.Data : 'not running' }}</span>
+				<h2>This machine</h2>
+				<span class="muted small" id="local-status">{{ Local ? 'Consensus at ' + Local.Url + ' (Scope ' + Local.Scope + ') over ' + Local.Config : 'no server on this machine: its Scope is None, or it could not start' }}</span>
 			</div>
 			<div class="field-row">
-				<label for="local-data">Data folder</label>
-				<input class="form-control form-control-sm" id="local-data" ng-model="LocalData" placeholder="a folder for its data; consensus.json is written there at first start" ng-disabled="Local">
-				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="PickFolder()" ng-disabled="Local || Busy">Browse</button>
-			</div>
-			<div class="field-row">
-				<button class="btn btn-sm btn-outline-primary" id="local-start" ng-hide="Local" ng-click="LocalStart()" ng-disabled="!LocalData || Busy">Start</button>
-				<button class="btn btn-sm btn-outline-danger" id="local-stop" ng-show="Local" ng-click="LocalStop()" ng-disabled="Busy">Stop</button>
 				<button class="btn btn-sm btn-primary" id="local-connect" ng-show="Local" ng-click="ConnectLocal()" ng-disabled="Busy">Connect</button>
+				<span class="muted small" ng-show="Local">The server starts with the app, from its settings (Scope and Port), and stops with it.</span>
 			</div>
 		</section>
 

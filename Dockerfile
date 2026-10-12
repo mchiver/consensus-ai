@@ -1,4 +1,5 @@
-# Consensus: the web page and the API on port 3500, its data in the /data volume (the plan "Docker Image").
+# Consensus: the web page and the API on port 3500, its config and data in the /data volume (the plan "Docker Image";
+# the config folder and Scope Public: plan Run Shapes, Step 1).
 FROM node:22-alpine
 
 ENV NODE_ENV=production
@@ -13,7 +14,7 @@ COPY src ./src
 COPY public ./public
 COPY .guides ./.guides
 
-# The data folder belongs to the node user, who runs the server.
+# The config folder belongs to the node user, who runs the server.
 RUN mkdir -p /data && chown node:node /data
 USER node
 
@@ -23,4 +24,4 @@ EXPOSE 3500
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 	CMD wget -q -O /dev/null http://127.0.0.1:3500/api/me || exit 1
 
-CMD [ "node", "bin/consensus.js", "--data", "/data", "--host", "0.0.0.0", "--port", "3500" ]
+CMD [ "node", "bin/consensus.js", "--config", "/data", "--scope", "public", "--port", "3500", "--headless" ]

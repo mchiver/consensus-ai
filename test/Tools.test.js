@@ -203,7 +203,7 @@ async function start_consensus()
 {
 	let data = temporary_folder( 'desktop-tools-server-' );
 	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( {
-		Port: 0, Host: '127.0.0.1',
+		Name: 'test', Port: 0, Scope: 'Local',
 		States: [ 'Draft', 'Working', 'Finished' ],
 		Participants: [ { Name: 'user', Display: 'User', Role: 'owner' }, { Name: 'llm', Display: 'LLM', Role: 'llm', Token: TOKEN } ],
 	} ) );

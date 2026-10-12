@@ -23,7 +23,7 @@ function temporary_folder()
 
 function write_settings( folder, states )
 {
-	let settings = { Port: 0, Host: '127.0.0.1', States: states, Participants: [ { Name: 'user', Display: 'User', Role: 'owner' } ] };
+	let settings = { Name: 'test', Port: 0, Scope: 'Local', States: states, Participants: [ { Name: 'user', Display: 'User', Role: 'owner' } ] };
 	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( settings, null, '\t' ) );
 }
 

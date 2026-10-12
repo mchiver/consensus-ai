@@ -1,60 +1,29 @@
 #!/usr/bin/env node
 'use strict';
 
-// consensus - starts the server from the command line.
-//   node bin/consensus.js [--data <folder>] [--port <port>] [--host <address>]
-// --host overrides the settings' Host (127.0.0.1 by default); 0.0.0.0 listens on every interface.
+// consensus - the headless entry point (plan Run Shapes, Step 1): starts the server from the command line, with no
+// window. The desktop's executable is the other entry point; both go through src/Start.js.
+//   node bin/consensus.js [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]
+// --headless is accepted here and does nothing: this form never has a window.
 
-const SERVER = require( '../src/Server.js' );
-
-
-function parse_arguments( argv )
-{
-	let options = {};
-	for ( let index = 0; index < argv.length; index++ )
-	{
-		let argument = argv[ index ];
-		if ( argument === '--data' )
-		{
-			options.Data = argv[ ++index ];
-		}
-		else if ( argument === '--port' )
-		{
-			options.Port = parseInt( argv[ ++index ], 10 );
-		}
-		else if ( argument === '--host' )
-		{
-			options.Host = argv[ ++index ];
-		}
-		else if ( argument === '--help' || argument === '-h' )
-		{
-			options.Help = true;
-		}
-		else
-		{
-			throw new Error( 'unknown argument "' + argument + '"' );
-		}
-	}
-	return options;
-}
+const START = require( '../src/Start.js' );
 
 
 async function main()
 {
-	let options = parse_arguments( process.argv.slice( 2 ) );
+	let options = START.Parse( process.argv.slice( 2 ) );
 	if ( options.Help )
 	{
-		console.log( 'usage: consensus [--data <folder>] [--port <port>] [--host <address>]' );
+		console.log( START.USAGE );
 		return;
 	}
-	let running = await SERVER.Start( options );
-	console.log( 'Consensus at ' + running.Url + '/ (listening on ' + running.Address.Host + ')' );
-	if ( !running.Address.Local )
+	let running = await START.Run( options, console.log );
+	if ( !running.Server )
 	{
-		console.log( 'warning: listening beyond this machine; anyone who can reach it acts as the owner, and reads the llm token at /instructions' );
+		await running.Close();
+		console.log( 'nothing to run without a window: --scope local or public starts the server' );
+		process.exit( 1 );
 	}
-	console.log( 'data folder ' + running.Store.Folder );
-	console.log( ( running.SettingsWritten ? 'settings written to ' : 'settings from ' ) + running.Store.SettingsPath() );
 	// Ctrl+C, and SIGTERM from `docker stop` (in a container the server is the first process, which a signal with no
 	// handler does not end): close the server, then exit.
 	function stop()

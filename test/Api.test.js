@@ -102,27 +102,39 @@ TEST.after( async function ()
 
 //---------------------------------------------------------------------
 
-TEST( 'start writes the settings with Host 127.0.0.1 and listens there; the settings\' Host or the option moves it', async function ()
+TEST( 'start writes the settings with Scope Local and listens on 127.0.0.1; the settings\' Scope or the option changes that; None starts no server', async function ()
 {
 	ASSERT.equal( running.SettingsWritten, true );
+	ASSERT.equal( running.Scope, 'Local' );
 	ASSERT.equal( running.Address.Host, '127.0.0.1' );
 	ASSERT.equal( running.Address.Local, true );
-	ASSERT.equal( running.Settings.Host, '127.0.0.1' );
+	ASSERT.equal( running.Settings.Scope, 'Local' );
+	ASSERT.equal( running.Settings.Name, require( 'os' ).hostname() );
 	ASSERT.equal( FS.existsSync( running.Store.SettingsPath() ), true );
-	// every interface, from the option; reached here at 127.0.0.1
-	let everywhere = await SERVER.Start( { Data: temporary_folder(), Port: 0, Host: '0.0.0.0' } );
-	ASSERT.deepEqual( [ everywhere.Address.Host, everywhere.Address.Local ], [ '0.0.0.0', false ] );
+	ASSERT.equal( ( await call( 'GET', '/api/me' ) ).Body.Server, running.Settings.Name );
+	// every interface, from the option; reached here at 127.0.0.1; the option does not change the file
+	let everywhere = await SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public' } );
+	ASSERT.deepEqual( [ everywhere.Scope, everywhere.Address.Host, everywhere.Address.Local, everywhere.Settings.Scope ], [ 'Public', '0.0.0.0', false, 'Public' ] );
 	ASSERT.equal( everywhere.Url, 'http://127.0.0.1:' + everywhere.Address.Port );
 	ASSERT.equal( ( await fetch( everywhere.Url + '/api/me' ) ).status, 200 );
 	await everywhere.Close();
-	// from the settings' Host
+	// from the settings' Scope; and a file from before, its Host turned into a Scope
 	let folder = temporary_folder();
-	let settings = PARTICIPANTS.DefaultSettings( 0 );
-	settings.Host = 'localhost';
+	let settings = PARTICIPANTS.DefaultSettings( 0, 'Public' );
 	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( settings ) );
-	let from_settings = await SERVER.Start( { Data: folder, Port: 0 } );
-	ASSERT.deepEqual( [ from_settings.Address.Host, from_settings.Address.Local ], [ 'localhost', true ] );
+	let from_settings = await SERVER.Start( { Config: folder, Port: 0 } );
+	ASSERT.deepEqual( [ from_settings.Scope, from_settings.Address.Host, from_settings.Address.Local ], [ 'Public', '0.0.0.0', false ] );
 	await from_settings.Close();
+	let older = temporary_folder();
+	FS.writeFileSync( PATH.join( older, 'consensus.json' ), JSON.stringify( { Port: 0, Host: '0.0.0.0', Participants: settings.Participants } ) );
+	let migrated = await SERVER.Start( { Config: older, Port: 0 } );
+	ASSERT.deepEqual( [ migrated.Scope, migrated.Settings.Scope, 'Host' in migrated.Settings, migrated.Settings.Name ], [ 'Public', 'Public', false, require( 'os' ).hostname() ] );
+	ASSERT.equal( JSON.parse( FS.readFileSync( PATH.join( older, 'consensus.json' ), 'utf8' ) ).Scope, 'Public' );
+	await migrated.Close();
+	// Scope None: the settings and the store, no server; the option overrides the file for this start only
+	let none = await SERVER.Start( { Config: folder, Port: 0, Scope: 'None' } );
+	ASSERT.deepEqual( [ none.Scope, none.Server, none.Address, none.Url, none.Settings.Scope ], [ 'None', null, null, null, 'Public' ] );
+	await none.Close();
 	let again = await SERVER.Start( { Data: running.Store.Folder, Port: 0 } );
 	ASSERT.equal( again.SettingsWritten, false );
 	ASSERT.deepEqual( again.Settings.Participants[ 1 ], { Name: 'llm', Display: 'LLM', Role: 'llm' } );
@@ -175,7 +187,7 @@ TEST( 'identity: no header is the owner, the token is the llm, a wrong token is 
 } );
 
 
-TEST( 'settings: the owner reads and writes consensus.json whole; problems are refused; Host and Port wait for a restart', async function ()
+TEST( 'settings: the owner reads and writes consensus.json; problems are refused; Scope and Port wait for a restart; other fields stay', async function ()
 {
 	ASSERT.equal( ( await call( 'GET', '/api/settings', undefined, true ) ).Status, 403 );
 	ASSERT.equal( ( await call( 'PUT', '/api/settings', { Settings: {} }, true ) ).Status, 403 );
@@ -198,9 +210,13 @@ TEST( 'settings: the owner reads and writes consensus.json whole; problems are r
 
 	// written: the states, a member with a token, the display; the file and the running server follow at once
 	let member_token = PARTICIPANTS.NewToken();
+	// the desktop's fields in the same file (plan Run Shapes) are not the modal's to write: they stay
+	await running.Store.WriteSettings( Object.assign( {}, read.Body.Settings, { Servers: [ { Name: 'cube4', Url: 'http://cube4:3500' } ] } ) );
+	running.Settings.Servers = [ { Name: 'cube4', Url: 'http://cube4:3500' } ];
 	let fresh = {
 		Port: read.Body.Settings.Port,
-		Host: read.Body.Settings.Host,
+		Scope: read.Body.Settings.Scope,
+		Name: 'renamed',
 		States: [ 'Draft', 'Plan', 'Working', 'Finished', 'Shelved' ],
 		Participants: [ { Name: 'user', Display: 'Owner', Role: 'owner' }, { Name: 'llm', Display: 'LLM', Role: 'llm', Token: token }, { Name: 'ann', Display: 'Ann', Role: 'member', Token: member_token } ],
 		Workers: [ { Name: 'gone' } ],
@@ -209,19 +225,25 @@ TEST( 'settings: the owner reads and writes consensus.json whole; problems are r
 	ASSERT.equal( written.Status, 200 );
 	ASSERT.equal( written.Body.Restart, false );
 	ASSERT.equal( 'Workers' in written.Body.Settings, false );
+	ASSERT.deepEqual( written.Body.Settings.Servers, [ { Name: 'cube4', Url: 'http://cube4:3500' } ] );
+	ASSERT.equal( ( await call( 'GET', '/api/me' ) ).Body.Server, 'renamed' );
 	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.States, fresh.States );
 	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.Me, { Name: 'user', Display: 'Owner', Role: 'owner' } );
 	ASSERT.equal( ( await call( 'GET', '/api/me', undefined, 'Bearer ' + member_token ) ).Body.Me.Name, 'ann' );
 	let on_disk = JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) );
 	ASSERT.deepEqual( on_disk.States, fresh.States );
 	ASSERT.equal( on_disk.Participants[ 2 ].Token, member_token );
+	ASSERT.deepEqual( on_disk.Servers, [ { Name: 'cube4', Url: 'http://cube4:3500' } ] );
 	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Shelved' } ) ).Status, 200 );
 
-	// a new Port asks for a restart; the file has it, the server still listens where it did
+	// a new Port or Scope asks for a restart; the file has it, the server still listens where it did
 	let moved = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, fresh, { Port: 3999 } ) } );
 	ASSERT.equal( moved.Body.Restart, true );
 	ASSERT.equal( JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).Port, 3999 );
 	ASSERT.equal( ( await fetch( running.Url + '/api/me' ) ).status, 200 );
+	let scoped = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, fresh, { Port: 3999, Scope: 'Public' } ) } );
+	ASSERT.deepEqual( [ scoped.Body.Restart, scoped.Body.Settings.Scope ], [ true, 'Public' ] );
+	ASSERT.equal( ( await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, fresh, { Scope: 'everywhere' } ) } ) ).Body.Problems[ 0 ], 'Scope must be one of None, Local, Public' );
 
 	// back to what the other tests expect
 	let back = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read.Body.Settings, { States: fresh.States } ) } );
