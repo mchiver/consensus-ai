@@ -30,6 +30,6 @@ A tab's menu (the ▾ beside its ×, or a right-click) has Close, Close others, 
 
 The small button at the right end of the tab strip hides or shows the threads pane, and its mirror at the left end the project tree; each is remembered in the browser. A document gives the threads pane's room to the text.
 
-The project tree's state, the open project, the folded folders, the sort order and the open tabs, is remembered per server; the look of the page, the hidden panes and the pane widths, is shared by every server.
+The project tree's state per server, the open project, the folded folders and the LLMs fold, is remembered under the server; the sort order, the open tabs, the look of the page, the hidden panes and the pane widths, are the window's, whatever the servers it shows.
 
 Selecting text in Read offers **Copy**, which copies the text as it reads, beside Comment and Start a new Subplan.

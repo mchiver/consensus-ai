@@ -1,17 +1,18 @@
 'use strict';
 
 // Stored - the page's remembered state (plan UI Tweaks V), by name, with two scopes:
-//   per server   what names content on the connected server (the open project, the folds, the tabs, the sort):
-//                key "consensus.<server>.<name>", where <server> is the connected server's address without its
-//                scheme (window.ConsensusDesktop.Server, handed by the desktop); in a browser the page's origin is
-//                the server, so the key is "consensus.<name>".
+//   per server   what names content on a server (the open project, the folds, the LLMs fold): key
+//                "consensus.<server>.<name>", where <server> is the root's address without its scheme (plan Run
+//                Shapes, Step 5: Read and Write take the root, roots.js); in a browser the page's origin is the
+//                server, so the key is "consensus.<name>".
 //   shared       the look (hidden panes, highlight, widths): key "consensus.<name>", whatever the server.
 // In the desktop the keys live in desktop.json (Remembered), handed over at boot and written back through the
 // preload's Remember: the page's origin gets a new port at every start, so its localStorage would not survive a
 // restart. In a browser they live in localStorage. A blocked or empty storage reads as the fallback and writes
 // nothing; nothing else depends on it.
 //
-//   window.ConsensusStored = { Read( Name, Fallback, PerServer ), Write( Name, Value, PerServer ), Remove( Name, PerServer ), ServerKey() }
+//   window.ConsensusStored = { Read( Name, Fallback, Root ), Write( Name, Value, Root ), Remove( Name, Root ), ServerKey() }
+//   Root: a root (its Url names the server), true for the page's own server, or false for the shared scope.
 
 ( function ()
 {
@@ -31,7 +32,15 @@
 
 	function key_of( name, per_server )
 	{
-		let server = per_server ? ServerKey() : '';
+		let server = '';
+		if ( per_server && typeof per_server === 'object' )
+		{
+			server = String( per_server.Url || '' ).replace( /^https?:\/\//, '' ).replace( /\/+$/, '' );
+		}
+		else if ( per_server )
+		{
+			server = ServerKey();
+		}
 		return PREFIX + ( server ? server + '.' : '' ) + name;
 	}
 

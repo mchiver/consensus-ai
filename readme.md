@@ -10,7 +10,8 @@ takes part through the API, from wherever it runs: an agent session in the codeb
 and the turn ("your turn in Consensus"), and the server runs LLM connections of its own for you (plan Run
 Shapes, Step 3), each a participant, in a project's folder on its machine; the server reads no code on its
 own and indexes nothing: a run does, as a tool of the model. The desktop application is the same page in a
-window, with a server of its own inside.
+window, with a server of its own inside and every saved server beside it, each a root of the tree (plan Run
+Shapes, Step 5).
 
 ## Starting it
 
@@ -242,36 +243,42 @@ checkout:
 Since plan Run Shapes (Step 1) the app is the second entry point over `src/Start.js`: it takes the command
 line's path, `--config`, `--port`, `--scope` and `--headless` (from the checkout, `npm run desktop -- --config …`),
 starts **this machine's server** from the global config as its Scope says (none with Scope None; the configured
-port in use gives way to a free one; a port asked for that is in use leaves the app a client only, with the
-reason on the connect screen), and opens on it, or on the saved server that was open last; with a project
-folder on the command line (Step 4) it opens on this machine's server with that project alone, whatever was
-last, and leaves Last as it was. With `--headless` there is no window: the server runs and prints what the command line
-prints. The **connect screen** has the saved servers (Connect, Edit, Remove), **Add server** (a Name and a Url,
-tried before it is saved; the screen says which Consensus version answers and warns when it differs from the
-app's), and **This machine**: the app's own server, with its address, scope and config folder, and Connect.
-Once connected, the window shows the Consensus page, pointed at the server's API; the
-**Server** menu has Connect to another, Reload, **New window**, which starts another instance of the app (over
-the same config, on a free port when the configured one is taken), and **Open folder in new window**, which
-starts one on a folder alone, as `consensus <path>` does. A tab's Detach opens a window of the app.
+port in use gives way to a free one; a port asked for that is in use leaves the server unstarted, with the
+reason on the servers screen), and opens on the page with every server it has (plan Run Shapes, Step 5): this
+machine's server first, when it runs, then every saved server, each a **root** of the tree; with a project
+folder on the command line (Step 4) it shows this machine's server with that project alone. With `--headless`
+there is no window: the server runs and prints what the command line prints. The **servers screen** (the Server
+menu's Servers…, and where the app opens when it has no server to show) has the saved servers (Edit, Remove),
+**Add server** (a Name and a Url, tried before it is saved; the screen says which Consensus version answers and
+warns when it differs from the app's), **This machine**: the app's own server, with its address, scope and
+config folder, and **Open the page**. The **Server** menu has Servers…, The page, Reload, **New window**, which
+starts another instance of the app (over the same config, on a free port when the configured one is taken), and
+**Open folder in new window**, which starts one on a folder alone, as `consensus <path>` does. A tab's Detach
+opens a window of the app.
 
 The page the window shows is the server's `public/`, the one page since plan Run Shapes, Step 3 (the desktop's
 own copy, `desktop/page/`, developed on while `public/` was frozen, became `public/` again; `desktop/page/`
 keeps the connect screen). It is served from the app's own origin on `127.0.0.1` (`desktop/Page.js`), and that
-same origin forwards `/api` (the events stream included) and `/instructions` to the connected server: the base
-URL stays the page's own origin (`client.js` prefixes the one the desktop hands it), and the server, which
-sends no CORS headers, is not changed for the app beyond `/api/me` saying its `Version` and `Name`. What needs
+same origin forwards `/servers/<key>/api` (the events stream included) and `/servers/<key>/instructions` to
+that root's server (`local` for this machine's, a saved server's Name otherwise): every call of the page names
+its root (`public/js/roots.js` holds each root's participants, projects and events; `client.js` prefixes the
+root's base; a route carries its root as `#/s/<key>/p/<id>`, a browser's one root keeping `#/p/<id>`), and the
+server, which sends no CORS headers, is not changed for the app beyond `/api/me` saying its `Version` and `Name`. What needs
 the window stays behind `window.ConsensusDesktop` and `window.Desktop`: the native theme, the folder picker,
 the remembered view state. The desktop's settings are its fields of the global config, `consensus.json` in
 the config folder (`desktop.json` in Electron's user-data folder before Run Shapes; moved in once at the first
-start and renamed `.moved`): `Servers`, `Local` (this machine's server: its `Theme`), `Last`, `Theme`, `Scale`
-and `Remembered`; the pages are handed those fields only, never the participants' tokens. `Theme` is the
-default, set from the connect screen; a server entry (or `Local`) may hold a `Theme` of its own, set from the
-page's picker while connected (plan UI Tweaks V). The page remembers its tree state (the open project, the
-folds, the sort, the tabs, the LLMs list folded) per server, under the server's address, and the look (hidden
-panes, widths) for all, in the config's `Remembered` (`public/js/stored.js` through the preload's `Remember`:
+start and renamed `.moved`): `Servers`, `Theme`, `Scale` and `Remembered` (`Local`, `Last` and a theme per server, from before Step 5, are
+dropped at the next start); the pages are handed those fields only, never the participants' tokens. `Theme` is
+the window's one theme, set from either screen's picker. The page remembers its tree state (the open project,
+the folds, the LLMs list folded, the root folded) per server, under the server's address, and the tabs, the
+sort and the look (hidden panes, widths) once per window, in the config's `Remembered` (`public/js/stored.js` through the preload's `Remember`:
 the page's origin gets a new port at every start, so its localStorage would not survive a restart; in a
-browser the same keys are in localStorage); the connection panel at the bottom of the sidebar shows the
-server's address, with its name and version in the tooltip.
+browser the same keys are in localStorage); each root's row shows the server's name, a dot green while its
+updates are live, who you are there and, in the tooltip, its address, version and, offline, the reason; a
+server that does not answer stays in the tree, offline, and is read again when its stream connects. The one
+item open at a time, the editor, the threads, the header (which names the root when there are several), the
+revisions, the ports and the Settings popup work over its root; Paste into another server's project is an
+import there, the way to move a plan between servers; drag and drop between roots is refused with a notice.
 
 **LLM connections and runs** (plan Consensus Desktop, Steps 3 and 4, in the desktop; the server's since plan
 Run Shapes, Step 3) are kept in the server's settings (`Llms`) and shown by the page, in a browser and in the
@@ -443,7 +450,7 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 	src/Ollama.js         the tool loop over Ollama's chat endpoint
 	src/Tools.js          a local model's tools over the project's folder and the server
 	src/Files.js          the files of a folder: globs, Include and Exclude
-	public/               the page: index.html, css/, js/ (one controller per pane; settings.js the settings popup; llm.js the LLMs and the runs)
+	public/               the page: index.html, css/, js/ (one controller per pane; roots.js the servers the page shows; settings.js the settings popup; llm.js the LLMs and the runs)
 	test/                 node --test; Ui.test.js drives a headless browser through test/support/Cdp.js
 	.plans/               the build plans and the story of this repository
 	.guides/              build-with-consensus.md, the agent session's guide

@@ -1,9 +1,9 @@
 'use strict';
 
 // preload - what the desktop gives its pages (plan Consensus Desktop, Step 2). Before the page's scripts run it
-// asks the main process (main.js) what it is connected to; the Consensus page copy reads window.ConsensusDesktop
-// for the API's base URL and the theme, and the connect screen calls window.Desktop; the page calls it for the folder
-// picker (plan Run Shapes: the LLM connections and the runs come from the API, as in a browser).
+// asks the main process (main.js) what it shows; the Consensus page reads window.ConsensusDesktop for the roots (the
+// servers it shows, plan Run Shapes, Step 5), the API's base URL and the theme, and the connect screen calls
+// window.Desktop; the page calls it for the folder picker and the servers screen.
 
 const ELECTRON = require( 'electron' );
 
@@ -22,7 +22,7 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	Version: BOOT.Version,
 	Theme: BOOT.Theme,
 	Scale: BOOT.Scale,
-	Server: BOOT.Server,
+	Roots: BOOT.Roots || [],
 	Reason: BOOT.Reason || null,
 	Remembered: BOOT.Remembered || {},
 	SetTheme: function ( Theme ) { ELECTRON.ipcRenderer.send( 'theme', { Theme: Theme } ); },
@@ -32,12 +32,13 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 } );
 
 
-// For the connect screen, and the page's folder picker.
+// For the connect screen (the servers), and the page's folder picker; Servers shows that screen, OpenPage the page.
 ELECTRON.contextBridge.exposeInMainWorld( 'Desktop', {
 	Settings: function () { return invoke( 'settings' ); },
 	Save: function ( Settings ) { return invoke( 'save', Settings ); },
 	Try: function ( Url ) { return invoke( 'try', Url ); },
-	Connect: function ( Where ) { return invoke( 'connect', Where ); },
+	Servers: function () { return invoke( 'servers' ); },
+	OpenPage: function () { return invoke( 'page' ); },
 	LocalStatus: function () { return invoke( 'local-status' ); },
 	PickFolder: function ( Current ) { return invoke( 'folder', Current ); },
 	NewWindow: function () { return invoke( 'new-window' ); },

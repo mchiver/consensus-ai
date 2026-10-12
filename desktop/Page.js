@@ -2,12 +2,13 @@
 
 // Page - serves the Consensus page (public/, the one page since plan Run Shapes, Step 3), the connect screen
 // (desktop/page/) and the vendor files on 127.0.0.1, for the window to load (plan Consensus Desktop, Step 2), and forwards
-// the page's API calls (/api/*, the events stream included, and /instructions) to the connected server, so the page
-// and the API share one origin. The server sends no CORS headers and is not changed for the desktop, and Electron
-// runs no preload for a window whose web security is off, so the forwarding is what lets the page call another
-// origin's API; the base URL the preload hands the page stays the page's own origin.
+// the page's API calls to the servers the window shows: since plan Run Shapes, Step 5, one root per server,
+// /servers/<key>/api/* (the events stream included) and /servers/<key>/instructions going to that root's server, so
+// the page and every API share one origin. The server sends no CORS headers and is not changed for the desktop, and
+// Electron runs no preload for a window whose web security is off, so the forwarding is what lets the page call
+// another origin's API; the base URL the preload hands the page stays the page's own origin.
 //
-//   Serve( { Folder, Port? } ) -> { Url, Target(), SetTarget( url | null ), Close }
+//   Serve( { Folder, Port? } ) -> { Url, Roots(), SetRoots( [ { Key, Url } ] ), Close }
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -31,28 +32,43 @@ async function Serve( Options )
 	{
 		throw new Error( 'the page is missing: ' + PATH.join( folder, 'index.html' ) );
 	}
-	let target = null;
+	let roots = {};		// key -> the server's url
 	let app = EXPRESS();
 	app.disable( 'x-powered-by' );
 	SERVER.AttachVendor( app );
+	app.use( '/servers/:key', forward );
 	for ( let prefix of FORWARDED )
 	{
-		app.use( prefix, forward );
+		app.use( prefix, not_here );
 	}
 	app.use( EXPRESS.static( folder ) );
 	app.use( EXPRESS.static( CONNECT_FOLDER ) );
 
 
-	// One request forwarded to the target as it is: method, path, headers (the host is the target's) and body, the
-	// answer streamed back, which keeps the events stream open.
+	// The page reaches a server through its root only.
+	function not_here( request, response )
+	{
+		response.status( 503 ).json( { Error: 'the page reaches a server through /servers/<key>' } );
+	}
+
+
+	// One request forwarded to the root's server as it is: method, path (the rest after /servers/<key>), headers (the
+	// host is the target's) and body, the answer streamed back, which keeps the events stream open.
 	function forward( request, response )
 	{
+		let target = roots[ request.params.key ];
 		if ( !target )
 		{
-			response.status( 503 ).json( { Error: 'not connected to a Consensus server' } );
+			response.status( 503 ).json( { Error: 'no server "' + request.params.key + '" in this window' } );
 			return;
 		}
-		let url = new URL( request.originalUrl, target );
+		let rest = request.url;
+		if ( !FORWARDED.some( function ( prefix ) { return rest === prefix || rest.startsWith( prefix + '/' ) || rest.startsWith( prefix + '?' ); } ) )
+		{
+			response.status( 404 ).json( { Error: 'not forwarded' } );
+			return;
+		}
+		let url = new URL( rest, target );
 		let headers = {};
 		for ( let name of Object.keys( request.headers ) )
 		{
@@ -100,16 +116,23 @@ async function Serve( Options )
 	} );
 
 
-	// SetTarget: the connected server's address, or null when none; what /api and /instructions go to from now on.
-	function SetTarget( Url )
+	// SetRoots: the servers the window shows, each by its key and address; what /servers/<key> goes to from now on.
+	function SetRoots( List )
 	{
-		target = Url ? String( Url ).replace( /\/+$/, '' ) : null;
+		roots = {};
+		for ( let root of List || [] )
+		{
+			if ( root && root.Key && root.Url )
+			{
+				roots[ String( root.Key ) ] = String( root.Url ).replace( /\/+$/, '' );
+			}
+		}
 	}
 
 
-	function Target()
+	function Roots()
 	{
-		return target;
+		return Object.keys( roots ).map( function ( key ) { return { Key: key, Url: roots[ key ] }; } );
 	}
 
 
@@ -123,8 +146,8 @@ async function Serve( Options )
 	return {
 		Url: 'http://' + HOST + ':' + server.address().port,
 		Folder: folder,
-		Target: Target,
-		SetTarget: SetTarget,
+		Roots: Roots,
+		SetRoots: SetRoots,
 		Close: Close,
 	};
 }

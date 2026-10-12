@@ -8,16 +8,18 @@
 
 angular.module( 'Consensus' )
 
-.factory( 'Ports', [ 'Client', 'State', function ( Client, State )
+.factory( 'Ports', [ 'Client', 'State', 'Roots', function ( Client, State, Roots )
 {
-	// Open: null | 'export' | 'import'. Project: the exported project { Id, Name }. Json: the text shown or pasted.
-	// Preview: what the server said the import would do. Report: what it did. Error: the last refusal.
-	let ports = { Open: null, Project: null, Json: '', Busy: false, Copied: false, Preview: null, Report: null, Error: '' };
+	// Open: null | 'export' | 'import'. Root: the server it works on (plan Run Shapes, Step 5). Project: the exported
+	// project { Id, Name }. Json: the text shown or pasted. Preview: what the server said the import would do. Report:
+	// what it did. Error: the last refusal.
+	let ports = { Open: null, Root: null, Project: null, Json: '', Busy: false, Copied: false, Preview: null, Report: null, Error: '' };
 
 
-	function reset( open )
+	function reset( open, root )
 	{
 		ports.Open = open;
+		ports.Root = root || State.Root;
 		ports.Project = null;
 		ports.Json = '';
 		ports.Busy = false;
@@ -30,23 +32,24 @@ angular.module( 'Consensus' )
 
 	function Close()
 	{
-		reset( null );
+		reset( null, null );
 	}
 
 
 	//-----------------------------------------------------------------
 	// Export
 
-	// Item: { Kind: 'project' | 'folder' | 'plan' | 'document', Id, Name }; a project without a Kind is a project.
-	async function StartExport( Item )
+	// Item: { Kind: 'project' | 'folder' | 'plan' | 'document', Id, Name }; a project without a Kind is a project. Root:
+	// the server it is on.
+	async function StartExport( Item, Root )
 	{
-		reset( 'export' );
+		reset( 'export', Root );
 		ports.Project = { Id: Item.Id, Name: Item.Name };
 		ports.Busy = true;
 		let path = ( !Item.Kind || Item.Kind === 'project' ) ? '/api/projects/' + encodeURIComponent( Item.Id ) + '/export' : '/api/items/' + encodeURIComponent( Item.Id ) + '/export';
 		try
 		{
-			let exported = await Client.Get( path );
+			let exported = await Client.Get( ports.Root, path );
 			ports.Json = JSON.stringify( exported, null, '\t' );
 		}
 		catch ( error )
@@ -108,9 +111,10 @@ angular.module( 'Consensus' )
 	//-----------------------------------------------------------------
 	// Import
 
-	function StartImport()
+	// Import into the root given (the first when none is).
+	function StartImport( Root )
 	{
-		reset( 'import' );
+		reset( 'import', Root || Roots.List[ 0 ] );
 	}
 
 
@@ -149,7 +153,7 @@ angular.module( 'Consensus' )
 		ports.Busy = true;
 		try
 		{
-			ports.Preview = ( await Client.Post( '/api/projects/import', { Export: exported, Preview: true } ) ).Preview;
+			ports.Preview = ( await Client.Post( ports.Root, '/api/projects/import', { Export: exported, Preview: true } ) ).Preview;
 		}
 		catch ( error )
 		{
@@ -176,9 +180,9 @@ angular.module( 'Consensus' )
 		ports.Busy = true;
 		try
 		{
-			ports.Report = ( await Client.Post( '/api/projects/import', body ) ).Report;
+			ports.Report = ( await Client.Post( ports.Root, '/api/projects/import', body ) ).Report;
 			ports.Json = '';
-			await State.LoadList();
+			await Roots.LoadList( ports.Root );
 		}
 		catch ( error )
 		{

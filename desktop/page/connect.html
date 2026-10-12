@@ -11,7 +11,8 @@
 </head>
 <body ng-controller="ConnectController" ng-cloak>
 
-	<!-- The connect screen (plan Consensus Desktop, Step 2): the saved servers, one to add, and this machine's server. -->
+	<!-- The servers screen (plan Consensus Desktop, Step 2; the servers' list since plan Run Shapes, Step 5): the saved
+	     servers, one to add, and this machine's server; the page shows them all at once. -->
 
 	<header class="connect-head">
 		<div class="connect-title"><span class="connect-kind">Consensus</span> Desktop <span class="muted small">{{ Version }}</span></div>
@@ -26,7 +27,12 @@
 	</header>
 
 	<main class="connect-main">
-		<div class="alert alert-info py-2" id="connected" ng-show="Server">Connected to <b>{{ Server.Name }}</b> at {{ Server.Url }}<span ng-show="Server.Version"> (Consensus {{ Server.Version }})</span>.</div>
+		<!-- The page shows every server at once (plan Run Shapes, Step 5): this machine's and the saved ones, each a root of
+		     the tree; this screen keeps the list, and the page opens from here or from the Server menu. -->
+		<div class="field-row page-row">
+			<button class="btn btn-sm btn-primary" id="open-page" ng-click="OpenPage()" ng-disabled="!CanOpen() || Busy">Open the page</button>
+			<span class="muted small" id="page-note">{{ CanOpen() ? 'the page shows this machine\'s server and every saved server, each a root of its tree' : 'nothing to show yet: add a server, or give this machine\'s a Scope of Local or Public in its settings' }}</span>
+		</div>
 		<div class="alert alert-warning py-2" id="reason" ng-show="Reason">{{ Reason }}</div>
 		<div class="alert alert-danger py-2" ng-show="Error">{{ Error }} <button class="btn btn-link btn-sm" ng-click="Error = null">dismiss</button></div>
 
@@ -40,11 +46,10 @@
 				<div class="server-name">{{ server.Name }}</div>
 				<div class="muted small server-url">{{ server.Url }}</div>
 				<span class="grow"></span>
-				<button class="btn btn-sm btn-primary connect-server" ng-click="Connect( server )" ng-disabled="Busy">Connect</button>
 				<button class="btn btn-sm btn-outline-secondary" ng-click="StartEdit( server )" ng-disabled="Busy">Edit</button>
 				<button class="btn btn-sm btn-outline-danger" ng-click="Remove( server )" ng-disabled="Busy">Remove</button>
 			</div>
-			<form class="server-form" ng-if="Editing" ng-submit="Save( false )">
+			<form class="server-form" ng-if="Editing" ng-submit="Save()">
 				<div class="field-row">
 					<label for="server-name">Name</label>
 					<input class="form-control form-control-sm" id="server-name" ng-model="Editing.Name" placeholder="cube4" auto-focus>
@@ -58,7 +63,6 @@
 				</div>
 				<div class="field-row">
 					<button class="btn btn-sm btn-primary" type="submit" id="save-server" ng-disabled="!Editing.Name || !Editing.Url || Busy">Save</button>
-					<button class="btn btn-sm btn-primary" type="button" id="save-connect" ng-click="Save( true )" ng-disabled="!Editing.Name || !Editing.Url || Busy">Save and connect</button>
 					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelEdit()">Cancel</button>
 				</div>
 			</form>
@@ -70,8 +74,7 @@
 				<span class="muted small" id="local-status">{{ Local ? 'Consensus at ' + Local.Url + ' (Scope ' + Local.Scope + ') over ' + Local.Config + ( Local.Project ? ', on the project ' + Local.Project.Name + ' alone (' + Local.Project.Path + ')' : '' ) : 'no server on this machine: its Scope is None, or it could not start' }}</span>
 			</div>
 			<div class="field-row">
-				<button class="btn btn-sm btn-primary" id="local-connect" ng-show="Local" ng-click="ConnectLocal()" ng-disabled="Busy">Connect</button>
-				<span class="muted small" ng-show="Local">The server starts with the app, from its settings (Scope and Port), and stops with it.</span>
+				<span class="muted small" ng-show="Local">The server starts with the app, from its settings (Scope and Port), and stops with it; the page shows it first.</span>
 			</div>
 			<div class="alert alert-warning py-2 small" id="missing-folders" ng-show="Missing.length">
 				<div>Project folders the settings list and this machine lacks (kept in the list; skipped until they are back):</div>

@@ -1359,6 +1359,86 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	width: 100%;
 }
 
+/* --------------------------------------------------------------------- sidebar: the roots (plan Run Shapes, Step 5) */
+
+.root-head
+{
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+	min-height: 2rem;
+	padding: 0.15rem 0.5rem 0.15rem var(--row-start);
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+	font-weight: 700;
+	border-top: 1px solid var(--border);
+	flex-wrap: wrap;
+}
+
+.root:first-child > .root-head
+{
+	border-top: none;
+}
+
+.root-head:hover
+{
+	background-color: var(--tree-hover);
+}
+
+.root-name
+{
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.root-head .me, .root-head .root-offline
+{
+	font-size: 0.8rem;
+	font-weight: normal;
+}
+
+.root-head .settings-button
+{
+	margin-left: auto;
+}
+
+.root-dot
+{
+	display: inline-block;
+	width: 0.55rem;
+	height: 0.55rem;
+	border-radius: 50%;
+	background: var(--muted);
+	flex: none;
+}
+
+.root-dot.live
+{
+	background: #2a9d4b;
+}
+
+.root-dot::before
+{
+	content: none;
+}
+
+.root.offline > .root-head .root-name
+{
+	color: var(--muted);
+}
+
+.root-body > .projects > .project:first-child > .project-head
+{
+	border-top: none;
+}
+
+.root-mark
+{
+	font-weight: normal;
+}
+
+
 .theme-controls select
 {
 	font-size: 0.8rem;

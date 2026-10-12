@@ -1,8 +1,10 @@
 'use strict';
 
-// main - the desktop's main process (plan Consensus Desktop, Step 2): one window that opens on the connect screen
-// and, once connected, shows the desktop's own copy of the Consensus page (served by Page.js on 127.0.0.1, which
-// forwards the page's API calls to the connected server). Plan Run Shapes, Step 1: the app is the second entry
+// main - the desktop's main process (plan Consensus Desktop, Step 2): one window that shows the Consensus page (served
+// by Page.js on 127.0.0.1, which forwards the page's API calls to the servers the page shows) and, with no server to
+// show, the connect screen, where the saved servers are kept. Since plan Run Shapes, Step 5, the page shows every
+// server at once, each a root of its tree: this machine's server when it runs and every saved server; nothing is
+// connected to, and the connect screen is the servers' list (the Server menu's Servers…). Plan Run Shapes, Step 1: the app is the second entry
 // point over src/Start.js: it takes the command line's --config, --port, --scope and --headless, starts this
 // machine's server from the global config as the Scope says, and keeps its own settings (Settings.js) in that same
 // consensus.json, where desktop.json is moved in once. With --headless there is no window. A second server at the
@@ -33,8 +35,7 @@ let store = null;
 let settings = null;
 let page = null;
 let window = null;
-let current = null;		// { Kind: 'server' | 'local', Name, Url, Version } while connected
-let reason = null;		// why the last connection failed, for the connect screen
+let reason = null;		// why this machine's server could not start, for the connect screen
 let closing = false;
 let isolated = false;	// a project on the command line: this machine's server, that project alone, Last untouched
 
@@ -75,10 +76,10 @@ function save_settings_soon()
 }
 
 
-// The theme in use: the connected server's own, or the default (plan UI Tweaks V).
+// The theme in use: the window's one theme (the theme per server went with plan Run Shapes, Step 5).
 function theme_in_use()
 {
-	return SETTINGS.ThemeFor( settings, current );
+	return settings.Theme;
 }
 
 
@@ -127,55 +128,35 @@ async function try_server( url )
 
 
 //---------------------------------------------------------------------
-// Connecting: Where = { Kind: 'server', Name } (a saved server) | { Kind: 'local' } (the running local server).
+// The roots the page shows (plan Run Shapes, Step 5): this machine's server when it runs, named by the config's Name,
+// then the saved servers in their order; a project on the command line (Step 4) shows this machine's alone.
 
-async function connect( where )
+function roots_now()
 {
-	let target = null;
-	if ( where && where.Kind === 'local' )
+	let list = [];
+	let served = local_running();
+	if ( served )
 	{
-		let served = local_running();
-		if ( !served )
-		{
-			return { Ok: false, Error: 'this machine runs no server' };
-		}
-		target = { Kind: 'local', Name: settings.Name || 'This machine', Url: served.Url };
+		list.push( { Key: 'local', Name: settings.Name || 'This machine', Url: served.Url, Kind: 'local', Version: VERSION } );
 	}
-	else
-	{
-		let saved = SETTINGS.ServerNamed( settings, where && where.Name );
-		if ( !saved )
-		{
-			return { Ok: false, Error: 'no saved server named "' + ( where && where.Name ) + '"' };
-		}
-		target = { Kind: 'server', Name: saved.Name, Url: saved.Url };
-	}
-	let tried = await try_server( target.Url );
-	if ( !tried.Ok )
-	{
-		reason = tried.Error;
-		return tried;
-	}
-	current = { Kind: target.Kind, Name: target.Name, Url: tried.Url, Version: tried.Version };
-	page.SetTarget( current.Url );
-	reason = null;
 	if ( !isolated )
 	{
-		settings.Last = ( target.Kind === 'local' ) ? { Kind: 'local' } : { Kind: 'server', Name: target.Name };
-		save_settings();
+		for ( let server of settings.Servers || [] )
+		{
+			list.push( { Key: server.Name, Name: server.Name, Url: server.Url, Kind: 'server' } );
+		}
 	}
-	apply_native_theme();
-	show_page();
-	return { Ok: true, Version: tried.Version };
+	return list;
 }
 
 
-function disconnect()
+// The page server forwards to the roots as they stand now.
+function apply_roots()
 {
-	current = null;
-	page.SetTarget( null );
-	apply_native_theme();
-	show_connect();
+	if ( page )
+	{
+		page.SetRoots( roots_now().map( function ( root ) { return { Key: root.Key, Url: root.Url }; } ) );
+	}
 }
 
 
@@ -194,6 +175,7 @@ function show_connect()
 
 function show_page()
 {
+	apply_roots();
 	if ( window && !window.isDestroyed() )
 	{
 		window.loadURL( page.Url + '/' );
@@ -210,7 +192,7 @@ function boot_info()
 		Theme: theme_in_use(),
 		Scale: settings.Scale,
 		Remembered: settings.Remembered,
-		Server: current ? { Kind: current.Kind, Name: current.Name, Url: current.Url, Version: current.Version } : null,
+		Roots: roots_now(),
 		Reason: reason,
 		Local: local_running(),
 	};
@@ -267,7 +249,7 @@ function create_window()
 
 
 //---------------------------------------------------------------------
-// The menu: Server (Connect to another, Reload, New window), View, Quit.
+// The menu: Server (Servers…, the page, Reload, New window, Open folder in new window), View, Quit.
 
 function build_menu()
 {
@@ -275,7 +257,8 @@ function build_menu()
 		{
 			label: 'Server',
 			submenu: [
-				{ label: current ? 'Connect to another…' : 'Connect…', click: function () { disconnect(); } },
+				{ label: 'Servers…', click: function () { show_connect(); } },
+				{ label: 'The page', click: function () { show_page(); } },
 				{ label: 'Reload', accelerator: 'CmdOrCtrl+R', click: function () { if ( window ) { window.webContents.reload(); } } },
 				{ type: 'separator' },
 				{ label: 'New window', accelerator: 'CmdOrCtrl+N', click: function () { new_window(); } },
@@ -397,12 +380,12 @@ function attach_handlers()
 		}
 	} );
 
-	// The page's picker sets the connected server's own theme; the connect screen's (nothing connected) the default.
+	// The page's picker and the connect screen's set the window's theme.
 	ELECTRON.ipcMain.on( 'theme', function ( event, change )
 	{
 		if ( change && SETTINGS.THEMES.includes( change.Theme ) )
 		{
-			SETTINGS.SetThemeFor( settings, current, change.Theme );
+			settings.Theme = change.Theme;
 		}
 		if ( change && SETTINGS.SCALES.includes( change.Scale ) )
 		{
@@ -414,7 +397,7 @@ function attach_handlers()
 
 	ELECTRON.ipcMain.handle( 'settings', function ()
 	{
-		return { Settings: desktop_settings(), Path: store.SettingsPath(), Version: VERSION, Server: boot_info().Server, Reason: reason, Local: local_running(), Missing: store.Missing() };
+		return { Settings: desktop_settings(), Path: store.SettingsPath(), Version: VERSION, Roots: roots_now(), Reason: reason, Local: local_running(), Missing: store.Missing() };
 	} );
 
 	ELECTRON.ipcMain.handle( 'save', function ( event, fresh )
@@ -427,8 +410,9 @@ function attach_handlers()
 		}
 		SETTINGS.Apply( settings, filled );
 		save_settings();
+		apply_roots();
 		build_menu();
-		return { Settings: desktop_settings() };
+		return { Settings: desktop_settings(), Roots: roots_now() };
 	} );
 
 	ELECTRON.ipcMain.handle( 'try', function ( event, url )
@@ -436,9 +420,17 @@ function attach_handlers()
 		return try_server( url );
 	} );
 
-	ELECTRON.ipcMain.handle( 'connect', function ( event, where )
+	// The servers screen, and the page again (the Server menu does the same).
+	ELECTRON.ipcMain.handle( 'servers', function ()
 	{
-		return connect( where );
+		show_connect();
+		return {};
+	} );
+
+	ELECTRON.ipcMain.handle( 'page', function ()
+	{
+		show_page();
+		return { Roots: roots_now() };
 	} );
 
 	ELECTRON.ipcMain.handle( 'local-status', function ()
@@ -525,18 +517,13 @@ async function main()
 		}
 		page.Close().catch( function () {} ).then( function () { return running.Close(); } ).catch( function () {} ).then( function () { ELECTRON.app.quit(); } );
 	} );
-	// What was open last: a saved server, else this machine's server when it runs; a project on the command line is on
-	// this machine's server whatever was last; on failure, the connect screen says why.
-	let opened = false;
-	if ( !isolated && settings.Last && settings.Last.Kind === 'server' )
+	// The page, with every root it has; the connect screen when it has none (Scope None and no saved server, or a
+	// server that could not start), which says why.
+	if ( roots_now().length )
 	{
-		opened = ( await connect( { Kind: 'server', Name: settings.Last.Name } ) ).Ok;
+		show_page();
 	}
-	else if ( local_running() )
-	{
-		opened = ( await connect( { Kind: 'local' } ) ).Ok;
-	}
-	if ( !opened )
+	else
 	{
 		show_connect();
 	}

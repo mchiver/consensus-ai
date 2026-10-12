@@ -43,7 +43,7 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	let folder = temporary_folder( 'desktop-settings-' );
 	let path = PATH.join( folder, 'desktop.json' );
 	let read = SETTINGS.Read( path );
-	ASSERT.deepEqual( read, { Servers: [], Local: { Theme: null }, Last: null, Theme: 'system', Scale: 'normal', Remembered: {} } );
+	ASSERT.deepEqual( read, { Servers: [], Theme: 'system', Scale: 'normal', Remembered: {} } );
 
 	let settings = SETTINGS.Fill( {
 		Servers: [ { Name: ' cube4 ', Url: 'http://cube4:3500/' } ],
@@ -53,10 +53,9 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 		Scale: 'huge',
 		Extra: true,
 	} );
+	// Last and the theme per server (before plan Run Shapes, Step 5) are not kept
 	ASSERT.deepEqual( settings, {
-		Servers: [ { Name: 'cube4', Url: 'http://cube4:3500', Theme: null } ],
-		Local: { Theme: null },
-		Last: { Kind: 'server', Name: 'cube4' },
+		Servers: [ { Name: 'cube4', Url: 'http://cube4:3500' } ],
 		Theme: 'dark',
 		Scale: 'normal',
 		Remembered: {},
@@ -64,35 +63,14 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	SETTINGS.Write( path, settings );
 	ASSERT.deepEqual( SETTINGS.Read( path ), settings );
 	ASSERT.equal( FS.readdirSync( folder ).some( function ( name ) { return name.endsWith( '.tmp' ); } ), false );
-	ASSERT.deepEqual( SETTINGS.Fill( { Last: { Kind: 'local', Name: 'ignored' } } ).Last, { Kind: 'local' } );
-	ASSERT.deepEqual( SETTINGS.Fill( { Last: { Kind: 'elsewhere' } } ).Last, null );
+	ASSERT.equal( 'Last' in SETTINGS.Fill( { Last: { Kind: 'local' } } ), false );
+	ASSERT.equal( 'Theme' in SETTINGS.Fill( { Servers: [ { Name: 'a', Url: 'http://a:1', Theme: 'nord' } ] } ).Servers[ 0 ], false );
 	// the palettes (plan UI Tweaks IV): any of them is a Theme; the dark ones are named
 	ASSERT.equal( SETTINGS.Fill( { Theme: 'nord' } ).Theme, 'nord' );
 	ASSERT.equal( SETTINGS.Fill( { Theme: 'neon' } ).Theme, 'system' );
 	ASSERT.equal( SETTINGS.DARK_THEMES.includes( 'nord' ), true );
 	ASSERT.equal( SETTINGS.DARK_THEMES.includes( 'sepia' ), false );
 	ASSERT.equal( SETTINGS.DARK_THEMES.every( function ( theme ) { return SETTINGS.THEMES.includes( theme ); } ), true );
-
-	// a theme per server (plan UI Tweaks V): the server's own, else the default; set for what is connected
-	let themed = SETTINGS.Fill( { Theme: 'sepia', Servers: [ { Name: 'a', Url: 'http://a:1', Theme: 'nord' }, { Name: 'b', Url: 'http://b:1', Theme: 'neon' } ], Local: { Theme: 'slate' } } );
-	ASSERT.equal( themed.Servers[ 0 ].Theme, 'nord' );
-	ASSERT.equal( themed.Servers[ 1 ].Theme, null );
-	ASSERT.equal( themed.Local.Theme, 'slate' );
-	ASSERT.equal( SETTINGS.ThemeFor( themed, null ), 'sepia' );
-	ASSERT.equal( SETTINGS.ThemeFor( themed, { Kind: 'server', Name: 'a' } ), 'nord' );
-	ASSERT.equal( SETTINGS.ThemeFor( themed, { Kind: 'server', Name: 'b' } ), 'sepia' );
-	ASSERT.equal( SETTINGS.ThemeFor( themed, { Kind: 'server', Name: 'nobody' } ), 'sepia' );
-	ASSERT.equal( SETTINGS.ThemeFor( themed, { Kind: 'local' } ), 'slate' );
-	SETTINGS.SetThemeFor( themed, { Kind: 'server', Name: 'b' }, 'midnight' );
-	SETTINGS.SetThemeFor( themed, { Kind: 'local' }, 'paper' );
-	SETTINGS.SetThemeFor( themed, null, 'light' );
-	SETTINGS.SetThemeFor( themed, { Kind: 'server', Name: 'a' }, 'neon' );
-	ASSERT.equal( themed.Servers[ 1 ].Theme, 'midnight' );
-	ASSERT.equal( themed.Local.Theme, 'paper' );
-	ASSERT.equal( themed.Theme, 'light' );
-	ASSERT.equal( themed.Servers[ 0 ].Theme, 'nord' );
-	SETTINGS.Write( path, themed );
-	ASSERT.equal( SETTINGS.ThemeFor( SETTINGS.Read( path ), { Kind: 'server', Name: 'b' } ), 'midnight' );
 
 	// the page's remembered state (plan UI Tweaks V): kept by key in desktop.json, forgotten with null
 	let kept = SETTINGS.Fill( { Remembered: { 'consensus.a:1.project': 'default', 'consensus.threads-hidden': true }, Extra: 1 } );
@@ -105,7 +83,7 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	SETTINGS.Write( path, kept );
 	ASSERT.deepEqual( SETTINGS.Read( path ).Remembered, { 'consensus.a:1.project': 'default', 'consensus.a:1.tabs': { Tabs: [ { Key: 'p:x' } ], Active: 'p:x' } } );
 	ASSERT.deepEqual( SETTINGS.Fill( { Remembered: [ 1 ] } ).Remembered, {} );
-	ASSERT.deepEqual( SETTINGS.ServerNamed( settings, 'cube4' ), { Name: 'cube4', Url: 'http://cube4:3500', Theme: null } );
+	ASSERT.deepEqual( SETTINGS.ServerNamed( settings, 'cube4' ), { Name: 'cube4', Url: 'http://cube4:3500' } );
 	ASSERT.equal( SETTINGS.ServerNamed( settings, 'nope' ), null );
 } );
 
@@ -121,7 +99,7 @@ TEST( 'settings: the problems are named', function ()
 //---------------------------------------------------------------------
 // The page server
 
-TEST( 'the page server serves the desktop\'s copy of the page, the connect screen and the vendor files', async function ()
+TEST( 'the page server serves the page, the connect screen and the vendor files, and forwards to each root\'s server', async function ()
 {
 	let served = await PAGE.Serve();
 	try
@@ -137,27 +115,33 @@ TEST( 'the page server serves the desktop\'s copy of the page, the connect scree
 		ASSERT.equal( ( await fetch( served.Url + '/vendor/bootstrap.min.css' ) ).status, 200 );
 		ASSERT.equal( ( await fetch( served.Url + '/js/client.js' ) ).status, 200 );
 		ASSERT.match( await ( await fetch( served.Url + '/js/client.js' ) ).text(), /ConsensusDesktop/ );
-		// no target: the API answers 503; with one, /api and /instructions are forwarded, bodies and the events stream too
+		// no root: the API answers 503; with roots (plan Run Shapes, Step 5), /servers/<key>/api and /instructions are
+		// forwarded to that root's server, bodies and the events stream too; a key the window has not is 503
 		ASSERT.equal( ( await fetch( served.Url + '/api/me' ) ).status, 503 );
-		ASSERT.equal( served.Target(), null );
+		ASSERT.equal( ( await fetch( served.Url + '/servers/a/api/me' ) ).status, 503 );
+		ASSERT.deepEqual( served.Roots(), [] );
 		let data = temporary_folder( 'desktop-page-target-' );
 		FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( { Port: 0, Participants: [ { Name: 'user', Display: 'User', Role: 'owner' } ] } ) );
 		let target = await SERVER.Start( { Data: data, Port: 0 } );
 		try
 		{
-			served.SetTarget( target.Url + '/' );
-			ASSERT.equal( served.Target(), target.Url );
-			let me = await fetch( served.Url + '/api/me' );
+			served.SetRoots( [ { Key: 'a', Url: target.Url + '/' }, { Key: 'b', Url: 'http://127.0.0.1:1' } ] );
+			ASSERT.deepEqual( served.Roots(), [ { Key: 'a', Url: target.Url }, { Key: 'b', Url: 'http://127.0.0.1:1' } ] );
+			let me = await fetch( served.Url + '/servers/a/api/me' );
 			ASSERT.equal( me.status, 200 );
 			ASSERT.equal( ( await me.json() ).Version, VERSION );
-			let made = await fetch( served.Url + '/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Through the desktop', Text: '# T\n' } ) } );
+			let made = await fetch( served.Url + '/servers/a/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Through the desktop', Text: '# T\n' } ) } );
 			ASSERT.equal( made.status, 201 );
 			let id = ( await made.json() ).Proposal.Id;
 			ASSERT.equal( ( await ( await fetch( target.Url + '/api/proposals/' + id ) ).json() ).Proposal.Title, 'Through the desktop' );
-			ASSERT.equal( ( await fetch( served.Url + '/api/proposals/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Renamed through the desktop' } ) } ) ).status, 200 );
-			ASSERT.equal( ( await fetch( served.Url + '/api/nothing' ) ).status, 404 );
-			ASSERT.match( await ( await fetch( served.Url + '/instructions' ) ).text(), /^# This server/ );
-			let events = await fetch( served.Url + '/api/events' );
+			ASSERT.equal( ( await fetch( served.Url + '/servers/a/api/proposals/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Renamed through the desktop' } ) } ) ).status, 200 );
+			ASSERT.equal( ( await fetch( served.Url + '/servers/a/api/nothing' ) ).status, 404 );
+			ASSERT.equal( ( await fetch( served.Url + '/servers/a/nothing' ) ).status, 404 );
+			ASSERT.equal( ( await fetch( served.Url + '/servers/b/api/me' ) ).status, 502 );
+			ASSERT.equal( ( await fetch( served.Url + '/servers/c/api/me' ) ).status, 503 );
+			ASSERT.equal( ( await fetch( served.Url + '/api/me' ) ).status, 503 );
+			ASSERT.match( await ( await fetch( served.Url + '/servers/a/instructions' ) ).text(), /^# This server/ );
+			let events = await fetch( served.Url + '/servers/a/api/events' );
 			ASSERT.equal( events.headers.get( 'content-type' ), 'text/event-stream' );
 			let reader = events.body.getReader();
 			await fetch( target.Url + '/api/proposals/' + id + '/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { State: 'Plan' } ) } );
@@ -170,10 +154,8 @@ TEST( 'the page server serves the desktop\'s copy of the page, the connect scree
 			}
 			ASSERT.match( heard, /"Kind":"state"/ );
 			await reader.cancel();
-			served.SetTarget( null );
-			ASSERT.equal( ( await fetch( served.Url + '/api/me' ) ).status, 503 );
-			served.SetTarget( 'http://127.0.0.1:1' );
-			ASSERT.equal( ( await fetch( served.Url + '/api/me' ) ).status, 502 );
+			served.SetRoots( [] );
+			ASSERT.equal( ( await fetch( served.Url + '/servers/a/api/me' ) ).status, 503 );
 		}
 		finally
 		{
@@ -212,17 +194,22 @@ TEST( 'Apply puts the desktop\'s fields on the global config in place; MoveIn ta
 	ASSERT.deepEqual( config.Workspaces, written.Workspaces );
 	ASSERT.equal( FS.existsSync( path ), false );
 	ASSERT.equal( FS.existsSync( path + '.moved' ), true );
-	ASSERT.deepEqual( config.Servers, [ { Name: 'cube4', Url: 'http://cube4:3500', Theme: null } ] );
-	ASSERT.deepEqual( config.Local, { Theme: 'nord' } );
-	ASSERT.deepEqual( config.Last, { Kind: 'local' } );
+	ASSERT.deepEqual( config.Servers, [ { Name: 'cube4', Url: 'http://cube4:3500' } ] );
+	ASSERT.equal( 'Local' in config, false );
+	ASSERT.equal( 'Last' in config, false );
 	ASSERT.equal( config.Theme, 'dark' );
 	ASSERT.deepEqual( config.Remembered, { 'consensus.x': 1 } );
 	ASSERT.deepEqual( [ config.Name, config.Scope, config.Participants[ 0 ].Token ], [ 'here', 'Local', 'a-token-long-enough-0123' ] );
 	// once: a config with its desktop fields is left alone; one written by hand gets the fields it lacks
 	ASSERT.deepEqual( SETTINGS.MoveIn( config, path ), [] );
 	let by_hand = { Name: 'h', Scope: 'None', Participants: [], Servers: [ { Name: 's', Url: 'http://s:1' } ], Theme: 'light' };
-	ASSERT.deepEqual( SETTINGS.MoveIn( by_hand, path ), [ 'the desktop\'s settings filled in: Local, Last, Scale, Remembered' ] );
-	ASSERT.deepEqual( [ by_hand.Servers[ 0 ].Theme, by_hand.Theme, by_hand.Scale, by_hand.Remembered, by_hand.Scope ], [ null, 'light', 'normal', {}, 'None' ] );
+	ASSERT.deepEqual( SETTINGS.MoveIn( by_hand, path ), [ 'the desktop\'s settings filled in: Scale, Remembered' ] );
+	ASSERT.deepEqual( [ by_hand.Servers[ 0 ], by_hand.Theme, by_hand.Scale, by_hand.Remembered, by_hand.Scope ], [ { Name: 's', Url: 'http://s:1' }, 'light', 'normal', {}, 'None' ] );
+	// a config from before Step 5: Last and the themes per server are dropped, with a line
+	let older = { Name: 'o', Scope: 'Local', Participants: [], Servers: [ { Name: 's', Url: 'http://s:1', Theme: 'nord' } ], Local: { Theme: 'slate' }, Last: { Kind: 'local' }, Theme: 'sepia', Scale: 'large', Remembered: {} };
+	ASSERT.deepEqual( SETTINGS.MoveIn( older, path ), [ 'Last and the themes per server dropped: the page shows every server at once, in one theme (plan Run Shapes, Step 5)' ] );
+	ASSERT.deepEqual( [ older.Servers[ 0 ], 'Local' in older, 'Last' in older, older.Theme ], [ { Name: 's', Url: 'http://s:1' }, false, false, 'sepia' ] );
+	ASSERT.deepEqual( SETTINGS.MoveIn( older, path ), [] );
 	ASSERT.equal( SETTINGS.Remember( {}, 'k', 1 ), true );
 	// no desktop.json: the defaults
 	let fresh = { Name: 'n', Scope: 'Local', Participants: [] };
@@ -237,7 +224,6 @@ TEST( 'Apply puts the desktop\'s fields on the global config in place; MoveIn ta
 	ASSERT.equal( same, config );
 	ASSERT.equal( config.Theme, 'sepia' );
 	ASSERT.deepEqual( config.Servers, [] );
-	ASSERT.deepEqual( config.Local, { Theme: 'nord' } );
 	ASSERT.equal( config.Name, 'here' );
 	// Fill gives the pages the desktop's fields only: no participants, no tokens
 	ASSERT.equal( 'Participants' in SETTINGS.Fill( config ), false );

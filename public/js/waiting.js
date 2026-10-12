@@ -1,27 +1,48 @@
 'use strict';
 
-// Waiting view - everything waiting on you, across proposals, grouped by proposal.
+// Waiting view - everything waiting on you, across proposals and across every root (plan Run Shapes, Step 5),
+// grouped by proposal; each group names its server when the page shows more than one.
 
-angular.module( 'Consensus' ).controller( 'WaitingController', [ '$scope', 'State', 'Client', function ( $scope, State, Client )
+angular.module( 'Consensus' ).controller( 'WaitingController', [ '$scope', 'State', 'Client', 'Roots', function ( $scope, State, Client, Roots )
 {
 	$scope.State = State;
+	$scope.Roots = Roots;
 	$scope.Items = [];
 	$scope.Groups = [];
+	$scope.HashFor = Roots.HashFor;
 
 
 	async function load()
 	{
-		let answer = await State.Act( function () { return Client.Get( '/api/waiting' ); } );
-		$scope.Items = answer ? answer.Waiting : [];
-		let groups = [];
-		let by_id = {};
-		for ( let item of $scope.Items )
+		let items = [];
+		for ( let root of Roots.List )
 		{
-			let group = by_id[ item.Proposal.Id ];
+			let answer = null;
+			try
+			{
+				answer = await Client.Get( root, '/api/waiting' );
+			}
+			catch ( error )
+			{
+				continue;
+			}
+			for ( let item of answer.Waiting || [] )
+			{
+				item.Root = root;
+				items.push( item );
+			}
+		}
+		$scope.Items = items;
+		let groups = [];
+		let by_key = {};
+		for ( let item of items )
+		{
+			let key = item.Root.Key + '|' + item.Proposal.Id;
+			let group = by_key[ key ];
 			if ( !group )
 			{
-				group = { Proposal: item.Proposal, Items: [] };
-				by_id[ item.Proposal.Id ] = group;
+				group = { Proposal: item.Proposal, Root: item.Root, Items: [] };
+				by_key[ key ] = group;
 				groups.push( group );
 			}
 			group.Items.push( item );
@@ -29,6 +50,14 @@ angular.module( 'Consensus' ).controller( 'WaitingController', [ '$scope', 'Stat
 		$scope.Groups = groups;
 		$scope.$applyAsync();
 	}
+
+
+	// The display name of who replied, on the item's own server.
+	$scope.DisplayOn = function ( item, name )
+	{
+		let participant = ( item.Root.Participants || [] ).find( function ( candidate ) { return candidate.Name === name; } );
+		return participant ? participant.Display : name;
+	};
 
 
 	$scope.Open = function ( item )

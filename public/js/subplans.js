@@ -6,7 +6,7 @@
 
 angular.module( 'Consensus' )
 
-.factory( 'Subplans', [ 'Client', 'State', '$window', function ( Client, State, $window )
+.factory( 'Subplans', [ 'Client', 'State', '$window', 'Roots', function ( Client, State, $window, Roots )
 {
 	// Pending = { Parent: { Id, Title }, Project, Title, Seed, Compose?: { Anchor, Text }, Thread?: { Id }, Draft? }
 	let subplans = { Pending: null, Busy: false };
@@ -41,20 +41,20 @@ angular.module( 'Consensus' )
 	}
 
 
-	// The open plan, as a Subplan's parent.
+	// The open plan, as a Subplan's parent, on its root.
 	function open_parent()
 	{
-		return { Parent: { Id: State.Open.Proposal.Id, Title: State.Open.Proposal.Title }, Project: State.Open.Project ? State.Open.Project.Id : null };
+		return { Parent: { Id: State.Open.Proposal.Id, Title: State.Open.Proposal.Title }, Project: State.Open.Project ? State.Open.Project.Id : null, Root: State.Root ? State.Root.Key : '' };
 	}
 
 
 	//-----------------------------------------------------------------
 	// Starting
 
-	// Under a plan of the tree, or the open plan when Node is not given; empty.
-	function Start( Node, Project )
+	// Under a plan of the tree (on its Root), or the open plan when Node is not given; empty.
+	function Start( Node, Project, Root )
 	{
-		let where = Node ? { Parent: { Id: Node.Id, Title: Node.Title }, Project: Project } : open_parent();
+		let where = Node ? { Parent: { Id: Node.Id, Title: Node.Title }, Project: Project, Root: Root ? Root.Key : ( State.Root ? State.Root.Key : '' ) } : open_parent();
 		subplans.Pending = Object.assign( where, { Title: '', Seed: '' } );
 	}
 
@@ -89,9 +89,9 @@ angular.module( 'Consensus' )
 	//-----------------------------------------------------------------
 	// Creating
 
-	function link_to( title, id )
+	function link_to( title, id, root )
 	{
-		return 'Started a new Subplan: [' + title.replace( /[\[\]]/g, '' ) + '](#/p/' + encodeURIComponent( id ) + ')';
+		return 'Started a new Subplan: [' + title.replace( /[\[\]]/g, '' ) + '](' + Roots.HashFor( root, '/p/' + encodeURIComponent( id ) ) + ')';
 	}
 
 
@@ -110,28 +110,29 @@ angular.module( 'Consensus' )
 			return;
 		}
 		subplans.Busy = true;
+		let root = Roots.Of( pending.Root ) || State.Root;
 		let threads = '/api/proposals/' + encodeURIComponent( pending.Parent.Id ) + '/threads';
 		let made = await State.Act( function ()
 		{
 			let text = '# ' + title + '\n\n' + ( pending.Seed ? pending.Seed + '\n' : '' );
-			return Client.Post( '/api/proposals', { Title: title, Text: text, Kind: 'plan', Project: pending.Project, Parent: pending.Parent.Id } );
+			return Client.Post( root, '/api/proposals', { Title: title, Text: text, Kind: 'plan', Project: pending.Project, Parent: pending.Parent.Id } );
 		} );
 		if ( made )
 		{
-			let link = link_to( title, made.Proposal.Id );
+			let link = link_to( title, made.Proposal.Id, root );
 			if ( pending.Compose )
 			{
-				await State.Act( function () { return Client.Post( threads, { Anchor: pending.Compose.Anchor, Text: joined( pending.Compose.Text, link ) } ); } );
+				await State.Act( function () { return Client.Post( root, threads, { Anchor: pending.Compose.Anchor, Text: joined( pending.Compose.Text, link ) } ); } );
 				State.CancelCompose();
 			}
 			if ( pending.Thread )
 			{
-				await State.Act( function () { return Client.Post( threads + '/' + pending.Thread.Id + '/replies', { Text: joined( pending.Draft, link ) } ); } );
+				await State.Act( function () { return Client.Post( root, threads + '/' + pending.Thread.Id + '/replies', { Text: joined( pending.Draft, link ) } ); } );
 				delete State.Drafts[ pending.Thread.Id ];
 			}
 			subplans.Pending = null;
-			await State.LoadList();
-			$window.location.hash = '#/p/' + encodeURIComponent( made.Proposal.Id );
+			await Roots.LoadList( root );
+			$window.location.hash = Roots.HashFor( root, '/p/' + encodeURIComponent( made.Proposal.Id ) );
 		}
 		subplans.Busy = false;
 	}

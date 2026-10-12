@@ -1,12 +1,12 @@
 # Projects, plans and documents
 
-Everything in Consensus-AI lives in a **project**. The sidebar on the left is a tree of projects; each one holds plans, documents and folders.
+Everything in Consensus-AI lives in a **project**. The sidebar on the left is a tree: a row per server (one in a browser; in the desktop this machine's server and every saved one), and beneath it that server's projects, each holding plans, documents and folders.
 
 ![The sidebar: projects, the Context folder, folders and plans with their states.](../images/tree.png)
 
 ## The tree
 
-One project is open at a time: opening one closes the others, and opening an item opens its project. The open project carries a solid green dot, the others a hollow circle. Each row shows a plan's state, its thread tallies, and a "you" badge when something waits on you.
+One project is open at a time on each server: opening one closes the others of that server, and opening an item opens its project. The open project carries a solid green dot, the others a hollow circle. Each row shows a plan's state, its thread tallies, and a "you" badge when something waits on you.
 
 Each row's actions are in its menu: the **⋯** at the row's end, or a right-click. Click a folder to make it where new items go; click it again for the project root. Click a folder's chevron to fold it.
 

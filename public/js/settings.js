@@ -20,7 +20,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 } ] )
 
 
-.controller( 'SettingsController', [ '$scope', 'State', 'Client', 'SettingsPanel', function ( $scope, State, Client, SettingsPanel )
+.controller( 'SettingsController', [ '$scope', 'State', 'Client', 'SettingsPanel', 'Roots', function ( $scope, State, Client, SettingsPanel, Roots )
 {
 	const ROLES = [ 'owner', 'llm', 'member' ];
 	const SCOPES = [ 'None', 'Local', 'Public' ];
@@ -61,21 +61,22 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 	}
 
 
-	// Opened by the sidebar's Settings button: the settings are read afresh each time.
-	$scope.$on( 'settings-opened', function ()
+	// Opened by a root's Settings (the sidebar): that server's settings, read afresh each time.
+	$scope.$on( 'settings-opened', function ( event, root )
 	{
-		open();
+		open( root || State.Root );
 	} );
 
 
-	async function open()
+	async function open( root )
 	{
 		SettingsPanel.Problems = [];
 		SettingsPanel.Restart = false;
 		SettingsPanel.Saved = false;
 		SettingsPanel.Form = null;
+		SettingsPanel.Root = root;
 		SettingsPanel.Open = true;
-		let answer = await State.Act( function () { return Client.Get( '/api/settings' ); } );
+		let answer = await State.Act( function () { return Client.Get( root, '/api/settings' ); } );
 		if ( !answer )
 		{
 			SettingsPanel.Open = false;
@@ -146,11 +147,11 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		let settings = from_form( SettingsPanel.Form );
 		try
 		{
-			let answer = await Client.Put( '/api/settings', { Settings: settings } );
+			let answer = await Client.Put( SettingsPanel.Root, '/api/settings', { Settings: settings } );
 			SettingsPanel.Form = to_form( answer.Settings );
 			SettingsPanel.Restart = !!answer.Restart;
 			SettingsPanel.Saved = true;
-			await State.LoadMe();
+			await Roots.LoadMe( SettingsPanel.Root || State.Root );
 		}
 		catch ( error )
 		{

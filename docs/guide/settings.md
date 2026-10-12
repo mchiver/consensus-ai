@@ -41,11 +41,11 @@ The settings are `consensus.json` in the config folder, written at first start:
 }
 ```
 
-The server's LLM connections are in the same file (`Llms`, kept through the page's LLM list; see [Working with an LLM](llm.html)), and so are the desktop's own fields (`Servers`, `Last`, `Theme`, `Scale`, `Remembered`); the popup touches neither. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a `Host`, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine's.
+The server's LLM connections are in the same file (`Llms`, kept through the page's LLM list; see [Working with an LLM](llm.html)), and so are the desktop's own fields (`Servers`, `Theme`, `Scale`, `Remembered`); the popup touches neither. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a `Host`, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine's.
 
 ## Theme and size
 
-Light, dark or the system's theme, and three sizes, are at the bottom of the sidebar. They are kept in the browser, per user and per server, not in the settings. The desktop offers a wider choice of palettes, from Sepia and Paper to Nord and Midnight, and its title bar follows.
+Light, dark or the system's theme, and three sizes, are at the bottom of the sidebar. They are kept in the browser, not in the settings; the desktop keeps one theme for its window, whatever the servers it shows. The desktop offers a wider choice of palettes, from Sepia and Paper to Nord and Midnight, and its title bar follows.
 
 ## The config folder and the project folders
 

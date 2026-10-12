@@ -2,15 +2,16 @@
 
 // Tabs - the open items above the document view, and the windows they can be detached into.
 //
-//   tab = { Key, Kind: 'p' | 'waiting' | 'llm', Id?, Hash, Title?, View?, Filter?, Draft? }
-//     Key    'p:<id>' or 'waiting': one tab per item; 'llm:<id>' for an LLM connection (plan Run Shapes, Step 3)
-//     Hash   the route that shows it (#/p/<id>, #/waiting)
+//   tab = { Key, Kind: 'p' | 'waiting' | 'llm', Id?, Root, Hash, Title?, View?, Filter?, Draft? }
+//     Key    'p:<id>' or 'waiting': one tab per item; 'llm:<id>' for an LLM connection (plan Run Shapes, Step 3);
+//            '<root>|p:<id>' on a named root (plan Run Shapes, Step 5: Root is the root's key, '' in a browser)
+//     Hash   the route that shows it (#/p/<id>, #/waiting, #/s/<root>/p/<id>)
 //     View   read | edit | revisions, for a proposal: each tab comes back as it was left
 //     Filter the threads pane's filter, for a proposal: a new tab starts at Waiting on me
 //     Draft  { Text, Base }: an unsaved edit, kept while its tab is not the one shown
 //
-// The hash stays the route: AppController calls Visit for it, and a tab's click sets it. The tabs are kept in
-// sessionStorage, so a reload brings them back and a browser restart starts clean.
+// The hash stays the route: AppController calls Visit for it, and a tab's click sets it. The tabs are kept once per
+// window (stored.js: localStorage in a browser, the config in the desktop), so a restart brings them back.
 //
 // A detached window is the page at ?detached=1#<hash>, showing one item and no sidebar or tab strip. The windows
 // talk over the BroadcastChannel "consensus-windows":
@@ -26,9 +27,9 @@
 // A detached tab stays in the main window's strip, ghosted: clicking it does nothing, and its menu offers Re-attach
 // and Close. Each tab's menu (▾ or a right-click) closes it, the others, those to its right, or all, and detaches it.
 
-angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$timeout', 'State', 'Menus', 'Client', function ( $window, $rootScope, $timeout, State, Menus, Client )
+angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$timeout', 'State', 'Menus', 'Client', 'Roots', function ( $window, $rootScope, $timeout, State, Menus, Client, Roots )
 {
-	const STORAGE_KEY = 'tabs';		// per server (stored.js); a detached window keeps its one tab in its session
+	const STORAGE_KEY = 'tabs';		// once per window (stored.js); a detached window keeps its one tab in its session
 	const CHANNEL_NAME = 'consensus-windows';
 	const REATTACH_WAIT = 700;
 	const VIEWS = [ 'read', 'edit', 'revisions' ];
@@ -46,9 +47,10 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 
 	//-----------------------------------------------------------------
-	// The main window's tabs are kept per server in localStorage (plan UI Tweaks V), so a restart brings them back; a
-	// detached window keeps its one tab in its own session, as before. A blocked storage keeps the tabs for this
-	// page's life.
+	// The main window's tabs are kept once per window (plan UI Tweaks V; per server before plan Run Shapes, Step 5,
+	// since a window spans servers now), so a restart brings them back; a detached window keeps its one tab in its own
+	// session, as before. A tab of a root the page does not have (a server removed) is dropped. A blocked storage keeps
+	// the tabs for this page's life.
 
 	function load()
 	{
@@ -66,11 +68,15 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		}
 		else
 		{
-			saved = window.ConsensusStored.Read( STORAGE_KEY, null, true );
+			saved = window.ConsensusStored.Read( STORAGE_KEY, null, false );
 		}
 		if ( saved && Array.isArray( saved.Tabs ) )
 		{
-			tabs.List = saved.Tabs;
+			tabs.List = saved.Tabs.filter( function ( tab ) { return !!Roots.Of( tab.Root || '' ); } );
+			for ( let tab of tabs.List )
+			{
+				tab.Root = tab.Root || '';
+			}
 			tabs.ActiveKey = saved.Active || null;
 		}
 	}
@@ -91,7 +97,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 			}
 			return;
 		}
-		window.ConsensusStored.Write( STORAGE_KEY, saved, true );
+		window.ConsensusStored.Write( STORAGE_KEY, saved, false );
 	}
 
 
@@ -99,8 +105,9 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	// silently once the projects are loaded; the strip moves to a neighbour when it was the active one. A tab the list
 	// does not know may be newer than the list (made a moment ago, or opened by link) or archived (plan Run Shapes,
 	// Step 2), so only the server's 404 closes it.
-	function prune( projects )
+	function prune( root )
 	{
+		let projects = root.Projects;
 		if ( !Array.isArray( projects ) || !projects.length )
 		{
 			return;
@@ -123,14 +130,14 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 			walk( project.Items );
 			walk( project.Archive );
 		}
-		let doubtful = tabs.List.filter( function ( tab ) { return tab.Kind === 'p' && !known[ tab.Id ]; } );
+		let doubtful = tabs.List.filter( function ( tab ) { return tab.Kind === 'p' && tab.Root === root.Key && !known[ tab.Id ]; } );
 		if ( !doubtful.length )
 		{
 			return;
 		}
 		Promise.all( doubtful.map( function ( tab )
 		{
-			return Client.Get( '/api/proposals/' + encodeURIComponent( tab.Id ) ).then( function () { return null; }, function ( error ) { return ( error.Status === 404 ) ? tab : null; } );
+			return Client.Get( root, '/api/proposals/' + encodeURIComponent( tab.Id ) ).then( function () { return null; }, function ( error ) { return ( error.Status === 404 ) ? tab : null; } );
 		} ) ).then( function ( results )
 		{
 			let gone = results.filter( function ( tab ) { return tab && tabs.List.includes( tab ); } );
@@ -158,22 +165,31 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	}
 
 
-	// The key a route stands for: { Kind, Id? }
+	// The key a route stands for: { Kind, Id?, Root? }
 	function KeyOf( Info )
 	{
-		return Info.Id ? Info.Kind + ':' + Info.Id : Info.Kind;
+		let item = Info.Id ? Info.Kind + ':' + Info.Id : Info.Kind;
+		return Info.Root ? Info.Root + '|' + item : item;
 	}
 
 
-	// Visit: the tab for a route, made if it is not open, and made the active one. Info = { Kind, Id?, Hash, Query? }
-	// In a detached window it is the only tab.
+	// The tab of an item on a root (the current one when none is named), or null.
+	function find_item( kind, id, root_key )
+	{
+		let key = ( root_key === undefined ) ? ( State.Root ? State.Root.Key : '' ) : root_key;
+		return tabs.List.find( function ( tab ) { return tab.Kind === kind && tab.Id === id && tab.Root === key; } ) || null;
+	}
+
+
+	// Visit: the tab for a route, made if it is not open, and made the active one. Info = { Kind, Id?, Root?, Hash,
+	// Query? }. In a detached window it is the only tab.
 	function Visit( Info )
 	{
 		let key = KeyOf( Info );
 		let tab = find( key );
 		if ( !tab )
 		{
-			tab = { Key: key, Kind: Info.Kind, Id: Info.Id || null, Hash: Info.Hash };
+			tab = { Key: key, Kind: Info.Kind, Id: Info.Id || null, Root: Info.Root || '', Hash: Info.Hash };
 			tabs.List.push( tab );
 		}
 		tab.Hash = Info.Hash;
@@ -311,12 +327,12 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	}
 
 
-	// Every tab of an item that is gone (trashed here or elsewhere).
-	function CloseItem( Id )
+	// Every tab of an item that is gone (trashed here or elsewhere), on the root named (every root when none is).
+	function CloseItem( Id, RootKey )
 	{
 		for ( let tab of tabs.List.slice() )
 		{
-			if ( tab.Id === Id )
+			if ( tab.Id === Id && ( RootKey === undefined || tab.Root === RootKey ) )
 			{
 				Close( tab );
 			}
@@ -349,7 +365,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	// The unsaved edit of the proposal Id's tab, or null to forget it.
 	function SetDraft( Id, Draft )
 	{
-		let tab = find( 'p:' + Id );
+		let tab = find_item( 'p', Id );
 		if ( tab )
 		{
 			if ( Draft )
@@ -367,7 +383,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 	function DraftOf( Id )
 	{
-		let tab = find( 'p:' + Id );
+		let tab = find_item( 'p', Id );
 		return ( tab && tab.Draft ) ? tab.Draft : null;
 	}
 
@@ -614,7 +630,14 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 	start();
 
-	$rootScope.$watch( function () { return State.Projects; }, prune );
+	// Each root's projects, as they load: the tabs of items that are gone close.
+	$rootScope.$watchCollection( function () { return Roots.List.map( function ( root ) { return root.Projects; } ); }, function ()
+	{
+		for ( let root of Roots.List )
+		{
+			prune( root );
+		}
+	} );
 
 	tabs.KeyOf = KeyOf;
 	tabs.Active = Active;
@@ -643,10 +666,16 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 //---------------------------------------------------------------------
 // TabsController: the strip, and in a detached window its Re-attach bar.
 
-.controller( 'TabsController', [ '$scope', 'State', 'Tabs', 'Menus', 'Llms', function ( $scope, State, Tabs, Menus, Llms )
+.controller( 'TabsController', [ '$scope', 'State', 'Tabs', 'Menus', 'Llms', 'Roots', function ( $scope, State, Tabs, Menus, Llms, Roots )
 {
 	$scope.State = State;
 	$scope.Tabs = Tabs;
+
+
+	function root_of( tab )
+	{
+		return Roots.Of( tab.Root || '' ) || State.Root;
+	}
 
 
 	// A tab's menu: a ghosted tab can only come back or close; the others close in their ways, or detach.
@@ -680,13 +709,15 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	};
 
 
-	function proposal_of( id )
+	function proposal_of( tab )
 	{
-		if ( State.Open && State.Open.Proposal.Id === id )
+		let id = tab.Id;
+		if ( State.Open && State.Open.Proposal.Id === id && root_of( tab ) === State.Root )
 		{
 			return State.Open.Proposal;
 		}
-		return State.Proposals.find( function ( proposal ) { return proposal.Id === id; } ) || null;
+		let root = root_of( tab );
+		return root ? ( root.Proposals.find( function ( proposal ) { return proposal.Id === id; } ) || null ) : null;
 	}
 
 
@@ -729,8 +760,8 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		}
 		else
 		{
-			let proposal = proposal_of( tab.Id );
-			let project = context_project( tab.Id );
+			let proposal = proposal_of( tab );
+			let project = context_project( tab );
 			if ( project )
 			{
 				title = 'Readme · ' + project.Name;
@@ -749,10 +780,19 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 
 	// The project whose Readme the item is, or null.
-	function context_project( id )
+	function context_project( tab )
 	{
-		return State.Projects.find( function ( candidate ) { return candidate.Context && candidate.Context.Id === id; } ) || null;
+		let root = root_of( tab );
+		return root ? ( root.Projects.find( function ( candidate ) { return candidate.Context && candidate.Context.Id === tab.Id; } ) || null ) : null;
 	}
+
+
+	// The tab's tooltip: its title, and its server when the page shows several.
+	$scope.Tooltip = function ( tab )
+	{
+		let root = root_of( tab );
+		return $scope.Title( tab ) + ( ( Roots.Several() && root ) ? ' on ' + root.Name : '' ) + ( Tabs.IsOut( tab.Key ) ? ' (in its own window)' : '' );
+	};
 
 
 	$scope.Icon = function ( tab )
@@ -765,11 +805,11 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		{
 			return 'icon-llm';
 		}
-		if ( context_project( tab.Id ) )
+		if ( context_project( tab ) )
 		{
 			return 'icon-context';
 		}
-		let proposal = proposal_of( tab.Id );
+		let proposal = proposal_of( tab );
 		let kind = proposal ? proposal.Kind : 'plan';
 		return ( kind === 'document' ) ? 'icon-document' : 'icon-plan';
 	};

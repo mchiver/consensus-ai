@@ -1,9 +1,9 @@
 'use strict';
 
-// The connect screen (plan Consensus Desktop, Step 2): the saved servers with Connect, Edit and Remove; Add server,
-// tried before it is saved; this machine's server, the config's own, started with the app as its Scope says (plan
-// Run Shapes, Step 1); and what the app is connected to. Everything goes through window.Desktop (preload.js) to
-// the main process.
+// The servers screen (plan Consensus Desktop, Step 2; the servers' list since plan Run Shapes, Step 5, the page
+// showing every server at once): the saved servers with Edit and Remove; Add server, tried before it is saved; this
+// machine's server, the config's own, started with the app as its Scope says (plan Run Shapes, Step 1); and Open the
+// page. Everything goes through window.Desktop (preload.js) to the main process.
 
 angular.module( 'Connect', [] )
 
@@ -24,7 +24,6 @@ angular.module( 'Connect', [] )
 .controller( 'ConnectController', [ '$scope', function ( $scope )
 {
 	$scope.Version = window.ConsensusDesktop.Version;
-	$scope.Server = window.ConsensusDesktop.Server;
 	$scope.Reason = window.ConsensusDesktop.Reason;
 	$scope.Settings = { Servers: [] };
 	$scope.Local = null;
@@ -45,7 +44,6 @@ angular.module( 'Connect', [] )
 			$scope.Settings = answer.Settings;
 			$scope.Local = answer.Local;
 			$scope.Missing = answer.Missing || [];
-			$scope.Server = answer.Server;
 			$scope.Reason = answer.Reason;
 		}
 		catch ( error )
@@ -91,7 +89,7 @@ angular.module( 'Connect', [] )
 
 
 	// Save: the server is tried first; a server that does not answer is not saved.
-	$scope.Save = async function ( then_connect )
+	$scope.Save = async function ()
 	{
 		let editing = $scope.Editing;
 		if ( !editing || !editing.Name || !editing.Url )
@@ -121,10 +119,6 @@ angular.module( 'Connect', [] )
 		$scope.Editing = null;
 		$scope.Busy = false;
 		$scope.$applyAsync();
-		if ( then_connect )
-		{
-			await $scope.Connect( { Name: editing.Name.trim() } );
-		}
 	};
 
 
@@ -140,35 +134,19 @@ angular.module( 'Connect', [] )
 	};
 
 
-	// Connect: the main process tries the server and, when it answers, shows the Consensus page in this window.
-	$scope.Connect = async function ( server )
+	//-----------------------------------------------------------------
+	// The page: shown when there is a server to show, this machine's or a saved one.
+
+	$scope.CanOpen = function ()
 	{
-		$scope.Busy = true;
-		$scope.Reason = null;
-		let answer = await window.Desktop.Connect( { Kind: 'server', Name: server.Name } );
-		if ( !answer.Ok )
-		{
-			$scope.Reason = answer.Error;
-			$scope.Busy = false;
-		}
-		$scope.$applyAsync();
+		return !!$scope.Local || ( $scope.Settings.Servers || [] ).length > 0;
 	};
 
 
-	//-----------------------------------------------------------------
-	// This machine's server
-
-	$scope.ConnectLocal = async function ()
+	$scope.OpenPage = function ()
 	{
 		$scope.Busy = true;
-		$scope.Reason = null;
-		let answer = await window.Desktop.Connect( { Kind: 'local' } );
-		if ( !answer.Ok )
-		{
-			$scope.Reason = answer.Error;
-			$scope.Busy = false;
-		}
-		$scope.$applyAsync();
+		window.Desktop.OpenPage();
 	};
 
 

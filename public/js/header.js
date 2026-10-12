@@ -4,10 +4,17 @@
 // tabs.js, since plan UI Tweaks V). The second: the state picker and the one-line state, then New Comment and New
 // subplan. Delete is in the item's menu in the tree. Ctrl+E switches the open item between Edit and Read.
 
-angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Subplans', 'Llms', function ( $scope, $window, State, Client, Subplans, Llms )
+angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Subplans', 'Llms', 'Roots', function ( $scope, $window, State, Client, Subplans, Llms, Roots )
 {
 	$scope.State = State;
 	$scope.Busy = false;
+
+
+	// The open item's server, named beside the title when the page shows several (plan Run Shapes, Step 5).
+	$scope.RootName = function ()
+	{
+		return ( Roots.Several() && State.Root ) ? State.Root.Name : '';
+	};
 
 
 	// The title when no proposal is open: the waiting view, or an LLM connection of the server (plan Run Shapes, Step 3).

@@ -10,7 +10,10 @@
 // Each project's Context folder comes first, holding its Readme and other documents: neither the folder
 // nor the document is renamed, moved, copied or deleted, and New Document goes there. Under the projects the
 // server's LLM connections (plan Run Shapes, Step 3; llm.js), with Open, Rename and Delete in their menus and New
-// LLM in the list's, the owner's to change.
+// LLM in the list's, the owner's to change. Since plan Run Shapes, Step 5, the tree has a root per server (roots.js):
+// a row with the server's name, its live dot, who you are there and its menu (New Project, Import, Settings, the
+// servers, Reload), and beneath it that server's projects, LLM connections and Trash; every action goes to the
+// root the row belongs to; an item moves within its server, Copy and Paste carry it to another.
 // A plan holds its Subplans: they fold under it, and a plan dropped into it becomes one. A click on a folder's
 // row folds it; the menus read as plan UI Tweaks V lists them, "New <first state>" making a plan there, the state
 // the project's own (plan Run Shapes, Step 2: each project keeps its States, Include, Exclude and Commands, edited
@@ -22,70 +25,200 @@
 const DRAG_TYPE = 'application/x-consensus-item';
 const DRAG_PROJECT_TYPE = 'application/x-consensus-project';
 
-angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', 'Llms', function ( $scope, $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports, Llms )
+angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', 'Llms', 'Roots', function ( $scope, $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports, Llms, Roots )
 {
-	// Remembered per server (stored.js, plan UI Tweaks V).
+	// Remembered per root (stored.js, plan UI Tweaks V; per root since plan Run Shapes, Step 5), and the sort and the
+	// stamps once per window.
 	const OPEN_PROJECT_KEY = 'project';
 	const FOLDED_KEY = 'folded';
 	const SORT_KEY = 'tree-sort';
 	const SHOW_UPDATED_KEY = 'show-updated';
 	const LLMS_SHOWN_KEY = 'llms-shown';
+	const ROOT_CLOSED_KEY = 'root-closed';
 	const SORTS = [ 'none', 'name', 'created', 'updated' ];
 
 	$scope.State = State;
 	$scope.Llms = Llms;
+	$scope.Roots = Roots;
+	$scope.HashFor = Roots.HashFor;
 	$scope.HasDesktop = !!( window.Desktop && typeof window.Desktop.PickFolder === 'function' );
-	$scope.ShowingLlms = read_stored( LLMS_SHOWN_KEY, true );
 	$scope.Creating = null;
 	$scope.Renaming = null;
 	$scope.Deleting = null;
-	$scope.ShowingTrash = false;
 	$scope.ShowingArchive = {};
-	$scope.Trash = [];
 	$scope.Theme = window.ConsensusTheme.Get().Theme;
 	$scope.Scale = window.ConsensusTheme.Get().Scale;
 	$scope.Palettes = window.ConsensusTheme.PALETTES;
-	$scope.OpenProjectId = read_stored( OPEN_PROJECT_KEY, 'default' );
-	let folded = read_stored( FOLDED_KEY, [] );
-	$scope.Sort = read_stored( SORT_KEY, 'none' );
+	$scope.Sort = read_shared( SORT_KEY, 'none' );
 	if ( !SORTS.includes( $scope.Sort ) )
 	{
 		$scope.Sort = 'none';
 	}
-	$scope.ShowUpdated = read_stored( SHOW_UPDATED_KEY, false );
+	$scope.ShowUpdated = read_shared( SHOW_UPDATED_KEY, false );
+	let per_root = {};		// root key -> { OpenProjectId, Folded, ShowingLlms, Closed, ShowingTrash, Trash }
 
 
 	//-----------------------------------------------------------------
-	// Remembered per server, in this browser only; a blocked or empty storage falls back to the default.
+	// Remembered per root (under the server's address) or once per window; a blocked or empty storage falls back to
+	// the default.
 
-	function read_stored( key, fallback )
+	function read_stored( key, fallback, root )
 	{
-		return window.ConsensusStored.Read( key, fallback, true );
+		return window.ConsensusStored.Read( key, fallback, root );
 	}
 
 
-	function write_stored( key, value )
+	function write_stored( key, value, root )
 	{
-		window.ConsensusStored.Write( key, value, true );
+		window.ConsensusStored.Write( key, value, root );
+	}
+
+
+	function read_shared( key, fallback )
+	{
+		return window.ConsensusStored.Read( key, fallback, false );
+	}
+
+
+	// What the sidebar keeps per root, read once from the remembered state.
+	function of_root( root )
+	{
+		if ( !per_root[ root.Key ] )
+		{
+			per_root[ root.Key ] = {
+				OpenProjectId: read_stored( OPEN_PROJECT_KEY, null, root ),
+				Folded: read_stored( FOLDED_KEY, [], root ),
+				ShowingLlms: read_stored( LLMS_SHOWN_KEY, true, root ),
+				Closed: read_stored( ROOT_CLOSED_KEY, false, root ),
+				ShowingTrash: false,
+				Trash: [],
+			};
+		}
+		return per_root[ root.Key ];
+	}
+
+
+	// The root a project belongs to (each project is marked by roots.js), else the first.
+	function root_of( project )
+	{
+		return ( project && Roots.Of( project.Root ) ) || Roots.List[ 0 ] || null;
+	}
+
+
+	// The root whose tree, archive or Readme holds the item Id, or null.
+	function root_holding( id )
+	{
+		for ( let root of Roots.List )
+		{
+			for ( let project of root.Projects )
+			{
+				if ( project.Id === id || ( project.Context && project.Context.Id === id ) || place_of( project.Items, id, null ) || place_of( project.Archive || [], id, null ) )
+				{
+					return root;
+				}
+			}
+		}
+		return null;
+	}
+
+
+	$scope.Of = function ( root )
+	{
+		return of_root( root );
+	};
+
+
+	//-----------------------------------------------------------------
+	// The root rows (plan Run Shapes, Step 5): a server each, folded or not, with its menu.
+
+	$scope.IsRootClosed = function ( root )
+	{
+		return !!of_root( root ).Closed;
+	};
+
+
+	$scope.ToggleRoot = function ( root )
+	{
+		let kept = of_root( root );
+		kept.Closed = !kept.Closed;
+		write_stored( ROOT_CLOSED_KEY, kept.Closed, root );
+	};
+
+
+	// The root's tooltip: live or offline (with the reason), the server's name and address, its version.
+	$scope.RootTitle = function ( root )
+	{
+		let parts = [ root.Live ? 'live updates' : 'offline' + ( root.Error ? ': ' + root.Error : '' ) ];
+		parts.push( ( root.Kind === 'local' ) ? 'this machine\'s server' : root.Name );
+		if ( root.Url )
+		{
+			parts.push( root.Url );
+		}
+		if ( root.Version )
+		{
+			parts.push( 'Consensus ' + root.Version );
+		}
+		return parts.join( '; ' );
+	};
+
+
+	// Reload: the root's identity, lists and connections read afresh.
+	$scope.ReloadRoot = async function ( root )
+	{
+		await Roots.LoadMe( root );
+		await Roots.LoadList( root );
+		await Llms.For( root ).Reload();
+		$scope.$applyAsync();
+	};
+
+
+	// The root's menu: New Project and Import (here), Settings (the owner's), the servers (the desktop's connect
+	// screen), Reload.
+	function root_actions( root )
+	{
+		let actions = [
+			action( 'New Project', 'plus', function () { $scope.StartCreate( 'project', null, QUIET, null, root ); } ),
+			action( 'Import', 'upload', function () { $scope.StartImport( root ); } ),
+			{ Separator: true },
+			action( 'Settings', 'settings', function () { $scope.OpenSettings( root ); }, { Disabled: !is_owner( root ) } ),
+		];
+		if ( window.Desktop && typeof window.Desktop.Servers === 'function' )
+		{
+			actions.push( action( 'Servers…', 'link', function () { window.Desktop.Servers(); } ) );
+		}
+		actions.push( { Separator: true } );
+		actions.push( action( 'Reload', 'refresh', function () { $scope.ReloadRoot( root ); } ) );
+		return actions;
 	}
 
 
 	//-----------------------------------------------------------------
 	// Waiting, theme, settings
 
-	$scope.OpenProject = function ()
+	// The open project of a root (the current one when none is named).
+	$scope.OpenProject = function ( root )
 	{
-		return State.Projects.find( function ( project ) { return project.Id === $scope.OpenProjectId; } ) || null;
+		let where = root || State.Root;
+		if ( !where )
+		{
+			return null;
+		}
+		let id = of_root( where ).OpenProjectId;
+		return where.Projects.find( function ( project ) { return project.Id === id; } ) || null;
 	};
 
 
+	// Waiting on you, over every root, each with its own participant.
 	$scope.WaitingCount = function ()
 	{
 		let count = 0;
-		let name = State.Me ? State.Me.Name : null;
-		for ( let proposal of State.Proposals )
+		for ( let root of Roots.List )
 		{
-			count += ( proposal.Tally.WaitingOn[ name ] || 0 );
+			let name = root.Me ? root.Me.Name : null;
+			for ( let proposal of root.Proposals )
+			{
+				count += ( proposal.Tally.WaitingOn[ name ] || 0 );
+			}
 		}
 		return count;
 	};
@@ -103,44 +236,14 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	};
 
 
-	// The settings popup (settings.js) opens on the owner's button.
-	$scope.OpenSettings = function ()
+	// The settings popup (settings.js) opens from a root's row or menu, for its owner.
+	$scope.OpenSettings = function ( root, event )
 	{
-		$rootScope.$broadcast( 'settings-opened' );
-	};
-
-
-	// The connection panel (plan UI Tweaks V): the connected server's address without its scheme (the desktop hands
-	// it in window.ConsensusDesktop.Server; in a browser the page's own host), with the connection's name, the
-	// server's version and live or offline in the tooltip.
-	function connected_server()
-	{
-		let desktop = window.ConsensusDesktop || null;
-		return ( desktop && desktop.Server ) ? desktop.Server : null;
-	}
-
-
-	$scope.ServerLabel = function ()
-	{
-		let server = connected_server();
-		let url = server ? String( server.Url || '' ) : $window.location.host;
-		return url.replace( /^https?:\/\//, '' ).replace( /\/+$/, '' ) || ( State.Live ? 'live' : 'offline' );
-	};
-
-
-	$scope.ConnectionTitle = function ()
-	{
-		let server = connected_server();
-		let parts = [ State.Live ? 'live updates' : 'offline' ];
-		if ( server )
+		if ( event )
 		{
-			parts.push( ( server.Kind === 'local' ) ? 'the local server' : ( server.Name || server.Url ) );
-			if ( server.Version )
-			{
-				parts.push( 'Consensus ' + server.Version );
-			}
+			event.stopPropagation();
 		}
-		return parts.join( '; ' );
+		$rootScope.$broadcast( 'settings-opened', root || State.Root );
 	};
 
 
@@ -177,75 +280,77 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	//-----------------------------------------------------------------
 	// The LLM connections (plan Run Shapes, Step 3): the server's, listed once under the projects (llm.js holds them).
 
-	$scope.ToggleLlms = function ()
+	$scope.ToggleLlms = function ( root )
 	{
-		$scope.ShowingLlms = !$scope.ShowingLlms;
-		write_stored( LLMS_SHOWN_KEY, $scope.ShowingLlms );
+		let kept = of_root( root );
+		kept.ShowingLlms = !kept.ShowingLlms;
+		write_stored( LLMS_SHOWN_KEY, kept.ShowingLlms, root );
 	};
 
 
-	$scope.IsOpenItem = function ( kind, id )
+	$scope.IsOpenItem = function ( kind, id, root )
 	{
 		let open = State.OpenItem;
-		return !!open && open.Kind === kind && open.Id === id;
+		return !!open && open.Kind === kind && open.Id === id && ( !root || ( open.Root || '' ) === root.Key );
 	};
 
 
-	$scope.IsRunning = function ( llm )
+	$scope.IsRunning = function ( root, llm )
 	{
-		return !!Llms.Running[ llm.Id ];
+		return !!Llms.For( root ).Running[ llm.Id ];
 	};
 
 
-	function is_owner()
+	function is_owner( root )
 	{
-		return !!State.Me && State.Me.Role === 'owner';
+		let me = root ? root.Me : State.Me;
+		return !!me && me.Role === 'owner';
 	}
 
 
-	function llm_actions( llm )
+	function llm_actions( root, llm )
 	{
-		let actions = [ action( 'Open', 'eye', function () { $window.location.hash = '#/llm/' + encodeURIComponent( llm.Id ); } ) ];
-		if ( is_owner() )
+		let actions = [ action( 'Open', 'eye', function () { $window.location.hash = Roots.HashFor( root, '/llm/' + encodeURIComponent( llm.Id ) ); } ) ];
+		if ( is_owner( root ) )
 		{
-			actions.push( action( 'Rename', 'pencil', function () { $scope.StartRename( 'llm', null, llm, QUIET ); } ) );
+			actions.push( action( 'Rename', 'pencil', function () { $scope.StartRename( 'llm', root, llm, QUIET ); } ) );
 			actions.push( { Separator: true } );
-			actions.push( action( 'Delete', 'trash', function () { $scope.StartDelete( llm, QUIET ); }, { Danger: true, Disabled: $scope.IsRunning( llm ) } ) );
+			actions.push( action( 'Delete', 'trash', function () { $scope.StartDelete( llm, QUIET ); }, { Danger: true, Disabled: $scope.IsRunning( root, llm ) } ) );
 		}
 		return actions;
 	}
 
 
 	// The list's own menu: New LLM (the owner's).
-	function llms_actions()
+	function llms_actions( root )
 	{
 		return [ action( 'New LLM', 'plus', function ()
 		{
-			$scope.ShowingLlms = true;
+			of_root( root ).ShowingLlms = true;
 			$scope.Renaming = null;
 			$scope.Deleting = null;
-			$scope.Creating = { Kind: 'llm', Name: '' };
-		}, { Disabled: !is_owner() } ) ];
+			$scope.Creating = { Kind: 'llm', Name: '', Root: root.Key };
+		}, { Disabled: !is_owner( root ) } ) ];
 	}
 
 
 	// Delete a connection, confirmed inline like the others; its tabs close; its participant goes with it.
-	$scope.DeleteLlm = async function ( llm, event )
+	$scope.DeleteLlm = async function ( root, llm, event )
 	{
 		event.preventDefault();
 		event.stopPropagation();
-		let answer = await State.Act( function () { return Client.Delete( '/api/llms/' + encodeURIComponent( llm.Id ) ); } );
+		let answer = await State.Act( function () { return Client.Delete( root, '/api/llms/' + encodeURIComponent( llm.Id ) ); } );
 		$scope.Deleting = null;
 		if ( answer )
 		{
 			for ( let tab of Tabs.List.slice() )
 			{
-				if ( tab.Kind === 'llm' && tab.Id === llm.Id )
+				if ( tab.Kind === 'llm' && tab.Id === llm.Id && tab.Root === root.Key )
 				{
 					Tabs.Close( tab );
 				}
 			}
-			await Llms.Reload();
+			await Llms.For( root ).Reload();
 		}
 		$scope.$applyAsync();
 	};
@@ -256,47 +361,63 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 	$scope.IsOpen = function ( project )
 	{
-		return project.Id === $scope.OpenProjectId;
+		return project.Id === of_root( root_of( project ) ).OpenProjectId;
 	};
+
+
+	function set_open_project( root, id )
+	{
+		of_root( root ).OpenProjectId = id;
+		write_stored( OPEN_PROJECT_KEY, id, root );
+	}
 
 
 	$scope.ToggleProject = function ( project )
 	{
-		$scope.OpenProjectId = $scope.IsOpen( project ) ? null : project.Id;
-		write_stored( OPEN_PROJECT_KEY, $scope.OpenProjectId );
+		set_open_project( root_of( project ), $scope.IsOpen( project ) ? null : project.Id );
 		$scope.Creating = null;
 		$scope.Renaming = null;
 		$scope.Deleting = null;
 	};
 
 
-	// Opening a proposal opens the project that holds it.
+	// Opening a proposal opens the project that holds it, on its root.
 	$scope.$watch( function () { return ( State.Open && State.Open.Project ) ? State.Open.Project.Id : null; }, function ( project_id )
 	{
-		if ( project_id && project_id !== $scope.OpenProjectId )
+		if ( project_id && State.Root && project_id !== of_root( State.Root ).OpenProjectId )
 		{
-			$scope.OpenProjectId = project_id;
-			write_stored( OPEN_PROJECT_KEY, project_id );
+			set_open_project( State.Root, project_id );
 		}
 	} );
 
 
-	// A remembered project that is no longer there (or the first start, when nothing is remembered): the first
+	// A remembered project that is no longer there (or the first start, when nothing is remembered): the root's first
 	// project opens (plan Run Shapes, Step 2: every project has an id of its own; "default" is gone).
-	$scope.$watch( function () { return State.Projects; }, function ( projects )
+	$scope.$watchCollection( function () { return Roots.List.map( function ( root ) { return root.Projects; } ); }, function ()
 	{
-		if ( !projects || !projects.length || projects.some( function ( project ) { return project.Id === $scope.OpenProjectId; } ) )
+		for ( let root of Roots.List )
 		{
-			return;
+			let projects = root.Projects;
+			let kept = of_root( root );
+			if ( !projects || !projects.length || projects.some( function ( project ) { return project.Id === kept.OpenProjectId; } ) )
+			{
+				continue;
+			}
+			set_open_project( root, projects[ 0 ].Id );
 		}
-		$scope.OpenProjectId = projects[ 0 ].Id;
-		write_stored( OPEN_PROJECT_KEY, $scope.OpenProjectId );
 	} );
+
+
+	// The folds, kept per root; an id belongs to one root, so a node is folded when any root's list has it.
+	function folded_lists()
+	{
+		return Object.keys( per_root ).map( function ( key ) { return per_root[ key ].Folded; } );
+	}
 
 
 	$scope.IsFolded = function ( node )
 	{
-		return folded.includes( node.Id );
+		return folded_lists().some( function ( list ) { return list.includes( node.Id ); } );
 	};
 
 
@@ -304,25 +425,31 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	{
 		event.preventDefault();
 		event.stopPropagation();
-		if ( folded.includes( node.Id ) )
+		let root = root_holding( node.Id ) || State.Root || Roots.List[ 0 ];
+		let kept = of_root( root );
+		if ( kept.Folded.includes( node.Id ) )
 		{
-			folded = folded.filter( function ( id ) { return id !== node.Id; } );
+			kept.Folded = kept.Folded.filter( function ( id ) { return id !== node.Id; } );
 		}
 		else
 		{
-			folded = folded.concat( [ node.Id ] );
+			kept.Folded = kept.Folded.concat( [ node.Id ] );
 		}
-		write_stored( FOLDED_KEY, folded );
+		write_stored( FOLDED_KEY, kept.Folded, root );
 	};
 
 
 	// A folder is unfolded, so what was just made in it shows.
 	function unfold( id )
 	{
-		if ( folded.includes( id ) )
+		for ( let root of Roots.List )
 		{
-			folded = folded.filter( function ( one ) { return one !== id; } );
-			write_stored( FOLDED_KEY, folded );
+			let kept = of_root( root );
+			if ( kept.Folded.includes( id ) )
+			{
+				kept.Folded = kept.Folded.filter( function ( one ) { return one !== id; } );
+				write_stored( FOLDED_KEY, kept.Folded, root );
+			}
 		}
 	}
 
@@ -339,14 +466,14 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 	$scope.SetSort = function ()
 	{
-		write_stored( SORT_KEY, $scope.Sort );
+		write_stored( SORT_KEY, $scope.Sort, false );
 	};
 
 
 	$scope.ToggleUpdated = function ()
 	{
 		$scope.ShowUpdated = !$scope.ShowUpdated;
-		write_stored( SHOW_UPDATED_KEY, $scope.ShowUpdated );
+		write_stored( SHOW_UPDATED_KEY, $scope.ShowUpdated, false );
 	};
 
 
@@ -449,17 +576,17 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	}
 
 
-	// Import project: the popup (ports.js) takes the json.
-	$scope.StartImport = function ()
+	// Import project: the popup (ports.js) takes the json, into the root given (the first from the top button).
+	$scope.StartImport = function ( root )
 	{
-		Ports.StartImport();
+		Ports.StartImport( root || Roots.List[ 0 ] );
 	};
 
 
-	// "New Draft": a new plan starts in the first of the project's States (the settings' when it has none).
+	// "New Draft": a new plan starts in the first of the project's States (its server's when it has none).
 	function new_plan_label( project )
 	{
-		let states = ( project && Array.isArray( project.States ) && project.States.length ) ? project.States : State.States;
+		let states = ( project && Array.isArray( project.States ) && project.States.length ) ? project.States : root_of( project ).States;
 		return 'New ' + ( states[ 0 ] || 'Plan' );
 	}
 
@@ -495,7 +622,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			export_action( 'project', project, project ),
 			action( 'Settings', 'settings', function () { $scope.OpenProjectSettings( project ); } ),
 			{ Separator: true },
-			action( 'Delete', 'trash', function () { $scope.StartDelete( project, QUIET ); }, { Danger: true, Disabled: State.Projects.length <= 1 || !only_context( project ) || ( project.Archive || [] ).length > 0 } ),
+			action( 'Delete', 'trash', function () { $scope.StartDelete( project, QUIET ); }, { Danger: true, Disabled: root_of( project ).Projects.length <= 1 || !only_context( project ) || ( project.Archive || [] ).length > 0 } ),
 		];
 	}
 
@@ -558,15 +685,16 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	}
 
 
-	// Kind: 'project' | 'folder' | 'item' | 'archived' | 'llm' | 'llms' (the list itself). A missing item (its record
-	// gone) has nothing to do, and nor has the Readme.
+	// Kind: 'project' | 'folder' | 'item' | 'archived' | 'llm' | 'llms' (the list itself) | 'root' (a server's row);
+	// for root, llms and llm the second argument is the root. A missing item (its record gone) has nothing to do, and
+	// nor has the Readme.
 	$scope.OpenMenu = function ( kind, project, node, event )
 	{
-		if ( kind === 'llms' )
+		if ( kind === 'root' || kind === 'llms' )
 		{
 			event.preventDefault();
 			event.stopPropagation();
-			Menus.Show( llms_actions(), event, 'llms' );
+			Menus.Show( ( kind === 'root' ) ? root_actions( project ) : llms_actions( project ), event, kind + ':' + project.Key );
 			return;
 		}
 		if ( node.Missing || ( kind === 'item' && $scope.IsContextDocument( project, node ) ) )
@@ -578,7 +706,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		let actions = null;
 		if ( kind === 'llm' )
 		{
-			actions = llm_actions( node );
+			actions = llm_actions( project, node );
 		}
 		else if ( kind === 'archived' )
 		{
@@ -598,11 +726,12 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 	$scope.Archive = async function ( project, node )
 	{
-		let answer = await State.Act( function () { return Client.Post( '/api/items/' + encodeURIComponent( node.Id ) + '/archive', {} ); } );
+		let root = root_of( project );
+		let answer = await State.Act( function () { return Client.Post( root, '/api/items/' + encodeURIComponent( node.Id ) + '/archive', {} ); } );
 		if ( answer )
 		{
 			$scope.ShowingArchive[ project.Id ] = true;
-			await State.LoadList();
+			await Roots.LoadList( root );
 			if ( State.OpenId === node.Id )
 			{
 				await State.Reload();
@@ -614,10 +743,11 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 	$scope.Restore = async function ( project, node )
 	{
-		let answer = await State.Act( function () { return Client.Post( '/api/items/' + encodeURIComponent( node.Id ) + '/restore', {} ); } );
+		let root = root_of( project );
+		let answer = await State.Act( function () { return Client.Post( root, '/api/items/' + encodeURIComponent( node.Id ) + '/restore', {} ); } );
 		if ( answer )
 		{
-			await State.LoadList();
+			await Roots.LoadList( root );
 			if ( State.OpenId === node.Id )
 			{
 				await State.Reload();
@@ -670,7 +800,8 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	// Parent is the folder a plan or folder goes in (its menu's New plan or New folder), else the root; a document
 	// goes in the project's Context folder.
 
-	$scope.StartCreate = function ( kind, project, event, Parent )
+	// Root: the server a new project is made on (the project's own for the rest).
+	$scope.StartCreate = function ( kind, project, event, Parent, Root )
 	{
 		if ( event )
 		{
@@ -683,7 +814,22 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		{
 			parent = project.ContextFolder || null;
 		}
-		$scope.Creating = { Kind: kind, Project: project ? project.Id : null, Parent: parent, Name: '', Path: '' };
+		let root = Root || root_of( project );
+		$scope.Creating = { Kind: kind, Project: project ? project.Id : null, Parent: parent, Name: '', Path: '', Root: root ? root.Key : '' };
+	};
+
+
+	// The root a new thing is made on, and whether it is this machine's (its folder can be picked).
+	$scope.CreatingRoot = function ()
+	{
+		return $scope.Creating ? Roots.Of( $scope.Creating.Root ) : null;
+	};
+
+
+	$scope.CreatingIsLocal = function ()
+	{
+		let root = $scope.CreatingRoot();
+		return !!root && root.Kind !== 'server';
 	};
 
 
@@ -744,32 +890,32 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			await create_llm( creating, name );
 			return;
 		}
+		let root = Roots.Of( creating.Root ) || Roots.List[ 0 ];
 		let answer = await State.Act( function ()
 		{
 			if ( creating.Kind === 'project' )
 			{
-				return Client.Post( '/api/projects', { Name: name, Path: creating.Path || undefined } );
+				return Client.Post( root, '/api/projects', { Name: name, Path: creating.Path || undefined } );
 			}
 			if ( creating.Kind === 'folder' )
 			{
-				return Client.Post( '/api/projects/' + encodeURIComponent( creating.Project ) + '/folders', { Name: name, Parent: creating.Parent } );
+				return Client.Post( root, '/api/projects/' + encodeURIComponent( creating.Project ) + '/folders', { Name: name, Parent: creating.Parent } );
 			}
 			let kind = ( creating.Kind === 'document' ) ? 'document' : 'plan';
-			return Client.Post( '/api/proposals', { Title: name, Text: '# ' + name + '\n\n', Kind: kind, Project: creating.Project, Parent: creating.Parent } );
+			return Client.Post( root, '/api/proposals', { Title: name, Text: '# ' + name + '\n\n', Kind: kind, Project: creating.Project, Parent: creating.Parent } );
 		} );
 		if ( answer )
 		{
 			$scope.Creating = null;
 			if ( creating.Kind === 'project' )
 			{
-				$scope.OpenProjectId = answer.Project.Id;
-				write_stored( OPEN_PROJECT_KEY, answer.Project.Id );
+				set_open_project( root, answer.Project.Id );
 			}
 			if ( creating.Kind === 'plan' || creating.Kind === 'document' )
 			{
-				$window.location.hash = '#/p/' + encodeURIComponent( answer.Proposal.Id );
+				$window.location.hash = Roots.HashFor( root, '/p/' + encodeURIComponent( answer.Proposal.Id ) );
 			}
-			await State.LoadList();
+			await Roots.LoadList( root );
 		}
 		$scope.$applyAsync();
 	};
@@ -780,12 +926,13 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	// A new LLM connection of the server, with the defaults; it opens.
 	async function create_llm( creating, name )
 	{
-		let answer = await State.Act( function () { return Client.Post( '/api/llms', { Name: name } ); } );
+		let root = Roots.Of( creating.Root ) || Roots.List[ 0 ];
+		let answer = await State.Act( function () { return Client.Post( root, '/api/llms', { Name: name } ); } );
 		if ( answer )
 		{
 			$scope.Creating = null;
-			await Llms.Reload();
-			$window.location.hash = '#/llm/' + encodeURIComponent( answer.Llm.Id );
+			await Llms.For( root ).Reload();
+			$window.location.hash = Roots.HashFor( root, '/llm/' + encodeURIComponent( answer.Llm.Id ) );
 		}
 		$scope.$applyAsync();
 	}
@@ -796,7 +943,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	{
 		event.preventDefault();
 		event.stopPropagation();
-		Subplans.Start( node, project.Id );
+		Subplans.Start( node, project.Id, root_of( project ) );
 	};
 
 
@@ -810,7 +957,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			return;
 		}
 		State.Pend( { Compose: true } );
-		$window.location.hash = '#/p/' + encodeURIComponent( node.Id );
+		$window.location.hash = Roots.HashFor( root_of( project ), '/p/' + encodeURIComponent( node.Id ) );
 	};
 
 
@@ -824,7 +971,8 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		event.stopPropagation();
 		$scope.Creating = null;
 		$scope.Deleting = null;
-		$scope.Renaming = { Kind: kind, Project: project ? project.Id : null, Id: node.Id, Name: ( kind === 'proposal' ) ? node.Title : node.Name };
+		let root = ( kind === 'llm' ) ? project : root_of( project );
+		$scope.Renaming = { Kind: kind, Project: ( project && kind !== 'llm' ) ? project.Id : null, Id: node.Id, Name: ( kind === 'proposal' ) ? node.Title : node.Name, Root: root ? root.Key : '' };
 	};
 
 
@@ -848,13 +996,14 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		{
 			return;
 		}
+		let root = Roots.Of( renaming.Root ) || State.Root;
 		if ( renaming.Kind === 'llm' )
 		{
-			let saved = await State.Act( function () { return Client.Put( '/api/llms/' + encodeURIComponent( renaming.Id ), { Name: name } ); } );
+			let saved = await State.Act( function () { return Client.Put( root, '/api/llms/' + encodeURIComponent( renaming.Id ), { Name: name } ); } );
 			if ( saved )
 			{
 				$scope.Renaming = null;
-				await Llms.Reload();
+				await Llms.For( root ).Reload();
 			}
 			$scope.$applyAsync();
 			return;
@@ -863,19 +1012,19 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		{
 			if ( renaming.Kind === 'proposal' )
 			{
-				return Client.Put( '/api/proposals/' + encodeURIComponent( renaming.Id ), { Title: name } );
+				return Client.Put( root, '/api/proposals/' + encodeURIComponent( renaming.Id ), { Title: name } );
 			}
 			let path = '/api/projects/' + encodeURIComponent( renaming.Project );
 			if ( renaming.Kind === 'folder' )
 			{
 				path += '/folders/' + encodeURIComponent( renaming.Id );
 			}
-			return Client.Put( path, { Name: name } );
+			return Client.Put( root, path, { Name: name } );
 		} );
 		if ( answer )
 		{
 			$scope.Renaming = null;
-			await State.LoadList();
+			await Roots.LoadList( root );
 			if ( renaming.Kind === 'proposal' && renaming.Id === State.OpenId )
 			{
 				await State.Reload();
@@ -929,15 +1078,16 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		{
 			path = '/api/proposals/' + encodeURIComponent( node.Id );
 		}
-		let answer = await State.Act( function () { return Client.Delete( path ); } );
+		let root = root_of( project );
+		let answer = await State.Act( function () { return Client.Delete( root, path ); } );
 		$scope.Deleting = null;
 		if ( answer )
 		{
 			if ( kind === 'proposal' )
 			{
-				Tabs.CloseItem( node.Id );
+				Tabs.CloseItem( node.Id, root.Key );
 			}
-			await State.LoadList();
+			await Roots.LoadList( root );
 		}
 		$scope.$applyAsync();
 	};
@@ -953,13 +1103,20 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		{
 			return;
 		}
+		let root = Roots.ByProject( target.Project ) || State.Root;
+		let from = root_holding( id );
+		if ( from && from !== root )
+		{
+			notice( 'an item moves within its server; Copy and Paste carry it to another', true );
+			return;
+		}
 		let answer = await State.Act( function ()
 		{
-			return Client.Post( '/api/items/' + encodeURIComponent( id ) + '/move', { Project: target.Project, Parent: target.Parent, Before: target.Before || null } );
+			return Client.Post( root, '/api/items/' + encodeURIComponent( id ) + '/move', { Project: target.Project, Parent: target.Parent, Before: target.Before || null } );
 		} );
 		if ( answer )
 		{
-			await State.LoadList();
+			await Roots.LoadList( root );
 		}
 		$scope.$applyAsync();
 	};
@@ -1006,7 +1163,8 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			$scope.MoveItem( Drag.Id, { Project: Target.Project, Parent: parent } );
 			return;
 		}
-		let project = State.Projects.find( function ( candidate ) { return candidate.Id === Target.Project; } );
+		let root = Roots.ByProject( Target.Project ) || State.Root;
+		let project = root ? root.Projects.find( function ( candidate ) { return candidate.Id === Target.Project; } ) : null;
 		let place = project ? place_of( project.Items, Target.Id, null ) : null;
 		if ( !place || Drag.Id === Target.Id )
 		{
@@ -1024,7 +1182,13 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	// A project dropped before or after another in the order.
 	async function move_project( id, target_id, zone )
 	{
-		let ids = State.Projects.map( function ( project ) { return project.Id; } );
+		let root = Roots.ByProject( target_id ) || State.Root;
+		if ( Roots.ByProject( id ) !== root )
+		{
+			notice( 'a project moves within its server; Copy and Paste carry it to another', true );
+			return;
+		}
+		let ids = root.Projects.map( function ( project ) { return project.Id; } );
 		let index = ids.indexOf( target_id );
 		if ( id === target_id || index < 0 )
 		{
@@ -1037,11 +1201,11 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		}
 		let answer = await State.Act( function ()
 		{
-			return Client.Post( '/api/projects/' + encodeURIComponent( id ) + '/move', { Before: before } );
+			return Client.Post( root, '/api/projects/' + encodeURIComponent( id ) + '/move', { Before: before } );
 		} );
 		if ( answer )
 		{
-			await State.LoadList();
+			await Roots.LoadList( root );
 		}
 		$scope.$applyAsync();
 	}
@@ -1091,7 +1255,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		let exported = null;
 		try
 		{
-			exported = await Client.Get( export_path( kind, node ) );
+			exported = await Client.Get( root_of( project ), export_path( kind, node ) );
 		}
 		catch ( error )
 		{
@@ -1115,7 +1279,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 	$scope.ExportItem = async function ( kind, project, node )
 	{
-		await Ports.StartExport( { Kind: kind, Id: node.Id, Name: name_of( node ) } );
+		await Ports.StartExport( { Kind: kind, Id: node.Id, Name: name_of( node ) }, root_of( project ) );
 		$scope.$applyAsync();
 	};
 
@@ -1159,20 +1323,20 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			return;
 		}
 		let parent = folder ? folder.Id : null;
+		let root = root_of( project );
 		let answer = await State.Act( function ()
 		{
-			return Client.Post( '/api/projects/import', { Export: exported, Into: { Project: project.Id, Parent: parent } } );
+			return Client.Post( root, '/api/projects/import', { Export: exported, Into: { Project: project.Id, Parent: parent } } );
 		} );
 		if ( answer )
 		{
-			$scope.OpenProjectId = project.Id;
-			write_stored( OPEN_PROJECT_KEY, project.Id );
+			set_open_project( root, project.Id );
 			if ( parent )
 			{
 				unfold( parent );
 			}
 			notice( 'pasted: ' + ( exported.Project ? exported.Project.Name : 'the export' ) );
-			await State.LoadList();
+			await Roots.LoadList( root );
 		}
 		$scope.$applyAsync();
 	};
@@ -1202,11 +1366,11 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		if ( key === 'c' && State.Open && ( !selection || selection.isCollapsed ) )
 		{
 			event.preventDefault();
-			$scope.CopyItem( State.Open.Proposal.Kind || 'plan', State.Open.Project, { Id: State.Open.Proposal.Id, Title: State.Open.Proposal.Title } );
+			$scope.CopyItem( State.Open.Proposal.Kind || 'plan', Object.assign( {}, State.Open.Project, { Root: State.Root ? State.Root.Key : '' } ), { Id: State.Open.Proposal.Id, Title: State.Open.Proposal.Title } );
 		}
 		else if ( key === 'v' )
 		{
-			let project = State.Projects.find( function ( candidate ) { return candidate.Id === $scope.OpenProjectId; } );
+			let project = $scope.OpenProject( State.Root );
 			if ( project )
 			{
 				event.preventDefault();
@@ -1221,29 +1385,33 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	//-----------------------------------------------------------------
 	// Trash
 
-	async function load_trash()
+	async function load_trash( root )
 	{
-		let answer = await State.Act( function () { return Client.Get( '/api/trash' ); } );
-		$scope.Trash = answer ? answer.Proposals : [];
+		let answer = await State.Act( function () { return Client.Get( root, '/api/trash' ); } );
+		of_root( root ).Trash = answer ? answer.Proposals : [];
 		$scope.$applyAsync();
 	}
 
 
-	$scope.ToggleTrash = function ()
+	$scope.ToggleTrash = function ( root )
 	{
-		$scope.ShowingTrash = !$scope.ShowingTrash;
-		if ( $scope.ShowingTrash )
+		let kept = of_root( root );
+		kept.ShowingTrash = !kept.ShowingTrash;
+		if ( kept.ShowingTrash )
 		{
-			load_trash();
+			load_trash( root );
 		}
 	};
 
 
-	$scope.$watch( function () { return State.Proposals; }, function ()
+	$scope.$watchCollection( function () { return Roots.List.map( function ( root ) { return root.Proposals; } ); }, function ()
 	{
-		if ( $scope.ShowingTrash )
+		for ( let root of Roots.List )
 		{
-			load_trash();
+			if ( of_root( root ).ShowingTrash )
+			{
+				load_trash( root );
+			}
 		}
 	} );
 

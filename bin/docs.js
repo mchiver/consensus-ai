@@ -602,7 +602,6 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 	let settings = Object.assign( PARTICIPANTS.DefaultSettings( 3500, 'None' ), {
 		Name: 'Recipe Box desktop',
 		Servers: [ { Name: 'Recipe Box server', Url: Url } ],
-		Last: null,
 		Theme: 'light',
 		Scale: 'normal',
 	} );
@@ -614,7 +613,15 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 	let page = null;
 	try
 	{
-		let target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return Target.url.includes( 'connect.html' ); }, 60000 );
+		// The app opens on the page (a server is saved; plan Run Shapes, Step 5); the servers screen is pictured first,
+		// reached as the Server menu's Servers… reaches it, then the page again.
+		let target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return Target.url.includes( '127.0.0.1' ) && !Target.url.includes( 'connect.html' ); }, 60000 );
+		page = await CDP.Attach( target.webSocketDebuggerUrl );
+		await page.WaitFor( count_of( '.tree-item' ) + ' > 0', 30000 );
+		await page.Evaluate( 'window.Desktop.Servers(); true' );
+		page.Close();
+		target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return Target.url.includes( 'connect.html' ); }, 30000 );
+		await wait( 500 );
 		page = await CDP.Attach( target.webSocketDebuggerUrl );
 		await page.Send( 'Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false } );
 		await page.WaitFor( count_of( '.server-row' ) + ' === 1', 20000 );
@@ -627,10 +634,10 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 		}
 		await set_theme( page, 'light' );
 
-		// Connect: the window loads the page copy; the DevTools target is attached again after the navigation.
-		await page.Evaluate( 'window.Desktop.Connect( { Kind: "server", Name: "Recipe Box server" } )' );
+		// The page again; the DevTools target is attached again after the navigation.
+		await page.Evaluate( 'window.Desktop.OpenPage(); true' );
 		page.Close();
-		target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return !Target.url.includes( 'connect.html' ); }, 30000 );
+		target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return Target.url.includes( '127.0.0.1' ) && !Target.url.includes( 'connect.html' ); }, 30000 );
 		await wait( 1000 );
 		page = await CDP.Attach( target.webSocketDebuggerUrl );
 		await page.Send( 'Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false } );

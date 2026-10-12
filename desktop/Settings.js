@@ -2,21 +2,19 @@
 
 // Settings - the desktop's fields of the global config (plan Run Shapes, Step 1: consensus.json in the config folder,
 // shared with the server's Name, Port, Scope, States and Participants; desktop.json before, moved in once by MoveIn):
-// the saved servers, what was open last, the theme and scale the desktop applies to the page it hosts. The LLM
-// connections and the workspaces the desktop kept (plan Consensus Desktop, Step 3) are the server's since plan Run
-// Shapes, Step 3 (src/Llms.js; a workspace's lists went into its project): MoveIn carries them from desktop.json once.
+// the saved servers, the theme and scale the desktop applies to the page it hosts. The LLM connections and the
+// workspaces the desktop kept (plan Consensus Desktop, Step 3) are the server's since plan Run Shapes, Step 3
+// (src/Llms.js; a workspace's lists went into its project): MoveIn carries them from desktop.json once. Since plan Run
+// Shapes, Step 5, the page shows every server at once, so Last (what was open) and the theme per server (plan UI
+// Tweaks V) are gone: MoveIn drops them from a config that has them.
 //
 //   {
-//     "Servers": [ { "Name": "cube4", "Url": "http://cube4:3500", "Theme": null } ],
-//     "Local": { "Theme": null },                 this machine's server (the config's own) and its theme
-//     "Last": { "Kind": "server", "Name": "cube4" } | { "Kind": "local" } | null,
+//     "Servers": [ { "Name": "cube4", "Url": "http://cube4:3500" } ],
 //     "Theme": "system", "Scale": "normal",
 //   }
-//   Plan UI Tweaks V: Theme is the default; a server (or Local) with a Theme of its own shows in it (ThemeFor), set by
-//   the page's picker while connected; the connect screen's picker sets the default. Remembered holds the page's
-//   view state by key ("consensus.<server address>.<name>" per server, "consensus.<name>" shared: the open project,
-//   the folds, the tabs, the sort, the hidden panes, the widths), since the page's origin changes port at every
-//   start and its localStorage would not survive a restart.
+//   Remembered holds the page's view state by key ("consensus.<server address>.<name>" per server, "consensus.<name>"
+//   shared: the open project, the folds, the tabs, the sort, the hidden panes, the widths), since the page's origin
+//   changes port at every start and its localStorage would not survive a restart.
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -26,7 +24,8 @@ const LLMS = require( '../src/Llms.js' );
 const THEMES = [ 'system', 'light', 'sepia', 'paper', 'solarized-light', 'dark', 'slate', 'solarized-dark', 'nord', 'midnight' ];
 const DARK_THEMES = [ 'dark', 'slate', 'solarized-dark', 'nord', 'midnight' ];
 const SCALES = [ 'small', 'normal', 'large' ];
-const DESKTOP_FIELDS = [ 'Servers', 'Local', 'Last', 'Theme', 'Scale', 'Remembered' ];
+const DESKTOP_FIELDS = [ 'Servers', 'Theme', 'Scale', 'Remembered' ];
+const GONE_FIELDS = [ 'Local', 'Last' ];		// before plan Run Shapes, Step 5
 
 
 //---------------------------------------------------------------------
@@ -36,8 +35,6 @@ function Default()
 {
 	return {
 		Servers: [],
-		Local: { Theme: null },
-		Last: null,
 		Theme: 'system',
 		Scale: 'normal',
 		Remembered: {},
@@ -57,20 +54,8 @@ function Fill( Settings )
 		settings.Servers = given.Servers.map( function ( server )
 		{
 			let one = ( server && typeof server === 'object' ) ? server : {};
-			return { Name: String( one.Name || '' ).trim(), Url: String( one.Url || '' ).trim().replace( /\/+$/, '' ), Theme: theme_or_null( one.Theme ) };
+			return { Name: String( one.Name || '' ).trim(), Url: String( one.Url || '' ).trim().replace( /\/+$/, '' ) };
 		} );
-	}
-	if ( given.Local && typeof given.Local === 'object' )
-	{
-		settings.Local = { Theme: theme_or_null( given.Local.Theme ) };
-	}
-	if ( given.Last && typeof given.Last === 'object' && ( given.Last.Kind === 'server' || given.Last.Kind === 'local' ) )
-	{
-		settings.Last = { Kind: given.Last.Kind };
-		if ( given.Last.Kind === 'server' )
-		{
-			settings.Last.Name = String( given.Last.Name || '' );
-		}
 	}
 	if ( THEMES.includes( given.Theme ) )
 	{
@@ -121,60 +106,9 @@ function Remember( Settings, Key, Value )
 }
 
 
-// A server's own theme: one of the palettes, or null for the default.
-function theme_or_null( Theme )
-{
-	return THEMES.includes( Theme ) ? Theme : null;
-}
-
-
 //---------------------------------------------------------------------
-// ThemeFor: the theme the page shows for what is connected (Current: { Kind: 'server', Name } | { Kind: 'local' } |
-// null): the server's own when it has one, else the default. SetThemeFor: sets that server's own theme (or the
-// default when nothing is connected).
-
-function ThemeFor( Settings, Current )
-{
-	let own = null;
-	if ( Current && Current.Kind === 'local' )
-	{
-		own = Settings.Local ? Settings.Local.Theme : null;
-	}
-	else if ( Current && Current.Kind === 'server' )
-	{
-		let server = ServerNamed( Settings, Current.Name );
-		own = server ? server.Theme : null;
-	}
-	return own || Settings.Theme;
-}
-
-
-function SetThemeFor( Settings, Current, Theme )
-{
-	if ( !THEMES.includes( Theme ) )
-	{
-		return;
-	}
-	if ( Current && Current.Kind === 'local' )
-	{
-		Settings.Local.Theme = Theme;
-		return;
-	}
-	if ( Current && Current.Kind === 'server' )
-	{
-		let server = ServerNamed( Settings, Current.Name );
-		if ( server )
-		{
-			server.Theme = Theme;
-			return;
-		}
-	}
-	Settings.Theme = Theme;
-}
-
-
-//---------------------------------------------------------------------
-// Apply: the desktop's fields of Filled (Fill's shape) onto Settings, in place, the server's fields untouched.
+// Apply: the desktop's fields of Filled (Fill's shape) onto Settings, in place, the server's fields untouched; the
+// fields from before Step 5 (Local, Last) are dropped.
 
 function Apply( Settings, Filled )
 {
@@ -182,7 +116,22 @@ function Apply( Settings, Filled )
 	{
 		Settings[ field ] = Filled[ field ];
 	}
+	for ( let field of GONE_FIELDS )
+	{
+		delete Settings[ field ];
+	}
 	return Settings;
+}
+
+
+// Whether a config still carries what Step 5 dropped: Local, Last, or a theme on a saved server.
+function has_gone_fields( Settings )
+{
+	if ( GONE_FIELDS.some( function ( field ) { return Settings[ field ] !== undefined; } ) )
+	{
+		return true;
+	}
+	return ( Settings.Servers || [] ).some( function ( server ) { return server && typeof server === 'object' && server.Theme !== undefined; } );
 }
 
 
@@ -198,8 +147,18 @@ function MoveIn( Settings, Path )
 	if ( Array.isArray( Settings.Servers ) )
 	{
 		let missing = DESKTOP_FIELDS.filter( function ( field ) { return Settings[ field ] === undefined; } );
+		let gone = has_gone_fields( Settings );
 		Apply( Settings, Fill( Settings ) );
-		return missing.length ? [ 'the desktop\'s settings filled in: ' + missing.join( ', ' ) ] : [];
+		let lines = [];
+		if ( missing.length )
+		{
+			lines.push( 'the desktop\'s settings filled in: ' + missing.join( ', ' ) );
+		}
+		if ( gone )
+		{
+			lines.push( 'Last and the themes per server dropped: the page shows every server at once, in one theme (plan Run Shapes, Step 5)' );
+		}
+		return lines;
 	}
 	let lines = [];
 	let from = {};
@@ -293,8 +252,6 @@ function ServerNamed( Settings, Name )
 module.exports = {
 	THEMES: THEMES,
 	DARK_THEMES: DARK_THEMES,
-	ThemeFor: ThemeFor,
-	SetThemeFor: SetThemeFor,
 	Remember: Remember,
 	SCALES: SCALES,
 	DESKTOP_FIELDS: DESKTOP_FIELDS,

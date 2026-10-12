@@ -18,7 +18,7 @@ angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
 } ] )
 
 
-.controller( 'ProjectSettingsController', [ '$scope', 'State', 'Client', 'ProjectSettings', function ( $scope, State, Client, ProjectSettings )
+.controller( 'ProjectSettingsController', [ '$scope', 'State', 'Client', 'ProjectSettings', 'Roots', function ( $scope, State, Client, ProjectSettings, Roots )
 {
 	$scope.Panel = ProjectSettings;
 
@@ -81,11 +81,13 @@ angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
 		let body = { States: lines_of( form.StatesText ), Include: lines_of( form.IncludeText ), Exclude: lines_of( form.ExcludeText ), Commands: lines_of( form.CommandsText ) };
 		try
 		{
-			let answer = await Client.Put( '/api/projects/' + encodeURIComponent( ProjectSettings.Project.Id ), body );
+			let root = Roots.Of( ProjectSettings.Project.Root ) || State.Root;
+			let answer = await Client.Put( root, '/api/projects/' + encodeURIComponent( ProjectSettings.Project.Id ), body );
+			answer.Project.Root = root.Key;
 			ProjectSettings.Project = answer.Project;
 			ProjectSettings.Form = to_form( answer.Project );
 			ProjectSettings.Saved = true;
-			await State.LoadList();
+			await Roots.LoadList( root );
 		}
 		catch ( error )
 		{

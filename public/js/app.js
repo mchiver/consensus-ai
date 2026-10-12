@@ -1,8 +1,9 @@
 'use strict';
 
-// Consensus - the one AngularJS module. State holds what every pane shares; AppController wires the
-// hash routes (#/p/<id>, #/waiting; in the desktop #/llm/<project>/<id> and #/w/<id>, plan Consensus Desktop,
-// Step 3) and the live stream. Every rule is on the server.
+// Consensus - the one AngularJS module. State holds what is one at a time (the open item, the view, the selection)
+// and names its root; the roots (roots.js, plan Run Shapes, Step 5) hold each server's participants, proposals and
+// projects. AppController wires the hash routes (#/p/<id>, #/llm/<id>, #/waiting, under #/s/<key> for a named
+// root) and each root's live stream. Every rule is on the server.
 
 angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensus.Editor' ] )
 
@@ -59,7 +60,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 //---------------------------------------------------------------------
 // State
 
-.factory( 'State', [ 'Client', '$rootScope', function ( Client, $rootScope )
+.factory( 'State', [ 'Client', '$rootScope', 'Roots', function ( Client, $rootScope, Roots )
 {
 	// The look, shared by every server (stored.js, plan UI Tweaks V).
 	const THREADS_HIDDEN_KEY = 'threads-hidden';
@@ -85,11 +86,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		PreviewHidden: recall( PREVIEW_HIDDEN_KEY, false ),
 		TreeHidden: recall( TREE_HIDDEN_KEY, false ),
 		Highlight: recall( HIGHLIGHT_KEY, 'all' ),
-		Me: null,
-		Participants: [],
-		States: [],
-		Proposals: [],
-		Projects: [],
+		Root: null,		// the root of the open item (roots.js); the first root until one is opened
 		OpenId: null,
 		Open: null,
 		OpenItem: null,
@@ -102,9 +99,36 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		Pending: null,
 		Drafts: {},
 		Collapsed: {},
-		Live: false,
 		Error: null,
 	};
+
+
+	// The current root's participants, states, proposals, projects and liveness, as every pane read them when the
+	// page had one server.
+	function of_root( field, fallback )
+	{
+		return function () { return state.Root ? state.Root[ field ] : fallback; };
+	}
+
+	Object.defineProperty( state, 'Me', { get: of_root( 'Me', null ), enumerable: true } );
+	Object.defineProperty( state, 'Participants', { get: of_root( 'Participants', [] ), enumerable: true } );
+	Object.defineProperty( state, 'States', { get: of_root( 'States', [] ), enumerable: true } );
+	Object.defineProperty( state, 'Proposals', { get: of_root( 'Proposals', [] ), enumerable: true } );
+	Object.defineProperty( state, 'Projects', { get: of_root( 'Projects', [] ), enumerable: true } );
+	Object.defineProperty( state, 'Live', { get: of_root( 'Live', false ), enumerable: true } );
+
+
+	// SetRoot: the root the open item belongs to; the calls without a root go there from now on.
+	function SetRoot( Root )
+	{
+		if ( Root === state.Root )
+		{
+			return;
+		}
+		state.Root = Root || null;
+		Client.SetCurrent( state.Root ? state.Root.Base : '' );
+		$rootScope.$broadcast( 'root-changed', state.Root );
+	}
 
 
 	function display_of( name )
@@ -138,38 +162,35 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
+	// The current root's identity and lists (roots.js holds them per root).
 	async function LoadMe()
 	{
-		let answer = await Client.Get( '/api/me' );
-		state.Me = answer.Me;
-		state.Participants = answer.Participants;
-		state.States = answer.States || [];
-		digest();
+		if ( state.Root )
+		{
+			await Roots.LoadMe( state.Root );
+		}
 	}
 
-
-	// The proposals (for the counts) and the projects with their trees (for the sidebar), together. Loads overlap when
-	// changes come quickly: an older answer arriving after a newer one is dropped, so the list never goes back.
-	let list_sequence = 0;
 
 	async function LoadList()
 	{
-		list_sequence += 1;
-		let sequence = list_sequence;
-		let answers = await Promise.all( [ Client.Get( '/api/proposals' ), Client.Get( '/api/projects' ) ] );
-		if ( sequence !== list_sequence )
+		if ( state.Root )
 		{
-			return;
+			await Roots.LoadList( state.Root );
 		}
-		state.Proposals = answers[ 0 ].Proposals;
-		state.Projects = answers[ 1 ].Projects;
-		digest();
 	}
 
 
-	// OpenProposal( id ): show it; OpenProposal( null, view ): a view without a proposal (waiting).
-	async function OpenProposal( Id, View )
+	// OpenProposal( id, view, root ): show it, on its root; OpenProposal( null, view ): a view without a proposal
+	// (waiting, an LLM connection).
+	async function OpenProposal( Id, View, Root )
 	{
+		if ( Root && Root !== state.Root )
+		{
+			SetRoot( Root );
+			state.OpenId = null;
+			state.Open = null;
+		}
 		if ( !Id )
 		{
 			state.OpenId = null;
@@ -350,6 +371,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 
 
 	state.DisplayOf = display_of;
+	state.SetRoot = SetRoot;
 	state.LoadMe = LoadMe;
 	state.LoadList = LoadList;
 	state.OpenProposal = OpenProposal;
@@ -491,27 +513,41 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 //---------------------------------------------------------------------
 // AppController: the routes and the live stream.
 
-.controller( 'AppController', [ '$scope', '$window', 'State', 'Client', 'Tabs', 'Llms', function ( $scope, $window, State, Client, Tabs, Llms )
+.controller( 'AppController', [ '$scope', '$window', 'State', 'Client', 'Tabs', 'Llms', 'Roots', function ( $scope, $window, State, Client, Tabs, Llms, Roots )
 {
 	$scope.State = State;
+	$scope.Roots = Roots;
 
 
-	// What a hash stands for: { Kind: 'p' | 'waiting' | 'llm', Id? }, or null.
+	// What a hash stands for: { Kind: 'p' | 'waiting' | 'llm', Id?, Root }, or null. A route under #/s/<key> names its
+	// root; one without (a browser's, or a link in a text) means the current root.
 	function route_of( hash )
 	{
-		let proposal = /^#\/p\/([^/]+)$/.exec( hash );
+		let root = State.Root || Roots.List[ 0 ] || null;
+		let rest = hash;
+		let scoped = /^#\/s\/([^/]+)(\/.*)?$/.exec( hash );
+		if ( scoped )
+		{
+			root = Roots.Of( decodeURIComponent( scoped[ 1 ] ) );
+			rest = '#' + ( scoped[ 2 ] || '' );
+		}
+		if ( !root )
+		{
+			return null;
+		}
+		let proposal = /^#\/p\/([^/]+)$/.exec( rest );
 		if ( proposal )
 		{
-			return { Kind: 'p', Id: decodeURIComponent( proposal[ 1 ] ) };
+			return { Kind: 'p', Id: decodeURIComponent( proposal[ 1 ] ), Root: root };
 		}
-		let llm = /^#\/llm\/([^/]+)$/.exec( hash );
+		let llm = /^#\/llm\/([^/]+)$/.exec( rest );
 		if ( llm )
 		{
-			return { Kind: 'llm', Id: decodeURIComponent( llm[ 1 ] ) };
+			return { Kind: 'llm', Id: decodeURIComponent( llm[ 1 ] ), Root: root };
 		}
-		if ( hash === '#/waiting' )
+		if ( rest === '#/waiting' )
 		{
-			return { Kind: 'waiting' };
+			return { Kind: 'waiting', Root: root };
 		}
 		return null;
 	}
@@ -534,9 +570,10 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			State.OpenProposal( null );
 			return;
 		}
-		if ( Tabs.IsOut( Tabs.KeyOf( where ) ) )
+		let info = { Kind: where.Kind, Id: where.Id, Root: where.Root.Key, Hash: hash };
+		if ( Tabs.IsOut( Tabs.KeyOf( info ) ) )
 		{
-			Tabs.FocusOut( Tabs.KeyOf( where ) );
+			Tabs.FocusOut( Tabs.KeyOf( info ) );
 			let active = Tabs.Active();
 			$window.history.replaceState( null, '', active ? active.Hash : '#' );
 			if ( !active )
@@ -545,17 +582,18 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			}
 			return;
 		}
-		let tab = Tabs.Visit( { Kind: where.Kind, Id: where.Id, Hash: hash } );
+		let tab = Tabs.Visit( info );
 		Tabs.Announce();
 		State.OpenItem = null;
 		if ( where.Kind === 'p' )
 		{
-			State.OpenProposal( where.Id ).then( function () { Tabs.RestoreView( tab ); } );
+			State.OpenProposal( where.Id, undefined, where.Root ).then( function () { Tabs.RestoreView( tab ); } );
 			return;
 		}
 		if ( where.Kind === 'llm' )
 		{
-			State.OpenItem = { Kind: 'llm', Id: where.Id };
+			State.SetRoot( where.Root );
+			State.OpenItem = { Kind: 'llm', Id: where.Id, Root: where.Root.Key };
 			State.OpenProposal( null, 'llm' );
 			return;
 		}
@@ -563,46 +601,53 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
-	function on_change( event )
+	// A change on one root: its lists follow; the open item reloads when it is that root's.
+	function on_change( root, event )
 	{
 		if ( event.Settings )
 		{
-			State.LoadMe();
+			Roots.LoadMe( root );
 			return;
 		}
 		// the server's LLM connections and their runs (plan Run Shapes, Step 3)
 		if ( event.Kind === 'llms' )
 		{
-			Llms.Reload();
-			State.LoadMe();
+			Llms.For( root ).Reload();
+			Roots.LoadMe( root );
 			return;
 		}
 		if ( event.Kind === 'run' )
 		{
-			Llms.RunChanged( event );
+			Llms.RunChanged( root, event );
 			return;
 		}
-		State.LoadList();
+		Roots.LoadList( root );
 		if ( event.Kind === 'trashed' )
 		{
-			Tabs.CloseItem( event.Proposal );
+			Tabs.CloseItem( event.Proposal, root.Key );
 		}
-		else if ( event.Proposal && event.Proposal === State.OpenId )
+		else if ( event.Proposal && event.Proposal === State.OpenId && root === State.Root )
 		{
 			State.Reload();
 		}
-		$scope.$broadcast( 'changed', event );
+		$scope.$broadcast( 'changed', event, root );
 	}
 
 
-	function on_status( live )
+	// A root's stream connected: its lists are read afresh (the first time, and after a drop).
+	function on_status( root, live )
 	{
-		let was_live = State.Live;
-		State.Live = live;
-		if ( live && !was_live )
+		if ( live )
 		{
-			State.LoadList();
-			State.Reload();
+			Roots.LoadMe( root ).then( function ()
+			{
+				Roots.LoadList( root );
+				Llms.For( root ).Reload();
+				if ( root === State.Root )
+				{
+					State.Reload();
+				}
+			} );
 		}
 	}
 
@@ -612,10 +657,12 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		$scope.$applyAsync( route );
 	} );
 
-	State.LoadMe().then( function ()
+	// The first root is the current one until an item of another opens; the route is read once its identity is known,
+	// and every root's stream brings its lists in as it connects.
+	State.SetRoot( Roots.List[ 0 ] || null );
+	State.LoadMe().then( route );
+	for ( let root of Roots.List )
 	{
-		State.LoadList();
-		route();
-	} );
-	Client.Listen( on_change, on_status );
+		Roots.Listen( root, function ( event ) { on_change( root, event ); }, function ( live ) { on_status( root, live ); } );
+	}
 } ] );

@@ -7,61 +7,97 @@
 // in a popup; plan UI Tweaks IV), over /api/runs. The same in a browser and in the desktop: the server runs the LLM,
 // in the project's folder on its own machine.
 //
-//   Llms      { Loaded, Available, Llms, Running, Kinds, DefaultPrompts, Reload(), LlmById( id ), RunChanged( event ) }
-//   route     #/llm/<llm id>
+//   Llms      { For( root ) -> { Loaded, Available, Llms, Running, Kinds, DefaultPrompts, Reload() }, LlmById( id ),
+//               RunChanged( root, event ); and the current root's Loaded, Available, Llms, Running, Kinds, DefaultPrompts }
+//   route     #/llm/<llm id>, under #/s/<root> for a named root (plan Run Shapes, Step 5)
 
-angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', function ( $rootScope, Client )
+angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State', 'Roots', function ( $rootScope, Client, State, Roots )
 {
-	let items = {
-		Loaded: false,
-		Available: false,		// whether the server runs LLMs at all
-		Llms: [],
-		Running: {},			// llm id -> the running run's summary
-		Kinds: [],
-		DefaultPrompts: {},
-	};
+	let per_root = {};		// root key -> the root's connections
 
 
-	async function Reload()
+	function make( root )
 	{
-		let answer = null;
-		try
+		let items = {
+			Root: root,
+			Loaded: false,
+			Available: false,		// whether the server runs LLMs at all
+			Llms: [],
+			Running: {},			// llm id -> the running run's summary
+			Kinds: [],
+			DefaultPrompts: {},
+		};
+
+
+		async function Reload()
 		{
-			answer = await Client.Get( '/api/llms' );
-		}
-		catch ( error )
-		{
+			let answer = null;
+			try
+			{
+				answer = await Client.Get( root, '/api/llms' );
+			}
+			catch ( error )
+			{
+				items.Loaded = true;
+				$rootScope.$applyAsync();
+				return;
+			}
+			items.Llms = ( answer.Llms || [] ).map( function ( llm ) { llm.Root = root.Key; return llm; } );
+			items.Kinds = answer.Kinds || [];
+			items.DefaultPrompts = answer.DefaultPrompts || {};
+			items.Available = !!answer.Runs;
+			items.Running = {};
+			for ( let llm of items.Llms )
+			{
+				if ( llm.Running )
+				{
+					items.Running[ llm.Id ] = llm.Running;
+				}
+			}
 			items.Loaded = true;
 			$rootScope.$applyAsync();
-			return;
 		}
-		items.Llms = answer.Llms || [];
-		items.Kinds = answer.Kinds || [];
-		items.DefaultPrompts = answer.DefaultPrompts || {};
-		items.Available = !!answer.Runs;
-		items.Running = {};
-		for ( let llm of items.Llms )
-		{
-			if ( llm.Running )
-			{
-				items.Running[ llm.Id ] = llm.Running;
-			}
-		}
-		items.Loaded = true;
-		$rootScope.$applyAsync();
+
+
+		items.Reload = Reload;
+		return items;
 	}
 
 
+	// For: a root's connections (plan Run Shapes, Step 5), read at start and again as the root's stream connects (app.js).
+	function For( Root )
+	{
+		let root = Root || Roots.List[ 0 ];
+		let key = root ? root.Key : '';
+		if ( !per_root[ key ] )
+		{
+			per_root[ key ] = make( root );
+		}
+		return per_root[ key ];
+	}
+
+
+	// A connection by id, on any root.
 	function LlmById( Id )
 	{
-		return items.Llms.find( function ( llm ) { return llm.Id === Id; } ) || null;
+		for ( let key of Object.keys( per_root ) )
+		{
+			let found = per_root[ key ].Llms.find( function ( llm ) { return llm.Id === Id; } );
+			if ( found )
+			{
+				return found;
+			}
+		}
+		return null;
 	}
 
 
-	// A run started, progressed or ended, heard over the events: the running marks follow, and everyone hears it.
-	function RunChanged( Event )
+	// A run started, progressed or ended on a root, heard over its events: the running marks follow, and everyone
+	// hears it.
+	function RunChanged( Root, Event )
 	{
-		let summary = { Id: Event.Run, Llm: { Id: Event.Llm }, Status: Event.Status };
+		let items = For( Root );
+		let summary = { Id: Event.Run, Llm: { Id: Event.Llm }, Status: Event.Status, Root: Root.Key };
 		if ( Event.Status === 'running' )
 		{
 			items.Running[ Event.Llm ] = summary;
@@ -74,11 +110,29 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 	}
 
 
-	items.Reload = Reload;
-	items.LlmById = LlmById;
-	items.RunChanged = RunChanged;
-	Reload();
-	return items;
+	// The current root's connections, as the panes read them when the page had one server.
+	let llms = {};
+
+	function of_current( field )
+	{
+		return function () { return For( State.Root )[ field ]; };
+	}
+
+	Object.defineProperty( llms, 'Loaded', { get: of_current( 'Loaded' ) } );
+	Object.defineProperty( llms, 'Available', { get: of_current( 'Available' ) } );
+	Object.defineProperty( llms, 'Llms', { get: of_current( 'Llms' ) } );
+	Object.defineProperty( llms, 'Running', { get: of_current( 'Running' ) } );
+	Object.defineProperty( llms, 'Kinds', { get: of_current( 'Kinds' ) } );
+	Object.defineProperty( llms, 'DefaultPrompts', { get: of_current( 'DefaultPrompts' ) } );
+	llms.For = For;
+	llms.LlmById = LlmById;
+	llms.RunChanged = RunChanged;
+	llms.Reload = function () { return For( State.Root ).Reload(); };
+	for ( let root of Roots.List )
+	{
+		For( root ).Reload();
+	}
+	return llms;
 } ] )
 
 
@@ -98,12 +152,27 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 //---------------------------------------------------------------------
 // LlmController: the LLM page, for the connection the route names.
 
-.controller( 'LlmController', [ '$scope', '$window', 'State', 'Client', 'Llms', function ( $scope, $window, State, Client, Llms )
+.controller( 'LlmController', [ '$scope', '$window', 'State', 'Client', 'Llms', 'Roots', function ( $scope, $window, State, Client, Llms, Roots )
 {
 	const OPEN_PROJECT_KEY = 'project';		// the sidebar's open project (stored.js, per server)
 
 	$scope.State = State;
 	$scope.Items = Llms;
+	$scope.Root = null;			// the connection's server (roots.js)
+
+
+	// The root of the connection the route names, else the current one.
+	function current_root()
+	{
+		let open = State.OpenItem;
+		return ( open && open.Kind === 'llm' && Roots.Of( open.Root ) ) || State.Root || Roots.List[ 0 ];
+	}
+
+
+	function items()
+	{
+		return Llms.For( current_root() );
+	}
 	$scope.Llm = null;			// the saved one
 	$scope.Project = null;		// the project picked for the run
 	$scope.PlanRows = [];		// the project's folders and plans, in the tree's order, with their depth and unresolved (contested) threads
@@ -153,7 +222,7 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 
 	function project_by_id( id )
 	{
-		return State.Projects.find( function ( candidate ) { return candidate.Id === id; } ) || null;
+		return current_root().Projects.find( function ( candidate ) { return candidate.Id === id; } ) || null;
 	}
 
 
@@ -164,6 +233,8 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 		{
 			return;
 		}
+		let root = current_root();
+		$scope.Root = root;
 		let llm = Llms.LlmById( open.Id );
 		let changed = !$scope.Llm || $scope.Llm.Id !== open.Id;
 		$scope.Llm = llm;
@@ -180,8 +251,8 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 		// the project: the one picked, else the sidebar's open project, else the first
 		if ( !project_by_id( $scope.Pick.Project ) )
 		{
-			let remembered = window.ConsensusStored.Read( OPEN_PROJECT_KEY, null, true );
-			$scope.Pick.Project = project_by_id( remembered ) ? remembered : ( State.Projects.length ? State.Projects[ 0 ].Id : null );
+			let remembered = window.ConsensusStored.Read( OPEN_PROJECT_KEY, null, root );
+			$scope.Pick.Project = project_by_id( remembered ) ? remembered : ( root.Projects.length ? root.Projects[ 0 ].Id : null );
 			$scope.Pick.Plan = null;
 		}
 		$scope.Project = project_by_id( $scope.Pick.Project );
@@ -198,18 +269,18 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 
 	async function load_runs()
 	{
-		if ( !$scope.Llm || !Llms.Available )
+		if ( !$scope.Llm || !items().Available )
 		{
 			$scope.Runs = [];
 			return;
 		}
 		try
 		{
-			let answer = await Client.Get( '/api/runs?Llm=' + encodeURIComponent( $scope.Llm.Id ) );
+			let answer = await Client.Get( current_root(), '/api/runs?Llm=' + encodeURIComponent( $scope.Llm.Id ) );
 			$scope.Runs = answer.Runs || [];
 			if ( $scope.RunPopup )
 			{
-				let fresh = await Client.Get( '/api/runs/' + encodeURIComponent( $scope.RunPopup.Run.Id ) );
+				let fresh = await Client.Get( current_root(), '/api/runs/' + encodeURIComponent( $scope.RunPopup.Run.Id ) );
 				$scope.RunPopup.Run = fresh.Run || $scope.RunPopup.Run;
 			}
 		}
@@ -221,13 +292,13 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 	}
 
 
-	$scope.$watch( function () { return [ State.View, State.OpenItem ? State.OpenItem.Kind + '/' + State.OpenItem.Id : null, Llms.Llms, State.Projects, $scope.Pick.Project ]; }, load, true );
+	$scope.$watch( function () { return [ State.View, State.OpenItem ? State.OpenItem.Kind + '/' + State.OpenItem.Id + '/' + ( State.OpenItem.Root || '' ) : null, items().Llms, current_root() ? current_root().Projects : null, $scope.Pick.Project ]; }, load, true );
 
 
 	// A run started, called a tool or ended: the log and the tree follow, and the popup showing that run re-reads it.
 	$scope.$on( 'runs-changed', function ( event, summary )
 	{
-		if ( $scope.Llm && summary.Llm && summary.Llm.Id === $scope.Llm.Id )
+		if ( $scope.Llm && summary.Llm && summary.Llm.Id === $scope.Llm.Id && summary.Root === current_root().Key )
 		{
 			load_runs();
 			if ( $scope.RunPopup && $scope.RunPopup.Run.Id === summary.Id )
@@ -236,8 +307,11 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 			}
 			if ( summary.Status !== 'running' )
 			{
-				State.LoadList();
-				State.Reload();
+				Roots.LoadList( current_root() );
+				if ( current_root() === State.Root )
+				{
+					State.Reload();
+				}
 			}
 		}
 	} );
@@ -246,13 +320,15 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 	// The owner keeps the connections; everyone but an llm participant starts a run.
 	$scope.IsOwner = function ()
 	{
-		return !!State.Me && State.Me.Role === 'owner';
+		let me = current_root().Me;
+		return !!me && me.Role === 'owner';
 	};
 
 
 	$scope.MayRun = function ()
 	{
-		return !!State.Me && State.Me.Role !== 'llm';
+		let me = current_root().Me;
+		return !!me && me.Role !== 'llm';
 	};
 
 
@@ -361,7 +437,7 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 		popup.Checked = null;
 		try
 		{
-			popup.Checked = await Client.Post( '/api/llms/' + encodeURIComponent( $scope.Llm.Id ) + '/check', from_details( popup.Form ) );
+			popup.Checked = await Client.Post( current_root(), '/api/llms/' + encodeURIComponent( $scope.Llm.Id ) + '/check', from_details( popup.Form ) );
 		}
 		catch ( error )
 		{
@@ -374,8 +450,8 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 
 	async function save_llm( fields )
 	{
-		let answer = await Client.Put( '/api/llms/' + encodeURIComponent( $scope.Llm.Id ), fields );
-		await Llms.Reload();
+		let answer = await Client.Put( current_root(), '/api/llms/' + encodeURIComponent( $scope.Llm.Id ), fields );
+		await items().Reload();
 		$scope.Llm = Llms.LlmById( answer.Llm.Id );
 	}
 
@@ -434,7 +510,7 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 		try
 		{
 			let query = '?Project=' + encodeURIComponent( $scope.Pick.Project || '' ) + '&Plan=' + encodeURIComponent( $scope.Pick.Plan || '' ) + '&Llm=' + encodeURIComponent( $scope.Llm.Id );
-			let answer = await Client.Get( '/api/runs/lists' + query );
+			let answer = await Client.Get( current_root(), '/api/runs/lists' + query );
 			popup.Lists = { Documents: answer.Documents || [], Threads: answer.Threads || [], Participant: answer.Participant || $scope.Llm.Participant };
 		}
 		catch ( error )
@@ -475,7 +551,7 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 	{
 		if ( $scope.Packaging )
 		{
-			$scope.Packaging.Form.Prompts[ name ] = ( Llms.DefaultPrompts || {} )[ name ] || '';
+			$scope.Packaging.Form.Prompts[ name ] = ( items().DefaultPrompts || {} )[ name ] || '';
 		}
 	};
 
@@ -504,7 +580,7 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 		popup.Problems = [];
 		try
 		{
-			let answer = await Client.Post( '/api/runs/package', request( kind, from_packaging( popup.Form ) ) );
+			let answer = await Client.Post( current_root(), '/api/runs/package', request( kind, from_packaging( popup.Form ) ) );
 			popup.Preview = { Kind: kind, Text: answer.Prompt };
 		}
 		catch ( error )
@@ -616,7 +692,7 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 
 	$scope.IsRunning = function ()
 	{
-		return !!$scope.Llm && !!Llms.Running[ $scope.Llm.Id ];
+		return !!$scope.Llm && !!items().Running[ $scope.Llm.Id ];
 	};
 
 
@@ -628,7 +704,7 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 		{
 			return 'no connection';
 		}
-		if ( !Llms.Available )
+		if ( !items().Available )
 		{
 			return 'this server runs no LLMs';
 		}
@@ -684,8 +760,8 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 		$scope.Error = null;
 		try
 		{
-			let answer = await Client.Post( '/api/runs', request( kind ) );
-			Llms.Running[ $scope.Llm.Id ] = answer.Run;
+			let answer = await Client.Post( current_root(), '/api/runs', request( kind ) );
+			items().Running[ $scope.Llm.Id ] = answer.Run;
 			await load_runs();
 			await $scope.OpenRun( answer.Run );
 		}
@@ -700,12 +776,12 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 
 	$scope.Stop = async function ()
 	{
-		let running = $scope.Llm ? Llms.Running[ $scope.Llm.Id ] : null;
+		let running = $scope.Llm ? items().Running[ $scope.Llm.Id ] : null;
 		if ( running )
 		{
 			try
 			{
-				await Client.Post( '/api/runs/' + encodeURIComponent( running.Id ) + '/stop' );
+				await Client.Post( current_root(), '/api/runs/' + encodeURIComponent( running.Id ) + '/stop' );
 			}
 			catch ( error )
 			{
@@ -723,7 +799,7 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 	{
 		try
 		{
-			let answer = await Client.Get( '/api/runs/' + encodeURIComponent( run.Id ) );
+			let answer = await Client.Get( current_root(), '/api/runs/' + encodeURIComponent( run.Id ) );
 			$scope.RunPopup = { Run: answer.Run, Source: false, Copied: null, Open: {} };
 		}
 		catch ( error )
@@ -740,7 +816,7 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', functio
 		{
 			try
 			{
-				let answer = await Client.Get( '/api/runs/' + encodeURIComponent( $scope.RunPopup.Run.Id ) );
+				let answer = await Client.Get( current_root(), '/api/runs/' + encodeURIComponent( $scope.RunPopup.Run.Id ) );
 				$scope.RunPopup.Run = answer.Run || $scope.RunPopup.Run;
 			}
 			catch ( error )
