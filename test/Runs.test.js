@@ -96,6 +96,21 @@ TEST( 'an LLM connection is filled in with an id, the defaults and a token, name
 		'LLM connection "?": a Token is a string of 16 characters or more',
 	] );
 	ASSERT.deepEqual( LLMS.Problems( { Llms: 'no' } ), [ 'Llms must be a list' ] );
+
+	// Migrate: a name from before with other characters is brought up to date rather than refused; one used twice or
+	// clashing with a hand-made participant gets a number; a usable list is left alone
+	let older = { Name: 'srv', Participants: [ { Name: 'x@srv', Role: 'member' } ], Llms: [ LLMS.Fill( { Name: 'Claude CLI' } ), LLMS.Fill( { Name: ' my model / fast ', Kind: 'ollama', Model: 'm' } ), LLMS.Fill( { Name: 'Claude-CLI' } ), LLMS.Fill( { Name: 'x' } ), LLMS.Fill( { Name: '???', Kind: 'ollama', Model: 'llama3' } ) ] };
+	ASSERT.deepEqual( LLMS.Migrate( older ), [
+		'LLM connection "Claude CLI" renamed "Claude-CLI": a Name is letters, digits, dot, dash and colon, used once',
+		'LLM connection "my model / fast" renamed "my-model-fast": a Name is letters, digits, dot, dash and colon, used once',
+		'LLM connection "Claude-CLI" renamed "Claude-CLI-2": a Name is letters, digits, dot, dash and colon, used once',
+		'LLM connection "x" renamed "x-2": a Name is letters, digits, dot, dash and colon, used once',
+		'LLM connection "???" renamed "ollama-llama3": a Name is letters, digits, dot, dash and colon, used once',
+	] );
+	ASSERT.deepEqual( older.Llms.map( function ( llm ) { return llm.Name; } ), [ 'Claude-CLI', 'my-model-fast', 'Claude-CLI-2', 'x-2', 'ollama-llama3' ] );
+	ASSERT.deepEqual( LLMS.Problems( older ), [] );
+	ASSERT.deepEqual( LLMS.Migrate( older ), [] );
+	ASSERT.deepEqual( LLMS.Migrate( settings ), [] );
 } );
 
 

@@ -464,7 +464,7 @@ async function main()
 	{
 		console.error( error.message );
 		console.error( START.USAGE );
-		ELECTRON.app.exit( 1 );
+		fail_to_start( error.message + '\n\n' + START.USAGE, false );
 		return;
 	}
 	if ( options.Help )
@@ -536,8 +536,20 @@ function quit_headless()
 }
 
 
+// A start that fails (the settings refused, a folder that is not there, a port in use with --port): the message on
+// the console, and, since an icon has no console, in a dialog unless --headless.
+function fail_to_start( message, headless )
+{
+	if ( !headless )
+	{
+		ELECTRON.dialog.showErrorBox( 'Consensus could not start', message );
+	}
+	ELECTRON.app.exit( 1 );
+}
+
+
 main().catch( function ( error )
 {
 	console.error( error.message );
-	ELECTRON.app.exit( 1 );
+	fail_to_start( error.message, process.argv.includes( '--headless' ) );
 } );

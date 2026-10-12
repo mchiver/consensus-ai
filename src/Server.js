@@ -51,6 +51,10 @@ async function Start( Options )
 	}
 	let before = JSON.stringify( settings.Llms || [] );
 	settings.Llms = ( Array.isArray( settings.Llms ) ? settings.Llms : [] ).map( LLMS.Fill );
+	for ( let line of LLMS.Migrate( settings ) )
+	{
+		console.log( 'settings brought up to date: ' + line );
+	}
 	if ( JSON.stringify( settings.Llms ) !== before )
 	{
 		await store.WriteSettings( settings );

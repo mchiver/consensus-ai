@@ -27,8 +27,8 @@ The server listens as the settings' `Scope` says: `Local` on 127.0.0.1, `Public`
 plan Run Shapes, Step 4; a port given on the command line does not). A path, or `--project <folder>`, serves
 that project alone, the way an editor opens a folder (Step 4): its `.consensus` is made when missing, named
 after the folder, the folder goes first in the settings' `Projects`, and Scope None is taken as Local for it.
-It prints its address and scope, the config folder, the settings file and the projects loaded. Open
-`http://127.0.0.1:3500/` in a browser.
+It prints its address and scope, the config folder, the settings file and the projects loaded, and says that it
+opens no window: this form never does. Open `http://127.0.0.1:3500/` in a browser, or run the desktop (below).
 
 Security is relaxed for now: a request without a token is the owner, so anyone who can reach a server
 listening beyond this machine acts as the owner, and reads the llm token at `/instructions`.

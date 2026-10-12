@@ -22,6 +22,7 @@ Consensus at http://127.0.0.1:3500/ (Scope Local, listening on 127.0.0.1)
 config folder C:\Users\you\.consensus
 settings written to C:\Users\you\.consensus\consensus.json
 project Default at C:\Users\you\.consensus\projects\Default
+no window: this is the headless form; open the address in a browser, or run the desktop (npm run desktop); Ctrl+C stops the server
 ```
 
 Open `http://127.0.0.1:3500/` in a browser. You are the owner, and you see the **Default** project with its Context folder and an empty Readme.
