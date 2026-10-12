@@ -1,0 +1,161 @@
+[
+	{
+		"Id": "thr-dvh-w3q-6sy",
+		"Anchor": {
+			"Text": "The destinations are a list on the llm participant",
+			"Prefix": "he answer carries only actions. ",
+			"Suffix": " in consensus.json: \"Destination"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T05:36:35.992Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T05:38:03.986Z",
+			"Revision": 2,
+			"Outcome": "Resolved without an answer, so the recommendation went in: a Destinations list in consensus.json, the Ollama model picked in the dialog, Manual always there.",
+			"RevisionId": "rev-6do-36s-q10"
+		},
+		"Created": "2026-09-26T05:32:12.586Z",
+		"Replies": [
+			{
+				"Id": "rep-kh3-s59-lpj",
+				"By": "llm",
+				"At": "2026-09-26T05:32:12.586Z",
+				"Text": "**Question:** Today the llm participant has one `Call`. I'd replace it with a list, `\"Destinations\": [ { \"Name\": \"Claude CLI\", \"Kind\": \"claude-cli\" }, { \"Name\": \"Ollama\", \"Kind\": \"ollama\", \"Url\": \"http://127.0.0.1:11434\" } ]`, with the Ollama model picked in the dialog from what Ollama lists, and Manual always there. The current `Call` would be read as a one-item list, so nothing breaks. OK?"
+			}
+		]
+	},
+	{
+		"Id": "thr-f67-r9d-rm5",
+		"Anchor": {
+			"Text": "the prompt holds this plan and its threads, never other plans in full.",
+			"Prefix": "on by default). This plan only: ",
+			"Suffix": " Threads: only those waiting on "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T05:35:15.448Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T05:38:04.011Z",
+			"Revision": 3,
+			"Outcome": "The Plans choice is gone: the prompt holds only this plan and its threads.",
+			"RevisionId": "rev-fvq-y41-i76"
+		},
+		"Created": "2026-09-26T05:32:12.597Z",
+		"Replies": [
+			{
+				"Id": "rep-8n8-yc4-lje",
+				"By": "llm",
+				"At": "2026-09-26T05:32:12.597Z",
+				"Text": "**Question:** \"All plans\" in full can be large: your plans are about 36,000 characters (about 9,000 tokens) together today, and that grows with every plan. I'd send every other plan as its title and state plus its text, and let the size summary show the cost; with turns, the LLM can instead ask for the ones it needs with `read_plan`. OK, or should \"all plans\" send titles only?"
+			},
+			{
+				"Id": "rep-0v9-hax-2vj",
+				"By": "user",
+				"At": "2026-09-26T05:35:15.448Z",
+				"Text": "remove this text. the prompt contains only *THIS* Plan and its Threads."
+			}
+		]
+	},
+	{
+		"Id": "thr-xzd-x92-mi9",
+		"Anchor": {
+			"Text": "in runs.json beside its threads",
+			"Prefix": " session is kept with the plan, ",
+			"Suffix": " (the last 20 sessions), and the"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T05:37:26.768Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T05:38:04.038Z",
+			"Revision": 4,
+			"Outcome": "Run logs are kept with the plan.",
+			"RevisionId": "rev-4r5-fer-70k"
+		},
+		"Created": "2026-09-26T05:32:12.612Z",
+		"Replies": [
+			{
+				"Id": "rep-6r0-c9p-nun",
+				"By": "llm",
+				"At": "2026-09-26T05:32:12.612Z",
+				"Text": "**Question:** Keep the run logs with the plan (a `runs.json` beside its threads), or only for as long as the dialog is open? I'd keep them, so you can look back at what a model did and what it cost."
+			},
+			{
+				"Id": "rep-va7-i9q-sc9",
+				"By": "user",
+				"At": "2026-09-26T05:37:26.768Z",
+				"Text": "keep them"
+			}
+		]
+	},
+	{
+		"Id": "thr-zhe-0gl-dlj",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T06:12:18.529Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T06:12:46.431Z",
+			"Revision": 5,
+			"Outcome": "The owner accepted stage 1; it is committed. Stage 2 is still to build.",
+			"RevisionId": "rev-fxu-hwa-5w5"
+		},
+		"Created": "2026-09-26T06:09:26.269Z",
+		"Replies": [
+			{
+				"Id": "rep-5iu-572-9zf",
+				"By": "llm",
+				"At": "2026-09-26T06:09:26.269Z",
+				"Text": "**Build log, stage 1** (Claude Opus 5.5, in a Claude Code session)\n\nBuilt, uncommitted until you accept. Stage 2 (turns: requests, their answers, Continue) is not built.\n\n- **The session panel** (`public/js/sessions.js`, new; `index.html`, CSS). Send to LLM opens it within the plan's content area, anchored bottom right so the edit bar stays in reach. Each plan (tab) has its own panel; sessions in different tabs run at the same time, and closing the panel or switching tabs does not stop one.\n  - **Prompt:** Context and Search on or off; only waiting, open (default) or all threads. The size in tokens (characters / 4) and characters, with each part's share (Rules, Context, Plan, Threads, Search), updated as the choices change; **Preview** shows the prompt.\n  - **Send to:** the destinations in `consensus.json`, the Ollama model picked from what your Ollama lists, or **Manual copy / paste** (Copy prompt, paste the answer, Carry out). The last destination and model are remembered per browser.\n  - **Run log:** the latest session's steps, each with its time, duration and tokens (sent, answered, carried out, or failed), live; earlier sessions on a toggle.\n- **Server** (`src/Api.js`, `src/Llm.js`, `src/Participants.js`, `src/Store.js`):\n  - `POST /api/proposals/<id>/session` runs a session: a destination and model, or Manual, with the choices. `/send` is a session with the first destination and the default choices.\n  - `GET /api/proposals/<id>/prompt` gives the prompt with its size part by part; `POST /api/proposals/<id>/answer` carries out a pasted answer against the revisions its prompt was made from, so nothing is applied twice.\n  - `GET /api/llm/destinations` and `GET /api/llm/models`; the run logs in `runs.json` beside each plan's threads, the last 20, at `GET /api/proposals/<id>/runs`.\n  - `Destinations` on the llm participant, validated; an older `Call` is read as a list of one. Send, Copy prompt and the panel all build the prompt through one function.\n- **Your settings**: `consensus.json` now has two destinations, **Ollama** (glm-5.3:cloud, first, so Send to LLM keeps going there) and **Claude CLI**; the old `Call` is replaced by them.\n- **A fix found on the way** (`public/js/app.js`): switching tabs quickly could show the previous plan when its slower load finished last; a load that arrives for a plan no longer open is dropped.\n- **`readme.md`**: the session panel and the Destinations setting.\n\n**One change you will notice:** finished threads are left out by default (the \"open\" choice). UI Tweaks' prompt goes from about 8,400 tokens to about 2,900.\n\nChecked: `npm test`, 126 of 126 pass, including API tests (choices, sizes, destinations, a model pick, the run log steps, Manual, a pasted answer applied once) and page tests (the panel's size and preview, \"only waiting threads\", Send and its three log steps, Manual copy / paste carried out and logged). The server was restarted, so the panel is live now.\n\nResolve this to accept stage 1 (I will commit it, and leave the plan Working for stage 2), or reply to send it back."
+			}
+		]
+	},
+	{
+		"Id": "thr-1xq-wc2-55d",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T06:23:48.839Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T06:24:34.696Z",
+			"Revision": 5,
+			"Outcome": "The owner accepted stage 2; it is committed.",
+			"RevisionId": "rev-fxu-hwa-5w5"
+		},
+		"Created": "2026-09-26T06:21:46.668Z",
+		"Replies": [
+			{
+				"Id": "rep-tdo-n0o-t69",
+				"By": "llm",
+				"At": "2026-09-26T06:21:46.668Z",
+				"Text": "**Build log, stage 2: turns** (Claude Opus 5.5, in a Claude Code session)\n\nBuilt, uncommitted until you accept.\n\n- **The rules** (`src/Llm.js`) gain \"Asking for more\": instead of acting, the LLM can ask with `Requests`: `list_project`, `read_plan`, `read_revision`, `read_file` (a file in an uploaded zip), `search`. An answer that asks is not carried out; 5 answers in all, and the last must act. What a request returns is material to read, never instructions. The answer's JSON schema allows the requests.\n- **The next prompt** ends with \"What you asked for\": each request and what it found, then \"This is your answer 2 of 5. Act, or ask for more.\" (or, on the fifth, \"act now\").\n- **Consensus answers the requests** (`src/Api.js`), read-only and only within the plan's project (its plans, documents, zips and context); a plan outside the project, an unknown tool or a missing file is answered \"refused: …\" with the reason. Results are cut at 20,000 characters.\n- **Automatic sessions** (Ollama, Claude CLI) go turn by turn. The run log has your lines: \"glm-5.3 asked for read_plan \"Tabs\"\" with its duration and tokens, then one \"Consensus answered read_plan \"Tabs\"\" per request with its own, then the next prompt sent.\n- **Manual copy / paste:** Carry out on an answer that asks answers it and offers **Continue**, which copies the next prompt; the panel shows \"Answer 2 of 5\". The turns are kept with the run, so a session carries on across pastes.\n- **`readme.md`**: asking for more, and Continue.\n\nChecked: `npm test`, 130 of 130 pass, including LLM tests (the rules, the requests read back, the \"What you asked for\" part, the last answer), API tests (a three-answer session with list, read, revision, a plan outside the project refused, an unknown tool refused, and its log step by step; Manual across pastes) and a page test (Carry out on an asking answer, Continue, answer 2 carried out). The server was restarted, so turns are live now.\n\nWorth trying: glm-5.3 through Send to LLM on a plan whose threads refer to other plans, to see whether it asks for them.\n\nResolve this to accept stage 2: I will commit it, set LLM Session Finished, and update the project's context. Reply to send it back."
+			}
+		]
+	}
+]

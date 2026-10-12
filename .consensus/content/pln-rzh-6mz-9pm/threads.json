@@ -1,0 +1,76 @@
+[
+	{
+		"Id": "thr-74i-rbk-9hx",
+		"Anchor": {
+			"Text": "reaches the LLM through search",
+			"Prefix": "is indexed with the project and ",
+			"Suffix": ", like any Plan's. The routes st"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T06:33:49.884Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T06:34:51.145Z",
+			"Revision": 2,
+			"Outcome": "Documents are indexed with their project and reach the LLM through search, like any Plan.",
+			"RevisionId": "rev-dk9-nfh-2yx"
+		},
+		"Created": "2026-09-25T06:21:27.727Z",
+		"Replies": [
+			{
+				"Id": "rep-zcx-73n-fjv",
+				"By": "user",
+				"At": "2026-09-25T06:21:27.727Z",
+				"Text": "this content should be available to the LLM. either directly or via search."
+			},
+			{
+				"Id": "rep-joh-c89-yag",
+				"By": "llm",
+				"At": "2026-09-25T06:33:07.402Z",
+				"Text": "Agreed. That wording was wrong: I only meant that Send has nothing to act on in a Document, since it has no threads. Its text still reaches the LLM.\n\n**Outcome:** Documents are indexed with their project, so their passages come up in the project-scoped search that fills the LLM's context for every waiting thread, the same as a Plan's. The line becomes:\n\n> A Document refuses threads and has no `State`. Send has nothing to act on in it, but its text is indexed with the project and reaches the LLM through search, like any Plan's.\n\nPutting a Document's whole text into every prompt (\"pinned\" context) could come later, once the LLM has tools or the prompt has room."
+			}
+		]
+	},
+	{
+		"Id": "thr-0pj-jbq-bhq",
+		"Anchor": {
+			"Text": "Zip reading uses",
+			"Prefix": "r touches the tree's own files. ",
+			"Suffix": " yauzl (3.4.0, MIT, pure JavaScr"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T06:34:12.323Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T06:34:51.170Z",
+			"Revision": 3,
+			"Outcome": "Zip reading uses yauzl (pure JavaScript, one dependency) behind a thin src/Zip.js.",
+			"RevisionId": "rev-scb-y1y-voo"
+		},
+		"Created": "2026-09-25T06:23:29.935Z",
+		"Replies": [
+			{
+				"Id": "rep-3sa-nw4-ib2",
+				"By": "user",
+				"At": "2026-09-25T06:23:29.935Z",
+				"Text": "this should support windows/mac/linux and requires a dependency if we cannot trult provide our own."
+			},
+			{
+				"Id": "rep-2sd-mq3-7d4",
+				"By": "llm",
+				"At": "2026-09-25T06:33:07.431Z",
+				"Text": "`zlib` is part of Node on Windows, macOS and Linux, and the zip format is the same everywhere, so our own reader would run on all three. The risk is in the zips themselves:\n\n- Zip64: Windows Explorer and macOS write it for large archives.\n- File names: some tools write UTF-8 names without marking them as UTF-8, and others use the old IBM code page.\n- Extra entries: macOS adds `__MACOSX/` and `.DS_Store`.\n\nI can build test zips that reproduce each of these, but I can't test against zips actually made by macOS Archive Utility from here.\n\n**Outcome:** use **yauzl** (3.4.0, MIT, pure JavaScript, no native build, one dependency: `pend`). It is the zip reader most of the Node ecosystem relies on and handles all of the above. `src/Zip.js` stays as a thin wrapper, `Entries( Buffer )` over yauzl's `fromBuffer`, which skips `__MACOSX/` and `.DS_Store` and rejects paths containing `..`. The Zip tests keep their hand-built zips, plus a Zip64 one."
+			}
+		]
+	}
+]

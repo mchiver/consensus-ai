@@ -1,0 +1,390 @@
+[
+	{
+		"Id": "thr-h8w-un3-20w",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T10:06:15.331Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T10:07:48.986Z",
+			"Revision": 4,
+			"Outcome": "Comments and questions posted as seven threads, each with a recommendation.",
+			"RevisionId": "rev-xnd-lfy-a8e"
+		},
+		"Created": "2026-09-26T10:06:04.196Z",
+		"Replies": [
+			{
+				"Id": "rep-aiw-xq2-dj9",
+				"By": "user",
+				"At": "2026-09-26T10:06:04.196Z",
+				"Text": "create threads for comments and questions."
+			}
+		]
+	},
+	{
+		"Id": "thr-s8o-gj3-6z8",
+		"Anchor": {
+			"Text": "Without a local agent, we need a context server",
+			"Prefix": "and prompt an inference engine. ",
+			"Suffix": " that can connect to a file syst"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T10:10:26.834Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T10:34:21.015Z",
+			"Revision": 5,
+			"Outcome": "The recommendation went in: a live corpus on the same machine first, over plain HTTP with a token so remote reach needs no redesign.",
+			"RevisionId": "rev-2u9-u66-w1g"
+		},
+		"Created": "2026-09-26T10:07:48.861Z",
+		"Replies": [
+			{
+				"Id": "rep-uhi-p4p-4u8",
+				"By": "llm",
+				"At": "2026-09-26T10:07:48.861Z",
+				"Text": "**What it is for.** Today Consensus runs on 127.0.0.1 on this machine. It already calls Ollama and the Claude CLI itself (the llm participant's `Destinations`), and the LLM's `read_file` / `search` / `list_project` requests read uploaded zips. So a context server adds one of two things, or both:\n\n1. **A live corpus**: a folder on disk read as it is now, instead of a zip uploaded again after every change.\n2. **Reach from elsewhere**: a Consensus hosted somewhere else (cube4 hosting, on the later list) reaching this machine's files and local LLMs.\n\nWhich is the goal? My recommendation: build for 1 first, same machine, and keep the protocol plain HTTP with a token so 2 needs no redesign."
+			}
+		]
+	},
+	{
+		"Id": "thr-1qd-ogs-h9e",
+		"Anchor": {
+			"Text": "A context server can also manage connections to local inference resources",
+			"Prefix": "ll be read-only access for now. ",
+			"Suffix": " (e.g. Ollama, Claude CLI). A co"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T10:23:29.656Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T10:34:21.038Z",
+			"Revision": 6,
+			"Outcome": "The recommendation went in: \"context server\" throughout, in place of \"proxy\".",
+			"RevisionId": "rev-fro-oe0-q1j"
+		},
+		"Created": "2026-09-26T10:07:48.892Z",
+		"Replies": [
+			{
+				"Id": "rep-7p5-h08-lze",
+				"By": "llm",
+				"At": "2026-09-26T10:07:48.892Z",
+				"Text": "**One name.** The text says \"context server\" in some places and \"proxy\" in others. I read them as the same thing. Recommendation: call it the **context server** throughout, since \"proxy\" suggests it forwards Consensus's own traffic. Agreed?"
+			}
+		]
+	},
+	{
+		"Id": "thr-ku6-5vc-pdj",
+		"Anchor": {
+			"Text": "Consensus registers running context servers by connecting to them",
+			"Prefix": "ons that route LLM connections. ",
+			"Suffix": " and querying for their Corpus a"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T10:29:55.854Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T10:34:21.092Z",
+			"Revision": 7,
+			"Outcome": "Registration through ContextServers in consensus.json, a configurable bind address (127.0.0.1 by default) with a token, and read-only access confined to the corpus root.",
+			"RevisionId": "rev-4ie-vkd-pem"
+		},
+		"Created": "2026-09-26T10:07:48.904Z",
+		"Replies": [
+			{
+				"Id": "rep-9ud-j2z-0fl",
+				"By": "llm",
+				"At": "2026-09-26T10:07:48.904Z",
+				"Text": "**How Consensus finds them, and who may connect.** Recommendation:\n- Consensus is told where they are in `consensus.json`: `\"ContextServers\": [ { \"Name\": \"Workstation\", \"Url\": \"http://127.0.0.1:3600\", \"Token\": \"…\" } ]`. It asks each one for its Corpus and Inference items at start and when you press Refresh. A server that does not answer is shown as offline; nothing else breaks.\n- The context server binds to 127.0.0.1 by default, as Consensus does, and answers only requests carrying its token.\n- Read-only means it has no write routes at all, and a path is refused unless it resolves inside the corpus root, links included.\n\nDoes that match what you have in mind, or should the context server announce itself to Consensus instead?"
+			},
+			{
+				"Id": "rep-0c5-tpi-tok",
+				"By": "user",
+				"At": "2026-09-26T10:29:55.854Z",
+				"Text": "the context server should have a configurable bind address so we can make it available to a remote consensus server."
+			}
+		]
+	},
+	{
+		"Id": "thr-6n7-gxo-nz3",
+		"Anchor": {
+			"Text": "provides context regarding the corpus",
+			"Prefix": "ons from a Consensus server and ",
+			"Suffix": ". This will be read-only access "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T10:55:50.625Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T10:56:19.369Z",
+			"Revision": 11,
+			"Outcome": "A Corpus section went in: a corpus belongs to a project like a zip, is linked by picking a listed server and one of its corpora, and the context server indexes, watches and searches it as Consensus does; inference items only relay prompts.",
+			"RevisionId": "rev-z2k-9ty-yks"
+		},
+		"Created": "2026-09-26T10:07:48.919Z",
+		"Replies": [
+			{
+				"Id": "rep-wsf-ry9-x65",
+				"By": "llm",
+				"At": "2026-09-26T10:07:48.919Z",
+				"Text": "**How a corpus reaches a plan.** Search and the LLM's requests stay within a plan's project. Recommendation:\n- A context server's Corpus is added to a project as an item, beside zips: say **+ folder** in the tree, picking a server and one of its Corpus items. Only projects that hold it can see it.\n- Consensus reads the files through the server and indexes them with the same limits and search as zips (`Corpus` in the settings). **Refresh** on the item re-reads only the files whose modified time changed. The context server stays simple: it lists, reads and reports modified times, and has no index of its own.\n- The LLM's existing requests work on it unchanged: `read_file` names the item and a path, and `search` finds its passages.\n\nIs a corpus tied to a project that way, or should it be available to every project?"
+			},
+			{
+				"Id": "rep-3rf-a2o-rah",
+				"By": "user",
+				"At": "2026-09-26T10:22:59.504Z",
+				"Text": "- a corpus is specific to the plan it is declared in and appears as a corpus (zip) item does today.\n- a user can add a corpus by drag-drop of a zip file (today) or linking from context server (server address + name selection).\n- for corpus items, the context server should perform indexing (embedding) on startup and provide capabilities for searching the corpus.\n- for corpus items, the context server should establish a file watcher and re-index accordingly.\n- the inference items only proxy traffic to an LLM. they do not respond to tool calls or requests for more information."
+			},
+			{
+				"Id": "rep-mjt-19q-u2c",
+				"By": "llm",
+				"At": "2026-09-26T10:34:21.149Z",
+				"Text": "Understood:\n\n- A corpus appears as an item in the tree, as a zip does today, and is seen only where it is declared.\n- It is added either by dropping a zip (as now) or by linking one from a context server: a server address, then a pick from its Corpus names.\n- The context server indexes its corpora itself at start, embeddings included, and answers searches. A file watcher re-indexes what changes.\n- Inference items only pass a prompt through to an LLM and return its answer. They never answer requests for more, or tool calls; Consensus does that, as now.\n\nThree questions, each with my recommendation:\n\n1. **\"Specific to the plan it is declared in.\"** A zip today belongs to a **project** (its tree), and search and requests stay within that project. Do you mean the project, or one plan only? I recommend the project, the same as a zip.\n2. **Embeddings need a model.** Recommendation: the context server keeps the BM25 index Consensus uses (it beat the vector models in step 0), and adds vectors when its settings name an embedding model: `\"Embedding\": { \"Url\": \"http://127.0.0.1:11434\", \"Model\": \"nomic-embed-text\" }`, the same way Consensus does. Consensus asks the server to search a linked corpus, and lists those hits beside its own by rank, since scores from two indexes don't compare.\n3. **Linking by address, and the token.** The link asks for the server's address and its token, then lists its Corpus names to pick from. The address and token are kept with the item in `~data` and never shown again. Inference items still need a server listed in `ContextServers` in `consensus.json`, since the session panel has no link step. Alternatively, the link picks from those same listed servers rather than taking a typed address. Which do you prefer? I recommend picking from the list, so a server is set up in one place."
+			},
+			{
+				"Id": "rep-g2b-75b-5fl",
+				"By": "user",
+				"At": "2026-09-26T10:41:44.508Z",
+				"Text": "1. the project, same as zip.\n2. keep the BM25\n3. pick from a list."
+			},
+			{
+				"Id": "rep-ifd-db1-t8r",
+				"By": "llm",
+				"At": "2026-09-26T10:49:26.043Z",
+				"Text": "Understood. The wording I will apply, as a \"Corpus\" section after the registration bullets:\n\n> Corpus:\n>\n> - A corpus belongs to a project, as a zip does: it is an item in the project's tree, and search and the LLM's requests reach it only from that project's plans.\n> - It is added by dropping a zip, as now, or by linking one from a context server: pick a server from `ContextServers`, then one of its Corpus names.\n> - The context server indexes each of its corpora at start with the same BM25 index Consensus uses, and answers searches over it. A file watcher re-indexes what changes.\n> - Consensus asks the context server to search a linked corpus, and lists those hits beside its own by rank. `read_file` and `list_project` reach the linked files through the server.\n> - Inference items only pass a prompt to an LLM and return its answer. They never answer requests for more or tool calls: Consensus does that, as now.\n\nI read \"keep the BM25\" as BM25 only, with no embeddings for now; vectors can be added later if search needs them. Resolve and it goes in as above, or tell me if you do want embeddings."
+			},
+			{
+				"Id": "rep-vnq-hly-wzg",
+				"By": "user",
+				"At": "2026-09-26T10:54:18.898Z",
+				"Text": "\"keep the BM25\": i mean to say that whatever you are doing know for search results is what the context server should do as well."
+			},
+			{
+				"Id": "rep-7f1-cyi-shg",
+				"By": "llm",
+				"At": "2026-09-26T10:55:17.669Z",
+				"Text": "Understood: the context server searches exactly as Consensus does. The wording I will apply, as a \"Corpus\" section after the registration bullets:\n\n> Corpus:\n>\n> - A corpus belongs to a project, as a zip does: it is an item in the project's tree, and search and the LLM's requests reach it only from that project's plans.\n> - It is added by dropping a zip, as now, or by linking one from a context server: pick a server from `ContextServers`, then one of its Corpus names.\n> - The context server indexes each of its corpora at start and searches them the way Consensus does, with the same code (`src/Index.js`, BM25): Ollama vectors are added only when its settings name an `Embedding` model, as Consensus's do. A file watcher re-indexes what changes.\n> - Consensus asks the context server to search a linked corpus, and lists those hits beside its own by rank. `read_file` and `list_project` reach the linked files through the server.\n> - Inference items only pass a prompt to an LLM and return its answer. They never answer requests for more or tool calls: Consensus does that, as now.\n\nResolve and it goes in."
+			}
+		]
+	},
+	{
+		"Id": "thr-kjp-4it-6y5",
+		"Anchor": {
+			"Text": "A context server is configured using an array of json structure",
+			"Prefix": "rces (e.g. Ollama, Claude CLI). ",
+			"Suffix": " containing named filepaths/file"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T10:54:38.505Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T10:55:17.652Z",
+			"Revision": 10,
+			"Outcome": "The example takes Root, Include and Exclude (and its Inference part the Destination shape of revision 8); nothing is excluded by default, and every .gitignore under Root applies, read with the ignore library.",
+			"RevisionId": "rev-2se-te7-ax2"
+		},
+		"Created": "2026-09-26T10:07:48.936Z",
+		"Replies": [
+			{
+				"Id": "rep-fcg-2zn-j6g",
+				"By": "llm",
+				"At": "2026-09-26T10:07:48.936Z",
+				"Text": "**The Corpus fields.** Recommendation, for the context server's own settings file (`context-server.json`):\n- `Root` in place of `Filespec`: the folder, absolute.\n- `Include` and `Exclude` in place of `Allowed` and `Disallowed`: glob patterns relative to `Root`, such as `src/**` and `**/*.md`. An empty `Include` means everything, and `Exclude` wins over `Include`.\n- Always excluded, whatever the settings say: `.git`, `node_modules`, and names starting with `~`.\n- Files over the size limit, or not text, are listed but not read, as zips do now.\n\nKeep your names instead? Either works; mine match the settings style already in `consensus.json`."
+			},
+			{
+				"Id": "rep-gd7-zwa-lxp",
+				"By": "user",
+				"At": "2026-09-26T10:27:32.534Z",
+				"Text": "your suggestions are good except for:\n- There should be no universally excluded files. if a `.gitignore` file exists in `Root`, then that is used in addition to whatever is in `Exclude`"
+			},
+			{
+				"Id": "rep-ng1-ax0-gvn",
+				"By": "llm",
+				"At": "2026-09-26T10:34:21.162Z",
+				"Text": "Understood: `Root`, `Include` and `Exclude` as I suggested, with nothing excluded universally. When `Root` holds a `.gitignore`, its patterns apply in addition to `Exclude`.\n\nTwo details, each with my recommendation:\n\n1. **`.gitignore` files in subfolders.** Git reads those too, each applying below its own folder. I recommend honouring them the same way, so the corpus matches what git tracks. Or only the one in `Root`?\n2. **The `.git` folder.** It is never listed in `.gitignore`, so with no universal excludes it would be walked. Most of it is binary objects, which the file-type limit skips, but its text files (`config`, `HEAD`, hooks) would be indexed. Put `.git/**` in `Exclude` in the example settings, or skip it whenever a `.gitignore` is being used?\n\nReading `.gitignore` correctly is the one place I'd take a small dependency: `ignore`, which has no dependencies of its own. The alternative is writing our own matcher. I recommend `ignore`."
+			},
+			{
+				"Id": "rep-z8i-nj6-b7m",
+				"By": "user",
+				"At": "2026-09-26T10:48:57.371Z",
+				"Text": "1. yup, honor nested `.gitignore` files.\n2. we wont make any assumptions. if `.git` is meant to be excluded, then it should appear in `Exclude`\nUse the `ignore` library."
+			},
+			{
+				"Id": "rep-8rr-4aj-3ng",
+				"By": "llm",
+				"At": "2026-09-26T10:49:26.183Z",
+				"Text": "Understood. I will change the Corpus part of the example to the new fields and add this below the example:\n\n> - `Root` is the corpus folder, absolute. `Include` and `Exclude` are glob patterns relative to `Root`: an empty `Include` means everything, and `Exclude` wins over `Include`.\n> - Nothing is excluded unless the settings say so: `.git` is left out only when `Exclude` lists it (for example `.git/**`).\n> - Every `.gitignore` under `Root` applies too, each to the folder it is in and below, as git reads them, in addition to `Exclude`. They are read with the `ignore` library.\n> - Files over the size limit, or not text, are listed but not read, as zips are now.\n\nResolve and it goes in."
+			}
+		]
+	},
+	{
+		"Id": "thr-x97-ae5-axv",
+		"Anchor": {
+			"Text": "Consensus will offer these items when selecting for \"Send LLM\" targets",
+			"Prefix": "eir Corpus and Inference items. ",
+			"Suffix": " and context lookups to satisfy "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T10:32:01.221Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T10:34:21.111Z",
+			"Revision": 8,
+			"Outcome": "Inference items take the Destination shape and are listed after the local destinations; the Claude CLI is offered through a context server too.",
+			"RevisionId": "rev-f0j-jax-xsn"
+		},
+		"Created": "2026-09-26T10:07:48.950Z",
+		"Replies": [
+			{
+				"Id": "rep-d4a-5tq-qhr",
+				"By": "llm",
+				"At": "2026-09-26T10:07:48.950Z",
+				"Text": "**Inference beside the existing Destinations.** Recommendation:\n- An Inference item takes the same shape as a Destination today: `{ Kind: \"Inference\", Name, Type: \"claude-cli\" | \"ollama\", Url?, Model?, Command? }`. The context server then runs the same callers Consensus has in `src/Llm.js`.\n- The session panel lists them after the local destinations as \"Workstation / Ollama\". The Ollama model is picked from that server's Ollama list, as now.\n- Local `Destinations` in `consensus.json` stay. A context server is optional, never required.\n- A call through a context server is one request that waits for the answer, with the same timeout as a local call.\n\nAgreed? And should the Claude CLI be offered through a context server at all? It runs `claude -p` as whoever started the server."
+			},
+			{
+				"Id": "rep-kcp-7yv-7s0",
+				"By": "user",
+				"At": "2026-09-26T10:32:01.221Z",
+				"Text": "yes, Claude CLI can be offered through a context server."
+			}
+		]
+	},
+	{
+		"Id": "thr-rrb-1ix-lud",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T10:32:55.750Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T10:34:21.134Z",
+			"Revision": 9,
+			"Outcome": "Same repository, as its own entry point, settings file, port and tests.",
+			"RevisionId": "rev-3q8-jar-73w"
+		},
+		"Created": "2026-09-26T10:07:48.964Z",
+		"Replies": [
+			{
+				"Id": "rep-3h5-9jd-jvb",
+				"By": "llm",
+				"At": "2026-09-26T10:07:48.964Z",
+				"Text": "**Where the code lives.** Recommendation: the same repository, as its own entry point: `bin/context-server.js` and `src/ContextServer.js`, with its own settings file and port (3600). It shares `src/Llm.js`'s callers and the corpus limits, and has its own tests. It can be copied to another machine and run alone with `node bin/context-server.js --settings <file>`.\n\nOr would you rather it be a separate repository, so it can be deployed without Consensus?"
+			},
+			{
+				"Id": "rep-bd8-f2m-xdz",
+				"By": "user",
+				"At": "2026-09-26T10:32:55.750Z",
+				"Text": "same repo"
+			}
+		]
+	},
+	{
+		"Id": "thr-jsb-fx2-kjb",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T11:54:14.645Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T11:55:09.399Z",
+			"Revision": 11,
+			"Outcome": "Build accepted: the context server and Consensus's side of it, as the plan says; 145 of 145 tests pass.",
+			"RevisionId": "rev-z2k-9ty-yks"
+		},
+		"Created": "2026-09-26T11:53:29.601Z",
+		"Replies": [
+			{
+				"Id": "rep-yhc-2qc-26k",
+				"By": "llm",
+				"At": "2026-09-26T11:53:29.601Z",
+				"Text": "**Build log** (Claude Opus 5.5 in Claude Code). Built as the plan says; nothing is committed until you accept.\n\n**The context server** (`src/ContextServer.js`, `bin/context-server.js [--settings <file>] [--port <port>]`)\n- Settings: `Host` (127.0.0.1 by default), `Port` (3600), `Token`, the file limits, an optional `Embedding`, and the Corpus and Inference `Items`. A missing file is written with a new token and no items; `context-server.json` is in `.gitignore`.\n- Corpus: `Root`, `Include`, `Exclude` and every nested `.gitignore` (the `ignore` library, a new dependency), with nothing assumed. A link is followed only inside `Root`; any other path is refused. It is indexed at start with Consensus's own code (`src/Index.js`, split so it searches chunks held in memory), and again by a file watcher.\n- Routes, all behind the token: items, a corpus's files, a file, a search, an Inference item's models, and a prompt passed through.\n\n**Consensus** (`src/ContextServers.js` for its side)\n- `ContextServers` in `consensus.json`, checked at start; each server is asked what it offers at start and on Refresh, and one that does not answer is offline. Tokens never leave the server.\n- **+ link** on a project: pick a server's corpus (Refresh asks again); it becomes a corpus item with no zip. The tree marks it \"linked\" (or \"offline\"); its view lists and reads files through the server, with Reload in place of Replace zip.\n- Search asks the server for a linked corpus and interleaves its hits with ours by rank. The LLM's `read_file` and `list_project`, and Initialize context, reach linked files.\n- Each Inference item is a destination, \"Desk / Ollama\"; its models and its calls go through the server.\n- `readme.md`: a \"Context servers\" section, the routes, the layout.\n\n**Checked**: `npm test`, 145 of 145 pass. New: `test/ContextServer.test.js` (settings, which files get in including nested `.gitignore` and links, the token, list / read / search, a path outside `Root`, the watcher, inference); `test/ContextLink.test.js` (a real context server beside Consensus: settings, linking, listing, reading, search, a session through it where the LLM asks for a linked file, the server going offline); `test/Ui.test.js` (+ link in headless Chrome, the linked view, reading a file).\n\n**To see it**: restart your Consensus server (it runs the old code), start a context server with `node bin/context-server.js`, fill in its Items, and list it in `consensus.json` under `ContextServers` with its Url and Token."
+			}
+		]
+	},
+	{
+		"Id": "thr-t95-72n-p4z",
+		"Anchor": {
+			"Text": "Files over the size limit, or not text, are listed but not read, as zips are now.",
+			"Prefix": "e read with the ignore library. ",
+			"Suffix": " Where the code lives: The same "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T18:28:23.215Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T18:46:31.037Z",
+			"Revision": 11,
+			"Outcome": "Carried on in the Subplan \"Corpus File Inclusion\".",
+			"RevisionId": "rev-z2k-9ty-yks"
+		},
+		"Created": "2026-09-26T18:08:10.345Z",
+		"Replies": [
+			{
+				"Id": "rep-mwr-39d-waa",
+				"By": "llm",
+				"At": "2026-09-26T18:08:10.345Z",
+				"Text": "**Drop `Corpus.Extensions`: `Include` and `Exclude` choose the files, and a file is read unless it is too large or binary.**\n\nToday a file must also have an extension on the `Corpus.Extensions` list (in `context-server.json`, and in `consensus.json` for zips) before it is read and indexed. With `Include` and `Exclude` on each corpus, that list repeats what they can say (`Include: [ \"**/*.md\", \"**/*.js\" ]`), and it shuts out files with no extension: in the \"Consensus\" corpus, `.gitignore` is listed but not read, and `LICENSE` or `Dockerfile` would be too.\n\nProposed:\n\n- **Context server:** `Extensions` goes. Every file the corpus lets in (`Include`, `Exclude`, the `.gitignore` files) is read and indexed, unless it is larger than `MaxFileKilobytes` or binary (it holds a NUL byte, as images, archives and executables do). Such a file is still listed, with its reason.\n- **`MaxFileKilobytes` stays**, as a guard: it keeps a large generated file (`package-lock.json`, a bundle) out of the index by accident. Minified or generated text under the limit gets in unless `Exclude` names it: that is the trade for one rule.\n- An `Extensions` key left in an existing settings file is ignored, and the server says so once at start.\n\nOne question, with my recommendation:\n\n- **Uploaded zips in Consensus.** A zip has no `Include` or `Exclude`, so today `Extensions` is the only thing choosing its files. Recommendation: the same rule for zips (read unless too large or binary), and `Extensions` goes from `consensus.json` too, so both servers read files the same way. The other choice keeps `Extensions` for zips only."
+			},
+			{
+				"Id": "rep-bt6-8lj-t6t",
+				"By": "user",
+				"At": "2026-09-26T18:21:56.405Z",
+				"Text": "Started a new Subplan: [Corpus File Inclusion](#/p/pln-0wm-ei7-22x)"
+			},
+			{
+				"Id": "rep-7qc-6w6-ree",
+				"By": "llm",
+				"At": "2026-09-26T18:26:40.564Z",
+				"Text": "Carried on in the Subplan [Corpus File Inclusion](#/p/pln-0wm-ei7-22x): I wrote the proposal there as its text, with the zip question as a thread."
+			}
+		]
+	}
+]

@@ -1,0 +1,486 @@
+[
+	{
+		"Id": "thr-ego-t2f-9rq",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T05:49:35.140Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T05:51:09.972Z",
+			"Revision": 2,
+			"RevisionId": "rev-ak4-qhp-05i",
+			"Outcome": "The discussion started: what the server knows today, what user management means here, a proposed shape to argue with, what is out of scope; the open points are threads."
+		},
+		"Created": "2026-10-02T05:49:35.140Z",
+		"Replies": [
+			{
+				"Id": "rep-esz-adc-ozp",
+				"By": "user",
+				"At": "2026-10-02T05:49:35.140Z",
+				"Text": "Start a discussion"
+			}
+		]
+	},
+	{
+		"Id": "thr-ap4-hgh-is0",
+		"Anchor": {
+			"Text": "Credentials are plain passwords, stored as plain text for now; a password may be blank.",
+			"Prefix": " folder, beside consensus.json. ",
+			"Suffix": " The registry may evolve to Cler"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T07:10:38.701Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T07:26:04.095Z",
+			"Revision": 3,
+			"RevisionId": "rev-35o-col-i63",
+			"Outcome": "A login name and a plain-text password, as the text says."
+		},
+		"Created": "2026-10-02T05:51:09.986Z",
+		"Replies": [
+			{
+				"Id": "rep-bre-hkh-421",
+				"By": "llm",
+				"At": "2026-10-02T05:51:09.986Z",
+				"Text": "The first fork: a token as the credential, or a name and password. A token is what the server already understands (the llm and the workers used it), the owner already makes and copies one in the Settings popup, and the desktop can keep one per server; there is nothing to hash, no session to expire, and signing in is pasting it once. A password is friendlier to type and can be changed by its owner, but needs hashing, a change-password flow and sessions (a cookie or a token the server issues), which is a plan of its own. I recommend tokens now; passwords could come later on top, as a way to get a token. Resolve to take tokens; reply for passwords."
+			},
+			{
+				"Id": "rep-4hs-8pj-z0c",
+				"By": "llm",
+				"At": "2026-10-02T06:36:19.455Z",
+				"Text": "Settled by your design: a login name and a password, plain text for now, in Users.json; not tokens. The text says so. Resolve to close this; nothing more to apply."
+			}
+		]
+	},
+	{
+		"Id": "thr-1lu-6e0-myg",
+		"Anchor": {
+			"Text": "A request with no sign-in is refused.",
+			"Prefix": " and signs in when it connects. ",
+			"Suffix": " The Project Tree always holds a"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T07:21:41.262Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T07:26:04.107Z",
+			"Revision": 3,
+			"RevisionId": "rev-35o-col-i63",
+			"Outcome": "Everyone signs in; a request with no sign-in is refused; no Anonymous setting."
+		},
+		"Created": "2026-10-02T05:51:10.000Z",
+		"Replies": [
+			{
+				"Id": "rep-4n8-7pf-5hb",
+				"By": "llm",
+				"At": "2026-10-02T05:51:10.000Z",
+				"Text": "Today a request with no token is the owner, which is right on a laptop and wrong on cube4. Two ways out: always require a token once this plan is built (every browser on cube4 and every desktop then needs the owner's token pasted once), or make it a setting with a default by Host. I recommend the setting, defaulted by Host (`owner` on 127.0.0.1, `none` otherwise), so a local server stays as easy as it is and cube4 closes as soon as the build is deployed; the Settings popup warns when a server beyond the machine is left open. Resolve to take the setting; reply to always require a token."
+			},
+			{
+				"Id": "rep-1c1-yug-vbz",
+				"By": "llm",
+				"At": "2026-10-02T06:36:19.468Z",
+				"Text": "Settled by your design: everyone signs in, so a request with no sign-in is refused and there is no Anonymous setting. What that means for a local server is its own thread below. Resolve to close this; nothing more to apply."
+			}
+		]
+	},
+	{
+		"Id": "thr-jz5-hsn-0it",
+		"Anchor": {
+			"Text": "a user is in one role folder of a project at most",
+			"Prefix": " get that role in that project; ",
+			"Suffix": ", and is dragged between them to"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T07:21:53.922Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T07:26:04.119Z",
+			"Revision": 3,
+			"RevisionId": "rev-35o-col-i63",
+			"Outcome": "A project has as many Owners as its Owners folder holds."
+		},
+		"Created": "2026-10-02T05:51:10.014Z",
+		"Replies": [
+			{
+				"Id": "rep-276-jav-jhv",
+				"By": "llm",
+				"At": "2026-10-02T05:51:10.014Z",
+				"Text": "Today the rules say \"the owner\" and the settings allow one participant with the role. If two people share a project, both may need to resolve threads; or one is the owner and the other a member who comments. I recommend allowing the role on several participants and reading \"the owner\" as any of them; it changes little in the code (the rules check the role, not a name). Resolve to take that; reply to keep one owner."
+			},
+			{
+				"Id": "rep-7hd-ksv-9f3",
+				"By": "llm",
+				"At": "2026-10-02T06:36:19.478Z",
+				"Text": "Settled by your design: a project has as many Owners as are dragged into its Owners folder, so \"the owner\" is any of them in that project. The text says so. Resolve to close this; nothing more to apply."
+			}
+		]
+	},
+	{
+		"Id": "thr-dli-w72-3vx",
+		"Anchor": {
+			"Text": "Authorization is per project.",
+			"Prefix": "a, newest first). Authorization ",
+			"Suffix": " A project has lists of Owners, "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T07:21:46.949Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T07:26:04.129Z",
+			"Revision": 3,
+			"RevisionId": "rev-35o-col-i63",
+			"Outcome": "Rights are per project, by the three role folders."
+		},
+		"Created": "2026-10-02T05:51:10.028Z",
+		"Replies": [
+			{
+				"Id": "rep-z6a-9rb-jvv",
+				"By": "llm",
+				"At": "2026-10-02T05:51:10.028Z",
+				"Text": "A member could be allowed into some projects only. That needs a list of participants per project, checks on every route that names a project, and a tree that hides what one may not see. I recommend leaving it out of this plan: rights are server-wide, and a server is the unit of trust (one per group). Resolve to take that; reply if some member must be kept out of some project, and I draft it."
+			},
+			{
+				"Id": "rep-ddk-73x-mkz",
+				"By": "llm",
+				"At": "2026-10-02T06:36:19.490Z",
+				"Text": "Settled by your design, the other way from my recommendation: rights are per project, by the three role folders. The text says so. Resolve to close this; nothing more to apply."
+			}
+		]
+	},
+	{
+		"Id": "thr-hqb-2qe-bp1",
+		"Anchor": {
+			"Text": "What a role allows in its project",
+			"Prefix": "nge role or out to lose access. ",
+			"Suffix": ": an Owner does what the owner d"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T07:22:59.546Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T07:26:04.140Z",
+			"Revision": 3,
+			"RevisionId": "rev-35o-col-i63",
+			"Outcome": "What each role allows, as proposed: an Owner as today's owner plus the project's users; a Member writes and takes part but does not resolve; a Watcher reads. The recommendation went in (already in the text)."
+		},
+		"Created": "2026-10-02T05:51:10.042Z",
+		"Replies": [
+			{
+				"Id": "rep-hre-5ib-u9e",
+				"By": "llm",
+				"At": "2026-10-02T05:51:10.042Z",
+				"Text": "What a member may do is the open point under the roles: today a member takes part (new threads, replies) but does not resolve; an owner resolves and writes the settings; the llm applies. With sign-in, two more questions: may a member edit a plan's text, make plans and documents, rename, move, delete to the trash, export a project? I recommend: a member may write (edit, create, rename, move, copy, trash) like the owner, since the revisions record who did what and the trash keeps what was removed, and may not resolve, write the settings, delete a project or import; the llm stays as it is. Resolve to take that; reply with a tighter or looser line."
+			},
+			{
+				"Id": "rep-756-e2r-b6q",
+				"By": "llm",
+				"At": "2026-10-02T06:36:19.500Z",
+				"Text": "Your design names the three roles; what each allows is my proposal in the text (an Owner as today's owner plus the project's users; a Member writes and takes part but does not resolve; a Watcher reads). Resolve to take it; reply with a different line."
+			}
+		]
+	},
+	{
+		"Id": "thr-av2-yld-jw1",
+		"Anchor": {
+			"Text": "the desktop keeps the sign-in per saved server and signs in when it connects",
+			"Prefix": "PI answers 401) and a Sign out; ",
+			"Suffix": ". A request with no sign-in is r"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T07:20:02.580Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T07:26:04.151Z",
+			"Revision": 3,
+			"RevisionId": "rev-35o-col-i63",
+			"Outcome": "The desktop keeps a login and password per saved server and signs in on connect."
+		},
+		"Created": "2026-10-02T05:51:10.052Z",
+		"Replies": [
+			{
+				"Id": "rep-tyy-t9z-5hy",
+				"By": "llm",
+				"At": "2026-10-02T05:51:10.052Z",
+				"Text": "For the desktop, two things to confirm: the token is a field of the saved server (Name, Url, Token), tried with the Url so the connect screen says who the server takes it for (today it already shows \"you are User (owner)\"); and the local server, which listens on 127.0.0.1 with Anonymous `owner` by default, needs no token. The desktop's LLM connections keep posting with the llm token from /instructions, which the desktop reads with the owner's token once Anonymous is `none`. Resolve to take that; reply if the local server should ask for a token too."
+			},
+			{
+				"Id": "rep-x4a-ua3-pk6",
+				"By": "llm",
+				"At": "2026-10-02T06:36:19.509Z",
+				"Text": "Settled by your design: the desktop keeps a login name and password per saved server (in place of a token) and signs in on connect. The text says so; the local server is its own thread below. Resolve to close this; nothing more to apply."
+			}
+		]
+	},
+	{
+		"Id": "thr-6it-koo-fd2",
+		"Anchor": {
+			"Text": "An LLM connection has a username in its details",
+			"Prefix": "re sees the Users folder alone. ",
+			"Suffix": ", with that user's password (bla"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T07:24:44.685Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T07:26:04.163Z",
+			"Revision": 4,
+			"RevisionId": "rev-3mk-7od-te7",
+			"Outcome": "An LLM connection has a username in its details, signs in as that user, and acts where that username is among a project's Members or Owners; no stock llm user."
+		},
+		"Created": "2026-10-02T06:36:19.514Z",
+		"Replies": [
+			{
+				"Id": "rep-80z-ljh-r3q",
+				"By": "llm",
+				"At": "2026-10-02T06:36:19.514Z",
+				"Text": "How a connection posts as a user it picks: a one-shot needs that user's sign-in, which the desktop does not have unless it is the signed-in user. I recommend: the registry has LLM users like any other (the llm participant becomes one at the migration; the Admin may add more, one per model if wanted), the Admin drags one into a project's Members, and an LLM connection that picks it keeps that user's password in desktop.json (entered once in the connection's Details) and signs in as it for each one-shot. Picking yourself (the signed-in user) needs nothing more. Resolve to take that; reply if the connection should only ever post as the signed-in user."
+			}
+		]
+	},
+	{
+		"Id": "thr-uyj-8uz-74t",
+		"Anchor": {
+			"Text": "The participants of consensus.json become users",
+			"Prefix": ") one day; today it just works. ",
+			"Suffix": ": at the first start after this "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T07:49:06.941Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T07:49:44.643Z",
+			"Revision": 9,
+			"RevisionId": "rev-0gm-cu4-bna",
+			"Outcome": "The migration: the owner participant becomes the Admin, members become users with printed passwords, the llm participant is dropped; projects start with the Admin in Owners; /instructions serves no token. The recommendation went in."
+		},
+		"Created": "2026-10-02T06:36:19.519Z",
+		"Replies": [
+			{
+				"Id": "rep-d4m-n11-487",
+				"By": "llm",
+				"At": "2026-10-02T06:36:19.519Z",
+				"Text": "The migration: the participants of consensus.json become users, and someone must be the Admin. I recommend the participant with the owner role becomes the Admin (user), the llm participant an LLM user, members users; each gets a made-up password printed once in the server's log at that start (plain text, as the registry is), and the Participants section leaves consensus.json (the Settings popup loses it; the Admin edits users in their tab pages). Every existing project gets its Users folder with the owner in Owners and the llm in Members. Resolve to take that; reply to seed it differently."
+			},
+			{
+				"Id": "rep-tgn-d9h-lst",
+				"By": "user",
+				"At": "2026-10-02T07:17:48.636Z",
+				"Text": "we are dropping the concept of \"llm\" being a stock user. each LLM Connection should have a username to use for permissions and thread actions. an LLM is included into a project by adding its username to that project's members group."
+			},
+			{
+				"Id": "rep-kzh-t3p-m8t",
+				"By": "llm",
+				"At": "2026-10-02T07:26:04.232Z",
+				"Text": "Understood: no stock llm user. The wording I will apply for the migration, in place of what the text says now:\n\n- At the first start after this plan the registry is made from the participants of consensus.json: the participant with the owner role becomes the Admin, the members become users, and the llm participant is dropped (an LLM gets in through its connection's username). Each user gets a made-up password, printed once in the server's log at that start, for the Admin to hand out or change. The Participants section leaves consensus.json and the Settings popup; the Admin edits users in their tab pages.\n- Every existing project gets its Users folder with the Admin in Owners and nothing else; the Admin adds the LLM usernames (the agent session's, the desktop connections') to Members.\n- /instructions stops serving a token: it serves the API's address and the guide, and says to sign in with the username the Admin gave; the agent session's build and turn loops do that.\n\nResolve to take that; reply with a different seed."
+			}
+		]
+	},
+	{
+		"Id": "thr-2ae-a4e-on8",
+		"Anchor": {
+			"Text": "signs in when it connects",
+			"Prefix": "he sign-in per saved server and ",
+			"Suffix": ". A request with no sign-in is r"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T07:21:31.606Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T07:26:04.175Z",
+			"Revision": 5,
+			"RevisionId": "rev-s0i-bkr-cck",
+			"Outcome": "The local server's first start makes the Admin from the desktop, the password kept in desktop.json and shown on the connect screen; blank passwords are allowed."
+		},
+		"Created": "2026-10-02T06:36:19.524Z",
+		"Replies": [
+			{
+				"Id": "rep-n7x-mbx-ra4",
+				"By": "llm",
+				"At": "2026-10-02T06:36:19.524Z",
+				"Text": "The local server: it starts in the desktop over a folder, and with every request refused until signed in, the first start needs an Admin. I recommend: a local server's first start makes the Admin from the desktop (login \"admin\", a password the desktop makes up and keeps in desktop.json under Local), and the desktop signs in with it; the connect screen shows the login and lets the password be copied, so a browser on the same machine can sign in too. Resolve to take that; reply if the local server should stay open (no sign-in) instead."
+			},
+			{
+				"Id": "rep-g68-7iw-ydw",
+				"By": "user",
+				"At": "2026-10-02T07:21:31.606Z",
+				"Text": "yes and allow blank passwords"
+			}
+		]
+	},
+	{
+		"Id": "thr-r8n-42n-hz0",
+		"Anchor": {
+			"Text": "good for every project the user has a role in",
+			"Prefix": "me and password) on the server, ",
+			"Suffix": ". The browser page has a sign-in"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T07:18:46.759Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T07:26:04.188Z",
+			"Revision": 6,
+			"RevisionId": "rev-kjv-uoi-vne",
+			"Outcome": "A session token issued at sign-in, kept per server by the page and the desktop, dropped on Sign out, no expiry. The recommendation went in."
+		},
+		"Created": "2026-10-02T06:36:19.530Z",
+		"Replies": [
+			{
+				"Id": "rep-pqe-aa4-7ku",
+				"By": "llm",
+				"At": "2026-10-02T06:36:19.530Z",
+				"Text": "How a sign-in is kept: the browser cannot hold the password itself safely. I recommend the server issues a session token on sign-in (random, kept in Users.json under the user with the time it was issued), the page keeps it in its storage per server and sends it as Authorization: Bearer, as the API already reads; Sign out drops it; it does not expire until then (expiry is out of scope). The desktop does the same from the login it keeps. Resolve to take that; reply for another way to carry the sign-in."
+			}
+		]
+	},
+	{
+		"Id": "thr-rq6-nlj-ovk",
+		"Anchor": {
+			"Text": "A project is shown to those with a role in it",
+			"Prefix": " project; a Watcher reads only. ",
+			"Suffix": "; the server-level Users folder "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T07:23:39.448Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T07:26:04.207Z",
+			"Revision": 7,
+			"RevisionId": "rev-qya-8ne-pwx",
+			"Outcome": "The Users folder's names are seen by every signed-in user, a user's page by the Admin and that user, a project by those with a role in it. The recommendation went in."
+		},
+		"Created": "2026-10-02T06:36:19.538Z",
+		"Replies": [
+			{
+				"Id": "rep-ntl-moa-d2r",
+				"By": "llm",
+				"At": "2026-10-02T06:36:19.538Z",
+				"Text": "What the Admin and the server-level Users folder show: I recommend the server-level Users folder is seen by every signed-in user (the names and display names; the tab pages only by the Admin and the user themselves, since the activity history is personal), the projects only by those with a role in them, and a user with no role anywhere sees the Users folder alone. Resolve to take that; reply if everyone should see every user's page, or only the Admin."
+			}
+		]
+	},
+	{
+		"Id": "thr-x6e-auk-lsc",
+		"Anchor": {
+			"Text": "The Project Tree always holds a Users folder at the server level",
+			"Prefix": "est with no sign-in is refused. ",
+			"Suffix": ", with an item for each user wit"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T07:22:38.684Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T07:26:04.226Z",
+			"Revision": 8,
+			"RevisionId": "rev-3ov-v3r-aot",
+			"Outcome": "The server-level Users folder sits above the projects, its items users with a tab page; a project's Users folder is fixed after its Context folder with exactly the three role folders. The recommendation went in."
+		},
+		"Created": "2026-10-02T06:36:19.544Z",
+		"Replies": [
+			{
+				"Id": "rep-p8o-3gs-cr6",
+				"By": "llm",
+				"At": "2026-10-02T06:36:19.544Z",
+				"Text": "Where the Users folders sit: I recommend the server-level Users folder above the projects in the tree (not inside any project), its items users, not proposals, with no text or threads (a tab page, as the desktop's items have); and each project's Users folder as a fixed folder after its Context folder, holding exactly the three role folders Owners, Members and Watchers, which cannot be renamed, moved or deleted, and take users by drag only. Resolve to take that; reply if the project's Users folder should sit elsewhere."
+			}
+		]
+	},
+	{
+		"Id": "thr-weg-s1d-s36",
+		"Anchor": {
+			"Text": "A local server started by the desktop",
+			"Prefix": "s turn and build loops do that. ",
+			"Suffix": ": its first start makes the Admi"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T08:12:36.299Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T08:26:46.255Z",
+			"Revision": 10,
+			"RevisionId": "rev-82k-a46-ase",
+			"Outcome": "Sharing a local server: a Share on the network switch, 127.0.0.1 or 0.0.0.0, kept in desktop.json under Local, others signing in with registered usernames. The wording went in."
+		},
+		"Created": "2026-10-02T08:11:19.312Z",
+		"Replies": [
+			{
+				"Id": "rep-2o6-kbo-txe",
+				"By": "llm",
+				"At": "2026-10-02T08:11:19.312Z",
+				"Text": "**Sharing a local server.** Today the desktop's local server listens on 127.0.0.1 only (the desktop sets the address itself; the folder's Host is not read), so only this machine reaches it. With sign-in required and roles per project, letting others in becomes safe, so I propose, as part of this plan:\n\n- The connect screen's Local server block gets a **Share on the network** switch beside the data folder (off by default). Off: the server listens on 127.0.0.1, as today. On: it listens on 0.0.0.0, and the screen shows the address others use (the machine's name or address and the port, e.g. `http://cube4:3500`), with the note that they sign in with a username the Admin registers.\n- The choice is kept in desktop.json under Local (`Share: true | false`) and takes effect at the next start of the local server; a running one says which it is.\n- Others reach it with a browser at that address, or with their own desktop by adding it as a saved server; the Admin (the desktop's own sign-in) adds them to the registry and drags them into a project's role folders.\n- Nothing else changes: the server is the same Consensus, and the firewall is the machine's to open.\n\nResolve to take this wording into the plan; reply to change it (for example a Host field instead of a switch)."
+			}
+		]
+	}
+]

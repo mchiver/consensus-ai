@@ -1,0 +1,462 @@
+[
+	{
+		"Id": "thr-e0h-c9t-ao6",
+		"Anchor": {
+			"Text": "No locking for now",
+			"Prefix": "lan: Agreed and ready to build. ",
+			"Suffix": ": anyone can change a Plan's sta"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T05:21:03.266Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T05:49:37.605Z",
+			"Revision": 7,
+			"Outcome": "Superseded in the \"Open (unapproved) Proposals\" thread: no locking and no promotion checks in this version; anyone can change a Plan's state at any time.",
+			"RevisionId": "rev-fjf-ijw-1p1"
+		},
+		"Created": "2026-09-25T05:03:12.818Z",
+		"Replies": [
+			{
+				"Id": "rep-yvv-eyx-er6",
+				"By": "llm",
+				"At": "2026-09-25T05:03:12.818Z",
+				"Text": "This conflicts with the rule decided on 2026-09-24: *an approved Plan that is edited or commented on reverts to contested and the Proposals list.* \"Locked\" suggests the opposite: a Plan refuses new threads and replies, and goes back only by a manual demotion.\n\nProposal: a Plan refuses new threads, replies and edits until the owner demotes it. The automatic revert goes away. Which rule wins?"
+			},
+			{
+				"Id": "rep-9c3-rta-kl4",
+				"By": "user",
+				"At": "2026-09-25T05:17:22.666Z",
+				"Text": "a Plan refuses new threads, replies and edits until the owner demotes it."
+			},
+			{
+				"Id": "rep-xm5-c0r-399",
+				"By": "llm",
+				"At": "2026-09-25T05:18:28.360Z",
+				"Text": "Agreed. **Outcome:** a Plan refuses new threads, replies and edits (409) until the owner demotes it back to a Proposal. Only the owner can demote, and demoting leaves the threads as they were. The automatic revert (an edit or comment on a Plan turning it contested again) is removed."
+			}
+		]
+	},
+	{
+		"Id": "thr-std-7tp-mml",
+		"Anchor": {
+			"Text": "Proposal: Open for discussion.",
+			"Prefix": "be one of the following states: ",
+			"Suffix": " Plan: Agreed and ready to build"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T05:12:47.932Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T05:18:28.439Z",
+			"Revision": 4,
+			"Outcome": "Promotion to a Plan is the owner's action (today's Approve), allowed only when all threads are resolved.",
+			"RevisionId": "rev-xei-xju-95e"
+		},
+		"Created": "2026-09-25T05:03:12.834Z",
+		"Replies": [
+			{
+				"Id": "rep-v8u-auz-czl",
+				"By": "llm",
+				"At": "2026-09-25T05:03:12.834Z",
+				"Text": "This could be read as allowing a Proposal with unresolved threads to be promoted. Today approval is refused while anything is contested or waiting to be applied.\n\nI assume that check stays, and that \"promote\" is the owner-only action today called Approve. Can you confirm?"
+			},
+			{
+				"Id": "rep-mzc-woy-mso",
+				"By": "user",
+				"At": "2026-09-25T05:12:42.692Z",
+				"Text": "- I mean to say that promotion  may be applied only when all threads are resolved.\n- Yes, \"promote\" is the owner-only action today called Approve."
+			}
+		]
+	},
+	{
+		"Id": "thr-usx-yqw-cya",
+		"Anchor": {
+			"Text": "each is an uploaded zip",
+			"Prefix": " items, any number per project: ",
+			"Suffix": " whose text files are indexed on"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T05:53:35.451Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T06:03:16.422Z",
+			"Revision": 9,
+			"Outcome": "Corpus items are uploaded zips, indexed on upload; they replace filespecs, so the server never reads outside ~data.",
+			"RevisionId": "rev-ffd-s33-4vv"
+		},
+		"Created": "2026-09-25T05:03:12.849Z",
+		"Replies": [
+			{
+				"Id": "rep-nlb-zf7-0hx",
+				"By": "llm",
+				"At": "2026-09-25T05:03:12.849Z",
+				"Text": "\"The corpus\" needs a definition. I suggest one **root folder per project** (for example a repository path in the project's settings), with filespecs as globs relative to it. Reading outside `~data` is new for this server, so the root should come only from the owner's settings, never from a request.\n\nThese files change outside Consensus, and our index is only refreshed on changes Consensus makes. Filespec items need a check by modification time at search or Send time, plus a size limit and a text-only filter so binary files are skipped."
+			},
+			{
+				"Id": "rep-x9s-ohk-502",
+				"By": "user",
+				"At": "2026-09-25T05:33:36.551Z",
+				"Text": "A project may have multiple \"corpus\" items.\nThis kind of item should be a zip file whose contents constitute the corpus."
+			},
+			{
+				"Id": "rep-utn-9w9-bpn",
+				"By": "llm",
+				"At": "2026-09-25T05:49:37.625Z",
+				"Text": "**Outcome:** a project can have any number of **Corpus** items. Each one is a zip file uploaded into the project and stored in its folder. Its text files are indexed on upload, binary and oversized files are skipped, and uploading a new zip over it re-indexes it.\n\nThis replaces filespecs, so the server never reads outside `~data`, and the re-index check by modification time isn't needed."
+			}
+		]
+	},
+	{
+		"Id": "thr-jqy-fk5-n8a",
+		"Anchor": {
+			"Text": "searched within the project",
+			"Prefix": "llama vectors when configured), ",
+			"Suffix": ". The sidebar search box searche"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T05:54:36.571Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T06:03:16.470Z",
+			"Revision": 11,
+			"Outcome": "One call per Send with project-scoped context from our own index; LLM tools are a later step.",
+			"RevisionId": "rev-r5i-iju-c60"
+		},
+		"Created": "2026-09-25T05:03:12.864Z",
+		"Replies": [
+			{
+				"Id": "rep-kec-gfe-0ni",
+				"By": "llm",
+				"At": "2026-09-25T05:03:12.864Z",
+				"Text": "Today the LLM has no tools. It gets one prompt and returns one JSON answer. \"Direct query\" implies either:\n\n- **(a)** keep one call per Send, with search limited to the project and the prompt holding the best passages from project items and corpus files, or\n- **(b)** a read/search tool loop, which changes `Llm.js` for both `claude-cli` and `ollama`.\n\nI suggest (a) first. And does \"vector search\" mean our BM25 index, with Ollama vectors added when configured, or does it make Ollama required?"
+			},
+			{
+				"Id": "rep-t72-49c-dds",
+				"By": "user",
+				"At": "2026-09-25T05:37:27.142Z",
+				"Text": "We do want to add tool usage and it can be done in a subsequent step.\nThis is using our custom vector embedding and search."
+			},
+			{
+				"Id": "rep-7c6-ag1-23f",
+				"By": "llm",
+				"At": "2026-09-25T05:49:37.637Z",
+				"Text": "**Outcome:** this version keeps one LLM call per Send. Its context comes from our own index (BM25, with Ollama vectors added when configured), limited to the project and covering documents, plans and corpus files. Giving the LLM tools is a later step, in its own proposal."
+			}
+		]
+	},
+	{
+		"Id": "thr-c0k-2hv-dn3",
+		"Anchor": {
+			"Text": "created at first start and never deleted",
+			"Prefix": "gle project. A Default project, ",
+			"Suffix": ", holds ad-hoc items and the exi"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T05:20:26.810Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T05:49:37.583Z",
+			"Revision": 6,
+			"Outcome": "A Default project holds ad-hoc items; every item belongs to one project; projects/<id>/project.json holds the tree.",
+			"RevisionId": "rev-ojz-6c7-ox9"
+		},
+		"Created": "2026-09-25T05:03:12.878Z",
+		"Replies": [
+			{
+				"Id": "rep-jdu-72p-ftg",
+				"By": "llm",
+				"At": "2026-09-25T05:03:12.878Z",
+				"Text": "Two questions on the shape:\n\n1. **Moving what's already there:** the three existing proposals need a home. Is there a default project, or can items live outside every project? And can one item belong to more than one project?\n2. **Storage:** I suggest `projects/<id>/project.json` holding the tree, with items pointing to proposals by id, and `proposals/<id>/` left as it is. That keeps \"copy or delete a proposal folder and nothing else refers to it\" true."
+			},
+			{
+				"Id": "rep-05q-b9v-u05",
+				"By": "user",
+				"At": "2026-09-25T05:16:43.273Z",
+				"Text": "- Yes, have a Default project where ad-hoc items can be stored.\n- Items cannot belong to multiple projects, a copy of an existing can be made and then moved to a different project.\n- Your Storage proposal sounds good."
+			},
+			{
+				"Id": "rep-we4-vra-nhr",
+				"By": "llm",
+				"At": "2026-09-25T05:18:28.390Z",
+				"Text": "**Outcome:**\n\n- A **Default** project is created at first start and can't be deleted. Ad-hoc items, and the three existing proposals, live there.\n- Every item belongs to exactly one project. To reuse an item elsewhere, copy it, then move the copy to the other project.\n- Storage: `projects/<id>/project.json` holds the project's tree, with items pointing to proposals by id. `proposals/<id>/` stays as it is.\n\nSince items never span projects, copy is now part of the design rather than something extra. What a copy carries is still open in the Copy-Paste thread."
+			}
+		]
+	},
+	{
+		"Id": "thr-d95-2ls-89e",
+		"Anchor": {
+			"Text": "Drag-drop moves an item",
+			"Prefix": "any combination of other items. ",
+			"Suffix": ". Copy-paste copies it whole (te"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T05:53:55.259Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T06:03:16.445Z",
+			"Revision": 10,
+			"Outcome": "Drag-drop moves; copy-paste copies whole (text, threads, revisions) under a new id; copying a folder copies its contents.",
+			"RevisionId": "rev-wz7-3br-8ng"
+		},
+		"Created": "2026-09-25T05:03:12.891Z",
+		"Replies": [
+			{
+				"Id": "rep-ny2-kel-kug",
+				"By": "llm",
+				"At": "2026-09-25T05:03:12.891Z",
+				"Text": "Copy is the part of this proposal most likely to get complicated. Does copying a Plan copy its threads and revisions, or only its text as a new Proposal?\n\nI suggest drag-drop moves first, with copy later (text only, as a new Proposal)."
+			},
+			{
+				"Id": "rep-ohp-r69-zq8",
+				"By": "user",
+				"At": "2026-09-25T05:34:42.152Z",
+				"Text": "The Threads travel with the document."
+			},
+			{
+				"Id": "rep-5q7-myh-ep7",
+				"By": "llm",
+				"At": "2026-09-25T05:49:37.648Z",
+				"Text": "**Outcome:** both drag-drop (move) and copy-paste are in this version. Copying a document copies it whole (text, threads and revisions) under a new id, and the copy lands in the target folder or project. Copying a folder copies everything in it."
+			}
+		]
+	},
+	{
+		"Id": "thr-zew-sby-i3s",
+		"Anchor": {
+			"Text": "Documents: markdown edited in Monaco",
+			"Prefix": " and read-only stage of a Plan. ",
+			"Suffix": ", with revisions kept, but no th"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T05:53:05.524Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T06:03:16.362Z",
+			"Revision": 8,
+			"Outcome": "Markdown files are Documents: Monaco and revisions, no threads, no state; the LLM reads them only.",
+			"RevisionId": "rev-okj-zsc-k3x"
+		},
+		"Created": "2026-09-25T05:03:12.906Z",
+		"Replies": [
+			{
+				"Id": "rep-odm-ixz-hze",
+				"By": "llm",
+				"At": "2026-09-25T05:03:12.906Z",
+				"Text": "Are these edited in Monaco with revisions kept like a proposal, or in place with no history? Can the LLM change them, or only read them as context?"
+			},
+			{
+				"Id": "rep-tqm-dgb-lh3",
+				"By": "user",
+				"At": "2026-09-25T05:27:18.001Z",
+				"Text": "Yes, they should be a document in the sense that they are edited with Monaco and have history."
+			},
+			{
+				"Id": "rep-of4-a70-vtf",
+				"By": "llm",
+				"At": "2026-09-25T05:49:37.662Z",
+				"Text": "**Outcome:** a markdown file is a **Document**: edited in Monaco, with revisions kept like a proposal, but with no threads and no state. The LLM changes text only by applying threads, so it reads Documents as context but doesn't edit them. That can change once it has tools."
+			}
+		]
+	},
+	{
+		"Id": "thr-bz5-9ei-m1w",
+		"Anchor": {
+			"Text": "Built and kept as history",
+			"Prefix": "s state at any time. Completed: ",
+			"Suffix": ". It stays in the project's sear"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T06:02:11.450Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T06:03:16.494Z",
+			"Revision": 12,
+			"Outcome": "Anyone can change a Plan's state at any time; Completed plans persist in search and context; the states table is added.",
+			"RevisionId": "rev-dkq-jzs-pr9"
+		},
+		"Created": "2026-09-25T05:03:12.918Z",
+		"Replies": [
+			{
+				"Id": "rep-zue-nwp-15c",
+				"By": "llm",
+				"At": "2026-09-25T05:03:12.918Z",
+				"Text": "Who marks a Plan Completed? Is it the owner only? Can a Completed plan ever be reopened?\n\nI assume it stays in search and in the LLM's context: completed plans are exactly the history a brownfield project needs."
+			},
+			{
+				"Id": "rep-qzu-bs8-bbr",
+				"By": "user",
+				"At": "2026-09-25T05:16:25.874Z",
+				"Text": "The Owner completes a plan. Completed Plans persist and contribute to the context and search results.\nThe vector search should be project specific."
+			},
+			{
+				"Id": "rep-dt2-uwq-11e",
+				"By": "llm",
+				"At": "2026-09-25T05:18:28.403Z",
+				"Text": "**Outcome:** only the owner can Complete a Plan. A Completed plan is read-only, persists, and stays in the project's search and the LLM's context. All search (our index and Ollama vectors when configured) is scoped to one project. That includes the LLM's context passages and the sidebar search box, which searches the open project.\n\nOne open point: I suggest a Completed plan can never be reopened. New work on it starts from a copy. Is that right?"
+			},
+			{
+				"Id": "rep-3ky-hqo-rm2",
+				"By": "user",
+				"At": "2026-09-25T05:26:07.370Z",
+				"Text": "I'm going to relax the constraints and say that anyone can change the Plan state (Proposal/Plan/Completed) at any time. \nAdd a table with project state and what that means for a document.\nCorrect about the searching."
+			},
+			{
+				"Id": "rep-2iq-xjr-h1t",
+				"By": "llm",
+				"At": "2026-09-25T05:49:37.674Z",
+				"Text": "**Outcome:** anyone can change a Plan's state at any time. Search is limited to one project. The table to add under the Plan states:\n\n| State | Means | Threads and edits | In search and LLM context | Sidebar shortlist |\n|---|---|---|---|---|\n| Proposal | Under discussion | Open | Yes | Open Proposals |\n| Plan | Agreed, ready to build | Open (no locking yet) | Yes | Open Plans |\n| Completed | Built; kept as history | Open (no locking yet) | Yes | Project tree only |\n| *(Document)* | Reference text, no state | Edits only, no threads | Yes | Project tree only |\n| *(Corpus)* | Uploaded zip | None | Yes | Project tree only |"
+			}
+		]
+	},
+	{
+		"Id": "thr-i97-91j-f17",
+		"Anchor": {
+			"Text": "each proposal stands alone",
+			"Prefix": "r work on an existing codebase: ",
+			"Suffix": ". We need to define a Project me"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T05:19:31.482Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T05:49:37.553Z",
+			"Revision": 5,
+			"Outcome": "The opening sentence is replaced.",
+			"RevisionId": "rev-ofw-6f5-mfk"
+		},
+		"Created": "2026-09-25T05:03:12.936Z",
+		"Replies": [
+			{
+				"Id": "rep-ts8-mdh-5k9",
+				"By": "llm",
+				"At": "2026-09-25T05:03:12.936Z",
+				"Text": "The opening sentence says \"context\" twice. Suggested wording:\n\n> Consensus has no context for work on an existing codebase: each proposal stands alone."
+			},
+			{
+				"Id": "rep-v72-m4k-06d",
+				"By": "user",
+				"At": "2026-09-25T05:16:39.330Z",
+				"Text": "ok"
+			},
+			{
+				"Id": "rep-qe6-jxd-v6i",
+				"By": "llm",
+				"At": "2026-09-25T05:18:28.418Z",
+				"Text": "**Outcome:** replace the opening sentence with *\"Consensus has no context for work on an existing codebase: each proposal stands alone.\"* Resolve this and I'll apply it."
+			}
+		]
+	},
+	{
+		"Id": "thr-1r3-7xj-l0g",
+		"Anchor": {
+			"Text": "Trash stays at the bottom of the sidebar",
+			"Prefix": "anded, then the other collapse. ",
+			"Suffix": ", below the project tree. States"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T06:13:22.168Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T06:16:04.953Z",
+			"Revision": 14,
+			"Outcome": "Trash stays at the bottom of the sidebar, below the project tree.",
+			"RevisionId": "rev-hiu-tt4-y8s"
+		},
+		"Created": "2026-09-25T05:03:12.948Z",
+		"Replies": [
+			{
+				"Id": "rep-lae-oq4-cbq",
+				"By": "llm",
+				"At": "2026-09-25T05:03:12.948Z",
+				"Text": "The words aren't consistent. The shortlist says \"unapproved\", while the states say \"promoted\" and \"completed\". I suggest using **Promote / Demote / Complete** everywhere, which also renames today's Approve button and `/approve` route."
+			},
+			{
+				"Id": "rep-ore-186-ano",
+				"By": "user",
+				"At": "2026-09-25T05:45:53.049Z",
+				"Text": "The Plan States are just a list of strings, let anyone change the state at any time. we will develop rules and such as we need to.\n\nThis changes previous answers; forget about locking threads and all that.  we **will** get to that, but it needs to develop organically. I just need a version i can play with a little."
+			},
+			{
+				"Id": "rep-1ns-n7r-6ja",
+				"By": "llm",
+				"At": "2026-09-25T05:49:37.688Z",
+				"Text": "**Outcome:** a Plan's state is one of a list of strings kept in `consensus.json` (`\"States\": [ \"Proposal\", \"Plan\", \"Completed\" ]`), and anyone can change it at any time from a picker in the proposal heading. The picker replaces the Approve button.\n\nThe thread rules stay as they are (contested, resolved, applied, reopened), but a proposal's state no longer depends on them. Promotion checks, locking and the automatic revert of an edited Plan are all dropped for now. The shortlist becomes: Proposals, Plans, and Trash."
+			},
+			{
+				"Id": "rep-akl-us9-v1d",
+				"By": "user",
+				"At": "2026-09-25T06:01:07.251Z",
+				"Text": "Plan States: Proposal, Plan, Working, Finished\nThread States: Contested, Resolved, Applied\nShortlist: Get rid of the shortlist. lets keep it simple and let it grow organically."
+			},
+			{
+				"Id": "rep-h0t-siq-468",
+				"By": "llm",
+				"At": "2026-09-25T06:03:16.537Z",
+				"Text": "**Outcome:** once this is resolved, I'll apply these changes:\n\n1. **Plan states** are a list of strings in `consensus.json`: `\"States\": [ \"Proposal\", \"Plan\", \"Working\", \"Finished\" ]`. Anyone can change a Plan's state at any time from a picker in the proposal heading, and the picker replaces the Approve button. The state lines in the text become:\n    - Proposal: Open for discussion.\n    - Plan: Agreed and ready to build.\n    - Working: Being built.\n    - Finished: Built and kept as history.\n2. **Thread states** are named **Contested**, **Resolved** (waiting to be applied) and **Applied**. A reply to a Resolved or Applied thread makes it Contested again, marked reopened. The rules are the same as today; only the names change (today's \"consensus\" becomes Resolved or Applied). A Plan's state doesn't depend on its threads.\n3. **No shortlist:** its bullet goes from the text, and its column goes from the States table.\n4. The States table becomes:\n\n| State | Means | Threads and edits | In search and LLM context |\n|---|---|---|---|\n| Proposal | Under discussion | Open | Yes |\n| Plan | Agreed, ready to build | Open (no locking yet) | Yes |\n| Working | Being built | Open | Yes |\n| Finished | Built; kept as history | Open | Yes |\n| *(Document)* | Reference text, no state | Edits only, no threads | Yes |\n| *(Corpus)* | Uploaded zip | None | Yes |"
+			},
+			{
+				"Id": "rep-ap0-cct-sko",
+				"By": "user",
+				"At": "2026-09-25T06:11:57.015Z",
+				"Text": "with the removal of the Shortlist, leave Trash at the bottom of the sidebar."
+			},
+			{
+				"Id": "rep-mb1-3nh-5kx",
+				"By": "llm",
+				"At": "2026-09-25T06:12:50.351Z",
+				"Text": "**Outcome:** Trash stays at the bottom of the sidebar, below the project tree. When this is resolved I'll add this line after the single-open-project bullet:\n\n> - Trash stays at the bottom of the sidebar, below the project tree."
+			}
+		]
+	}
+]

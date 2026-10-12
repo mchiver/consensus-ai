@@ -1,0 +1,142 @@
+[
+	{
+		"Id": "thr-pm0-d7u-ztf",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-05T04:30:56.213Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-05T04:31:48.671Z",
+			"Revision": 6,
+			"RevisionId": "rev-9lo-4kd-4sb",
+			"Outcome": "The plan text drafted in the reply went in as the whole document: the site, the landing page, the user guide, the scripted screenshots, publishing, the tests and what is not in this plan."
+		},
+		"Created": "2026-10-05T04:19:22.662Z",
+		"Replies": [
+			{
+				"Id": "rep-ifc-w5w-5rq",
+				"By": "user",
+				"At": "2026-10-05T04:19:22.662Z",
+				"Text": "We need to develop the documentation. it should be modern, flashy, include screenshots, and provide instructions to users. The landing page should be especially compelling and be able to convey the major benefits of consensus in concise and relatable language."
+			},
+			{
+				"Id": "rep-16q-g18-7sy",
+				"By": "llm",
+				"At": "2026-10-05T04:23:17.093Z",
+				"Text": "Agreed. Below is the plan I propose as the whole text, grounded in the repository as it stands (Node and Express, AngularJS and Bootstrap, the desktop, Docker; `marked` and `bootstrap` already dependencies). Decided defaults are written as statements; the two things I cannot decide from the codebase are in the two anchored threads beside this one. Resolve this thread and I apply the text below as the plan.\n\n---\n\n# Documentation\n\nConsensus is an LLM harness: the owner and an LLM work a proposal through, thread by thread, until every thread is resolved and applied, and the plan is built. This plan is the website that tells people that in plain words, shows it, and teaches them to use it.\n\n## The site\n\nOne static site in `docs/` at the repository's root, published as it is to the S3 bucket `consensus-ai.liquicode.com` and served at `http://consensus-ai.liquicode.com`. No site generator and no new dependency: the landing page is hand-written HTML, the guide pages are markdown rendered with `marked` by a small build script, and the styling is Bootstrap with the site's own stylesheet.\n\n\tdocs/index.html            the landing page\n\tdocs/404.html              the not-found page\n\tdocs/guide/pages.json      the guide's pages in order: file and title\n\tdocs/guide/*.md            the user guide, one page each, in markdown\n\tdocs/guide/*.html          the same pages rendered, committed beside their sources\n\tdocs/template.html         the guide's page frame: header, navigation, footer\n\tdocs/css/site.css          the site's styles; bootstrap.min.css is copied beside it by the build\n\tdocs/js/site.js            the theme toggle and the scroll entrances\n\tdocs/images/               the screenshots and the mark\n\tbin/docs.js                build | screenshots | publish\n\n`node bin/docs.js build` renders every page of `pages.json` into `template.html`, builds the navigation from the pages' titles, copies Bootstrap from `node_modules`, and checks that every internal link and image resolves. The rendered pages are committed, so the site is published from the checkout as it stands, and the guide reads on GitHub as markdown.\n\nThe site follows the system's light or dark theme, with a toggle in the header remembered in the browser, as the application does. Text sizes follow the browser's zoom; the layout works from a phone's width up. The mark is a simple SVG drawn for this plan: a text wordmark \"Consensus\" beside it; there is no other logo.\n\n## The landing page\n\nA single page that says what Consensus does for you, with the application in view. Its sections, in order:\n\n1. **Hero**: the mark, the name, a one-line promise and a screenshot of a plan with its threads. The promise: \"Plans you and your LLM actually agree on.\" Under it: \"Consensus turns a draft into a plan your LLM can build, one settled question at a time.\" Two buttons: Get started and Read the guide.\n2. **The problem**: three short cards. Decisions buried in a chat scroll. An LLM that builds the wrong thing, confidently. No record of what was agreed, or why.\n3. **How it works**: three steps with a screenshot each. Write a draft. Settle it thread by thread: select a passage and comment, the LLM replies, you resolve, it applies. Build it: the plan is done when every thread is applied, and the build log is a thread too.\n4. **What you get**: one sentence each. Every decision is anchored to the text it changed. The LLM applies only what you resolved. Revisions and applied records are the history, with no change log to keep. Works with Claude Code, with local models through Ollama, and with any LLM that can call an API. Your data is plain files in a folder you own.\n5. **Where it runs**: the browser page, the desktop application and Docker, with a screenshot of the desktop.\n6. **Get started**: the three ways to run it, a few lines each, with a link into the guide: from the checkout, in Docker, and the desktop.\n7. **Footer**: the guide, the API reference, the repository and the license (MIT).\n\nThe copy is short: no paragraph over three sentences, and no word the guide has not introduced. \"Flashy\" means motion with restraint: sections and screenshots enter softly as the page scrolls, and nothing moves on its own. A screenshot opens full size when clicked.\n\n## The user guide\n\nWritten for people who use Consensus, not for those who maintain it: what a thing is for and how to do it, from the page as it looks. The Readme stays the maintainers' account and the source of every fact; the guide says those facts for a newcomer, one page each:\n\n1. **Getting started**: install from the checkout, start the server, open the page; Docker; the desktop application and its connect screen, including a local server.\n2. **Projects, plans and documents**: the sidebar tree, the Context folder and the Readme, folders, Subplans, drag and drop, copy and paste, the trash.\n3. **Threads**: selecting text to comment, Contested, Resolved and Applied, reopening, whose turn it is, Reply and resolve, anchors that follow the text.\n4. **Editing and revisions**: Read, Edit and Preview, Ctrl+S and Ctrl+E, the revisions record, tabs and detached windows.\n5. **Working with an LLM**: the llm participant and its token, \"your turn in Consensus\" with an agent session, the build loop; in the desktop, LLM connections, workspaces, Review, Build and Session, local models and their tools.\n6. **Settings and themes**: host and port, the states, participants and tokens, the themes and sizes.\n7. **Export and import**.\n8. **The API**: the routes table from the Readme, with one example per kind of call, and the rules in plain words.\n\nEvery page has a screenshot wherever the text says to click something. Each page ends with a link to the next.\n\n## Screenshots\n\nScreenshots are made by a script, never by hand, so they can be remade after every change to the page. `node bin/docs.js screenshots` starts a server on a temporary data folder seeded with a demo project (a plan with contested, resolved and applied threads, a document, a Subplan, a Waiting tab with something waiting), drives a headless Chrome or Edge through `test/support/Cdp.js` as `test/Ui.test.js` does, and writes each picture to `docs/images/` at a fixed window size, in the light and the dark theme. The desktop's pictures (the connect screen, the LLM page, a finished run) are made the same way over the desktop started with its own user-data folder. The list of pictures, each with its view and the steps that reach it, is in `bin/docs.js`; the demo project's content is in `docs/demo/` as an export the script imports.\n\n## Publishing\n\n`node bin/docs.js publish` runs `build`, then `aws s3 sync docs/ s3://consensus-ai.liquicode.com --delete` with the AWS CLI and the credentials of the machine's AWS profile. Nothing of AWS enters the repository: no keys, no settings file. The bucket serves the site as a static website, index document `index.html`, error document `404.html`. HTTPS is not part of this plan.\n\n## Tests\n\n`test/Docs.test.js`: the build renders every page of `pages.json` into the template, every internal link and image resolves, and the landing page and each guide page hold the header and the footer. The screenshot script is run when a browser is installed, as the page tests are, into a temporary folder, and the test checks that every listed picture was written.\n\n## Not in this plan\n\nSearch in the guide, versioned documentation, HTTPS and a CloudFront distribution, a published npm package or Docker image, analytics and comments on the site."
+			}
+		]
+	},
+	{
+		"Id": "thr-j0p-znb-ebm",
+		"Anchor": {
+			"Text": "A fourth card, Installer, says it is coming and has no link",
+			"Prefix": " run desktop from the checkout. ",
+			"Suffix": "; it is replaced when the instal"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-05T04:32:56.473Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-05T04:33:23.535Z",
+			"Revision": 8,
+			"RevisionId": "rev-zyx-8gi-6cg",
+			"Outcome": "The site links the public repository https://github.com/mchiver/consensus-ai (this checkout's origin, fetch and push). Get started gives clone, npm install and node bin/consensus.js, Docker built from the checkout with compose, and the desktop with npm run desktop; an Installer card says it is coming, with no link, until the installer plan is built. The guide's Getting started page says the same in full."
+		},
+		"Created": "2026-10-05T04:23:17.392Z",
+		"Replies": [
+			{
+				"Id": "rep-ctv-ic2-bmg",
+				"By": "llm",
+				"At": "2026-10-05T04:23:17.392Z",
+				"Text": "**Get started: where does a visitor get Consensus?** The landing page's Get started section and the guide's first page need a place to point: the repository (is it public, and at which URL?), and whether an npm package or a Docker image is, or will be, published anywhere. My recommendation: link to the GitHub repository and give clone, npm install and node bin/consensus.js; Docker as \"build the image from the checkout\" (there is no registry); the desktop as npm run desktop from the checkout. Publishing packages is a later plan. If the repository is private, Get started says the code is available on request, with a contact, until it is public."
+			},
+			{
+				"Id": "rep-sig-65q-ubj",
+				"By": "user",
+				"At": "2026-10-05T04:29:44.602Z",
+				"Text": "- the repo at `https://github.com/mchiver/consensus-ai` is public. confirm that this is the repo we push to.\n- follow your plan to provide code download, build, and launch instructions.\n- we will be making an installer later. you can put a placeholder for now."
+			},
+			{
+				"Id": "rep-ltw-xau-k4i",
+				"By": "llm",
+				"At": "2026-10-05T04:31:48.991Z",
+				"Text": "Confirmed: the origin of this checkout is https://github.com/mchiver/consensus-ai.git, for fetch and for push, so that is the repository the site links to. The wording I will apply once you resolve this thread, in the landing page's Get started item and the guide's Getting started page:\n\n> **Get started**: the repository at https://github.com/mchiver/consensus-ai is public; the three ways to run it, a few lines each, with a link into the guide. From the checkout: clone the repository, npm install, node bin/consensus.js, then open http://127.0.0.1:3500/. In Docker: build the image from the checkout with docker compose up -d, the data in its volume. The desktop: npm run desktop from the checkout. A fourth card, **Installer**, says it is coming and has no link; it is replaced when the installer plan is built.\n\nThe guide's first page gets the same three ways in full, with their screenshots, and the one line about the installer. Resolve to have it go in."
+			}
+		]
+	},
+	{
+		"Id": "thr-klv-pmt-dm2",
+		"Anchor": {
+			"Text": "with the AWS CLI and the machine's default AWS profile",
+			"Prefix": "ensus-ai.liquicode.com --delete ",
+			"Suffix": ". Nothing of AWS enters the repo"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-05T04:30:18.935Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-05T04:31:48.978Z",
+			"Revision": 7,
+			"RevisionId": "rev-rd3-w23-ewy",
+			"Outcome": "Resolved with no reply: the recommendation went in. Publishing uses the machine's default AWS profile, the bucket's website endpoint over http as written, and HTTPS stays out of this plan."
+		},
+		"Created": "2026-10-05T04:23:17.412Z",
+		"Replies": [
+			{
+				"Id": "rep-gnl-wtf-hnf",
+				"By": "llm",
+				"At": "2026-10-05T04:23:17.412Z",
+				"Text": "**Publishing: the bucket and the AWS profile.** Is the bucket already set up for static website hosting (index document index.html, public read), and does publishing run from this machine with a profile the AWS CLI already has? If the profile is not the default, which name should bin/docs.js publish use? The plan keeps http as written; HTTPS would be a CloudFront distribution with a certificate, a later plan. My recommendation: the default profile, the bucket's website endpoint as written, no HTTPS in this plan."
+			}
+		]
+	},
+	{
+		"Id": "thr-4y6-p3m-coa",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-05T06:11:39.530Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-05T06:14:18.723Z",
+			"Revision": 8,
+			"RevisionId": "rev-zyx-8gi-6cg",
+			"Outcome": "The build was accepted as reported, with the naming rule from the owner's reply: the product is Consensus-AI wherever the public docs name it (titles, the brand in the header, the hero, the footer, the first sentence of a guide page), and Consensus colloquially in the prose and the examples. Applied to the site and the docs test; no change to the plan's text."
+		},
+		"Created": "2026-10-05T06:00:13.823Z",
+		"Replies": [
+			{
+				"Id": "rep-86y-3ul-8hd",
+				"By": "llm",
+				"At": "2026-10-05T06:00:13.823Z",
+				"Text": "**Build log** (Claude Code, Claude Fable 5.1)\n\n**What was built**\n\n- `docs/`: the site as the plan lays it out. `index.html` is the landing page with the seven sections (hero with the promise, the problem, how it works, what you get, where it runs, Get started with the four cards, footer); `404.html`; `template.html` the guide's frame with the side navigation and a previous/next pager; `css/site.css` with light and dark tokens on Bootstrap's `data-bs-theme`; `js/site.js` the theme toggle (the system's theme unless the toggle was used, remembered in the browser), the soft entrance of sections on scroll (off under reduced motion) and the lightbox a screenshot opens in; `images/mark.svg` the mark.\n- `docs/guide/`: the eight pages of `pages.json` as markdown, written for users from the Readme: Getting started (with the public repository, the three ways to run it and the installer line), Projects, plans and documents, Threads, Editing and revisions, Working with an LLM, Settings and themes, Export and import, The API. Each `.md` has its rendered `.html` beside it, committed.\n- `bin/docs.js build`: renders every page into the template with `marked`, gives headings ids, turns an image whose dark variant exists beside it (`name.png`, `name-dark.png`) into a figure that shows one per theme, copies Bootstrap from `node_modules` into `docs/css/`, and checks every relative link and image in every page; a problem fails the build.\n- `bin/docs.js screenshots`: 30 pictures in `docs/images/`, light and dark, at 1440 by 900. A server runs over `~docs-demo/data` in the checkout (git-ignored, removed afterwards) with the demo project \"Recipe Box\" imported from `docs/demo/recipe-box.json` (a Readme, a document, a Plans folder, a Shopping list plan with a contested, a resolved and an applied thread and a Quantities Subplan, and a finished Search plan with its build log applied; seeded once through the API and exported there). A headless Chrome or Edge is driven through `test/support/Cdp.js`: first start, a plan, the threads pane, the tree, a row's menu, a comment being written, Edit, Revisions, the tab strip, a build log, Waiting on you, the settings popup. Then the desktop, started with its own user-data folder and connected to that server: the connect screen, the LLM page and a finished run's popup, with a stand-in command as the LLM. The list of pictures with their steps is in `bin/docs.js`. `test/support/Cdp.js` gained an `Attach` export so the script can drive the desktop's existing window.\n- `bin/docs.js publish`: build, then `aws s3 sync docs/ s3://consensus-ai.liquicode.com --delete` with the machine's default AWS profile. Nothing of AWS is in the repository.\n\n**How it was checked**\n\n- `test/Docs.test.js`, over a copy of `docs/`: the build renders every page of `pages.json` into the template, every page has the header, the footer and the theme toggle, a guide page has its title, its active navigation link, heading ids and per-theme figures, a removed image is named by the check; then the screenshot script runs with the copy's images emptied and every one of the 30 pictures must be written, the demo export exists, the demo folder is gone, and the build is clean with them.\n- `npm test`: 154 tests pass, the 2 here among them. One run of the whole suite had 4 of the page's UI tests fail while the screenshot script was running Electron and a second browser beside them; the same tests pass on their own and the suite passed whole on the next run. The failures are timing under that load, not a change in the page; I note it rather than hide it.\n- The built site was opened in a headless browser at 1280 wide and at a phone's 390, in both themes: no page errors, no horizontal overflow, the per-theme figures show one picture each.\n\n**Not done, or to know**\n\n- `publish` was not run: the bucket was not touched. It needs the AWS CLI with a profile on this machine; run `node bin/docs.js publish` when you want the site up.\n- The desktop pictures show the stand-in's command line (the Node executable and `claude-one-shot.js`) where a real connection would show `claude`.\n- `docs/` is published as it stands, markdown sources and the demo export included, as the plan says.\n- Nothing is committed: `bin/docs.js`, `docs/` and `test/Docs.test.js` are new, `test/support/Cdp.js` is changed."
+			},
+			{
+				"Id": "rep-zi9-s38-0sr",
+				"By": "user",
+				"At": "2026-10-05T06:11:39.530Z",
+				"Text": "The official name of the product is `Consensus-AI` and such be referred to it as such in the public docs.\nColloquially and in an examples, we can refer to the app as `Consensus`, like when we say \"check consensus\"."
+			}
+		]
+	}
+]

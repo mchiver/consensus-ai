@@ -1,0 +1,368 @@
+[
+	{
+		"Id": "thr-d1d-z2v-vtj",
+		"Anchor": {
+			"Text": "as items of the project tree rather than functions of a plan",
+			"Prefix": "LLM connections and workspaces, ",
+			"Suffix": ". Step 3 adds nothing to the ser"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T07:04:27.183Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T07:05:08.568Z",
+			"Revision": 11,
+			"RevisionId": "rev-7rg-7ve-sqs",
+			"Outcome": "LLM connections once per desktop, shown in every project and packaging only the project they are opened from; a workspace is a path to a folder, saved in the desktop's configuration with its project."
+		},
+		"Created": "2026-10-01T06:09:23.252Z",
+		"Replies": [
+			{
+				"Id": "rep-wkp-xtu-zff",
+				"By": "llm",
+				"At": "2026-10-01T06:09:23.252Z",
+				"Text": "Where these items live: the server (since Step 1) knows folders, plans and documents, and its Context folder holds documents only; so an LLM connection and a Workspace are the desktop's own, kept in its configuration and shown as rows in the Context folder of the desktop's tree, never sent to the server. That is what the parent plan says and I will write it here as a statement.\n\nThe question is their scope:\n- An **LLM connection** is a thing of the machine (a command or a local Ollama), usable in any project. I recommend it is kept once per desktop and shown in the Context folder of every project on every server.\n- A **Workspace** is a checkout of one project's code. I recommend it is kept per server and project (the desktop remembers the server's address and the project's id), so a project shows only its own workspaces.\n\nResolve to take both; reply if a connection should rather belong to one project too."
+			},
+			{
+				"Id": "rep-ipp-v1a-zkm",
+				"By": "user",
+				"At": "2026-10-01T06:26:02.277Z",
+				"Text": "When displaying as a Project `Context` item, it should package only plans and threads from that project.\n\nA Workspace is not a checkout . it is a simple path to a folder. thats it. the folder might be empty or the folder might have a ton of stuff in it. dont worry about where it came from and dont worry about where it is going."
+			},
+			{
+				"Id": "rep-gng-pvv-e9r",
+				"By": "llm",
+				"At": "2026-10-01T06:43:50.154Z",
+				"Text": "Understood on both. The wording I will apply:\n\n- An LLM connection is kept once per desktop and shown in the Context folder of every project. Opened from a project, it packages only that project: its Readme and documents, its plans and the threads waiting on it there.\n- A workspace is a path to a folder, kept per server and project, so a project shows only its own. The folder may be empty or full; where it came from and where it is going are no concern of Consensus."
+			},
+			{
+				"Id": "rep-m9u-rxw-dk7",
+				"By": "user",
+				"At": "2026-10-01T06:50:53.729Z",
+				"Text": "\"A workspace is a path to a folder, kept per server and project,\"\nWhat do you mean \"per server\"? maybe you mean \"per desktop\".\nworkspaces are saved in the desktop's config file with the project they are attached to."
+			},
+			{
+				"Id": "rep-oqn-tjw-xk1",
+				"By": "llm",
+				"At": "2026-10-01T06:58:44.330Z",
+				"Text": "\"Per desktop\" is right, and I drop \"per server\": a project's id is global (plan Global Ids), so a workspace is saved in the desktop's configuration file with the id of the project it is attached to, and shows in that project's Context folder whichever server it is opened from. The wording I will apply:\n\n- An LLM connection is kept once in the desktop's configuration and shown in the Context folder of every project. Opened from a project, it packages only that project: its Readme and documents, its plans and the threads waiting on it there.\n- A workspace is a path to a folder, saved in the desktop's configuration with the project it is attached to, so a project shows only its own. The folder may be empty or full; where it came from and where it is going are no concern of Consensus."
+			}
+		]
+	},
+	{
+		"Id": "thr-9hv-gdo-y57",
+		"Anchor": {
+			"Text": "Each opens in a tab of its own, like a plan",
+			"Prefix": "ther than Plan-level functions. ",
+			"Suffix": ": a form with its details, the b"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T06:26:41.674Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T06:43:50.041Z",
+			"Revision": 3,
+			"RevisionId": "rev-bou-8c7-sg0",
+			"Outcome": "Each opens in a tab of its own: a form, the buttons and a log; no text, revisions or threads. The actions menu and the Context folder's New items went in as recommended."
+		},
+		"Created": "2026-10-01T06:09:23.552Z",
+		"Replies": [
+			{
+				"Id": "rep-d50-vxj-tqu",
+				"By": "llm",
+				"At": "2026-10-01T06:09:23.552Z",
+				"Text": "I read \"content document\" as a tab of its own in the desktop's page, opened from the tree like a plan, with the same tabs mechanism (detachable, closable), but holding a form and a log rather than markdown text: no revisions, no threads, nothing on the server. The wording I will apply: \"Each opens in a tab of its own, like a plan: a form with its details, the buttons, and its log; it has no text, revisions or threads.\"\n\nThe row's actions menu would hold Open, Rename and Delete; a new one comes from the Context folder's menu (\"New LLM connection\", \"New workspace\"). Resolve if that is the shape."
+			}
+		]
+	},
+	{
+		"Id": "thr-lwg-uyj-vkg",
+		"Anchor": {
+			"Text": "Details: Name; Kind, claude-cli",
+			"Prefix": "ction, New workspace). LLM page ",
+			"Suffix": " (a command run without a shell,"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T06:27:39.783Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T06:43:50.064Z",
+			"Revision": 4,
+			"RevisionId": "rev-bl8-ls3-qvx",
+			"Outcome": "The LLM details went in as listed: Name, Kind (claude-cli or ollama), Model, Timeout, Check; it posts as the llm participant with the token from /instructions."
+		},
+		"Created": "2026-10-01T06:09:23.561Z",
+		"Replies": [
+			{
+				"Id": "rep-b98-8u1-7a4",
+				"By": "llm",
+				"At": "2026-10-01T06:09:23.561Z",
+				"Text": "What the details are, from the retired Llm.js and the worker app, so nothing new is invented:\n- **Name**: the row's title.\n- **Kind**: `claude-cli` (a command run without a shell, as the worker did; default `claude`) or `ollama` (a Url, default `http://127.0.0.1:11434`, and a Model).\n- **Model**: optional for claude-cli (`sonnet`, `opus`), required for ollama.\n- **Timeout** in seconds (default 300) and a **Check** button that runs the command or asks the Url for its models, as the worker app's LLM Check did.\n\nIt posts as the `llm` participant, with the token the connected server serves at /instructions, so no token is entered (as decided on the parent plan: the connection names the participant; other names wait for user management). Resolve to take this list; reply with what to add or drop."
+			}
+		]
+	},
+	{
+		"Id": "thr-14y-fp1-l1v",
+		"Anchor": {
+			"Text": "Packaging: the items checked go into the one-shot prompt",
+			"Prefix": "tructions; no token is entered. ",
+			"Suffix": ". The desktop builds one prompt "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T06:28:54.504Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T06:43:50.084Z",
+			"Revision": 5,
+			"RevisionId": "rev-cdd-dng-8yr",
+			"Outcome": "The package is one prompt built from the checked items in the listed order, remembered per connection, with Show prompt and Copy. The other Context documents go in as titles and ids (the recommendation went in)."
+		},
+		"Created": "2026-10-01T06:09:23.572Z",
+		"Replies": [
+			{
+				"Id": "rep-gvg-n27-35g",
+				"By": "llm",
+				"At": "2026-10-01T06:09:23.572Z",
+				"Text": "How I understand the package: the desktop builds one prompt as text from the checked items, in this order, each under a heading, and the checks are remembered per connection in desktop.json. What each item carries:\n- **Agent Instructions**: the connected server's /instructions page (the guide, with the server's address and token first).\n- **Readme**: the project's Readme, its whole text.\n- **List of other Context documents**: their titles and ids only, so the model can read one through the API (or the whole text of each, if you prefer: say which).\n- **List of \"waiting on llm\" Threads**: from /api/waiting, the threads of the plan at hand: id, anchor, the replies so far.\n- **Review / Build / Session Prompt**: the texts below, one of them per button.\n\nI recommend a **Show prompt** button beside Review and Build that opens the packaged text in the log before anything is sent, and **Copy**, so a prompt can also be pasted into a chat by hand. Resolve to take the order and the two buttons; reply on the documents question."
+			}
+		]
+	},
+	{
+		"Id": "thr-5ea-hm3-34o",
+		"Anchor": {
+			"Text": "Session Prompt",
+			"Prefix": "eads Review Prompt Build Prompt ",
+			"Suffix": " Review Button: Packages a one-s"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T06:55:23.460Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T06:58:44.278Z",
+			"Revision": 9,
+			"RevisionId": "rev-sut-pbe-t90",
+			"Outcome": "The Session Prompt is appended at the end of every package; a Session button packages the checked items and the Session Prompt alone. The three prompts are described; the button went in as recommended."
+		},
+		"Created": "2026-10-01T06:09:23.585Z",
+		"Replies": [
+			{
+				"Id": "rep-g1s-6ud-ta0",
+				"By": "llm",
+				"At": "2026-10-01T06:09:23.585Z",
+				"Text": "Three prompts, and I am not sure what the third is for. My reading:\n- **Review Prompt**: \"take the llm's turn on this plan\": read the waiting threads, reply, apply what is resolved, through the API (the guide's \"your turn\").\n- **Build Prompt**: \"build this plan in this workspace\": the guide's build loop, up to the build log posted as a thread; no git on its own.\n- **Session Prompt**: text put in front of every package, the connection's standing instructions (which model it is, the repo's conventions, \"say which model you are in each build log\")? Or a prompt that starts an interactive session with the model rather than a one-shot?\n\nI recommend the first reading: a standing preamble, edited in the LLM page, empty by default. All three are editable texts with defaults the desktop ships, kept per connection. Reply with what Session Prompt means if it is something else."
+			},
+			{
+				"Id": "rep-q7d-len-epy",
+				"By": "user",
+				"At": "2026-10-01T06:32:42.248Z",
+				"Text": "it could be either. a session prompt would be appended to the end of the one-shot prompt and may provide additional context or instructions. an interactive session would simply be a session prompt with much or all of the context de-selected."
+			},
+			{
+				"Id": "rep-tce-g2k-zae",
+				"By": "llm",
+				"At": "2026-10-01T06:43:50.163Z",
+				"Text": "Understood: the Session Prompt is appended at the end of every package, after the Review or Build prompt, for further context or instructions; and an interactive session is a package with much or all of the context unchecked, carrying the Session Prompt alone.\n\nThat makes a third button, as I read it: **Session**, which packages the checked items and the Session Prompt, with no Review or Build prompt, and runs the one-shot like the others. I recommend it, named Session, beside Review and Build. The wording I will apply, under the LLM page: \"Session Prompt: appended at the end of every package, after the Review or Build prompt, for further context or instructions. Session Button: packages the checked items and the Session Prompt alone, an interactive session when much or all of the context is unchecked.\" Resolve to take the button; reply if the session is run some other way."
+			}
+		]
+	},
+	{
+		"Id": "thr-9by-w11-hi3",
+		"Anchor": {
+			"Text": "Review, Build and Session buttons",
+			"Prefix": "top ships, kept per connection. ",
+			"Suffix": ": each packages its one-shot pro"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T06:57:56.482Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T06:58:44.317Z",
+			"Revision": 10,
+			"RevisionId": "rev-s1o-lo0-y26",
+			"Outcome": "Review and Build act on the selected plan and both carry a workspace; a claude-cli one-shot runs the command with the package on stdin and the model works the API itself; ollama is Step 4, its Kind kept."
+		},
+		"Created": "2026-10-01T06:09:23.608Z",
+		"Replies": [
+			{
+				"Id": "rep-2a2-sh8-hjh",
+				"By": "llm",
+				"At": "2026-10-01T06:09:23.608Z",
+				"Text": "How a one-shot is run, by kind; this is the heart of Step 3 and the biggest choice:\n- **claude-cli**: the command runs once with the package on its standard input, in the workspace's root folder when one is chosen (Build) or in no folder (Review), and the model itself works through the API with the token in the package, exactly as the agent session does today, with its own file tools. The desktop only runs it, keeps its output in the log, and refreshes the tree when it ends. Nothing to parse.\n- **ollama**: a local model has no tools of its own, so the desktop runs the tool loop (the retired Llm.js: list_project, read_plan, read_revision, list_files, read_file, search; and the structured answer of replies, applies and threads that the desktop then posts).\n\nBoth buttons act on **the plan selected in the tree** (the Build button also asks which workspace, when the project has more than one). I recommend Step 3 builds claude-cli first, whole, and brings the ollama tool loop back as its own Subplan after, so that Step 3 stays small and is in use soon. Resolve to take that; reply if ollama must be in Step 3."
+			},
+			{
+				"Id": "rep-d4g-ttw-pbu",
+				"By": "user",
+				"At": "2026-10-01T06:39:12.039Z",
+				"Text": "- put ollama in a different step\n- the review should also carry the workspace so the llm can query and read the corpus"
+			},
+			{
+				"Id": "rep-rd3-lfg-hh0",
+				"By": "llm",
+				"At": "2026-10-01T06:43:50.170Z",
+				"Text": "Understood. The wording I will apply:\n\n- Review and Build act on the plan selected in the tree, and both carry a workspace (asked for when the project has more than one): the command runs in the workspace's folder, so the model can list, search and read its files for a Review as for a Build. With no workspace, Review runs in no folder and Build is not offered.\n- A claude-cli one-shot: the command runs once with the package on its standard input and the model works through the API itself, with the token in the package, as the agent session does today. The desktop runs it, keeps its output in the log, and refreshes the tree when it ends; nothing is parsed.\n- Ollama, with the desktop's tool loop, is its own Subplan after this one (Step 4: Local Models); the Kind stays in the LLM details so a connection can be entered, and Check works, but its buttons say \"Step 4\" until then.\n\nResolve to take that; reply if ollama should rather be left out of Step 3 entirely, Kind included."
+			}
+		]
+	},
+	{
+		"Id": "thr-tmw-4q7-mla",
+		"Anchor": {
+			"Text": "Log: one record per run",
+			"Prefix": "older and Build is not offered. ",
+			"Suffix": ", a file in the desktop's config"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T06:39:57.532Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T06:43:50.105Z",
+			"Revision": 6,
+			"RevisionId": "rev-pas-hqb-ter",
+			"Outcome": "The log keeps one file per run in the desktop's configuration folder, listed newest first; one run at a time per connection, with Stop. Went in as recommended."
+		},
+		"Created": "2026-10-01T06:09:23.620Z",
+		"Replies": [
+			{
+				"Id": "rep-vps-1az-9i2",
+				"By": "llm",
+				"At": "2026-10-01T06:09:23.620Z",
+				"Text": "What the log keeps, and where: one record per run, as a file in the desktop's configuration folder (`%APPDATA%/consensus-desktop/runs/<id>.json`): when, which button, the plan, the workspace, the packaged prompt, the model's output, the exit status and the duration. The LLM page lists the connection's runs newest first, and opens one to read its prompt and output. One run at a time per connection, with a **Stop** button while it runs, and \"running since\" in the row.\n\nResolve to take this; reply if the log should rather stay on the server (it cannot today: the server has no such item) or be shorter."
+			}
+		]
+	},
+	{
+		"Id": "thr-qmf-byj-na0",
+		"Anchor": {
+			"Text": "Workspace page Details: Name; Path, a folder picked with the folder picker",
+			"Prefix": "uttons say \"Step 4\" until then. ",
+			"Suffix": "; Include and Exclude patterns ("
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T06:41:28.140Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T06:43:50.127Z",
+			"Revision": 7,
+			"RevisionId": "rev-8pa-m9f-yzh",
+			"Outcome": "Workspace details: Name, Path, Include and Exclude."
+		},
+		"Created": "2026-10-01T06:09:23.628Z",
+		"Replies": [
+			{
+				"Id": "rep-ar9-tb8-boz",
+				"By": "llm",
+				"At": "2026-10-01T06:09:23.628Z",
+				"Text": "A workspace needs a little to be of use to Build: I recommend **Name**, **Root** (a folder picked with the folder picker the connect screen already has) and **Exclude** (patterns, default `~*/**`, `node_modules/**`, `.git/**`, from the worker's settings). The root is where claude-cli runs; the exclude list is what the ollama file tools skip when they come. Test commands and git settings stay out, since the model runs the tests itself and git is the owner's.\n\nResolve to take the three fields; reply to keep it at Name and Root."
+			},
+			{
+				"Id": "rep-h1m-qfb-r6f",
+				"By": "user",
+				"At": "2026-10-01T06:41:28.140Z",
+				"Text": "yes, i forgot all the worker-era stuff. Name, Path, Include, and Exclude."
+			}
+		]
+	},
+	{
+		"Id": "thr-e8c-xyt-q2l",
+		"Anchor": {
+			"Text": "Running a one-shot",
+			"Prefix": "and \"running since\" in the row. ",
+			"Suffix": " A claude-cli one-shot: the comm"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T07:06:33.078Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T07:07:08.566Z",
+			"Revision": 12,
+			"RevisionId": "rev-3qr-4rq-jpx",
+			"Outcome": "The plan rewritten as statements, the sketch folded in; the text as replied went in."
+		},
+		"Created": "2026-10-01T06:09:23.639Z",
+		"Replies": [
+			{
+				"Id": "rep-9dv-kl8-4e6",
+				"By": "llm",
+				"At": "2026-10-01T06:09:23.639Z",
+				"Text": "When the threads above are resolved I will rewrite the plan as statements (the sketch section folded in, \"Worspaces\" corrected) and reply here with the whole text for you to resolve, as the guide says for a rework. One more thing it should say: Step 3 adds nothing to the server; the page in `public/` stays frozen, and the Version the desktop shows goes to 0.3.0."
+			},
+			{
+				"Id": "rep-779-78t-1t7",
+				"By": "llm",
+				"At": "2026-10-01T07:05:40.345Z",
+				"Text": "Every thread is applied, so here is the plan rewritten as statements, the sketch folded in and nothing new decided: the same points in a settled order, one line added that the desktop never commits, and one that the Include and Exclude patterns serve Step 4 while Step 3 only runs in the Path. Resolve to take it, and I apply this text whole; reply with what to change.\n\n~~~markdown\n# Step 3: Local LLMs and Workspaces\n\nSubplan of Consensus Desktop. LLM connections and workspaces come back, in the desktop application: a project's `Context` folder shows any number of LLM connections and workspaces, as items of the project tree rather than functions of a plan. Step 3 adds nothing to the server: the page in `public/` stays frozen, and the desktop's version goes to 0.3.0.\n\n\n## Items in the Context folder\n\n- An **LLM connection** is kept once in the desktop's configuration (desktop.json) and shown in the Context folder of every project. Opened from a project, it packages only that project: its Readme and documents, its plans and the threads waiting on it there.\n- A **workspace** is a path to a folder, saved in the desktop's configuration with the project it is attached to, so a project shows only its own. The folder may be empty or full; where it came from and where it is going are no concern of Consensus.\n- Each opens in a tab of its own, like a plan: a form with its details, the buttons, and its log; it has no text, revisions or threads, and nothing of it is on the server. A row's actions menu holds Open, Rename and Delete; a new one comes from the Context folder's menu (New LLM connection, New workspace).\n\n\n## LLM page\n\n- **Details**: Name; Kind, `claude-cli` (a command run without a shell, default `claude`) or `ollama` (a Url, default `http://127.0.0.1:11434`, and a Model); Model, optional for claude-cli, required for ollama; Timeout in seconds, default 300; a **Check** button that runs the command or asks the Url for its models. The connection posts as the `llm` participant with the token the connected server serves at /instructions; no token is entered.\n- **Packaging**: the items checked go into the one-shot prompt. The desktop builds one prompt as text from the checked items, in this order, each under a heading; the checks are remembered per connection. **Show prompt** opens the packaged text in the log before anything is sent; **Copy** puts it on the clipboard, for a chat.\n    - Agent Instructions: the connected server's /instructions page (the guide, with the server's address and token first).\n    - Readme: the project's Readme, whole.\n    - List of other Context documents: their titles and ids, for the model to read through the API.\n    - List of \"waiting on llm\" threads: from /api/waiting, the threads of the plan at hand, each with its anchor and replies.\n    - Review Prompt: take the llm's turn on the plan at hand: read the waiting threads, reply, apply what is resolved, through the API.\n    - Build Prompt: build the plan at hand in the workspace, the build loop of the agent guide up to the build log posted as a thread; no git on its own.\n    - Session Prompt: appended at the end of every package, after the Review or Build prompt, for further context or instructions.\n- The three prompts are editable texts with defaults the desktop ships, kept per connection.\n- **Review**, **Build** and **Session** buttons: each packages its one-shot prompt and runs it. Review carries the Review Prompt, Build the Build Prompt, and Session the checked items and the Session Prompt alone, an interactive session when much or all of the context is unchecked. They act on the plan selected in the tree, and carry a workspace (asked for when the project has more than one): the command runs in the workspace's folder, so the model can list, search and read its files for a Review as for a Build. With no workspace, Review and Session run in no folder and Build is not offered.\n- **Log**: one record per run, a file in the desktop's configuration folder (`runs/<id>.json`): when, which button, the plan, the workspace, the packaged prompt, the output, the exit status and the duration. The page lists the connection's runs newest first and opens one to read its prompt and output. One run at a time per connection, a **Stop** button while it runs, and \"running since\" in the row.\n\n\n## Running a one-shot\n\n- A `claude-cli` one-shot: the command runs once with the package on its standard input, and the model works through the API itself, with the token in the package, as the agent session does today. The desktop runs it, keeps its output in the log, and refreshes the tree when it ends; nothing is parsed.\n- The desktop never commits, branches or pushes; git is the owner's.\n- `ollama`, with the desktop's tool loop and file tools, is its own Subplan after this one (Step 4: Local Models). The Kind stays in the LLM details so a connection can be entered and Check works, but its buttons say \"Step 4\" until then.\n\n\n## Workspace page\n\n- **Details**: Name; Path, a folder picked with the folder picker; Include and Exclude patterns (Include empty means everything; Exclude defaults to `~*/**`, `node_modules/**` and `.git/**`). The patterns are for the file tools of Step 4; in Step 3 the Path is what a one-shot runs in.\n~~~"
+			}
+		]
+	},
+	{
+		"Id": "thr-v7d-07t-0gn",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T07:55:17.538Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T08:03:16.338Z",
+			"Revision": 12,
+			"RevisionId": "rev-3qr-4rq-jpx",
+			"Outcome": "Accepted: Step 3 built as logged. Committed as \"Step 3: Local LLMs and Workspaces\" (version 0.3.0); the Arguments list of a claude-cli connection stays, as configuration."
+		},
+		"Created": "2026-10-01T07:30:44.298Z",
+		"Replies": [
+			{
+				"Id": "rep-z90-srw-j20",
+				"By": "llm",
+				"At": "2026-10-01T07:30:44.298Z",
+				"Text": "**Build log: Step 3, Local LLMs and Workspaces** (built by Claude Fable 5.1, the agent session; uncommitted; version 0.3.0)\n\n**What was built**\n\n- `desktop/Settings.js`: desktop.json holds `Llms` (once per desktop) and `Workspaces` (each with its `Project`), filled in with ids in the server's shape (`llm-…`, `wks-…`) and the defaults the plan names: Kind claude-cli, Command `claude`, Timeout 300, the four checks on, the default prompts; a workspace's Exclude `~*/**`, `node_modules/**`, `.git/**`. Problems are named as before.\n- `desktop/Package.js`: the one-shot prompt, one text from the checked items in the plan's order (This run: the API, the project, the plan at hand, the workspace; then Agent instructions, the Readme, the other Context documents as titles and ids, the plan's threads waiting on the llm participant), then the Review or Build Prompt, and the Session Prompt last.\n- `desktop/Llm.js`: Check (claude-cli: the command's `--version`; ollama: the models its server lists) and the command line (Command, Arguments, `--model` when a Model is set).\n- `desktop/Runs.js`: a claude-cli one-shot runs the command without a shell, in the workspace's folder, the package on its standard input; one record per run in the user-data folder's `runs/<id>.json` (when, which button, the plan, the workspace, the prompt, the output, the exit status, the duration); one run at a time per connection; Stop; the Timeout kills it. An ollama run is refused as Step 4.\n- `desktop/main.js`, `desktop/preload.js`: the bridge's handlers for the items (save, delete, check), the package (built here from what the connected server says, as the owner: /api/me for the llm participant's name, /api/projects, the Readme, /instructions, the plan with its threads) and the runs; every window hears a run start or end.\n- `desktop/page/js/desktop.js` (new), `sidebar.js`, `tabs.js`, `app.js`, `header.js`, `index.html`, `consensus.css`: the LLM connections and the project's workspaces as rows in the Context folder (desktop only; a browser sees nothing), with Open, Rename and Delete in their menus and New LLM connection and New workspace in the folder's; the routes `#/llm/<project>/<id>` and `#/w/<id>`, one tab each, detachable; the LLM page (Details with Check; Packaging checks and the three prompts with Reset; Run: the plan at hand, defaulting to the plan last opened in the project, and a workspace, with Review, Build and Session, Stop, and Show prompt with Copy; the Log, newest first, a run opened to read its output and prompt); the workspace page (Name, Path with Browse, Include, Exclude).\n- `readme.md`, `.guides/build-with-consensus.md`: the desktop section says all this; the guide tells a one-shot it works as a session does. `package.json` 0.3.0.\n\n**One thing the plan did not name:** a claude-cli connection has an **Arguments** list (one per line in the details), default `-p --output-format text --allowedTools Bash,Read,Edit,Write,Glob,Grep,MultiEdit,WebFetch`. Without it a non-interactive `claude` can call no tool and so cannot work the API or the files. It is configuration, editable per connection; say if it should go or change.\n\n**How it was checked**\n\n- `npm test`: 122 tests, all passing; `test/Desktop.test.js` gained four: the settings' items and problems, the package's order and contents, the check and the command line, and the runs (done, failed, stopped, timed out; the record file; the list) with node standing in for claude.\n- The desktop itself, driven over the DevTools protocol with its own user-data folder against a temporary Consensus: a connection and a workspace made and shown in the Context folder; the folder's menu offers both New items; the LLM page opens with the plan last opened picked; Check answers; the review package carries the token, the thread and the workspace; a build with no workspace is refused; a review one-shot runs (node echoing its prompt), its record says done with exit 0, the log row shows it, the running mark clears; the workspace page; rename and delete from the sidebar close the tabs; no page errors.\n- Not tried: a real `claude` one-shot against cube4; that is the first thing to do once this is accepted, from the desktop."
+			}
+		]
+	}
+]

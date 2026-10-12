@@ -1,0 +1,183 @@
+[
+	{
+		"Id": "thr-tjo-a44-z3p",
+		"Anchor": {
+			"Text": "break out into Subplans to address a specific feature",
+			"Prefix": "exity and have the potential to ",
+			"Suffix": ". A Subplan is started in any of"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T07:15:53.750Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T07:16:26.226Z",
+			"Revision": 7,
+			"Outcome": "The recommendation went in: four ways to start a Subplan (New subplan, drag onto a plan, from a thread, from selected text), with what each starts with.",
+			"RevisionId": "rev-lcz-1ef-wtw"
+		},
+		"Created": "2026-09-26T06:54:59.341Z",
+		"Replies": [
+			{
+				"Id": "rep-r2v-gbx-3ga",
+				"By": "llm",
+				"At": "2026-09-26T06:54:59.341Z",
+				"Text": "**How a subplan is made.** Today a plan is a leaf in the tree: only folders take children, and dropping \"into\" works only on a folder.\n\nRecommendation, two ways in:\n- **New subplan** on a plan (its row and its header) makes an empty plan under it and opens it in a tab.\n- **Drag a plan onto a plan** makes it a subplan; dragging it before or after a row, or into a folder, takes it out again.\n\nIs that enough, or do you also want a way to break a passage out: select text in a plan, **Make subplan**, and the new subplan starts with that text (the parent keeps it, or gets a link in its place)? I would leave that for later."
+			},
+			{
+				"Id": "rep-b35-tbt-qbh",
+				"By": "user",
+				"At": "2026-09-26T07:00:13.047Z",
+				"Text": "Both modalities are valid: \"New subplan\" and \"Drag a plan onto a plan\".\nWe should also have \"Start a New Subplan\" as one of the options when creating or replying in a Thread.\nAlso select text and \"Start a New Suplan\" from there."
+			},
+			{
+				"Id": "rep-d9o-xlh-uoy",
+				"By": "llm",
+				"At": "2026-09-26T07:12:05.751Z",
+				"Text": "Understood: four ways to start a Subplan, all in this plan.\n\n- **New subplan** on a plan's row and header: an empty Subplan under it, opened in a tab.\n- **Drag a plan onto a plan**: it becomes a Subplan; dropping it before or after a row, or into a folder, takes it out.\n- **From a thread**: **Start a new Subplan** beside Comment when a thread is created, and beside Reply in a thread's reply box.\n- **From selected text**: **Start a new Subplan** beside Comment when text is selected.\n\nWhat each one starts with, my recommendation:\n- From a thread: the Subplan's title is asked for; its text starts with the anchored passage quoted, then the thread's text so far. The thread gets a reply from you naming the new Subplan with a link to it, and stays open.\n- From selected text: the title is asked for; the Subplan's text starts with the selected passage. The parent's text is not changed, so no revision is made.\n\nI will write it that way unless you say otherwise."
+			}
+		]
+	},
+	{
+		"Id": "thr-tzd-929-u3y",
+		"Anchor": {
+			"Text": "A Subplan appears as a child to another plan.",
+			"Prefix": " to address a specific feature. ",
+			"Suffix": " This relationship is organiatio"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T07:01:25.160Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T07:12:05.704Z",
+			"Revision": 4,
+			"Outcome": "A plan holds plans only; Subplans move, copy and go to the trash with their parent; a plan with Subplans folds in the tree.",
+			"RevisionId": "rev-89p-nbo-bdu"
+		},
+		"Created": "2026-09-26T06:54:59.371Z",
+		"Replies": [
+			{
+				"Id": "rep-e8w-7my-921",
+				"By": "llm",
+				"At": "2026-09-26T06:54:59.371Z",
+				"Text": "**What a plan can hold, and what goes with it.** Recommendation:\n- A plan holds **plans only**, not documents, zips or folders. A document a subplan needs stays in a folder, as today.\n- Subplans **go with their parent**: moving a plan moves its subplans, copying copies them (with their threads, as a copy does now), and a plan sent to the trash takes its subplans with it.\n- In the tree a plan with subplans gets a chevron and folds like a folder.\n\nDo you agree, especially on the trash? The other choice is that trashing a parent lifts its subplans up to where the parent was."
+			},
+			{
+				"Id": "rep-l4y-f7d-r5e",
+				"By": "user",
+				"At": "2026-09-26T07:01:25.160Z",
+				"Text": "i agree"
+			}
+		]
+	},
+	{
+		"Id": "thr-slu-xje-3bp",
+		"Anchor": {
+			"Text": "This relationship is organizational only",
+			"Prefix": "ars as a child to another plan. ",
+			"Suffix": " and each Subplan operates as a "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T07:08:45.630Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T07:12:05.720Z",
+			"Revision": 5,
+			"Outcome": "Typo fixed; no rules between parent and Subplan states; a Subplan stays with its parent and each row shows its state as a badge.",
+			"RevisionId": "rev-d7m-vat-4sk"
+		},
+		"Created": "2026-09-26T06:54:59.381Z",
+		"Replies": [
+			{
+				"Id": "rep-gaj-qe7-nef",
+				"By": "llm",
+				"At": "2026-09-26T06:54:59.381Z",
+				"Text": "**Organisational only, and the state folders.** I read this as: no rules between a plan's state and its subplans'. A parent can be Finished while a subplan is Working, and the build loop's ready check looks at one plan's threads, never its subplans'. That fits \"let it grow organically\"; I would keep it.\n\nOne conflict, though. The Consensus project sorts plans into **Drafts / Open / Finished** folders by hand. A subplan sits under its parent, so it cannot sit in the Finished folder while its parent is in Drafts. Recommendation: accept that. A subplan stays with its parent, and each row shows its own state as a small badge, so the state can still be seen at a glance.\n\n(A typo to fix while we are here: \"organiational\" should be \"organizational\".)"
+			},
+			{
+				"Id": "rep-b44-1ry-xvx",
+				"By": "user",
+				"At": "2026-09-26T07:08:45.630Z",
+				"Text": "fix the typo and accept the rest."
+			}
+		]
+	},
+	{
+		"Id": "thr-tjv-m8s-23p",
+		"Anchor": {
+			"Text": "it will include context for its parent's Plans",
+			"Prefix": "ext is developed for a Subplan, ",
+			"Suffix": ". That context is every plan up "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T07:11:01.149Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T07:12:05.739Z",
+			"Revision": 6,
+			"Outcome": "Parent plans reach a Subplan's prompt as their text only, the whole chain, as a Parent plans part; a parent's prompt lists its Subplans by title.",
+			"RevisionId": "rev-0il-xzw-nsr"
+		},
+		"Created": "2026-09-26T06:54:59.411Z",
+		"Replies": [
+			{
+				"Id": "rep-539-14p-yv3",
+				"By": "llm",
+				"At": "2026-09-26T06:54:59.411Z",
+				"Text": "**What \"context for its parent's Plans\" means in the prompt.** Recommendation:\n- The **whole chain** up to the top plan, not only the direct parent, each as its **current text, without threads**. The threads are the discussion; the text is what was settled.\n- It is a new prompt part, **Parent plans**, after the project's context and before the plan itself, with its own checkbox and size in the session panel like Context and Search. It is on by default.\n- The other way too: a parent's prompt lists its subplans **by title and state** (not their text), so the LLM knows what has been broken out and can `read_plan` one when it needs to. `list_project` shows the nesting.\n\nTwo questions: is text without threads right, and do you want the subplan listing in the parent's prompt?"
+			},
+			{
+				"Id": "rep-h72-ow9-11z",
+				"By": "user",
+				"At": "2026-09-26T07:11:01.149Z",
+				"Text": "- Parent Plans do not carry their threads, the Plan text only.\n- Include Subplan titles in a parent's prompt."
+			}
+		]
+	},
+	{
+		"Id": "thr-uvl-0cs-teu",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T07:55:22.399Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T07:55:42.577Z",
+			"Revision": 7,
+			"Outcome": "Build accepted: Subplans built as the plan says; 133 of 133 tests pass.",
+			"RevisionId": "rev-lcz-1ef-wtw"
+		},
+		"Created": "2026-09-26T07:47:07.604Z",
+		"Replies": [
+			{
+				"Id": "rep-621-ppk-l2m",
+				"By": "llm",
+				"At": "2026-09-26T07:47:07.604Z",
+				"Text": "**Build log** (Claude Opus 5.5 in Claude Code). Built as the plan says; nothing is committed until you accept.\n\n**Server**\n- `src/Tree.js`: a plan node may hold `Items`, plans only (`CanHold`); `Parents` (the chain above a plan, the top one first) and `Subplans`. A plan left with no Subplans drops its empty list.\n- `src/Api.js`: create, move and copy take a plan as the Parent for a plan, and refuse anything else there (and a plan moved into its own Subplan). Copy carries the Subplans with new ids; the trash takes them with their parent. The tree lists Subplans nested. `list_project` shows a Subplan \"under\" its parent.\n- The prompt (`src/Llm.js`): a Subplan gets a **Parent plans** part after the context and before the plan, every plan up the chain as its text without threads (option `Parents`, `?parents=0`); a parent's prompt lists its Subplans by title.\n- `src/Ids.js`: `migrate-ids` follows Subplans.\n\n**Page**\n- The tree: a plan with Subplans has a chevron and folds; the state badge was already on every row. **+** on a plan's row starts a Subplan; dropping a plan on the middle of a plan makes it a Subplan (a document dropped there is refused with a message).\n- **New subplan** in a plan's heading.\n- **Start a new Subplan** beside Comment in a new thread, beside Re-anchor in a thread's reply box, and beside Comment on selected text. A small form (`public/js/subplans.js`) asks for the title and shows what the Subplan starts with; the thread is posted, or gets a reply, with a link `Started a new Subplan: [Title](#/p/id)`, and stays open; the new Subplan opens in a tab.\n- The session panel shows a **Parent plans** checkbox (on) when the plan is a Subplan.\n- `readme.md`: Subplans, the tree format, the prompt choice.\n\n**Checked**: `npm test`, 133 of 133 pass: new tests in `test/Tree.test.js` (insert, parents, subplans, validation), `test/Api.test.js` (create, refuse, move in and out, nesting, the prompt parts, copy, trash) and `test/Ui.test.js` (all four ways to start one in headless Chrome, the links in the threads, folding).\n\n**To see it**: restart the server; the one running now is the old code.\n\nA choice of mine to check: a Subplan copied with its parent gets \" (copy)\" on its title, as every copy does."
+			}
+		]
+	}
+]

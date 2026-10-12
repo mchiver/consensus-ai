@@ -1,0 +1,93 @@
+[
+	{
+		"Id": "thr-vt2-ikf-52k",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-27T10:15:32.525Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-27T10:16:15.669Z",
+			"Revision": 12,
+			"Outcome": "Worked the list up into a detailed plan. Choices made where the list left them open: the tree toggle sits on the tab bar; Created and Updated sort oldest first; Open threads highlights contested threads only; each tab keeps its own filter; icons are inline SVG, no new dependency.",
+			"RevisionId": "rev-043-vop-h2c"
+		},
+		"Created": "2026-09-27T10:09:04.677Z",
+		"Replies": [
+			{
+				"Id": "rep-jh7-uxx-qnf",
+				"By": "user",
+				"At": "2026-09-27T10:09:04.677Z",
+				"Text": "work this up into a plan"
+			},
+			{
+				"Id": "rep-se6-uuh-n71",
+				"By": "user",
+				"At": "2026-09-27T10:14:58.188Z",
+				"Text": "update the plan with details"
+			}
+		]
+	},
+	{
+		"Id": "thr-65a-mvk-h48",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-27T11:53:48.136Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-27T12:11:34.883Z",
+			"Revision": 12,
+			"Outcome": "Build accepted: UI Tweaks II is built as the build log says; committed.",
+			"RevisionId": "rev-043-vop-h2c"
+		},
+		"Created": "2026-09-27T11:16:16.820Z",
+		"Replies": [
+			{
+				"Id": "rep-w0z-3em-mj6",
+				"By": "llm",
+				"At": "2026-09-27T11:16:16.820Z",
+				"Text": "**Build log: UI Tweaks II** (built by Claude Opus 5.5, in Claude Code)\n\nAll ten items are built. Nothing is committed yet; resolving this thread accepts it.\n\n**Server** (`src/Api.js`)\n- The tree's items carry `Created` beside `Updated`: plans, documents, and attached and linked corpora.\n- `POST /api/proposals/<id>/threads` takes `Resolve: true`. From the owner, the thread is posted resolved and its comment is the outcome. From anyone else, it is refused (403) and nothing is made.\n\n**Project tree** (`public/index.html`, `public/js/sidebar.js`, `public/js/app.js`, `public/js/tabs.js`)\n1. A sidebar icon at the left of the tab bar hides and shows the tree and its splitter, and the choice is remembered. The tab bar now always shows, so this button is there even with no tab open.\n2. The toggle is labelled **Updated** rather than \"Show updated\", so it fits beside the Sort picker in the default sidebar width; its title says what it does. It shows each item's last update at the end of its row, and on the project heading.\n3. The **Sort** picker offers none, name, created and updated:\n   - It applies at every level: folders, and each plan's Subplans.\n   - Folders come first, by name.\n   - The created and updated sorts put a yyyy-mm-dd date before each name, oldest first.\n   - While a sort is on, dropping an item on a row's edge does nothing. Dropping it into a folder or a plan, or onto a project heading, still works.\n\n**Threads pane** (`public/js/threads.js`, `public/js/read.js`)\n4. **Comment and resolve** (green, owner only) sits beside Comment on the compose card.\n5. The button is now **New Comment**, and **Re-anchor** shows on every thread, whole-document ones included.\n6. The filter starts at **Waiting on me** in each new tab, and each tab keeps its own. Beyond the plan: the selected thread always shows, whatever the filter. Without that, a thread you had just posted vanished, because it now waits on the LLM.\n7. The **Highlight** picker (all threads, or open threads) sits at the top of the pane. With open threads, only contested threads are highlighted, plus the selected one, so clicking a thread still finds its passage.\n\n**Session panel** (`public/js/sessions.js`, the `floating-panel` directive)\n8. The panel opens centered in the content area:\n   - Dragging its heading moves it.\n   - A grip in its corner resizes it, no smaller than a usable minimum and never past the area's edges.\n   - Its last place and size are remembered, and **Reset** in its heading centers it again at its first size.\n   - The heading stays put and the body scrolls.\n\n   I used a small grip of our own rather than the browser's built-in corner resizing, which the test browser could not drag reliably.\n\n**Buttons** (`public/css/consensus.css`, the icon set in `public/index.html`)\n9. Colors by purpose: blue for primary actions, green for resolve and accept, red for delete, and a tinted neutral for the rest, in both themes. Every button has an inline SVG icon before its label; there are 26 icons in one symbol set and no new dependency. The glyph buttons (×, ✎, ⧉, +, ↗) are now icons with their titles. The small text links (collapse earlier, expand all, earlier sessions, Preview in the session panel) keep plain text.\n10. On hover, a button lifts 1 px and casts a soft shadow, taking Bootstrap's deeper hover color; a row icon grows a little. The motion takes 120 ms and is turned off under `prefers-reduced-motion`. I checked both themes in screenshots; the open project's row buttons now wrap to a second line instead of running off the sidebar.\n\n**Tests**: `npm test` passes all 152 tests.\n- `test/Api.test.js`: Comment and resolve (including the refusal for the llm), and `Created` in the tree.\n- `test/Ui.test.js`, three new tests:\n  - the tree: hide and show, each sort order, the stamps, and the per-tab filter;\n  - the threads pane: Highlight all or open, New Comment with Comment and resolve, and Re-anchor on a whole-document thread;\n  - the session panel: centered, moved, resized with the grip, and Reset.\n- Existing UI tests that work with threads waiting on the LLM now switch the filter to All threads first. The detached-window test checks the new tab row.\n\nThe running server needs a restart for the two server changes; the page changes show on a reload."
+			}
+		]
+	},
+	{
+		"Id": "thr-3nq-wi4-8ag",
+		"Anchor": {
+			"Text": "A selected thread that the filter leaves out is deselected",
+			"Prefix": "ed tab starts at Waiting on me. ",
+			"Suffix": ": it does not stay in view. High"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-27T12:14:53.665Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-27T12:19:13.030Z",
+			"Revision": 13,
+			"Outcome": "Fixed: a selected thread the filter leaves out is now deselected (it no longer stays in view); item 6 says so. Built, tested (152 pass) and committed.",
+			"RevisionId": "rev-3aa-bgo-i3y"
+		},
+		"Created": "2026-09-27T12:14:53.665Z",
+		"Replies": [
+			{
+				"Id": "rep-g4k-a8e-9rv",
+				"By": "user",
+				"At": "2026-09-27T12:14:53.665Z",
+				"Text": "always shows the current thread, regardless of thread filter. this is incorrect behavior. the current thread should become deselected if it gets filtered out."
+			}
+		]
+	}
+]

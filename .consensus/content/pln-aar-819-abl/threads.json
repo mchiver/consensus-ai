@@ -1,0 +1,122 @@
+[
+	{
+		"Id": "thr-4a2-q0x-mp8",
+		"Anchor": {
+			"Text": "The context server becomes the worker",
+			"Prefix": " in the repo itself. The worker ",
+			"Suffix": ": src/Worker.js, bin/worker.js, "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T06:28:42.802Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T06:30:42.733Z",
+			"Revision": 2,
+			"RevisionId": "rev-7fc-9wq-7vc",
+			"Outcome": "Resolved without a reply, so my recommendation went in: the context server is renamed the worker everywhere (code, settings, page, guide)."
+		},
+		"Created": "2026-09-29T06:25:56.036Z",
+		"Replies": [
+			{
+				"Id": "rep-u94-gy5-l84",
+				"By": "llm",
+				"At": "2026-09-29T06:25:56.036Z",
+				"Text": "Name: rename the context server to \"worker\", or keep \"context server\" with the new job? It no longer serves context; it runs turns. I recommend the rename: src/Worker.js, bin/worker.js, worker.json, \"Workers\" in consensus.json, and the page says worker."
+			}
+		]
+	},
+	{
+		"Id": "thr-uwk-qpy-vee",
+		"Anchor": {
+			"Text": "Linked corpora, the context server's corpus routes",
+			"Prefix": "writing, no web. What goes away ",
+			"Suffix": " (files, file, search) and their"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T06:29:39.524Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T06:30:42.773Z",
+			"Revision": 3,
+			"RevisionId": "rev-z81-8u4-bkb",
+			"Outcome": "Resolved without a reply, so my recommendation went in: attached zips stay as they are; only linked corpora go."
+		},
+		"Created": "2026-09-29T06:25:56.322Z",
+		"Replies": [
+			{
+				"Id": "rep-ay3-dcu-aox",
+				"By": "llm",
+				"At": "2026-09-29T06:25:56.322Z",
+				"Text": "Attached zips: keep or retire? The plan retires linked corpora, since a workspace does their job better. Zips still serve a project with no worker, or files that are not a codebase (documents, exports). I recommend keeping zips, with their search and Requests, as they are; a project with a workspace simply does not need one."
+			}
+		]
+	},
+	{
+		"Id": "thr-56d-9q4-s6w",
+		"Anchor": {
+			"Text": "Requests (plan LLM Tool Usage, option 2)",
+			"Prefix": "ists no context servers today). ",
+			"Suffix": " give the model a few rounds of "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T06:28:22.664Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T06:30:42.813Z",
+			"Revision": 4,
+			"RevisionId": "rev-jft-zup-kx6",
+			"Outcome": "Resolved without a reply, so my recommendation went in: Workers is a Subplan of LLM Tool Usage (in Open), and LLM Tool Usage notes that option 4 is this plan."
+		},
+		"Created": "2026-09-29T06:25:56.348Z",
+		"Replies": [
+			{
+				"Id": "rep-ae1-8pe-ls6",
+				"By": "llm",
+				"At": "2026-09-29T06:25:56.348Z",
+				"Text": "Where this sits: it takes the place of LLM Tool Usage option 4 (a tool loop), done on the worker instead of the server. I recommend making Workers a subplan of LLM Tool Usage and moving both to Open, and noting in LLM Tool Usage that option 4 is this plan. It is in Drafts for now."
+			}
+		]
+	},
+	{
+		"Id": "thr-9b3-5z9-p6d",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T18:09:54.768Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T18:10:25.480Z",
+			"Revision": 8,
+			"RevisionId": "rev-1k2-esp-7ul",
+			"Outcome": "The build is accepted: committed as Workers, and the plan is Finished."
+		},
+		"Created": "2026-09-29T17:39:10.329Z",
+		"Replies": [
+			{
+				"Id": "rep-yjl-4r1-sl9",
+				"By": "llm",
+				"At": "2026-09-29T17:39:10.329Z",
+				"Text": "**Build log** (agent session, Claude Fable 5.1). Built with Review and Build; 183 tests pass (`node --test`).\n\n**What was built**\n- **Consensus's side** (`src/Workers.js`, new): the workers from `consensus.json` `Workers` (each its own token, never shared with a participant), hello, the job queue with the ask held open 30 s, changes passed on (a build accepted or sent back), offline after 60 s (its running job fails, with the reason on its threads). A worker Consensus has not heard say hello since it started is asked to (`{ Hello: true }`), so a restart of Consensus heals itself.\n- **Routes** (`src/Api.js`): `/api/workers/hello`, `/jobs`, `/jobs/<id>/tool`, `/step`, `/answer` with the worker's token, mounted before the participants' routes; `GET /api/workers`; `PUT /api/projects/<id>/workspace` (owner; only a workspace a worker offers now). A worker's inference items are destinations \"Worker / Item\", offline ones marked and refused.\n- **The worker** (`bin/worker.js`, `src/Worker.js`, new; `src/ContextServer.js`, `src/ContextServers.js` and `bin/context-server.js` removed): `worker.json` (written with a new token when missing), one job at a time, reconnects on its own. `src/Workspace.js`: glob, grep and read within Root, Include, Exclude and every .gitignore; outside, excluded or binary is refused, links included.\n- **The worker's page** (`public/worker/`): connection, workspaces and models, the running job with each tool call and its result as it happens, the answer, the last 50 jobs (`~worker/jobs.json`); Pause, Resume, Cancel, Reload; light/dark and small/normal/large (Consensus's `theme.js`).\n- **What went away**: linked corpora (the Link form became **Workspace** in a project's menu; a linked corpus left in data shows empty, and export/import say it is retired), the context-server routes and search. Export and import name `Workers` and still read `ContextServers`.\n- New id kind `job`. Readme, `.guides/build-with-consensus.md`, `.gitignore` / `.dockerignore` (`worker.json`) brought up to date.\n\n**How it was checked**\n- `test/Workers.test.js` (routes, tokens, workspace, a review job end to end, a quiet worker, one-thread review, builds), `test/Worker.test.js` (workspace tools, settings, review, Ollama loop, claude stream, MCP, pause/resume/cancel, build, Bash guard, Commit/Push), `test/WorkerUi.test.js` (the worker's page in headless Chrome), `test/Ui.test.js` (Workspace menu), `test/ProjectPort.test.js` reworked.\n- Live, with the real `claude -p` (haiku) and a temporary Consensus: a review on this repo (it called read_plan, Grep and Read and answered correctly), and a build in a scratch repo (below, on Build).\n- Screenshots of the worker's page in light and dark.\n\n**Beyond the plan's text, for you to know**\n- Workers get a test clock (`Now`), after a test that waited on wall time proved flaky under load.\n- Nothing is committed yet; the commit comes when you accept these logs."
+			}
+		]
+	}
+]

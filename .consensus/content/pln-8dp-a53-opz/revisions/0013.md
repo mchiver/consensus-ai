@@ -1,0 +1,44 @@
+# Consensus Desktop
+
+I now see the limitations of what we have made.
+Including LLM connectivity in a remote environment was a mistake.
+The proper way to introduce LLM interoperability to Consensus is to develop a desktop version of Consensus which can interact with the local environment (LLMs and files).
+
+Each step is a Subplan of this plan, built in order and accepted on its own build log. This plan holds the direction and its discussion; the Subplans hold the detail: **Step 1: Consensus Web Server Rework**, **Step 2: Consensus Desktop Application** and **Step 3: Local LLMs and Workspaces**.
+
+
+## Step 1: Consensus Web Server Rework
+
+Remove all LLM connectivity and Workspaces from the existing Consensus server. The Consensus server Web UI and API will now only support the core Consensus functionality. This includes the Project Tree and its items and excludes LLMs and Workspaces. The Review and Build buttons will also be removed. The indexing and RAG functionality will be removed.
+
+Consensus will now be a simplified yet fully functional app for building Plans through direct editing and the turn based Thread/Reply mechanism currently in place.
+
+The current LLM interoperability is still be accomplished through manual updates to Consensus and then tickling the LLM with a "your turn in Consensus" prompt.
+
+The server's data folder will contain the server's configuration file.
+
+The server settings should be fully editable in a popup modal panel. Theme and style settings are not server settings: the Web UI keeps them in the browser's local storage, per user and per server, and the desktop app keeps them in its configuration.
+
+A project's `Context` will now be a folder named `Context` containing a `Context` document. New Documents (not Plans) can be created within the `Context` folder while the rest of the Project Tree will contain only Plans.
+
+The detail is the Subplan **Step 1: Consensus Web Server Rework**.
+
+
+## Step 2: Consensus Desktop Application
+
+The Consensus Web UI will be packaged as an Electron application for use as a local desktop application. The application will serve as Consensus client which can connect to any accessible Consensus web server.
+
+The application will be able to spawn a single local Consensus server given the server's data folder which includes the configuration file for that server. When running a local server, the desktop application will connect to this local server.
+
+In order to connect to multiple Consensus servers (local and remote), multiple instances of the application must be run.
+
+The desktop bundles its own copy of the page, taken from the Web UI as it stands after Step 1 and developed on from there, pointed at the connected server's API through a base URL; the server's Web UI is frozen after Step 1, and Steps 2 and 3 are new development in the desktop's copy. The connect screen warns when the server's version differs from the page's.
+
+The detail is the Subplan **Step 2: Consensus Desktop Application**.
+
+
+## Step 3: Local LLMs and Workspaces
+
+LLM Connections and Workspaces will be reintroduced into the desktop application. Users can add these connections within the `Context` folder.
+
+The detail is the Subplan **Step 3: Local LLMs and Workspaces**, a sketch until Step 2 is in use.

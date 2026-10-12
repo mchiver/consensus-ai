@@ -1,0 +1,283 @@
+[
+	{
+		"Id": "thr-74y-1ap-2iq",
+		"Anchor": {
+			"Text": "Electron, in this repo, under worker-app/",
+			"Prefix": "worker in a few clicks. The app ",
+			"Suffix": ": worker-app/main.js (the main p"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-30T05:09:47.045Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-30T05:16:47.597Z",
+			"Revision": 5,
+			"RevisionId": "rev-de2-lnw-0oz",
+			"Outcome": "The app lives in this repo under worker-app/: worker-app/main.js, worker-app/preload.js and worker-app/page/. The npm script stays \"npm run app\"."
+		},
+		"Created": "2026-09-30T05:07:36.270Z",
+		"Replies": [
+			{
+				"Id": "rep-01r-8ia-5wk",
+				"By": "llm",
+				"At": "2026-09-30T05:07:36.270Z",
+				"Text": "Where should the app live? Two ways: (1) in this repo under app/, with electron as a devDependency of the root package, sharing src/Worker.js directly; or (2) its own package (a second package.json, or a second repo) that depends on this one. Recommendation: (1), this repo under app/. The worker's code is here, and a second package would have to reach it by path or by publishing."
+			},
+			{
+				"Id": "rep-1cv-qky-j0r",
+				"By": "user",
+				"At": "2026-09-30T05:09:47.044Z",
+				"Text": "in this repo and under `worker-app`"
+			}
+		]
+	},
+	{
+		"Id": "thr-wi5-ihe-7yn",
+		"Anchor": {
+			"Text": "The main process runs the workers in-process",
+			"Prefix": "the app runs from the checkout. ",
+			"Suffix": ", through Start from src/Worker."
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-30T05:11:09.766Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-30T05:16:47.614Z",
+			"Revision": 5,
+			"RevisionId": "rev-de2-lnw-0oz",
+			"Outcome": "Resolved with no reply: the recommendation stands, and the text already says it. The workers run in the app's own process, one Start from src/Worker.js per worker; no child processes."
+		},
+		"Created": "2026-09-30T05:07:36.560Z",
+		"Replies": [
+			{
+				"Id": "rep-bv5-93a-msj",
+				"By": "llm",
+				"At": "2026-09-30T05:07:36.560Z",
+				"Text": "Should the app run the workers in its own process (Start from src/Worker.js, one call per worker) or spawn each as a child process (node bin/worker.js --settings <file>)? In-process is simpler and shares the code as it is; a crash in one worker would take the app down, but the model calls already run in child processes (claude) or over HTTP (Ollama), so the worker itself is small. Child processes would isolate each worker, but need process supervision, log capture and an extra way to ask a worker its state. Recommendation: in-process."
+			}
+		]
+	},
+	{
+		"Id": "thr-fnh-y3b-x03",
+		"Anchor": {
+			"Text": "loaded from the worker's port in an embedded web contents view",
+			"Prefix": "er's own page (public/worker/), ",
+			"Suffix": " (Electron's WebContentsView), s"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-30T05:15:20.416Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-30T05:16:47.631Z",
+			"Revision": 5,
+			"RevisionId": "rev-de2-lnw-0oz",
+			"Outcome": "Resolved with no reply: the recommendation stands, and the text already says it. Each worker's tab shows the worker's existing page, loaded from its own port; no new page over IPC."
+		},
+		"Created": "2026-09-30T05:07:36.586Z",
+		"Replies": [
+			{
+				"Id": "rep-sy4-abg-cya",
+				"By": "llm",
+				"At": "2026-09-30T05:07:36.586Z",
+				"Text": "The plan reuses the worker's existing page, loaded from its own port into each tab. The alternative is a new page in the app that shows the worker's state over IPC, with no per-worker HTTP port. Reuse keeps one page to maintain and the worker still opens in a browser; the new page would mean rewriting what public/worker/ does today. Recommendation: reuse the worker's page."
+			}
+		]
+	},
+	{
+		"Id": "thr-yi8-kum-fix",
+		"Anchor": {
+			"Text": "Each Worker is one workspace",
+			"Prefix": "ery worker carries all of them. ",
+			"Suffix": ": Root, Include, Exclude and Bui"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-30T05:12:47.956Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-30T05:16:47.647Z",
+			"Revision": 5,
+			"RevisionId": "rev-de2-lnw-0oz",
+			"Outcome": "Resolved with no reply: the recommendation stands, and the text already says it. One workspace per worker; a second repo is a second worker."
+		},
+		"Created": "2026-09-30T05:07:36.598Z",
+		"Replies": [
+			{
+				"Id": "rep-4it-kpp-wpi",
+				"By": "llm",
+				"At": "2026-09-30T05:07:36.598Z",
+				"Text": "The plan reads \"each carries the LLMs and a local path\", which I take as one workspace per worker: a worker is a repo. Today a worker.json may list several Workspace items. Should the app keep that (a worker with a list of workspaces) or be one workspace per worker, as written? Recommendation: one per worker. It matches the plan, the tabs and the status per repo, and a second repo is a second worker."
+			}
+		]
+	},
+	{
+		"Id": "thr-0uk-h86-6g1",
+		"Anchor": {
+			"Text": "Every worker carries all of them.",
+			"Prefix": " worker.json's Inference items. ",
+			"Suffix": " Each Worker is one workspace: R"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-30T05:12:16.794Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-30T05:16:47.664Z",
+			"Revision": 5,
+			"RevisionId": "rev-de2-lnw-0oz",
+			"Outcome": "Resolved with no reply: the recommendation stands, and the text already says it. Every worker offers all of the app's LLMs; no per-worker selection."
+		},
+		"Created": "2026-09-30T05:07:36.608Z",
+		"Replies": [
+			{
+				"Id": "rep-1ak-uqe-ntq",
+				"By": "llm",
+				"At": "2026-09-30T05:07:36.608Z",
+				"Text": "Should every worker offer all of the app's LLMs, or should each worker pick which of them it carries (a set of checkboxes on the worker's form)? Recommendation: all of them, no selection. The LLMs are the same on this machine whichever repo is worked on, and the destination picked in Consensus already chooses the model per review or build."
+			}
+		]
+	},
+	{
+		"Id": "thr-9wu-3lp-k5z",
+		"Anchor": {
+			"Text": "The owner adds it to the server's consensus.json under Workers",
+			"Prefix": "d and shown with a Copy button. ",
+			"Suffix": " with the worker's Name, as for "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-30T05:12:00.876Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-30T05:16:47.684Z",
+			"Revision": 5,
+			"RevisionId": "rev-de2-lnw-0oz",
+			"Outcome": "Resolved with no reply: the recommendation stands, and the text already says it. Tokens go into the server's consensus.json by hand, one per worker; a registration page in Consensus would be its own plan."
+		},
+		"Created": "2026-09-30T05:07:36.615Z",
+		"Replies": [
+			{
+				"Id": "rep-rog-yzh-loz",
+				"By": "llm",
+				"At": "2026-09-30T05:07:36.615Z",
+				"Text": "Each worker needs its own token in cube4's consensus.json, and with several workers that is several hand edits and server restarts. Is that acceptable for this plan, or should Consensus get a way to register a worker from its page (paste a Name and Token under a Workers page, no restart)? Recommendation: keep the hand edit here, and make the registration page its own plan if the edits become a chore."
+			}
+		]
+	},
+	{
+		"Id": "thr-rb9-vyl-5hr",
+		"Anchor": {
+			"Text": "Closing the window stops every worker",
+			"Prefix": "art; the others wait for Start. ",
+			"Suffix": " (a running job is cancelled, an"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-30T05:15:40.921Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-30T05:16:47.705Z",
+			"Revision": 5,
+			"RevisionId": "rev-de2-lnw-0oz",
+			"Outcome": "Resolved with no reply: the recommendation stands, and the text already says it. Closing the window stops every worker and quits; no tray icon in this plan."
+		},
+		"Created": "2026-09-30T05:07:36.624Z",
+		"Replies": [
+			{
+				"Id": "rep-pcy-7dt-tll",
+				"By": "llm",
+				"At": "2026-09-30T05:07:36.624Z",
+				"Text": "What should closing the window do? (1) Stop every worker and quit, as written; or (2) keep the workers running and the app in the system tray, with Quit in the tray menu. (2) fits a worker that should be there whenever the machine is on, but adds the tray icon, its menu and the hide/show behavior. Recommendation: (1) for this plan, and a tray as a later addition once the app is in daily use."
+			}
+		]
+	},
+	{
+		"Id": "thr-ccd-cjc-qoz",
+		"Anchor": {
+			"Text": "No installer or packaging in this plan",
+			"Prefix": "age, and npm run app starts it. ",
+			"Suffix": "; the app runs from the checkout"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-30T05:10:23.111Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-30T05:16:47.725Z",
+			"Revision": 5,
+			"RevisionId": "rev-de2-lnw-0oz",
+			"Outcome": "Resolved with no reply: the recommendation stands, and the text already says it. The app runs from the checkout with npm run app; no installer or packaging in this plan."
+		},
+		"Created": "2026-09-30T05:07:36.632Z",
+		"Replies": [
+			{
+				"Id": "rep-6uh-gvu-vws",
+				"By": "llm",
+				"At": "2026-09-30T05:07:36.632Z",
+				"Text": "Should the app be packaged (electron-builder or Electron Forge, an installer or a portable folder) or run from the checkout with npm run app? Packaging adds a large build dependency and a build step; running from the checkout needs Node and npm install, which the dev machine has. Recommendation: run from the checkout in this plan; packaging later, if the app is wanted on a machine without the repo."
+			}
+		]
+	},
+	{
+		"Id": "thr-tfl-5k3-jgf",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-30T07:30:03.922Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-30T07:30:37.447Z",
+			"Revision": 5,
+			"RevisionId": "rev-de2-lnw-0oz",
+			"Outcome": "Accepted: the build stands as reported. Committed in the repo as \"Worker Electron App\"; the plan is Finished and the project context updated."
+		},
+		"Created": "2026-09-30T07:14:04.687Z",
+		"Replies": [
+			{
+				"Id": "rep-hyl-rs4-97c",
+				"By": "llm",
+				"At": "2026-09-30T07:14:04.687Z",
+				"Text": "**Build log: Worker Electron App** (built by Claude Fable 5.1, the agent session, in W:/code-projects/orgs/mchiver/consensus.git, uncommitted)\n\n**What was built**\n\n- `worker-app/package.json`: the app's own package (name consensus-worker, main.js), so Electron's user-data folder is `%APPDATA%/consensus-worker` as the plan says. Root `package.json`: `electron` (44.5.1) as a devDependency and the `app` script, `electron worker-app`.\n- `worker-app/Settings.js`: app.json. Default, Fill (every field present; a worker without a token gets one), Read, Write (whole and atomic), NewToken, WorkerSettings (a worker's worker.json in the worker's format: Name, Consensus with the app's Url and the worker's Token, Web 127.0.0.1 and the port, Items = its one Workspace named after it plus every Inference item, MaxRounds, TimeoutSeconds), Problems (the app's own checks once: Url, MaxRounds, TimeoutSeconds, LLM names, worker names usable as folder names; then each worker through the worker's own Validate), WorkerFolder.\n- `worker-app/Manager.js`: the workers in-process. Start(name): a free port, worker.json written to `<user data>/workers/<Name>/`, the worker's Start with that folder (its jobs.json goes there) and the same Vendor the command line passes; a failure keeps its reason on the worker. Stop(name): the worker's Close (a running job is cancelled, Consensus told), with why it stopped. StartAutomatic: the AutoStart workers, one failing while the others run. Settings(fresh): the workers gone from the settings are stopped, the running ones get their file rewritten (same port) and reloaded; a reload the worker refuses is shown on the worker, which keeps its old settings. Snapshot: each worker's status: stopped, starting, connected, offline, paused or working, with its address, when and why it stopped, what it is working on. Close: every worker, as when the app closes. No timers here.\n- `worker-app/main.js`: the Electron main process. The window (1200x800, the menu bar hidden) loads `page/index.html` with the preload; IPC handlers for the bridge (settings, save with validation, workers, start, stop, a new token, check, models, the folder picker, open in browser, copy, view). One WebContentsView per running worker, its page loaded from the worker's port, placed at the bounds the page reports for the open tab and hidden otherwise; removed when the worker stops. A 2-second tick pushes the statuses to the page when they change. Check: `<Command> --version` for claude-cli, `/api/tags` for ollama. Closing the window stops every worker, then quits.\n- `worker-app/preload.js`: `window.App` over contextBridge, one IPC message per call, plus OnWorkers.\n- `worker-app/page/` (index.html, app.js, app.css): AngularJS and Bootstrap from the checkout's node_modules, the same theme.js as the worker's page, light/dark and small/normal/large. The tab strip: App, then a tab per worker with its status dot. The App tab: Consensus Url, Max rounds, Timeout; the LLMs list (rows opening to Name, Type, Command and Model or Url and Model picked from Ollama's list with Refresh; Check; Remove); the Workers list (rows with status, address to copy, Start or Stop; opening to Name, Start when the app opens, Root with Browse, Include and Exclude one pattern per line, Builds with Remote and Commands, the Token with Copy and New, Remove, which asks and stops a running worker first). Save and Revert, the problems shown and nothing saved while there are any. A worker's tab: the bar (status, address, Open in browser, Stop) over the area the worker's page is placed in, or the stopped card (when and why, the root, Start).\n- `readme.md`: a section \"The worker app\" and the layout lines.\n\n**How it was checked**\n\n- `test/WorkerApp.test.js`, 8 tests: app.json read, written and read back; a token filled in; worker.json built in the worker's format (with and without Build); the problems reported once and per worker; the manager with a stand-in Start: a start on a free port with the file and folder, a second start doing nothing, stop; the statuses paused, working and offline; autostart with one worker failing; saved settings stopping the removed worker, rewriting and reloading the running one on the same port, and a refused reload reported.\n- `npm test`: 192 tests, all passing (the existing suites unchanged).\n- The manager with the real worker Start against a temporary Consensus (a scratch script): the worker connected on its port, its page and vendor files served, Consensus listing it with the app's workspace and LLM, worker.json in the user-data folder, a clean close.\n- The Electron window itself, driven over the DevTools protocol (a scratch script, not kept): the page loads with no errors; the bridge answers; a save with problems is refused with the three problems; a worker saved through the page appears as a tab, starts, connects to a temporary Consensus, and its tab shows the worker's own page in the view (the view's page reports \"Smoke, connected to ...\"); Stop shows the stopped card with the reason; the view goes away; the settings restored to the defaults. The test's user-data folder was removed afterwards, so the first real run starts fresh.\n- Not checked by hand: the folder picker dialog, Open in browser and Copy (they call Electron's dialog, shell and clipboard directly), and the look of the page at the three sizes.\n\n**Notes**\n\n- The LLM Check for claude-cli runs the command through the shell on Windows, since `claude` is a .cmd there.\n- The embedded worker page keeps its own theme choice per worker (each port is its own origin), as the plan left the worker's page unchanged."
+			}
+		]
+	}
+]

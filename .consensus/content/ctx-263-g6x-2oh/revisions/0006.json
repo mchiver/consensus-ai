@@ -1,0 +1,9 @@
+{
+	"Id": "rev-4gx-9ln-j3m",
+	"Parent": "rev-w1j-t5f-c71",
+	"Revision": 6,
+	"By": "llm",
+	"At": "2026-09-26T04:44:16.977Z",
+	"Reason": "context",
+	"Note": "The LLM Tool Usage plan is resolved and applied as an assessment with a recommended order, so the context now points to it instead of calling the question open."
+}

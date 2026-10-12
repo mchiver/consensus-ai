@@ -1,0 +1,60 @@
+[
+	{
+		"Id": "thr-9iy-ysk-pjx",
+		"Anchor": {
+			"Text": "Three groups for every kind",
+			"Prefix": " from the crypto random source. ",
+			"Suffix": ": 9 characters, about 46 bits, s"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T04:45:33.756Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T04:46:06.896Z",
+			"Revision": 2,
+			"Outcome": "Resolved without a reply, so the recommendation went in: three groups for every kind (`<kind>-xxx-xxx-xxx`, about 46 bits); the two-group form is gone from the format, the table and the examples.",
+			"RevisionId": "rev-7lc-gut-3ij"
+		},
+		"Created": "2026-09-29T04:40:19.809Z",
+		"Replies": [
+			{
+				"Id": "rep-z6o-ou3-z6l",
+				"By": "llm",
+				"At": "2026-09-29T04:40:19.809Z",
+				"Text": "**Two groups or three?** Your format allows `<kind>-xxx-xxx` (6 base36 characters, about 31 bits) or `<kind>-xxx-xxx-xxx` (9 characters, about 46 bits). The text uses two groups for plans, folders and projects, three for revisions, threads, replies and runs.\n\nThe ids must stay unique across servers that exchange projects, and a clash between servers can only be caught at import. With two groups, 10,000 plans across all servers have about a 2% chance that two share an id; with three groups, about one in a million.\n\nRecommendation: three groups for every kind (`pln-0bz-m3c-t8e`), and keep the two-group form out. Resolve to take it; reply to keep two groups for the few kinds."
+			}
+		]
+	},
+	{
+		"Id": "thr-1be-jkh-oaq",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T05:04:06.195Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T05:04:37.864Z",
+			"Revision": 2,
+			"RevisionId": "rev-7lc-gut-3ij",
+			"Outcome": "Accepted. Committed as 70a15e3 \"Global Ids\"; the live data folder was migrated at the restart (463 ids, backup in ~data-before-ids)."
+		},
+		"Created": "2026-09-29T05:00:52.044Z",
+		"Replies": [
+			{
+				"Id": "rep-3fa-top-i6x",
+				"By": "llm",
+				"At": "2026-09-29T05:00:52.044Z",
+				"Text": "**Build log: Global Ids** (built by Claude Opus 5.5, in Claude Code)\n\n**What was built**\n- **Ids** (`src/Ids.js`): `<kind>-xxx-xxx-xxx`, three lowercase base36 characters per group from `crypto.randomInt`. Kinds `prj pln doc ctx fld cor thr rep rev run`; the Default project stays `default`. Projects, proposals and corpora are checked against the data folder before use.\n- **Every new item** gets one: projects, plans, documents, contexts, corpora (Store), folders, threads, replies and runs (Api).\n- **Revisions**: each record is `{ Id, Parent, Revision, By, At, Reason, … }`; Parent is the revision it was made from; `proposal.json` keeps `Head`, the current revision's Id. A thread's Applied record carries `RevisionId` beside `Revision`.\n- **Merge Existing** now works: Project Import and Export's merge matches revisions by Id and keeps `Head` right (a continuation takes the file's head, a conflict its merge revision).\n- **Migration** (`src/Migrate.js`), once at start, before anything else:\n  - the data folder is copied whole beside it, to `~data-before-ids`;\n  - the translation table, every old id to its new one, is written to `~data/ids.json`;\n  - every old id in every .json and .md file is replaced through that table: projects.json, trees, Context pointers, threads, replies, runs, revision records, and `#/p/<id>` links in every text and revision;\n  - proposal, corpus, project and trash folders are renamed; search indexes are removed and rebuilt at start;\n  - revisions get Ids and Parents, proposals their Head, applied records their RevisionId.\n  A folder with `ids.json`, or with no old ids, is left alone.\n- **Old ids still work**: the API reads `ids.json` and answers a route naming an old proposal, project or corpus id as for its new one; the page, opened on an old `#/p/<id>`, moves the tab and the address to the new id.\n\n**Where**: `src/Ids.js`, `src/Migrate.js` (new); `src/Store.js`, `src/Api.js`, `src/Rules.js`, `src/Server.js`, `src/ProjectPort.js`, `src/Tree.js` (comment); `public/js/app.js`, `public/js/tabs.js`.\n\n**How it was checked**\n- `test/GlobalIds.test.js` (new, 4 tests): the format for every kind (2000 ids, no clash); revisions with Id, Parent and Head; an applied thread's RevisionId over the API; an old data folder migrated (the backup, the table, new ids in the tree, threads, replies and links, folders renamed, revisions chained, the index rebuilt, old ids still opening their items), and a second start that migrates nothing.\n- `test/ProjectPort.test.js`: Merge Existing over the API for real now: a new revision, a reply and a new plan come in; a document edited on both servers gets a merge revision with the newer text; merged back the other way both servers hold the same text and Head for every proposal; a third import adds nothing.\n- Every test that matched the old id shape now matches the new one. The whole suite: 172 tests, all pass.\n- A dry run on a copy of the real data folder: 461 ids migrated, every project, context and plan opened under its new id, the old `pln-br5-xas-ez7` still opened Project Import and Export, and no old id was left in any file.\n\n**When you restart the server** on this code, `~data` is migrated as above (the log says so and names the backup). Until then it runs the old code, and the ids in this thread are the old ones.\n\nResolve to accept; reply with what to change otherwise."
+			}
+		]
+	}
+]

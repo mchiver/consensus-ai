@@ -1,0 +1,208 @@
+[
+	{
+		"Id": "thr-tax-56o-mtb",
+		"Anchor": {
+			"Text": "Both post as the one llm participant.",
+			"Prefix": " contexts and implements plans. ",
+			"Suffix": " Each major task goes to the mod"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T03:31:08.080Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T03:32:07.616Z",
+			"Revision": 5,
+			"Outcome": "One llm participant for both, with the model chosen per task and named in each build log.",
+			"RevisionId": "rev-nc7-547-mj4"
+		},
+		"Created": "2026-09-26T03:16:08.542Z",
+		"Replies": [
+			{
+				"Id": "rep-zyy-9h6-iis",
+				"By": "llm",
+				"At": "2026-09-26T03:16:08.542Z",
+				"Text": "**Question:** Which participant is the agent? Today I post as the `llm` participant, the same one Send to LLM uses. A separate participant (for example `claude`, role `llm`) would show who built what, but every resolved thread would then wait on both LLM participants to apply it. I'd keep one `llm` participant, and let each build log say which model wrote it."
+			},
+			{
+				"Id": "rep-861-5ak-0j5",
+				"By": "user",
+				"At": "2026-09-26T03:22:09.979Z",
+				"Text": "Yes, as you say. the idea is to pick which model gets utilized for different major tasks. there is stuff that only a local LLM session can do and the rest can be delegated to a packed one-shot prompt."
+			},
+			{
+				"Id": "rep-vtt-nyf-ayb",
+				"By": "llm",
+				"At": "2026-09-26T03:29:49.128Z",
+				"Text": "Understood: one `llm` participant, and the model is chosen per task. Work that needs the codebase and tools (initializing a context, implementing a plan) goes to the local agent session; review, replies, applies and context upkeep can go to a packed one-shot prompt, for example an Ollama model.\n\nWhen you resolve this, I'll add to the plan: *Both post as the one `llm` participant. Each major task goes to the model that suits it, and each build log names the model that wrote it.*"
+			}
+		]
+	},
+	{
+		"Id": "thr-yw1-mtc-trr",
+		"Anchor": {
+			"Text": "the agent sets the plan's state to Working",
+			"Prefix": "g in Consensus. While building: ",
+			"Suffix": "; it sets Finished when it appli"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T03:31:39.704Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T03:32:07.638Z",
+			"Revision": 6,
+			"Outcome": "The local agent sets the plan's state; no rule in the server.",
+			"RevisionId": "rev-eo0-osh-fh9"
+		},
+		"Created": "2026-09-26T03:16:08.556Z",
+		"Replies": [
+			{
+				"Id": "rep-xva-ymq-zr6",
+				"By": "llm",
+				"At": "2026-09-26T03:16:08.556Z",
+				"Text": "**Question:** Who sets the state? Settled so far: a plan's state never depends on its threads, and anyone may set it. I'd have the agent set it explicitly: Working when it starts building, Finished when it applies the accepted build log. No automatic rule in the server."
+			},
+			{
+				"Id": "rep-gb8-pps-tps",
+				"By": "user",
+				"At": "2026-09-26T03:27:26.970Z",
+				"Text": "sure. i havent really decided yet but have the local agent set it."
+			},
+			{
+				"Id": "rep-14r-tmy-ilo",
+				"By": "llm",
+				"At": "2026-09-26T03:29:49.163Z",
+				"Text": "Understood: the local agent sets it, Working when it starts building and Finished when it applies the accepted build log. Since it is the agent's habit and not a rule in the server, it is easy to change once you decide.\n\nWhen you resolve this, I'll reword the item to: *While building: the agent sets the plan's state to Working; it sets Finished when it applies the accepted build log.*"
+			}
+		]
+	},
+	{
+		"Id": "thr-sbr-nzr-gu8",
+		"Anchor": {
+			"Text": "Accepting also commits the work",
+			"Prefix": "(outcome only, no text change). ",
+			"Suffix": ": one commit titled after the pl"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T03:24:49.282Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T03:29:49.069Z",
+			"Revision": 2,
+			"Outcome": "Resolved without an answer, so the recommendation went in: the work is committed when the owner accepts the build log.",
+			"RevisionId": "rev-1u6-hii-nqn"
+		},
+		"Created": "2026-09-26T03:16:08.572Z",
+		"Replies": [
+			{
+				"Id": "rep-0xg-1vr-rnj",
+				"By": "llm",
+				"At": "2026-09-26T03:16:08.572Z",
+				"Text": "**Question:** When is the work committed? I'd commit when the owner accepts: applying the build log also makes one commit whose message is the plan's title and a summary of the log (no attribution trailers). Until then the work stays uncommitted, so a send-back is fixed in place."
+			}
+		]
+	},
+	{
+		"Id": "thr-6rg-4t3-x7l",
+		"Anchor": {
+			"Text": "It posts nothing in Consensus.",
+			"Prefix": "e open, in the chat, and stops. ",
+			"Suffix": " While building: the plan's stat"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T03:26:09.690Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T03:29:49.090Z",
+			"Revision": 3,
+			"Outcome": "Resolved without an answer, so the recommendation went in: a plan that is not ready is reported in the chat only.",
+			"RevisionId": "rev-cvx-ysj-usk"
+		},
+		"Created": "2026-09-26T03:16:08.585Z",
+		"Replies": [
+			{
+				"Id": "rep-ux3-271-ex1",
+				"By": "llm",
+				"At": "2026-09-26T03:16:08.585Z",
+				"Text": "**Question:** How does the agent report a plan that is not ready? I'd answer in the chat, listing the open threads, and post nothing in Consensus. The threads themselves already show what is open."
+			}
+		]
+	},
+	{
+		"Id": "thr-o0p-dil-3ch",
+		"Anchor": {
+			"Text": "in each repo that uses Consensus, starting with this one",
+			"Prefix": ".guides/build-with-consensus.md ",
+			"Suffix": ": the loop above, for any agent "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T03:28:51.121Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T03:29:49.112Z",
+			"Revision": 4,
+			"Outcome": "Resolved without an answer, so the recommendation went in: a copy of the guide in each repo that uses Consensus.",
+			"RevisionId": "rev-3ef-mdm-ep7"
+		},
+		"Created": "2026-09-26T03:16:08.597Z",
+		"Replies": [
+			{
+				"Id": "rep-mul-mvp-h2r",
+				"By": "llm",
+				"At": "2026-09-26T03:16:08.597Z",
+				"Text": "**Question:** One guide per repo, or one shared place? A copy in each repo's `.guides` means every agent session finds it with the code (your CLAUDE.md already points agents at `.guides`). I'd put it in each repo that uses Consensus, starting with this one."
+			}
+		]
+	},
+	{
+		"Id": "thr-d6y-4h7-fen",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T03:35:50.530Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T03:36:15.773Z",
+			"Revision": 6,
+			"Outcome": "The owner accepted the build; it is committed.",
+			"RevisionId": "rev-eo0-osh-fh9"
+		},
+		"Created": "2026-09-26T03:34:41.188Z",
+		"Replies": [
+			{
+				"Id": "rep-oet-pnx-ewj",
+				"By": "llm",
+				"At": "2026-09-26T03:34:41.188Z",
+				"Text": "**Build log** (Claude Opus 5.5, in a Claude Code session)\n\nBuilt, uncommitted until you accept:\n\n- **`.guides/build-with-consensus.md`** (new): the guide for any agent session. Who does what; how to reach the API as the `llm` participant (port and token from `~data/consensus.json`, never printed, never editing `~data` by hand); the useful routes; how to take \"your turn\"; the build loop step by step (ready check in the chat only, Working, build log, and on acceptance: apply, commit titled after the plan with no trailers, Finished, context update; a send-back is fixed and reported on the same thread); starting a project from a codebase.\n- **One-shot rules** (`src/Llm.js`): a new rule that the one-shot LLM reviews, replies, applies and keeps the context, never builds, and says so in its reply when a thread asks it to. `test/Llm.test.js` checks it is in the prompt. The server was restarted, so Send to LLM uses it now.\n- **`readme.md`**: \"How the LLM takes part\" now names the two kinds of LLM and points to the guide.\n\nChecked: `npm test`, 119 of 119 pass.\n\nThe plan's state is Working. Resolve this to accept: I will apply it, commit, set Finished, and add the workflow to the project's context. Reply instead to send it back."
+			}
+		]
+	}
+]

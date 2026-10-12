@@ -1,0 +1,212 @@
+{
+	"Id": "prj-it2-sbq-gmm",
+	"Name": "Consensus",
+	"Context": "ctx-263-g6x-2oh",
+	"ContextFolder": "fld-vi6-61j-kzx",
+	"Created": "2026-10-12T16:22:34.882Z",
+	"Updated": "2026-10-12T16:22:34.882Z",
+	"Version": 1,
+	"Items": [
+		{
+			"Kind": "folder",
+			"Id": "fld-vi6-61j-kzx",
+			"Name": "Context",
+			"Items": [
+				{
+					"Kind": "document",
+					"Id": "ctx-263-g6x-2oh"
+				}
+			]
+		},
+		{
+			"Kind": "folder",
+			"Id": "fld-3ch-hu7-6ef",
+			"Name": "Drafts",
+			"Items": [
+				{
+					"Kind": "plan",
+					"Id": "pln-k21-qbe-0j9"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-3i5-rkg-220"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-vt0-0ku-dbo"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-qpl-z3r-wp6"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-hv9-t4n-45m"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-w8v-auz-wvr"
+				}
+			]
+		},
+		{
+			"Kind": "folder",
+			"Id": "fld-as3-b53-6an",
+			"Name": "Open",
+			"Items": []
+		},
+		{
+			"Kind": "folder",
+			"Id": "fld-7te-6rc-hpl",
+			"Name": "Finished",
+			"Items": [
+				{
+					"Kind": "plan",
+					"Id": "pln-rzh-6mz-9pm"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-pt4-edd-p85"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-4cm-mxx-mj2"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-4mb-xp9-4on"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-0n0-kth-f8o"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-9i9-i7u-u5t"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-2c2-dkt-ydx"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-k3f-zqv-6df"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-rrg-ziw-ofz"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-6k0-adf-bj2"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-1ah-dti-j4z",
+					"Items": [
+						{
+							"Kind": "plan",
+							"Id": "pln-0wm-ei7-22x"
+						}
+					]
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-uq7-2le-nse"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-ycu-f8q-1eh"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-9u8-cm1-g1q"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-br5-xas-ez7",
+					"Items": [
+						{
+							"Kind": "plan",
+							"Id": "pln-x5f-oyc-1g1"
+						}
+					]
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-ijf-krs-bx7"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-lmg-tko-mg5"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-aar-819-abl",
+					"Items": [
+						{
+							"Kind": "plan",
+							"Id": "pln-2s8-kwg-468"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-xkd-9wy-v7g"
+						}
+					]
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-t6t-thz-k4c"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-8dp-a53-opz",
+					"Items": [
+						{
+							"Kind": "plan",
+							"Id": "pln-poa-63c-2ft"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-cym-37j-n1h"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-fjy-j7m-ose"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-uxq-y57-uz9"
+						}
+					]
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-s4e-1nb-s6w"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-y0q-y38-7bb"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-fau-si5-vih"
+				}
+			]
+		}
+	],
+	"Archive": [],
+	"States": [
+		"Draft",
+		"Plan",
+		"Working",
+		"Finished"
+	],
+	"Include": [],
+	"Exclude": [
+		"~*/**",
+		"node_modules/**",
+		".git/**"
+	],
+	"Commands": []
+}

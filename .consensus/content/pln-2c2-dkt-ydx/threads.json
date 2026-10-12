@@ -1,0 +1,867 @@
+[
+	{
+		"Id": "thr-cda-526-ts6",
+		"Anchor": {
+			"Text": "Tabs: now its own plan, Tabs.",
+			"Prefix": "shows where it will land. Moved ",
+			"Suffix": ""
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:21:31.171Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:24:55.087Z",
+			"Revision": 11,
+			"Outcome": "Dropped Golden Layout: custom tabs, and resizing stays with the existing splitters.",
+			"RevisionId": "rev-y0v-5gm-i7z"
+		},
+		"Created": "2026-09-25T23:04:05.953Z",
+		"Replies": [
+			{
+				"Id": "rep-yfl-8li-1c7",
+				"By": "llm",
+				"At": "2026-09-25T23:04:05.953Z",
+				"Text": "Resizing already works: `layout.js` has splitters for the sidebar, threads and preview, and remembers their widths.\n\nGolden Layout would be a new dependency, and it builds its own DOM, which fights the AngularJS `ng-controller` / `ng-show` sections in `index.html`. The bigger cost is that the app holds one open item (`State.OpenId`); tabs mean Header, Read, Edit, Revisions and Threads all need to know which tab they serve, whatever library is used.\n\n**Question:** Is Golden Layout a firm choice, or is the goal just \"tabs, reorder, detach\"? A hand-made Bootstrap tab strip with drag-to-reorder, plus a \"pop out\" that opens `#/p/<id>` in a new browser window, would cover most of it without the dependency."
+			},
+			{
+				"Id": "rep-fib-0ex-gm0",
+				"By": "user",
+				"At": "2026-09-25T23:05:25.934Z",
+				"Text": "ok, drop Golden Layout and implement a custom tabs + detach mechanism."
+			},
+			{
+				"Id": "rep-yor-2wd-211",
+				"By": "llm",
+				"At": "2026-09-25T23:16:52.912Z",
+				"Text": "Understood: no Golden Layout. The tabs will be a small component I build myself: a tab strip above the document view (drag to reorder, × to close). Resizing stays with the existing splitters in `layout.js`.\n\nWhen you resolve this, I'll reword the item to: *Custom tabs in the central document view (no Golden Layout); resizing stays with the existing splitters.*"
+			}
+		]
+	},
+	{
+		"Id": "thr-96f-73e-yxo",
+		"Anchor": {
+			"Text": "Tabs: now its own plan, Tabs.",
+			"Prefix": "shows where it will land. Moved ",
+			"Suffix": ""
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:27:50.066Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:28:23.005Z",
+			"Revision": 15,
+			"Outcome": "Tabs for every content item, real detached windows with a Re-attach button, closing a detached window closes the item, and tabs last for the browser session.",
+			"RevisionId": "rev-7pj-ub7-ops"
+		},
+		"Created": "2026-09-25T23:04:06.007Z",
+		"Replies": [
+			{
+				"Id": "rep-oui-7ol-dme",
+				"By": "llm",
+				"At": "2026-09-25T23:04:06.007Z",
+				"Text": "This depends on the Golden Layout item.\n\n- **Question:** Does \"detach into a window\" mean a real browser window, or a floating panel inside the page? (Golden Layout popouts are real windows, each running its own copy of the app.)\n- **Question:** Which items open in tabs: plans only, or documents and zips too?\n- **Question:** Should open tabs survive a page reload?"
+			},
+			{
+				"Id": "rep-hqv-2uw-i3s",
+				"By": "user",
+				"At": "2026-09-25T23:07:42.061Z",
+				"Text": "- detached windows are real browser windows. and they can be re-attached/\n- all \"content\" items should be tabbed and detachable.\n- ideally yes, open tabs and windows should survive a pgae reload."
+			},
+			{
+				"Id": "rep-zmu-u96-fou",
+				"By": "llm",
+				"At": "2026-09-25T23:16:52.927Z",
+				"Text": "Got it: real browser windows; every content item (plans, documents, zips) is tabbed, detachable and re-attachable; tabs and windows survive a reload.\n\nHow I'd build it:\n- **Open tabs** and their order are kept per browser (localStorage), so a reload brings them back.\n- **Detach:** a button on the tab opens the item in a new window that shows only that item (no sidebar), plus a **Re-attach** button. The windows keep each other informed through `BroadcastChannel`, so the main window knows which items are out.\n- **Re-attach:** the button puts the tab back in the main window and closes the detached window.\n\nOne catch: browsers block opening windows during page load unless the user clicks something. Reloading the main window is fine, because the detached windows stay open on their own. But after a full browser restart, the main window can't reopen them automatically; it would show a one-click \"Reopen 2 detached windows\" bar instead.\n\n**Questions:**\n- Is that one-click reopen acceptable after a browser restart?\n- When a detached window is closed with the window's own ×, should its tab go back into the main window, or close?"
+			},
+			{
+				"Id": "rep-lw5-j9o-xtu",
+				"By": "user",
+				"At": "2026-09-25T23:23:50.433Z",
+				"Text": "- dont worry about saving state between browser sessions. just put open items in the main tab area.\n- it should just close."
+			},
+			{
+				"Id": "rep-s1n-7il-7m0",
+				"By": "llm",
+				"At": "2026-09-25T23:24:55.164Z",
+				"Text": "Got it:\n- Open tabs are kept for the browser session only (sessionStorage), so a page reload brings them back but a browser restart starts clean.\n- If the main window reloads while items are detached, those items stay in their own windows. If a detached window's session is gone, its item simply opens as a tab in the main tab area.\n- Closing a detached window with its own × just closes the item.\n\nWhen you resolve this, I'll reword the item to: *Every content item (plan, document, zip) opens in a tab. Tabs can be dragged to reorder, detached into their own browser window, and re-attached with a button in that window. Closing a detached window closes the item. Open tabs survive a page reload, not a browser restart.*"
+			}
+		]
+	},
+	{
+		"Id": "thr-lc1-7nm-xvd",
+		"Anchor": {
+			"Text": "Plans and documents get copy and rename icons in their tree row. Rename changes only the Title.",
+			"Prefix": "n the hovered and selected row. ",
+			"Suffix": " Ids become plain ids with no sl"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:08:33.045Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:16:52.857Z",
+			"Revision": 8,
+			"Outcome": "Merged into the copy and rename item, which now covers plans and documents; projects, folders and zips already have rename.",
+			"RevisionId": "rev-bkf-k6z-fzl"
+		},
+		"Created": "2026-09-25T23:04:06.019Z",
+		"Replies": [
+			{
+				"Id": "rep-5wz-h66-0vf",
+				"By": "llm",
+				"At": "2026-09-25T23:04:06.019Z",
+				"Text": "Mostly done already: projects, folders and zips each have a rename (✎) button. Plans and documents are the only items without one, and the \"copy and rename icons\" item covers that.\n\n**Suggestion:** Merge this into that item, or reword it to \"rename plans and documents\"."
+			}
+		]
+	},
+	{
+		"Id": "thr-tbs-rev-42j",
+		"Anchor": {
+			"Text": "Plan Header: keep Read/Edit/Revisions on the first line with the title; move the buttons after them (Comment on the whole document, Send to LLM, Delete) to a new line, pulled to the right.",
+			"Prefix": "order and detach into a window. ",
+			"Suffix": " Plans and documents should have"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:09:29.150Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:16:52.877Z",
+			"Revision": 9,
+			"Outcome": "Fixed \"pilled\" to \"pulled\" and spelled out which buttons move: Read/Edit/Revisions stay with the title; Comment on the whole document, Send to LLM and Delete go to a new line on the right.",
+			"RevisionId": "rev-96c-lc1-sxd"
+		},
+		"Created": "2026-09-25T23:04:06.029Z",
+		"Replies": [
+			{
+				"Id": "rep-98f-r3r-0cf",
+				"By": "llm",
+				"At": "2026-09-25T23:04:06.029Z",
+				"Text": "Easy. I read \"pilled\" as \"pulled\"; is that right?\n\n**Question:** Do all of these move to the second line: \"Comment on the whole document\", \"Send to LLM\" and Delete? And does the Read/Edit/Revisions group stay on the first line with the title?"
+			}
+		]
+	},
+	{
+		"Id": "thr-imx-6n6-1gf",
+		"Anchor": {
+			"Text": "Plans and documents get copy and rename icons in their tree row. Rename changes only the Title.",
+			"Prefix": "n the hovered and selected row. ",
+			"Suffix": " Ids become plain ids with no sl"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:26:47.513Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:28:23.035Z",
+			"Revision": 16,
+			"Outcome": "Icons in the tree row; ids lose their slug, so rename only changes the Title. The two open questions were resolved without an answer, so the recommendations went in: kind letter + 8 hex ids, and a one-time migrate-ids command.",
+			"RevisionId": "rev-28i-uaz-b4o"
+		},
+		"Created": "2026-09-25T23:04:06.043Z",
+		"Replies": [
+			{
+				"Id": "rep-jmk-fe2-rbj",
+				"By": "llm",
+				"At": "2026-09-25T23:04:06.043Z",
+				"Text": "Typo: \"isons\" → \"icons\".\n\nPlans already have a copy icon in the tree (it shows on hover); rename is the missing part.\n\n- **Question:** Where should the icons go: the tree row, the plan header, or both? The header is the natural home for rename, as zips already have Rename there.\n- **Question:** Does rename only change the Title, or the Id / folder name too? The Id carries a slug of the title (`consensus-ui-tweaks-07cf1e`). I would change only the Title so links and history stay valid."
+			},
+			{
+				"Id": "rep-qwu-5vb-zdh",
+				"By": "user",
+				"At": "2026-09-25T23:11:25.549Z",
+				"Text": "- icons go in the tree row\n- rename changes the Title and the Id / folder name"
+			},
+			{
+				"Id": "rep-ff1-nmi-x29",
+				"By": "llm",
+				"At": "2026-09-25T23:16:52.941Z",
+				"Text": "Understood: the icons go in the tree row, and rename changes the Title and the Id / folder name. (I merged the \"rename Projects and Project Items\" item into this one, so it now reads \"Plans and documents\".)\n\nChanging the Id means rewriting everything that points at it: the folder under `~data/proposals`, the entry in the project's tree, the search index (`index.json` chunks and vectors), and open tabs and links (`#/p/<old-id>`).\n\n**Questions:**\n- Should the Id keep its random suffix and only change the slug (`consensus-ui-tweaks-07cf1e` → `new-title-07cf1e`)? That keeps Ids unique without collision checks.\n- Is it fine for old links to simply stop working? I'd rather not keep a redirect table unless you want one."
+			},
+			{
+				"Id": "rep-tmy-jiz-jsv",
+				"By": "user",
+				"At": "2026-09-25T23:19:54.148Z",
+				"Text": "change all slugs to just be ids, including existing ones"
+			},
+			{
+				"Id": "rep-yl5-z4p-vxn",
+				"By": "llm",
+				"At": "2026-09-25T23:24:55.177Z",
+				"Text": "Understood: Ids become plain ids with no slug, for new and existing items. That also makes rename simple: it only changes the Title (or Name), since the Id no longer depends on it.\n\nExisting ids need a one-time migration: rename the folders under `~data/proposals`, `~data/corpora`, `~data/projects` and `~data/trash`, and rewrite every reference to them: project trees, `proposal.json`, revisions, the search index chunks and vectors. Old links stop working.\n\n**Questions:**\n- **Id format:** I'd follow the pattern folders and threads already use: a kind letter plus 8 hex digits. `p…` for plans and documents, `z…` for zips, `j…` for projects (the Default project keeps `default`). OK?\n- **Migration:** a command you run once (`node bin/consensus.js migrate-ids`) that first copies `~data` to a backup folder, or should the server do it automatically at start? I'd go with the command."
+			}
+		]
+	},
+	{
+		"Id": "thr-1pb-qs1-0qu",
+		"Anchor": {
+			"Text": "Everything reorders by drag and drop: projects, and folders, plans, documents and zips within and across folders.",
+			"Prefix": " stop working. Next: reordering ",
+			"Suffix": " Each project's ~data/projects/<"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:27:20.146Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:28:23.057Z",
+			"Revision": 17,
+			"Outcome": "Everything reorders; per-project tree files plus a master projects.json for project names and order.",
+			"RevisionId": "rev-vbj-rln-uf2"
+		},
+		"Created": "2026-09-25T23:04:06.058Z",
+		"Replies": [
+			{
+				"Id": "rep-0b5-j5m-jox",
+				"By": "llm",
+				"At": "2026-09-25T23:04:06.058Z",
+				"Text": "Drag and drop today only moves an item *into* a folder or the project root. The move API (`/items/:id/move`) takes a parent but no position, so reordering needs a \"before/after\" position there plus drop zones between rows.\n\n**Question:** Does this mean reordering folders inside a project, reordering the projects themselves, or both? Should plans and documents be reorderable too, or only folders?"
+			},
+			{
+				"Id": "rep-3qb-j22-0ff",
+				"By": "user",
+				"At": "2026-09-25T23:12:40.267Z",
+				"Text": "everything should be reorder-able. makes me think we should store the presentation state in its own json file with links to the content folders."
+			},
+			{
+				"Id": "rep-csr-zzf-moq",
+				"By": "llm",
+				"At": "2026-09-25T23:16:52.954Z",
+				"Text": "Agreed: everything reorders: projects, folders, plans, documents and zips.\n\nMost of that presentation file already exists. Each project's tree lives in `~data/projects/<id>/project.json` (folders, their order, and links to content ids), separate from the content folders under `~data/proposals` and `~data/corpora`. What's missing:\n- a position in the move API (drop before or after a row, not only into a folder), and\n- an order for the projects themselves. Today they are sorted by name, with Default first.\n\n**Question:** For the project order, is a small `~data/projects.json` (just the ordered list of project ids) what you had in mind? Or do you want all the tree state gathered into one file, replacing the per-project `project.json` trees?"
+			},
+			{
+				"Id": "rep-wu7-629-web",
+				"By": "user",
+				"At": "2026-09-25T23:21:18.187Z",
+				"Text": "the json file should be per project and you would have another master json file carrying the different project names and order."
+			},
+			{
+				"Id": "rep-c9o-njq-p0o",
+				"By": "llm",
+				"At": "2026-09-25T23:24:55.190Z",
+				"Text": "Clear:\n- Each project keeps its own `~data/projects/<id>/project.json`, holding just its tree: folders, items and their order.\n- A new master file, `~data/projects.json`, holds the list of projects in display order, each with its Id and Name. Name moves out of `project.json` so it lives in one place.\n- Everything reorders by drag and drop: projects in the master file, and folders, plans, documents and zips within and across folders.\n\nWhen you resolve this, I'll reword the item to say so."
+			}
+		]
+	},
+	{
+		"Id": "thr-rgl-1tz-paa",
+		"Anchor": {
+			"Text": "show/hide button for the threads, remembered per browser.",
+			"Prefix": " new line, pulled to the right. ",
+			"Suffix": " show/hide button for the markdo"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:18:00.195Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:24:55.109Z",
+			"Revision": 12,
+			"Outcome": "The threads toggle is remembered per browser. The open question about remembering Read / Edit / Revisions was left out; it can come back with the tabs proposal.",
+			"RevisionId": "rev-ln7-2xy-v6z"
+		},
+		"Created": "2026-09-25T23:04:06.073Z",
+		"Replies": [
+			{
+				"Id": "rep-4gf-qaa-a4f",
+				"By": "llm",
+				"At": "2026-09-25T23:04:06.073Z",
+				"Text": "Easy: there is already a `no-threads` layout class to reuse.\n\n**Question:** Should the choice be remembered per browser, like the splitter widths?"
+			},
+			{
+				"Id": "rep-7ij-fbc-pz1",
+				"By": "user",
+				"At": "2026-09-25T23:13:18.612Z",
+				"Text": "yeah, go ahead and remember the view state too"
+			},
+			{
+				"Id": "rep-nl4-76g-cyg",
+				"By": "llm",
+				"At": "2026-09-25T23:16:52.967Z",
+				"Text": "Will do: the threads show/hide choice is remembered per browser, next to the splitter widths.\n\n**Question:** I'm reading \"view state\" as the shown/hidden state of the panes. Did you also mean the Read / Edit / Revisions choice? If so, I'd remember it per tab once tabs exist."
+			}
+		]
+	},
+	{
+		"Id": "thr-ige-n2k-co0",
+		"Anchor": {
+			"Text": "show/hide button for the markdown preview while editing, remembered per browser.",
+			"Prefix": "hreads, remembered per browser. ",
+			"Suffix": " the indentation of child nodes "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:18:07.211Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:24:55.132Z",
+			"Revision": 13,
+			"Outcome": "The preview toggle is remembered per browser.",
+			"RevisionId": "rev-wbx-h02-ybj"
+		},
+		"Created": "2026-09-25T23:04:06.085Z",
+		"Replies": [
+			{
+				"Id": "rep-hjj-w0b-a49",
+				"By": "llm",
+				"At": "2026-09-25T23:04:06.085Z",
+				"Text": "Easy: same pattern as the threads toggle, placed in the edit bar. Same question about remembering the choice per browser."
+			},
+			{
+				"Id": "rep-tjd-sug-kry",
+				"By": "user",
+				"At": "2026-09-25T23:13:36.005Z",
+				"Text": "remember this too"
+			},
+			{
+				"Id": "rep-z52-vh6-ntv",
+				"By": "llm",
+				"At": "2026-09-25T23:16:52.979Z",
+				"Text": "Will do: the preview show/hide choice is remembered per browser, the same way as the threads toggle."
+			}
+		]
+	},
+	{
+		"Id": "thr-c9n-gan-p4z",
+		"Anchor": {
+			"Text": "Project tree in the VS Code explorer style: about 16px of indent per level, a thin guide line for each level, chevrons on folders, folder and file icons, and a full-width highlight on the hovered and selected row.",
+			"Prefix": "diting, remembered per browser. ",
+			"Suffix": " Plans and documents should have"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:18:18.987Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:24:55.152Z",
+			"Revision": 14,
+			"Outcome": "Spelled out the VS Code explorer look for the tree.",
+			"RevisionId": "rev-tsc-09a-qkl"
+		},
+		"Created": "2026-09-25T23:04:06.101Z",
+		"Replies": [
+			{
+				"Id": "rep-g6b-24o-icr",
+				"By": "llm",
+				"At": "2026-09-25T23:04:06.101Z",
+				"Text": "Easy. Child folders now get `margin-left: 1.1rem` and a dotted left border (`.folder-body` in `consensus.css`). The fix would be a wider indent, a solid guide line, and possibly connector ticks and folder icons.\n\n**Question:** Do you have a look in mind, such as VS Code's explorer, or should I propose one?"
+			},
+			{
+				"Id": "rep-eu0-hcl-wqc",
+				"By": "user",
+				"At": "2026-09-25T23:14:35.244Z",
+				"Text": "the vscode look would work"
+			},
+			{
+				"Id": "rep-v7e-1hd-892",
+				"By": "llm",
+				"At": "2026-09-25T23:16:52.994Z",
+				"Text": "VS Code look it is: about 16px of indent per level, a thin vertical guide line for each level, chevrons on folders, folder and file icons, and a full-width highlight for the hovered and selected row.\n\nWhen you resolve this, I'll reword the item to say so."
+			}
+		]
+	},
+	{
+		"Id": "thr-vma-q3p-zmv",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:14:56.636Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:16:52.899Z",
+			"Revision": 10,
+			"Outcome": "Grouped the items in the suggested order: small items first, then reordering, then tabs, which will become its own proposal.",
+			"RevisionId": "rev-azs-kpt-twn"
+		},
+		"Created": "2026-09-25T23:04:06.146Z",
+		"Replies": [
+			{
+				"Id": "rep-tns-4k5-r0e",
+				"By": "llm",
+				"At": "2026-09-25T23:04:06.146Z",
+				"Text": "**Suggested order:** the small items first (header layout, the two show/hide toggles, tree indentation, plan rename), then drag-drop reordering, and move tabs / Golden Layout into a separate proposal. Tabs change the app's one-open-item model and deserve their own discussion."
+			}
+		]
+	},
+	{
+		"Id": "thr-gtv-rct-2xn",
+		"Anchor": {
+			"Text": "Threads can be deleted by the owner (× on the thread, with a confirm). Revisions that applied a deleted thread keep their text and show \"(deleted thread)\".",
+			"Prefix": "diting, remembered per browser. ",
+			"Suffix": " Project tree in the VS Code exp"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:33:02.648Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:33:24.709Z",
+			"Revision": 18,
+			"Outcome": "Added to the small items. The questions were resolved without an answer, so the recommendations went in: owner only, any thread, plain delete after a confirm.",
+			"RevisionId": "rev-wwe-l02-zd6"
+		},
+		"Created": "2026-09-25T23:30:10.013Z",
+		"Replies": [
+			{
+				"Id": "rep-dkg-dyu-ydg",
+				"By": "user",
+				"At": "2026-09-25T23:30:10.013Z",
+				"Text": "Threads should be deletable."
+			},
+			{
+				"Id": "rep-4k0-yg9-zmu",
+				"By": "llm",
+				"At": "2026-09-25T23:30:54.734Z",
+				"Text": "Agreed: there is no way to delete a thread today. I'll add it to \"First: small items\" once we settle these:\n\n**Questions:**\n- **Who can delete:** only the owner (you), the same as resolving? Or also whoever started the thread? I'd make it owner only.\n- **Which threads:** any thread, or only contested ones? An applied thread is referenced by the revision it produced: the Revisions view shows which thread each revision applied. I'd allow deleting any thread; the revision keeps its text and reason, and just shows \"(deleted thread)\".\n- **Delete or trash:** gone for good after a confirm, or into a trash you can restore from, like proposals? I'd go with a plain delete after a confirm; it's simpler.\n\nDeleting also drops the thread from the search index, so it stops showing up in search.\n\nProposed item: *Threads can be deleted by the owner (× on the thread, with a confirm). Revisions that applied a deleted thread keep their text and show \"(deleted thread)\".*"
+			}
+		]
+	},
+	{
+		"Id": "thr-n34-g40-k71",
+		"Anchor": {
+			"Text": "Every row is one line",
+			"Prefix": "n the hovered and selected row. ",
+			"Suffix": ": a plan's state and count badge"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:37:10.296Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:43:23.675Z",
+			"Revision": 20,
+			"Outcome": "Resolved without an answer; went with one-line rows to match the VS Code look, badges at the right end.",
+			"RevisionId": "rev-zrh-4ka-uam"
+		},
+		"Created": "2026-09-25T23:36:17.349Z",
+		"Replies": [
+			{
+				"Id": "rep-70c-vdr-huj",
+				"By": "llm",
+				"At": "2026-09-25T23:36:17.349Z",
+				"Text": "**Question:** Each plan in the tree is two lines today: the title, with the state and count badges underneath. VS Code rows are one line. Should the badges move onto the title line, or should plans keep two lines?"
+			}
+		]
+	},
+	{
+		"Id": "thr-lrd-7jp-tu1",
+		"Anchor": {
+			"Text": "Icons are plain Unicode or small inline SVGs",
+			"Prefix": "n the hovered and selected row. ",
+			"Suffix": ", no icon library, with distinct"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:37:38.319Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:43:23.652Z",
+			"Revision": 19,
+			"Outcome": "Resolved without an answer, so the recommendation went in: Unicode or inline SVG icons, no new dependency.",
+			"RevisionId": "rev-7bn-5bi-whr"
+		},
+		"Created": "2026-09-25T23:36:17.379Z",
+		"Replies": [
+			{
+				"Id": "rep-3xc-g1d-ajw",
+				"By": "llm",
+				"At": "2026-09-25T23:36:17.379Z",
+				"Text": "**Question:** Where do the icons come from? Today they are emoji. An icon set like Bootstrap Icons would be a new dependency. I'd use plain Unicode characters or small inline SVGs, with a distinct icon for plans, documents, zips and folders. OK?"
+			}
+		]
+	},
+	{
+		"Id": "thr-tu0-prh-m07",
+		"Anchor": {
+			"Text": "The button sits in the header, so it stays reachable while the threads pane is hidden.",
+			"Prefix": "hreads, remembered per browser. ",
+			"Suffix": " show/hide button for the markdo"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:36:39.640Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:43:23.700Z",
+			"Revision": 21,
+			"Outcome": "The threads toggle lives in the header.",
+			"RevisionId": "rev-ode-piv-er8"
+		},
+		"Created": "2026-09-25T23:36:17.395Z",
+		"Replies": [
+			{
+				"Id": "rep-gmh-toj-yq5",
+				"By": "llm",
+				"At": "2026-09-25T23:36:17.395Z",
+				"Text": "Unless you say otherwise: the button sits in the header, so it stays reachable while the threads pane is hidden."
+			}
+		]
+	},
+	{
+		"Id": "thr-f7o-wz6-xh5",
+		"Anchor": {
+			"Text": "sits on the thread's first line",
+			"Prefix": " show \"(deleted thread)\". The × ",
+			"Suffix": ", next to the author and time, w"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:36:46.960Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:43:23.721Z",
+			"Revision": 22,
+			"Outcome": "The delete × and its inline confirm are placed.",
+			"RevisionId": "rev-nj0-yi2-01s"
+		},
+		"Created": "2026-09-25T23:36:17.409Z",
+		"Replies": [
+			{
+				"Id": "rep-yfa-jt5-uid",
+				"By": "llm",
+				"At": "2026-09-25T23:36:17.409Z",
+				"Text": "Unless you say otherwise: the × sits on the thread's first line, next to the author and time, and the confirm is inline (\"delete? Yes / No\"), like the tree's delete."
+			}
+		]
+	},
+	{
+		"Id": "thr-szh-4iz-tkj",
+		"Anchor": {
+			"Text": "which copies ~data to ~data-backup-<timestamp> first",
+			"Prefix": "e bin/consensus.js migrate-ids, ",
+			"Suffix": ". Old links stop working. Next: "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:37:50.440Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:43:23.745Z",
+			"Revision": 23,
+			"Outcome": "The backup folder is named.",
+			"RevisionId": "rev-8tz-0xt-dhk"
+		},
+		"Created": "2026-09-25T23:36:17.424Z",
+		"Replies": [
+			{
+				"Id": "rep-tg6-r3q-72l",
+				"By": "llm",
+				"At": "2026-09-25T23:36:17.424Z",
+				"Text": "Unless you say otherwise: the backup goes to `~data-backup-<timestamp>` next to `~data`, which the tilde already keeps out of source control."
+			}
+		]
+	},
+	{
+		"Id": "thr-zs5-nvt-8au",
+		"Anchor": {
+			"Text": "The same command moves each project's Name",
+			"Prefix": " Rename changes only the Title. ",
+			"Suffix": " out of its project.json into th"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:38:17.247Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:43:23.766Z",
+			"Revision": 24,
+			"Outcome": "Resolved without an answer, so the recommendation went in: migrate-ids also moves project Names into the master file, and the two are built together.",
+			"RevisionId": "rev-rrx-64g-ino"
+		},
+		"Created": "2026-09-25T23:36:17.439Z",
+		"Replies": [
+			{
+				"Id": "rep-klt-77o-a69",
+				"By": "llm",
+				"At": "2026-09-25T23:36:17.439Z",
+				"Text": "The text doesn't say what moves each existing project's Name out of its `project.json` into the new master `projects.json`. I'd have the one-time `migrate-ids` command do it, since it rewrites every project file anyway.\n\nThat also sets the build order: the id migration and the master projects file go together, before the rest of reordering.\n\n**Question:** OK to fold this into `migrate-ids` and build them together?"
+			}
+		]
+	},
+	{
+		"Id": "thr-eqc-m59-zrb",
+		"Anchor": {
+			"Text": "Dropping on the top or bottom edge of a row",
+			"Prefix": "fter a row), not only a parent. ",
+			"Suffix": " places the item before or after"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:38:26.520Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:43:23.789Z",
+			"Revision": 25,
+			"Outcome": "VS Code style drop zones.",
+			"RevisionId": "rev-72u-rmi-t4r"
+		},
+		"Created": "2026-09-25T23:36:17.455Z",
+		"Replies": [
+			{
+				"Id": "rep-y1i-tg4-2x4",
+				"By": "llm",
+				"At": "2026-09-25T23:36:17.455Z",
+				"Text": "Unless you say otherwise, the drop zones work like VS Code: dropping on the top or bottom edge of a row places the item before or after it, and dropping on the middle of a folder moves it inside. A line or highlight shows where it will land."
+			}
+		]
+	},
+	{
+		"Id": "thr-9vg-2sw-i4x",
+		"Anchor": {
+			"Text": "Tabs: now its own plan, Tabs.",
+			"Prefix": "shows where it will land. Moved ",
+			"Suffix": ""
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T04:16:15.944Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T04:17:27.879Z",
+			"Revision": 31,
+			"Outcome": "The tabs section moved to its own plan, Tabs.",
+			"RevisionId": "rev-m6q-mhr-c49"
+		},
+		"Created": "2026-09-25T23:36:17.469Z",
+		"Replies": [
+			{
+				"Id": "rep-h3h-la9-cvu",
+				"By": "llm",
+				"At": "2026-09-25T23:36:17.469Z",
+				"Text": "**Question:** Scope: should I leave tabs out of this build and move this section into its own proposal? Everything else here stands without tabs."
+			},
+			{
+				"Id": "rep-lbb-yw7-ovo",
+				"By": "user",
+				"At": "2026-09-26T04:14:21.721Z",
+				"Text": "lets make this proposal."
+			},
+			{
+				"Id": "rep-kjq-yuh-dpf",
+				"By": "llm",
+				"At": "2026-09-26T04:15:31.718Z",
+				"Text": "Done: the tabs work is now its own plan, **Tabs** (`#/p/pln-k3f-zqv-6df`), in the Open folder. I brought it up to date with what was built since: contexts open in tabs too, and each kind's header is listed as the page has it now. It has one question, on whether each tab remembers its own view.\n\nWhen you resolve this, I'll replace this section here with one line pointing to Tabs."
+			}
+		]
+	},
+	{
+		"Id": "thr-dzj-wg0-czy",
+		"Anchor": {
+			"Text": "Tabs: now its own plan, Tabs.",
+			"Prefix": "shows where it will land. Moved ",
+			"Suffix": ""
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:44:06.942Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:44:34.579Z",
+			"Revision": 30,
+			"Outcome": "Waiting, Search and the start page open in tabs; each item kind has its own header. The four follow-up questions were resolved without an answer, so the recommendations went in.",
+			"RevisionId": "rev-0lv-w6k-04f"
+		},
+		"Created": "2026-09-25T23:36:17.489Z",
+		"Replies": [
+			{
+				"Id": "rep-gt1-cgt-in4",
+				"By": "llm",
+				"At": "2026-09-25T23:36:17.489Z",
+				"Text": "**Questions:**\n- \"Waiting on you\", Search and the empty start page are not content items. Do they open as tabs, or replace the tab area?\n- Does the header (title, state, Read / Edit / Revisions) belong to each tab, and does each tab remember its own view?"
+			},
+			{
+				"Id": "rep-o1a-jry-agf",
+				"By": "user",
+				"At": "2026-09-25T23:41:17.726Z",
+				"Text": "- show them in new tabs\n- the Plan item header should only show for Plans. the other Item kinds may have their own header requirements and would show for them"
+			},
+			{
+				"Id": "rep-brg-yxd-5ff",
+				"By": "llm",
+				"At": "2026-09-25T23:43:23.866Z",
+				"Text": "Got it: Waiting on you, Search and the start page open in tabs, and each item kind has its own header. The plan header (state, Read / Edit / Revisions, Comment on the whole, Send to LLM) shows only for plans.\n\n**Questions:**\n- **Documents:** I'd give them a header with the title, Read / Edit / Revisions and Delete (no state, no threads buttons), which is what they show today. OK?\n- **Zips:** they keep the header they have now (name, file count, Rename, Replace, Delete). OK?\n- **Waiting and Search:** one tab each, reused (a new search replaces the Search tab's results), rather than a new tab per search. OK?\n- **Start page:** I'd show it only when no tabs are open, rather than as a tab of its own. OK?"
+			}
+		]
+	},
+	{
+		"Id": "thr-a5j-rtz-rhw",
+		"Anchor": {
+			"Text": "Tabs: now its own plan, Tabs.",
+			"Prefix": "shows where it will land. Moved ",
+			"Suffix": ""
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:41:39.006Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:43:23.832Z",
+			"Revision": 27,
+			"Outcome": "Resolved without an answer, so the recommendation went in: one tab per item.",
+			"RevisionId": "rev-l2e-t2q-ywy"
+		},
+		"Created": "2026-09-25T23:36:17.505Z",
+		"Replies": [
+			{
+				"Id": "rep-ed9-tk3-m3b",
+				"By": "llm",
+				"At": "2026-09-25T23:36:17.505Z",
+				"Text": "**Question:** When you click an item in the sidebar that is already open, should it switch to its tab (and bring its detached window forward) rather than open a second tab? I'd say yes: one tab per item."
+			}
+		]
+	},
+	{
+		"Id": "thr-gre-86f-t2i",
+		"Anchor": {
+			"Text": "Tabs: now its own plan, Tabs.",
+			"Prefix": "shows where it will land. Moved ",
+			"Suffix": ""
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-25T23:42:25.206Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-25T23:43:23.854Z",
+			"Revision": 28,
+			"Outcome": "Resolved without an answer, so the recommendation went in: Re-attach with no main window makes the detached window the main one.",
+			"RevisionId": "rev-ian-x4d-cjw"
+		},
+		"Created": "2026-09-25T23:36:17.525Z",
+		"Replies": [
+			{
+				"Id": "rep-6er-5j4-piq",
+				"By": "llm",
+				"At": "2026-09-25T23:36:17.525Z",
+				"Text": "**Question:** What does Re-attach do if the main window has been closed? I'd have it turn the detached window into the main window: the sidebar appears and the item becomes its first tab."
+			}
+		]
+	},
+	{
+		"Id": "thr-5nb-i95-8p1",
+		"Anchor": {
+			"Text": "Reordering (built in 873ee34)",
+			"Prefix": " before the rest of reordering. ",
+			"Suffix": " Everything reorders by drag and"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T04:16:02.776Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T04:17:27.903Z",
+			"Revision": 32,
+			"Outcome": "Both built sections moved under Done, with the commit that built them.",
+			"RevisionId": "rev-0qo-gmp-l9e"
+		},
+		"Created": "2026-09-26T04:13:47.130Z",
+		"Replies": [
+			{
+				"Id": "rep-czr-0h8-fl8",
+				"By": "user",
+				"At": "2026-09-26T04:13:47.130Z",
+				"Text": "I believe this has already been completed. If it has been completed, then say so."
+			},
+			{
+				"Id": "rep-2fc-oe9-v1l",
+				"By": "llm",
+				"At": "2026-09-26T04:15:31.734Z",
+				"Text": "Yes, it is completed: everything in \"Next: reordering\" was built and committed in `873ee34`, with tests. Projects, folders, plans, documents and zips reorder by drag and drop; each project.json holds just its tree; `~data/projects.json` holds the names and order; the move API takes a Before position; and the drop line or outline shows where an item lands.\n\n\"First: small items\" is completed too, in the same commit. When you resolve this, I'll move both sections under **Done**."
+			}
+		]
+	}
+]

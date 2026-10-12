@@ -1,0 +1,384 @@
+[
+	{
+		"Id": "thr-814-qi3-qig",
+		"Anchor": {
+			"Text": "Consensus calls the LLM at once",
+			"Prefix": "orks this out for /api/waiting. ",
+			"Suffix": ", one call for everything waitin"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-24T08:42:59.979Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-24T08:59:20.560Z",
+			"Revision": 4,
+			"Outcome": "No quiet period: the call starts the moment Send to LLM is pressed. Step 2 and QuietSeconds are removed.",
+			"RevisionId": "rev-711-zu1-zvp"
+		},
+		"Created": "2026-09-24T07:59:22.478Z",
+		"Replies": [
+			{
+				"Id": "rep-g2g-970-0w4",
+				"By": "user",
+				"At": "2026-09-24T07:59:22.478Z",
+				"Text": "No. Consensus should invoke the LLM instantly."
+			},
+			{
+				"Id": "rep-9do-ua5-016",
+				"By": "llm",
+				"At": "2026-09-24T08:18:54.078Z",
+				"Text": "Instantly, then: no quiet period. The call starts the moment a thread starts waiting on the LLM.\n\nOne thing stays: only one call runs at a time for a proposal. If you comment again while a call is still running, that comment is picked up by a second call as soon as the first ends. Two calls writing the same text at once would refuse each other with a stale revision.\n\nOutcome: step 2 and `QuietSeconds` go; step 3 starts at once, one call per proposal at a time."
+			}
+		]
+	},
+	{
+		"Id": "thr-w2o-ec4-t81",
+		"Anchor": {
+			"Text": "The LLM answers with one JSON object.",
+			"Prefix": "and apply each resolved thread. ",
+			"Suffix": " For each waiting thread, a repl"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-24T08:44:40.418Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-24T08:59:20.583Z",
+			"Revision": 5,
+			"Outcome": "No tools. The prompt carries the text, every thread and search results for each waiting thread; the LLM answers with one JSON object of replies and applies, which Consensus checks and carries out as the llm participant.",
+			"RevisionId": "rev-329-jpw-q2e"
+		},
+		"Created": "2026-09-24T08:08:43.130Z",
+		"Replies": [
+			{
+				"Id": "rep-6cn-oz9-bbo",
+				"By": "user",
+				"At": "2026-09-24T08:08:43.130Z",
+				"Text": "If we already sending the latest revision of the proposal and the entire contested threads in the prompt, what good are the tools? I suppose the LLM may wish to retrieve different revisions or read non-contested threads. is this tools worth it?"
+			},
+			{
+				"Id": "rep-7du-rnw-lru",
+				"By": "llm",
+				"At": "2026-09-24T08:18:54.108Z",
+				"Text": "Fair question, and I think the answer is no: the tools are not worth it.\n\nWhat a call needs to *read* can be put in the prompt: the text, all the threads (not just the contested ones), and the top search results for each waiting thread, which Consensus can run itself. Older revisions are rarely needed; when one is, the LLM can say so in its reply.\n\nWhat a call needs to *do* is only two things, reply and apply. Instead of tools, the LLM answers with one JSON object: for each thread, either a reply `{ Thread, Reply }` or an apply `{ Thread, Outcome, Text? }`, or nothing. Consensus checks it and makes the calls itself, with the same rules as now.\n\nThat drops the MCP server entirely. It also works the same with any model, including small Ollama models that are weak at calling tools but can follow a JSON format (Ollama can even enforce one).\n\nThe cost: the LLM gets one look and cannot go looking for more. For discussing one proposal I think that is enough.\n\nOutcome: no tools; the prompt carries everything, the answer is one JSON object, Consensus carries it out."
+			}
+		]
+	},
+	{
+		"Id": "thr-ep0-oou-bg1",
+		"Anchor": {
+			"Text": "ollama: a model served by Ollama",
+			"Prefix": "tion: no key, no separate bill. ",
+			"Suffix": ", with Url and Model, the same s"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-24T08:47:36.994Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-24T08:59:20.638Z",
+			"Revision": 7,
+			"Outcome": "Ollama is the second kind: Url and Model, like the Embedding setting, held to the JSON answer by Ollama's format; a check for writing a faithful whole text with a local model is added to Measure first.",
+			"RevisionId": "rev-8zb-35u-rt0"
+		},
+		"Created": "2026-09-24T08:10:16.769Z",
+		"Replies": [
+			{
+				"Id": "rep-kyr-ogb-i3v",
+				"By": "user",
+				"At": "2026-09-24T08:10:16.769Z",
+				"Text": "include support for Ollama connections."
+			},
+			{
+				"Id": "rep-la6-mlg-na5",
+				"By": "llm",
+				"At": "2026-09-24T08:18:54.121Z",
+				"Text": "Yes. A `Kind: \"ollama\"` with `Url` and `Model`, the same shape as the `Embedding` setting. With the JSON answer (see the thread on tools) Ollama can be held to the format.\n\nOne thing to measure: writing a faithful new whole text for an apply is the hardest part for a small local model. I would add that to Measure first: try one apply with the model you intend to use.\n\nOutcome: Ollama is one of the two kinds."
+			}
+		]
+	},
+	{
+		"Id": "thr-bfo-rqh-blf",
+		"Anchor": {
+			"Text": "claude-cli: Claude Code in headless mode",
+			"Prefix": "e-cli\", \"Command\": \"claude\" } } ",
+			"Suffix": " (claude -p), with every tool tu"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-24T08:48:12.898Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-24T08:59:20.611Z",
+			"Revision": 6,
+			"Outcome": "No direct Claude API: the kinds are claude-cli and ollama, sharing one prompt and one answer format.",
+			"RevisionId": "rev-7l7-u1u-4lz"
+		},
+		"Created": "2026-09-24T08:11:35.994Z",
+		"Replies": [
+			{
+				"Id": "rep-tmx-kk2-3ts",
+				"By": "user",
+				"At": "2026-09-24T08:11:35.994Z",
+				"Text": "no. i dont want to be tied that closely to any one provider. Do Ollama connections and the Claude CLI invocation."
+			},
+			{
+				"Id": "rep-s5r-f9d-ogq",
+				"By": "llm",
+				"At": "2026-09-24T08:18:54.136Z",
+				"Text": "Agreed: no direct API. Two kinds: `claude-cli` (runs `claude -p`) and `ollama`. The prompt and the JSON answer are the same for both, so a third kind later is one small adapter and nothing else.\n\nOutcome: the API kind is dropped; claude-cli and ollama remain."
+			}
+		]
+	},
+	{
+		"Id": "thr-e40-svt-wym",
+		"Anchor": {
+			"Text": "Only the button starts a call.",
+			"Prefix": "on is refused with 409, as now. ",
+			"Suffix": " Replies, resolves, saved batche"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-24T08:49:35.410Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-24T08:59:20.662Z",
+			"Revision": 8,
+			"Outcome": "Only the Send to LLM button starts a call; the LLM's own replies and applies never do.",
+			"RevisionId": "rev-a9k-x6a-9f5"
+		},
+		"Created": "2026-09-24T08:13:30.823Z",
+		"Replies": [
+			{
+				"Id": "rep-o6l-dcp-zfq",
+				"By": "user",
+				"At": "2026-09-24T08:13:30.823Z",
+				"Text": "No. This might come in a saved batch or in response to a user action."
+			},
+			{
+				"Id": "rep-pqr-2vq-8b1",
+				"By": "llm",
+				"At": "2026-09-24T08:18:54.149Z",
+				"Text": "Understood. What starts a call is anything that leaves something waiting on the LLM: one reply, a saved batch of changes, or an action like a button press.\n\nThe one thing I would keep from that bullet is that the LLM's own replies and applies never start another call, so it cannot talk to itself in a loop.\n\nOne question: do you want an explicit action too, such as an **Ask the LLM** button on a proposal or thread, that starts a call even when nothing is waiting on it?\n\nOutcome: the bullet becomes \"Anything that leaves work waiting on the LLM starts a call; the LLM's own writes never do.\""
+			}
+		]
+	},
+	{
+		"Id": "thr-6k3-vla-hly",
+		"Anchor": {
+			"Text": "One more moving part in the server: the call itself.",
+			"Prefix": " the ceiling keep that bounded. ",
+			"Suffix": " For claude-cli, Consensus start"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-24T08:50:31.617Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-24T08:59:20.686Z",
+			"Revision": 9,
+			"Outcome": "The moving part is the call itself: claude -p as a separate program for claude-cli, an HTTP request for ollama. There is no queue; the disabled button keeps calls from overlapping.",
+			"RevisionId": "rev-na2-fq8-1h3"
+		},
+		"Created": "2026-09-24T08:15:08.490Z",
+		"Replies": [
+			{
+				"Id": "rep-bbn-qxz-v6s",
+				"By": "user",
+				"At": "2026-09-24T08:15:08.490Z",
+				"Text": "This needs clarification."
+			},
+			{
+				"Id": "rep-yyd-hw2-o4g",
+				"By": "llm",
+				"At": "2026-09-24T08:18:54.162Z",
+				"Text": "In plainer words, and updated for the other threads:\n\n* **The queue:** the server keeps a short list of proposals that need a call. It runs at most one call per proposal at a time. When one finishes and more is waiting, it runs the next.\n* **The child process** only applies to `claude-cli`. Consensus starts `claude -p` as a separate program, hands it the prompt, and reads its answer when it exits. For `ollama` it is just an HTTP request.\n\nNeither is much code: a list, a flag per proposal and one of two ways to send a prompt.\n\nOutcome: the bullet is rewritten along these lines."
+			}
+		]
+	},
+	{
+		"Id": "thr-cxd-huc-581",
+		"Anchor": {
+			"Text": "Only on the button.",
+			"Prefix": "er. Decided (Andre, 2026-09-24) ",
+			"Suffix": " No schedule, no safety-net call"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-24T08:50:50.865Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-24T08:59:20.711Z",
+			"Revision": 10,
+			"Outcome": "No schedule: only the button starts a call. Moved from Still open to Decided.",
+			"RevisionId": "rev-x0z-p5n-l2i"
+		},
+		"Created": "2026-09-24T08:16:11.612Z",
+		"Replies": [
+			{
+				"Id": "rep-rsu-b8v-2dh",
+				"By": "user",
+				"At": "2026-09-24T08:16:11.612Z",
+				"Text": "only on the event"
+			},
+			{
+				"Id": "rep-r9j-u5h-kmq",
+				"By": "llm",
+				"At": "2026-09-24T08:18:54.175Z",
+				"Text": "Only on the event. Outcome: no schedule; the question is closed."
+			}
+		]
+	},
+	{
+		"Id": "thr-hu4-4o3-njf",
+		"Anchor": {
+			"Text": "Failures show on the thread.",
+			"Prefix": "o schedule, no safety-net call. ",
+			"Suffix": " A failed call leaves a line on "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-24T08:51:25.657Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-24T08:59:20.737Z",
+			"Revision": 11,
+			"Outcome": "A failed call shows on each thread it was for, cleared by the next successful call; pressing Send to LLM again is the retry. Moved from Still open to Decided.",
+			"RevisionId": "rev-uyt-4an-5kk"
+		},
+		"Created": "2026-09-24T08:16:51.733Z",
+		"Replies": [
+			{
+				"Id": "rep-inl-qnb-tzh",
+				"By": "user",
+				"At": "2026-09-24T08:16:51.733Z",
+				"Text": "show it in the thread."
+			},
+			{
+				"Id": "rep-ykz-i05-jtv",
+				"By": "llm",
+				"At": "2026-09-24T08:18:54.191Z",
+				"Text": "In the thread, then. A failed call leaves a line on each thread it was for, like the resolved and applied lines: *LLM call failed 08:12: the reason*, with the full timestamp on hover. The next successful call clears it.\n\nShould that line also have a **Retry** button, or is replying in the thread (which starts a new call) enough?\n\nOutcome: failures show on the thread."
+			}
+		]
+	},
+	{
+		"Id": "thr-7at-gvo-pkv",
+		"Anchor": {
+			"Text": "No terminal way.",
+			"Prefix": "Send to LLM again is the retry. ",
+			"Suffix": " \"check consensus\" is retired: p"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-24T08:59:58.255Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-24T09:01:25.839Z",
+			"Revision": 12,
+			"Outcome": "The terminal way goes: \"check consensus\" is retired, the llm participant needs no Token, and the question moves from Still open to Decided.",
+			"RevisionId": "rev-vnp-oix-fzt"
+		},
+		"Created": "2026-09-24T08:17:36.506Z",
+		"Replies": [
+			{
+				"Id": "rep-2n4-gm7-kqi",
+				"By": "user",
+				"At": "2026-09-24T08:17:36.506Z",
+				"Text": "absolutely. you can play too."
+			},
+			{
+				"Id": "rep-ag4-1ep-mp7",
+				"By": "llm",
+				"At": "2026-09-24T08:18:54.206Z",
+				"Text": "Both stay, then: Consensus calls the LLM on its own, and I still take part when you say \"check consensus\" in the terminal. We both act as the same llm participant, and whoever answers first takes the thread off the other's list. The worst case is two replies to one thread, not a broken text: a stale apply is refused.\n\nOutcome: the terminal way stays."
+			},
+			{
+				"Id": "rep-o2x-ku5-v9e",
+				"By": "user",
+				"At": "2026-09-24T08:57:23.192Z",
+				"Text": "i think that from the terminal, i will probably be asking you to implement a particular plan, rather than engaging in proposal construction.  lets drop the terminal modality."
+			},
+			{
+				"Id": "rep-tq4-nde-dem",
+				"By": "llm",
+				"At": "2026-09-24T08:59:20.752Z",
+				"Text": "Dropped, then. From the terminal you will ask for a Plan to be built; building proposals happens only here, and the LLM takes part only through Send to LLM.\n\nOutcome: the terminal way goes. \"check consensus\" is retired, the sentence about it in Which LLM is removed, and this question leaves Still open. A small consequence: the llm participant no longer needs a Token, since nothing calls the API as the LLM from outside; Consensus makes the calls itself."
+			}
+		]
+	},
+	{
+		"Id": "thr-xw2-6sj-whh",
+		"Anchor": {
+			"Text": "You press Send to LLM in the proposal heading.",
+			"Prefix": "ke any other. How it would work ",
+			"Suffix": " Nothing else starts a call. Rep"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-24T08:31:59.278Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-24T08:37:42.527Z",
+			"Revision": 3,
+			"Outcome": "Step 1 is now the Send to LLM button in the proposal heading; nothing else starts a call. The automatic trigger and the one-call-per-proposal queue are replaced by the button and its disabled state.",
+			"RevisionId": "rev-68g-ho5-1s6"
+		},
+		"Created": "2026-09-24T08:30:54.868Z",
+		"Replies": [
+			{
+				"Id": "rep-nra-nsh-of4",
+				"By": "llm",
+				"At": "2026-09-24T08:30:54.868Z",
+				"Text": "From Andre in the terminal: a **Send to LLM** button in the proposal heading, beside Comment on the whole document and Approve as Plan. It packages everything waiting on the LLM in this proposal and sends it in one call.\n\nIt follows an idea set aside: a Ctrl+L hotkey to push to the LLM *instead* of the automatic trigger. Read the same way, the button **replaces** the automatic trigger: replying, resolving and new threads no longer start a call; you work through the threads at your own pace and send when ready. That also settles the question of an Ask the LLM button.\n\nWhat the button would do:\n\n* It shows how many threads are waiting on the LLM, e.g. **Send to LLM (3)**, and is disabled at 0.\n* While the call runs it reads **LLM working…** and cannot be pressed again; the replies appear live when it finishes.\n* A failure shows on each thread it was for, as agreed.\n* The package is what the tools thread settled on: the text, all threads, search results for each waiting thread, and the rules; the answer is one JSON object that Consensus carries out.\n\nWith a manual send, the queue and the \"one call per proposal\" rule shrink to the disabled button.\n\nOutcome, if you agree: step 1 becomes \"You press Send to LLM in the proposal heading\"; automatic calls are dropped. Or should the button be added alongside the automatic trigger rather than replace it?"
+			},
+			{
+				"Id": "rep-3ut-dbv-r0z",
+				"By": "llm",
+				"At": "2026-09-24T08:31:08.811Z",
+				"Text": "From Andre in the terminal: the button replaces the existing behavior.\n\nOutcome: step 1 becomes \"You press **Send to LLM** in the proposal heading\"; nothing else starts a call. Replying, resolving and new threads only leave work waiting, shown in the button's count. The automatic trigger, the queue and the \"one call per proposal\" rule are dropped; the disabled button takes their place."
+			}
+		]
+	}
+]

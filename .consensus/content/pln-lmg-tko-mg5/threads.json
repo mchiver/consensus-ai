@@ -1,0 +1,82 @@
+[
+	{
+		"Id": "thr-brh-47s-ry4",
+		"Anchor": {
+			"Text": "How Consensus supports tool use by LLMs today",
+			"Prefix": "LLM Tool Usage ",
+			"Suffix": ", and how it could go further fo"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T04:41:30.292Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T04:44:16.973Z",
+			"Revision": 3,
+			"Outcome": "The document is replaced in full with the assessment of how Consensus supports tool use today and the five options with their recommendation, exactly as given in my last reply; the project's context is updated to record where this stands.",
+			"RevisionId": "rev-ps7-5mq-ztl"
+		},
+		"Created": "2026-09-26T04:29:28.902Z",
+		"Replies": [
+			{
+				"Id": "rep-dg1-ccr-muc",
+				"By": "user",
+				"At": "2026-09-26T04:29:28.902Z",
+				"Text": "Replace this document with an assessment of how consensus currently supports tool usage and how we could further support it when the LLM does not have direct access to the consensus server."
+			},
+			{
+				"Id": "rep-odb-z11-wlb",
+				"By": "llm",
+				"At": "2026-09-26T04:38:06.340Z",
+				"Text": "Here is the assessment. When you resolve this, the document becomes exactly this text:\n\n> # LLM Tool Usage\n>\n> How Consensus supports tool use by LLMs today, and how it could go further for an LLM that cannot reach the Consensus server itself.\n>\n> ## Today\n>\n> Two kinds of LLM take part, both as the `llm` participant.\n>\n> **The agent session** (Claude Code on this machine) has direct access: it reads and writes the codebase with its own tools, and works in Consensus through the REST API with the llm participant's token (`.guides/build-with-consensus.md`). Anything the page can do, it can do.\n>\n> **The one-shot LLM** (Send to LLM) has no tools at all:\n>\n> - `claude-cli` runs `claude -p` with every tool turned off (`--tools ''`, `--strict-mcp-config`); `ollama` is a single chat request.\n> - Everything it gets is packed into one prompt: the rules, the project's context, the proposal at its current revision, every thread, and for each thread waiting on it the 3 best search hits in its project, each clipped to 600 characters.\n> - Its only \"tool call\" is the answer itself: one JSON object held to a schema (`--json-schema` for claude, `format` for Ollama), with three actions: reply, apply, and context. The server carries them out through the same rules as the API.\n>\n> What the one-shot LLM cannot do:\n>\n> - **Look further.** It cannot read another plan whole, an older revision, a whole file from a zip, or run its own search. The server picks what it sees, from the anchor words and the last reply. The rules tell it to ask in a reply when it needs more, which costs a round.\n> - **Act beyond the three actions.** It cannot open a new thread (a review can only answer threads that exist), set a state, or create a plan.\n> - **Be reached any other way.** Only a model Consensus can call (claude on this machine, or Ollama) takes part; a chat LLM in a browser cannot.\n>\n> ## Going further, without direct access\n>\n> In every option the server stays the only thing that touches the data: it runs each tool, within the plan's project, and a tool's result is data for the model, never instructions.\n>\n> 1. **Copy prompt / paste answer.** A button copies the packed prompt; a box takes the JSON answer back, and it is carried out as if the call had made it. Any LLM anywhere (claude.ai, a phone app) can then take a turn, with nothing to install. The smallest change, and it works with every model.\n> 2. **A \"need\" action.** The answer may ask for more instead of acting: `{ \"Kind\": \"need\", \"Items\": [ a plan, a revision, a file, a search ] }`. The server gathers them and calls again with them in the prompt, up to a few rounds. Works with any model that can follow the JSON format; no tool-calling support needed.\n> 3. **More actions.** `thread` (a new comment on a passage or the whole document), so a review can raise its own points; perhaps `state`. Small, and it makes one-shot reviews much more useful.\n> 4. **A tool loop in the server.** For models with native tool calling: Ollama's `tools`, and claude through an MCP config pointing at a small Consensus MCP server that `claude -p` launches. Read-only tools (search, read a plan, a revision, a file, list the project) run by the server in a loop until the model gives its answer. The most capable, and the most work: a loop, limits on rounds and tokens, and models that differ in how well they call tools.\n> 5. **A Consensus MCP server for any client.** The API as MCP tools, over stdio or HTTP with a token, so an MCP client elsewhere (Claude Desktop, another agent) can work in Consensus directly. That is direct access by another road, and it needs the server reachable, so it does not fit \"no direct access\"; worth it later.\n>\n> ## Recommendation\n>\n> In order: **3** (new threads from a review) and **2** (the need action) first, since both are small, work with every model, and fix the two biggest limits; then **1** (copy and paste) for LLMs Consensus cannot call; then **4** if the one-shot reviews still need more. Leave **5** until something needs it.\n>"
+			}
+		]
+	},
+	{
+		"Id": "thr-xeq-e1t-749",
+		"Anchor": {
+			"Text": "Copy prompt / paste answer",
+			"Prefix": " the model, never instructions. ",
+			"Suffix": ". A button copies the packed pro"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T06:41:05.107Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T06:41:43.501Z",
+			"Revision": 3,
+			"Outcome": "Copy prompt / paste answer is handled by the LLM Session plan (its Manual copy / paste destination), so this plan's text stays as it is; I updated the project's context to say option 1, and the requests from option 2, are now built through LLM Session.",
+			"RevisionId": "rev-ps7-5mq-ztl"
+		},
+		"Created": "2026-09-26T05:08:40.991Z",
+		"Replies": [
+			{
+				"Id": "rep-yje-n94-mk4",
+				"By": "user",
+				"At": "2026-09-26T05:08:40.991Z",
+				"Text": "implement this"
+			},
+			{
+				"Id": "rep-sld-yq1-t21",
+				"By": "llm",
+				"At": "2026-09-26T05:32:12.620Z",
+				"Text": "Folded into the new plan **LLM Session** (`#/p/pln-rrg-ziw-ofz`), from the dialog you described: Manual copy / paste is one of its destinations. The server side of copy and paste is built and tested (`GET /api/proposals/<id>/prompt` and `POST /api/proposals/<id>/answer`, uncommitted); the dialog will use it. I have stopped here, before building any page, until LLM Session is settled."
+			},
+			{
+				"Id": "rep-tip-dvr-l4f",
+				"By": "user",
+				"At": "2026-09-26T06:41:05.107Z",
+				"Text": "LLM Session has been handled elsewhere."
+			}
+		]
+	}
+]

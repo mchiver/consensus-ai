@@ -1,0 +1,66 @@
+[
+	{
+		"Id": "thr-lor-zho-70t",
+		"Anchor": {
+			"Text": "Each tab remembers its own view",
+			"Prefix": "gs its detached window forward. ",
+			"Suffix": " (Read, Edit or Revisions): swit"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T04:16:54.583Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T04:17:27.853Z",
+			"Revision": 2,
+			"Outcome": "Each tab remembers its own view, an unsaved edit included.",
+			"RevisionId": "rev-uoz-d8k-h9o"
+		},
+		"Created": "2026-09-26T04:15:31.711Z",
+		"Replies": [
+			{
+				"Id": "rep-gfe-ph2-v0x",
+				"By": "llm",
+				"At": "2026-09-26T04:15:31.711Z",
+				"Text": "**Question:** Does each tab remember its own view (Read, Edit or Revisions), so switching tabs brings each back as you left it? This was left open in UI Tweaks for when tabs exist. I'd say yes; an unsaved edit would then stay in its tab rather than being lost on a switch."
+			},
+			{
+				"Id": "rep-rmz-z0n-t9d",
+				"By": "user",
+				"At": "2026-09-26T04:16:54.583Z",
+				"Text": "yes"
+			}
+		]
+	},
+	{
+		"Id": "thr-7z7-5z5-u2f",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T04:35:25.957Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T04:37:38.782Z",
+			"Revision": 2,
+			"Outcome": "The owner accepted the build; it is committed.",
+			"RevisionId": "rev-uoz-d8k-h9o"
+		},
+		"Created": "2026-09-26T04:32:10.741Z",
+		"Replies": [
+			{
+				"Id": "rep-gjj-0w0-dd9",
+				"By": "llm",
+				"At": "2026-09-26T04:32:10.741Z",
+				"Text": "**Build log** (Claude Opus 5.5, in a Claude Code session)\n\nBuilt, uncommitted until you accept:\n\n- **`public/js/tabs.js`** (new): the `Tabs` service, the strip's controller, and tab drag and drop.\n  - One tab per item (plan, document, context, zip), plus one Waiting on you tab and one reused Search tab. Tabs are kept in sessionStorage, so a reload brings them back and a browser restart starts clean.\n  - Each proposal's tab keeps its view (Read, Edit or Revisions) and its unsaved edit, with the revision the edit was made from; coming back to an edit made from an older revision marks it stale, as the editor already does.\n  - Drag a tab onto another's left or right half to reorder; × closes it and shows the tab beside it.\n  - ↗ detaches a tab into its own window (`?detached=1`): the item alone, no sidebar, no strip, and a **Re-attach** bar. The windows talk over a `BroadcastChannel`: the detached window says it is out (also after the main window reloads), clicking an item that is out asks its window to come forward, closing that window closes the item, and Re-attach puts the tab back. With no main window to answer within 0.7 s, Re-attach turns the detached window into the main window, with the item as its first tab.\n- **Routing** (`public/js/app.js`): every route is a tab; with no route, the last tab shows, or the start page when none are open. A trashed item's tab closes, here or in another window (`header.js` and `corpus.js` close the tab on Delete).\n- **Editor** (`public/js/edit.js`): an unsaved edit is kept with its tab and comes back when the tab does; Save and Discard forget it.\n- **Page** (`public/index.html`, CSS): the strip above the header, with each kind's icon; the detached bar; the detached window's layout.\n- **`readme.md`**: a paragraph on tabs and detached windows.\n\nChecked: `npm test`, 123 of 123 pass, including two new page tests: one tab per item, each keeping its view and an unsaved edit, reordering and closing; and detaching (the window the browser would open is recorded), the item staying out when clicked again, a real second page opened as the detached window, and Re-attach putting it back. The server was restarted, so tabs are live now.\n\nNot covered by a test: a real browser window opening (the test records it instead), and a detached window becoming the main one. Detaching needs pop-ups allowed for the page.\n\nResolve this to accept, or reply to send it back."
+			}
+		]
+	}
+]

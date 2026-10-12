@@ -1,0 +1,648 @@
+[
+	{
+		"Id": "thr-3l7-k4f-27l",
+		"Anchor": {
+			"Text": "Run Shapes",
+			"Prefix": "",
+			"Suffix": " Consensus is deployed through a"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T04:44:47.909Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T04:59:31.635Z",
+			"Revision": 16,
+			"RevisionId": "rev-z6y-g3n-ieo",
+			"Outcome": "The plan written as one document around the six statements, as offered: the global config, a project as a folder, the server and the LLMs, the desktop and the servers, the command line, the start sequence, the scenarios, and five build steps. Every applied thread's wording is in it. Launch Scenarios is yours to delete once this is in Plan."
+		},
+		"Created": "2026-10-12T03:20:44.011Z",
+		"Replies": [
+			{
+				"Id": "rep-x3y-prc-5qe",
+				"By": "llm",
+				"At": "2026-10-12T03:20:44.011Z",
+				"Text": "This plan and \"Launch Scenarios\" (applied yesterday) cover the same ground and disagree: that one adds --folder <path> for <path>/.consensus to the server as it is, keeps ~data and --data, and keeps the desktop a client with one local server; this one makes a project a folder, puts the global config in the user's folder, drops --data, and makes the one command run the UI. Two plans of record for one thing will not do. Recommendation: this plan is the one; Launch Scenarios keeps its first three sections (how the checkout, Docker and the desktop run today) and its \"A local folder\" section is replaced by one line pointing here, applied when you say so."
+			},
+			{
+				"Id": "rep-0pl-cur-zxe",
+				"By": "user",
+				"At": "2026-10-12T03:27:42.376Z",
+				"Text": "You are quite correct. \"Launch Scenarios\" is a prior attempt at imposing order and cohesiveness to the many ways to run consensus. This \"Run Shapes\" was an attempt to replace that plan and then approach the same matter from a different angle. In \"Run Shapes\" I attempt to address the shortcomings of \"Launch Scenarios\" but feel that I have again failed to fully expose my vision. I require your assistance to flesh out that vision and enshrine it in a cohesive paradigm."
+			},
+			{
+				"Id": "rep-ito-mjv-zff",
+				"By": "llm",
+				"At": "2026-10-12T04:41:49.460Z",
+				"Text": "Understood: Run Shapes replaces Launch Scenarios, and you want the vision made whole. As I read it from the plan and your replies, the paradigm is this:\n\n1. A project is a folder. Its `.consensus` sub-folder is the project (tree, plans, threads, revisions, archive, trash), the parent folder is its context, and it goes into source control so the plans travel with the source. No token or secret ever lives there.\n2. Everything global, and everything secret, lives in one file in the user's folder: `<user>/.consensus/consensus.json`. It replaces the server's consensus.json and the desktop's desktop.json.\n3. One command, `consensus`, is the whole program: it starts the API server (when the Scope allows), and opens the window unless `--headless`. `consensus <path>` opens an instance on one project, like VS Code opening a folder, from anywhere.\n4. The desktop's tree shows every connected server as a root, the local one included, with its projects beneath.\n5. A Scope setting says whether the local API server runs and who may reach it: None, Local, Public.\n6. The LLMs are distinct participants, named `<connection>@<server>`, run by the server on a client's request.\n\nIf that is the vision, I will write the plan as one document around these six statements, with the configuration, the folder layout, the arguments, the start sequence and the scenarios following from them, and post it here as the reply to apply. The three threads still open (the server running the LLMs, the server serving the page, the Scope and the servers tree) settle the wording of 4, 5 and 6; I have rephrased the two you asked about. Launch Scenarios: once this plan is in state Plan, delete it, or keep it as a record of how the three current ways run; my recommendation is to delete it, since the Getting started page already records those."
+			}
+		]
+	},
+	{
+		"Id": "thr-dsk-4ju-2hd",
+		"Anchor": {
+			"Text": "the one place for everything global",
+			"Prefix": "ser>/.consensus/consensus.json, ",
+			"Suffix": ": Name, Port, Scope, States (the"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T04:46:09.653Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T04:59:31.596Z",
+			"Revision": 15,
+			"RevisionId": "rev-084-box-jlh",
+			"Outcome": "The wording went in, with the recommendation on the States: per project in project.json, the global list the default for a new project."
+		},
+		"Created": "2026-10-12T03:20:44.298Z",
+		"Replies": [
+			{
+				"Id": "rep-089-58m-kls",
+				"By": "llm",
+				"At": "2026-10-12T03:20:44.298Z",
+				"Text": "What the global config replaces needs saying. Today there are two files: the server's consensus.json in the data folder (Host, Port, States, Participants with the tokens) and the desktop's desktop.json in Electron's user-data folder (Servers, Last, Theme, Scale, Llms, Workspaces, Remembered). The list here has the second file's content and the listen address, but not the States and not the Participants, so the owner, the llm participant and its token have no home. Recommendation: <user>/.consensus/consensus.json is the union of both files: Name, Host, Port, States, Participants, Llms, Projects, Servers, Theme, Scale and the remembered view state; the project folder's .consensus holds project data only, never settings; desktop.json goes away, read once more and moved in at the first start. The tokens stay in the user's folder, which is never committed, so the committed .consensus question of Launch Scenarios disappears."
+			},
+			{
+				"Id": "rep-hys-0dj-275",
+				"By": "user",
+				"At": "2026-10-12T03:36:43.312Z",
+				"Text": "Correct again. I am attempting to simplify the configuration mechanism by uniting all global settings into a single place.\nUnder this new paradigm, the local `.consensus` folders are recommended to be included in source control so that all plans and threads travel with the source.\nThe local `.consensus` folder stores everything related to a single project. It *is* the project and references the parent folder as the project's context.\nAny tokens or secrets should be stored outside of the local `.consensus` folders."
+			},
+			{
+				"Id": "rep-1js-wjx-2x9",
+				"By": "llm",
+				"At": "2026-10-12T04:41:49.470Z",
+				"Text": "Confirmed: one global file, the project folder's `.consensus` is the project and holds nothing else, it is recommended for source control, and tokens and secrets live outside it. The wording I will apply for the global config paragraph:\n\n\"Consensus loads its global config from `<user>/.consensus/consensus.json`, the one place for everything global: Name, Host, Port, Scope, States, the Participants with their tokens, the LLMs, the Projects (their local paths), the Servers, the theme, the scale and the remembered view state. It replaces the server's consensus.json in the data folder and the desktop's desktop.json; a first start reads both once and moves them in. Tokens and secrets live here and nowhere else.\"\n\nAnd for the project folder: \"The `.consensus` folder is the project: its tree, plans, threads, revisions, archive and trash, with the parent folder as its context. It is meant to go into source control, so the plans and threads travel with the source; nothing secret is ever written to it.\"\n\nOne question left: the States (Draft, Plan, Working, Finished). Global, as the list above has them, or per project in project.json, so that a project checked out on another machine keeps the states its plans are in? Recommendation: per project, with the global list as the default for a new project."
+			}
+		]
+	},
+	{
+		"Id": "thr-lai-9ce-z2v",
+		"Anchor": {
+			"Text": "Name: the participant it posts as",
+			"Prefix": "and port - list of local LLMs - ",
+			"Suffix": ", <connection>@<server name>, fo"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T03:54:07.406Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T04:41:49.319Z",
+			"Revision": 6,
+			"RevisionId": "rev-rkn-sub-j8d",
+			"Outcome": "Applied as the reply says: each LLM is a distinct participant, named <connection>@<server name> (claude-cli@cube12, ollama-kimi-k2.6:cloud@cube4), recorded on every reply and result; visibility dropped from LLMs and Projects."
+		},
+		"Created": "2026-10-12T03:20:44.326Z",
+		"Replies": [
+			{
+				"Id": "rep-6wa-lms-5u5",
+				"By": "llm",
+				"At": "2026-10-12T03:20:44.326Z",
+				"Text": "Two words here have no definition. \"User name\" on an LLM: the LLMs post as the one llm participant today (Participants), and a connection has a Name, a Kind (claude-cli or ollama), a Command or Url, a Model and its prompts. Is \"User name\" the participant it posts as, so that each LLM could be its own participant? And \"visibility\", on LLMs and on Projects: hidden from the tree, or served to this machine only and not to a remote client? Recommendation: an LLM keeps the desktop connection's fields and gains Participant, the name it posts as (llm by default), and visibility is dropped from both lists until a case needs it; if the case is \"a project this server does not serve to others\", that is a Served flag on the project, named as such."
+			},
+			{
+				"Id": "rep-5jr-vhs-s2t",
+				"By": "user",
+				"At": "2026-10-12T03:54:07.405Z",
+				"Text": "- Yes, each LLM is a distinct user and is recorded on any replies or results from that LLM. This should include the server name and provide a unique user name. For example: `claude-cli@cube12`, `ollama-kimi-k2.6:cloud@cube4`.\n- Drop the visibility for now."
+			}
+		]
+	},
+	{
+		"Id": "thr-j6n-jr3-t4b",
+		"Anchor": {
+			"Text": "The server runs the LLM runs",
+			"Prefix": "f configured Projects and LLMs. ",
+			"Suffix": " (Review, Build, Session). A cli"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T04:51:55.074Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T04:59:31.362Z",
+			"Revision": 10,
+			"RevisionId": "rev-1a9-75c-xjs",
+			"Outcome": "Applied as agreed: the server runs the LLM runs at a client's request, the code moving from the desktop; an LLM works only on its own machine's projects, as your reply adds."
+		},
+		"Created": "2026-10-12T03:20:44.350Z",
+		"Replies": [
+			{
+				"Id": "rep-0em-2yc-2h3",
+				"By": "llm",
+				"At": "2026-10-12T03:20:44.350Z",
+				"Text": "Since Step 1 of Consensus Desktop the server calls no LLM and reads no code; the runs (claude-cli and ollama one-shots, the tools over the workspace) live in the desktop's main process, and the server is a store behind an API. \"Serves LLMs\" and \"load and mount local LLMs\" put the runs into the server. That is a reversal of a decided principle, and it may be the right one: with the server and the UI one process, the runs have to be there, and a headless server then runs them for a browser or a remote desktop too. Recommendation: say it outright. The runs move into the server process (Llm.js, Runs.js, Tools.js and Package.js are plain node already; only the folder picker is Electron), the API gains the routes the page uses for them (the connections, the runs, their logs), and a remote client gets them like any other feature. The server still reads no code on its own: a run does, for the project's folder, as a tool of the model."
+			},
+			{
+				"Id": "rep-mhk-3j5-gzm",
+				"By": "user",
+				"At": "2026-10-12T04:17:26.436Z",
+				"Text": "Im not sure about what you said. Please rephrase your reply more plainly."
+			},
+			{
+				"Id": "rep-qc2-eh4-10v",
+				"By": "llm",
+				"At": "2026-10-12T04:41:49.476Z",
+				"Text": "Plainer: today the server never runs an LLM. When you press Review or Build, the desktop app itself starts claude or ollama, and the server only stores what the LLM posts through the API. That was decided at Step 1 of Consensus Desktop.\n\nYour plan says the server \"serves\" the LLMs and \"loads and mounts\" them. I read that as: the server runs them. I think that is right, because in this plan the server and the desktop are one program anyway. But it has to be said, because it also means a headless server (no window) runs LLMs for anyone using it from a browser or from another desktop.\n\nThe wording I would apply: \"The server runs the LLM runs (Review, Build, Session). A client, the desktop window or a browser, asks the server for a run, and the server starts the command or calls Ollama, as the desktop does today; the code for the runs moves from the desktop into the server. The server still reads no code on its own: a run does, over the project's folder, as a tool of the model.\" Agree?"
+			},
+			{
+				"Id": "rep-025-pp5-enl",
+				"By": "user",
+				"At": "2026-10-12T04:51:55.074Z",
+				"Text": "I concur with this.\nI would add that the LLMs are restricted to working only with Projects that appear on the same machine. The tool usage assumes that the Project's workspace is locally accessible."
+			}
+		]
+	},
+	{
+		"Id": "thr-ebn-8ml-1d9",
+		"Anchor": {
+			"Text": "a Project is what a workspace was, and the two merge",
+			"Prefix": "ject plans and LLM interaction: ",
+			"Suffix": ". The global config holds the fo"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T04:22:06.539Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T04:41:49.360Z",
+			"Revision": 7,
+			"RevisionId": "rev-k48-l60-z4s",
+			"Outcome": "The recommendation went in: a Project is the workspace; the path in the global config, Include, Exclude and Commands in .consensus/project.json; New project asks for a folder with <config>/projects/<name>/ as the default; an opened folder joins the global list."
+		},
+		"Created": "2026-10-12T03:20:44.372Z",
+		"Replies": [
+			{
+				"Id": "rep-953-g8m-k9v",
+				"By": "llm",
+				"At": "2026-10-12T03:20:44.372Z",
+				"Text": "A project tied to a folder is what a workspace is today (Path, Include, Exclude, Commands, attached to a project), so the two merge, and \"filters, etc.\" in the global list is the Include and Exclude. Which part is machine-bound and which travels with the folder? Recommendation: the global config holds the path (this machine's) and the project's Served flag if any; .consensus/project.json holds the Include, Exclude and Commands, so they go with the repository. And a project made in the UI with New project needs a folder from now on: the desktop asks for one, with <config>/projects/<name>/ offered as the default, and a headless server makes that default folder. Also: a folder opened with \"consensus .\" or --project is added to the global list, so a bare \"consensus\" shows it next time; else the list is edited by hand."
+			}
+		]
+	},
+	{
+		"Id": "thr-5kn-jb1-rmy",
+		"Anchor": {
+			"Text": "content/<id>/content.md: an item's text",
+			"Prefix": "d the ids of its archived items ",
+			"Suffix": "; content.json its record; threa"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T04:53:36.501Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T04:59:31.412Z",
+			"Revision": 11,
+			"RevisionId": "rev-ocn-51b-yfs",
+			"Outcome": "Applied with the names as you wrote them (content/, content.md, content.json), the archive defined (Archive and Restore, a folded folder at the bottom of the project, read-only until restored), and \"any file that belongs to it\" for the associated files."
+		},
+		"Created": "2026-10-12T03:20:44.400Z",
+		"Replies": [
+			{
+				"Id": "rep-aoo-u5n-lo5",
+				"By": "llm",
+				"At": "2026-10-12T03:20:44.400Z",
+				"Text": "The layout renames what exists: proposals/<id>/proposal.md and proposal.json become content/<id>/content.md, projects/<id>/project.json becomes .consensus/project.json, projects.json goes. The code cost is a Store over several roots (one per project folder) instead of one; the renaming on top of it buys nothing and costs a migration of every data folder, cube4's included. Recommendation: one project per .consensus, with today's names inside it (project.json at the top, proposals/<id>/… as now, trash/), so Store.js keeps its file code and gains only the roots; an existing data folder migrates by moving each of its projects out into a folder of its own. Two entries need a definition or should go: \"archive\" (nothing archives today; the trash is what delete does) and \"indexes\" (removed at Step 1 with the LLM's files)."
+			},
+			{
+				"Id": "rep-9ay-99p-gel",
+				"By": "user",
+				"At": "2026-10-12T04:25:52.310Z",
+				"Text": "- archive is a state where a plan is finished and has a place to go that is not the trash and yet is not in the main view area either. plans are manually moved in and out of archive.\n- i mean nothing specific by \"Indexes\". i just meant any associated files."
+			},
+			{
+				"Id": "rep-738-hgi-ipe",
+				"By": "llm",
+				"At": "2026-10-12T04:41:49.480Z",
+				"Text": "Understood on both: archive is a place for finished plans, outside the main view and not the trash, moved in and out by hand; \"indexes\" means any associated files. Archive is new, so here is how I would define it, and the layout wording with my recommendation on the names kept:\n\n\"Archive: a plan is moved there with Archive in its menu and brought back with Restore; the archive shows as a folder at the bottom of the project, folded, below the tree, and its plans open read-only until restored.\"\n\n\"The `.consensus` folder stores:\n- `project.json`: the project's tree, its Include, Exclude and Commands, and the ids of its archived items\n- `proposals/<id>/`: an item's `proposal.md`, `proposal.json`, `threads.json` and `revisions/`, as today, with any files that belong to it\n- `archive/<id>/`: an archived item, moved whole\n- `trash/<id>/`: a deleted item, moved whole\"\n\nThe names stay as today (proposals/, proposal.md) rather than content/ and content.md, so the Store keeps its file code and an existing data folder migrates by moving each project into a folder of its own; renaming would add a migration of every item on every server for no gain. Say \"content\" if you want the rename regardless, and it goes in as you wrote it."
+			},
+			{
+				"Id": "rep-t5k-b65-o5c",
+				"By": "user",
+				"At": "2026-10-12T04:53:36.501Z",
+				"Text": "content"
+			}
+		]
+	},
+	{
+		"Id": "thr-8kv-71f-5cp",
+		"Anchor": {
+			"Text": "Two entry points share one start module",
+			"Prefix": "I and just runs the api server. ",
+			"Suffix": ": the packaged desktop executabl"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T04:35:33.512Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T04:41:49.404Z",
+			"Revision": 8,
+			"RevisionId": "rev-j7c-4d5-98y",
+			"Outcome": "The recommendation went in: the packaged desktop executable is the command, with --headless for no window; bin/consensus.js is the headless form for node and Docker, same arguments."
+		},
+		"Created": "2026-10-12T03:20:44.423Z",
+		"Replies": [
+			{
+				"Id": "rep-r9s-l70-wnl",
+				"By": "llm",
+				"At": "2026-10-12T03:20:44.423Z",
+				"Text": "Today \"consensus\" is bin/consensus.js, a node program with no UI, and the desktop is Electron (npm run desktop). One command that runs the UI by default means the command is the desktop's executable, and node alone cannot show it. Recommendation: two entry points over one start module. The packaged desktop executable is \"consensus\": it starts the server and opens the window, or no window with --headless. bin/consensus.js is the headless form for a plain node install and the Docker image, which has no Electron; the same arguments, the UI ones refused with a message. --headless in the node one is accepted and does nothing."
+			}
+		]
+	},
+	{
+		"Id": "thr-u4b-wgs-zdh",
+		"Anchor": {
+			"Text": "The Docker image runs --config /data --headless",
+			"Prefix": " user folder <user>/.consensus. ",
+			"Suffix": ", so the global config and the p"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T04:30:48.084Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T04:41:49.448Z",
+			"Revision": 9,
+			"RevisionId": "rev-hfy-7mc-cnv",
+			"Outcome": "The recommendation went in: Docker runs --config /data --headless with the projects under /data/projects/<name>/; --data is an alias of --config for one release, and an existing data folder migrates at first start."
+		},
+		"Created": "2026-10-12T03:20:44.435Z",
+		"Replies": [
+			{
+				"Id": "rep-6p4-pnb-bxm",
+				"By": "llm",
+				"At": "2026-10-12T03:20:44.435Z",
+				"Text": "The Docker image runs with --data /data today, and the user folder in the container is /home/node, lost with the container. Recommendation: the image runs \"--config /data --headless\", so the global config and the projects it makes live in the volume, with the projects under /data/projects/<name>/ as the default folder; the compose file and the Getting started page change with it. --data stays accepted for one release as an alias of --config, so an existing data folder is found and migrated at first start (see the layout thread)."
+			}
+		]
+	},
+	{
+		"Id": "thr-1q6-gzg-wo4",
+		"Anchor": {
+			"Text": "The server serves the page to the window and to a browser alike",
+			"Prefix": "put to console and skip the UI. ",
+			"Suffix": ". There is one page again: publi"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T04:56:55.421Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T04:59:31.459Z",
+			"Revision": 12,
+			"RevisionId": "rev-zjs-z0j-tkl",
+			"Outcome": "The wording went in: the server serves the page to the window and to a browser alike; one page, public/ live, desktop/page/ gone."
+		},
+		"Created": "2026-10-12T03:20:44.454Z",
+		"Replies": [
+			{
+				"Id": "rep-69b-9jb-dto",
+				"By": "llm",
+				"At": "2026-10-12T03:20:44.454Z",
+				"Text": "When the server and the UI are one process, Page.js (the page served on 127.0.0.1 that forwards /api to the connected server) loses its reason for the local case: the server serves the page itself, as it does for a browser. Which page? public/ has been frozen since Step 1 and the live page is desktop/page/, whose LLM and workspace items come from the Electron preload. If the runs move into the server (the thread on \"serves LLMs\"), those items come from the API instead, the preload is left with the native parts (the folder picker, the theme of the bars), and there is one page again. Recommendation: the server serves desktop/page/ (renamed back to public/ at that point) to the window and to any browser, and a headless server gives a browser the whole page, LLM runs included."
+			},
+			{
+				"Id": "rep-05o-pwv-hht",
+				"By": "user",
+				"At": "2026-10-12T04:38:52.631Z",
+				"Text": "i dont understand what you are saying."
+			},
+			{
+				"Id": "rep-mst-c71-iin",
+				"By": "llm",
+				"At": "2026-10-12T04:41:49.485Z",
+				"Text": "Plainer: today the desktop window does not load the page from the server you are connected to. It loads it from a small web server inside the desktop app (Page.js), which also passes the page's API calls on to the real server. That go-between exists so the window can work with any server, remote ones included.\n\nIn your plan the desktop and the local server are one program, so for the local server the go-between is no longer needed: the server can hand the page to the window directly, exactly as it hands it to a browser today.\n\nThe question is which page. There are two copies: public/, which the server serves to browsers and which has been frozen since Step 1, and desktop/page/, the live one, which has the LLM and workspace items that only the desktop can show. If the server runs the LLMs (the other thread), the page gets those items from the server, and the two copies can become one again.\n\nThe wording I would apply: \"The server serves the page to the window and to a browser alike. There is one page again: public/ is live and desktop/page/ goes; the desktop keeps only what needs the window (the folder picker, the native theme).\" Agree?"
+			}
+		]
+	},
+	{
+		"Id": "thr-r2y-7r7-8z8",
+		"Anchor": {
+			"Text": "The desktop's tree shows every connected server as a root",
+			"Prefix": "nections); Scope replaces Host. ",
+			"Suffix": ", the local one first when it ru"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T04:48:06.772Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T04:59:31.505Z",
+			"Revision": 13,
+			"RevisionId": "rev-vel-hrb-exm",
+			"Outcome": "The wording went in: Scope None, Local, Public in the global config, replacing Host, None meaning no local projects; a root per connected server in the tree, the multi-root tree as the last step."
+		},
+		"Created": "2026-10-12T03:20:44.467Z",
+		"Replies": [
+			{
+				"Id": "rep-wst-vjn-7qv",
+				"By": "llm",
+				"At": "2026-10-12T03:20:44.467Z",
+				"Text": "The invocation scenarios all run the UI against the local server, and the tree \"contains all local LLMs and Projects\". Where do the saved servers (cube4) come in? Today the desktop connects to one server at a time, and the page shows that server's projects. Recommendation: say which it is. Step 1: one server at a time as now, the local one by default, with the connect screen becoming a \"Server\" picker; the local one is always running. Step 2, a plan of its own: a root per server in the tree, local first, the local server forwarding the page's calls to each remote one by root (that is the proxy you asked about), with each remote server's own participants and tokens."
+			},
+			{
+				"Id": "rep-to8-31f-h3h",
+				"By": "user",
+				"At": "2026-10-12T04:13:23.201Z",
+				"Text": "something like Step 2.\n\nThe project tree in the desktop client should show all connected servers as top level root items with linked Projects as children of each.\n\nIt should be optional to run or expose the local api server. there should be a global `Scope` setting:\n\n- `None`: The local API server is never started.\n- `Local`: The local API server is started but is only available to the desktop running on that machine.\n- `Public`: The local API server is started and available for remote connections.\n\nThis `Scope` setting was what I was trying to define in another thread, but on a per Project rather than a global level."
+			},
+			{
+				"Id": "rep-7hm-re7-2jf",
+				"By": "llm",
+				"At": "2026-10-12T04:41:49.491Z",
+				"Text": "Confirmed: a root per connected server in the tree, the local one among them, its projects beneath; and a global Scope setting (None, Local, Public) saying whether the local API server runs and who can reach it. Two consequences I will write in, say if either is wrong:\n\n- Scope replaces Host: Local listens on 127.0.0.1, Public on 0.0.0.0 (or the Host given), None does not listen. Port stays.\n- With Scope None there is no local API server, so there are no local projects: the desktop is a client of remote servers only, and the tree has only their roots. Local projects need at least Local.\n\nThe wording I would apply: \"Scope, in the global config: None (the local API server is never started; the desktop is a client of the saved servers only), Local (it listens on 127.0.0.1, for this machine's desktop), Public (it listens on 0.0.0.0, for remote connections). The desktop's tree shows every connected server as a root, the local one first when it runs, with its projects as children; the page's API calls go to the root's server. Each server keeps its own participants and tokens.\" The multi-root tree is a large piece of page work; I would make it the plan's last step, after the one-command start, the global config and the project folders, which the single-server page can carry on their own."
+			}
+		]
+	},
+	{
+		"Id": "thr-ljd-j1t-zk8",
+		"Anchor": {
+			"Text": "opens an instance on that project alone",
+			"Prefix": "irst start. --project <folder>: ",
+			"Suffix": ", the way VS Code opens a folder"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T04:54:52.171Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T04:59:31.554Z",
+			"Revision": 14,
+			"RevisionId": "rev-2tt-sra-x23",
+			"Outcome": "The wording went in, with both recommendations: an isolated instance shows no remote servers, and the folder joins the recent projects; a second instance takes a free port."
+		},
+		"Created": "2026-10-12T03:20:44.478Z",
+		"Replies": [
+			{
+				"Id": "rep-ib2-ir1-ijp",
+				"By": "llm",
+				"At": "2026-10-12T03:20:44.478Z",
+				"Text": "A small one. Both \"consensus <path>\" and \"--project <path>\" load one project only, and the scenarios say \"Other Projects found in the global config are not loaded\" twice. Why not loaded? A server over the global config can serve all its projects with the opened one selected, at no cost, and an agent session on the folder still finds its project by name. Recommendation: --project opens and selects the project (adding it to the list) and the other configured projects are served as well; a flag --only, if a case for isolation turns up, restricts to the one. If isolation is the intent (an ad-hoc session that must not see the rest), say so and keep it as written."
+			},
+			{
+				"Id": "rep-hb9-np6-65q",
+				"By": "user",
+				"At": "2026-10-12T04:29:37.081Z",
+				"Text": "yes, i mean to isolate an instance which opens on a single project. and the why is important. I want consensus desktop to emulate VS code by being able to \"open from anywhere\""
+			},
+			{
+				"Id": "rep-rpl-8e4-s42",
+				"By": "llm",
+				"At": "2026-10-12T04:41:49.496Z",
+				"Text": "Understood: `consensus <path>` is \"open this folder\", as VS Code does, from anywhere, and the instance stays on that one project. The wording I would apply: \"consensus <path> opens an instance on that project alone, the way VS Code opens a folder: the tree shows that project and nothing else, the other configured projects are not loaded, and the folder joins the global list as a recent project. Run with no path, the desktop shows everything the global config has. A second instance opened at the same time takes a free port when the configured one is taken, so two folders can be open at once, each in its own window.\" Two things to confirm: the isolated instance shows no remote servers either (as VS Code shows one folder), and the recent-projects list is wanted; my recommendation is yes to both."
+			}
+		]
+	},
+	{
+		"Id": "thr-qyd-vq5-8k4",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T06:12:41.098Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T06:13:17.087Z",
+			"Revision": 16,
+			"RevisionId": "rev-z6y-g3n-ieo",
+			"Outcome": "Accepted as posted: Step 1 of Run Shapes (the global config, Scope in place of Host, the one start module and the two entry points, the desktop over the global config, headless) built and committed; the plan goes back to Plan until Step 2 is started."
+		},
+		"Created": "2026-10-12T06:08:11.351Z",
+		"Replies": [
+			{
+				"Id": "rep-0f6-t32-e4k",
+				"By": "llm",
+				"At": "2026-10-12T06:08:11.351Z",
+				"Text": "## Build log: Run Shapes, Step 1 (the global config and the two entry points)\n\nBuilt by Claude Fable 5.1 (claude-fable-5-1), the agent session. Step 1 of five; the projects are untouched, as the step says.\n\n**Scope in place of Host, the config folder** (`src/Participants.js`, `src/Server.js`)\n- The settings are Name, Port, Scope, States, Participants. Scope is None, Local or Public; Local listens on 127.0.0.1, Public on 0.0.0.0, None not at all. Name is the server's, shown to clients in `/api/me` (`Server`).\n- `Migrate` brings a file from before up to date at start, once: Host 127.0.0.1 (or localhost, ::1, empty) becomes Scope Local, any other Public, and a missing Name is the machine's; the console says what changed.\n- `Start( { Config, Port, Scope } )`: the config folder is `<user>/.consensus` unless given (`Data` is the option's older name, so every test and caller still works); `Scope` overrides the file for one start. With Scope None the store and the settings are there and no server listens (Server, Address, Url null), which is what the desktop needs to stay a client. The projects still live in the config folder until Step 2.\n- `PUT /api/settings` (`src/Api.js`) now replaces the server's five fields and keeps every other field of the file, so the desktop's fields survive the popup; Restart says when Scope or Port changed. The page's settings popup (`desktop/page/js/settings.js`, `index.html`) shows Name, Scope (a select) and Port in place of Host.\n\n**The one start module and the headless entry point** (`src/Start.js` new, `bin/consensus.js`)\n- `Parse( argv )`: `--config <folder>` (`--data` its older name), `--port`, `--scope none|local|public`, `--headless`, `--help`. `--host` is refused with a message pointing to `--scope`; `--project` and a bare path are refused as not supported yet (Step 4). `Run( options, log )` starts the server and logs the lines: the address and scope (a warning for Public), the config folder, the settings file.\n- `bin/consensus.js` is the headless form: `--headless` accepted and nothing done; Scope None prints \"nothing to run without a window\" and exits 1.\n- The Docker image runs `--config /data --scope public --port 3500 --headless`; cube4's /data/consensus.json (Host 0.0.0.0) migrates to Public at the next start.\n\n**The desktop as the second entry point** (`desktop/main.js`, `desktop/Settings.js`, `desktop/preload.js`, `desktop/page/connect.*`; `desktop/Local.js` removed)\n- The app parses its own arguments (Electron's switches left out) with the same Parse and starts this machine's server from the global config with the same Run, as the Scope says. A port already in use does not stop the app: it starts again with Scope None, opens as a client only, and the connect screen shows the reason (EADDRINUSE); the settings' problems do stop it.\n- The desktop's settings are the desktop's fields of consensus.json: Servers, Local (this machine's Theme), Last, Theme, Scale, Llms, Workspaces, Remembered. `MoveIn` moves desktop.json in once at the first start (renamed `.moved`), or fills a file written by hand with the fields it lacks; `Apply` writes the desktop's fields in place, so the server's settings object and the desktop's are the same object, written through the store. The pages are handed the desktop's fields only (`Fill`), never the participants' tokens.\n- The connect screen's Local server section (Browse, Start, Stop) is now **This machine**: the app's own server with its address, scope and config folder, and Connect; the Server menu lost Start and Stop. At start the app opens on the saved server that was open last, else on its own server when it runs. `--headless` opens no window and prints what the command line prints; Ctrl+C stops it.\n- New window starts another instance over the same config; its server takes the port only when free (the free port is Step 4), else that instance is a client.\n\n**Docs** (`docs/guide/getting-started.md`, `settings.md`, `api.md`, html rebuilt; `readme.md`; `bin/docs.js` seeds the desktop's config with Scope None).\n\n**Checks**\n- `node --test`: 164 passing. `test/Start.test.js` new (Parse, Run, the headless entry point spawned); `test/Api.test.js` (Scope at start, None, the migration, the settings route keeping the other fields); `test/Participants.test.js` (Migrate, HostOf, Validate, Clean); `test/Desktop.test.js` (Apply, MoveIn, a file by hand, no tokens to the pages); the Local.js tests gone with it.\n- A DevTools smoke of the real desktop, 27 checks: an old desktop.json moved into a fresh config (servers, themes, Last, remembered state; Data and Port dropped; the file renamed), the settings popup on a remote server (Name, Scope, no Host), This machine on the connect screen with its free port and config folder, Connect to it (named after the config's Name, its own theme, Last local), a restart on a new port with the theme kept, a second instance on the same port left a client with the reason shown, `--headless` printing the address and answering, `--scope none --headless` exiting 1, `--host` refused with the usage.\n- Found while testing: a config lacking Remembered (one written by hand, as the docs tool does) threw in the main process on the page's first remember; MoveIn now fills missing fields and Remember guards it.\n\n**Left for the later steps, as the plan has them**: the project folders and the content/ layout, the migration of a data folder into folders, Archive (Step 2); the runs in the server and the one page (Step 3); the path argument, the isolated instance, the recent projects, the free port (Step 4); the servers as roots (Step 5). Each LLM as a participant named `<connection>@<server name>` goes with Step 3, where the server starts making their tokens."
+			},
+			{
+				"Id": "rep-e7u-byo-u3x",
+				"By": "llm",
+				"At": "2026-10-12T06:08:21.022Z",
+				"Text": "A correction to the count above: the desktop smoke has 26 checks, not 27."
+			}
+		]
+	},
+	{
+		"Id": "thr-f0h-x9o-80w",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T08:40:11.784Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T08:42:43.727Z",
+			"Revision": 17,
+			"RevisionId": "rev-npw-3q2-f8e",
+			"Outcome": "Accepted as posted: Step 2 of Run Shapes (the project folders, the migration, Archive and Restore, a project's own lists, the page) built and committed (146453f); the plan goes back to Plan until Step 3 is started."
+		},
+		"Created": "2026-10-12T08:06:56.894Z",
+		"Replies": [
+			{
+				"Id": "rep-m8o-95t-zcr",
+				"By": "llm",
+				"At": "2026-10-12T08:06:56.894Z",
+				"Text": "## Build log: Run Shapes, Step 2 (project folders)\n\nBuilt by Claude Fable 5.1 (claude-fable-5-1), the agent session. Step 2 of five, after the two decisions recorded in the text (every project gets a prj- id at migration; a missing folder is skipped and shown, never dropped).\n\n**The store over project folders** (`src/Store.js`, rewritten)\n- A project is a folder with a `.consensus` sub-folder: `project.json` (Id, Name, tree, Archive, States, Include, Exclude, Commands), `content/<id>/` with content.json, content.md, threads.json and revisions/, `archive/<id>/` and `trash/<id>/`, the names as you chose them. The config folder keeps consensus.json only; its `Projects: [ { Path } ]` lists the folders in display order, and the store writes it when a project is made, opened, moved or deleted.\n- An index of which folder holds each item is built at start from the listed folders. A copy or a move between projects moves the item's folder (`CopyProposal( Id, Project )`, `MoveProposal`); Archive and Restore move it between content/ and archive/, and an archived item reads with `Archived: true` and refuses writes (a 409 from the API). A project made with no folder named goes under `<config>/projects/<name>/`; a folder that holds a project already is opened (`OpenProject`). The last project cannot be deleted; deleting one removes its `.consensus` and leaves the folder.\n- The migration at start: a config folder from before Step 2 (projects.json, projects/<id>/, proposals/, trash/) moves each project into a folder of its own under projects/, in the new layout, Default under a new prj- id (the desktop's workspaces follow it); items in no tree and the old trash go to the first project's trash; the old project folders are moved aside first, since \"default\" and \"Default\" are one folder on Windows. The migration from before Consensus Desktop (Context folders, corpora, the LLM's files) still runs on the way. A listed folder that is gone, or on a drive not mounted, is skipped with a line and kept in the list (`Missing()`); a folder under projects/ that the list lacks is found and listed; a config with no project at all gets Default. The settings' retired keys (Corpus, Context, Workers) are dropped (`Participants.Migrate`).\n\n**The API** (`src/Api.js`, `src/ProjectPort.js`)\n- A project's own States govern its plans: a new plan starts in the project's first state, the state route and the create route check against the project's list, the settings' list is only the default for a new project, and the state rename at start reaches every project's list. `PUT /api/projects/:pid` takes Name, States, Include, Exclude and Commands (lists, or lines of text); a state still used by one of the project's plans cannot be removed. `POST /api/projects` takes a Path and opens a folder that already holds a project (200, Opened). `POST /api/items/:id/archive` and `/restore`; the listing carries Archive (with titles, states and tallies), States and Path. The import writes into the target project's folder; a copy lands in the project asked for; a cross-project move carries the folders. The id `default` is gone: a proposal created with no project goes to the first one.\n\n**The desktop's page** (`desktop/page/`)\n- The Archive folder at the bottom of a project, folded by default, with the archived plans and their Subplans; **Archive** in a plan's menu, **Restore** in an archived plan's (a Subplan's is disabled: it goes with its plan). An archived plan opens read-only: an \"archived\" badge, no Edit, the picker disabled, no New Comment or New subplan, Ctrl+E ignored.\n- The state picker and the menus' \"New …\" follow the project's States. **Settings** in a project's menu opens a popup (`js/project.js`) with its States, Include, Exclude and Commands, one per line, showing its folder; the server's problems are shown and nothing is saved while there are any.\n- **+ Project** asks for a folder in the desktop (Browse, or empty for one under the config folder); a folder with a project is opened as it is. A remembered project that is gone, or the first start, opens the first project (there is no \"default\" to fall back on).\n- The connect screen names the project folders the settings list and the machine lacks.\n\n**Docs** (settings, projects, api and getting-started pages; html rebuilt; `readme.md`). The workspaces stay the desktop's until Step 3, when the runs move into the server and a project's folder becomes what they work in; project.json already carries Include, Exclude and Commands for that.\n\n**Checks**\n- `node --test`: 170 passing. `test/Store.test.js` rewritten for the folders (projects, copy and move across projects, archive, missing and found folders, both migrations); `test/Api.test.js` gained three tests (projects as folders and open-by-path, archive and restore with every refused write, a project's own lists); every test that named `default` now takes the first project's id.\n- A DevTools smoke of the real desktop, 25 checks: a config from before Step 2 migrated at start (the folder, the layout, the page listing the project under its id, the missing folder kept), a project made in a folder of its own from the sidebar's form, the menus (Archive, Settings, Restore, the disabled Subplan Restore), Archive from the tree with the files moved and the plan read-only in the header and at the API, Restore, the Settings popup saving States and Include into project.json and refusing a state in use, the picker and \"New Idea\" following the project's States, a new plan starting in Idea, the other project keeping New Draft, the missing folder on the connect screen.\n\n**Not redeployed**: cube4's /data will migrate at its next start, each project into /data/projects/<name>/.consensus; the redeploy waits for your word, as before."
+			}
+		]
+	},
+	{
+		"Id": "thr-zbh-iju-34d",
+		"Anchor": {
+			"Text": "Decided before the build (2026-10-12): the connections under",
+			"Prefix": "e again and desktop/page/ goes. ",
+			"Suffix": " /api/llms (list, create, update"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T09:28:37.605Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T09:29:16.982Z",
+			"Revision": 18,
+			"RevisionId": "rev-emx-1vq-3ul",
+			"Outcome": "Applied as recommended, every point as written: the routes, the LLM participants, the workspaces gone, who starts a run, the records under the config folder, and the Consensus project moving to the checkout for its runs; recorded on the Step 3 line."
+		},
+		"Created": "2026-10-12T09:20:06.421Z",
+		"Replies": [
+			{
+				"Id": "rep-ps9-vrm-go8",
+				"By": "llm",
+				"At": "2026-10-12T09:20:06.421Z",
+				"Text": "Design for Step 3, before the build; the routes and five decisions, a recommendation on each. Everything a run needs is plain node already (Llm.js, Runs.js, Tools.js, Package.js, Ollama.js, Files.js); they move from desktop/ to src/ as they are, with the workspace replaced by the project.\n\n**The routes.** The LLM connections: `GET /api/llms` (every participant sees Name, Kind, Model and whether one is running; the owner sees the whole record), `POST /api/llms`, `PUT /api/llms/:id`, `DELETE /api/llms/:id` and `POST /api/llms/:id/check` (the owner only; Check with the fields as typed, unsaved, as today). The runs: `GET /api/runs/lists?Project=&Plan=` (the packaging popup's documents and waiting threads), `POST /api/runs/package` (the prompt, with the popup's unsaved overrides), `POST /api/runs { Llm, Kind, Project, Plan? }` returning the record with Status running, `GET /api/runs?Llm=` (the summaries, newest first), `GET /api/runs/:id` (the whole record, the output as it stands), `POST /api/runs/:id/stop`. A run's start, progress and end go out over `/api/events` as `{ Kind: 'run', Run, Llm, Status }`, in place of the desktop's runs-changed; the run popup reads the output as it does today.\n\n**1. The LLM participants.** Each connection is a participant of this server, Role llm, Name `<connection Name>@<server Name>`, with a Token the server makes and keeps on the connection (the owner sees it in the settings, no one else); it is made when the connection is saved, renamed with it (older replies keep the name they were posted with), and removed with it. The connection's Name is restricted to letters, digits, dot, dash and colon, offered as `claude-cli` or `ollama-<model>` by default. An ollama run's tools post with that token; a claude-cli run gets it in its package (the Agent instructions say how to use a token) in place of the hand-made llm participant's. The hand-made `llm` participant stays for an agent session started by hand, as now. Note what the Turn rule means with several llm participants: a contested thread waits on every one of them, a resolved thread too until one applies it; the counts grow and nothing else changes. Recommendation: as written.\n\n**2. The workspaces go.** A run works in the project's folder (its Path on this machine), with the Include, Exclude and Commands of project.json; a run over a project whose folder is missing is refused. The desktop's Workspaces list is dropped at the Step 3 migration; where a workspace's Path is one of the project folders, its Include, Exclude and Commands move into that project.json if it has none. The workspace tab and item go from the page; the LLM items show once, under the server, not in each project's Context folder (an LLM belongs to the server, a project picks it in the Run). Recommendation: as written.\n\n**3. Who starts a run.** Every participant but one with the llm role: the owner and the members press Review, Build and Session on the server they are connected to, and the run posts as the LLM participant on that server. Recommendation: as written; the runs are one per connection at a time as today, whoever asked.\n\n**4. Where the records live.** `<config>/runs/<id>.json`, as the desktop keeps them under its user data today, naming the project; not in `.consensus`, since a record holds the whole prompt and output, and the plans in source control should not carry them. Recommendation: as written; a later step may give the project a run log of its own if the history should travel.\n\n**5. What this means for cube4.** After Step 3 a run works on the server's own machine only (statement 6). cube4's projects live in /data/projects/<name>/ with no code and no claude in the image, so Review and Build with claude-cli on the Consensus project are then done through the local server on this machine, over a project whose folder is the checkout, as the plan intends: the plans travel with the source. The way there, when Step 3 is deployed: export the Consensus project from cube4 and import it into a project opened on the checkout (`W:/code-projects/orgs/mchiver/consensus.git/.consensus`, committed from then on), and cube4 keeps the other projects and the Readme for reading until Step 5 shows both servers in one tree. An ollama connection on cube4 still runs there, over /data/projects/<name>/. Recommendation: as written; say if you would rather keep a clone of the repository under /data/projects/Consensus on cube4 and run an ollama connection from there instead.\n\n**The one page.** public/ takes desktop/page/ whole (the three extra scripts, the index and the css), the desktop-only parts (the folder picker, the native theme, Remember into the config) behind `window.ConsensusDesktop`, with localStorage for a browser's remembered view; desktop/page/ goes, and the Ui tests run against public/ again. The server serves the LLM pages to a browser like the rest. No decision there."
+			}
+		]
+	},
+	{
+		"Id": "thr-r2m-nwe-9nw",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T14:55:58.560Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T14:58:09.609Z",
+			"Revision": 18,
+			"RevisionId": "rev-emx-1vq-3ul",
+			"Outcome": "Accepted as posted: Step 3 of Run Shapes (the LLMs in the server and the one page) built and committed (18bc0c8); the plan goes back to Plan until Step 4 is started; cube4 waits for the redeploy."
+		},
+		"Created": "2026-10-12T10:36:00.720Z",
+		"Replies": [
+			{
+				"Id": "rep-zmj-ox1-nhp",
+				"By": "llm",
+				"At": "2026-10-12T10:36:00.720Z",
+				"Text": "## Build log: Run Shapes, Step 3 (the LLMs in the server and the one page)\n\nBuilt by Claude Fable 5.1 (claude-fable-5-1), the agent session. Step 3 of five, as the design thread decided (2026-10-12): the routes, the LLM participants, the workspaces gone, who starts a run, the records under the config folder, cube4's Consensus project moving to the checkout for its runs.\n\n**The server runs the LLMs** (`src/`)\n- The six run modules moved from `desktop/` as they were: `Llm.js`, `Runs.js`, `Tools.js`, `Package.js`, `Ollama.js`, `Files.js`. A run works in the project's folder (Folder: its Path with the Include, Exclude and Commands of project.json); a record names the project with its folder, the plan and who asked (By). The tool instructions and the package say \"Consensus\" and \"the project's folder\" where they said the desktop and the workspace.\n- `src/Llms.js` (new): the settings' `Llms`, each filled with an id (`llm-…`, a new id kind) and a token the server makes when the connection is saved; a Name is letters, digits, dot, dash and colon, `claude-cli` or `ollama-<model>` when none is given; Problems names what is wrong, a clash with a hand-made participant included; Public gives everyone Id, Name, Kind, Model and the participant's name, the owner the whole record.\n- `src/Participants.js`: every connection is a participant with the llm role, named `<Name>@<server Name>`, identified by its token, listed with its connection's id (`Llm`); All lists the hand-made ones and them. Nothing changed in the Turn rule: a contested thread waits on every llm participant but the last replier, a resolved one on all of them.\n- `src/Runner.js` (new): what the desktop's main process did over fetch, over the store: the packaging popup's lists (the other Context documents, the plan's threads waiting on the connection), the package (the connection's checks and unchecked ids; the agent instructions made for the connection's own participant and token, `Instructions.Make( …, Participant )`; the tool instructions for ollama), and the start of a run; a server with Scope None refuses, since a run could not reach it; a build needs the folder on this machine.\n- `src/Server.js`: the connections filled and checked at start (a token made for one that lacks it), the desktop's workspaces from before moved into their projects once (`MigrateWorkspaces`: a workspace on a project's folder gives it its Include, Exclude and Commands when the project has none of its own; the others dropped with a line; the list gone), the runs with their records in `<config>/runs/<id>.json`, the Runner over the server's own address, run changes out over the events as `{ Kind: run, Run, Llm, Status }`, the runs stopped at Close.\n- `src/Api.js`: `/api/llms` (GET for everyone; POST, PUT, DELETE, `/check` and `/:id/check` for the owner; a connection is not deleted while it runs; `{ Kind: llms }` events) and `/api/runs` (`/lists`, `/package`, POST to start, GET the list, `/:id`, `/:id/stop`); an llm participant starts no run (403); a second run on a connection answers 409.\n\n**The one page** (`public/`)\n- `desktop/page/` became `public/` again: the index, the css and every script, with the three scripts the copy had gained; `desktop/page/` keeps the connect screen, served beside `public/` by `desktop/Page.js`. The desktop-only parts stay behind `window.ConsensusDesktop` and `window.Desktop` (the native theme, the folder picker, Remember); a browser gets the LLMs and the runs like the desktop.\n- `public/js/llm.js` (new, in place of `desktop.js`): the connections from `/api/llms`, the LLM page over `/api/runs` with a **project** picker (the sidebar's open project first) beside the plan picker and no workspace; Details and Packaging for the owner; Review, Build and Session for everyone but an llm participant; the log shows the connection's runs with who asked; the run popup follows the run over the events. The workspace page and item are gone.\n- `sidebar.js`: the **LLMs** list under the projects (folded or not, remembered), with New LLM in its menu and Open, Rename and Delete in a row's, the owner's to change, through the API; the Context folder's menu is New Document and Paste. `app.js`: the route `#/llm/<id>`, the llms and run events. `tabs.js`, `header.js`: the tab and the title for a connection.\n- Two faults of the page found on the way and fixed: a tab opened for a plan the project list did not know yet (made a moment ago, or opened by link) was closed by the tabs' prune when an older list answer arrived, and the header kept the previous plan; now only the server's 404 closes a tab, archived plans count as known, and an older list answer is dropped (`LoadList` keeps a sequence).\n\n**The desktop** (`desktop/`)\n- `main.js` and `preload.js` lost the items, the package and the run handlers and the runs folder; `Settings.js` lost the connections and the workspaces, and MoveIn hands desktop.json's connections to the server's `Llms` (when it has none) and its workspaces to the server's migration. The window's close no longer waits for runs.\n\n**Docs**: `llm.md` (Connections and runs: the server runs the LLM, the participant per connection, the project's folder), `settings.md`, `getting-started.md`, `projects.md`, `api.md` (the routes and the events); html rebuilt; `readme.md` (the opening, how the LLM takes part, the desktop section, the API, the layout). `bin/docs.js` seeds the stand-in connection on the seeded server and pictures the LLM page by its new route.\n\n**Checks**\n- `node --test`: 174 passing. `test/Runs.test.js` new (the connections filled and checked, the participants they make, the package with the participant and token, the check, the runs with who asked, the files); `test/Tools.test.js` over `src/` with a folder in place of a workspace; `test/Api.test.js` gained three tests (the connections as the owner's, each a participant seen by its token and shown without it to others; a run end to end: the lists, the package, 403 for an llm participant, the record, the events, the stop, the delete taking the participant with it; the workspace migration and a connection in the file getting its token); `test/Ui.test.js` brought to the one page (capitalized menus, the host in the connection label, the tabs through stored.js, a state added in the project's Settings, the clipboard granted, a pasted plan keeping its title, New Document from the Context folder's menu); `test/Desktop.test.js` cut to the settings, MoveIn and the page server; the Docs screenshots over the server's connection.\n- A DevTools smoke of the real desktop over its own server, 30 checks: a connection and a workspace from before (the token made, the lists into the project), the participant listed, the LLMs list and the three menus, the LLM page with the project and plan pickers, the tab and the header, Details with Check through the server and a save keeping the token, Packaging's lists and a Preview with the participant, this server's address, the token and the folder, a Review run with its output on stdin, the log row, the record in `<config>/runs/`, 403 for the connection's own token, the connection's token as its participant, New LLM, Rename (a bad name refused), Delete closing the tab and the participant, the connect screen.\n\n**Not redeployed**: cube4 waits for your word; at its next start its settings gain nothing until a connection is added, and the Consensus project's runs are the checkout's from now on, as decided."
+			}
+		]
+	},
+	{
+		"Id": "thr-5fy-ttz-vr6",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T15:19:43.608Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T15:20:39.136Z",
+			"Revision": 18,
+			"RevisionId": "rev-emx-1vq-3ul",
+			"Outcome": "Accepted as posted, the six decisions during the build included: Step 4 of Run Shapes (open from anywhere) built and committed (630df74); the plan goes back to Plan until Step 5 is started; cube4 waits for the redeploy."
+		},
+		"Created": "2026-10-12T15:11:50.228Z",
+		"Replies": [
+			{
+				"Id": "rep-8eg-5jq-b1p",
+				"By": "llm",
+				"At": "2026-10-12T15:11:50.228Z",
+				"Text": "## Build log: Run Shapes, Step 4 (open from anywhere)\n\nBuilt by Claude Fable 5.1 (claude-fable-5-1), the agent session, on \"build step 4\" (2026-10-12), with no design thread before it: the step's line and the plan's Command line, Start sequence and Invocation scenarios sections said enough, and the choices they left open are recorded here, under **Decided during the build**, for you to overturn.\n\n**The command line** (`src/Start.js`, `bin/consensus.js`)\n- `consensus <path>` and `--project <folder>` are the same: one project folder, one at a time (a second is refused by name). The usage line and both entry points' comments say so.\n- The lines a start prints gained the projects loaded, each with its folder (`project Default at …`), the one project of an isolated instance marked `(this project only)`; and two notes when they apply: `port 3500 is in use: listening on 61820 instead` and `Scope None taken as Local: a project on the command line needs this machine's server`. `--headless` prints them as before.\n\n**The isolated instance** (`src/Store.js`, `src/Server.js`)\n- `Prepare( settings, { Project: path } )` registers that folder's project and no other: the settings' list is neither read for roots nor scanned under `<config>/projects/`, and the Default project is not made. A folder with no `.consensus` gets one, named after the folder, with the default States and an empty Readme in its Context folder. The folder goes to the front of the settings' `Projects` (the most recent first, as the plan's global config section says), the rest of the list kept as it was, so a plain start shows it first. `Isolated()` gives its id; the server returns the project as `Project`.\n- A folder that is not there is refused (`no such folder: …`) and the start fails; nothing is made for a path mistyped. A folder whose `.consensus/project.json` has no Id is refused too.\n- Scope None with a project on the command line is taken as Local for that start (`ScopeForced`), since the project needs its server; the settings keep their Scope.\n\n**The free port** (`src/Server.js`)\n- The configured port in use (another instance) gives way to a free one, `PortTaken` saying which was taken, so two folders can be open at once. A port given with `--port` is not given up: that start fails with EADDRINUSE as before, and the desktop then stays a client with the reason on the connect screen, as in Step 1.\n\n**The desktop** (`desktop/main.js`, `desktop/page/connect.html`)\n- A path on the app's command line opens the window on this machine's server with that project alone, whatever was open last, and `Last` is left as it was, so the next plain start is unchanged. The connect screen stays reachable, and its This machine line says `on the project <name> alone (<path>)`.\n- The Server menu gained **Open folder in new window…** (Ctrl+Shift+O): the folder dialog, then another instance of the app started with the folder as its argument, the way `consensus <path>` starts it; New window takes arguments now, and the folder dialog is one function for the menu and the page's + Project.\n\n**Docs**: `getting-started.md` (the path in the options table, the printed lines with the project, the free port, Scope None with a path, the desktop's path and Open folder in new window), `settings.md` (the list's order), the readme (Starting it, The desktop); html rebuilt.\n\n**Decided during the build**\n1. A missing folder is refused rather than made: `consensus <path>` opens a folder that exists, as an editor does; New project is where folders are made.\n2. The folder opened from the command line goes to the front of the settings' list every time, the plan's \"most recent first\"; the display order the owner sets in the page is otherwise kept. (The alternative, joining at the end and never moving, would keep the owner's order whole but lose \"recent\".)\n3. The free port is taken only when no `--port` was given; an asked-for port in use is an error.\n4. Scope None is taken as Local for a start with a project, with a line, rather than refused.\n5. The isolated instance is server-side (what the store registers); the API is unchanged, so `/api/projects` lists the one project, and a project made in that instance (+ Project) joins the global list as usual. The desktop neither hides the connect screen nor the saved servers in it; it opens on this machine's server and leaves Last alone.\n6. Open folder in new window starts an instance on the folder, in place of opening the folder in the same window: one window is one server with its projects, and the second instance is where the plan puts a second folder.\n\n**Checks**\n- `node --test`: 176 passing (174 before). `test/Start.test.js`: the path and `--project` parsed, one at a time; a project folder on the command line, its `.consensus` made when missing, that project alone, first in the list, Scope None taken as Local, a missing folder refused, opened again as read, a plain start listing both; the configured port in use taken over by a free one with the line, an asked-for port refused. The first Run test counts the project line.\n- `bin/consensus.js` by hand on a folder with `--scope none`: the six lines as above, the folder made a project.\n- A DevTools smoke of the real desktop, two instances over one config: the first on the configured port with Default; the second started with a folder as its argument, on a free port, the page showing that project and nothing else, the folder's `.consensus` made, the folder first in the settings' list with Default after it, Last untouched, the header naming the project, the connect screen's This machine line naming it, the first instance unchanged. 10 checks, all pass.\n\n**Not redeployed**: cube4's command line (`--config /data --scope public --port 3500 --headless`) is unchanged by this step; it still runs the Step 2 build until you say."
+			}
+		]
+	},
+	{
+		"Id": "thr-ria-4r5-qkw",
+		"Anchor": {
+			"Text": "Decided before the build (2026-10-12): a root is a server the page shows",
+			"Prefix": "each server's own participants. ",
+			"Suffix": ", { Key, Name, Base }, this mach"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T15:36:27.053Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T15:37:15.549Z",
+			"Revision": 19,
+			"RevisionId": "rev-7zc-p6c-wwu",
+			"Outcome": "Applied as recommended, every point as written: the roots and the forwarding per root, the tree with a root row per server, the routes and tabs carrying the root, what stays one, the desktop opening on every root with the connect screen as Servers…, no version gate, and the Consensus project moving to the checkout with the redeploy after Step 5; recorded on the Step 5 line."
+		},
+		"Created": "2026-10-12T15:25:45.637Z",
+		"Replies": [
+			{
+				"Id": "rep-f2u-oh8-4il",
+				"By": "llm",
+				"At": "2026-10-12T15:25:45.637Z",
+				"Text": "Design for Step 5, before the build: how one page shows several servers, with seven decisions and a recommendation on each. This is the largest of the five steps: today the page is written for one server (one `State` with Me, Participants, Proposals and Projects, one `Client` base, one events stream, one `Server` handed by the desktop), and the desktop \"connects\" the window to one server at a time; after Step 5 the window holds every server at once and nothing is connected to, only shown.\n\n**The shape.** A *root* is a server the page shows: `{ Key, Name, Base }`. In the desktop the roots are this machine's server (Key `local`, named by the config's Name) and every saved server (Key: its Name); in a browser there is one root, the page's own origin, Key empty, so cube4's users see no change. Each root loads its own Me, Participants, States, Proposals, Projects and LLM connections, and listens to its own events stream (`public/js/roots.js`, in place of the per-server part of `State`); `State` keeps what is one at a time (the open item, the view, the selection, the compose) and names the root it belongs to. Every API call goes through the root: `Client.Get( root, path )`, which prefixes the root's Base.\n\n**1. The forwarding per root.** `desktop/Page.js` forwards `/servers/<key>/api/*` (the events stream included) and `/servers/<key>/instructions` to that root's server, the local one included (its Base is a prefix like the others, so the page has one way to reach every root); `SetTarget` becomes `SetRoots( [ { Key, Url } ] )`. The server itself is not changed: it still sends no CORS headers and knows nothing of roots. The key is the saved server's Name, url-encoded, since the tree names the roots by it; a server renamed on the connect screen gets a new key and its tabs close. Recommendation: as written.\n\n**2. The tree.** A root row per server at the top level of the sidebar: this machine's first when it runs, then the saved servers in their order; the row shows the server's Name, its live or offline dot, \"you are <name> (<role>)\" for that server, and the version in the tooltip; its menu has Settings (the owner's, that server's consensus.json), Add server, Edit and Remove (the connect screen's forms, in place) and Reload. Beneath each root: its projects as today, its LLMs list, its Trash. A root that does not answer stays in the tree, offline, with the reason in its tooltip and nothing beneath, and is tried again when its events stream reconnects. The sidebar's bottom keeps the theme and scale; the one connection label and the one Settings button go into the root rows. Recommendation: as written; a root folds like a project (remembered), so a server one rarely looks at takes one row.\n\n**3. The routes, the tabs and the remembered state.** A route carries its root: `#/s/<key>/p/<id>`, `#/s/<key>/llm/<id>`; in a browser the one root keeps today's routes (`#/p/<id>`), so links stay as they are. A tab's key carries the root, and the tabs list is remembered once per window (not per server), since a window spans servers; the open project, the folds, the sort and the LLMs fold stay per server under the server's address, as today. Waiting becomes one tab over every root, each row naming its server. Recommendation: as written.\n\n**4. What stays one.** The editor, the threads pane, the header, the revisions and the ports work on the open item over its root; the Settings popup edits the root it was opened for. The theme is the window's: the per-server Theme (plan UI Tweaks V) is dropped from the settings at migration, keeping the default, since several servers show at once. Copy and Paste carry export json, so Paste into another server's project is an import there, with new ids: that is the way to move a plan between servers; drag and drop between roots is refused with a notice. Recommendation: as written.\n\n**5. The desktop's start and the connect screen.** The window opens on the page with every root it has, and on the connect screen only when it has none (Scope None and no saved server); `Last` is no longer used and dropped at migration. The connect screen keeps Add server (tried before it is saved), Edit, Remove and This machine, reached from the Server menu as \"Servers…\"; the Server menu loses Connect to another and keeps Reload, New window and Open folder in new window. An isolated instance (Step 4) shows the local root alone, as its line says. `window.ConsensusDesktop.Server` becomes `Roots`, and the page's \"HasDesktop\" parts (the folder picker) apply to the local root only, since a folder picked on this machine means nothing to a remote server. Recommendation: as written.\n\n**6. Versions.** A saved server may run an older Consensus (cube4 runs Step 2 until it is redeployed): a root shows what its API answers, the LLMs list empty on a 404, and a version other than the app's is said in the root's tooltip, as the connect screen says it today. Recommendation: as written; no version gate.\n\n**7. What this means for cube4 and the turn.** After Step 5 the desktop shows this machine's server and cube4 in one tree, which is where Step 3's decision 5 was heading: the Consensus project is exported from cube4 and imported into a project on the checkout (`.consensus` committed from then on), cube4 keeps the other projects, and the agent session takes its turn over the local server's API (http://127.0.0.1:3500, the token from its consensus.json) for the Consensus project and over cube4's for the rest. Recommendation: do the export and import with the redeploy that follows Step 5, not before, so the plan is finished on the server it was written on.\n\n**Checks.** `test/Ui.test.js` runs against a browser's one root and stays as it is but for the roots module; `test/Desktop.test.js` gets the forwarding per root; a DevTools smoke of the real desktop with two servers (this machine's and a second started by the smoke and saved as a server) in one tree: an item opened on each, a plan pasted from one into the other, a root offline. The build goes in checkpoints: the roots module and the forwarding first, then the sidebar and the routes, then the desktop's start and the connect screen, then the docs."
+			}
+		]
+	},
+	{
+		"Id": "thr-whg-onn-ti9",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T16:18:06.604Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-12T16:22:22.310Z",
+			"Revision": 19,
+			"RevisionId": "rev-7zc-p6c-wwu",
+			"Outcome": "Accepted as posted, the three decisions during the build included: Step 5 of Run Shapes (servers as roots) built and committed (4a70e31); all five steps done, the plan is Finished. cube4 redeployed with Steps 3 to 5 (2026-10-12), and the Consensus project exported from it into the checkout's .consensus, as decided."
+		},
+		"Created": "2026-10-12T16:11:30.128Z",
+		"Replies": [
+			{
+				"Id": "rep-g9z-3kd-nnq",
+				"By": "llm",
+				"At": "2026-10-12T16:11:30.128Z",
+				"Text": "## Build log: Run Shapes, Step 5 (servers as roots)\n\nBuilt by Claude Fable 5.1 (claude-fable-5-1), the agent session, on \"build step 5\" (2026-10-12), as the design thread decided: the roots and the forwarding per root, the tree with a root row per server, the routes and tabs carrying the root, what stays one, the desktop opening on every root, no version gate. Two small departures from the design are named under **Decided during the build**.\n\n**The roots** (`public/js/roots.js`, new; `client.js`, `stored.js`, `app.js`)\n- A root is a server the page shows: `{ Key, Name, Url, Kind, Base, Me, Participants, States, Proposals, Projects, Live, Error, Loaded }`. The desktop hands the list in `window.ConsensusDesktop.Roots` (this machine's server as `local`, named by the config's Name, then every saved server under its Name); a browser has one root, its own origin, Key empty. Each root loads its own identity and lists (`LoadMe`, `LoadList`, each project marked with its root) and listens to its own events stream; a root's stream connecting reads its lists afresh, so an offline server comes in when it answers.\n- `Client.Get( root, path )` goes through the root's Base, `Client.Get( path )` to the current root (`SetCurrent`); `Listen( root, … )` opens that root's stream. `State` keeps what is one at a time and names its root (`State.Root`, `SetRoot`); its Me, Participants, States, Proposals, Projects and Live are the current root's, so the panes that work on the open item (the editor, the threads, the header, the revisions, the ports' popup) read as they did.\n- The remembered state (`stored.js`) takes the root: the open project, the folds, the LLMs fold and the root's fold are kept under the server's address; the tabs, the sort and the stamps once per window.\n- A route carries its root: `#/s/<key>/p/<id>`, `#/s/<key>/llm/<id>`; a route without (a browser's, a link in a text) means the current root. A tab's key carries the root (`<key>|p:<id>`), its tooltip names the server when there are several, and a tab of a root the page does not have is dropped at load. The header names the root beside the title when the page shows several.\n\n**The tree** (`sidebar.js`, `index.html`, `consensus.css`)\n- A root row per server at the top level: this machine's first, then the saved servers in their order; the row shows the server's Name, a dot green while its updates are live, \"you are <name> (<role>)\" for that server, \"offline\" when it is, the owner's Settings button, and a menu with New Project, Import, Settings, Servers… (the desktop) and Reload; the tooltip has the address, the version and, offline, the reason. The row folds like a project, remembered. Beneath it: the server's projects as they were, its LLMs list and its Trash. The sidebar's bottom keeps the theme and the scale; the connection label and the one Settings button went into the rows.\n- Every action goes to the root its row belongs to (create, rename, delete, move, archive, restore, copy, paste, export, the LLM connections, the trash, the project settings, the server's settings). An item dropped on another root's project is refused with a notice; Copy on one root and Paste into another is an import there, with new ids. The Waiting link counts every root's threads for its own participant; the Waiting view is one tab over every root, each group naming its server.\n- `llm.js`: the connections per root (`Llms.For( root )`), listed under each root, the LLM page over the connection's root (its project picker, its runs, its Details and Packaging), a run's events marking the right root.\n\n**The desktop** (`desktop/Page.js`, `main.js`, `preload.js`, `Settings.js`, `page/connect.*`)\n- `Page.js` forwards `/servers/<key>/api/*` (the events stream included) and `/servers/<key>/instructions` to that root's server (`SetRoots( [ { Key, Url } ] )`); a plain `/api` answers 503, since the page reaches a server through its root only. The Consensus server itself is unchanged.\n- `main.js` no longer connects: the roots are this machine's server when it runs and the saved servers (this machine's alone for a project on the command line, Step 4); the window opens on the page when it has a root and on the servers screen when it has none; the Server menu reads Servers…, The page, Reload, New window, Open folder in new window; the theme is the window's. `preload.js` hands `Roots`, and `Desktop.Servers()` and `Desktop.OpenPage()` switch the screens.\n- The servers screen (the connect screen before) keeps Add server (tried before it is saved), Edit, Remove and This machine, and gained Open the page; Connect is gone. `Settings.js`: `Last`, `Local` and a theme per server are dropped from a config that has them, with a line at start.\n\n**Docs**: `getting-started.md` (the desktop: the page with every server, the servers screen, the root rows and their menu), `projects.md` (the tree), `editing.md` (what is remembered where), `settings.md` (the desktop's fields, one theme), `llm.md` (the list under its server); the screenshots made again (the root row in every picture of the page, the servers screen); html rebuilt; the readme (the opening, the desktop section, the layout).\n\n**Decided during the build**\n1. Add server, Edit and Remove are not folded into the root's menu as forms in place: the menu's Servers… opens the servers screen, where the forms are, and Open the page comes back; one list of servers in one place.\n2. The sort order and the stamps are the window's, not per server, since one tree control sorts every root; the open project, the folds and the LLMs fold stay per server as decided.\n3. The Server menu has The page beside Servers…, so the page is reached from the menu as well as from the screen's button.\n\n**Checks**\n- `node --test`: 176 passing, the count unchanged: `test/Ui.test.js` (24, a browser's one root, today's routes) and `test/Desktop.test.js` (the forwarding per root: two roots, a key the window has not, a server that does not answer, the events stream; `Last` and the themes dropped at MoveIn) brought to the roots; `test/Docs.test.js` makes the pictures over the servers screen and the page.\n- A DevTools smoke of the real desktop with two servers in one tree, 17 checks: this machine's root first, named by the config, the saved server second; a project under each and the other server's LLM connection under it alone; both live, each saying who you are; a plan opened on each root with the header naming the server and the tabs keyed by root; the open project remembered under each server's address; Copy on one root and Paste into the other, the plan on this machine's server with a new id and the other's untouched; the Settings popup of a root reading that server's file; the Waiting view over both; a server that does not answer saved on the servers screen, shown as a root, offline, the others live, the tabs back with their roots; the servers screen with Open the page and no Connect; the page back from it. All pass.\n\n**Not redeployed**: cube4 waits for your word; it runs the Step 2 build. The redeploy that follows is where the Consensus project moves to the checkout, as decided."
+			}
+		]
+	}
+]

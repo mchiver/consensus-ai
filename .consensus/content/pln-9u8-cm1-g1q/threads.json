@@ -1,0 +1,251 @@
+[
+	{
+		"Id": "thr-vqg-1j7-thj",
+		"Anchor": {
+			"Text": "Item actions menu.",
+			"Prefix": "UI Tweaks III ",
+			"Suffix": " Each row of the project tree ge"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-28T04:39:24.157Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-28T04:47:39.522Z",
+			"Revision": 10,
+			"Outcome": "The row buttons become one actions menu per row (the project heading's + buttons included); the ⋯ shows on hover and on the current item's row; right-click opens it.",
+			"RevisionId": "rev-c3h-w4l-oqk"
+		},
+		"Created": "2026-09-28T04:37:22.521Z",
+		"Replies": [
+			{
+				"Id": "rep-qbu-i9b-xns",
+				"By": "llm",
+				"At": "2026-09-28T04:37:22.521Z",
+				"Text": "My reading: a single **⋯** button at the right end of the hovered row opens a menu with that item's actions, replacing the row buttons we have today:\n\n- **project:** New plan, New document, New folder, Link a corpus, Upload a zip, Paste, Rename, Delete\n- **folder:** Paste, Copy, Rename, Delete\n- **plan:** New Subplan, Rename, Copy, Delete\n- **document:** Rename, Copy, Delete\n- **corpus:** Rename, Copy, Delete\n- **the Context row:** no menu (nothing to do there)\n\nThe badges stay on the row. Delete in the menu asks to confirm on the row itself (delete? Yes / No), as today. Right-clicking a row opens the same menu.\n\nTwo questions:\n\n1. The open project's heading shows its + plan, + doc, + folder, + link and + zip buttons all the time today. Should those move into its ⋯ menu too? I recommend yes: one pattern for every row, and the heading stops wrapping onto a second line.\n2. Should the ⋯ button show only on hover, or always on the open item's row? I recommend hover only, plus the open item's row, so you can reach the menu of what you are looking at."
+			},
+			{
+				"Id": "rep-uzo-8i9-qmu",
+				"By": "user",
+				"At": "2026-09-28T04:39:24.157Z",
+				"Text": "1. yes, they move into the actions menu\n2. hover plus current"
+			}
+		]
+	},
+	{
+		"Id": "thr-p7c-lqn-jl3",
+		"Anchor": {
+			"Text": "UI Tweaks III",
+			"Prefix": "",
+			"Suffix": " Item actions menu. Each row of "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-28T04:40:55.659Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-28T04:47:39.540Z",
+			"Revision": 11,
+			"Outcome": "Dropped, as the owner asked: the plan state item is removed.",
+			"RevisionId": "rev-86f-0q3-qva"
+		},
+		"Created": "2026-09-28T04:37:22.713Z",
+		"Replies": [
+			{
+				"Id": "rep-nc2-w4u-0bj",
+				"By": "llm",
+				"At": "2026-09-28T04:37:22.713Z",
+				"Text": "The plan's heading already has a state picker: the small \"WORKING ▾\" beside the tally. I think it is styled too quietly to read as a control. Which do you mean?\n\n- **(a)** That picker, restyled as a clear drop-down button colored by its state, with the states listed when clicked; or\n- **(b)** the state shown on the plan's row in the tree, made clickable to pick a state there.\n\nI recommend **(a)**, plus a **State** entry in the plan's ⋯ menu listing the states, so it can also be changed from the tree."
+			},
+			{
+				"Id": "rep-gf5-s2q-yai",
+				"By": "user",
+				"At": "2026-09-28T04:40:55.659Z",
+				"Text": "drop this one"
+			}
+		]
+	},
+	{
+		"Id": "thr-z1g-3sk-4b8",
+		"Anchor": {
+			"Text": "Delete only in the menu.",
+			"Prefix": "o). The badges stay on the row. ",
+			"Suffix": " The Delete button leaves the co"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-28T04:41:42.732Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-28T04:47:39.559Z",
+			"Revision": 12,
+			"Outcome": "Delete is in the actions menu only: gone from the plan and document heading and from the corpus view (its Rename moves to the menu too).",
+			"RevisionId": "rev-g7s-hzr-5sz"
+		},
+		"Created": "2026-09-28T04:37:22.885Z",
+		"Replies": [
+			{
+				"Id": "rep-rcr-2az-ind",
+				"By": "llm",
+				"At": "2026-09-28T04:37:22.885Z",
+				"Text": "Agreed for plans and documents. A corpus's view has its own Delete button too, beside Rename, Replace zip and Reload. Should that one go as well, with Delete in the corpus's ⋯ menu instead? I recommend yes, so Delete lives in one place for every kind of item. Rename would also move into the menu, while Replace zip and Reload stay in the corpus view, since they are about its contents."
+			},
+			{
+				"Id": "rep-ntk-7wa-yrz",
+				"By": "user",
+				"At": "2026-09-28T04:41:42.732Z",
+				"Text": "yes, show it only in the menu"
+			}
+		]
+	},
+	{
+		"Id": "thr-pws-by9-1bf",
+		"Anchor": {
+			"Text": "Project dots.",
+			"Prefix": "n the item's actions menu only. ",
+			"Suffix": " In the project tree, the open ("
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-28T04:42:21.804Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-28T04:47:39.580Z",
+			"Revision": 13,
+			"Outcome": "The recommendation went in: the solid green dot marks the expanded project, hollow circles the others, and none is solid with every project collapsed.",
+			"RevisionId": "rev-z28-di4-u3q"
+		},
+		"Created": "2026-09-28T04:37:23.056Z",
+		"Replies": [
+			{
+				"Id": "rep-c48-h12-5dp",
+				"By": "llm",
+				"At": "2026-09-28T04:37:23.056Z",
+				"Text": "Only one project is open (expanded) at a time, so I read \"selected/open\" as the expanded project: it gets the solid green dot, and every other project a hollow circle. The dot goes between the chevron and the name.\n\nOne case to settle: you can collapse every project, and the open item's project then collapses too. I recommend that no project shows a solid dot then, since the dot follows what the tree shows. The alternative is that it follows the project of the open item, whether expanded or not."
+			}
+		]
+	},
+	{
+		"Id": "thr-rjs-v9x-ajd",
+		"Anchor": {
+			"Text": "Tab menu.",
+			"Prefix": "ot follows what the tree shows. ",
+			"Suffix": " Each tab keeps its ×, and gets "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-28T04:45:10.235Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-28T04:47:39.607Z",
+			"Revision": 14,
+			"Outcome": "A tab menu (Close, Close others, Close to the right, Close all, Detach) in place of ↗; detached tabs stay in the strip ghosted and disabled, with Re-attach and Close in their menu.",
+			"RevisionId": "rev-v8s-ra7-gnp"
+		},
+		"Created": "2026-09-28T04:37:23.228Z",
+		"Replies": [
+			{
+				"Id": "rep-7o8-cl8-1xj",
+				"By": "llm",
+				"At": "2026-09-28T04:37:23.228Z",
+				"Text": "Proposed tab menu: a **▾** in place of ↗, beside the ×, opening:\n\n- Close\n- Close others\n- Close to the right\n- Close all\n- a separator\n- Open in its own window (Detach; only for plans, documents and corpora, as today)\n\nRight-clicking a tab opens the same menu.\n\nOn Reattach: a detached tab leaves the strip today, so no tab in the main window has anything to re-attach. I recommend Re-attach stays in the detached window, whose bar gets the same ▾ menu with **Re-attach** and **Close window**. The alternative is that a detached tab stays in the strip, marked as out, with Re-attach (bring it back) and Show (bring its window forward) in its menu. That is more work, since the main window would then need to call a window back.\n\nIs \"Close to the right\" wanted, and which Re-attach do you prefer?"
+			},
+			{
+				"Id": "rep-203-871-ts6",
+				"By": "user",
+				"At": "2026-09-28T04:45:10.235Z",
+				"Text": "a detached tab stays in the strip, but ghosted and disabled.\nsure, add \"Close to the right\""
+			}
+		]
+	},
+	{
+		"Id": "thr-h4e-jfz-4jw",
+		"Anchor": {
+			"Text": "Ctrl+E edits.",
+			"Prefix": "ndow's own bar keeps Re-attach. ",
+			"Suffix": " With a plan, a document or a pr"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-28T04:57:54.472Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-28T04:58:20.144Z",
+			"Revision": 15,
+			"Outcome": "Ctrl+E is a new item: it toggles Edit and Read for plans, documents and contexts.",
+			"RevisionId": "rev-sy8-fhq-baa"
+		},
+		"Created": "2026-09-28T04:46:41.075Z",
+		"Replies": [
+			{
+				"Id": "rep-t0z-9qj-ufy",
+				"By": "user",
+				"At": "2026-09-28T04:46:41.075Z",
+				"Text": "i want Ctrl+E to invoke edit on a document or plan."
+			},
+			{
+				"Id": "rep-2jw-v2c-zo7",
+				"By": "llm",
+				"At": "2026-09-28T04:47:48.422Z",
+				"Text": "Understood: a keyboard shortcut for Edit. My reading, to go in as its own item:\n\n> - **Ctrl+E edits.** With a plan, a document or a project's context open, Ctrl+E switches it to Edit, from Read or Revisions; pressed again in Edit, it goes back to Read, keeping any unsaved edit as the Read button does. It works wherever the page has focus, the editor included, and it replaces the browser's own Ctrl+E (which jumps to the address bar's search) while the page has focus.\n\nTwo choices in it, each with my recommendation:\n\n1. **Toggle or edit only?** I recommend the toggle above, so the same keys take you back to Read.\n2. **The context too?** You said document or plan; I included the project's context, since it is edited the same way. Leave it out if you prefer."
+			},
+			{
+				"Id": "rep-olm-wvg-wrf",
+				"By": "user",
+				"At": "2026-09-28T04:57:54.472Z",
+				"Text": "1. yes\n2. yes"
+			}
+		]
+	},
+	{
+		"Id": "thr-w43-41m-4mv",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-28T05:36:13.080Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-28T05:36:45.793Z",
+			"Revision": 15,
+			"Outcome": "Build accepted: UI Tweaks III is built as the build log says; committed.",
+			"RevisionId": "rev-sy8-fhq-baa"
+		},
+		"Created": "2026-09-28T05:25:37.476Z",
+		"Replies": [
+			{
+				"Id": "rep-cek-xkj-uyd",
+				"By": "llm",
+				"At": "2026-09-28T05:25:37.476Z",
+				"Text": "**Build log: UI Tweaks III** (built by Claude Opus 5.5, in Claude Code)\n\nAll six items are built. Nothing is committed yet; resolving this thread accepts it.\n\n**The popup menu** (`public/js/menus.js`, new)\n- One menu for the page, used by the tree and the tabs, with no new dependency. It opens under its button, or at the pointer for a right-click, and stays inside the window.\n- A click elsewhere, Escape, a scroll or a resize closes it.\n- An `on-context-menu` directive turns a right-click into the same menu.\n\n**Item actions menu** (`public/index.html`, `public/js/sidebar.js`)\n- Every tree row's buttons became one ⋯ at the row's end. It shows on hover, on the current item's row, on the open project's heading, and while its menu is open. A right-click on a row opens the same menu.\n- The entries, as the plan lists them:\n  - A project: New plan / document / folder (naming the picked folder), Link a corpus, Upload a zip, Paste, Rename, Delete. Delete is greyed out for Default or a project that is not empty.\n  - A folder: Paste, Copy, Rename, Delete.\n  - A plan: New Subplan, Rename, Copy, Delete. A document or corpus: Rename, Copy, Delete.\n  - The Context row has no menu.\n- A corpus is now renamed in place on its row, like the others.\n\n**Delete only in the menu**\n- Delete from a menu asks \"to the trash? Yes / No\" on the row. Yes trashes the item and closes its tab.\n- Gone from the plan and document heading (`public/js/header.js`), and from the corpus view with its Rename (`public/js/corpus.js`). Replace zip and Reload stay in the view.\n\n**Project dots**: the open (expanded) project has a solid green dot between the chevron and its name; the others have a hollow circle.\n\n**Tab menu** (`public/js/tabs.js`)\n- A ▾ beside each tab's × (in place of ↗), or a right-click, opens: Close, Close others, Close to the right, Close all, and Detach (for plans, documents and corpora).\n- A detached tab stays in the strip, ghosted: italic and dimmed, and clicking it does nothing. Its menu has:\n  - **Re-attach:** the window is asked to come back, and the tab returns to its own place in the strip. If no window answers, the tab simply stops being ghosted.\n  - **Close:** its window is told to close.\n- Closing the window yourself still closes the item. The strip never moves onto a ghosted tab when another closes.\n\n**Ctrl+E** (`public/js/header.js`)\n- Ctrl+E switches the open plan, document or context from Read or Revisions to Edit, and from Edit back to Read. It is heard before the editor and the browser, so it works inside Monaco too.\n- Unsaved edits are kept with the tab a moment after typing, as before.\n\n**Readme**: row menus, Delete, the dots, the tab menu with ghosted tabs, and Ctrl+E.\n\n**Tests**: `npm test` passes all 156 tests.\n- UI tests that clicked the old row buttons now go through the menus.\n- The detach test covers the ghosted tab (clicking it does nothing, its menu has Re-attach and Close), Re-attach from the detached window, and Re-attach from the main window.\n- New UI tests:\n  - tree menus: right-click, the entries, Escape, confirm-and-delete, no Delete in the heading, the dots;\n  - the tab menu: Close to the right, Close others, Close all;\n  - Ctrl+E: Read to Edit, back to Read from inside the editor, and the unsaved edit still there.\n- A bug found on the way: a menu closed by Escape could swallow the next menu opened in the same moment. It closes at once now.\n\nThe page changes show on a reload; no server change is in this build."
+			}
+		]
+	}
+]

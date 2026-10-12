@@ -1,0 +1,66 @@
+[
+	{
+		"Id": "thr-3hu-nne-57w",
+		"Anchor": {
+			"Text": "The answer is the same JSON as today (reply, apply, context)",
+			"Prefix": "es MaxRounds or TimeoutSeconds. ",
+			"Suffix": ", and Consensus carries it out t"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T07:33:11.584Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T07:34:06.621Z",
+			"Revision": 2,
+			"RevisionId": "rev-4fn-326-2xe",
+			"Outcome": "Settled in chat and already in the text at revision 2 (Review on the plan and on each thread; a review may create threads, plans and Subplans; no state action). Applied as outcome only, no text change."
+		},
+		"Created": "2026-09-29T07:23:01.423Z",
+		"Replies": [
+			{
+				"Id": "rep-sv7-s5t-27p",
+				"By": "llm",
+				"At": "2026-09-29T07:23:01.423Z",
+				"Text": "LLM Tool Usage option 3 moves here: a review may open threads of its own, not only answer the ones that exist. The wording I will apply, replacing step 3 of A review turn:\n\n3. The answer is the same JSON as today (reply, apply, context), plus a fourth action, **thread**: `{ \"Kind\": \"thread\", \"Text\": \"<the comment>\", \"Anchor\": \"<a passage, as it reads>\" }`, with no Anchor for the whole document. Consensus opens it as a new contested thread by the `llm` participant, through the same rule as the API's new thread; an Anchor not found is refused, as an apply's is. Consensus carries the answer out through the same rules. A review has no Requests: the tools replace them.\n\nThe rules in the prompt say to open a thread only for a point no existing thread covers. The action applies to every destination, not only workers, since it lives in the answer's schema. I recommend leaving out a `state` action: states stay the owner's buttons."
+			},
+			{
+				"Id": "rep-2jc-kqb-7fs",
+				"By": "llm",
+				"At": "2026-09-29T07:32:32.189Z",
+				"Text": "Settled in chat and now in the text (revision 2): Review is on the plan and on each thread, and a review may create threads, plans and Subplans (What a review may create; step 3 of A review turn). No state action. Nothing more to apply: resolve this and I will apply it as outcome only."
+			}
+		]
+	},
+	{
+		"Id": "thr-psl-tos-vg5",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T18:06:37.268Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T18:10:25.515Z",
+			"Revision": 2,
+			"RevisionId": "rev-4fn-326-2xe",
+			"Outcome": "The build is accepted: committed as Workers, and the plan is Finished."
+		},
+		"Created": "2026-09-29T17:39:10.340Z",
+		"Replies": [
+			{
+				"Id": "rep-v6g-mnd-12i",
+				"By": "llm",
+				"At": "2026-09-29T17:39:10.340Z",
+				"Text": "**Build log** (agent session, Claude Fable 5.1). 183 tests pass (`node --test`).\n\n**What was built**\n- **Review on the plan**: the heading's Send to LLM is **Review (n)**; the panel is titled Review, with its prompt choices, destinations, Manual and run log as before.\n- **Review on a thread**: a Review button among a selected thread's buttons (owner, on a plan, not on an applied thread) opens the same panel with that thread in focus: a strip names it, the threads picker hides, and only that thread is sent and acted on, even one waiting on the owner. **Review the whole plan** lets it go.\n- **A worker's review** (`src/Worker.js`): claude -p in the workspace's Root with `--tools Read,Grep,Glob`, `--restricted`, `--permission-mode dontAsk`, Exclude denied as Read rules, `--json-schema`, `--max-turns` from MaxRounds, stream-json (each tool call a run step and a line on the worker's page); the plan tools through `src/Mcp.js` (`bin/worker.js --mcp`, stdio JSON-RPC, no dependency; its token in a config file only this user reads, removed after the job). Ollama: the loop runs on the worker through `/api/chat` with tools, then once more with the answer's schema.\n- **What a review may create** (`src/Llm.js`, `src/Api.js`): `thread` (a contested thread by the llm on the reviewed plan; an anchor not found is refused) and `plan` (in the first state; Parent a folder, or a plan for a Subplan; none: the reviewed plan's folder). In the schema, so every destination has them. No `state` action. A worker's prompt says \"Your tools\" in place of Requests.\n\n**How it was checked**\n- `test/Workers.test.js`: a review job from queue to answer with thread and plan actions (a Subplan, a sibling, a bad anchor and an unknown Parent refused), a review of one thread. `test/Worker.test.js`: the claude args and stream, the Ollama loop against a stand-in, the MCP server spawned for real. `test/Ui.test.js`: review on a thread (focus, preview, only that thread answered, back to the whole plan).\n- Live: a real claude -p review on this repo through a temporary Consensus.\n\n**Beyond the plan's text**\n- A review of the whole plan now runs with nothing waiting (it was refused), since it may open threads.\n- `StructuredOutput` (how claude hands back a `--json-schema` answer) is not shown as a tool call.\n- Include is honoured by the worker's own file tools but not enforced for claude's; Exclude is."
+			}
+		]
+	}
+]

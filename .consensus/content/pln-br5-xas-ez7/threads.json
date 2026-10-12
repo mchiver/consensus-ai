@@ -1,0 +1,136 @@
+[
+	{
+		"Id": "thr-jro-qfh-n2o",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T02:34:05.969Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T02:39:23.326Z",
+			"Revision": 3,
+			"Outcome": "Filled out: the export file format, what is left out (tokens, indexes, runs, zips), export and import through the API and the project menu, new ids on every import, linked and attached corpora on import, the import report, and what is out of scope.",
+			"RevisionId": "rev-20t-fjr-yz8"
+		},
+		"Created": "2026-09-29T02:34:05.969Z",
+		"Replies": [
+			{
+				"Id": "rep-8pc-ysn-w3s",
+				"By": "user",
+				"At": "2026-09-29T02:34:05.969Z",
+				"Text": "fill this out with detail"
+			}
+		]
+	},
+	{
+		"Id": "thr-9rh-1br-aw4",
+		"Anchor": {
+			"Text": "For a linked inference engine (LLM), export the settings to allow a reconnection",
+			"Prefix": "ontext Server Inference Engines ",
+			"Suffix": ". Engines are server wide today,"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T03:20:21.968Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T03:21:02.750Z",
+			"Revision": 4,
+			"Outcome": "Resolved without a reply, so the recommendation stands, and the text already says it: an export carries the Context Servers the project uses (those its linked corpora point to and those its plans' LLM runs were sent to), each with its Inference items (Name, Type, Model) and the server Url, never a token. No text change.",
+			"RevisionId": "rev-60h-65g-ibf"
+		},
+		"Created": "2026-09-29T02:39:23.347Z",
+		"Replies": [
+			{
+				"Id": "rep-mfu-0wh-eik",
+				"By": "llm",
+				"At": "2026-09-29T02:39:23.347Z",
+				"Text": "**What is a \"linked inference engine\" for a project?** Today inference engines are not per project: they are the llm participant's Destinations, which include every context server's Inference items, server wide. A project only touches them through the runs made on its plans.\n\nRecommendation: export the context servers the project refers to (those its linked corpora use, plus those its plans' runs were sent to), with each server's Inference items (Name, Type, Model, never a token), and have the import report say which are present on the new server. That is what the plan now says.\n\nOr did you mean something more: should a project be able to name its own engine (a default destination for its plans), so the setting travels with it? I would leave that for its own plan."
+			},
+			{
+				"Id": "rep-4x4-ar4-mz5",
+				"By": "user",
+				"At": "2026-09-29T03:00:47.420Z",
+				"Text": "i mean the LLM connections made via a Context Server"
+			},
+			{
+				"Id": "rep-vz7-06l-ubm",
+				"By": "llm",
+				"At": "2026-09-29T03:05:47.191Z",
+				"Text": "Understood: the Inference items a Context Server offers, which show up here as destinations named \"<server> / <item>\".\n\nOne follow-up: which of those go into an export?\n\nRecommendation: those the project actually uses, meaning the Context Servers its linked corpora point to and those its plans' LLM runs were sent to, each with all of that server's Inference items (Name, Type, Model, Url of the server, never a token). The other choice is every Context Server this server knows, used or not; simpler, but it carries connections that have nothing to do with the project.\n\nResolve to take the recommendation, which is what the text says now."
+			}
+		]
+	},
+	{
+		"Id": "thr-ayk-xmr-e0z",
+		"Anchor": {
+			"Text": "The file is merged into the project here",
+			"Prefix": "ouched. Merge Existing (merge). ",
+			"Suffix": ". Nothing here is removed. Plans"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T03:04:40.306Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T03:05:53.112Z",
+			"Revision": 4,
+			"Outcome": "Merging is now covered. Ids are kept on import, so a plan that already exists is found by its Id. For each one: Overwrite Existing (old one to the trash first), Create a Copy (new Id, tree rewritten), or Merge (append newer revisions when the histories agree, keep the text here and report when they split; add new threads, replies, and resolve/apply records). A Preview lists the existing plans with one default choice (Merge) and a per-plan override; the API takes OnConflict and Choices. The tree and corpora follow the same choice. Removed \"Merging\" from Out of Scope.",
+			"RevisionId": "rev-60h-65g-ibf"
+		},
+		"Created": "2026-09-29T03:04:40.306Z",
+		"Replies": [
+			{
+				"Id": "rep-zd9-esz-6cq",
+				"By": "user",
+				"At": "2026-09-29T03:04:40.306Z",
+				"Text": "Good point. we should cover this now.\nwhen an imported plan already exists, the user (or API) should choose one of:\n- Overwrite Existing\n- Create a Copy\n- Merge, taking only the new changes"
+			}
+		]
+	},
+	{
+		"Id": "thr-n2t-4nw-n1p",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T04:44:53.077Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T04:46:25.136Z",
+			"Revision": 7,
+			"Outcome": "Accepted. Committed as db189ee \"Project Import and Export\". Merge Existing waits on the Subplan Global Ids for revision ids.",
+			"RevisionId": "rev-tys-dde-h7r"
+		},
+		"Created": "2026-09-29T04:15:26.086Z",
+		"Replies": [
+			{
+				"Id": "rep-2mo-4d2-m8t",
+				"By": "llm",
+				"At": "2026-09-29T04:15:26.086Z",
+				"Text": "**Build log: Project Import and Export** (built by Claude Opus 5.5, in Claude Code)\n\n**What was built**\n- **Export**, `GET /api/projects/:pid/export`: one json object (`Format: consensus-project`, `Version: 1`) with the project's tree, its context, every plan, Subplan and document with its text, threads and every revision, each corpus's settings and file list (a linked one's asked for at its server), and the context servers the project uses (those its linked corpora name and those its plans' LLM runs went to) with their inference items. No tokens, no search indexes, no runs or usage, no zips.\n- **Import**, `POST /api/projects/import` with `{ Export, Mode, Preview }`:\n  - the file is checked whole first; a bad one writes nothing and says why;\n  - `Preview: true` writes nothing and says whether the project is here, the modes, and the copy's name;\n  - project not here: imported as it is, every id intact;\n  - project here: `Mode` is required. `copy` makes \"Copy of <name> (imported <yyyy-mm-dd>)\" with every id new (project, context, folders, plans, Subplans, documents, corpora; the tree and Context pointer rewritten). `merge` adds newer revisions where the histories agree (keeps the text here and reports the revision where they split), new threads, replies and resolve / apply records, new tree nodes and new corpora; nothing here is removed;\n  - the report: what was made and merged, splits, each corpus's state (a linked one's files compared with its server's, or what to add to consensus.json), each context server (present, online, missing inference items), unknown participant names.\n- **Access:** the owner or the llm participant, so an agent session can carry projects to and from a remote Consensus over the API. The API's json body limit went from 8 MB to 64 MB so a whole project fits in one import.\n- **Attached corpora** come in without their zip, marked waiting; the tree shows \"needs its zip\", and Replace zip on the corpus clears it.\n- **The page:** Export project on a project's ⋯ menu (the json in a popup, Copy, Download as `<name>-<date>.consensus.json`); an Import button beside New project (paste or Load file, Preview, then Import, or Import as a Copy / Merge Existing when the project is here, then the report).\n\n**Where**\n- `src/ProjectPort.js` (new): Export, Check, Merge, Import.\n- `src/Api.js`: the two routes, the body limit, `Waiting` on a corpus's tree view.\n- `src/Store.js`: `WriteWholeProposal`, `WriteImportedCorpus`; `CreateProject` takes an imported project's Id, Context and Items; a new zip clears `Waiting`.\n- `public/js/ports.js` (new), `public/index.html`, `public/js/sidebar.js`, `public/css/consensus.css`: the popup, the menu item, the Import button, the badge.\n\n**How it was checked**\n- `test/ProjectPort.test.js` (new, 8 tests): merge on its own (ahead, behind, split, threads and replies); the file check; export (no token, every revision, owner or llm); import of a new project across servers with ids intact, attached corpus waiting then re-attached, linked corpus relinked and its files compared; a project that is here (preview, refusal without Mode); merge by the llm token (new revision, reply, new plan, a split kept); import as a copy (name, every id new, the one here untouched); a server without the context server (linked corpus offline, what to add).\n- `test/Ui.test.js`: one new browser test: export from the menu, paste into Import, Preview, Import as a Copy, the report, the new project in the tree.\n- The whole suite: 165 tests, all pass.\n- The running server on port 3500 still runs the code from before; restart it to use this.\n\nResolve to accept; reply with what to change otherwise."
+			},
+			{
+				"Id": "rep-m90-7eo-bxr",
+				"By": "llm",
+				"At": "2026-09-29T04:43:53.632Z",
+				"Text": "**Build log, updated: merge by global revision ids** (Claude Opus 5.5)\n\nThe merge now follows the text as it stands (revision 7): revisions are matched by their global Id, never by number.\n- Revisions not here are appended, numbered after the ones here, keeping their Id and Parent; nothing here is renumbered; the same file again adds nothing.\n- The file's current revision descends from the one here (Parent and Merged links): the history goes on to it. The one here descends from the file's: the text here stays.\n- Otherwise a conflict: a merge revision (Reason merge, Parent the one here, Merged the file's, By consensus) takes the newer text by timestamp, and the report names the common revision. Merging the other way then simply goes on to that merge revision, so both servers end with the same text.\n- A thread's Applied record taken from the file gets the number its RevisionId has here.\n- `src/Ids.js` (new): `rev-xxx-xxx-xxx` ids for the merge revision, the start of the Subplan Global Ids.\n\n**Until Global Ids is built**, revisions have no Id, so Merge Existing is refused before anything is written, saying the plan needs the revision ids of Global Ids. Import of a new project and Import as a Copy work now.\n\n**Checked:** `test/ProjectPort.test.js` now has 11 tests: merge going on, behind, the same file again; a conflict with its merge revision and a round trip A into B, B into A, and again, ending identical; replies, resolve and apply records with the applied revision renumbered; the id format; and over the API, a merge refused and nothing written while ids are missing. The whole suite: 168 tests, all pass.\n\nNext is the Subplan Global Ids, which has one question open (two groups or three)."
+			}
+		]
+	}
+]

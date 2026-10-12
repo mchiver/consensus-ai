@@ -1,0 +1,220 @@
+[
+	{
+		"Id": "thr-tvo-m0j-lfh",
+		"Anchor": {
+			"Text": "This comes before the tabs work (the \"Later: tabs\" section of Consensus UI Tweaks).",
+			"Prefix": " it, and the LLM may change it. ",
+			"Suffix": " Why Today a call gets the propo"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T02:29:57.605Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T02:33:12.339Z",
+			"Revision": 2,
+			"Outcome": "Resolved without an answer, so the recommendation went in: this comes before the tabs work.",
+			"RevisionId": "rev-u1d-cvd-dlk"
+		},
+		"Created": "2026-09-26T02:21:39.505Z",
+		"Replies": [
+			{
+				"Id": "rep-cc2-u2q-9i0",
+				"By": "llm",
+				"At": "2026-09-26T02:21:39.505Z",
+				"Text": "**Question:** Order: should this come before or after the tabs work (the \"Later: tabs\" section of Consensus UI Tweaks, not yet its own proposal)? I'd do this first: it is smaller, and it improves every LLM call."
+			}
+		]
+	},
+	{
+		"Id": "thr-8v6-mj4-cya",
+		"Anchor": {
+			"Text": "Changes apply directly as new revisions; people view and edit the context at any time.",
+			"Prefix": "s refused, as a stale apply is. ",
+			"Suffix": " When a project has no context y"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T02:35:48.883Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T02:38:16.807Z",
+			"Revision": 4,
+			"Outcome": "The LLM's context changes apply directly; people view and edit it at will.",
+			"RevisionId": "rev-e12-4h2-4fn"
+		},
+		"Created": "2026-09-26T02:21:39.517Z",
+		"Replies": [
+			{
+				"Id": "rep-v8a-2t6-okt",
+				"By": "llm",
+				"At": "2026-09-26T02:21:39.517Z",
+				"Text": "**Question:** Should the LLM's context changes apply directly (a new revision, named in its reply), or be proposed for you to accept first? I'd apply directly: every change is a revision you can read and undo, and asking for approval on each would slow every review."
+			},
+			{
+				"Id": "rep-3m3-ovo-d7n",
+				"By": "user",
+				"At": "2026-09-26T02:28:43.925Z",
+				"Text": "direct as fuck. this is the one place the LLM has to maintain cohesion across discussions. Users may still view and edit it at will."
+			},
+			{
+				"Id": "rep-ok4-0km-rim",
+				"By": "llm",
+				"At": "2026-09-26T02:33:12.380Z",
+				"Text": "Understood: the LLM's changes apply directly, as new revisions, and you view and edit the context whenever you like. The context is where the LLM keeps the project coherent across discussions.\n\nWhen you resolve this, I'll add to the item: *Changes apply directly as new revisions; people view and edit the context at any time.*"
+			}
+		]
+	},
+	{
+		"Id": "thr-bfm-1gy-qwd",
+		"Anchor": {
+			"Text": "12,000 characters (about 3,000 tokens) by default.",
+			"Prefix": "size the context is kept under; ",
+			"Suffix": " What stays as it is Plans remai"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T02:29:39.797Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T02:33:12.365Z",
+			"Revision": 3,
+			"Outcome": "Resolved without an answer, so the recommendation went in: 12,000 characters by default.",
+			"RevisionId": "rev-jt0-l2p-20s"
+		},
+		"Created": "2026-09-26T02:21:39.531Z",
+		"Replies": [
+			{
+				"Id": "rep-yby-4ob-umz",
+				"By": "llm",
+				"At": "2026-09-26T02:21:39.531Z",
+				"Text": "**Question:** A default size? I'd start at 12,000 characters (about 3,000 tokens), enough for a useful map without weighing on every call."
+			}
+		]
+	},
+	{
+		"Id": "thr-wfw-6sv-j57",
+		"Anchor": {
+			"Text": "No call starts on its own; the rules tell the LLM to write a context whenever the project has none.",
+			"Prefix": " it to write the first context. ",
+			"Suffix": " Settings Context.MaxCharacters "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T02:37:03.724Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T02:38:16.834Z",
+			"Revision": 5,
+			"Outcome": "Initialize context stays a button; the rules cover a project with no context.",
+			"RevisionId": "rev-ps4-1bv-h9d"
+		},
+		"Created": "2026-09-26T02:21:39.544Z",
+		"Replies": [
+			{
+				"Id": "rep-c4l-7f5-bvl",
+				"By": "llm",
+				"At": "2026-09-26T02:21:39.544Z",
+				"Text": "**Question:** Should uploading the first zip into a project with no context start the initialization by itself, or only the button? I'd keep it to the button: an LLM call should be something you choose, like Send to LLM."
+			},
+			{
+				"Id": "rep-0ue-yvy-mfm",
+				"By": "user",
+				"At": "2026-09-26T02:29:28.669Z",
+				"Text": "Keep it to the button. The rules will let the LLM know to initialize the context."
+			},
+			{
+				"Id": "rep-hfz-5ot-azj",
+				"By": "llm",
+				"At": "2026-09-26T02:33:12.394Z",
+				"Text": "Understood: the button only. The LLM's rules (the fixed part of every prompt) tell it that a project with no context needs one, so any call in such a project also initializes it. Initialize context is the way to start one on purpose from a fresh zip.\n\nWhen you resolve this, I'll add to the item: *No call starts on its own; the rules tell the LLM to write a context whenever the project has none.*"
+			}
+		]
+	},
+	{
+		"Id": "thr-ql3-7re-pp4",
+		"Anchor": {
+			"Text": "Every project has one, Default included, so nothing treats Default as a special case.",
+			"Prefix": "ot be moved, copied or deleted. ",
+			"Suffix": " It holds the project's purpose,"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T02:35:24.348Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T02:38:16.857Z",
+			"Revision": 6,
+			"Outcome": "Resolved without an answer, so the recommendation went in: Default gets a context like every other project.",
+			"RevisionId": "rev-nz5-fbh-kxq"
+		},
+		"Created": "2026-09-26T02:21:39.557Z",
+		"Replies": [
+			{
+				"Id": "rep-ois-qwj-qzx",
+				"By": "llm",
+				"At": "2026-09-26T02:21:39.557Z",
+				"Text": "**Question:** Should the Default project have a context too? It holds ad-hoc items with no common subject, so I'd leave it without one unless you create it."
+			},
+			{
+				"Id": "rep-zxf-9cm-jlw",
+				"By": "user",
+				"At": "2026-09-26T02:25:53.718Z",
+				"Text": "i think to leave it without one. if having to account for this as a \"special case project\" intreoduces significant complexity, then we may as well add a context to the default project."
+			},
+			{
+				"Id": "rep-6n9-gg9-6ph",
+				"By": "llm",
+				"At": "2026-09-26T02:33:12.408Z",
+				"Text": "Here is what leaving Default out costs. Because the rules tell the LLM to write a context whenever a project has none (your answer on the Initialize context thread), Default would need an exception in two places:\n- the rules, so a call in Default does not start one, and\n- the tree and the Initialize context button, so Default shows neither.\n\nThat is small, but it is a special case in the prompt, the one place I'd most like to keep uniform. Treating Default like any other project costs nothing extra: its context would just describe itself as the place for ad-hoc items.\n\n**Question:** Give Default a context like every other project? I'd say yes, since the exception buys little."
+			}
+		]
+	},
+	{
+		"Id": "thr-c3t-dim-i3z",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T03:03:15.839Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T03:16:08.498Z",
+			"Revision": 6,
+			"Outcome": "The owner accepted the build.",
+			"RevisionId": "rev-nz5-fbh-kxq"
+		},
+		"Created": "2026-09-26T02:59:42.884Z",
+		"Replies": [
+			{
+				"Id": "rep-s67-tof-d4f",
+				"By": "llm",
+				"At": "2026-09-26T02:59:42.884Z",
+				"Text": "**Built.** Every part of this plan is in the code, with tests (119 pass):\n\n- **Storage:** a context is a proposal of Kind `context`; each project names its own (`project.Context`). New projects get one; at start, any project without one gets one (all three here did). It is never placed in a tree, moved, copied or deleted on its own; an empty project's context goes to the trash with it. (`src/Store.js`, `src/Api.js`)\n- **Prompt:** every Send to LLM includes the context after the rules, or says there is none and asks for one; the rules ask the LLM to keep it coherent, under `Context.MaxCharacters` (12,000, added to consensus.json), and to name any change in its reply. (`src/Llm.js`)\n- **Answer:** one `context` action per answer, `{ Kind, Text, Reason }`, becomes a new revision at once, with its reason shown in Revisions; refused when the context changed since the call. (`src/Api.js`)\n- **Initialize context:** a button on a context's page (owner). The LLM gets the project's plans and documents by title, its zips' file list, and up to 6 key files (readmes, manifests, CLAUDE.md), and writes the context. (`POST /api/projects/:pid/context/initialize`)\n- **Page:** a Context row pinned above each project's tree, marked \"empty\" until written; its page has no threads, state, Send or Delete.\n\nI also wrote this project's first context by hand from the codebase and its plans."
+			}
+		]
+	}
+]

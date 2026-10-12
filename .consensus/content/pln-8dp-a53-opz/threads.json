@@ -1,0 +1,341 @@
+[
+	{
+		"Id": "thr-bp5-r5n-dqq",
+		"Anchor": {
+			"Text": "The indexing and RAG functionality will be removed.",
+			"Prefix": "d buttons will also be removed. ",
+			"Suffix": " Consensus will now be a simplif"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T02:05:29.403Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T02:23:31.293Z",
+			"Revision": 10,
+			"RevisionId": "rev-mn7-v4x-z60",
+			"Outcome": "Resolved with no reply: the recommendation stands, and the text already says it. Corpora go in Step 1, with yauzl, ignore, the zip limits and their views."
+		},
+		"Created": "2026-10-01T02:01:12.294Z",
+		"Replies": [
+			{
+				"Id": "rep-9b1-9zb-go0",
+				"By": "llm",
+				"At": "2026-10-01T02:01:12.294Z",
+				"Text": "Corpora (the attached zips) exist to give the LLM files to read; without an LLM on the server they are only a file viewer. Do they go in Step 1, as written, or stay as a way to keep reference files with a project? Recommendation: they go. Step 3 brings local workspaces back in the desktop, which is where files belong in this design, and the server loses yauzl, ignore, the zip limits and two views with them."
+			}
+		]
+	},
+	{
+		"Id": "thr-gqz-iqa-48u",
+		"Anchor": {
+			"Text": "Remove all LLM connectivity and Workspaces from the existing Consensus server.",
+			"Prefix": " 1: Consensus Web Server Rework ",
+			"Suffix": " The Consensus server Web UI and"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T02:04:39.224Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T02:23:31.298Z",
+			"Revision": 10,
+			"RevisionId": "rev-mn7-v4x-z60",
+			"Outcome": "Resolved with no reply: the recommendation stands, and the text already says it. The worker, its page and the worker app are removed in Step 1; git history keeps them and Step 3 draws on their code."
+		},
+		"Created": "2026-10-01T02:01:12.575Z",
+		"Replies": [
+			{
+				"Id": "rep-4c0-8uj-h30",
+				"By": "llm",
+				"At": "2026-10-01T02:01:12.575Z",
+				"Text": "The worker, its page and the worker app are removed in Step 1 as written; git history keeps them, and Step 3 draws on their code (the tool loop, the file tools, the claude and ollama callers). The alternative is to leave them in the repo, unused and untested, until Step 3. Recommendation: remove them in Step 1. A repo that holds only what runs is easier to rework, and the code is a git checkout away."
+			}
+		]
+	},
+	{
+		"Id": "thr-ezo-0w9-5n7",
+		"Anchor": {
+			"Text": "Theme and style settings are not server settings",
+			"Prefix": "ditable in a popup modal panel. ",
+			"Suffix": ": the Web UI keeps them in the b"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T02:24:51.873Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T02:41:07.321Z",
+			"Revision": 12,
+			"RevisionId": "rev-30t-0x8-ivv",
+			"Outcome": "Theme and style are not server settings: the Web UI keeps them in the browser's local storage, per user and per server; the desktop keeps them in its configuration. The settings modal covers Host, Port, States and Participants. The wording from my reply went in."
+		},
+		"Created": "2026-10-01T02:01:12.607Z",
+		"Replies": [
+			{
+				"Id": "rep-sfr-ned-72y",
+				"By": "llm",
+				"At": "2026-10-01T02:01:12.607Z",
+				"Text": "The plan reads \"global theme and style settings\" as the server's defaults, with the browser's own selectors overriding them per browser. The other reading is that the settings are the only choice: the header's selectors go, and every browser shows the theme the settings say. Recommendation: defaults plus the per-browser override. A dark desk and a light laptop can both use the same server, and CLAUDE.md asks every page for its own theme and scale controls."
+			},
+			{
+				"Id": "rep-t8y-xee-d26",
+				"By": "user",
+				"At": "2026-10-01T02:09:35.371Z",
+				"Text": "The Web UI will store the theme and style settings in local storage, so that will be per user per server. The desktop app will store these settings in the config json. what does `CLAUDE.md` have to do with it?"
+			},
+			{
+				"Id": "rep-ssb-guu-mk2",
+				"By": "llm",
+				"At": "2026-10-01T02:23:31.387Z",
+				"Text": "Understood: theme and scale are not server settings. The web page keeps them in the browser's storage, which is per user and per server already (storage is per origin), and the desktop app keeps them in desktop.json and applies them to the page it hosts. The settings modal covers Host, Port, States and Participants only. CLAUDE.md came in only because its platform preferences ask every page for theme and scale controls, which was my reason for keeping the header's selectors; it decides nothing here. The Subplans Step 1 and Step 2 are written this way already. Your sentence in this plan, \"This includes the global theme and style settings\", now reads against that; the wording I will apply on resolve replaces it with: \"Theme and style settings are not server settings: the Web UI keeps them in the browser's local storage, per user and per server, and the desktop app keeps them in its configuration.\""
+			}
+		]
+	},
+	{
+		"Id": "thr-kdn-ivc-10g",
+		"Anchor": {
+			"Text": "New Documents (not Plans) can be created within the Context folder",
+			"Prefix": " containing a Context document. ",
+			"Suffix": " while the rest of the Project T"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T02:25:46.134Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T02:41:07.325Z",
+			"Revision": 12,
+			"RevisionId": "rev-30t-0x8-ivv",
+			"Outcome": "There are no documents outside a context today, so the migration is only: each project's context proposal becomes the Context document in a new Context folder, and corpora go to the trash. The Step 1 Subplan says so; nothing to change here."
+		},
+		"Created": "2026-10-01T02:01:12.636Z",
+		"Replies": [
+			{
+				"Id": "rep-oih-8v1-cx1",
+				"By": "llm",
+				"At": "2026-10-01T02:01:12.636Z",
+				"Text": "Existing documents outside a Context folder: the migration moves them into the project's Context folder, as written, or it could leave them where they are as the last documents allowed outside it. Recommendation: move them. The rule \"documents only in Context\" then holds for every project from the first start, and nothing has to special-case old items."
+			},
+			{
+				"Id": "rep-tie-zbk-120",
+				"By": "user",
+				"At": "2026-10-01T02:12:30.684Z",
+				"Text": "there are no existing documents, so there is no need to migrate anything."
+			},
+			{
+				"Id": "rep-x02-gb0-en5",
+				"By": "llm",
+				"At": "2026-10-01T02:23:31.393Z",
+				"Text": "Understood: there are no documents outside a context today, so nothing moves. The migration at first start is only: each project's context proposal becomes the Context document in a new Context folder, and corpora in the tree go to the trash. The Step 1 Subplan says exactly that. On resolve there is nothing to change in this plan's text; I will apply the outcome only."
+			}
+		]
+	},
+	{
+		"Id": "thr-693-dob-8pz",
+		"Anchor": {
+			"Text": "A project's Context will now be a folder named Context containing a Context document.",
+			"Prefix": "lobal theme and style settings. ",
+			"Suffix": " New Documents (not Plans) can b"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T02:10:56.554Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T02:23:31.288Z",
+			"Revision": 10,
+			"RevisionId": "rev-mn7-v4x-z60",
+			"Outcome": "The Context folder stays flat, which also discourages overuse of it."
+		},
+		"Created": "2026-10-01T02:01:12.659Z",
+		"Replies": [
+			{
+				"Id": "rep-vu8-qtq-cq0",
+				"By": "llm",
+				"At": "2026-10-01T02:01:12.659Z",
+				"Text": "May the Context folder hold subfolders, to sort many reference documents, or is it flat? Recommendation: flat. It holds the Context document and a few references; folders inside it would need their own rules (documents only, no Context document in them) for little gain. Step 3 adds the desktop's LLM and workspace items beside the documents, which a flat folder shows plainly."
+			},
+			{
+				"Id": "rep-67l-rs7-8yw",
+				"By": "user",
+				"At": "2026-10-01T02:10:56.554Z",
+				"Text": "keep a flat structure. this is also to dissuade from overuse of the `Context` folder."
+			}
+		]
+	},
+	{
+		"Id": "thr-ex5-4vg-qty",
+		"Anchor": {
+			"Text": "The desktop bundles its own copy of the page",
+			"Prefix": "of the application must be run. ",
+			"Suffix": ", taken from the Web UI as it st"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T02:39:58.258Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T02:41:07.331Z",
+			"Revision": 13,
+			"RevisionId": "rev-w8v-e4r-d5q",
+			"Outcome": "Agreed, read with the freeze: after Step 1 the server's Web UI is frozen, so the desktop takes its own copy of the page (from public/ as it then stands), points it at the connected server's API through a base URL, and develops it on from there in Steps 2 and 3 without touching the server's page. The connect screen warns on a version difference. The Step 2 Subplan is updated to match."
+		},
+		"Created": "2026-10-01T02:01:12.677Z",
+		"Replies": [
+			{
+				"Id": "rep-an9-vez-pwr",
+				"By": "llm",
+				"At": "2026-10-01T02:01:12.677Z",
+				"Text": "The desktop loads the Consensus page from the server rather than bundling a copy. Bundling would let the app open with no server up and show a page of its own version, but the page and the API would then drift apart between the app and each server it connects to, and the page is served already. Recommendation: load it from the server; the app bundles only its connect screen."
+			},
+			{
+				"Id": "rep-ww4-ktp-0cs",
+				"By": "user",
+				"At": "2026-10-01T02:16:51.568Z",
+				"Text": "I am unsure. my instinct is to bundle its own copy of the page or reuse the page source. the reason is that there will need to be special handling for Consensus hosted in the desktop app vs the web UI. For example, connecting LLMs and Workspaces, the Review and Build buttons, etc. This need discussion."
+			},
+			{
+				"Id": "rep-hw6-x7b-e8l",
+				"By": "llm",
+				"At": "2026-10-01T02:23:31.398Z",
+				"Text": "Agreed that the desktop needs parts the web page does not have: LLM connections, workspaces, Review and Build (Step 3). Here is a design that keeps one page source and gives the desktop its extras, for discussion.\n\n1. One page source, public/, served two ways. The server serves it as today. The desktop loads the same public/ from its own checkout (the file it ships with) and points it at the connected server's API: client.js gets an API base URL, empty in the browser (relative /api as today) and set by the desktop before the page starts. No second copy of the page exists.\n2. The page knows when the desktop hosts it: the preload exposes window.Desktop (connections, workspaces, the local model runner, Review and Build in Step 3). Where it is present, the page shows the desktop-only items in the Context folder and the desktop-only buttons; in a browser those parts are simply absent. One page, two hostings, no duplicated controllers.\n3. Version drift: a desktop built from one checkout may talk to a server built from another. /api/me returns the server's version, and the desktop warns on the connect screen when it differs from its own page's. Since the desktop and the server are the same repo, the two normally move together.\n\nThe alternative, loading the page from the server, keeps the page and the API in step for free but leaves no room for desktop-only parts without the server serving them, which is what Step 1 removes. Recommendation: reuse the page source as above. If you agree, the wording I will apply here is: \"The desktop reuses the page source (public/) from its own checkout, pointed at the connected server's API through a base URL in client.js, and the page shows the desktop-only parts when window.Desktop is present; the connect screen warns when the server's version differs from the page's.\" The Step 2 Subplan is then updated to match."
+			},
+			{
+				"Id": "rep-7j0-4fh-itq",
+				"By": "user",
+				"At": "2026-10-01T02:39:58.258Z",
+				"Text": "yes, i want to remove constraints during the design and development. After step 1, the consensus web UI should be considered frozen. Steps 2 and 3 are new development and enhancements."
+			}
+		]
+	},
+	{
+		"Id": "thr-7l5-bhl-idj",
+		"Anchor": {
+			"Text": "The application will serve as Consensus client which can connect to any accessible Consensus web server.",
+			"Prefix": "as a local desktop application. ",
+			"Suffix": " The application will be able to"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T02:13:11.875Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T02:23:31.302Z",
+			"Revision": 10,
+			"RevisionId": "rev-mn7-v4x-z60",
+			"Outcome": "Resolved with no reply: the recommendation stands, and the text already says it. Step 2 runs from the checkout; packaging is a later step once the app is in daily use."
+		},
+		"Created": "2026-10-01T02:01:12.695Z",
+		"Replies": [
+			{
+				"Id": "rep-2uy-ct4-rqw",
+				"By": "llm",
+				"At": "2026-10-01T02:01:12.695Z",
+				"Text": "The worker app ran from the checkout with no installer. A desktop app for daily use is a stronger case for packaging (an installer, or a portable folder, with Electron Forge or electron-builder), but that adds a large build dependency and a build step. Should Step 2 include packaging, or run from the checkout again with packaging as a later step? Recommendation: run from the checkout in Step 2, and add packaging as a Step 4 once the app is in daily use and its shape has settled."
+			}
+		]
+	},
+	{
+		"Id": "thr-rvd-0bq-gb9",
+		"Anchor": {
+			"Text": "Each step is a Subplan of this plan",
+			"Prefix": "l environment (LLMs and files). ",
+			"Suffix": ", built in order and accepted on"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T02:03:55.544Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T02:23:31.333Z",
+			"Revision": 11,
+			"RevisionId": "rev-at5-oq2-qa7",
+			"Outcome": "Each step is a Subplan of this plan: Step 1: Consensus Web Server Rework (pln-poa-63c-2ft), Step 2: Consensus Desktop Application (pln-cym-37j-n1h), Step 3: Local LLMs and Workspaces (pln-fjy-j7m-ose). The detail moved into them; this plan keeps the direction, the steps as first written, and the discussion. Step 3 is a sketch until Step 2 is in use."
+		},
+		"Created": "2026-10-01T02:01:12.710Z",
+		"Replies": [
+			{
+				"Id": "rep-ruw-ku9-mxp",
+				"By": "llm",
+				"At": "2026-10-01T02:01:12.710Z",
+				"Text": "The plan is built step by step, each on its own build log, and Step 3 is only sketched here. Two ways to carry that: (1) this plan holds all three steps, built in order, with Step 3 detailed in a Subplan when its turn comes; or (2) each step is a Subplan of this plan from the start, and this plan is the direction only. Recommendation: (1). Steps 1 and 2 are detailed enough to build from this text; a Subplan for Step 3 is opened when Step 2 is in use and the shape of the desktop is known."
+			},
+			{
+				"Id": "rep-aur-6xa-g1q",
+				"By": "user",
+				"At": "2026-10-01T02:03:55.544Z",
+				"Text": "make a subplan for each step. i wanted to wait for your feedback so far before detailing step 3."
+			}
+		]
+	},
+	{
+		"Id": "thr-ojy-aex-h6s",
+		"Anchor": {
+			"Text": "LLM Connections and Workspaces will be reintroduced into the desktop application.",
+			"Prefix": "ep 3: Local LLMs and Workspaces ",
+			"Suffix": " Users can add these connections"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T02:20:30.245Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T02:23:31.278Z",
+			"Revision": 9,
+			"RevisionId": "rev-ga9-v8a-ge8",
+			"Outcome": "The token is out of the sketch: an LLM connection names the participant the LLM posts as, the llm participant by default; user management is a later plan of its own. Further discussion goes on the Step 3 Subplan."
+		},
+		"Created": "2026-10-01T02:01:12.724Z",
+		"Replies": [
+			{
+				"Id": "rep-zov-gol-tca",
+				"By": "llm",
+				"At": "2026-10-01T02:01:12.724Z",
+				"Text": "For the sketch only, to confirm the direction: in Step 3 the desktop posts as the llm participant with the llm token it reads from the server's settings (the owner can read them). The alternative is a participant of its own per desktop, so that each person's desktop is told apart from the agent session. Recommendation: the one llm participant, as today; every LLM, wherever it runs, is the llm, and the build log or reply says which model wrote it."
+			},
+			{
+				"Id": "rep-ogx-31d-erh",
+				"By": "user",
+				"At": "2026-10-01T02:20:30.245Z",
+				"Text": "first off, remove the token thing. security is complicating things before we have settled the design. i do intend to add user management and all that at some point. I suppose the LLM connection can define a user name that the LLM will post as. Maybe this needs more discussion."
+			}
+		]
+	}
+]

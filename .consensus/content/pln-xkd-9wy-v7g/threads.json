@@ -1,0 +1,128 @@
+[
+	{
+		"Id": "thr-3iz-awj-wbj",
+		"Anchor": {
+			"Text": "Only claude-cli builds",
+			"Prefix": "ker's inference item and model. ",
+			"Suffix": ": the dialog lists a worker's cl"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T07:14:43.255Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T07:34:09.566Z",
+			"Revision": 3,
+			"RevisionId": "rev-0m1-qv3-cpt",
+			"Outcome": "Resolved without a reply, so my recommendation went in: only claude-cli builds; the dialog lists a worker's claude-cli items, and Ollama builds wait for a later plan."
+		},
+		"Created": "2026-09-29T07:13:11.129Z",
+		"Replies": [
+			{
+				"Id": "rep-3ya-s99-s3t",
+				"By": "llm",
+				"At": "2026-09-29T07:13:11.129Z",
+				"Text": "Which models build: claude-cli only, or Ollama too? claude -p brings its own Edit, Write and Bash tools and permission rules; for Ollama the worker would have to write, confine and test those tools itself. I recommend claude-cli only for now: the dialog lists only a worker's claude-cli items, and Ollama builds wait for a later plan."
+			}
+		]
+	},
+	{
+		"Id": "thr-y90-igh-qjb",
+		"Anchor": {
+			"Text": "pressed by the owner",
+			"Prefix": "r's page, on an accepted build, ",
+			"Suffix": "; each is queued and run in orde"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T07:15:40.304Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T07:34:09.622Z",
+			"Revision": 4,
+			"RevisionId": "rev-izi-cx2-0oa",
+			"Outcome": "Your reply went in: the owner commits and pushes by pressing the buttons; nothing reaches git any other way."
+		},
+		"Created": "2026-09-29T07:13:11.416Z",
+		"Replies": [
+			{
+				"Id": "rep-bk1-gok-3tf",
+				"By": "llm",
+				"At": "2026-09-29T07:13:11.416Z",
+				"Text": "Scheduling commits and pushes: I read \"scheduling\" as buttons that queue the step to run next, in order. Did you mean something more: a set time (push tonight), or Commit happening on its own when you accept? I recommend buttons only, as written: nothing reaches git until you press one."
+			},
+			{
+				"Id": "rep-369-vfv-4o8",
+				"By": "user",
+				"At": "2026-09-29T07:15:40.304Z",
+				"Text": "i just meant that the user would manually perform these functions by clicking the buttons."
+			}
+		]
+	},
+	{
+		"Id": "thr-hdb-q0m-qyu",
+		"Anchor": {
+			"Text": "Push: pushes the checked-out branch to Remote.",
+			"Prefix": "d log, no attribution trailers. ",
+			"Suffix": " Each step's result is a run-log"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T07:19:56.929Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T07:34:09.672Z",
+			"Revision": 5,
+			"RevisionId": "rev-row-ckb-w7t",
+			"Outcome": "Resolved without a reply, so my recommendation went in: no Merge button; merging the pushed branch stays with the owner, outside Consensus."
+		},
+		"Created": "2026-09-29T07:13:11.437Z",
+		"Replies": [
+			{
+				"Id": "rep-dez-fzz-996",
+				"By": "llm",
+				"At": "2026-09-29T07:13:11.437Z",
+				"Text": "Merging: the build ends with a pushed branch; merging it into master stays with you, outside Consensus (a pull request, or a local merge). Or should the worker page have a Merge button too (merge into the workspace's current branch, then push)? I recommend no Merge button for now: a merge can conflict, and it is the one step worth doing by hand."
+			}
+		]
+	},
+	{
+		"Id": "thr-j3f-1gi-2u7",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-29T18:09:21.948Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-29T18:10:25.538Z",
+			"Revision": 6,
+			"RevisionId": "rev-3oq-dut-ox7",
+			"Outcome": "The build is accepted: committed as Workers, and the plan is Finished."
+		},
+		"Created": "2026-09-29T17:39:10.346Z",
+		"Replies": [
+			{
+				"Id": "rep-g5c-wk7-qmc",
+				"By": "llm",
+				"At": "2026-09-29T17:39:10.346Z",
+				"Text": "**Build log** (agent session, Claude Fable 5.1). 183 tests pass (`node --test`).\n\n**What was built**\n- **Build button** (`public/js/build.js`, header): shown to the owner when the project has a workspace; disabled, with the reason as its hint, until the workspace has Build settings on an online worker, every thread is applied (the build's own aside) and nothing runs for the plan; **Build again** after a send-back. Its dialog picks the worker's claude-cli item and a model; Build sets the plan to Working and opens the panel on the run log.\n- **Consensus's side** (`src/Api.js`, `src/Llm.js`): `POST /api/proposals/<id>/build`; `BuildPrompt` (implement only what the plan says, in the workspace as it is, run the tests, do nothing with git, open a thread for a reading taken or a point not built), `BUILD_SCHEMA`, `ParseBuild`. The answer's threads are opened (a bad anchor falls back to the whole plan, saying so), then the **build log** is posted as the contested whole-document receipt (job, worker, workspace, model, tokens, the log, the threads opened). **Resolve** accepts: applied outcome-only, the build's context written, the plan Finished, the worker told. **Reply** sends it back: Build again carries the last log and the reply, and the new log is a reply on the same thread (a round with no context keeps the earlier one). A failed build is said in the run log, and as a reply on a sent-back log. Reviews leave build logs alone.\n- **The worker's side** (`src/Worker.js`): claude -p in the workspace's Root with Read, Grep, Glob, Edit, Write, and Bash for `Build.Commands` only; `--restricted`, dontAsk; Exclude denied for Read and Edit; the commands listed at the end of the prompt. `Build: { Remote, Commands }` validated. No git on its own.\n- **Commit and Push** on the worker's page, on an accepted build, pressed by you, queued and run in order: `git add -A` + one commit on the checked-out branch titled after the plan with the build log below, no trailers; Push the checked-out branch to Remote. Each result on the page and in the plan's run log.\n\n**Found live, and fixed**: with the real claude -p, `git status` ran in a build although only `node --test` was allowed: claude lets some read-only commands through on its own. A PreToolUse hook now holds Bash to the commands (`bin/worker.js --bash-guard`, `BashAllowed`): an allowed command with arguments, nothing chained, piped, redirected or substituted. Run again live: `git status` refused, `private/secret.txt` (excluded) refused, `math.js` and `math.test.js` written, `node --test` passed, HEAD unchanged, no branch.\n\n**How it was checked**\n- `test/Workers.test.js`: when Build can run, the job and its prompt, the log and the build's threads, send back and build again, accept (applied, context, Finished, worker told), failures. `test/Worker.test.js`: a build in a scratch git repo with a stand-in claude (files changed in place, HEAD unmoved, no branch; Commit refused until accepted; then Commit and Push to a local bare repo), the Bash guard. `test/Ui.test.js`: the Build button and dialog.\n- Live: the real claude -p build above, twice."
+			}
+		]
+	}
+]

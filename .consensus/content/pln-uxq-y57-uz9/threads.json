@@ -1,0 +1,97 @@
+[
+	{
+		"Id": "thr-gpp-6mu-pun",
+		"Anchor": {
+			"Text": "Build and Session only.",
+			"Prefix": "file whole, making its folders. ",
+			"Suffix": " edit( Path, Old, New ): replace"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T18:35:40.217Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T18:38:55.131Z",
+			"Revision": 1,
+			"RevisionId": "rev-i7a-68q-rk2",
+			"Outcome": "Build stays in this step: all three buttons run over a local model, as the text has it. No text change."
+		},
+		"Created": "2026-10-02T18:27:43.436Z",
+		"Replies": [
+			{
+				"Id": "rep-eik-uzx-8ls",
+				"By": "llm",
+				"At": "2026-10-02T18:27:43.436Z",
+				"Text": "Whether Build runs over a local model in this step, or Review and Session first and Build in a step of its own. The loop is the same code; Build adds the write, edit and run tools, the Commands list on the workspace, and the risk that a small model edits badly. I recommend all three in this step: the tools are a few functions each, the Commands list is the only guard a build needs, and the build log says what the model did. Resolve to keep Build in; reply to hold it back."
+			}
+		]
+	},
+	{
+		"Id": "thr-i2h-939-nu3",
+		"Anchor": {
+			"Text": "participant with the token the server serves at /instructions",
+			"Prefix": "ion was opened from, as the llm ",
+			"Suffix": " (the same token a claude-cli pa"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T18:37:18.254Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T18:38:55.174Z",
+			"Revision": 2,
+			"RevisionId": "rev-zk3-s5p-k7j",
+			"Outcome": "The llm token in this step; after User Management, a username and password of the connection's own. A sentence went in."
+		},
+		"Created": "2026-10-02T18:27:54.745Z",
+		"Replies": [
+			{
+				"Id": "rep-t4y-snc-f5w",
+				"By": "llm",
+				"At": "2026-10-02T18:27:54.745Z",
+				"Text": "Whose name the local model posts under. Today: the llm participant, with the token from /instructions, as a claude-cli package carries it. User Management (settled, not built) drops the llm token: the agent signs in with a username. For a local model the desktop makes the calls, so the credential is the desktop's to hold: after User Management, I recommend the connection carries a username and password of its own, registered by the Admin as any member, so what a model posts is attributed to it and not to the owner. In this step, the token as written. Resolve to take that; reply if a run should post as the signed-in owner instead."
+			}
+		]
+	},
+	{
+		"Id": "thr-jxv-3c2-ik4",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-02T19:42:51.943Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-02T19:43:17.820Z",
+			"Revision": 2,
+			"RevisionId": "rev-zk3-s5p-k7j",
+			"Outcome": "Build accepted: Step 4 built as logged, with the popup following the run and the structured transcript. Committed as \"Step 4: Local Models\"."
+		},
+		"Created": "2026-10-02T19:03:53.742Z",
+		"Replies": [
+			{
+				"Id": "rep-mop-8dd-iwx",
+				"By": "llm",
+				"At": "2026-10-02T19:03:53.742Z",
+				"Text": "Build log: Step 4: Local Models, built by Claude Fable 5.1 (claude-fable-5-1) in the agent session, in the checkout on master after 9b6515f. Nothing is committed; the desktop's version is 0.4.0; the server is untouched.\n\n**What was built**\n\n- `desktop/Tools.js` (new): the tools a local model gets. File tools over the picked workspace: `glob`, `grep` and `read`, and for Build and Session `write`, `edit` (one occurrence or refused) and `run`; a path outside the workspace or outside its Include and Exclude is refused with a sentence. `run` executes one of the workspace's Commands, exactly or with arguments after it, in the workspace's folder, with a ten-minute limit and the output clipped to 20,000 characters; nothing that chains, pipes, redirects or substitutes (`| & ; < > $ \\` ( )`) is allowed on the list or in a call. Consensus tools over the connected server's API as the llm participant: `list_project`, `read_plan`, `read_document`, `waiting`, `reply`, `apply` (the current revision supplied), `thread`, `set_state`, each held to the project the connection was opened from (a plan of another project is refused), a server's refusal returned to the model as the tool's result. The module also writes the tool instructions a local model gets in place of the agent guide: the tools, the workspace and its commands, the rules of a turn, and for a build the build loop.\n- `desktop/Ollama.js` (new): the loop over Ollama's `/api/chat` with `tools`, `stream: false` and `num_ctx` from Context; one request per round; each call run through Tools.js and sent back as a tool message; the model's text without a call is the answer. The Timeout is the deadline of the whole run; when the Rounds are spent, one last request without tools asks for the answer; Stop aborts the request in flight. A refusal, a timeout, an abort, a server that does not answer and a model that never answers each end the run with their own message.\n- `desktop/Runs.js`: an `ollama` connection runs through Ollama.js instead of a child process, with the same record, plus `Rounds` and `Usage` (the prompt and answer tokens Ollama reports); the Output is the transcript as it grows (each round's text, each call in a few words with its result clipped to 300 characters), then the answer under `--- answer ---`. Stop aborts a local model's run as it kills a command's. A run's Request carries the workspace whole and, for ollama, `Server: { Url, Token, Project }`.\n- `desktop/Settings.js`: `Context` (default 32768) and `Rounds` (default 30) on a connection, `Commands` on a workspace (none by default); a listed command that chains is a named problem.\n- `desktop/Llm.js`: Check asks `/api/show` for the model's capabilities after its models and says whether the Model calls tools; a model that does not is checked as a failure; an older Ollama that does not list capabilities is \"capabilities unknown\" and passes.\n- `desktop/Files.js`: `Within( Root, Include, Exclude, Path )`, the check a tool's path gets, with the walk's own folder rules.\n- `desktop/main.js` and `desktop/Package.js`: for an ollama connection the package's Agent instructions item becomes \"Tool instructions\" from Tools.js, and the documents list says to use `read_document`; the token never enters the prompt. The run gets the llm participant's token read from `/api/settings` as the owner (a server without one refuses the run with the reason). The claude-cli path is unchanged.\n- `desktop/page/`: Context and Rounds in the Details popup for ollama; Commands on the workspace page; the \"an ollama one-shot is Step 4\" reason is gone; the run popup's line shows the rounds and the tokens; the Kind and Check tooltips say what ollama does now.\n- `readme.md` (the desktop section), `.guides/build-with-consensus.md` (one sentence: a local model does not call the API itself), `package.json` and `desktop/package.json` to 0.4.0.\n\n**Where it differs from the plan text**\n\n- The `reply`, `apply`, `thread` and `set_state` tools take the plan's id as well as what the text lists, since the API's routes are per plan.\n- `run` uses the platform shell to resolve `npm` and the like, with the line held to the list and free of every operator, so there is nothing for the shell to chain; a command whose path holds spaces must be on the PATH (quoting is not supported).\n\n**How it was checked**\n\n- `node --test`: 152 tests, all passing. New `test/Tools.test.js` (7 tests): Allowed and the settings' problems; Within; each file tool against a temporary workspace (a path outside, an excluded path, an edit with two matches, a write making folders, a listed command with arguments, an unlisted and a chained one); the Consensus tools against a Consensus started in the test (list, read, waiting, reply, apply with the revision supplied and the anchor moved, a thread, the state, another project refused); the loop against a fake Ollama answering a scripted sequence (two rounds of calls then an answer, the messages sent back checked; the rounds running out; a refusal; a timeout; a stop; a server gone; a made-up tool); Check against the fake's `/api/show`; an ollama run through Runs.js (transcript, answer, rounds, usage; stopped; timed out). `test/Desktop.test.js` drops its \"Step 4\" assertion.\n- A smoke of the desktop with its own user-data folder, over the DevTools protocol, against a Consensus and a fake Ollama started by the script: the connect screen's Connect, the LLM page with Review enabled and the plan picked, the Details popup showing Context 8192 and Rounds 10, Review pressed, the run done in 3 rounds (`waiting`, `glob` and `reply` called, 300 prompt and 60 answer tokens shown in the popup), the reply landed on the thread as the llm participant, the package holding \"## Tool instructions\" and no token, the workspace page showing Commands. The smoke script lives in the session's scratchpad, not in the repo.\n\n**Not done here**\n\n- A Review and a Build over a real local model on cube4's Test project (the plan's \"done when\"): that needs your Ollama and a model that calls tools. Check on the connection says whether yours does. Nothing is committed until you accept."
+			},
+			{
+				"Id": "rep-8j6-zf1-65h",
+				"By": "llm",
+				"At": "2026-10-02T19:37:40.259Z",
+				"Text": "Two additions after your look at the first run, both built and checked; the build log above stands with them.\n\n**The popup follows the run.** Runs.js now tells every window about each tool call as it happens (coalesced to a few messages a second), and the LLM page re-reads the open popup's run when it is the one that changed, so the transcript grows on its own; Refresh stays as a manual fallback.\n\n**The transcript, structured and readable.** Both ideas:\n\n- The record keeps `Transcript`, a list of entries: a round's text; a call with its name, arguments, the words it is described by, its whole result (up to 50,000 characters) and how long it took; the answer, marked when it was asked for after the rounds ran out. `Ollama.js` emits them, `Runs.js` keeps them; the summary in the log leaves them out as it leaves the Output out.\n- The Output is the markdown rendered from the entries (`Ollama.Render`): a heading per round, the model's text as a paragraph, each call in bold with its duration and its result in a fenced block clipped at 2,000 characters (a longer fence than any inside the result, so HTML and backticks stay text), the answer under its own heading. Copy and Source give this text.\n- The popup, for a local model's run, shows the entries instead of the rendered Output: a block per round, each call a row with a toggle that unfolds to its whole result in a pre block, the model's text and the answer rendered as markdown. Source shows the markdown as before.\n\nChecked: `node --test` 152 passing (the loop test checks the entries and the rendering, including a clipped result with a fence inside it and a nudged answer; the run test checks that a call is heard between the start and the end); the smoke again, with the fake Ollama answering slowly: the popup showed 0, then 1, then 3 calls while the run went with Refresh never pressed, then Round 1, Round 2 and Answer, a call unfolded to its result, the answer rendered, and Source starting with \"### Round 1\". The readme's desktop section says the same."
+			}
+		]
+	}
+]

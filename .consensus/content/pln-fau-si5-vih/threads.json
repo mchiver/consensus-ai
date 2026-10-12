@@ -1,0 +1,412 @@
+[
+	{
+		"Id": "thr-tn1-329-pj4",
+		"Anchor": {
+			"Text": "Threads() returns the filter's matches plus the selected thread",
+			"Prefix": "read stays listed (threads.js): ",
+			"Suffix": ", at its place in the text order"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-10T08:37:38.149Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-10T09:00:10.393Z",
+			"Revision": 4,
+			"RevisionId": "rev-oxd-h90-vfz",
+			"Outcome": "Applied as answered: the selected thread always stays listed, whatever the filter. The pane lists the filter's matches plus the selected thread; the deselect-when-hidden rule goes away."
+		},
+		"Created": "2026-10-10T08:34:52.266Z",
+		"Replies": [
+			{
+				"Id": "rep-sl0-6vu-eu5",
+				"By": "llm",
+				"At": "2026-10-10T08:34:52.266Z",
+				"Text": "Clicking anchored text already selects the thread (read.js, on_click: it cycles through the threads at that mark). What undoes it is the threads pane: a watch (threads.js, selected_hidden) deselects any selected thread the filter leaves out, so the selection lasts one digest. I would change the list, not the click: the threads pane lists what the filter matches plus the selected thread, at its position in the text, and the deselect-when-hidden watch goes away. Question: when you change the filter while a thread is selected, should the selection survive too (my recommendation: yes, the selected thread always stays listed until you pick another or click away; one rule, no special case for the filter change)?"
+			},
+			{
+				"Id": "rep-6fo-2bo-yly",
+				"By": "user",
+				"At": "2026-10-10T08:37:38.149Z",
+				"Text": "yes, the selected thread always stays listed"
+			}
+		]
+	},
+	{
+		"Id": "thr-46v-e3c-945",
+		"Anchor": {
+			"Text": "puts the selected text on the clipboard as it reads",
+			"Prefix": "plans and documents alike, that ",
+			"Suffix": " (selection.toString()), then cl"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-10T08:38:18.730Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-10T09:00:10.408Z",
+			"Revision": 5,
+			"RevisionId": "rev-nvk-rl4-n70",
+			"Outcome": "Resolved without a reply: the recommendation went in. Copy puts the selected text on the clipboard as it reads (plain text), clears the selection, and is offered on documents too."
+		},
+		"Created": "2026-10-10T08:34:52.555Z",
+		"Replies": [
+			{
+				"Id": "rep-ezf-44z-y0u",
+				"By": "llm",
+				"At": "2026-10-10T08:34:52.555Z",
+				"Text": "Copy puts the selected text on the clipboard as it reads (plain text, what Ctrl+C gives), then clears the selection and the popup, like the other two. I would not copy the markdown source: the selection is made on the rendered text, and a source span cannot be cut out reliably from a rendered selection. The button is offered for documents too, where Comment and New Subplan are not. Say if you wanted the markdown source instead."
+			}
+		]
+	},
+	{
+		"Id": "thr-6aa-g31-4fo",
+		"Anchor": {
+			"Text": "DEFAULT_STATES in src/Participants.js becomes Draft, Plan, Working, Finished",
+			"Prefix": "ts. 1. The Draft state (server) ",
+			"Suffix": ". A new plan starts in the first"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-10T08:39:53.893Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-10T09:00:10.428Z",
+			"Revision": 6,
+			"RevisionId": "rev-y6l-l3e-5ko",
+			"Outcome": "Resolved without a reply: both recommendations went in. A one-time startup migration renames Proposal to Draft in the settings and in every plan in that state; the New Draft menu label is \"New \" + the first configured state; the docs follow."
+		},
+		"Created": "2026-10-10T08:34:52.580Z",
+		"Replies": [
+			{
+				"Id": "rep-uhc-ljh-27y",
+				"By": "llm",
+				"At": "2026-10-10T08:34:52.580Z",
+				"Text": "The states are a configured list, not code: DEFAULT_STATES in src/Participants.js, saved in each server's consensus.json, and a plan holds its state by name. A new plan starts in the first state. So the rename is three things: (1) the default list becomes Draft, Plan, Working, Finished (code, tests, the guide pages settings and projects, the readme); (2) existing servers, cube4 included, keep 'Proposal' in their settings and in their plans, and the settings popup refuses to remove a state a plan is in, so a one-time migration at startup renames Proposal to Draft in the settings and in every plan's State when the list has Proposal and no Draft; (3) the menu label 'New Draft' (project and folder menus below) assumes the first state is Draft. Recommendation: the label is 'New ' + the first configured state, so a server with other states still reads right; with the defaults it reads 'New Draft'. Questions: is the startup migration what you want (my recommendation), or do you rename by hand in Settings on each server? And the label: 'New Draft' fixed, or from the first state (my recommendation)?"
+			}
+		]
+	},
+	{
+		"Id": "thr-cf3-qit-0e3",
+		"Anchor": {
+			"Text": "the panel shows the connected server's address without the scheme",
+			"Prefix": "ar's bottom) and consensus.css: ",
+			"Suffix": " (window.ConsensusDesktop.Server"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-10T08:40:56.938Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-10T09:00:10.443Z",
+			"Revision": 7,
+			"RevisionId": "rev-zvi-egs-e2u",
+			"Outcome": "Resolved without a reply: the recommendation went in. The panel shows the server's address without the scheme; the connection's name and the server's version go in the tooltip; live or offline stays as the color and in the tooltip."
+		},
+		"Created": "2026-10-10T08:34:52.603Z",
+		"Replies": [
+			{
+				"Id": "rep-400-2io-0jd",
+				"By": "llm",
+				"At": "2026-10-10T08:34:52.603Z",
+				"Text": "Today the panel says only 'live' or 'offline'. In the desktop the page knows the connected server from window.ConsensusDesktop.Server { Kind, Name, Url, Version }, handed by the preload; in a browser the server is the page's own origin. Recommendation: the panel shows the server's Url without the scheme (cube4:3500), the connect screen's Name and the version in its tooltip, and 'live' / 'offline' stays as the dot's color and the tooltip. Alternative: the Name in place of the Url. Which one?"
+			}
+		]
+	},
+	{
+		"Id": "thr-s8d-krx-5km",
+		"Anchor": {
+			"Text": "Per server: the open project, the folded folders, the sort and show-updated",
+			"Prefix": "since the origin is the server. ",
+			"Suffix": " (sidebar.js); the tabs and the "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-10T08:44:43.612Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-10T09:00:10.455Z",
+			"Revision": 8,
+			"RevisionId": "rev-ro2-ijn-by5",
+			"Outcome": "Applied as answered: the split (content per server, look shared) stands; a remembered tab whose item is gone is dropped at load; the connect screen sets the desktop's default theme and the page's picker sets the connected server's own theme. The typo in the sentence is fixed on the way."
+		},
+		"Created": "2026-10-10T08:34:52.619Z",
+		"Replies": [
+			{
+				"Id": "rep-14a-mn0-q7j",
+				"By": "llm",
+				"At": "2026-10-10T08:34:52.619Z",
+				"Text": "What is remembered today: the open project, the folded folders, the sort and the show-updated flag (sidebar.js), the hidden panes and the highlight (app.js), the splitter widths (layout.js), all in localStorage under 'consensus.*'; the tabs in sessionStorage (tabs.js), so a restart drops them. The desktop serves every server from the same origin (127.0.0.1), so one server's keys overwrite another's: 'for a specific server' means the keys carry the connected server's Url as a prefix, and the tabs move to localStorage under the same prefix. I would split the keys: per server, everything that names content (the open project, the folds, the open tabs and the active one, the sort, show-updated); global, the look (pane widths, hidden panes, highlight, theme and scale, which are already desktop settings). Question: is that split right, or should the pane visibility and widths be per server too? Also: a remembered tab whose item is gone from the server (deleted while the app was closed) is dropped silently at load; today a tab closes only on a delete event heard while the page is open."
+			},
+			{
+				"Id": "rep-tlk-w2t-9p8",
+				"By": "user",
+				"At": "2026-10-10T08:44:43.612Z",
+				"Text": "- that is the right split\n- a remembered tab whose item is gone from the server is dropped silently at load\n- there should be a default theme in the settings and another theme stored per server"
+			}
+		]
+	},
+	{
+		"Id": "thr-y47-ttm-wvp",
+		"Anchor": {
+			"Text": "Copy on a project, folder, plan or document fetches its export",
+			"Prefix": "he server-side copy) goes away. ",
+			"Suffix": " (a project's through the projec"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-10T08:47:25.793Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-10T09:00:10.466Z",
+			"Revision": 9,
+			"RevisionId": "rev-8oi-bo4-v65",
+			"Outcome": "Applied as answered: Copy, Paste and Export work on the export json, for every kind of node. A new section says so: Copy puts the export json on the system clipboard, Paste imports it into the target, a project's json pastes as a folder named after it, and the in-page clipboard goes away. New document in Context stays out of the project menu, as confirmed."
+		},
+		"Created": "2026-10-10T08:34:52.637Z",
+		"Replies": [
+			{
+				"Id": "rep-tj0-6c5-a7u",
+				"By": "llm",
+				"At": "2026-10-10T08:34:52.637Z",
+				"Text": "Two things here. (1) Copy of a project: the clipboard today holds one item { Id, Name } and Paste puts a copy of it into a project or folder (POST a copy through the API). There is no copy of a whole project in the API or the tree. Does Copy on a project mean: paste it into another project as a folder holding its plans (my recommendation, one new case in the same Paste), or a duplicate of the project at the root (what Import as a copy does today), or should Copy be left out of the project menu? (2) 'New document in Context' leaves the project menu and lives in the Context node's menu only; Rename and Export project keep working as they do, and Delete stays disabled for the default project and for a project with plans. Say if either should differ."
+			},
+			{
+				"Id": "rep-m9w-uz5-dbc",
+				"By": "user",
+				"At": "2026-10-10T08:47:25.792Z",
+				"Text": "1) Clipboard operations should be based on the json representation of the object. It is the export.\n2) this is correct"
+			}
+		]
+	},
+	{
+		"Id": "thr-f21-tlb-8ql",
+		"Anchor": {
+			"Text": "Export on a project, folder, plan or document opens the export popup",
+			"Prefix": "t through the system clipboard. ",
+			"Suffix": " (ports.js) with the json, to co"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-10T08:56:32.910Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-10T09:00:10.476Z",
+			"Revision": 10,
+			"RevisionId": "rev-4sk-68g-mda",
+			"Outcome": "Applied as answered: export and import extend down to folders and items, in the project file format so the existing import takes them; the API gains the export of a folder or item and the import into a root or folder; the Template project on any server is named as the use."
+		},
+		"Created": "2026-10-10T08:34:52.653Z",
+		"Replies": [
+			{
+				"Id": "rep-usu-jy1-miv",
+				"By": "llm",
+				"At": "2026-10-10T08:34:52.653Z",
+				"Text": "Export on a folder is new: export today is a whole project (Ports.StartExport, the project json an Import takes back). Recommendation: a folder's Export writes the same project file, with the folder's name as the project's Name and the folder's items as its Items (with their proposals), so the file imports as a new project or merges into one, through the existing import. The Context folder keeps its own menu (New Document, New Workspace, New LLM, Paste, as the next item says) and no Export. Is that the Export you meant?"
+			},
+			{
+				"Id": "rep-8sm-z5b-l8s",
+				"By": "user",
+				"At": "2026-10-10T08:56:32.910Z",
+				"Text": "i want to be able to manage projects and items with json-based clipboard operations. today, we are able to export/import on a project level . we now need to extend that functionality down to the folders and other items. one application of this functionality would be to have a Template project which contains template items that could be copy/pasted into new projects. Such a template project might even be running on a different server."
+			}
+		]
+	},
+	{
+		"Id": "thr-ho6-69k-7ts",
+		"Anchor": {
+			"Text": "opens the plan in Read (its tab) and starts a whole-document comment",
+			"Prefix": "ename, ---, Delete. New Comment ",
+			"Suffix": ", as the header's New Comment do"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-10T08:58:01.875Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-10T09:00:10.487Z",
+			"Revision": 11,
+			"RevisionId": "rev-dpf-19c-v7q",
+			"Outcome": "Resolved without a reply: the recommendation went in. New Comment from the tree opens the plan and starts a whole-document comment; a Document node gets Copy, Rename, Delete; the LLM and workspace rows keep their menus; everything lands in desktop/page/."
+		},
+		"Created": "2026-10-10T08:34:52.663Z",
+		"Replies": [
+			{
+				"Id": "rep-616-8kh-tat",
+				"By": "llm",
+				"At": "2026-10-10T08:34:52.663Z",
+				"Text": "'New Comment' from the tree: opens the plan (its tab) in Read and starts a whole-document comment, as the header's New Comment does; that is what I would build. Not listed: a document node (a Context document other than the Readme), which I would give Copy, Rename, ---, Delete, and the desktop's LLM and workspace rows, which keep their menus as they are. One note for the whole plan: the page in public/ is frozen since Step 1, so all of this goes into desktop/page/ (and the docs for the Draft rename). Say if the document menu or the New Comment reading should differ."
+			}
+		]
+	},
+	{
+		"Id": "thr-jjo-ydm-146",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-10T09:04:22.899Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-10T09:04:53.075Z",
+			"Revision": 12,
+			"RevisionId": "rev-l9l-0iz-m7d",
+			"Outcome": "Resolved without a reply: the build plan went in as posted, replacing the plan text."
+		},
+		"Created": "2026-10-10T09:03:47.537Z",
+		"Replies": [
+			{
+				"Id": "rep-imb-b78-9j4",
+				"By": "llm",
+				"At": "2026-10-10T09:03:47.537Z",
+				"Text": "Build plan. The text below replaces the plan when you resolve this thread (reply with changes instead and I rework it). It keeps every decision of the applied threads and adds the order, the files, the API shape and the tests.\n\n---\n\n# UI Tweaks V\n\nTweaks to the desktop's page after UI Tweaks IV, with one server change under them: export and import extended from\nprojects down to folders and items, so that the tree's Copy and Paste work on export json through the system\nclipboard. The page work is in the desktop's copy, `desktop/page/`, and its main process; the server is touched\nfor the Draft state and the item ports only; `public/` stays frozen. Built as one plan, in the order below, each\nstep with its tests.\n\n\n## 1. The Draft state (server)\n\n- `DEFAULT_STATES` in `src/Participants.js` becomes Draft, Plan, Working, Finished. A new plan starts in the first\n  state, as today.\n- **Startup migration**, once, in `Start` (`src/Server.js`) after the settings are read: when `States` names\n  Proposal and not Draft, Proposal is replaced by Draft in the settings (written back) and every plan whose State is\n  Proposal is set to Draft, through the store, with no revision (a state change makes none today either). A server\n  whose owner named other states is left alone. Logged as one line.\n- The docs follow: the guide's settings and projects pages, the readme, and the Consensus project's Readme on the\n  server after the build.\n- Tests: the default list (`Participants.test.js`); the migration over a temporary folder with a plan in Proposal,\n  and that a list without Proposal is untouched (`Store.test.js` or a new `Server.test.js`).\n\n\n## 2. Export and import of folders and items (server)\n\nThe project file format (`src/ProjectPort.js`: Format, Version, Exported, Project, Proposals) is reused as it is.\n\n- **`GET /api/items/<id>/export`**: a folder, a plan or a document, as one file. `Project` is a project record\n  made for the file: a fresh project id, the item's name as `Name`, `Context: null`, `ContextFolder: null` and\n  `Items: [ the node ]`; `Proposals` holds every plan, subplan and document under the node, whole, as a project's\n  export holds them. The Readme and the Context folder cannot be exported this way (409, as they cannot be copied).\n  The owner or the llm, as for a project.\n- **`Check` and `Import` accept a file with `Context: null`**: imported as a new project or as a copy, it gets a\n  fresh, empty Readme; merged into a project here, the Readme is left alone.\n- **`POST /api/projects/import` gains `Into: { Project, Parent }`**: the file's items are written into that project,\n  at its root or in the folder `Parent`, every id new (the id mapping of a copy import), and the file's Readme and\n  Context folder are left out. A real project's file (one with a Context) goes in as one new folder named after the\n  project, holding its folders and plans; an item's file goes in as its node. `Preview: true` with `Into` answers\n  what would be made (the counts) and nothing is written. The answer is the import report, with the ids written, and\n  the change events the tree needs.\n- `POST /api/items/<id>/copy` stays for the API's own use; the page no longer calls it.\n- Tests (`ProjectPort.test.js`, `Api.test.js`): a folder's export holds its subplans and documents; a plan's export\n  holds the plan and its subplans; a file imports into a root and into a folder with new ids and the counts in the\n  report; a project's file pastes as a folder; a file with `Context: null` imports as a new project with an empty\n  Readme; the Readme is refused.\n\n\n## 3. The clipboard and Export on the page\n\n`desktop/page/js/sidebar.js` and `ports.js`. The in-page clipboard (`$scope.Clipboard`, `{ Id, Name }` and the\nserver-side copy) goes away.\n\n- **Copy** on a project, folder, plan or document fetches its export (a project's through the project route, an\n  item's through the new one) and puts the json on the system clipboard (`navigator.clipboard.writeText`, pretty\n  printed with tabs, as the export popup shows it). A short \"copied\" mark on the row, as the export popup's Copy\n  gives.\n- **Paste** on a project (its root), the Context folder or a folder reads the clipboard\n  (`navigator.clipboard.readText`): text that parses as an export file is imported with `Into` the target; anything\n  else is refused with a line under the row (\"the clipboard holds no Consensus export\"). Paste is always enabled,\n  since the clipboard cannot be looked at without reading it. The tree reloads from the import's events; the target\n  project becomes the open one.\n- **Ctrl+C** on the tree (no text selected, not typing) copies the open item's export; **Ctrl+V** pastes into the\n  open project's root. As today, but through the system clipboard.\n- **Export** on a project, folder, plan or document opens the export popup (`ports.js`) with the json, to copy or\n  download; the file is named after the item. `StartExport` takes the item and its kind.\n- A browser that refuses the clipboard (no permission, no focus) shows the export popup instead, so Copy never fails\n  silently.\n- Tests: the import with `Into` is covered by the API tests. The desktop page has no browser test (`Ui.test.js`\n  drives the frozen `public/`): Copy, Paste and Export are checked by hand in the app, and the build log says what\n  was tried.\n\n\n## 4. The tree's menus\n\n`desktop/page/js/sidebar.js`: the menus read exactly as the lists below. \"New Draft\" is labelled \"New \" + the first\nof the settings' States, so with the defaults it reads \"New Draft\".\n\n- **Project**: New Folder, New Draft, ---, Copy, Paste, Rename, Export, ---, Delete. New Folder and New Draft create\n  at the root. Delete stays disabled for the default project and for a project holding anything but its Context.\n- **Context folder**: New Document, New Workspace, New LLM, ---, Paste. New Workspace and New LLM are the desktop's\n  items (shown when `DesktopItems.Available`); Paste takes documents into the Context folder and refuses the rest, as\n  the import does.\n- **Folder**: New Folder, New Draft, ---, Copy, Paste, Rename, Export, ---, Delete. New Folder and New Draft create\n  in the folder.\n- **Plan**: New Subplan, New Comment, ---, Copy, Rename, ---, Delete. New Comment opens the plan in Read (its tab)\n  and starts a whole-document comment, as the header's New Comment does (`State.StartCompose( null )` once the plan\n  is open).\n- **Document** (a Context document other than the Readme): Copy, Rename, ---, Delete.\n- The LLM and workspace rows keep their menus. The Readme has none, as today.\n\n\n## 5. Threads and the selection\n\n- **The selected thread stays listed** (`threads.js`): `Threads()` returns the filter's matches plus the selected\n  thread, at its place in the text order; the watch that deselects a hidden thread is removed. Clicking anchored\n  text selects as today (`read.js`); a change of filter keeps the selection.\n- **Copy on a selection** (`read.js`, `index.html`): a third button beside Comment and Start a new Subplan, shown\n  for plans and documents alike, that puts the selected text on the clipboard as it reads (`selection.toString()`),\n  then clears the selection and the buttons. While a thread is being re-anchored, only Re-anchor here shows, as\n  today.\n- **The threads toggle moves to the tabs row** (`index.html`, `tabs.js`, `consensus.css`): a small icon button at\n  the right end of the tabs row, the mirror of the tree toggle at its left (the sidebar icon flipped), shown for a\n  plan and hidden for a document; the header's Threads button goes. The same `State.SetThreadsHidden`.\n- Checked by hand in the app: the selected thread listed under a filter that leaves it out, Copy's text, the\n  toggle in the tabs row.\n\n\n## 6. The connection panel\n\n`index.html` (the sidebar's bottom) and `consensus.css`: the panel shows the connected server's address without\nthe scheme (`window.ConsensusDesktop.Server.Url`, `cube4:3500` for example; in a browser, the page's own host),\nwith the connection's Name and the server's Version in its tooltip. Live or offline stays as the dot's colour and\nthe first words of the tooltip.\n\n\n## 7. The view state per server, and the theme\n\n- A **`Stored` service** (`desktop/page/js/stored.js`, loaded first) wraps localStorage with a prefix: per-server\n  keys are `consensus.<server url>.<name>`, shared keys `consensus.<name>` as today. The server is\n  `window.ConsensusDesktop.Server.Url`; in a browser the prefix is empty, since the origin is the server.\n- **Per server**: the open project, the folded folders, the sort and show-updated (`sidebar.js`); the tabs and the\n  active one (`tabs.js`, moved from sessionStorage to localStorage, so a restart brings them back). A detached\n  window keeps its own copy as today.\n- **Shared**: the pane widths (`layout.js`), the hidden panes and the highlight (`app.js`), the scale.\n- **Tabs whose item is gone**: once the list is loaded, a remembered tab whose item is in no project (nor among the\n  desktop's LLMs and workspaces) is dropped silently; the active tab falls back to the first.\n- **The theme**: `desktop/Settings.js` keeps `Theme` as the default and gains a `Theme` on each entry of `Servers`\n  and on `Local`. `boot_info` hands the page the connected server's theme, or the default when it has none; the\n  page's picker sends `theme` as today and `main.js` stores it on the connected server's entry; the connect screen's\n  picker sets the default. The native bars follow the theme in use.\n- Tests (`Desktop.test.js`): a server's theme filled, checked and written; the boot theme for a server with and\n  without one.\n\n\n## 8. Docs, readme and the finish\n\n- The guide pages touched: settings (the states and the migration), projects (the menus, the clipboard, the export\n  of folders and items), threads (the selected thread, Copy), api (the item export, `Into`).\n- The readme's desktop section: the per-server view state and theme, the clipboard.\n- All tests run (`node --test`); the build log names the files and the tests, and which model built it."
+			}
+		]
+	},
+	{
+		"Id": "thr-b10-51x-9yg",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-10T10:23:37.703Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-10T10:31:56.652Z",
+			"Revision": 12,
+			"RevisionId": "rev-l9l-0iz-m7d",
+			"Outcome": "Accepted, with the reply \"the view state is not reloaded when the app is reloaded\": found and fixed before the commit. The page's origin gets a new port at every start of the desktop (Page.js listens on port 0), so the page's localStorage never survived a restart. The remembered state now lives in desktop.json (Remembered, a map by key), handed to the page at boot through the preload (ConsensusDesktop.Remembered) and written back through Remember (debounced in main.js, flushed when the windows close); stored.js uses it in the desktop and localStorage in a browser, and app.js and layout.js go through stored.js too, so the hidden panes and the pane widths survive a restart as well. Settings.js gained Remembered and Remember( Settings, Key, Value ), with tests in Desktop.test.js; the readme says so. The smoke gained a restart of the app on a new port: the tabs, the open project, the server's theme and the shared look come back (34 checks, all passing); node --test: 161 passing."
+		},
+		"Created": "2026-10-10T10:17:02.294Z",
+		"Replies": [
+			{
+				"Id": "rep-o9r-9x3-xpg",
+				"By": "llm",
+				"At": "2026-10-10T10:17:02.294Z",
+				"Text": "Build log: UI Tweaks V, built by Claude Fable 5.1 (claude-fable-5-1) in a Claude Code session. Nothing is committed; the working tree holds it all.\n\n**1. The Draft state (server).** `src/Participants.js`: the default states are Draft, Plan, Working, Finished, and `RENAMED_STATE` names the rename. `src/Server.js`: `rename_state` runs once at start after the store is prepared: a settings list that names Proposal and not Draft is rewritten and every plan in Proposal is put in Draft through the store, with no revision, logged as one line; any other list is left alone. The test fixtures that used Proposal as a state name use Draft.\n\n**2. Export and import of folders and items (server).** `src/ProjectPort.js`: `ExportItem( Store, Id )` writes a folder, plan or document as a project file (a fresh project id, the item's name, `Context: null`, `ContextFolder: null`, `Items: [ the node ]`, every plan, subplan and document under it whole); the Readme and the Context folder answer `{ Context: true }`. `Check` accepts `Context: null`; such a file imports as a new project or a copy and gets an empty Readme through `CreateProject`. `Import` takes `Into: { Project, Parent? }`: `import_into` maps every proposal and folder to a new id, wraps a real project's items (its Context folder and Readme removed) in a folder named after the project, checks that the target holds each top node (`TREE.CanHold`, so a document goes only into the Context folder) before anything is written, writes the proposals and inserts the nodes through the project queue, and reports `Mode: 'into'`, the counts and `Into: { Project, Parent, Nodes }`; `Preview: true` with `Into` answers the counts and writes nothing. `src/Api.js`: `GET /api/items/:id/export` (owner or llm; 404 unknown, 409 for the Readme or Context folder) and `Into` passed through `POST /api/projects/import`. `POST /api/items/:id/copy` stays.\n\n**3. The clipboard and Export on the page.** `desktop/page/js/sidebar.js`: the in-page clipboard is gone. `CopyItem` fetches the export (a project's or an item's route) and writes it to the system clipboard, pretty printed; when the clipboard refuses, `Ports.ShowExport` opens the popup with the json instead. `Paste` reads the clipboard, refuses text that is not a Consensus export with a notice, and imports the rest `Into` the project's root or the folder; the target project becomes the open one, the folder unfolds, and a notice says what was pasted. `ExportItem` opens the popup for any kind. Ctrl+C copies the open item's export; Ctrl+V pastes into the open project's root. The notice line (the old clipboard line in `index.html`, `.clipboard.error` in the css) shows copied, pasted or refused. `desktop/page/js/ports.js`: `StartExport( { Kind, Id, Name } )` takes any kind, `ShowExport` shows a fetched export.\n\n**4. The menus.** `sidebar.js`: Project: New Folder, New Draft, ---, Copy, Paste, Rename, Export, ---, Delete. Context folder: New Document, New Workspace, New LLM (when the desktop's items are available), ---, Paste. Folder: as a project, creating in it. Plan: New Subplan, New Comment, ---, Copy, Rename, Export, ---, Delete. Document: Copy, Rename, Export, ---, Delete. \"New Draft\" is `'New ' + State.States[ 0 ]`. `NewComment` starts a whole-document compose at once on the open plan, else sets `State.Pend( { Compose: true } )` and opens the plan; `read.js` settles it once the plan is loaded.\n\n**5. Threads and the selection.** `desktop/page/js/threads.js`: `Threads()` lists the filter's matches plus the selected thread; the watch that deselected a hidden thread is gone. `read.js`: a selection inside the view shows Copy always, Comment when it anchors (plans), Start a new Subplan on a plan not being re-anchored; `CopySelection` writes the selection's text and clears it. `index.html`: the Copy button, the threads toggle moved from the header to the right end of the tabs row (`.threads-toggle`, the tree toggle mirrored, hidden for a document; `HasThreads` and `ToggleThreads` in `tabs.js`), the header's Threads button removed.\n\n**6. The connection panel.** `index.html` and `sidebar.js`: the panel shows the server's address without its scheme (`window.ConsensusDesktop.Server.Url`; in a browser the page's host), with live or offline, the connection's name and the server's version in the tooltip; the dot's colour still says live. `bin/docs.js` waits on the `live` class instead of the old text.\n\n**7. The view state per server, and the theme.** `desktop/page/js/stored.js` (new, loaded first): `window.ConsensusStored.Read / Write( name, value, per_server )`, per-server keys `consensus.<address>.<name>`, shared keys `consensus.<name>`. `sidebar.js` keeps the open project, the folds, the sort and show-updated per server; `tabs.js` keeps the main window's tabs per server in localStorage (a detached window keeps its one tab in its session as before) and prunes, once the projects are loaded, every proposal tab whose id is in no project. `app.js` and `layout.js` are unchanged: hidden panes, highlight and widths stay shared. `desktop/Settings.js`: each `Servers` entry and `Local` gain `Theme` (null for the default); `ThemeFor( Settings, Current )` and `SetThemeFor( Settings, Current, Theme )`. `desktop/main.js`: the page boots with the connected server's theme, the `theme` message sets the connected server's own theme (the default when nothing is connected, which is the connect screen's picker), and the native bars follow the theme in use on connect and disconnect.\n\n**8. Docs and readme.** The guide pages projects, editing, threads, settings, api and export-import, and the readme, say the above; the html pages are rebuilt (`node bin/docs.js build`). The Consensus project's Readme on cube4 is brought up to date once this log is accepted, as the build loop says.\n\n**How it was checked.**\n- `node --test`: 161 tests, all passing, the browser suite (over the frozen `public/`) and the docs screenshot run included. New: `test/Server.test.js` (the rename at start: the settings and the plans; lists without Proposal or with Draft left alone), five tests at the end of `test/ProjectPort.test.js` (item export of a folder, a plan and a document, the Readme and Context folder refused, the llm allowed; import Into a root and a folder with new ids and the report's counts, the preview writing nothing, the same file twice; a project's file as a folder without its Readme and Context folder; a document only into the Context folder, a missing project or folder refused, nothing written on a refusal; an item's file as a new project with an empty Readme), and the theme per server in `test/Desktop.test.js`.\n- A smoke of the real desktop (Electron over a temporary user-data folder, driven over the DevTools protocol against a temporary server seeded with a project, a folder, a plan, a subplan, a document and a thread), 33 checks, all passing: the plan starts in Draft; the connection panel shows `127.0.0.1:<port>` with \"live updates; smoke; Consensus 0.4.0\" in the tooltip; the five menus read as listed, \"New Draft\" included; the threads toggle sits in the tabs row, hides and shows the pane, and is hidden for a document; the resolved filter lists nothing and then the selected thread; a selection on a plan shows Copy, Comment and Start a new Subplan, Copy puts the text on the clipboard and the buttons hide; a selection on a document shows Copy alone; Copy on the folder puts its export on the clipboard (Format, name, `Context: null`, two proposals) and Paste into the Default project's root brings the folder with its plan and subplan under new ids and makes the project the open one; Copy of the project and Paste into a folder gives a folder named Alpha holding Drafts and no Context folder; a paste of plain text is refused with the notice; Export on a plan opens the popup with its json; New Comment from the tree opens the plan with a whole-document compose; the tree state and the tabs are stored under the server's address while the look stays shared; the page's picker sets the server's own theme in desktop.json and leaves the default; a remembered tab for a gone id is dropped at reload while the others and the server's theme come back.\n\nNot covered by a test: the drag-free parts of the page that did not change, and the browser page in `public/`, which is frozen and untouched."
+			},
+			{
+				"Id": "rep-c42-pra-c4b",
+				"By": "user",
+				"At": "2026-10-10T10:23:37.703Z",
+				"Text": "the view state is not reloaded when the app is reoaded"
+			}
+		]
+	},
+	{
+		"Id": "thr-jjo-tzf-1g9",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-10T10:45:03.731Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-10T10:45:46.172Z",
+			"Revision": 12,
+			"RevisionId": "rev-l9l-0iz-m7d",
+			"Outcome": "Done: cube4 redeployed with the UI Tweaks V build (74a7ad3, version 0.4.0), the states renamed at its start (Proposal to Draft in the settings and 7 plans); no plan is in Proposal."
+		},
+		"Created": "2026-10-10T10:35:29.493Z",
+		"Replies": [
+			{
+				"Id": "rep-luw-hkn-idn",
+				"By": "user",
+				"At": "2026-10-10T10:35:29.493Z",
+				"Text": "The settings still lists \"Proposal\" as the first plan state."
+			},
+			{
+				"Id": "rep-ebl-umo-rv5",
+				"By": "llm",
+				"At": "2026-10-10T10:38:10.634Z",
+				"Text": "That is cube4: it still runs the previous build (its /api/me says version 0.3.0 and States Proposal, Plan, Working, Finished), and the page shows the states the connected server has. The rename is done by the new server build at its start: a settings list that names Proposal and not Draft is rewritten and every plan in Proposal is put in Draft, once, logged as one line. So it takes a redeploy of cube4 (build the image, docker save | ssh docker load, compose up; the data volume stays and is renamed at that start). My recommendation: redeploy cube4 now, since the plan is Finished and committed (717eec1). Say so and I do it, then confirm the states and the plans here."
+			},
+			{
+				"Id": "rep-pm7-hdm-oms",
+				"By": "llm",
+				"At": "2026-10-10T10:42:43.011Z",
+				"Text": "Not done yet: the redeploy of cube4 is a production deploy, which this session may not run on its own (the command was refused by its permission rules), so the step is yours to run or to allow. The image is built on cube4 itself, since Docker Desktop is not running on the dev machine. From the checkout, in Git Bash:\n\n    git archive --format=tar HEAD | ssh -i ~/.ssh/cube4_claude -o IdentitiesOnly=yes claude@cube4 'rm -rf ~/consensus/build && mkdir -p ~/consensus/build && tar -x -C ~/consensus/build && docker tag consensus:latest consensus:0.3.0 && cd ~/consensus/build && docker build -t consensus:latest . && cd ~/consensus && docker compose up -d && sleep 4 && docker logs consensus --tail 8'\n\nThe data volume stays; at that start the server logs \"renamed state Proposal to Draft in the settings and N plans\", and /api/me then says version 0.4.0 and the states Draft, Plan, Working, Finished. The previous image is kept as consensus:0.3.0 to fall back on. Once it is up, say so and I confirm the states and the plans here, or allow the command and I run it."
+			},
+			{
+				"Id": "rep-cud-a5m-el4",
+				"By": "llm",
+				"At": "2026-10-10T10:44:22.105Z",
+				"Text": "Deployed on your word: the checkout (74a7ad3) went to cube4 as a git archive, the image was built there (the previous one kept as consensus:0.3.0), and the container was recreated. At that start the server logged \"renamed state Proposal to Draft in the settings and 7 plans\". /api/me now says version 0.4.0 and the states Draft, Plan, Working, Finished; the four unfinished plans (Workflows, Workspace Git, User Management, Launch Scenarios) are in Draft and no plan is in Proposal. Resolve to close this."
+			}
+		]
+	},
+	{
+		"Id": "thr-ov2-u54-l2x",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-10T10:39:36.482Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-10T10:42:42.987Z",
+			"Revision": 12,
+			"RevisionId": "rev-l9l-0iz-m7d",
+			"Outcome": "Done: the sidebar button reads \"+ Project\" (desktop/page/index.html, with the tooltip \"a new project\"), and the guide's projects page says \"+ Project at the top of the sidebar makes a new project\"; the docs are rebuilt and the docs test passes. Committed as 74a7ad3 \"UI Tweaks V: the Project button\"."
+		},
+		"Created": "2026-10-10T10:36:22.859Z",
+		"Replies": [
+			{
+				"Id": "rep-6p5-k1h-d3u",
+				"By": "user",
+				"At": "2026-10-10T10:36:22.859Z",
+				"Text": "The \"+ New project\" button should read \"+ Project\""
+			},
+			{
+				"Id": "rep-ov4-q8o-jxe",
+				"By": "llm",
+				"At": "2026-10-10T10:38:10.924Z",
+				"Text": "Understood: the button at the top of the sidebar reads \"+ Project\" (the icon and the Import button beside it as they are; the tooltip and the guide line say it makes a new project). A one-line change in desktop/page/index.html plus the guide. Say \"do it\" and I make it a small follow-up commit on this plan and reply here with the result; or name it for the next UI Tweaks plan if you prefer to batch it."
+			}
+		]
+	}
+]

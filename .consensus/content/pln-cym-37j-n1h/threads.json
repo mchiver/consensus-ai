@@ -1,0 +1,68 @@
+[
+	{
+		"Id": "thr-cdu-fmk-33a",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T04:59:53.731Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T05:22:21.772Z",
+			"Revision": 2,
+			"RevisionId": "rev-ph8-ldz-v64",
+			"Outcome": "Accepted: Step 2 stands as reported. Committed in the repo as \"Step 2: Consensus Desktop Application\"; the Subplan is Finished and the project Context document updated."
+		},
+		"Created": "2026-10-01T04:36:19.533Z",
+		"Replies": [
+			{
+				"Id": "rep-pmv-74y-jn5",
+				"By": "llm",
+				"At": "2026-10-01T04:36:19.533Z",
+				"Text": "**Build log: Step 2: Consensus Desktop Application** (built by Claude Fable 5.1, the agent session, in W:/code-projects/orgs/mchiver/consensus.git, uncommitted)\n\n**What was built**\n\n- `desktop/package.json` (consensus-desktop, main.js), root `package.json`: version 0.2.0, `electron` (^44.5.1) as a devDependency again, and the `desktop` script, `electron desktop`.\n- `desktop/Settings.js`: desktop.json in Electron's user-data folder (`%APPDATA%/consensus-desktop/`): Default, Fill, Read, Write (whole and atomic), Problems, ServerNamed; `Servers` (Name, Url), `Local` (Data, Port), `Last` ({ Kind: server, Name } or { Kind: local }), `Theme`, `Scale`.\n- `desktop/Local.js`: the one local Consensus server, started in the app's process with `Start` from src/Server.js over a data folder on 127.0.0.1 and the folder's port (a missing consensus.json is written with the defaults, as the command line does); Start again over the same folder leaves it; over another folder stops the first; Stop, Running, Close.\n- `desktop/Page.js`: the desktop's own copy of the page, served on 127.0.0.1 with the vendor files, and the forwarding of `/api` (the events stream included) and `/instructions` to the connected server (SetTarget); 503 with no server, 502 when it does not answer.\n- `desktop/main.js`: the window, the Server and View menus (Connect to another, Reload, Start and Stop local server, New window, Quit; DevTools and zoom), the bridge's handlers (settings, save, try, connect, local start/stop/status, folder picker, new window), what was open last reopened at start or the connect screen with the reason, a tab's Detach allowed as a window of the app, the local server stopped when the window closes. New window spawns another instance of the app on the same desktop.json.\n- `desktop/preload.js`: `window.ConsensusDesktop` (Base, Version, Theme, Scale, Server, Reason, SetTheme, SetScale) for the page copy and `window.Desktop` for the connect screen.\n- `desktop/page/`: the copy of `public/` as it stands after Step 1, with two changes: `client.js` prefixes the base URL the desktop hands it (empty: the page's own origin), and `theme.js` reads and writes the theme and scale through the desktop when hosted by it. Plus the connect screen: `connect.html`, `connect.js`, `connect.css`: the saved servers with Connect, Edit and Remove; Add server with Name and Url, Try (which Consensus version answers, who you are, a warning when the version differs from the app's), Save and Save and connect (a server that does not answer is not saved); the local server's data folder with Browse, Start, Stop and Connect; what the app is connected to and why the last connection failed; theme and size.\n- The server: `/api/me` carries `Version` (the package's). Nothing else changed in `src/`; `public/` is untouched.\n- `readme.md`: a section \"The desktop\".\n\n**One deviation from the Subplan, and why**\n\n- The page copy was to call the server's API through a base URL on another origin. Electron 44 runs no preload script for a window whose web security is off, and with it on the browser blocks the call, since the server sends no CORS headers (and is not to be changed for the app). So the page's own origin forwards `/api` and `/instructions` to the connected server (Page.js), and the base URL the preload hands the page stays empty: the page calls its own origin, as in a browser, and the desktop points that origin at the server on connect. client.js keeps the base URL, for a later use.\n\n**How it was checked**\n\n- `test/Desktop.test.js`, 5 tests: desktop.json defaults, filling, writing and reading back, the problems; the page server serving the copy, the connect screen and the vendor files, refusing the API with no target, then forwarding GET, POST with a body, PUT, a 404, /instructions and the events stream to a real Consensus, 502 for a dead target; the local server with the real `Start`: a folder's consensus.json respected, `/api/me` with the version, the same folder again, another folder (defaults written, the first stopped), Stop; and a stand-in Start whose failure is thrown and leaves nothing running.\n- `npm test`: 118 tests, all passing (the identity test now checks `/api/me`'s Version).\n- The window, driven over the DevTools protocol (a scratch script, not kept): the connect screen opens with the app's version; Try answers with a server's version and refuses a dead port with the reason; a server saved and connected; the page copy loads from the app's origin with the projects of that server, its live stream connected, and a plan posted on the server appears in the tree; the theme chosen in the page lands in desktop.json; the local server started over a temporary folder and connected (the page reloads pointed at it); stopping it lands on the connect screen with \"the local server was stopped\". No page errors. The desktop's user-data folder was removed afterwards.\n- Not checked by hand: the folder picker, New window (a second instance), a tab's Detach window, and the Server menu's entries, which call Electron directly.\n\n**To know**\n\n- `npm run desktop` needs a whole Electron under node_modules. The worker app you have running holds the old one open, so npm could not replace it during this build (the lockfile is updated; node_modules is not). Close the worker app, run `npm install`, then `npm run desktop`. Until then the app runs with `node_modules\\electron\\dist\\electron.exe desktop`."
+			}
+		]
+	},
+	{
+		"Id": "thr-g2u-lva-zjw",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-01T05:28:59.064Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-10-01T05:40:06.930Z",
+			"Revision": 2,
+			"RevisionId": "rev-ph8-ldz-v64",
+			"Outcome": "Accepted: the Context document is the Readme. Committed as \"Readme: the Context document renamed\"; the image on cube4 follows the commit, and the migration at that start renames the Readme of each project."
+		},
+		"Created": "2026-10-01T05:21:13.497Z",
+		"Replies": [
+			{
+				"Id": "rep-3cp-m0y-ik2",
+				"By": "user",
+				"At": "2026-10-01T05:21:13.497Z",
+				"Text": "lets make a change at this point.\nIt is awkward to have the `Context` document in the `Context` folder. We should keep the `Context` folder, but rename the document to `Index` or `Readme`."
+			},
+			{
+				"Id": "rep-4if-5ak-4rj",
+				"By": "llm",
+				"At": "2026-10-01T05:22:22.069Z",
+				"Text": "Agreed: a document named Context inside a folder named Context reads twice. Of the two, I recommend **Readme**: it is what a person opens first and what an agent session reads first, and \"Index\" suggests a table of contents, which it is not. The folder stays Context.\n\nWhat the change is, so you can resolve it with the wording as it stands or adjust it:\n\n- The document is titled **Readme**: a new project gets a Readme in its Context folder, and the migration at start renames an existing one still titled Context to Readme (a title change only; the id and the revisions stay). project.json keeps `Context` as the id of that document, and the API keeps `Context: true` on it; nothing else in the API is renamed.\n- The page shows \"Readme of <project>\" in the header and a Readme badge, and its tab reads \"Readme · <project>\". This touches `public/` as well as the desktop's copy: one label, the same in both, as a named exception to the freeze, so the server's page does not keep saying Context for a document called Readme.\n- readme.md, the agent guide and this project's own document say Readme where they say Context document.\n\nOn resolve I will implement it, run the tests, and reply here with the result as a build log, to be applied once you accept it, and the Docker image on cube4 follows the commit."
+			},
+			{
+				"Id": "rep-76q-f1s-8ld",
+				"By": "llm",
+				"At": "2026-10-01T05:28:31.212Z",
+				"Text": "**Build log: the Context document becomes the Readme** (built by Claude Fable 5.1, the agent session; uncommitted, 17 files changed)\n\n**What was built**\n\n- `src/Store.js`: a new project's document in its Context folder is titled **Readme**. The migration at start renames a Readme still titled Context (a title change only; the id and the revisions stay) and prints \"the Context document renamed Readme\" per project; a second start does nothing.\n- `src/Api.js`: the refusal reads \"the Context folder and its Readme stay as they are: never renamed, moved, copied or deleted\". `project.Context` and `Context: true` on the document are unchanged, as said.\n- The page, in `public/` (the one named exception to the freeze) and in the desktop's copy `desktop/page/`, the same one label in both: the header \"Readme of <project>\", the Readme badge, the tab \"Readme · <project>\", and the hints on the folder and the document.\n- `readme.md` and `.guides/build-with-consensus.md` say Readme where they said Context document.\n\n**How it was checked**\n\n- `npm test`: 118 tests, all passing: the store test expects a new project's Readme and the migration's rename line; the API test expects the Readme title in the tree; the browser test opens the Readme and checks its header, badge, tab and menus.\n- Nothing yet on cube4: the commit and the image follow your acceptance, and cube4's three projects get their Readme renamed at that start."
+			}
+		]
+	}
+]

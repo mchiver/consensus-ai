@@ -1,0 +1,127 @@
+# Docker Image
+
+We need to build a docker image that we can push to and run on cube4.
+
+No registry: the image is built on this machine and sent to cube4 over ssh, as the `claude` account (key `~/.ssh/cube4_claude`; cube4 is x86_64 with Docker 29.7 and Compose v5.4, and `claude` is in the `docker` group).
+
+The image runs Consensus only: the web page and the API on port 3500. The context server stays out of it for now (its corpora are folders on the machine it runs on); a linked corpus or inference item whose context server cube4 cannot reach shows as offline, and nothing else breaks.
+
+
+## What Goes in the Image
+
+- Base: `node:22-alpine` (the package asks for Node 22 or later; every dependency is plain JavaScript).
+- `package.json` and `package-lock.json`, then `npm ci --omit=dev`: express, angular, bootstrap, marked, monaco-editor, yauzl, ignore. The page's vendor files are served from `node_modules`, so they must be installed in the image.
+- `bin/`, `src/`, `public/`, and `.guides/` (the agent guide served at `/instructions`).
+- Left out by `.dockerignore`: `node_modules/`, every `~` folder (`~data`, `~logs`, `~prompts`, `~data-before-ids`), `test/`, `.git/`, `.plans/`, `.reviews/`, `.claude/`.
+- It runs as the `node` user, not root.
+- Tags: `consensus:<version from package.json>` and `consensus:latest`.
+
+
+## Persistent Storage
+
+All data files are stored in persistent storage that survives container restarts and updates.
+
+- The data folder is `/data` in the container: a named volume, `consensus-data`, mounted there. Everything Consensus keeps is in it: `consensus.json`, `projects.json`, projects, proposals, corpora, the trash, `usage.json`, `ids.json`.
+- The first start on an empty volume writes `consensus.json` with its defaults and makes the Default project.
+- An update replaces the container, never the volume.
+- A backup is a copy of the volume (`docker run --rm -v consensus-data:/data -v "$PWD":/backup alpine tar czf /backup/consensus-data-<date>.tgz -C /data .`), or a project export through the API (Project Import and Export).
+
+
+## Settings on cube4
+
+The settings are `/data/consensus.json`, edited in the volume, and read at start (a restart takes a change):
+
+- **Host**: the container always starts with `--host 0.0.0.0`, so it answers beyond itself; the port published on cube4 decides who can reach it. A request with no token is the owner and `/instructions` shows the llm token, which is accepted because cube4 is on a private network; an Owner Token (the owner needing a token when the server listens beyond localhost) is its own plan, for later.
+- **The llm token**: the default settings give the llm participant none. Give it a `Token` so an agent session can work in Consensus on cube4 through the API (reviews, builds, project import and export from another server).
+- **Destinations**: Ollama on cube4 is reached at `http://host.docker.internal:11434` (the compose file maps that name to the host). The Claude CLI destination is not in the image; the agent session works from outside, through the API.
+- **ContextServers**: listed as now; a server cube4 cannot reach stays offline.
+- **TZ** is set in the compose file, so dates the server writes ("Copy of … (imported <date>)") are cube4's local dates.
+
+
+## Dockerfile
+
+```dockerfile
+# Consensus: the web page and the API on port 3500, its data in the /data volume.
+FROM node:22-alpine
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+# Dependencies first, so a code change reuses this layer.
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY bin ./bin
+COPY src ./src
+COPY public ./public
+COPY .guides ./.guides
+
+# The data folder belongs to the node user, who runs the server.
+RUN mkdir -p /data && chown node:node /data
+USER node
+
+VOLUME /data
+EXPOSE 3500
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+	CMD wget -q -O /dev/null http://127.0.0.1:3500/api/me || exit 1
+
+CMD [ "node", "bin/consensus.js", "--data", "/data", "--host", "0.0.0.0", "--port", "3500" ]
+```
+
+## .dockerignore
+
+```
+node_modules
+~*
+test
+.git
+.gitignore
+.plans
+.reviews
+.claude
+```
+
+## compose.yaml (on cube4)
+
+```yaml
+services:
+  consensus:
+    image: consensus:latest
+    container_name: consensus
+    restart: unless-stopped
+    ports:
+      - "3500:3500"
+    volumes:
+      - consensus-data:/data
+    environment:
+      TZ: America/New_York
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  consensus-data:
+```
+
+
+## Stopping Cleanly
+
+`docker stop` sends SIGTERM, and today the server only listens for SIGINT (Ctrl+C); as the container's first process it would be killed after the stop timeout, possibly mid-write. `bin/consensus.js` handles SIGTERM as it does SIGINT: close the server, then exit. Writes are already whole-file and atomic, so this makes a stop prompt rather than safe.
+
+
+## Building, Running, Updating
+
+- **Build** (in the repo, on this machine): `docker build -t consensus:<version> -t consensus:latest .`
+- **Send** to cube4, no registry: `docker save consensus:<version> consensus:latest | ssh -i ~/.ssh/cube4_claude claude@cube4 docker load` (the whole image each time, about 70 MB).
+- **Run** (on cube4, in `~/consensus/`, where `compose.yaml` lives): `docker compose up -d`, then `docker compose logs -f consensus` shows the start lines (data folder, settings, context servers).
+- **Update**: build and send again, then `docker compose up -d` on cube4; the volume and its data stay. Old images are removed with `docker image prune`.
+- **Moving projects** from this machine to cube4: Project Import and Export through the API, by the agent session with the llm tokens of both servers.
+
+
+## How It Is Checked
+
+- The image builds from a clean checkout.
+- A container started from it with a fresh volume answers `/api/me`, serves the page, and its health check turns healthy.
+- A plan created there is still there after `docker compose down` and `up` again, and after the image is rebuilt and the container replaced.
+- `docker stop` ends it within a second, logging nothing unfinished.
+- A project exported from this machine imports into it over the API with the llm token.

@@ -1,0 +1,135 @@
+# Run Shapes
+
+Consensus is one program, `consensus`, started from the command line. This plan replaces "Launch Scenarios" and says how the program is configured, where a project lives, what the server does, and what each way of running it means. It rests on six statements:
+
+1. A project is a folder. Its `.consensus` sub-folder is the project (the tree, the plans, the threads, the revisions, the archive, the trash), the parent folder is the project's context, and it goes into source control so the plans travel with the source. No token or secret ever lives there.
+2. Everything global, and everything secret, lives in one file in the user's folder: `<user>/.consensus/consensus.json`. It replaces the server's consensus.json and the desktop's desktop.json.
+3. One command is the whole program: it starts the API server when the Scope allows, and opens the window unless `--headless`. `consensus <path>` opens an instance on one project, the way VS Code opens a folder, from anywhere.
+4. The desktop's tree shows every connected server as a root, the local one included, with its projects beneath.
+5. A Scope setting says whether the local API server runs and who may reach it: None, Local or Public.
+6. The LLMs are distinct participants, named `<connection>@<server name>`, run by the server at a client's request, over projects on the server's own machine.
+
+Today, for the record: `node bin/consensus.js [--data <folder>] [--port <port>] [--host <address>]` runs the server over one data folder (`~data` beside the checkout by default) that holds every project; the desktop is `npm run desktop`, an Electron app that connects to a saved server or runs one local server over a folder picked with Browse, with its own settings in desktop.json; the Docker image runs the server with `--data /data`.
+
+
+## The global config
+
+Consensus loads its global config from `<user>/.consensus/consensus.json` (`--config <folder>` names another folder), the one place for everything global:
+
+- `Name`: the server's name, part of every LLM participant's name and shown to clients.
+- `Port`, and `Scope`: `None` (the local API server is never started; the desktop is a client of the saved servers only, and has no local projects), `Local` (it listens on 127.0.0.1, for this machine), `Public` (it listens on 0.0.0.0, for remote connections). Scope replaces Host.
+- `States`: the default state list for a new project; each project keeps its own (below).
+- `Participants`: the owner, and any participant added by hand with a token, as an agent session on the command line is today. Every LLM in the list below is a participant as well, with a token the server makes.
+- `Llms`: the LLM connections, each with the fields a connection has today (Kind, Command or Url, Model, Timeout, Context, Rounds, Prompts) and a Name: the participant it posts as, `<connection>@<server name>`, for example `claude-cli@cube12` or `ollama-kimi-k2.6:cloud@cube4`; every reply and result records it.
+- `Projects`: the local projects, each by its folder's path on this machine, in the order they were opened; the most recent first.
+- `Servers`: the saved servers, each with its connection info and its last view settings.
+- `Theme`, `Scale`, and the remembered view state, per server by key as today.
+
+It replaces the server's consensus.json in the data folder and the desktop's desktop.json; a first start reads both once and moves them in. Tokens and secrets live here and nowhere else.
+
+
+## A project is a folder
+
+Each project is tied to a locally accessible folder. That folder is the project's context: a Project is what a workspace was, and the two merge. The folder holds a `.consensus` sub-folder, which is the project and holds nothing else; it is meant to go into source control, so the plans and threads travel with the source, and nothing secret is ever written to it. The global config holds the folder's path, which is this machine's. `.consensus` stores:
+
+- `project.json`: the project's id, name and tree; its States (the global list copied in at creation, edited in the project's settings); its Include, Exclude and Commands, which travel with the folder; and the ids of its archived items.
+- `content/<id>/content.md`: an item's text; `content.json` its record; `threads.json` its threads; `revisions/` its revisions; and any file that belongs to it.
+- `archive/<id>/`: an archived item, moved whole. A finished plan is moved there with Archive in its menu and brought back with Restore; the archive shows as a folder at the bottom of the project, folded, below the tree, and its plans open read-only until restored.
+- `trash/<id>/`: a deleted item, moved whole.
+
+A `.consensus` that does not exist is created and initialized when its folder is opened on purpose (a path on the command line, Open folder, New project), never for whatever the current folder happens to be: a new id, the folder's name, the default States, a Context folder with an empty Readme. A project made in the UI with New project needs a folder from now on: the desktop asks for one, offering `<config>/projects/<name>/`, and a headless server makes that default folder. A folder opened once joins the global list, so a bare `consensus` shows it next time.
+
+An existing data folder (`--data`, accepted for one release as an alias of `--config`) is migrated at first start: its settings move into the global config, and each of its projects moves out into a folder of its own under `<config>/projects/<name>/`, in the layout above.
+
+
+## The server and the LLMs
+
+The server runs the LLM runs (Review, Build, Session). A client, the desktop window or a browser, asks the server for a run, and the server starts the command or calls Ollama, as the desktop does today; the code for the runs moves from the desktop into the server, and a headless server runs them for its clients. The server still reads no code on its own: a run does, over the project's folder, as a tool of the model. An LLM works only on the projects of its own machine: the tools assume the project's folder is locally accessible, so a run is never asked of a remote server's project.
+
+The server serves the page to the window and to a browser alike. There is one page again: public/ is live and desktop/page/ goes; the desktop keeps only what needs the window (the folder picker, the native theme), and the page's LLM and project items come from the API.
+
+
+## The desktop and the servers
+
+The desktop's tree shows every connected server as a root, the local one first when it runs, with its projects as children; the page's API calls go to the root's server, through the desktop's forwarding for a remote one. Each server keeps its own participants and tokens. The multi-root tree is the plan's last step; until it is built, the desktop shows one server at a time, the local one by default.
+
+
+## Command line
+
+Two entry points share one start module: the packaged desktop executable is `consensus`, which starts the server and opens the window, or no window with `--headless`; `bin/consensus.js` is the headless form for a plain node install and the Docker image, which has no Electron, taking the same arguments and refusing the UI ones with a message (`--headless` is accepted there and does nothing).
+
+- `<path>`: a project root; the same as `--project <path>`.
+- `--config <folder>`: the global config's folder; `<user>/.consensus` by default.
+- `--project <folder>`: opens an instance on that project alone, the way VS Code opens a folder: the tree shows that project and nothing else, no other configured project and no remote server, and the folder joins the global list as a recent project. This is the way to hold an ad-hoc session in a local folder.
+- `--port <port>`: the port; the config's Port, else 3500. A second instance opened at the same time takes a free port when the configured one is taken, so two folders can be open at once, each in its own window.
+- `--scope none|local|public`: overrides the config's Scope for this start.
+- `--headless`: no window; the address, the config file and the projects are printed instead.
+- `--data <folder>`: for one release, an alias of `--config` that migrates the folder (above).
+- `--help`, `-h`.
+
+The Docker image runs `--config /data --headless`, so the global config and the projects it makes (under `/data/projects/<name>/` by default) live in the volume; `compose.yaml` and the Getting started page change with it.
+
+
+## Start sequence
+
+1. Load the global config from `<config>`; make it with the defaults when it is missing; move an old consensus.json or desktop.json in.
+2. Start the API server as the Scope says, on the port (or a free one for a second instance).
+3. Load the LLMs: each becomes a participant of the server.
+4. Load the projects: all of them, or the one `--project` names, creating its `.consensus` when missing.
+5. Open the window on the local server, unless `--headless`, which prints what it started instead.
+
+
+## Invocation scenarios
+
+**Run without arguments**
+
+```shell
+consensus
+```
+
+Loads everything in `<user>/.consensus`. The tree shows the local server with all its projects and LLMs, and every saved server beneath it. The window opens.
+
+**Run here**
+
+```shell
+consensus .
+```
+
+Loads the settings and the LLMs from `<user>/.consensus` and the project in the current folder, creating its `.consensus` when it is missing. The tree shows that project only; the other projects and the saved servers are not loaded. The window opens.
+
+**Run on a single project**
+
+```shell
+consensus /projects/tic-tac-toe
+consensus --project /projects/tic-tac-toe
+```
+
+The same, for the folder given.
+
+**Run a server**
+
+```shell
+consensus --headless
+consensus /projects/tic-tac-toe --headless
+```
+
+The same as the two above, with no window: the address, the config file and the projects are printed, and clients, browsers and other desktops, connect to it as the Scope allows.
+
+**In Docker**
+
+```shell
+docker compose up -d
+```
+
+The image runs `consensus --config /data --headless` with Scope Public inside the container; the port is published by compose.
+
+
+## Steps
+
+1. **The global config and the two entry points.** `--config`, Scope in place of Host, the config read and written in one place, desktop.json and the data folder's consensus.json moved in at first start; the node and the desktop entry points over one start module. No change to the projects yet.
+2. **Project folders.** The Store over several roots, one per project folder, in the `content/` layout; the migration of a data folder into folders; Archive and Restore; New project asking for a folder; the project's States in project.json. Decided before the build (2026-10-12): every project gets a prj- id at migration, the Default project included, so the id default ends and a project's identity travels with its folder; a project in the global list whose folder is gone, or on a drive not mounted, is skipped at start with a line in the log and shown on the connect screen, and never dropped from the list on its own.
+3. **The LLMs in the server and the one page.** The runs, their routes and their records move into the server; the page's LLM and project items come from the API; public/ is live again and desktop/page/ goes. Decided before the build (2026-10-12): the connections under `/api/llms` (list, create, update, delete, check; the writes by the owner) and the runs under `/api/runs` (the popup's lists, the package, start, list, read, stop), their progress over `/api/events`; each connection is a participant of its server, Role llm, named `<connection Name>@<server Name>` (letters, digits, dot, dash and colon; `claude-cli` or `ollama-<model>` offered), with a server-made token kept on the connection, made, renamed and removed with it, the hand-made `llm` participant staying for sessions started by hand; the workspaces go: a run works in the project's folder with the Include, Exclude and Commands of project.json, a missing folder refuses the run, a workspace on a project's folder passes its lists into that project at migration, and the LLM items show once under the server; every participant but an llm one may start a run, one per connection at a time; the records live under `<config>/runs/<id>.json`, never in `.consensus`; and a run works on the server's own machine only, so Review and Build with claude-cli on the Consensus project move to the local server over the checkout, the project exported from cube4 and imported into the repository's `.consensus`, cube4 keeping the other projects until Step 5.
+4. **Open from anywhere.** The path argument, the isolated instance, the recent projects, the free port for a second instance, `--headless` printing what it started.
+5. **Servers as roots.** The multi-root tree, the forwarding per root, each server's own participants. Decided before the build (2026-10-12): a root is a server the page shows, `{ Key, Name, Base }`, this machine's (Key `local`, named by the config's Name) and every saved server (Key its Name) in the desktop, the page's own origin alone in a browser (Key empty, today's routes kept); each root loads its own Me, Participants, States, Proposals, Projects and LLM connections and listens to its own events (`public/js/roots.js`), `State` keeping what is one at a time and naming its root, every API call going through the root (`Client.Get( root, path )`); the desktop's page server forwards `/servers/<key>/api/*` and `/servers/<key>/instructions` to that root's server, the local one included, the Consensus server itself unchanged; the tree has a root row per server (this machine's first, then the saved servers in their order; the Name, the live dot, "you are <name> (<role>)", the version in the tooltip; a menu with Settings for the owner, Add server, Edit, Remove and Reload; folded like a project, remembered) with its projects, its LLMs list and its Trash beneath, an offline root kept with the reason and tried again on reconnect, the theme and scale alone at the sidebar's bottom; a route carries its root (`#/s/<key>/p/<id>`, `#/s/<key>/llm/<id>`), a tab's key too, the tabs list remembered once per window, the open project, the folds and the sort per server as today, Waiting one tab over every root naming each row's server; the editor, the threads, the header, the revisions, the ports and the Settings popup work over the open item's root, the per-server Theme is dropped at migration (the window has one theme), Paste into another server's project is an import there and the way to move a plan between servers, drag and drop between roots refused with a notice; the window opens on the page with every root and on the connect screen only with none, `Last` dropped at migration, the connect screen (Add server, Edit, Remove, This machine) reached as Servers… in the Server menu, which loses Connect to another, an isolated instance showing the local root alone, `window.ConsensusDesktop.Server` becoming `Roots` and the folder picker the local root's only; no version gate (a root shows what its API answers, the LLMs list empty on a 404, another version said in the tooltip); and the Consensus project moves from cube4 to the checkout with the redeploy that follows Step 5, not before, the agent session then taking its turn over the local server for it and over cube4 for the rest. The build goes in checkpoints: the roots module and the forwarding, the sidebar and the routes, the desktop's start and the connect screen, the docs.
+
+Each step is built and finished on its own, in that order.

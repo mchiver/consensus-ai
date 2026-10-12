@@ -1,0 +1,78 @@
+[
+	{
+		"Id": "thr-tvp-tzh-qaj",
+		"Anchor": {
+			"Text": "Both are represented the same way, as a corpus entry of the project",
+			"Prefix": "ach one \"attached\" or \"linked\". ",
+			"Suffix": ": { Id, Name, Source: \"attached\""
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T18:58:19.595Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T18:58:52.220Z",
+			"Revision": 3,
+			"Outcome": "Attached and linked corpora as one kind of entry with Include and Exclude; Extensions goes from consensus.json too; zips kept in the project's folder with .gitignore applied; a list_files request for the LLM.",
+			"RevisionId": "rev-bny-hcj-hql"
+		},
+		"Created": "2026-09-26T18:26:40.556Z",
+		"Replies": [
+			{
+				"Id": "rep-412-zk5-819",
+				"By": "llm",
+				"At": "2026-09-26T18:26:40.556Z",
+				"Text": "**Zips: the same rule, or keep `Extensions` for them?**\n\nRecommendation: the same rule for zips (read unless larger than `MaxFileKilobytes` or binary), and `Extensions` goes from `consensus.json` too, so Consensus and a context server read files the same way. An `Extensions` key left there is ignored, with a note at start.\n\nThe other choice keeps `Extensions` in `consensus.json`, for zips only: a zip could then be trimmed by type without repacking it, at the cost of two rules.\n\nWhich do you want?"
+			},
+			{
+				"Id": "rep-dmc-bxn-3vv",
+				"By": "user",
+				"At": "2026-09-26T18:45:42.172Z",
+				"Text": "- when a zip file is uploaded and added, it should be marked as `attached` in the project tree, similar to the way a corpus from a context server is marked as `linked`.\n- an attached zip file (attached corpus) is stored in the project's data folder and should behave in the same way as a linked corpus.\n- Both types of corpus are represented internally, at the project level, in the same way. A linked corpus will resolve to a context server and an attached corpus will resolve to a zip file. This project level entry will carry `Include` and `Exclude` fields to further refine file inclusion from that corpus.\n- Both types of corpus are offered to an LLM for further context discovery."
+			},
+			{
+				"Id": "rep-rrw-6pr-x31",
+				"By": "llm",
+				"At": "2026-09-26T18:46:31.059Z",
+				"Text": "Understood:\n\n- Two kinds of corpus, represented the same way: an **attached** corpus resolves to a zip kept by Consensus; a **linked** corpus resolves to a context server's corpus. The tree marks each one \"attached\" or \"linked\".\n- The corpus entry carries `Include` and `Exclude`, which narrow what reaches the project. For a linked corpus, they apply on top of what the context server already lets in.\n- Both behave the same: files listed, read, searched and offered to the LLM. `Extensions` goes from `consensus.json` too; a zip's files are read unless larger than `MaxFileKilobytes` or binary, as on a context server.\n\nWhat I would build, unless you say otherwise:\n\n- The corpus record: `{ Id, Name, Source: \"attached\" | \"linked\", Link?: { Server, Corpus }, Include: [], Exclude: [] }`, the same for both.\n- `Include` and `Exclude` are edited in the corpus view: one pattern per line, Save. The file list shows what is in and, for each file left out, why.\n- For an attached zip, Consensus applies them when it indexes. For a linked corpus, it filters the server's list and hits by path, asking the server for more hits so a filtered search still returns a full page, and `read_file` refuses a path they leave out.\n\nThree questions, each with my recommendation:\n\n1. **\"Stored in the project's data folder.\"** Zips live in `~data/corpora/<id>/` today. Do you mean `~data/projects/<project>/corpora/<id>/`? If so, moving a corpus to another project moves its folder, and a copy copies it. I recommend yes: it keeps a project's files together.\n2. **A `.gitignore` inside a zip.** Apply it, as a context server does with the folders it reads? I recommend yes, so an attached zip of a repository behaves like the same repository linked.\n3. **\"Offered to an LLM for further context discovery.\"** Today the LLM can search a corpus and read a file it already knows the path of, and `list_project` gives only a corpus's file count. I recommend a new request, `list_files` (`{ \"Tool\": \"list_files\", \"Corpus\": \"<name>\", \"Folder\": \"<path>\" }`), which lists a corpus's files, or one folder's, so the LLM can find its way around before it reads. It follows the same `Include` and `Exclude`. The request's field would be `Corpus` rather than today's `Zip`, with `read_file` taking both names."
+			},
+			{
+				"Id": "rep-x8j-88x-dx0",
+				"By": "user",
+				"At": "2026-09-26T18:58:19.595Z",
+				"Text": "1. yes\n2. yes\n3. yes"
+			}
+		]
+	},
+	{
+		"Id": "thr-f0l-xzn-ko9",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-09-26T22:23:41.736Z"
+		},
+		"Applied": {
+			"By": "llm",
+			"At": "2026-09-26T22:57:08.025Z",
+			"Revision": 3,
+			"Outcome": "Build accepted: attached and linked corpora with Include and Exclude, no list of file types, corpora in the project folders, and list_files.",
+			"RevisionId": "rev-bny-hcj-hql"
+		},
+		"Created": "2026-09-26T22:19:46.628Z",
+		"Replies": [
+			{
+				"Id": "rep-0xf-4c6-3lr",
+				"By": "llm",
+				"At": "2026-09-26T22:19:46.628Z",
+				"Text": "**Build log** (Claude Opus 5.5 in Claude Code). Built as the plan says; nothing is committed until you accept.\n\n**The rule**\n- `src/Filter.js` (new): one matcher for `Include`, `Exclude` and `.gitignore` files, giving the reason a file is left out.\n- No list of file types, in either server: a file let in is read unless larger than `MaxFileKilobytes` or binary. A leftover `Corpus.Extensions` is ignored with a note at start (both of your settings files still have one).\n- An attached zip's own `.gitignore` files apply, each to its folder and below.\n\n**Two kinds of corpus**\n- Every corpus record has `Source` (\"attached\" or \"linked\"), `Include` and `Exclude`; the tree marks each one.\n- Kept in the project's folder, `~data/projects/<project>/corpora/<id>/`; moving a corpus to another project moves its folder, and a copy goes to the target's. `migrate-ids` looks there too.\n- `PUT /api/corpus/:cid/filter`: an attached zip is listed and indexed again; a linked corpus's list, file reads and search hits are filtered (search asks the server for three times the hits).\n- The corpus view has Include and Exclude boxes (one pattern per line) with Save and Discard.\n\n**The LLM**: a new `list_files` request (a corpus, or one folder of it); `read_file` takes `Corpus` and still `Zip`; `list_project` shows each corpus as attached or linked with its files read.\n\n**Your data** (backed up first to `~data-backup-before-corpus-folders-2026-09-26-18-17-36`): both corpora moved into the Consensus project's folder. The attached \"consensus.git\" zip was listed again under the new rule: **82 of 3,816 files read**, where 2,931 were before. Its own `.gitignore` now keeps `node_modules` out, as planned; narrow or widen it with its Include and Exclude. The linked \"Consensus\" corpus shows offline: `context-server.json` now names it \"Consensus Source Files\", so the link no longer matches. Link the new name, or rename it back.\n\n**Checked**: `npm test`, 154 of 154 pass. New: `test/Filter.test.js` (the matcher, a zip with its `.gitignore` and rules, the ignored `Extensions`, relisting an older zip at start); `test/Store.test.js` (corpus folders: make, move, copy, update, trash, the one-time move of an older layout); `test/Api.test.js` (a corpus following a move and copy; an attached corpus narrowed, and the LLM's `list_files` and `read_file`); `test/ContextLink.test.js` (a linked corpus narrowed); `test/Ui.test.js` (the Include/Exclude editor, the attached badge). One browser test, \"reply and resolve\", checked a button too early and failed now and then under load: it now waits. It still failed once in six full runs; it touches no corpus code.\n\n**Running**: both servers as their own processes, not tied to my session, logging to `~logs/` (consensus.out.log, context-server.out.log)."
+			}
+		]
+	}
+]
