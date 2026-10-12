@@ -6,7 +6,9 @@
 // listens as the Scope says (the option, else the settings', else Local): Local on 127.0.0.1, Public on 0.0.0.0, and
 // None not at all, in which case Address, Url and Server are null and the settings and the store are still there for
 // the desktop. The settings are read once at start and changed in place by the settings routes (Api.js); Scope and
-// Port take effect at the next start.
+// Port take effect at the next start. Step 3: the server runs the LLMs: the settings' Llms (Llms.js) are filled and
+// checked, the desktop's workspaces from before are moved into the projects, and the runs (Runs.js, their records in
+// <config>/runs/) and the Runner are attached to the API; a run's changes go out over the events.
 
 const PATH = require( 'path' );
 const OS = require( 'os' );
@@ -17,6 +19,9 @@ const PARTICIPANTS = require( './Participants.js' );
 const EVENTS = require( './Events.js' );
 const API = require( './Api.js' );
 const INSTRUCTIONS = require( './Instructions.js' );
+const LLMS = require( './Llms.js' );
+const RUNS = require( './Runs.js' );
+const RUNNER = require( './Runner.js' );
 
 const DEFAULT_PORT = 3500;
 const DEFAULT_CONFIG = PATH.join( OS.homedir(), '.consensus' );
@@ -42,7 +47,13 @@ async function Start( Options )
 		await store.WriteSettings( settings );
 		console.log( 'settings brought up to date: ' + migrated.join( '; ' ) );
 	}
-	let problems = PARTICIPANTS.Validate( settings );
+	let before = JSON.stringify( settings.Llms || [] );
+	settings.Llms = ( Array.isArray( settings.Llms ) ? settings.Llms : [] ).map( LLMS.Fill );
+	if ( JSON.stringify( settings.Llms ) !== before )
+	{
+		await store.WriteSettings( settings );
+	}
+	let problems = PARTICIPANTS.Validate( settings ).concat( LLMS.Problems( settings ) );
 	if ( problems.length )
 	{
 		throw new Error( 'settings ' + store.SettingsPath() + ': ' + problems.join( '; ' ) );
@@ -50,6 +61,10 @@ async function Start( Options )
 	for ( let line of await store.Prepare( settings ) )
 	{
 		console.log( 'prepared ' + line );
+	}
+	for ( let line of await migrate_workspaces( store, settings ) )
+	{
+		console.log( line );
 	}
 	let renamed = await rename_state( store, settings );
 	if ( renamed )
@@ -64,7 +79,14 @@ async function Start( Options )
 	app.disable( 'x-powered-by' );
 	let events = EVENTS.Hub();
 	events.Attach( app, '/api/events' );
-	API.Attach( app, { Store: store, Settings: settings, Events: events } );
+	let url = null;
+	let runs = RUNS.Runs( { Folder: PATH.join( store.Folder, 'runs' ) } );
+	runs.OnChange( function ( summary )
+	{
+		events.Send( { Kind: 'run', Run: summary.Id, Llm: summary.Llm ? summary.Llm.Id : null, Status: summary.Status } );
+	} );
+	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Url: function () { return url; } } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner } );
 	INSTRUCTIONS.Attach( app, { Settings: settings } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
@@ -74,9 +96,11 @@ async function Start( Options )
 
 	let server = host ? await listen( app, host, port ) : null;
 	let address = server ? server.address() : null;
+	url = server ? 'http://' + url_host( host ) + ':' + address.port : null;
 
 	async function Close()
 	{
+		await runs.Close();
 		events.Close();
 		if ( server )
 		{
@@ -90,11 +114,13 @@ async function Start( Options )
 		Server: server,
 		Scope: scope,
 		Address: server ? { Host: host, Port: address.port, Local: ( scope === 'Local' ) } : null,
-		Url: server ? 'http://' + url_host( host ) + ':' + address.port : null,
+		Url: url,
 		Settings: settings,
 		SettingsWritten: settings_written,
 		Store: store,
 		Events: events,
+		Runs: runs,
+		Runner: runner,
 		Close: Close,
 	};
 }
@@ -183,6 +209,76 @@ async function rename_state( store, settings )
 }
 
 
+// The desktop's workspaces (from before plan Run Shapes, Step 3) into the projects: a workspace on a project's folder
+// gives that project its Include, Exclude and Commands when the project has none of its own, and the list is then
+// dropped from the settings. Returns the lines to log; none when there is no list.
+async function migrate_workspaces( store, settings )
+{
+	if ( !Array.isArray( settings.Workspaces ) )
+	{
+		return [];
+	}
+	let lines = [];
+	let projects = await store.ListProjects();
+	for ( let workspace of settings.Workspaces )
+	{
+		let what = 'workspace "' + ( workspace.Name || '?' ) + '" (' + ( workspace.Path || '?' ) + ')';
+		let project = projects.find( function ( one ) { return same_folder( one.Path, workspace.Path ); } );
+		if ( !project )
+		{
+			lines.push( what + ' dropped: no project is on that folder' );
+			continue;
+		}
+		if ( !lists_empty( project ) )
+		{
+			lines.push( what + ' dropped: the project ' + project.Name + ' has lists of its own' );
+			continue;
+		}
+		project.Include = lines_of( workspace.Include );
+		project.Exclude = lines_of( workspace.Exclude );
+		project.Commands = lines_of( workspace.Commands );
+		await store.WriteProject( project );
+		lines.push( what + ': its Include, Exclude and Commands moved into the project ' + project.Name );
+	}
+	delete settings.Workspaces;
+	await store.WriteSettings( settings );
+	return lines;
+}
+
+
+function same_folder( one, other )
+{
+	if ( !one || !other )
+	{
+		return false;
+	}
+	let a = PATH.resolve( String( one ) ).replace( /\\/g, '/' ).replace( /\/+$/, '' );
+	let b = PATH.resolve( String( other ) ).replace( /\\/g, '/' ).replace( /\/+$/, '' );
+	if ( process.platform === 'win32' )
+	{
+		return a.toLowerCase() === b.toLowerCase();
+	}
+	return a === b;
+}
+
+
+function lists_empty( project )
+{
+	let exclude = Array.isArray( project.Exclude ) ? project.Exclude : [];
+	return !( project.Include || [] ).length && !( project.Commands || [] ).length && exclude.join( '\n' ) === STORE.DEFAULT_EXCLUDE.join( '\n' );
+}
+
+
+function lines_of( value )
+{
+	if ( !Array.isArray( value ) )
+	{
+		return [];
+	}
+	return value.map( function ( line ) { return String( line ).trim(); } ).filter( function ( line ) { return line; } );
+}
+
+
 function listen( app, host, port )
 {
 	return new Promise( function ( resolve, reject )
@@ -197,6 +293,7 @@ function listen( app, host, port )
 module.exports = {
 	Start: Start,
 	AttachVendor: attach_vendor,
+	MigrateWorkspaces: migrate_workspaces,
 	DEFAULT_PORT: DEFAULT_PORT,
 	DEFAULT_CONFIG: DEFAULT_CONFIG,
 };

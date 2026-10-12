@@ -1056,3 +1056,179 @@ TEST( 'a project\'s own States, Include, Exclude and Commands; a state in use st
 	ASSERT.deepEqual( ( await project_named( home ) ).States, ( await call( 'GET', '/api/me' ) ).Body.States );
 	ASSERT.deepEqual( ( await call( 'POST', '/api/projects', { Name: 'Fresh' } ) ).Body.Project.States, ( await call( 'GET', '/api/me' ) ).Body.States );
 } );
+
+
+//---------------------------------------------------------------------
+// Plan Run Shapes, Step 3: the LLM connections and the runs in the server
+
+const ECHO_ARGUMENTS = [ '-e', "let t='';process.stdin.on('data',function(c){t+=c});process.stdin.on('end',function(){process.stdout.write('got: '+t.slice(0,60))})" ];
+
+
+async function run_settled( id )
+{
+	let read = null;
+	for ( let attempt = 0; attempt < 200 && ( !read || read.Body.Run.Status === 'running' ); attempt++ )
+	{
+		await new Promise( function ( resolve ) { setTimeout( resolve, 50 ); } );
+		read = await call( 'GET', '/api/runs/' + id );
+	}
+	return read.Body.Run;
+}
+
+
+// The events stream, collected as text until Stop() is called.
+function listen_events()
+{
+	let text = '';
+	let request = HTTP.get( running.Url + '/api/events', function ( response )
+	{
+		response.on( 'data', function ( chunk ) { text += chunk; } );
+	} );
+	return { Text: function () { return text; }, Stop: function () { request.destroy(); } };
+}
+
+
+TEST( 'an LLM connection is the owner\'s to make, each a participant named <Name>@<server>, with a token the server makes and shows the owner only', async function ()
+{
+	ASSERT.equal( ( await call( 'POST', '/api/llms', { Name: 'nope' }, true ) ).Status, 403 );
+	let made = await call( 'POST', '/api/llms', { Name: 'echo', Kind: 'claude-cli', Command: process.execPath, Arguments: ECHO_ARGUMENTS, Timeout: 30, Id: 'llm-chosen', Token: 'chosen-token-0123456789' } );
+	ASSERT.equal( made.Status, 201 );
+	let echo = made.Body.Llm;
+	ASSERT.match( echo.Id, /^llm-/ );
+	ASSERT.notEqual( echo.Id, 'llm-chosen' );
+	ASSERT.notEqual( echo.Token, 'chosen-token-0123456789' );
+	ASSERT.equal( echo.Token.length >= 16, true );
+	ASSERT.equal( echo.Participant, 'echo@' + running.Settings.Name );
+	ASSERT.equal( echo.Running, null );
+	// the file has it; the participant is listed, with the connection's id; its token identifies it
+	ASSERT.equal( JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).Llms[ 0 ].Token, echo.Token );
+	let me = await call( 'GET', '/api/me', undefined, 'Bearer ' + echo.Token );
+	ASSERT.deepEqual( me.Body.Me, { Name: echo.Participant, Display: 'echo', Role: 'llm', Llm: echo.Id } );
+	ASSERT.deepEqual( me.Body.Participants.find( function ( one ) { return one.Name === echo.Participant; } ), { Name: echo.Participant, Display: 'echo', Role: 'llm', Llm: echo.Id } );
+	// everyone sees the list; only the owner the whole record
+	let listed = await call( 'GET', '/api/llms', undefined, true );
+	ASSERT.equal( listed.Status, 200 );
+	ASSERT.deepEqual( listed.Body.Llms, [ { Id: echo.Id, Name: 'echo', Kind: 'claude-cli', Model: '', Participant: echo.Participant, Running: null } ] );
+	ASSERT.deepEqual( listed.Body.Kinds, [ 'claude-cli', 'ollama' ] );
+	ASSERT.equal( typeof listed.Body.DefaultPrompts.Review, 'string' );
+	ASSERT.equal( ( await call( 'GET', '/api/llms' ) ).Body.Llms[ 0 ].Token, echo.Token );
+	// changed in place, the id and the token kept; a second one with the same name is refused; a bad name too
+	let changed = await call( 'PUT', '/api/llms/' + echo.Id, { Timeout: 45, Token: 'ignored-0123456789abc' } );
+	ASSERT.equal( changed.Status, 200 );
+	ASSERT.deepEqual( [ changed.Body.Llm.Id, changed.Body.Llm.Timeout, changed.Body.Llm.Command, changed.Body.Llm.Token ], [ echo.Id, 45, process.execPath, echo.Token ] );
+	let twice = await call( 'POST', '/api/llms', { Name: 'echo' } );
+	ASSERT.equal( twice.Status, 400 );
+	ASSERT.deepEqual( twice.Body.Problems, [ 'LLM connection "echo" is named twice' ] );
+	ASSERT.match( ( await call( 'POST', '/api/llms', { Name: 'no spaces' } ) ).Body.Error, /letters, digits, dot, dash and colon/ );
+	ASSERT.equal( ( await call( 'PUT', '/api/llms/llm-nothing', { Model: 'x' } ) ).Status, 404 );
+	// the check, saved or not
+	let checked = await call( 'POST', '/api/llms/' + echo.Id + '/check', {} );
+	ASSERT.equal( checked.Body.Ok, true );
+	ASSERT.match( checked.Body.Result, /--version: v\d+/ );
+	let unsaved = await call( 'POST', '/api/llms/check', { Kind: 'claude-cli', Command: PATH.join( OS.tmpdir(), 'no-such-command' ) } );
+	ASSERT.equal( unsaved.Body.Ok, false );
+	ASSERT.equal( ( await call( 'POST', '/api/llms/check', {}, true ) ).Status, 403 );
+} );
+
+
+TEST( 'a run is asked of a connection by the owner or a member, packaged from the project and the plan, run in the project\'s folder, its record read by everyone and its changes heard', async function ()
+{
+	let echo = ( await call( 'GET', '/api/llms' ) ).Body.Llms[ 0 ];
+	let plan = await create( 'A plan to review' );
+	let thread = ( await call( 'POST', '/api/proposals/' + plan.Id + '/threads', { Anchor: { Text: 'a claim' }, Text: 'Is this so?' } ) ).Body.Thread;
+	// the lists: the waiting threads of the connection, the other documents
+	let lists = await call( 'GET', '/api/runs/lists?Project=' + home + '&Plan=' + plan.Id + '&Llm=' + echo.Id, undefined, true );
+	ASSERT.equal( lists.Status, 200 );
+	ASSERT.equal( lists.Body.Participant, echo.Participant );
+	ASSERT.deepEqual( lists.Body.Threads.map( function ( one ) { return one.Id; } ), [ thread.Id ] );
+	ASSERT.match( lists.Body.Threads[ 0 ].Last, /^user: Is this so\?/ );
+	ASSERT.equal( Array.isArray( lists.Body.Documents ), true );
+	ASSERT.equal( ( await call( 'GET', '/api/runs/lists?Project=prj-nothing' ) ).Status, 400 );
+	// the package: the connection's participant, the token, this server's address, the plan and the folder
+	let packaged = await call( 'POST', '/api/runs/package', { Llm: echo.Id, Kind: 'review', Project: home, Plan: plan.Id } );
+	ASSERT.equal( packaged.Status, 200 );
+	ASSERT.equal( packaged.Body.Participant, echo.Participant );
+	ASSERT.match( packaged.Body.Prompt, new RegExp( 'You are the `' + echo.Participant + '` participant' ) );
+	ASSERT.match( packaged.Body.Prompt, new RegExp( '- Consensus API: ' + running.Url + '/api' ) );
+	ASSERT.match( packaged.Body.Prompt, new RegExp( 'Bearer <token>": ' + echo.Token ) );
+	ASSERT.match( packaged.Body.Prompt, /## Agent instructions\n\n`{3,}\n# This server/ );
+	ASSERT.match( packaged.Body.Prompt, new RegExp( '- Token of the `' + echo.Participant + '` participant: ' + echo.Token ) );
+	ASSERT.match( packaged.Body.Prompt, new RegExp( '### Thread ' + thread.Id + ' \\(contested' ) );
+	ASSERT.equal( packaged.Body.Folder, ( await project_named( home ) ).Path );
+	ASSERT.match( ( await call( 'POST', '/api/runs/package', { Llm: echo.Id, Kind: 'review', Project: home } ) ).Body.Error, /needs a plan/ );
+	ASSERT.match( ( await call( 'POST', '/api/runs/package', { Llm: echo.Id, Kind: 'nope', Project: home } ) ).Body.Error, /Kind is one of/ );
+	ASSERT.match( ( await call( 'POST', '/api/runs/package', { Llm: 'llm-nothing', Kind: 'session', Project: home } ) ).Body.Error, /no LLM connection/ );
+	// an llm participant starts no run; the owner does, and hears it over the events
+	ASSERT.equal( ( await call( 'POST', '/api/runs', { Llm: echo.Id, Kind: 'review', Project: home, Plan: plan.Id }, true ) ).Status, 403 );
+	let events = listen_events();
+	await new Promise( function ( resolve ) { setTimeout( resolve, 100 ); } );
+	let started = await call( 'POST', '/api/runs', { Llm: echo.Id, Kind: 'review', Project: home, Plan: plan.Id } );
+	ASSERT.equal( started.Status, 201 );
+	ASSERT.match( started.Body.Run.Id, /^run-/ );
+	ASSERT.deepEqual( [ started.Body.Run.Status, started.Body.Run.By, started.Body.Run.Kind, started.Body.Run.Prompt ], [ 'running', 'user', 'review', undefined ] );
+	ASSERT.equal( ( await call( 'GET', '/api/llms', undefined, true ) ).Body.Llms[ 0 ].Running.Id, started.Body.Run.Id );
+	ASSERT.equal( ( await call( 'POST', '/api/runs', { Llm: echo.Id, Kind: 'session', Project: home } ) ).Status, 409 );
+	let done = await run_settled( started.Body.Run.Id );
+	ASSERT.equal( done.Status, 'done' );
+	ASSERT.match( done.Output, /^got: # A review one-shot from Consensus/ );
+	ASSERT.deepEqual( done.Project, { Id: home, Name: ( await project_named( home ) ).Name, Path: ( await project_named( home ) ).Path } );
+	ASSERT.deepEqual( done.Plan, { Id: plan.Id, Title: 'A plan to review' } );
+	ASSERT.equal( done.Prompt, packaged.Body.Prompt );
+	events.Stop();
+	ASSERT.match( events.Text(), new RegExp( '"Kind":"run","Run":"' + started.Body.Run.Id + '","Llm":"' + echo.Id + '","Status":"running"' ) );
+	ASSERT.match( events.Text(), new RegExp( '"Run":"' + started.Body.Run.Id + '","Llm":"' + echo.Id + '","Status":"done"' ) );
+	// the list, as the llm too; the record file in the config folder; a finished run is not stopped
+	let listed = await call( 'GET', '/api/runs?Llm=' + echo.Id, undefined, true );
+	ASSERT.equal( listed.Body.Runs.length, 1 );
+	ASSERT.equal( listed.Body.Runs[ 0 ].Output, undefined );
+	ASSERT.equal( listed.Body.Running, null );
+	ASSERT.equal( FS.existsSync( PATH.join( running.Store.Folder, 'runs', started.Body.Run.Id + '.json' ) ), true );
+	ASSERT.equal( ( await call( 'POST', '/api/runs/' + started.Body.Run.Id + '/stop' ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'GET', '/api/runs/run-nothing' ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'GET', '/api/runs/../x' ) ).Status, 404 );
+	// deleted: its participant is gone with it
+	ASSERT.equal( ( await call( 'DELETE', '/api/llms/' + echo.Id, undefined, true ) ).Status, 403 );
+	ASSERT.deepEqual( ( await call( 'DELETE', '/api/llms/' + echo.Id ) ).Body, { Deleted: echo.Id } );
+	ASSERT.equal( ( await call( 'GET', '/api/me', undefined, 'Bearer ' + echo.Token ) ).Status, 401 );
+	ASSERT.deepEqual( ( await call( 'GET', '/api/llms' ) ).Body.Llms, [] );
+} );
+
+
+TEST( 'the desktop\'s workspaces from before are moved into their projects at start, and the list dropped; a connection in the file gets its token', async function ()
+{
+	let config = temporary_folder();
+	let repo = temporary_folder();
+	let first = await SERVER.Start( { Config: config, Port: 0 } );
+	let made = await ( await fetch( first.Url + '/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Name: 'repo', Path: repo } ) } ) ).json();
+	await first.Close();
+	let file = PATH.join( config, 'consensus.json' );
+	let settings = JSON.parse( FS.readFileSync( file, 'utf8' ) );
+	settings.Workspaces = [
+		{ Id: 'wks-1', Name: 'repo', Project: 'x', Path: repo.replace( /\\/g, '/' ).toUpperCase(), Include: [ 'src/**' ], Exclude: [], Commands: [ 'npm test' ] },
+		{ Id: 'wks-2', Name: 'gone', Project: 'x', Path: PATH.join( config, 'nowhere' ), Include: [], Exclude: [], Commands: [] },
+	];
+	settings.Llms = [ { Name: 'claude-cli', Kind: 'claude-cli' } ];
+	FS.writeFileSync( file, JSON.stringify( settings ) );
+	let second = await SERVER.Start( { Config: config, Port: 0 } );
+	try
+	{
+		let project = await second.Store.ReadProject( made.Project.Id );
+		ASSERT.deepEqual( [ project.Include, project.Exclude, project.Commands ], [ [ 'src/**' ], [], [ 'npm test' ] ] );
+		let written = JSON.parse( FS.readFileSync( file, 'utf8' ) );
+		ASSERT.equal( written.Workspaces, undefined );
+		ASSERT.equal( written.Llms[ 0 ].Token.length >= 16, true );
+		ASSERT.match( written.Llms[ 0 ].Id, /^llm-/ );
+		ASSERT.equal( ( await ( await fetch( second.Url + '/api/me' ) ).json() ).Participants.some( function ( one ) { return one.Name === 'claude-cli@' + written.Name; } ), true );
+		// a project with lists of its own keeps them
+		let again = JSON.parse( FS.readFileSync( file, 'utf8' ) );
+		again.Workspaces = [ { Name: 'other', Path: repo, Include: [ 'docs/**' ], Exclude: [], Commands: [] } ];
+		FS.writeFileSync( file, JSON.stringify( again ) );
+		let lines = await SERVER.MigrateWorkspaces( second.Store, again );
+		ASSERT.match( lines[ 0 ], /has lists of its own/ );
+		ASSERT.deepEqual( ( await second.Store.ReadProject( made.Project.Id ) ).Include, [ 'src/**' ] );
+	}
+	finally
+	{
+		await second.Close();
+	}
+} );

@@ -1,13 +1,29 @@
 'use strict';
 
-// Header - two lines. The first: the title, Read / Edit / Revisions and the threads toggle. The second: the
-// state picker and the one-line state, then New Comment and New subplan. Delete is in the item's menu in the
-// tree. Ctrl+E switches the open item between Edit and Read.
+// Header - two lines. The first: the title and Read / Edit / Revisions (the threads toggle is in the tabs row,
+// tabs.js, since plan UI Tweaks V). The second: the state picker and the one-line state, then New Comment and New
+// subplan. Delete is in the item's menu in the tree. Ctrl+E switches the open item between Edit and Read.
 
-angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Subplans', function ( $scope, $window, State, Client, Subplans )
+angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Subplans', 'Llms', function ( $scope, $window, State, Client, Subplans, Llms )
 {
 	$scope.State = State;
 	$scope.Busy = false;
+
+
+	// The title when no proposal is open: the waiting view, or an LLM connection of the server (plan Run Shapes, Step 3).
+	$scope.EmptyTitle = function ()
+	{
+		if ( State.View === 'waiting' )
+		{
+			return 'Waiting on you';
+		}
+		if ( State.View === 'llm' && State.OpenItem )
+		{
+			let llm = Llms.LlmById( State.OpenItem.Id );
+			return 'LLM connection ' + ( llm ? llm.Name : State.OpenItem.Id ) + ( llm && llm.Participant ? ' (' + llm.Participant + ')' : '' );
+		}
+		return 'Consensus';
+	};
 
 
 	$scope.SetView = function ( view )
@@ -25,7 +41,7 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 		{
 			return;
 		}
-		if ( !State.Open || !State.OpenId || [ 'read', 'edit', 'revisions' ].indexOf( State.View ) < 0 )
+		if ( !State.Open || !State.OpenId || [ 'read', 'edit', 'revisions' ].indexOf( State.View ) < 0 || $scope.IsArchived() )
 		{
 			return;
 		}
@@ -89,14 +105,28 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 	} );
 
 
-	// The settings' States, plus the proposal's own when the settings no longer name it.
+	// The project's States (the settings' when it has none; plan Run Shapes, Step 2), plus the proposal's own when
+	// the list no longer names it.
 	$scope.StateOptions = function ()
 	{
-		if ( !State.Open || State.States.includes( State.Open.Proposal.State ) )
+		let states = State.States;
+		let project = ( State.Open && State.Open.Project ) ? State.Projects.find( function ( candidate ) { return candidate.Id === State.Open.Project.Id; } ) : null;
+		if ( project && Array.isArray( project.States ) && project.States.length )
 		{
-			return State.States;
+			states = project.States;
 		}
-		return State.States.concat( [ State.Open.Proposal.State ] );
+		if ( !State.Open || states.includes( State.Open.Proposal.State ) )
+		{
+			return states;
+		}
+		return states.concat( [ State.Open.Proposal.State ] );
+	};
+
+
+	// An archived plan (plan Run Shapes, Step 2) is read and never written until it is restored from the tree.
+	$scope.IsArchived = function ()
+	{
+		return !!( State.Open && State.Open.Proposal && State.Open.Proposal.Archived );
 	};
 
 

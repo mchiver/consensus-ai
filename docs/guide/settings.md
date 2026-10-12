@@ -41,7 +41,7 @@ The settings are `consensus.json` in the config folder, written at first start:
 }
 ```
 
-The desktop keeps its own fields in the same file (`Servers`, `Last`, `Theme`, `Scale`, `Llms`, `Workspaces`, `Remembered`), which the popup never touches. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a `Host`, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine's.
+The server's LLM connections are in the same file (`Llms`, kept through the page's LLM list; see [Working with an LLM](llm.html)), and so are the desktop's own fields (`Servers`, `Last`, `Theme`, `Scale`, `Remembered`); the popup touches neither. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a `Host`, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine's.
 
 ## Theme and size
 

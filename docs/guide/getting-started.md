@@ -51,7 +51,7 @@ The image runs the server with `--config /data --scope public --port 3500 --head
 
 ## The desktop
 
-Consensus Desktop is the same page in a window of its own, with a Consensus server of its own inside. It is the other entry point of the one program: it takes the same `--config`, `--port`, `--scope` and `--headless`, starts the server from the config folder as its Scope says, and keeps its own settings (the saved servers, the LLM connections, the workspaces, the themes) in that same settings file. From the checkout:
+Consensus Desktop is the same page in a window of its own, with a Consensus server of its own inside. It is the other entry point of the one program: it takes the same `--config`, `--port`, `--scope` and `--headless`, starts the server from the config folder as its Scope says, and keeps its own settings (the saved servers, the themes, the remembered view) in that same settings file. From the checkout:
 
 ```
 npm run desktop
@@ -65,7 +65,7 @@ It opens on its own server, or, when a saved server was open last, on that one; 
 - **Servers** lists the servers you saved. **Add server** asks for a name and a URL, tries the address before saving it, and says which Consensus version answers.
 - **This machine** is the app's own server: it starts with the app, from the settings' Scope and Port, and stops with it. Connect opens it. With Scope None there is none, and the app is a client of the saved servers only; a port already in use shows the reason here.
 
-Once connected, the window shows the page, and the **Server** menu has Connect to another, Reload, and New window for a second instance. `--headless` runs the server with no window at all, printing what the command line prints. A desktop.json from before is moved into the settings file at the first start. The desktop also brings LLM connections and workspaces of its own; the page [Working with an LLM](llm.html) covers them.
+Once connected, the window shows the page, and the **Server** menu has Connect to another, Reload, and New window for a second instance. `--headless` runs the server with no window at all, printing what the command line prints. A desktop.json from before is moved into the settings file at the first start, its LLM connections becoming the server's and its workspaces going into their projects. The LLM connections are the server's, run by it; the page [Working with an LLM](llm.html) covers them.
 
 ## What to do first
 

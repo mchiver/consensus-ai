@@ -69,7 +69,7 @@
 	]
 }
 </code></pre>
-<p>The desktop keeps its own fields in the same file (<code>Servers</code>, <code>Last</code>, <code>Theme</code>, <code>Scale</code>, <code>Llms</code>, <code>Workspaces</code>, <code>Remembered</code>), which the popup never touches. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a <code>Host</code>, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine&#39;s.</p>
+<p>The server&#39;s LLM connections are in the same file (<code>Llms</code>, kept through the page&#39;s LLM list; see <a href="llm.html">Working with an LLM</a>), and so are the desktop&#39;s own fields (<code>Servers</code>, <code>Last</code>, <code>Theme</code>, <code>Scale</code>, <code>Remembered</code>); the popup touches neither. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a <code>Host</code>, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine&#39;s.</p>
 <h2 id="theme-and-size">Theme and size</h2>
 <p>Light, dark or the system&#39;s theme, and three sizes, are at the bottom of the sidebar. They are kept in the browser, per user and per server, not in the settings. The desktop offers a wider choice of palettes, from Sepia and Paper to Nord and Midnight, and its title bar follows.</p>
 <h2 id="the-config-folder-and-the-project-folders">The config folder and the project folders</h2>

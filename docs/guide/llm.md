@@ -1,6 +1,6 @@
 # Working with an LLM
 
-The server itself calls no model, reads no code and indexes nothing. Every LLM takes part as the **llm** participant, through the API, from wherever it runs: a coding agent in your repository, a one-shot run from the desktop, or a local model. What they all do is the same: read what waits on them, reply, apply what you resolved, draft plans, and build what a finished plan says.
+The server reads no code and indexes nothing on its own. Every LLM takes part as a participant with the **llm** role, through the API: a coding agent in your repository, posting as the hand-made `llm` participant, or a connection the server runs for you (below), posting as `<connection>@<server>`. What they all do is the same: read what waits on them, reply, apply what you resolved, draft plans, and build what a finished plan says.
 
 ## The llm participant and its token
 
@@ -18,9 +18,9 @@ How you hand the page over depends on what runs the LLM:
 
   Say "with curl": an agent's web-fetch tool often refuses a local or private address, and curl does not. "Load your context" has it read the project's Readme, the tree of plans and what waits on it, and report back in a few lines. From then on, "your turn in Consensus" is the whole prompt. Give the address the agent can reach: `127.0.0.1` for a server on the same machine, the server's name on your network otherwise.
 
-- **A one-shot from the desktop**: nothing to do. The packaged prompt starts with the server's `/instructions` (the Packaging popup lists it, checked by default), so the model is briefed on every run.
+- **A run from the page** (an LLM connection of the server): nothing to do. The packaged prompt starts with the same text, made for the connection's own participant and token (the Packaging popup lists it, checked by default), so the model is briefed on every run.
 
-- **A local model through Ollama**: the desktop swaps the page for its own tool instructions, because the model works through the desktop's tools rather than the API, and the token never enters its prompt.
+- **A local model through Ollama**: the server swaps the page for its own tool instructions, because the model works through the server's tools rather than the API, and the token never enters its prompt.
 
 - **Anything else** that can make HTTP requests: fetch the page, give it to the model as its system or first message, and let it call the API as the page says.
 
@@ -44,23 +44,23 @@ When every thread of a plan is resolved and applied, you say "build it". The ses
 
 You accept by resolving the build log; the session applies it, commits the work in your repository, sets the plan to Finished and brings the project's Readme up to date. You send it back by replying instead: it fixes what the reply asks and reports again on the same thread. Nothing is committed until it is accepted, and nothing in Consensus ever branches, commits or pushes on its own.
 
-## In the desktop: connections and workspaces
+## Connections and runs
 
-Consensus Desktop runs an LLM for you, once per click. Its **LLM connections** and **workspaces** are the desktop's own, kept in its settings and shown in every project's Context folder, never on the server.
+The server runs an LLM for you, once per click, in a project's folder on its own machine. Its **LLM connections** are kept in its settings and listed once, under the projects in the sidebar; each is a participant of the server named `<connection>@<server>`, such as `claude-cli@cube4`, with a token the server makes, so every reply and every run says which connection posted it. The owner makes them (**New LLM** in the list's menu), renames them and deletes them; everyone sees them, and everyone but an LLM participant can start a run.
 
-- An **LLM connection** is a model and how to run it: **Details** names it, picks the kind, `claude-cli` (a command run without a shell) or `ollama`, the command and its arguments, the model, a timeout, and for Ollama the context window and the most tool rounds a run takes. **Check** tries the connection as entered.
-- A **workspace** is a folder on your machine attached to a project, with Include and Exclude globs, and the **Commands** a model may run, one per line, none by default.
+- An **LLM connection** is a model and how to run it: **Details** names it (letters, digits, dot, dash and colon), picks the kind, `claude-cli` (a command run without a shell on the server's machine) or `ollama`, the command and its arguments, the model, a timeout, and for Ollama the context window and the most tool rounds a run takes. **Check** tries the connection as entered.
+- The **project's folder** is where a run works: the folder the project lives in, with the Include, Exclude and **Commands** of the project's own Settings (one command per line, none by default). A run on a project whose folder is not on the server's machine is refused: an LLM works on the projects of its own machine.
 
-![The LLM page: the connection, the plan and workspace pickers, Review, Build and Session, and the log of runs.](../images/desktop-llm.png)
+![The LLM page: the connection, the project and plan pickers, Review, Build and Session, and the log of runs.](../images/desktop-llm.png)
 
-The **LLM page** packages a prompt from the server's instructions, the project's Readme, the other Context documents you check, and the threads of the plan at hand that wait on the llm; **Packaging** picks the pieces and previews the result with its size. Then one of three buttons runs it once:
+The **LLM page** packages a prompt from the server's instructions (with the connection's own token), the project's Readme, the other Context documents you check, and the threads of the plan at hand that wait on the connection; **Packaging** picks the pieces and previews the result with its size. Then one of three buttons runs it once, on the project and plan picked:
 
-- **Review** reads the workspace and the plan, replies and applies. Read-only file tools.
-- **Build** implements the plan in the workspace, with write, edit and the commands you allowed.
+- **Review** reads the folder and the plan, replies and applies. Read-only file tools.
+- **Build** implements the plan in the folder, with write, edit and the commands you allowed.
 - **Session** is a build with your own prompt.
 
-Every run is logged, newest first, and opens in a popup with its prompt and its output rendered or as source.
+Every run is logged, newest first, with who asked for it, and opens in a popup with its prompt and its output rendered or as source. The records live in the config folder, under `runs/`.
 
 ![A finished run in its popup.](../images/desktop-run.png)
 
-A `claude-cli` run hands the package to the command on its standard input; the model works through the API itself. An `ollama` run keeps the model's tools in the desktop: the desktop carries out each call the model makes (over the workspace, and over the server as the llm participant) and sends the result back, round by round, until the model answers. The token never enters a local model's prompt. The desktop never commits, branches or pushes.
+A `claude-cli` run hands the package to the command on its standard input; the model works through the API itself, as the connection's participant. An `ollama` run keeps the model's tools in the server: the server carries out each call the model makes (over the project's folder, and over itself as the connection's participant) and sends the result back, round by round, until the model answers. The token never enters a local model's prompt. Nothing in Consensus ever commits, branches or pushes.

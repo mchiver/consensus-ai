@@ -1,6 +1,6 @@
 'use strict';
 
-// Files - the files a workspace includes (plan UI Tweaks IV): walked from its Path with its Include and Exclude
+// Files - the files a folder includes (plan UI Tweaks IV): walked from its Path with its Include and Exclude
 // patterns, as posix paths relative to it. A pattern is a glob: `**` crosses folders, `*` and `?` stay within a
 // name; one without a slash matches at any depth. Include empty means everything. An excluded folder is not
 // entered. Links are not followed.
@@ -8,7 +8,7 @@
 //   Walk( Path, Include, Exclude, Limit? ) -> { Count, Files: [ the first Limit paths ], Truncated }
 //   Matches( Pattern, Path ) -> boolean
 //   Within( Root, Include, Exclude, Path ) -> { Ok: true, Relative, Absolute } | { Ok: false, Error }
-//     (Step 4: whether a path a tool names is a file the workspace includes; its folders are checked as the walk does)
+//     (Step 4: whether a path a tool names is a file the folder includes; its folders are checked as the walk does)
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -151,7 +151,7 @@ function Walk( Path, Include, Exclude, Limit )
 
 
 //---------------------------------------------------------------------
-// Within: a path the model names, relative to the workspace or absolute inside it, as the walk would see it.
+// Within: a path the model names, relative to the folder or absolute inside it, as the walk would see it.
 
 function Within( Root, Include, Exclude, Path )
 {
@@ -165,7 +165,7 @@ function Within( Root, Include, Exclude, Path )
 	let relative = PATH.relative( root, absolute ).replace( /\\/g, '/' );
 	if ( !relative || relative === '..' || relative.startsWith( '../' ) || PATH.isAbsolute( relative ) )
 	{
-		return { Ok: false, Error: given + ' is outside the workspace' };
+		return { Ok: false, Error: given + ' is outside the folder' };
 	}
 	let excluded = matcher( Exclude );
 	let parts = relative.split( '/' );
@@ -173,17 +173,17 @@ function Within( Root, Include, Exclude, Path )
 	{
 		if ( excluded( parts.slice( 0, index ).join( '/' ), true ) )
 		{
-			return { Ok: false, Error: relative + ' is in a folder the workspace excludes' };
+			return { Ok: false, Error: relative + ' is in a folder the folder excludes' };
 		}
 	}
 	if ( excluded( relative, false ) )
 	{
-		return { Ok: false, Error: relative + ' is a file the workspace excludes' };
+		return { Ok: false, Error: relative + ' is a file the folder excludes' };
 	}
 	let patterns = ( Include || [] ).filter( function ( pattern ) { return String( pattern ).trim(); } );
 	if ( patterns.length && !matcher( patterns )( relative, false ) )
 	{
-		return { Ok: false, Error: relative + ' is not a file the workspace includes (' + patterns.join( ', ' ) + ')' };
+		return { Ok: false, Error: relative + ' is not a file the folder includes (' + patterns.join( ', ' ) + ')' };
 	}
 	return { Ok: true, Relative: relative, Absolute: absolute };
 }

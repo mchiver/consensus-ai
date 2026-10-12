@@ -1,7 +1,14 @@
-/* Consensus - the page. Tokens on :root; Bootstrap's data-bs-theme carries light and dark. */
+/* Consensus - the page. Tokens on :root; Bootstrap's data-bs-theme carries light and dark, data-theme the palette
+   (plan UI Tweaks IV), whose tokens Bootstrap's body colours follow. */
 
 :root
 {
+	--bs-body-bg: var(--page-bg);
+	--bs-body-color: var(--text);
+	--bs-border-color: var(--border);
+	--bs-tertiary-bg: var(--panel-bg);
+	--bs-secondary-bg: var(--panel-bg);
+
 	--sidebar-width: 260px;
 	--threads-width: 400px;
 	--scale: 1;
@@ -30,6 +37,8 @@
 	--icon-folder: #b88a2a;
 	--icon-plan: #0d6efd;
 	--icon-document: #6b7380;
+	--icon-llm: #7c4dff;
+	--icon-workspace: #0d9488;
 }
 
 [data-bs-theme="dark"]
@@ -40,6 +49,8 @@
 	--icon-folder: #dcb67a;
 	--icon-plan: #74c0fc;
 	--icon-document: #9aa4b2;
+	--icon-llm: #b39ddb;
+	--icon-workspace: #5eead4;
 
 	--page-bg: #1b1f24;
 	--panel-bg: #22272e;
@@ -549,10 +560,39 @@ html, body
 	background: rgba( 13, 110, 253, 0.08 );
 }
 
+.clipboard.error
+{
+	background: rgba( 220, 53, 69, 0.1 );
+}
+
 .clipboard .btn
 {
 	padding: 0 0.25rem;
 	text-decoration: none;
+}
+
+/* The project's Archive (plan Run Shapes, Step 2) and its plans: read-only, so muted. */
+.archive-folder .folder-name, .tree-item.archived .proposal-title
+{
+	color: var(--muted);
+}
+
+.archived-badge
+{
+	opacity: 0.8;
+}
+
+.new-project-folder
+{
+	display: flex;
+	gap: 0.3rem;
+	margin-top: 0.3rem;
+}
+
+.new-project-folder .form-control
+{
+	flex: 1 1 auto;
+	min-width: 0;
 }
 
 .tree-item.missing
@@ -674,12 +714,13 @@ html, body
 
 /* --------------------------------------------------------------------- read view */
 
+/* The text can be scrolled past its end: room below it, as the editor leaves (plan UI Tweaks IV). */
 .read
 {
 	position: relative;
 	flex: 1;
 	overflow-y: auto;
-	padding: 1.5rem 2rem 4rem;
+	padding: 1.5rem 2rem 50vh;
 }
 
 .read-empty
@@ -1426,6 +1467,19 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	background: var(--tree-hover);
 }
 
+/* The threads toggle (plan UI Tweaks V): the tree toggle's mirror, at the right end of the tabs row. */
+.threads-toggle
+{
+	margin-left: auto;
+	border-right: none;
+	border-left: 1px solid var(--border);
+}
+
+.threads-toggle .icon
+{
+	transform: scaleX( -1 );
+}
+
 .tab-strip
 {
 	flex: 1 1 auto;
@@ -1905,4 +1959,488 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 .settings-button
 {
 	margin: 0.25rem 0;
+}
+
+
+/* --------------------------------------------------------------------- the desktop's items (Step 3) */
+
+/* An LLM connection: a chip. A workspace: a folder with a prompt. */
+.tree-icon.icon-llm
+{
+	background-color: var(--icon-llm);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3.5' y='3.5' width='9' height='9' rx='1.5' fill='none' stroke='black' stroke-width='1.2'/%3E%3Crect x='6.5' y='6.5' width='3' height='3' fill='black'/%3E%3Cpath d='M6 1.5v2M10 1.5v2M6 12.5v2M10 12.5v2M1.5 6h2M1.5 10h2M12.5 6h2M12.5 10h2' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3.5' y='3.5' width='9' height='9' rx='1.5' fill='none' stroke='black' stroke-width='1.2'/%3E%3Crect x='6.5' y='6.5' width='3' height='3' fill='black'/%3E%3Cpath d='M6 1.5v2M10 1.5v2M6 12.5v2M10 12.5v2M1.5 6h2M1.5 10h2M12.5 6h2M12.5 10h2' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E" );
+}
+
+.tree-icon.icon-workspace
+{
+	background-color: var(--icon-workspace);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5h4.3l1.5 1.5h7.2v8h-13z' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M5 7.5l2 1.5-2 1.5M8 10.5h3' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5h4.3l1.5 1.5h7.2v8h-13z' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M5 7.5l2 1.5-2 1.5M8 10.5h3' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
+}
+
+.llm-row.running .proposal-title
+{
+	font-style: italic;
+}
+
+/* The LLM and workspace pages: a form down the page, like the settings popup's rows. */
+.item-view
+{
+	flex: 1;
+	overflow-y: auto;
+	padding: 1.5rem 2rem 4rem;
+}
+
+.item-form
+{
+	max-width: 60rem;
+}
+
+.item-form .view-heading
+{
+	margin-top: 1.25rem;
+	padding-top: 0.75rem;
+	border-top: 1px solid var(--border);
+}
+
+.item-form .view-heading:first-child
+{
+	margin-top: 0;
+	padding-top: 0;
+	border-top: none;
+}
+
+.item-form .settings-row label
+{
+	min-width: 6rem;
+}
+
+.item-form .settings-row .item-kind
+{
+	flex: 0 0 8rem;
+	width: auto;
+}
+
+.item-form .settings-row .form-select
+{
+	flex: 1 1 10rem;
+	width: auto;
+}
+
+.item-form textarea.form-control
+{
+	font-family: var(--bs-font-monospace);
+	font-size: 0.8rem;
+}
+
+.check-row
+{
+	margin: 0.15rem 0 0.15rem 6.5rem;
+}
+
+.check-row label
+{
+	cursor: pointer;
+}
+
+.run-row
+{
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.35rem 0.6rem;
+	margin: 0.2rem 0;
+	border: 1px solid var(--border);
+	border-left: 4px solid var(--border);
+	border-radius: 0.3rem;
+	cursor: pointer;
+	font-size: 0.9rem;
+}
+
+.run-row:hover
+{
+	background: rgba( 128, 128, 128, 0.08 );
+}
+
+.run-row.selected
+{
+	outline: 2px solid var(--accent);
+}
+
+.run-row.running { border-left-color: var(--mine-edge); }
+.run-row.done { border-left-color: var(--applied-edge); }
+.run-row.failed { border-left-color: var(--contested-edge); }
+.run-row.stopped { border-left-color: var(--muted); }
+
+.run-row .run-status
+{
+	font-weight: 600;
+	min-width: 4.5rem;
+}
+
+.run-row .run-plan
+{
+	flex: 1 1 auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.run-text
+{
+	margin: 0.75rem 0;
+}
+
+.run-text-head
+{
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 0.3rem;
+}
+
+.run-output
+{
+	background: var(--panel-bg);
+	border: 1px solid var(--border);
+	border-radius: 0.3rem;
+	padding: 0.6rem 0.75rem;
+	max-height: 28rem;
+	overflow: auto;
+	font-size: 0.8rem;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+/* A local model's transcript in the run popup (Step 4) */
+.run-transcript
+{
+	white-space: normal;
+}
+
+.transcript-round
+{
+	font-weight: 600;
+	margin: 0.6rem 0 0.3rem;
+	padding-top: 0.4rem;
+	border-top: 1px solid var(--border);
+}
+
+.transcript-entry:first-child .transcript-round
+{
+	border-top: none;
+	padding-top: 0;
+	margin-top: 0;
+}
+
+.transcript-call
+{
+	margin: 0.2rem 0;
+	padding-left: 0.2rem;
+}
+
+.transcript-toggle
+{
+	background: none;
+	border: none;
+	color: var(--muted);
+	padding: 0 0.3rem 0 0;
+	cursor: pointer;
+}
+
+.transcript-described
+{
+	color: var(--text);
+}
+
+.transcript-result
+{
+	margin: 0.3rem 0 0.4rem 1.2rem;
+	padding: 0.4rem 0.6rem;
+	max-height: 20rem;
+	overflow: auto;
+	background: var(--page-bg);
+	border: 1px solid var(--border);
+	border-radius: 0.3rem;
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-size: 0.78rem;
+}
+
+.transcript-text
+{
+	margin: 0.2rem 0 0.4rem;
+}
+
+.transcript-answer .markdown
+{
+	margin-top: 0.2rem;
+}
+
+/* --------------------------------------------------------------------- the palettes (plan UI Tweaks IV) */
+
+/* Each palette sets the page's tokens; data-bs-theme (light or dark) still carries Bootstrap's own. */
+[data-theme="sepia"]
+{
+	--page-bg: #f4ecd8;
+	--panel-bg: #ebe1c8;
+	--border: #d8cbab;
+	--text: #3b2f1e;
+	--muted: #7a6a4f;
+	--accent: #8a5a1e;
+	--tree-selected: color-mix( in srgb, var(--accent) 18%, transparent );
+}
+
+[data-theme="paper"]
+{
+	--page-bg: #ffffff;
+	--panel-bg: #f0f0f0;
+	--border: #2b2b2b;
+	--text: #000000;
+	--muted: #333333;
+	--accent: #0000cc;
+	--tree-selected: color-mix( in srgb, var(--accent) 18%, transparent );
+}
+
+[data-theme="solarized-light"]
+{
+	--page-bg: #fdf6e3;
+	--panel-bg: #eee8d5;
+	--border: #d6cfb8;
+	--text: #586e75;
+	--muted: #93a1a1;
+	--accent: #268bd2;
+	--tree-selected: color-mix( in srgb, var(--accent) 18%, transparent );
+}
+
+[data-theme="slate"]
+{
+	--page-bg: #1e2530;
+	--panel-bg: #27303d;
+	--border: #3b4654;
+	--text: #dbe3ee;
+	--muted: #95a3b5;
+	--accent: #6cb6ff;
+	--tree-selected: color-mix( in srgb, var(--accent) 18%, transparent );
+}
+
+[data-theme="solarized-dark"]
+{
+	--page-bg: #002b36;
+	--panel-bg: #073642;
+	--border: #0f4a57;
+	--text: #93a1a1;
+	--muted: #657b83;
+	--accent: #268bd2;
+	--tree-selected: color-mix( in srgb, var(--accent) 18%, transparent );
+}
+
+[data-theme="nord"]
+{
+	--page-bg: #2e3440;
+	--panel-bg: #3b4252;
+	--border: #4c566a;
+	--text: #eceff4;
+	--muted: #a3adc2;
+	--accent: #88c0d0;
+	--tree-selected: color-mix( in srgb, var(--accent) 18%, transparent );
+}
+
+[data-theme="midnight"]
+{
+	--page-bg: #000000;
+	--panel-bg: #0d0d0d;
+	--border: #2a2a2a;
+	--text: #e6e6e6;
+	--muted: #9a9a9a;
+	--accent: #4da3ff;
+	--tree-selected: color-mix( in srgb, var(--accent) 18%, transparent );
+}
+
+/* A new plan or folder made from a folder's menu: its name box sits under the folder's row. */
+.new-proposal.in-folder
+{
+	margin-left: calc( var(--indent) * var(--depth) );
+}
+
+/* The edit preview scrolls past its end too. */
+.edit-preview
+{
+	padding-bottom: 50vh;
+}
+
+
+/* --------------------------------------------------------------------- the LLM page (plan UI Tweaks IV) */
+
+.item-head
+{
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	margin-bottom: 0.5rem;
+}
+
+.item-head .tree-icon
+{
+	width: 1.4rem;
+	height: 1.4rem;
+}
+
+.item-head-name
+{
+	font-weight: 600;
+	font-size: 1.2rem;
+}
+
+.item-head .grow
+{
+	flex: 1 1 auto;
+}
+
+/* The plan picker: the page's own list, in the tree's order. */
+.picker
+{
+	position: relative;
+	flex: 1 1 14rem;
+}
+
+.picker-button
+{
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	width: 100%;
+	text-align: left;
+}
+
+.picker-button .picker-label
+{
+	flex: 1 1 auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.picker-panel
+{
+	position: absolute;
+	z-index: 40;
+	top: calc( 100% + 2px );
+	left: 0;
+	min-width: 100%;
+	max-width: 40rem;
+	max-height: 24rem;
+	overflow-y: auto;
+	background: var(--page-bg);
+	border: 1px solid var(--border);
+	border-radius: 0.3rem;
+	box-shadow: 0 6px 20px var(--button-shadow);
+	padding: 0.25rem 0;
+}
+
+.picker-row
+{
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.2rem 0.6rem 0.2rem calc( 0.6rem + var(--indent, 16px) * var(--depth, 0) );
+	white-space: nowrap;
+}
+
+.picker-row.picker-plan
+{
+	cursor: pointer;
+}
+
+.picker-row.picker-plan:hover
+{
+	background: var(--tree-hover);
+}
+
+.picker-row.picked
+{
+	background: var(--tree-selected);
+}
+
+.picker-row.picker-folder
+{
+	color: var(--muted);
+	font-weight: 600;
+}
+
+.picker-row .picker-title
+{
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.check-row.sub
+{
+	margin-left: 8rem;
+}
+
+.check-list
+{
+	max-height: 12rem;
+	overflow-y: auto;
+	margin-bottom: 0.3rem;
+}
+
+.thread-anchor-words
+{
+	font-style: italic;
+}
+
+.packaging-popup .subplan-form, .run-popup .subplan-form
+{
+	width: min( 70rem, calc( 100vw - 2rem ) );
+	max-height: calc( 100vh - 14vh - 2rem );
+	overflow-y: auto;
+}
+
+.run-row.static
+{
+	cursor: default;
+}
+
+.run-command
+{
+	margin: 0.2rem 0 0.4rem;
+	word-break: break-all;
+}
+
+.run-rendered
+{
+	white-space: normal;
+	line-height: 1.5;
+}
+
+.run-rendered > :first-child
+{
+	margin-top: 0;
+}
+
+.run-rendered > :last-child
+{
+	margin-bottom: 0;
+}
+
+/* The workspace's files. */
+.file-list
+{
+	max-height: 24rem;
+	overflow-y: auto;
+	border: 1px solid var(--border);
+	border-radius: 0.3rem;
+	padding: 0.4rem 0.6rem;
+	font-family: var(--bs-font-monospace);
+	font-size: 0.8rem;
+}
+
+.file-row
+{
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }

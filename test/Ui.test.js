@@ -84,6 +84,8 @@ TEST.before( async function ()
 	proposal = ( await api( 'POST', '/api/proposals', { Title: 'Browser check', Text: TEXT } ) ).Proposal;
 	browser = await CDP.StartBrowser();
 	page = await browser.OpenPage( running.Url + '/#/p/' + proposal.Id );
+	// the page's Copy and Paste go through the system clipboard: the headless browser is granted it for this origin
+	await page.Send( 'Browser.grantPermissions', { origin: running.Url, permissions: [ 'clipboardReadWrite', 'clipboardSanitizedWrite' ] } );
 } );
 
 
@@ -107,7 +109,7 @@ TEST( 'the list and the proposal load, live; the Context folder comes first', as
 	await page.WaitFor( count_of( '.tree-item:not(.context-item)' ) + ' === 1', 20000 );
 	ASSERT.equal( await page.Evaluate( text_of( '.tree-item:not(.context-item) .proposal-title' ) ), 'Browser check' );
 	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Browser check"' );
-	await page.WaitFor( text_of( '.connection' ) + ' === "live"' );
+	await page.WaitFor( 'document.querySelector( ".connection" ).classList.contains( "live" )' );
 	ASSERT.equal( await page.Evaluate( text_of( '#state-line' ) ), 'no threads yet' );
 	// the Context folder first, holding the Readme
 	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".project.open .project-body > .tree > .tree-node" ).querySelector( ".folder" ).classList.contains( "context-folder" )' ), true );
@@ -200,23 +202,21 @@ TEST( 'a new project opens and closes the others; a folder and a plan are made i
 	ASSERT.equal( await page.Evaluate( text_of( '.project.open .project-name' ) ), 'Browser project' );
 	ASSERT.equal( await page.Evaluate( count_of( '.project[data-project="' + home + '"] .tree-item' ) ), 0 );
 	await page.WaitFor( count_of( '.project.open .context-folder .context-item' ) + ' === 1' );
-	// a folder, picked as where the plan goes
-	await menu_pick( '.project.open > .project-head', 'New folder' );
+	// a folder, and a plan made from the folder's own menu
+	await menu_pick( '.project.open > .project-head', 'New Folder' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
 	await page.Type( 'Specs' );
 	await page.Click( '#create-submit' );
 	await page.WaitFor( count_of( '.project.open .folder:not(.context-folder)' ) + ' === 1' );
-	await page.Click( '.project.open .folder:not(.context-folder) .folder-head' );
-	await page.WaitFor( count_of( '.project.open .folder-head.target' ) + ' === 1' );
-	await menu_pick( '.project.open > .project-head', 'New plan' );
+	await menu_pick( '.project.open .folder:not(.context-folder) .folder-head', 'New Draft' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
 	await page.Type( 'Plan in a folder' );
 	await page.Click( '#create-submit' );
 	await page.WaitFor( count_of( '.project.open .folder:not(.context-folder) .tree-item' ) + ' === 1' );
 	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Plan in a folder"' );
 	ASSERT.equal( await page.Evaluate( text_of( '.project.open .folder:not(.context-folder) .tree-item .proposal-title' ) ), 'Plan in a folder' );
-	// a document goes in the Context folder, whatever folder is picked: no threads pane, no state picker
-	await menu_pick( '.project.open > .project-head', 'New document' );
+	// a document goes in the Context folder, from that folder's own menu: no threads pane, no state picker
+	await menu_pick( '.project.open .context-folder .folder-head', 'New Document' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "create-name" ).placeholder' ), 'Document title in Context' );
 	await page.Type( 'Reference notes' );
@@ -262,7 +262,8 @@ TEST( 'an item dragged onto a project moves there; copy and paste makes a whole 
 	await page.WaitFor( text_of( '#clipboard' ) + '.startsWith( "copied: Plan in a folder" )' );
 	await menu_pick( '.project.open > .project-head', 'Paste' );
 	await page.WaitFor( count_of( '.project.open .tree-item:not(.context-item)' ) + ' === 3' );
-	await page.WaitFor( '[ ...document.querySelectorAll( ".project.open .proposal-title" ) ].some( function ( title ) { return title.textContent.trim() === "Plan in a folder (copy)"; } )' );
+	// the copy keeps the title, with new ids
+	await page.WaitFor( '[ ...document.querySelectorAll( ".project.open .proposal-title" ) ].filter( function ( title ) { return title.textContent.trim() === "Plan in a folder"; } ).length === 2' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -374,9 +375,9 @@ TEST( 'an item dropped on the top edge of another goes just before it; the Conte
 	ASSERT.equal( ( await page.Evaluate( root_titles() ) ).split( '|' )[ 0 ], 'Context' );
 	ASSERT.equal( ( await page.Evaluate( root_titles() ) ).split( '|' )[ 1 ], 'Specs' );
 	// the copy, last at the root, dropped on the top edge of the Specs folder: just before it
-	const COPY = '[ ...document.querySelectorAll( ".project.open .project-body > .tree > .tree-node > .tree-item" ) ].find( function ( item ) { return item.textContent.includes( "(copy)" ); } )';
+	const COPY = '[ ...document.querySelectorAll( ".project.open .project-body > .tree > .tree-node > .tree-item" ) ].filter( function ( item ) { return item.textContent.includes( "Plan in a folder" ); } ).pop()';
 	ASSERT.equal( await page.Evaluate( '( function () { let data = new DataTransfer(); let source = ' + COPY + '; let target = document.querySelector( ".project.open .folder:not(.context-folder) .folder-head" ); let y = target.getBoundingClientRect().top + 1; source.dispatchEvent( new DragEvent( "dragstart", { bubbles: true, dataTransfer: data } ) ); target.dispatchEvent( new DragEvent( "dragover", { bubbles: true, cancelable: true, dataTransfer: data, clientY: y } ) ); let shown = target.classList.contains( "drop-before" ); target.dispatchEvent( new DragEvent( "drop", { bubbles: true, cancelable: true, dataTransfer: data, clientY: y } ) ); return shown; } )()' ), true );
-	await page.WaitFor( root_titles() + '.split( "|" )[ 1 ] === "Plan in a folder (copy)"' );
+	await page.WaitFor( root_titles() + '.split( "|" )[ 1 ] === "Plan in a folder"' );
 	// dropped on the top edge of the Context folder: it lands after the folder, which stays first
 	ASSERT.equal( await page.Evaluate( '( function () { let data = new DataTransfer(); let source = document.querySelector( ".project.open .folder:not(.context-folder) .folder-head" ); let target = document.querySelector( ".project.open .context-folder .folder-head" ); let y = target.getBoundingClientRect().top + 1; source.dispatchEvent( new DragEvent( "dragstart", { bubbles: true, dataTransfer: data } ) ); target.dispatchEvent( new DragEvent( "dragover", { bubbles: true, cancelable: true, dataTransfer: data, clientY: y } ) ); let shown = target.classList.contains( "drop-before" ); target.dispatchEvent( new DragEvent( "drop", { bubbles: true, cancelable: true, dataTransfer: data, clientY: y } ) ); return shown; } )()' ), true );
 	await page.WaitFor( root_titles() + '.split( "|" )[ 1 ] === "Specs"' );
@@ -401,13 +402,13 @@ TEST( 'the Context folder and its Readme: opened, kept as they are, with their o
 	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "state-picker" ) ).display' ), 'none' );
 	ASSERT.equal( await page.Evaluate( count_of( '.tab.active .icon-context' ) ), 1 );
 	ASSERT.match( await page.Evaluate( text_of( '.tab.active .tab-title' ) ), /^Readme · Browser project$/ );
-	// a right-click on the Readme opens nothing; on the Context folder, New document and Paste only
+	// a right-click on the Readme opens nothing; on the Context folder, New Document and Paste only
 	await page.Evaluate( 'document.querySelector( ".project.open .context-item" ).dispatchEvent( new MouseEvent( "contextmenu", { bubbles: true, cancelable: true, clientX: 60, clientY: 120 } ) ); true' );
 	await new Promise( function ( resolve ) { setTimeout( resolve, 200 ); } );
 	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display' ), 'none' );
 	await page.Evaluate( 'document.querySelector( ".project.open .context-folder .folder-head" ).dispatchEvent( new MouseEvent( "contextmenu", { bubbles: true, cancelable: true, clientX: 60, clientY: 100 } ) ); true' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display !== "none"' );
-	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].map( function ( entry ) { return entry.textContent.trim(); } )' ), [ 'New document', 'Paste' ] );
+	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].map( function ( entry ) { return entry.textContent.trim(); } )' ), [ 'New Document', 'Paste' ] );
 	await page.Press( 'Escape' );
 	// text written into it clears the empty badge
 	let context = await api( 'GET', '/api/proposals/' + ( await page.Evaluate( 'window.location.hash.slice( 4 )' ) ) );
@@ -708,12 +709,13 @@ TEST( 'the tree: it hides and shows; it sorts by name, created and updated; it s
 	ASSERT.equal( await page.Evaluate( count_of( '.thread:not(.compose)' ) ), 0 );
 	await show_all_threads();
 	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
-	// a selected thread the filter leaves out is deselected
+	// a selected thread the filter leaves out stays listed until it is deselected
 	await page.Click( '.thread:not(.compose)' );
 	await page.WaitFor( count_of( '.thread.selected' ) + ' === 1' );
 	await page.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); injector.get( "State" ).Filter = "mine"; injector.get( "$rootScope" ).$apply(); return true; } )()' );
+	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1 && ' + count_of( '.thread.selected' ) + ' === 1' );
+	await page.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); injector.get( "State" ).Selected = null; injector.get( "$rootScope" ).$apply(); return true; } )()' );
 	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 0' );
-	await page.WaitFor( 'angular.element( document.body ).injector().get( "State" ).Selected === null' );
 	await show_all_threads();
 	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( count_of( '.thread.selected' ) ), 0 );
@@ -783,7 +785,7 @@ TEST( 'tree menus: a right-click or the ⋯ opens a row\'s actions; Delete is th
 	// a right-click opens the same menu; Escape closes it
 	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( ROW ) + ' ).dispatchEvent( new MouseEvent( "contextmenu", { bubbles: true, cancelable: true, clientX: 60, clientY: 200 } ) ); true' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display !== "none"' );
-	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].map( function ( entry ) { return entry.textContent.trim(); } )' ), [ 'New Subplan', 'Rename', 'Copy', 'Delete' ] );
+	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].map( function ( entry ) { return entry.textContent.trim(); } )' ), [ 'New Subplan', 'New Comment', 'Copy', 'Rename', 'Export', 'Archive', 'Delete' ] );
 	await page.Press( 'Escape' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display === "none"' );
 
@@ -811,8 +813,8 @@ TEST( 'Ctrl+E: Read to Edit, and back to Read from the editor, keeping the unsav
 	const EDITED = JSON.stringify( '# Keyboard plan\n\nA line, not saved.\n' );
 	await page.WaitFor( 'window.monaco && monaco.editor.getEditors().length === 1 && monaco.editor.getEditors()[ 0 ].getValue() === ' + SAVED, 30000 );
 	await page.Evaluate( '( function () { let editor = monaco.editor.getEditors()[ 0 ]; editor.setValue( ' + EDITED + ' ); editor.focus(); return true; } )()' );
-	// from inside the editor, back to Read; the edit, kept with the tab a moment after typing, is there on the way back
-	await page.WaitFor( '( window.sessionStorage.getItem( "consensus.tabs" ) || "" ).includes( "A line, not saved" )' );
+	// from inside the editor, back to Read; the edit, kept with the tab a moment after typing (stored.js: localStorage in a browser), is there on the way back
+	await page.WaitFor( '( window.localStorage.getItem( "consensus.tabs" ) || "" ).includes( "A line, not saved" )' );
 	await page.Press( 'e', [ 'Control' ] );
 	await page.WaitFor( 'document.getElementById( "view-read" ).classList.contains( "btn-secondary" )' );
 	await page.Press( 'e', [ 'Control' ] );
@@ -825,7 +827,7 @@ TEST( 'Ctrl+E: Read to Edit, and back to Read from the editor, keeping the unsav
 TEST( 'export and import: a project\'s json in a popup; pasted back, the preview offers a copy, and the copy is made', async function ()
 {
 	const HEAD = '.project[data-project="' + home + '"] .project-head';
-	await menu_pick( HEAD, 'Export project' );
+	await menu_pick( HEAD, 'Export' );
 	await page.WaitFor( '( document.getElementById( "export-json" ) || { value: "" } ).value.includes( "consensus-project" )', 20000 );
 	let json = await page.Evaluate( 'document.getElementById( "export-json" ).value' );
 	ASSERT.match( JSON.parse( json ).Project.Id, /^prj-/ );
@@ -849,12 +851,12 @@ TEST( 'export and import: a project\'s json in a popup; pasted back, the preview
 } );
 
 
-TEST( 'settings: the owner edits consensus.json in a popup; problems are shown and nothing saved; a saved state reaches the picker', async function ()
+TEST( 'settings: the owner edits consensus.json in a popup; problems are shown and nothing saved; a state added to a project reaches the picker', async function ()
 {
 	await page.Click( '#settings-button' );
-	// public/ is the frozen page: its popup still shows a Host box, empty since the settings have Scope instead (plan Run
-	// Shapes); the desktop's page shows Name and Scope, which its smoke covers
 	await page.WaitFor( 'document.getElementById( "settings-port" ) && document.getElementById( "settings-port" ).value === "0"', 20000 );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-name" ).value' ), running.Settings.Name );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-scope" ).selectedOptions[ 0 ].textContent.trim()' ), 'Local' );
 	ASSERT.match( await page.Evaluate( 'document.getElementById( "settings-states" ).value' ), /^Draft\nPlan\nWorking\nFinished$/ );
 	ASSERT.equal( await page.Evaluate( count_of( '.settings-participant' ) ), 2 );
 	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".settings-participant .settings-token" ) ][ 1 ].value' ), LLM_TOKEN );
@@ -875,7 +877,15 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	ASSERT.deepEqual( ( await api( 'GET', '/api/me' ) ).States, [ 'Draft', 'Plan', 'Working', 'Finished', 'Shelved' ] );
 	await page.Click( '#settings-close' );
 	await page.WaitFor( count_of( '.settings-form' ) + ' === 0' );
-	let plan = await created( 'Shelved plan' );
+	// the settings' list is the default for a new project (plan Run Shapes, Step 2); the picker follows the project's own
+	// States, edited in its Settings popup
+	await menu_pick( '.project[data-project="' + home + '"] .project-head', 'Settings' );
+	await page.WaitFor( '( document.getElementById( "project-states" ) || { value: "" } ).value.startsWith( "Draft" )' );
+	await page.Evaluate( '( function () { let box = document.getElementById( "project-states" ); box.value = box.value + "\\nShelved"; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.Click( '#project-settings-save' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "project-settings-saved" ) ).display !== "none"' );
+	await page.Click( '#project-settings-close' );
+	let plan = ( await api( 'POST', '/api/proposals', { Title: 'Shelved plan', Text: '# Shelved plan\n', Project: home } ) ).Proposal;
 	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
 	await page.WaitFor( '[ ...( document.getElementById( "state-picker" ) || { options: [] } ).options ].some( function ( option ) { return option.label === "Shelved"; } )' );
 	// the refused save is a 400 the browser logs as an error; nothing else is

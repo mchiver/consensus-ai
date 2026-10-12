@@ -2,8 +2,8 @@
 
 // Tabs - the open items above the document view, and the windows they can be detached into.
 //
-//   tab = { Key, Kind: 'p' | 'waiting', Id?, Hash, Title?, View?, Filter?, Draft? }
-//     Key    'p:<id>' or 'waiting': one tab per item
+//   tab = { Key, Kind: 'p' | 'waiting' | 'llm', Id?, Hash, Title?, View?, Filter?, Draft? }
+//     Key    'p:<id>' or 'waiting': one tab per item; 'llm:<id>' for an LLM connection (plan Run Shapes, Step 3)
 //     Hash   the route that shows it (#/p/<id>, #/waiting)
 //     View   read | edit | revisions, for a proposal: each tab comes back as it was left
 //     Filter the threads pane's filter, for a proposal: a new tab starts at Waiting on me
@@ -26,9 +26,9 @@
 // A detached tab stays in the main window's strip, ghosted: clicking it does nothing, and its menu offers Re-attach
 // and Close. Each tab's menu (▾ or a right-click) closes it, the others, those to its right, or all, and detaches it.
 
-angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$timeout', 'State', 'Menus', function ( $window, $rootScope, $timeout, State, Menus )
+angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$timeout', 'State', 'Menus', 'Client', function ( $window, $rootScope, $timeout, State, Menus, Client )
 {
-	const STORAGE_KEY = 'consensus.tabs';
+	const STORAGE_KEY = 'tabs';		// per server (stored.js); a detached window keeps its one tab in its session
 	const CHANNEL_NAME = 'consensus-windows';
 	const REATTACH_WAIT = 700;
 	const VIEWS = [ 'read', 'edit', 'revisions' ];
@@ -46,36 +46,100 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 
 	//-----------------------------------------------------------------
-	// Kept in this window's session only; a blocked storage keeps the tabs for this page's life.
+	// The main window's tabs are kept per server in localStorage (plan UI Tweaks V), so a restart brings them back; a
+	// detached window keeps its one tab in its own session, as before. A blocked storage keeps the tabs for this
+	// page's life.
 
 	function load()
 	{
-		try
+		let saved = null;
+		if ( tabs.Detached )
 		{
-			let saved = JSON.parse( $window.sessionStorage.getItem( STORAGE_KEY ) || 'null' );
-			if ( saved && Array.isArray( saved.Tabs ) )
+			try
 			{
-				tabs.List = saved.Tabs;
-				tabs.ActiveKey = saved.Active || null;
+				saved = JSON.parse( $window.sessionStorage.getItem( 'consensus.' + STORAGE_KEY ) || 'null' );
+			}
+			catch ( error )
+			{
+				saved = null;
 			}
 		}
-		catch ( error )
+		else
 		{
-			tabs.List = [];
+			saved = window.ConsensusStored.Read( STORAGE_KEY, null, true );
+		}
+		if ( saved && Array.isArray( saved.Tabs ) )
+		{
+			tabs.List = saved.Tabs;
+			tabs.ActiveKey = saved.Active || null;
 		}
 	}
 
 
 	function save()
 	{
-		try
+		let saved = { Tabs: tabs.List, Active: tabs.ActiveKey };
+		if ( tabs.Detached )
 		{
-			$window.sessionStorage.setItem( STORAGE_KEY, JSON.stringify( { Tabs: tabs.List, Active: tabs.ActiveKey } ) );
+			try
+			{
+				$window.sessionStorage.setItem( 'consensus.' + STORAGE_KEY, JSON.stringify( saved ) );
+			}
+			catch ( error )
+			{
+				// not kept; the tab lasts as long as the window
+			}
+			return;
 		}
-		catch ( error )
+		window.ConsensusStored.Write( STORAGE_KEY, saved, true );
+	}
+
+
+	// A remembered tab whose proposal is in no project any more (deleted while the app was closed) is dropped
+	// silently once the projects are loaded; the strip moves to a neighbour when it was the active one. A tab the list
+	// does not know may be newer than the list (made a moment ago, or opened by link) or archived (plan Run Shapes,
+	// Step 2), so only the server's 404 closes it.
+	function prune( projects )
+	{
+		if ( !Array.isArray( projects ) || !projects.length )
 		{
-			// not kept; the tabs last as long as the page
+			return;
 		}
+		let known = {};
+		function walk( items )
+		{
+			for ( let node of items || [] )
+			{
+				known[ node.Id ] = true;
+				walk( node.Items );
+			}
+		}
+		for ( let project of projects )
+		{
+			if ( project.Context && project.Context.Id )
+			{
+				known[ project.Context.Id ] = true;
+			}
+			walk( project.Items );
+			walk( project.Archive );
+		}
+		let doubtful = tabs.List.filter( function ( tab ) { return tab.Kind === 'p' && !known[ tab.Id ]; } );
+		if ( !doubtful.length )
+		{
+			return;
+		}
+		Promise.all( doubtful.map( function ( tab )
+		{
+			return Client.Get( '/api/proposals/' + encodeURIComponent( tab.Id ) ).then( function () { return null; }, function ( error ) { return ( error.Status === 404 ) ? tab : null; } );
+		} ) ).then( function ( results )
+		{
+			let gone = results.filter( function ( tab ) { return tab && tabs.List.includes( tab ); } );
+			if ( gone.length )
+			{
+				CloseMany( gone );
+				$rootScope.$applyAsync();
+			}
+		} );
 	}
 
 
@@ -346,7 +410,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 	function CanDetach( Tab )
 	{
-		return !tabs.Detached && ( Tab.Kind === 'p' || Tab.Kind === 'c' );
+		return !tabs.Detached && ( Tab.Kind === 'p' || Tab.Kind === 'c' || Tab.Kind === 'llm' );
 	}
 
 
@@ -550,6 +614,8 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 	start();
 
+	$rootScope.$watch( function () { return State.Projects; }, prune );
+
 	tabs.KeyOf = KeyOf;
 	tabs.Active = Active;
 	tabs.Visit = Visit;
@@ -577,7 +643,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 //---------------------------------------------------------------------
 // TabsController: the strip, and in a detached window its Re-attach bar.
 
-.controller( 'TabsController', [ '$scope', 'State', 'Tabs', 'Menus', function ( $scope, State, Tabs, Menus )
+.controller( 'TabsController', [ '$scope', 'State', 'Tabs', 'Menus', 'Llms', function ( $scope, State, Tabs, Menus, Llms )
 {
 	$scope.State = State;
 	$scope.Tabs = Tabs;
@@ -653,6 +719,14 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		{
 			title = 'Waiting on you';
 		}
+		else if ( tab.Kind === 'llm' )
+		{
+			let llm = Llms.LlmById( tab.Id );
+			if ( llm )
+			{
+				title = llm.Name;
+			}
+		}
 		else
 		{
 			let proposal = proposal_of( tab.Id );
@@ -687,6 +761,10 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		{
 			return 'icon-waiting';
 		}
+		if ( tab.Kind === 'llm' )
+		{
+			return 'icon-llm';
+		}
 		if ( context_project( tab.Id ) )
 		{
 			return 'icon-context';
@@ -716,10 +794,23 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	};
 
 
-	// The button at the left of the strip hides or shows the project tree.
+	// The button at the left of the strip hides or shows the project tree; its mirror at the right, the threads pane
+	// (plan UI Tweaks V), shown for a plan: a document has no threads.
 	$scope.ToggleTree = function ()
 	{
 		State.SetTreeHidden( !State.TreeHidden );
+	};
+
+
+	$scope.HasThreads = function ()
+	{
+		return !!State.Open && State.Open.Proposal.Kind !== 'document';
+	};
+
+
+	$scope.ToggleThreads = function ()
+	{
+		State.SetThreadsHidden( !State.ThreadsHidden );
 	};
 
 

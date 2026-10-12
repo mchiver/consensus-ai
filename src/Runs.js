@@ -1,25 +1,27 @@
 'use strict';
 
-// Runs - the one-shots an LLM connection runs (plan Consensus Desktop, Step 3): one record per run, a file in the
-// desktop's configuration folder (runs/<id>.json): when, which button, the plan, the workspace, the packaged prompt,
-// the output, the exit status and the duration. One run at a time per connection; a run is stopped with Stop, and
-// killed when it takes longer than the connection's Timeout. The command runs without a shell, in the workspace's
-// folder when there is one, with the prompt on its standard input; its output (stdout, then stderr) is kept.
-// Step 4: an ollama connection runs through Ollama.js instead of a child process: the tool loop in this process, with
-// the tools of Tools.js over the workspace and the connected server; the Transcript (Ollama.js's entries) is kept
-// whole and the Output is its markdown, both growing with every call, and every window hears each call; Rounds and
-// Usage are kept; Stop aborts the request in flight.
+// Runs - the one-shots an LLM connection runs (plan Consensus Desktop, Step 3; in the server since plan Run Shapes,
+// Step 3): one record per run, a file in the config folder's runs/<id>.json: when, which button, who asked, the plan,
+// the project and its folder, the packaged prompt, the output, the exit status and the duration. One run at a time
+// per connection; a run is stopped with Stop, and killed when it takes longer than the connection's Timeout. The
+// command runs without a shell, in the project's folder, with the prompt on its standard input; its output (stdout,
+// then stderr) is kept. An ollama connection runs through Ollama.js instead of a child process: the tool loop in
+// this process, with the tools of Tools.js over the project's folder and this server; the Transcript (Ollama.js's
+// entries) is kept whole and the Output is its markdown, both growing with every call, and every listener hears
+// each call; Rounds and Usage are kept; Stop aborts the request in flight.
 //
 //   Runs( { Folder, Spawn? } ) -> { Start( Request ), Stop( Id ), List( LlmId? ), Read( Id ), Running( LlmId ), OnChange( Handler ), Close() }
-//   Request = { Llm, Kind, Project: { Id, Name }, Plan: { Id, Title } | null, Workspace: { Id, Name, Path, Include, Exclude, Commands } | null,
+//   Request = { Llm, Kind, By, Project: { Id, Name, Path }, Plan: { Id, Title } | null,
+//               Folder: { Path, Include, Exclude, Commands } | null (the project's folder, the run's working folder),
 //               Prompt, Server?: { Url, Token, Project } (an ollama run's Consensus tools) }
-//   record  = { Id, Llm: { Id, Name }, Kind, Project, Plan, Workspace, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
+//   record  = { Id, Llm: { Id, Name }, Kind, By, Project, Plan, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
 //   Status  = 'running' | 'done' | 'failed' | 'stopped'
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
 const CHILD_PROCESS = require( 'child_process' );
-const SETTINGS = require( './Settings.js' );
+const IDS = require( './Ids.js' );
+const LLMS = require( './Llms.js' );
 const LLM = require( './Llm.js' );
 const OLLAMA = require( './Ollama.js' );
 const TOOLS = require( './Tools.js' );
@@ -94,19 +96,19 @@ function Runs( Options )
 		{
 			throw new Error( 'the connection "' + llm.Name + '" is already running "' + running[ llm.Id ].Record.Id + '"; stop it or wait for it' );
 		}
-		if ( Request.Workspace && !FS.existsSync( Request.Workspace.Path ) )
+		if ( Request.Folder && !FS.existsSync( Request.Folder.Path ) )
 		{
-			throw new Error( 'the workspace\'s folder does not exist: ' + Request.Workspace.Path );
+			throw new Error( 'the project\'s folder does not exist: ' + Request.Folder.Path );
 		}
 		let is_ollama = ( llm.Kind === 'ollama' );
 		let line = is_ollama ? { Command: 'ollama', Arguments: [ llm.Model, 'at', llm.Url ] } : LLM.CommandLine( llm );
 		let record = {
-			Id: SETTINGS.NewId( 'run' ),
+			Id: IDS.New( IDS.RUN ),
 			Llm: { Id: llm.Id, Name: llm.Name },
 			Kind: Request.Kind,
-			Project: Request.Project || null,
+			By: Request.By || null,
+			Project: Request.Project ? { Id: Request.Project.Id, Name: Request.Project.Name, Path: Request.Project.Path || null } : null,
 			Plan: Request.Plan ? { Id: Request.Plan.Id, Title: Request.Plan.Title } : null,
-			Workspace: Request.Workspace ? { Id: Request.Workspace.Id, Name: Request.Workspace.Name, Path: Request.Workspace.Path } : null,
 			Command: [ line.Command ].concat( line.Arguments ).join( ' ' ),
 			Started: new Date().toISOString(),
 			Ended: null,
@@ -127,7 +129,7 @@ function Runs( Options )
 		let child = null;
 		try
 		{
-			child = spawn( line.Command, line.Arguments, { cwd: Request.Workspace ? Request.Workspace.Path : undefined, windowsHide: true, stdio: [ 'pipe', 'pipe', 'pipe' ] } );
+			child = spawn( line.Command, line.Arguments, { cwd: Request.Folder ? Request.Folder.Path : undefined, windowsHide: true, stdio: [ 'pipe', 'pipe', 'pipe' ] } );
 		}
 		catch ( error )
 		{
@@ -177,7 +179,7 @@ function Runs( Options )
 			state.Stopped = true;
 			child.kill();
 			end( 'failed', null, line.Command + ' took longer than ' + llm.Timeout + ' seconds' );
-		}, ( llm.Timeout || SETTINGS.DEFAULT_TIMEOUT ) * 1000 );
+		}, ( llm.Timeout || LLMS.DEFAULT_TIMEOUT ) * 1000 );
 		child.stdout.on( 'data', function ( chunk ) { take( String( chunk ), 'stdout' ); } );
 		child.stderr.on( 'data', function ( chunk ) { take( String( chunk ), 'stderr' ); } );
 		child.on( 'error', function ( error )
@@ -211,7 +213,7 @@ function Runs( Options )
 	{
 		let abort = new AbortController();
 		let state = { Record: record, Child: null, Abort: abort, Timer: null, Stopped: false, Timed: false, Progress: null };
-		let tools = TOOLS.Tools( { Kind: Request.Kind, Workspace: Request.Workspace || null, Server: Request.Server || null } );
+		let tools = TOOLS.Tools( { Kind: Request.Kind, Folder: Request.Folder || null, Server: Request.Server || null } );
 		running[ llm.Id ] = state;
 		write( record );
 		changed( record );
@@ -261,7 +263,7 @@ function Runs( Options )
 		{
 			state.Timed = true;
 			abort.abort();
-		}, ( llm.Timeout || SETTINGS.DEFAULT_TIMEOUT ) * 1000 );
+		}, ( llm.Timeout || LLMS.DEFAULT_TIMEOUT ) * 1000 );
 
 		OLLAMA.Run( { Llm: llm, Prompt: record.Prompt, Tools: tools, Signal: abort.signal, OnProgress: progress } ).then( function ( result )
 		{
@@ -272,7 +274,7 @@ function Runs( Options )
 		{
 			if ( state.Timed )
 			{
-				end( 'failed', 'Ollama took longer than ' + ( llm.Timeout || SETTINGS.DEFAULT_TIMEOUT ) + ' seconds' );
+				end( 'failed', 'Ollama took longer than ' + ( llm.Timeout || LLMS.DEFAULT_TIMEOUT ) + ' seconds' );
 				return;
 			}
 			if ( state.Stopped )

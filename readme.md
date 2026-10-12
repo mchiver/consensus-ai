@@ -5,10 +5,12 @@ thread, until every thread is resolved and applied. Proposals live in **projects
 the project's **Context** folder that give everyone the background of the work.
 
 A standalone application: Node and Express on the server, AngularJS, Bootstrap, marked and Monaco in the
-page, plain files in a data folder. The browser is the User. The LLM takes part through the API, from
-wherever it runs (plan Consensus Desktop, Step 1): the server itself calls no model, reads no code and
-indexes nothing. An agent session in the codebase works it through the API and the turn ("your turn in
-Consensus"); the desktop application (Step 2) and local LLMs and workspaces (Step 3) come next.
+page, plain files in a config folder and a `.consensus` per project folder. The browser is the User. The LLM
+takes part through the API, from wherever it runs: an agent session in the codebase works it through the API
+and the turn ("your turn in Consensus"), and the server runs LLM connections of its own for you (plan Run
+Shapes, Step 3), each a participant, in a project's folder on its machine; the server reads no code on its
+own and indexes nothing: a run does, as a tool of the model. The desktop application is the same page in a
+window, with a server of its own inside.
 
 ## Starting it
 
@@ -174,8 +176,9 @@ not Draft is renamed once at start, with every plan in that state.
 
 ## How the LLM takes part
 
-Every LLM takes part as the `llm` participant, through the API, from wherever it runs: the server calls no
-model. An **agent session** in the codebase (Claude Code, say) reads `/instructions`, finds what waits on it
+Every LLM takes part as a participant with the `llm` role, through the API: the hand-made `llm` participant
+of an agent session, or an LLM connection the server runs for you (plan Run Shapes, Step 3; "The desktop"
+below), named `<connection>@<server>`. An **agent session** in the codebase (Claude Code, say) reads `/instructions`, finds what waits on it
 (`GET /api/waiting`), replies, applies resolved threads, drafts plans and reads the Context folder; the owner
 starts its turn with "your turn in Consensus". `.guides/build-with-consensus.md` is its guide.
 
@@ -240,76 +243,87 @@ that was open last. With `--headless` there is no window: the server runs and pr
 prints. The **connect screen** has the saved servers (Connect, Edit, Remove), **Add server** (a Name and a Url,
 tried before it is saved; the screen says which Consensus version answers and warns when it differs from the
 app's), and **This machine**: the app's own server, with its address, scope and config folder, and Connect.
-Once connected, the window shows the desktop's own copy of the Consensus page, pointed at the server's API; the
+Once connected, the window shows the Consensus page, pointed at the server's API; the
 **Server** menu has Connect to another, Reload, and **New window**, which starts another instance of the app
 (over the same config; its server takes the port only if it is free). A tab's Detach opens a window of the app.
 
-The desktop's page is its own copy, `desktop/page/` (the server's `public/` is frozen after Step 1 and the copy
-is developed on from there; `client.js` prefixes the API's base URL the desktop hands it, and `theme.js` keeps
-the theme and the scale in the desktop's settings). The copy is served from the app's own origin on
-`127.0.0.1`, and that same origin forwards `/api` (the events stream included) and `/instructions` to the
-connected server: the base URL stays the page's own origin, and the server, which sends no CORS headers, is not
-changed for the app beyond `/api/me` saying its `Version` and `Name`. Its settings are the desktop's fields of
-the global config, `consensus.json` in the config folder (`desktop.json` in Electron's user-data folder before
-Run Shapes; moved in once at the first start and renamed `.moved`): `Servers`, `Local` (this machine's server:
-its `Theme`), `Last`, `Theme`, `Scale`, `Llms`, `Workspaces` and `Remembered`; the pages are handed those
-fields only, never the participants' tokens. `Theme` is the default, set from the connect screen; a server
-entry (or `Local`) may hold a `Theme` of its own, set from the page's picker while connected (plan UI Tweaks V).
-The page remembers its tree state (the open project, the folds, the sort, the tabs) per server, under the
-server's address, and the look (hidden panes, widths) for all, in the config's `Remembered` (`desktop/page/js/stored.js`
-through the preload's `Remember`: the page's origin gets a new port at every start, so its localStorage would
-not survive a restart; in a browser the same keys are in localStorage); the
-connection panel at the bottom of the sidebar shows the server's address, with its name and version in the
-tooltip.
+The page the window shows is the server's `public/`, the one page since plan Run Shapes, Step 3 (the desktop's
+own copy, `desktop/page/`, developed on while `public/` was frozen, became `public/` again; `desktop/page/`
+keeps the connect screen). It is served from the app's own origin on `127.0.0.1` (`desktop/Page.js`), and that
+same origin forwards `/api` (the events stream included) and `/instructions` to the connected server: the base
+URL stays the page's own origin (`client.js` prefixes the one the desktop hands it), and the server, which
+sends no CORS headers, is not changed for the app beyond `/api/me` saying its `Version` and `Name`. What needs
+the window stays behind `window.ConsensusDesktop` and `window.Desktop`: the native theme, the folder picker,
+the remembered view state. The desktop's settings are its fields of the global config, `consensus.json` in
+the config folder (`desktop.json` in Electron's user-data folder before Run Shapes; moved in once at the first
+start and renamed `.moved`): `Servers`, `Local` (this machine's server: its `Theme`), `Last`, `Theme`, `Scale`
+and `Remembered`; the pages are handed those fields only, never the participants' tokens. `Theme` is the
+default, set from the connect screen; a server entry (or `Local`) may hold a `Theme` of its own, set from the
+page's picker while connected (plan UI Tweaks V). The page remembers its tree state (the open project, the
+folds, the sort, the tabs, the LLMs list folded) per server, under the server's address, and the look (hidden
+panes, widths) for all, in the config's `Remembered` (`public/js/stored.js` through the preload's `Remember`:
+the page's origin gets a new port at every start, so its localStorage would not survive a restart; in a
+browser the same keys are in localStorage); the connection panel at the bottom of the sidebar shows the
+server's address, with its name and version in the tooltip.
 
-**LLM connections and workspaces** (Step 3) are the desktop's own, kept in the config (`Llms`, `Workspaces`)
-and shown in every project's Context folder, never on the server: an LLM connection once per desktop, in every
-project; a workspace, a path to a folder, with the project it is attached to. New LLM connection and New
-workspace are in the Context folder's menu (whose count includes them); Open, Rename and Delete in the row's.
-Each opens in a tab of its own. The **LLM page** (plan UI Tweaks IV) has a head with **Details…** (a popup:
-Name; Kind `claude-cli`, a command run without a shell, or `ollama`; Command and Arguments, one per line, before
-`--model`; Model; Timeout; for `ollama` Context, the model's window in tokens, and Rounds, the most tool rounds a run
-takes; Check, which tries the form as entered and, for `ollama`, says whether the Model calls tools) and **Packaging…** (a popup: the items that
-go into the one-shot prompt, in this order: the server's `/instructions`, the project's Readme, the other
-Context documents listed by title and each checkable, the threads of the plan at hand waiting on the llm
-participant listed by anchor and each checkable; the unchecked ids are remembered per connection, so a new
-document or thread is in by default; then the Review, Build and Session Prompts with Reset; Preview packages
-the prompt as the form stands, with its character count and an estimated token count at four characters each,
-and Copy), then **Run** (the plan at hand in the page's own picker, in the tree's order with its folders and
-indentation and each plan's unresolved threads, defaulting to the plan last opened; a workspace; **Review**,
-**Build** and **Session** each package their prompt and run it once, disabled only while a run is going or for
-what they lack, with the reason shown beside them; Stop while it runs) and the **log** (one
-record per run in the user-data folder's `runs/<id>.json`: when, which button, the project, the plan, the
-workspace, the prompt, the output, the exit and the duration, and for a local model the rounds and the tokens;
-the page shows the project's runs, newest first; a run opens in a popup, its output and prompt rendered as
-markdown or shown as source, each with its size and Copy). A `claude-cli` one-shot runs the command once in the workspace's folder
-with the package on its standard input; the model works through the API itself, with the token in the
-instructions, and nothing is parsed. The default Arguments let a non-interactive `claude` use its tools. The
-desktop never commits, branches or pushes.
+**LLM connections and runs** (plan Consensus Desktop, Steps 3 and 4, in the desktop; the server's since plan
+Run Shapes, Step 3) are kept in the server's settings (`Llms`) and shown by the page, in a browser and in the
+desktop alike: the **LLMs** list under the projects (New LLM in its menu; Open, Rename and Delete in a row's;
+the owner's to change, everyone's to see). Each connection is a participant of its server with the `llm` role,
+named `<connection Name>@<server Name>` (a Name is letters, digits, dot, dash and colon; `claude-cli` or
+`ollama-<model>` offered), with a Token the server makes when it is saved and keeps on it, so every reply and
+run says which connection posted it; the hand-made `llm` participant stays for an agent session. Each opens
+in a tab of its own. The **LLM page** (plan UI Tweaks IV) has a head with **Details…** (a popup, the owner's:
+Name; Kind `claude-cli`, a command run without a shell on the server's machine, or `ollama`; Command and
+Arguments, one per line, before `--model`; Model; Timeout; for `ollama` Context, the model's window in tokens,
+and Rounds, the most tool rounds a run takes; Check, which tries the form as entered and, for `ollama`, says
+whether the Model calls tools) and **Packaging…** (a popup, the owner's: the items that go into the one-shot
+prompt, in this order: the server's `/instructions` made for the connection's own participant and token, the
+project's Readme, the other Context documents listed by title and each checkable, the threads of the plan at
+hand waiting on the connection listed by anchor and each checkable; the unchecked ids are remembered per
+connection, so a new document or thread is in by default; then the Review, Build and Session Prompts with
+Reset; Preview packages the prompt as the form stands, with its character count and an estimated token count
+at four characters each, and Copy), then **Run** (the **project**, the sidebar's open one first, whose folder
+the run works in with the Include, Exclude and Commands of the project's Settings; the plan at hand in the
+page's own picker, in the tree's order with its folders and indentation and each plan's unresolved threads,
+defaulting to the plan last opened; **Review**, **Build** and **Session** each package their prompt and run it
+once, for every participant but an llm one, disabled only while a run is going or for what they lack, with the
+reason shown beside them; Stop while it runs) and the **log** (one record per run in the config folder's
+`runs/<id>.json`: when, which button, who asked, the project with its folder, the plan, the prompt, the output,
+the exit and the duration, and for a local model the rounds and the tokens; the page shows the connection's
+runs, newest first; a run opens in a popup, its output and prompt rendered as markdown or shown as source,
+each with its size and Copy; a run's start, progress and end go out over `/api/events` as `{ Kind: "run" }`,
+so every page follows it). A run on a project whose folder is not on the server's machine is refused: an LLM
+works on the projects of its own machine. A `claude-cli` one-shot runs the command once in the project's
+folder with the package on its standard input; the model works through the API itself, with the token in the
+instructions, and nothing is parsed. The default Arguments let a non-interactive `claude` use its tools.
+Nothing in Consensus commits, branches or pushes.
 
-An `ollama` one-shot (Step 4: Local Models) runs in the desktop: a local model has no tools of its own, so
-`Ollama.js` runs the tool loop over Ollama's chat endpoint, one request per round with the connection's Context
-as `num_ctx`, and `Tools.js` carries out each call the model makes and sends the result back, until the model
-answers without a call, the Rounds run out (one last request without tools asks for the answer), the Timeout
-passes, or Stop aborts the request in flight. The tools: over the workspace, `glob`, `grep` and `read` within
-its Include and Exclude, and for Build and Session `write`, `edit` (one occurrence, or refused) and `run`,
-which executes one of the workspace's **Commands** (one per line on the workspace page, none by default; a
-command exactly or with arguments after it; nothing that chains, pipes, redirects or substitutes, on the list or
-in a call); over the connected server, as the llm participant with the Token the server's settings hold,
-`list_project`, `read_plan`, `read_document`, `waiting`, `reply`, `apply` (the current revision supplied),
-`thread` and `set_state`, each held to the project the connection was opened from, a server's refusal going
-back to the model as the tool's result. The package is the same, except that the agent instructions (which say
-how to call the API with the token) are replaced by the desktop's tool instructions, so the token never enters
-a local model's prompt. The run keeps its `Transcript` as entries (a round's text, a call with its arguments, its
-whole result and how long it took, the answer) and its Output as the markdown rendered from them (a heading per
-round, each call in bold with its result fenced and clipped at 2,000 characters, the answer under its own
-heading), both growing with every call; every window hears each call, so the run popup follows a run as it
-goes. The popup shows the transcript as blocks per round, each call a row that unfolds to its whole result,
-and the answer rendered; Source shows the markdown. A Review gets the read-only file tools, a Build and a Session
-every tool the workspace allows; without a workspace, the Consensus tools only. The **workspace page** holds
-Name, Path (Browse), Include and Exclude globs (`**` crosses folders; one without a slash matches at any depth;
-an excluded folder is not entered), Commands, and below them the files the workspace includes, walked again on
-every change (the first 500, with the count).
+An `ollama` one-shot (plan Consensus Desktop, Step 4: Local Models) runs in the server: a local model has no
+tools of its own, so `Ollama.js` runs the tool loop over Ollama's chat endpoint, one request per round with
+the connection's Context as `num_ctx`, and `Tools.js` carries out each call the model makes and sends the
+result back, until the model answers without a call, the Rounds run out (one last request without tools asks
+for the answer), the Timeout passes, or Stop aborts the request in flight. The tools: over the project's
+folder, `glob`, `grep` and `read` within its Include and Exclude, and for Build and Session `write`, `edit`
+(one occurrence, or refused) and `run`, which executes one of the project's **Commands** (one per line in its
+Settings, none by default; a command exactly or with arguments after it; nothing that chains, pipes,
+redirects or substitutes, on the list or in a call); over the server itself, as the connection's participant
+with its Token, `list_project`, `read_plan`, `read_document`, `waiting`, `reply`, `apply` (the current
+revision supplied), `thread` and `set_state`, each held to the project the run is on, a server's refusal
+going back to the model as the tool's result. The package is the same, except that the agent instructions
+(which say how to call the API with the token) are replaced by the server's tool instructions, so the token
+never enters a local model's prompt. The run keeps its `Transcript` as entries (a round's text, a call with
+its arguments, its whole result and how long it took, the answer) and its Output as the markdown rendered
+from them (a heading per round, each call in bold with its result fenced and clipped at 2,000 characters, the
+answer under its own heading), both growing with every call; every page hears each call, so the run popup
+follows a run as it goes. The popup shows the transcript as blocks per round, each call a row that unfolds to
+its whole result, and the answer rendered; Source shows the markdown. A Review gets the read-only file tools,
+a Build and a Session every tool the project allows; without a folder, the Consensus tools only.
+
+At the first start after Step 3 a `desktop.json` from before hands its LLM connections to the server (its
+`Llms`, when it had none), and its workspaces to the server's migration (`Server.MigrateWorkspaces`): a
+workspace on a project's folder gives that project its Include, Exclude and Commands when it has none of its
+own, the others are dropped with a line, and the `Workspaces` list is gone from the settings.
 
 The page's **theme** is a palette: System, Light, Sepia, Paper, Solarized Light, Dark, Slate, Solarized Dark,
 Nord or Midnight (`data-theme` on the page; `data-bs-theme` light or dark for Bootstrap), and the editor takes
@@ -318,12 +332,15 @@ past the end of the text. In the tree a click on a folder folds it, and a folder
 folder, which create in it.
 
 Layout: `desktop/main.js` the main process, `desktop/preload.js` its bridge, `desktop/Settings.js` the desktop's
-fields of the config, `desktop/Page.js` the server for the page copy, `desktop/Package.js` the
-one-shot prompt, `desktop/Llm.js` a connection's check and command line, `desktop/Runs.js` the runs and their
-records, `desktop/page/` the copy (`js/desktop.js` the items, the LLM page and the workspace page) and the
-connect screen (`connect.html`, `connect.js`, `connect.css`); `test/Desktop.test.js` covers the settings, the
-page server, the package, the check and the runs; `test/Start.test.js` the start module and the headless entry
-point.
+fields of the config (and the move-in of desktop.json), `desktop/Page.js` the server for the page and the
+connect screen (`desktop/page/connect.html`, `connect.js`, `connect.css`); the runs are the server's:
+`src/Llms.js` the connections, `src/Runner.js` the package and the start of a run over the store,
+`src/Runs.js` the runs and their records, `src/Package.js` the one-shot prompt, `src/Llm.js` a connection's
+check and command line, `src/Ollama.js` the tool loop, `src/Tools.js` the tools, `src/Files.js` the files of a
+folder; `public/js/llm.js` the LLMs list's data and the LLM page. `test/Desktop.test.js` covers the settings
+and the page server; `test/Runs.test.js` the connections, the participants they make, the package, the check
+and the runs; `test/Tools.test.js` the tools and the Ollama loop; `test/Api.test.js` the routes;
+`test/Start.test.js` the start module and the headless entry point.
 
 ## The API
 
@@ -362,7 +379,19 @@ point.
 	POST   /api/proposals/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
 	GET    /api/trash                                what is there
 	GET    /api/waiting                              everything waiting on the caller, in every project
-	GET    /api/events                               Server-Sent Events: { Proposal | Project, Kind, Thread? } and { Settings: true, Kind: "settings" }
+	GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Participant, Running; the owner sees the whole records
+	POST   /api/llms                                 owner; a connection from its fields, with a new id and token
+	POST   /api/llms/check                           owner; the connection as typed, tried: { Ok, Result | Error }
+	PUT    /api/llms/:id                             owner; the fields given over the record
+	POST   /api/llms/:id/check                       owner; tried as saved, the body's fields over it
+	DELETE /api/llms/:id                             owner; not while it runs; its participant goes with it
+	GET    /api/runs/lists?Project=&Plan=&Llm=       the other Context documents, the plan's threads waiting on the connection
+	POST   /api/runs/package                         { Llm, Kind, Project, Plan?, Overrides? }  the prompt a run would get
+	POST   /api/runs                                 { Llm, Kind, Project, Plan? }  a run started; not by an llm participant; one per connection at a time
+	GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
+	GET    /api/runs/:id                             the whole record, the output as it stands
+	POST   /api/runs/:id/stop                        a running one stopped
+	GET    /api/events                               Server-Sent Events: { Proposal | Project, Kind, Thread? }, { Settings: true, Kind: "settings" }, { Kind: "llms", Llm } and { Kind: "run", Run, Llm, Status }
 
 Errors are `{ "Error": "..." }` with the status: 400 bad body (`Problems` lists them for the settings), 401
 unknown token, 403 not allowed for this role, 404 not found, 409 not allowed in this state or a stale
@@ -399,7 +428,15 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 	src/Participants.js   who is calling, the States, and the settings' checks
 	src/Ids.js            global ids
 	src/Events.js         Server-Sent Events
-	public/               the page: index.html, css/, js/ (one controller per pane; settings.js the settings popup)
+	src/Llms.js           the LLM connections, each a participant of the server
+	src/Runner.js         a run's lists, package and start over the store
+	src/Runs.js           the runs and their records (<config>/runs/)
+	src/Package.js        the one-shot prompt
+	src/Llm.js            a connection's check and command line
+	src/Ollama.js         the tool loop over Ollama's chat endpoint
+	src/Tools.js          a local model's tools over the project's folder and the server
+	src/Files.js          the files of a folder: globs, Include and Exclude
+	public/               the page: index.html, css/, js/ (one controller per pane; settings.js the settings popup; llm.js the LLMs and the runs)
 	test/                 node --test; Ui.test.js drives a headless browser through test/support/Cdp.js
 	.plans/               the build plans and the story of this repository
 	.guides/              build-with-consensus.md, the agent session's guide

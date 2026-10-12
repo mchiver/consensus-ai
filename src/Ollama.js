@@ -16,7 +16,7 @@
 //     to RESULT_LIMIT), the answer under its own heading; what the run's Output holds.
 //   A refusal, a timeout, an abort or the rounds running out throws an Error whose message says which.
 
-const SETTINGS = require( './Settings.js' );
+const LLMS = require( './Llms.js' );
 
 const ANSWER_NUDGE = 'You have used every round you had. Answer now, in words, with no tool call.';
 const RESULT_KEPT = 50000;
@@ -25,7 +25,7 @@ const RESULT_LIMIT = 2000;
 
 function endpoint( llm )
 {
-	return String( llm.Url || SETTINGS.DEFAULT_OLLAMA_URL ).replace( /\/+$/, '' ) + '/api/chat';
+	return String( llm.Url || LLMS.DEFAULT_OLLAMA_URL ).replace( /\/+$/, '' ) + '/api/chat';
 }
 
 
@@ -55,9 +55,9 @@ async function Run( Request )
 	let llm = request.Llm || {};
 	let tools = request.Tools;
 	let progress = ( typeof request.OnProgress === 'function' ) ? request.OnProgress : function () {};
-	let timeout = ( llm.Timeout || SETTINGS.DEFAULT_TIMEOUT ) * 1000;
+	let timeout = ( llm.Timeout || LLMS.DEFAULT_TIMEOUT ) * 1000;
 	let deadline = Date.now() + timeout;
-	let rounds_allowed = llm.Rounds || SETTINGS.DEFAULT_ROUNDS;
+	let rounds_allowed = llm.Rounds || LLMS.DEFAULT_ROUNDS;
 	let messages = [ { role: 'user', content: String( request.Prompt || '' ) } ];
 	let usage = { Prompt: 0, Answer: 0 };
 	let rounds = 0;
@@ -112,7 +112,7 @@ async function Run( Request )
 
 	function body_of( offered )
 	{
-		let body = { model: llm.Model, messages: messages, stream: false, options: { num_ctx: llm.Context || SETTINGS.DEFAULT_CONTEXT } };
+		let body = { model: llm.Model, messages: messages, stream: false, options: { num_ctx: llm.Context || LLMS.DEFAULT_CONTEXT } };
 		if ( offered && offered.length )
 		{
 			body.tools = offered;

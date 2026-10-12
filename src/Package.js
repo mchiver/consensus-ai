@@ -1,14 +1,15 @@
 'use strict';
 
-// Package - the one-shot prompt (plan Consensus Desktop, Step 3): one text built from the items checked on an LLM
-// connection, in a fixed order, each under a heading, then the prompt of the button pressed (Review or Build;
-// Session has none) and the connection's Session Prompt at the end. Pure: the pieces are fetched by the caller.
+// Package - the one-shot prompt (plan Consensus Desktop, Step 3; in the server since plan Run Shapes, Step 3): one
+// text built from the items checked on an LLM connection, in a fixed order, each under a heading, then the prompt of
+// the button pressed (Review or Build; Session has none) and the connection's Session Prompt at the end. Pure: the
+// pieces are fetched by the caller (Runner.js).
 //
 //   Build( {
 //     Kind: 'review' | 'build' | 'session',
 //     Llm: { Name, Checks: { Instructions, Readme, Documents, Threads }, Prompts: { Review, Build, Session } },
-//     Server: { Url },  Project: { Id, Name },  Plan: { Id, Title, State } | null,  Workspace: { Name, Path } | null,
-//     Participant: 'llm',
+//     Server: { Url, Name },  Project: { Id, Name },  Plan: { Id, Title, State } | null,  Folder: path | null,
+//     Participant: 'claude-cli@cube4',  Token?: the participant's token,
 //     Instructions: text | null,  InstructionsTitle?: 'Agent instructions',  DocumentsHint?: how to read one,
 //     Readme: { Id, Title, Text } | null,  Documents: [ { Id, Title } ],
 //     Threads: [ { Id, Status, Anchor, Replies: [ { By, At, Text } ] } ],
@@ -101,14 +102,19 @@ function Build( Request )
 	let participant = request.Participant || 'llm';
 	let lines = [];
 
-	lines.push( '# A ' + kind + ' one-shot from Consensus Desktop' );
+	let server_name = ( request.Server && request.Server.Name ) ? ' "' + request.Server.Name + '"' : '';
+	lines.push( '# A ' + kind + ' one-shot from Consensus' );
 	lines.push( '' );
-	lines.push( 'You are the `' + participant + '` participant of the Consensus server below, run once by Consensus Desktop' + ( llm.Name ? ' through its LLM connection "' + llm.Name + '"' : '' ) + '.' );
+	lines.push( 'You are the `' + participant + '` participant of the Consensus server below, run once by that server' + server_name + ( llm.Name ? ' through its LLM connection "' + llm.Name + '"' : '' ) + '.' );
 	heading( lines, 'This run' );
 	lines.push( '- Kind: ' + kind );
 	if ( request.Server && request.Server.Url )
 	{
 		lines.push( '- Consensus API: ' + String( request.Server.Url ).replace( /\/+$/, '' ) + '/api' );
+	}
+	if ( request.Token )
+	{
+		lines.push( '- Your token, sent as "Authorization: Bearer <token>": ' + request.Token );
 	}
 	if ( request.Project )
 	{
@@ -122,13 +128,13 @@ function Build( Request )
 	{
 		lines.push( '- No plan is selected.' );
 	}
-	if ( request.Workspace )
+	if ( request.Folder )
 	{
-		lines.push( '- Workspace: ' + request.Workspace.Name + ', the folder ' + request.Workspace.Path + ' (this run\'s working folder)' );
+		lines.push( '- The project\'s folder: ' + request.Folder + ' (this run\'s working folder)' );
 	}
 	else
 	{
-		lines.push( '- No workspace: this run has no folder of files.' );
+		lines.push( '- No folder: this run has no files to work in.' );
 	}
 
 	if ( checks.Instructions && request.Instructions )

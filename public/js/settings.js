@@ -1,8 +1,9 @@
 'use strict';
 
-// Settings - the server's settings (consensus.json) in a popup, for the owner (plan Consensus Desktop, Step 1): Host
-// and Port (applied at the next start), the States one per line, and the participants with their roles and tokens.
-// Saved whole through PUT /api/settings; the server's problems are shown and nothing is saved while there are any.
+// Settings - the server's settings (consensus.json) in a popup, for the owner (plan Consensus Desktop, Step 1): the
+// Name, the Scope and Port (applied at the next start; plan Run Shapes, Step 1), the States one per line, and the
+// participants with their roles and tokens. Saved through PUT /api/settings; the server's problems are shown and
+// nothing is saved while there are any.
 
 angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 {
@@ -22,8 +23,10 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 .controller( 'SettingsController', [ '$scope', 'State', 'Client', 'SettingsPanel', function ( $scope, State, Client, SettingsPanel )
 {
 	const ROLES = [ 'owner', 'llm', 'member' ];
+	const SCOPES = [ 'None', 'Local', 'Public' ];
 	$scope.Panel = SettingsPanel;
 	$scope.Roles = ROLES;
+	$scope.Scopes = SCOPES;
 
 
 	// The settings as the form holds them: the states as text, one per line; each participant with its Token as a
@@ -31,7 +34,8 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 	function to_form( settings )
 	{
 		return {
-			Host: settings.Host || '',
+			Name: settings.Name || '',
+			Scope: SCOPES.includes( settings.Scope ) ? settings.Scope : 'Local',
 			Port: settings.Port,
 			StatesText: ( settings.States || [] ).join( '\n' ),
 			Participants: ( settings.Participants || [] ).map( function ( participant )
@@ -45,7 +49,8 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 	function from_form( form )
 	{
 		return {
-			Host: form.Host,
+			Name: form.Name,
+			Scope: form.Scope,
 			Port: form.Port,
 			States: String( form.StatesText || '' ).split( /\r?\n/ ).map( function ( line ) { return line.trim(); } ).filter( function ( line ) { return line; } ),
 			Participants: form.Participants.map( function ( participant )

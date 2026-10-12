@@ -1,9 +1,13 @@
 'use strict';
 
 // Client - fetch over the API, and the Server-Sent Events stream. The browser is the owner: no token.
+// The desktop's copy (plan Consensus Desktop, Step 2): the desktop sets the API's base URL before the page starts
+// (window.ConsensusDesktop.Base, from preload.js); empty means the page's own origin, as in the browser.
 
 angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope', function ( $q, $rootScope )
 {
+	const BASE = ( window.ConsensusDesktop && window.ConsensusDesktop.Base ) || '';
+
 
 	// A body is JSON.
 	async function call( method, path, body )
@@ -14,7 +18,7 @@ angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope'
 			options.headers[ 'Content-Type' ] = 'application/json';
 			options.body = JSON.stringify( body );
 		}
-		let response = await fetch( path, options );
+		let response = await fetch( BASE + path, options );
 		let json = null;
 		try
 		{
@@ -62,7 +66,7 @@ angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope'
 	// Listen: Handler( { Proposal, Kind, Thread? } ) inside a digest; Status( live ) on connect and drop.
 	function Listen( Handler, Status )
 	{
-		let source = new EventSource( '/api/events' );
+		let source = new EventSource( BASE + '/api/events' );
 		source.addEventListener( 'change', function ( message )
 		{
 			let event = JSON.parse( message.data );

@@ -2,33 +2,49 @@
 
 // Sidebar - the project tree: one project open at a time, its folders and items with their tallies;
 // new project, plan and folder, rename and delete; the waiting count, Trash and the Settings button at the
-// bottom. Items and projects move and reorder by drag and drop; items copy by copy and paste.
+// bottom. Items and projects move and reorder by drag and drop.
+// Copy, Paste and Export work on export json (plan UI Tweaks V): Copy puts a project's, folder's or item's export
+// on the system clipboard, Paste reads the clipboard and imports an export Into a project's root or a folder (every
+// id new; a project's file as a folder named after it), and Export opens the popup with the json. Ctrl+C copies
+// the open item, Ctrl+V pastes into the open project's root.
 // Each project's Context folder comes first, holding its Readme and other documents: neither the folder
-// nor the document is renamed, moved, copied or deleted, and New document goes there.
-// A plan holds its Subplans: they fold under it, and a plan dropped into it becomes one.
+// nor the document is renamed, moved, copied or deleted, and New Document goes there. Under the projects the
+// server's LLM connections (plan Run Shapes, Step 3; llm.js), with Open, Rename and Delete in their menus and New
+// LLM in the list's, the owner's to change.
+// A plan holds its Subplans: they fold under it, and a plan dropped into it becomes one. A click on a folder's
+// row folds it; the menus read as plan UI Tweaks V lists them, "New <first state>" making a plan there, the state
+// the project's own (plan Run Shapes, Step 2: each project keeps its States, Include, Exclude and Commands, edited
+// in its Settings popup, project.js). A plan's Archive moves it, with its Subplans, to the project's Archive folder
+// at the bottom of the project, read-only until Restore; a new project may name its folder (the desktop picks one).
 // Each row's actions are in its menu (⋯, or a right-click); Delete is there only, confirmed on the row.
 // The tree can be sorted (by name, created or updated) and show each item's last update; both remembered here.
 
 const DRAG_TYPE = 'application/x-consensus-item';
 const DRAG_PROJECT_TYPE = 'application/x-consensus-project';
 
-angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', function ( $scope, $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports )
+angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', 'Llms', function ( $scope, $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports, Llms )
 {
-	const OPEN_PROJECT_KEY = 'consensus.project';
-	const FOLDED_KEY = 'consensus.folded';
-	const SORT_KEY = 'consensus.tree-sort';
-	const SHOW_UPDATED_KEY = 'consensus.show-updated';
+	// Remembered per server (stored.js, plan UI Tweaks V).
+	const OPEN_PROJECT_KEY = 'project';
+	const FOLDED_KEY = 'folded';
+	const SORT_KEY = 'tree-sort';
+	const SHOW_UPDATED_KEY = 'show-updated';
+	const LLMS_SHOWN_KEY = 'llms-shown';
 	const SORTS = [ 'none', 'name', 'created', 'updated' ];
 
 	$scope.State = State;
+	$scope.Llms = Llms;
+	$scope.HasDesktop = !!( window.Desktop && typeof window.Desktop.PickFolder === 'function' );
+	$scope.ShowingLlms = read_stored( LLMS_SHOWN_KEY, true );
 	$scope.Creating = null;
 	$scope.Renaming = null;
 	$scope.Deleting = null;
-	$scope.Target = null;
 	$scope.ShowingTrash = false;
+	$scope.ShowingArchive = {};
 	$scope.Trash = [];
 	$scope.Theme = window.ConsensusTheme.Get().Theme;
 	$scope.Scale = window.ConsensusTheme.Get().Scale;
+	$scope.Palettes = window.ConsensusTheme.PALETTES;
 	$scope.OpenProjectId = read_stored( OPEN_PROJECT_KEY, 'default' );
 	let folded = read_stored( FOLDED_KEY, [] );
 	$scope.Sort = read_stored( SORT_KEY, 'none' );
@@ -40,32 +56,17 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 
 	//-----------------------------------------------------------------
-	// Remembered in this browser only; a blocked or empty storage falls back to the default.
+	// Remembered per server, in this browser only; a blocked or empty storage falls back to the default.
 
 	function read_stored( key, fallback )
 	{
-		try
-		{
-			let value = window.localStorage.getItem( key );
-			return ( value === null ) ? fallback : JSON.parse( value );
-		}
-		catch ( error )
-		{
-			return fallback;
-		}
+		return window.ConsensusStored.Read( key, fallback, true );
 	}
 
 
 	function write_stored( key, value )
 	{
-		try
-		{
-			window.localStorage.setItem( key, JSON.stringify( value ) );
-		}
-		catch ( error )
-		{
-			// not remembered; nothing else depends on it
-		}
+		window.ConsensusStored.Write( key, value, true );
 	}
 
 
@@ -109,6 +110,40 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	};
 
 
+	// The connection panel (plan UI Tweaks V): the connected server's address without its scheme (the desktop hands
+	// it in window.ConsensusDesktop.Server; in a browser the page's own host), with the connection's name, the
+	// server's version and live or offline in the tooltip.
+	function connected_server()
+	{
+		let desktop = window.ConsensusDesktop || null;
+		return ( desktop && desktop.Server ) ? desktop.Server : null;
+	}
+
+
+	$scope.ServerLabel = function ()
+	{
+		let server = connected_server();
+		let url = server ? String( server.Url || '' ) : $window.location.host;
+		return url.replace( /^https?:\/\//, '' ).replace( /\/+$/, '' ) || ( State.Live ? 'live' : 'offline' );
+	};
+
+
+	$scope.ConnectionTitle = function ()
+	{
+		let server = connected_server();
+		let parts = [ State.Live ? 'live updates' : 'offline' ];
+		if ( server )
+		{
+			parts.push( ( server.Kind === 'local' ) ? 'the local server' : ( server.Name || server.Url ) );
+			if ( server.Version )
+			{
+				parts.push( 'Consensus ' + server.Version );
+			}
+		}
+		return parts.join( '; ' );
+	};
+
+
 	//-----------------------------------------------------------------
 	// The Context folder and the Readme of a project.
 
@@ -140,6 +175,83 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 
 	//-----------------------------------------------------------------
+	// The LLM connections (plan Run Shapes, Step 3): the server's, listed once under the projects (llm.js holds them).
+
+	$scope.ToggleLlms = function ()
+	{
+		$scope.ShowingLlms = !$scope.ShowingLlms;
+		write_stored( LLMS_SHOWN_KEY, $scope.ShowingLlms );
+	};
+
+
+	$scope.IsOpenItem = function ( kind, id )
+	{
+		let open = State.OpenItem;
+		return !!open && open.Kind === kind && open.Id === id;
+	};
+
+
+	$scope.IsRunning = function ( llm )
+	{
+		return !!Llms.Running[ llm.Id ];
+	};
+
+
+	function is_owner()
+	{
+		return !!State.Me && State.Me.Role === 'owner';
+	}
+
+
+	function llm_actions( llm )
+	{
+		let actions = [ action( 'Open', 'eye', function () { $window.location.hash = '#/llm/' + encodeURIComponent( llm.Id ); } ) ];
+		if ( is_owner() )
+		{
+			actions.push( action( 'Rename', 'pencil', function () { $scope.StartRename( 'llm', null, llm, QUIET ); } ) );
+			actions.push( { Separator: true } );
+			actions.push( action( 'Delete', 'trash', function () { $scope.StartDelete( llm, QUIET ); }, { Danger: true, Disabled: $scope.IsRunning( llm ) } ) );
+		}
+		return actions;
+	}
+
+
+	// The list's own menu: New LLM (the owner's).
+	function llms_actions()
+	{
+		return [ action( 'New LLM', 'plus', function ()
+		{
+			$scope.ShowingLlms = true;
+			$scope.Renaming = null;
+			$scope.Deleting = null;
+			$scope.Creating = { Kind: 'llm', Name: '' };
+		}, { Disabled: !is_owner() } ) ];
+	}
+
+
+	// Delete a connection, confirmed inline like the others; its tabs close; its participant goes with it.
+	$scope.DeleteLlm = async function ( llm, event )
+	{
+		event.preventDefault();
+		event.stopPropagation();
+		let answer = await State.Act( function () { return Client.Delete( '/api/llms/' + encodeURIComponent( llm.Id ) ); } );
+		$scope.Deleting = null;
+		if ( answer )
+		{
+			for ( let tab of Tabs.List.slice() )
+			{
+				if ( tab.Kind === 'llm' && tab.Id === llm.Id )
+				{
+					Tabs.Close( tab );
+				}
+			}
+			await Llms.Reload();
+		}
+		$scope.$applyAsync();
+	};
+
+
+	//-----------------------------------------------------------------
 	// The tree: one project open at a time; folders, and plans with Subplans, fold on their own.
 
 	$scope.IsOpen = function ( project )
@@ -155,10 +267,6 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		$scope.Creating = null;
 		$scope.Renaming = null;
 		$scope.Deleting = null;
-		if ( $scope.Target && $scope.Target.Project !== $scope.OpenProjectId )
-		{
-			$scope.Target = null;
-		}
 	};
 
 
@@ -170,6 +278,19 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			$scope.OpenProjectId = project_id;
 			write_stored( OPEN_PROJECT_KEY, project_id );
 		}
+	} );
+
+
+	// A remembered project that is no longer there (or the first start, when nothing is remembered): the first
+	// project opens (plan Run Shapes, Step 2: every project has an id of its own; "default" is gone).
+	$scope.$watch( function () { return State.Projects; }, function ( projects )
+	{
+		if ( !projects || !projects.length || projects.some( function ( project ) { return project.Id === $scope.OpenProjectId; } ) )
+		{
+			return;
+		}
+		$scope.OpenProjectId = projects[ 0 ].Id;
+		write_stored( OPEN_PROJECT_KEY, $scope.OpenProjectId );
 	} );
 
 
@@ -195,28 +316,22 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	};
 
 
-	// A folder picked as where new items go; picking it again goes back to the project's root.
-	$scope.PickFolder = function ( project, node )
+	// A folder is unfolded, so what was just made in it shows.
+	function unfold( id )
 	{
-		if ( $scope.IsTarget( node ) )
+		if ( folded.includes( id ) )
 		{
-			$scope.Target = null;
-			return;
+			folded = folded.filter( function ( one ) { return one !== id; } );
+			write_stored( FOLDED_KEY, folded );
 		}
-		$scope.Target = { Project: project.Id, Folder: node.Id, Name: node.Name };
-	};
-
-
-	$scope.IsTarget = function ( node )
-	{
-		return !!$scope.Target && $scope.Target.Folder === node.Id;
-	};
-
-
-	function parent_in( project )
-	{
-		return ( $scope.Target && $scope.Target.Project === project.Id ) ? $scope.Target.Folder : null;
 	}
+
+
+	// A folder's count: its items.
+	$scope.FolderCount = function ( project, node )
+	{
+		return $scope.ItemCount( node.Items );
+	};
 
 
 	//-----------------------------------------------------------------
@@ -320,12 +435,16 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	}
 
 
-	function create_in( kind, project )
+	function create_in( kind, project, parent )
 	{
 		return function ()
 		{
 			open_project( project );
-			$scope.StartCreate( kind, project, QUIET );
+			if ( parent )
+			{
+				unfold( parent );
+			}
+			$scope.StartCreate( kind, project, QUIET, parent || null );
 		};
 	}
 
@@ -337,42 +456,77 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	};
 
 
+	// "New Draft": a new plan starts in the first of the project's States (the settings' when it has none).
+	function new_plan_label( project )
+	{
+		let states = ( project && Array.isArray( project.States ) && project.States.length ) ? project.States : State.States;
+		return 'New ' + ( states[ 0 ] || 'Plan' );
+	}
+
+
+	function copy_action( kind, project, node )
+	{
+		return action( 'Copy', 'copy', function () { $scope.CopyItem( kind, project, node ); } );
+	}
+
+
+	function paste_action( project, folder )
+	{
+		return action( 'Paste', 'paste', function () { $scope.Paste( project, folder ); } );
+	}
+
+
+	function export_action( kind, project, node )
+	{
+		return action( 'Export', 'save', function () { $scope.ExportItem( kind, project, node ); } );
+	}
+
+
+	// Project: New Folder, New Draft, ---, Copy, Paste, Rename, Export, ---, Delete.
 	function project_actions( project )
 	{
-		let where = ( $scope.Target && $scope.Target.Project === project.Id ) ? ' in ' + $scope.Target.Name : '';
 		return [
-			action( 'New plan' + where, 'plus', create_in( 'plan', project ) ),
-			action( 'New document in Context', 'plus', create_in( 'document', project ) ),
-			action( 'New folder' + where, 'plus', create_in( 'folder', project ) ),
+			action( 'New Folder', 'plus', create_in( 'folder', project ) ),
+			action( new_plan_label( project ), 'plus', create_in( 'plan', project ) ),
 			{ Separator: true },
-			action( $scope.Clipboard ? 'Paste ' + $scope.Clipboard.Name : 'Paste', 'paste', function () { $scope.Paste( project, null, QUIET ); }, { Disabled: !$scope.Clipboard } ),
+			copy_action( 'project', project, project ),
+			paste_action( project, null ),
 			action( 'Rename', 'pencil', function () { $scope.StartRename( 'project', project, project, QUIET ); } ),
-			action( 'Export project', 'save', function () { Ports.StartExport( project ).then( function () { $scope.$applyAsync(); } ); } ),
+			export_action( 'project', project, project ),
+			action( 'Settings', 'settings', function () { $scope.OpenProjectSettings( project ); } ),
 			{ Separator: true },
-			action( 'Delete', 'trash', function () { $scope.StartDelete( project, QUIET ); }, { Danger: true, Disabled: project.Id === 'default' || !only_context( project ) } ),
+			action( 'Delete', 'trash', function () { $scope.StartDelete( project, QUIET ); }, { Danger: true, Disabled: State.Projects.length <= 1 || !only_context( project ) || ( project.Archive || [] ).length > 0 } ),
 		];
 	}
 
 
+	// Context folder: New Document, ---, Paste.
+	// Folder: New Folder, New Draft, ---, Copy, Paste, Rename, Export, ---, Delete.
 	function folder_actions( project, node )
 	{
 		if ( $scope.IsContextFolder( project, node ) )
 		{
-			return [
-				action( 'New document', 'plus', create_in( 'document', project ) ),
-				action( $scope.Clipboard ? 'Paste ' + $scope.Clipboard.Name : 'Paste', 'paste', function () { $scope.Paste( project, node, QUIET ); }, { Disabled: !$scope.Clipboard } ),
-			];
+			let actions = [ action( 'New Document', 'plus', create_in( 'document', project ) ) ];
+			actions.push( { Separator: true } );
+			actions.push( paste_action( project, node ) );
+			return actions;
 		}
 		return [
-			action( $scope.Clipboard ? 'Paste ' + $scope.Clipboard.Name : 'Paste', 'paste', function () { $scope.Paste( project, node, QUIET ); }, { Disabled: !$scope.Clipboard } ),
-			action( 'Copy', 'copy', function () { $scope.CopyItem( node ); } ),
+			action( 'New Folder', 'plus', create_in( 'folder', project, node.Id ) ),
+			action( new_plan_label( project ), 'plus', create_in( 'plan', project, node.Id ) ),
+			{ Separator: true },
+			copy_action( 'folder', project, node ),
+			paste_action( project, node ),
 			action( 'Rename', 'pencil', function () { $scope.StartRename( 'folder', project, node, QUIET ); } ),
+			export_action( 'folder', project, node ),
 			{ Separator: true },
 			action( 'Delete', 'trash', function () { $scope.StartDelete( node, QUIET ); }, { Danger: true, Disabled: node.Items.length > 0 } ),
 		];
 	}
 
 
+	// Plan: New Subplan, New Comment, ---, Copy, Rename, Export, ---, Delete.
+	// Document: Copy, Rename, Export, ---, Delete.
 	function item_actions( project, node )
 	{
 		let kind = 'proposal';
@@ -380,27 +534,112 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		if ( node.Kind === 'plan' )
 		{
 			actions.push( action( 'New Subplan', 'subplan', function () { $scope.NewSubplan( project, node, QUIET ); } ) );
+			actions.push( action( 'New Comment', 'comment', function () { $scope.NewComment( project, node ); } ) );
+			actions.push( { Separator: true } );
 		}
+		actions.push( copy_action( node.Kind, project, node ) );
 		actions.push( action( 'Rename', 'pencil', function () { $scope.StartRename( kind, project, node, QUIET ); } ) );
-		actions.push( action( 'Copy', 'copy', function () { $scope.CopyItem( node ); } ) );
+		actions.push( export_action( node.Kind, project, node ) );
+		if ( node.Kind === 'plan' )
+		{
+			actions.push( action( 'Archive', 'archive', function () { $scope.Archive( project, node ); } ) );
+		}
 		actions.push( { Separator: true } );
 		actions.push( action( 'Delete', 'trash', function () { $scope.StartDelete( node, QUIET ); }, { Danger: true } ) );
 		return actions;
 	}
 
 
-	// Kind: 'project' | 'folder' | 'item'. A missing item (its record gone) has nothing to do, and nor has the
-	// Readme.
+	// An archived plan (plan Run Shapes, Step 2): Restore, and nothing else; a Subplan of one is restored with it.
+	function archived_actions( project, node )
+	{
+		let top = ( project.Archive || [] ).some( function ( candidate ) { return candidate.Id === node.Id; } );
+		return [ action( 'Restore', 'undo', function () { $scope.Restore( project, node ); }, { Disabled: !top } ) ];
+	}
+
+
+	// Kind: 'project' | 'folder' | 'item' | 'archived' | 'llm' | 'llms' (the list itself). A missing item (its record
+	// gone) has nothing to do, and nor has the Readme.
 	$scope.OpenMenu = function ( kind, project, node, event )
 	{
+		if ( kind === 'llms' )
+		{
+			event.preventDefault();
+			event.stopPropagation();
+			Menus.Show( llms_actions(), event, 'llms' );
+			return;
+		}
 		if ( node.Missing || ( kind === 'item' && $scope.IsContextDocument( project, node ) ) )
 		{
 			event.preventDefault();
 			event.stopPropagation();
 			return;
 		}
-		let actions = ( kind === 'project' ) ? project_actions( project ) : ( ( kind === 'folder' ) ? folder_actions( project, node ) : item_actions( project, node ) );
+		let actions = null;
+		if ( kind === 'llm' )
+		{
+			actions = llm_actions( node );
+		}
+		else if ( kind === 'archived' )
+		{
+			actions = archived_actions( project, node );
+		}
+		else
+		{
+			actions = ( kind === 'project' ) ? project_actions( project ) : ( ( kind === 'folder' ) ? folder_actions( project, node ) : item_actions( project, node ) );
+		}
 		Menus.Show( actions, event, node.Id );
+	};
+
+
+	//-----------------------------------------------------------------
+	// Archive and Restore (plan Run Shapes, Step 2): the plan and its Subplans go to the project's Archive, read-only,
+	// and come back to the root. The project's Settings popup (project.js) holds its States, Include, Exclude, Commands.
+
+	$scope.Archive = async function ( project, node )
+	{
+		let answer = await State.Act( function () { return Client.Post( '/api/items/' + encodeURIComponent( node.Id ) + '/archive', {} ); } );
+		if ( answer )
+		{
+			$scope.ShowingArchive[ project.Id ] = true;
+			await State.LoadList();
+			if ( State.OpenId === node.Id )
+			{
+				await State.Reload();
+			}
+		}
+		$scope.$applyAsync();
+	};
+
+
+	$scope.Restore = async function ( project, node )
+	{
+		let answer = await State.Act( function () { return Client.Post( '/api/items/' + encodeURIComponent( node.Id ) + '/restore', {} ); } );
+		if ( answer )
+		{
+			await State.LoadList();
+			if ( State.OpenId === node.Id )
+			{
+				await State.Reload();
+			}
+		}
+		$scope.$applyAsync();
+	};
+
+
+	$scope.ToggleArchive = function ( project, event )
+	{
+		if ( event )
+		{
+			event.stopPropagation();
+		}
+		$scope.ShowingArchive[ project.Id ] = !$scope.ShowingArchive[ project.Id ];
+	};
+
+
+	$scope.OpenProjectSettings = function ( project )
+	{
+		$rootScope.$broadcast( 'project-settings', project );
 	};
 
 
@@ -427,10 +666,11 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 
 	//-----------------------------------------------------------------
-	// Creating: { Kind: 'project' | 'plan' | 'document' | 'folder', Project?, Parent?, Name }  A document goes in the
-	// project's Context folder, whatever folder is picked.
+	// Creating: { Kind: 'project' | 'plan' | 'document' | 'folder' | 'llm', Project?, Parent?, Name }
+	// Parent is the folder a plan or folder goes in (its menu's New plan or New folder), else the root; a document
+	// goes in the project's Context folder.
 
-	$scope.StartCreate = function ( kind, project, event )
+	$scope.StartCreate = function ( kind, project, event, Parent )
 	{
 		if ( event )
 		{
@@ -438,12 +678,33 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		}
 		$scope.Renaming = null;
 		$scope.Deleting = null;
-		let parent = project ? parent_in( project ) : null;
+		let parent = Parent || null;
 		if ( kind === 'document' && project )
 		{
 			parent = project.ContextFolder || null;
 		}
-		$scope.Creating = { Kind: kind, Project: project ? project.Id : null, Parent: parent, Name: '' };
+		$scope.Creating = { Kind: kind, Project: project ? project.Id : null, Parent: parent, Name: '', Path: '' };
+	};
+
+
+	// A new project's folder, picked in the desktop (plan Run Shapes, Step 2): a folder that holds a project already
+	// is opened as it is, its name taken from it.
+	$scope.PickProjectFolder = async function ()
+	{
+		if ( !$scope.Creating || !window.Desktop )
+		{
+			return;
+		}
+		let picked = await window.Desktop.PickFolder( $scope.Creating.Path || undefined );
+		if ( picked )
+		{
+			$scope.Creating.Path = picked;
+			if ( !$scope.Creating.Name )
+			{
+				$scope.Creating.Name = picked.split( '/' ).filter( function ( part ) { return part; } ).pop() || '';
+			}
+		}
+		$scope.$applyAsync();
 	};
 
 
@@ -459,13 +720,13 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		{
 			return '';
 		}
-		let where = ( $scope.Creating.Parent && $scope.Target ) ? ' in ' + $scope.Target.Name : '';
 		switch ( $scope.Creating.Kind )
 		{
 			case 'project': return 'Project name';
-			case 'folder': return 'Folder name' + where;
+			case 'folder': return 'Folder name';
 			case 'document': return 'Document title in Context';
-			default: return 'Plan title' + where;
+			case 'llm': return 'LLM connection name (letters, digits, dot, dash, colon)';
+			default: return 'Plan title';
 		}
 	};
 
@@ -478,11 +739,16 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		{
 			return;
 		}
+		if ( creating.Kind === 'llm' )
+		{
+			await create_llm( creating, name );
+			return;
+		}
 		let answer = await State.Act( function ()
 		{
 			if ( creating.Kind === 'project' )
 			{
-				return Client.Post( '/api/projects', { Name: name } );
+				return Client.Post( '/api/projects', { Name: name, Path: creating.Path || undefined } );
 			}
 			if ( creating.Kind === 'folder' )
 			{
@@ -498,7 +764,6 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			{
 				$scope.OpenProjectId = answer.Project.Id;
 				write_stored( OPEN_PROJECT_KEY, answer.Project.Id );
-				$scope.Target = null;
 			}
 			if ( creating.Kind === 'plan' || creating.Kind === 'document' )
 			{
@@ -510,12 +775,42 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	};
 
 
+
+
+	// A new LLM connection of the server, with the defaults; it opens.
+	async function create_llm( creating, name )
+	{
+		let answer = await State.Act( function () { return Client.Post( '/api/llms', { Name: name } ); } );
+		if ( answer )
+		{
+			$scope.Creating = null;
+			await Llms.Reload();
+			$window.location.hash = '#/llm/' + encodeURIComponent( answer.Llm.Id );
+		}
+		$scope.$applyAsync();
+	}
+
+
 	// A new Subplan under a plan of the tree: its title is asked for in the Subplan form.
 	$scope.NewSubplan = function ( project, node, event )
 	{
 		event.preventDefault();
 		event.stopPropagation();
 		Subplans.Start( node, project.Id );
+	};
+
+
+	// New Comment on a plan of the tree: the plan opens in Read (its tab) and a whole-document comment starts, as
+	// the header's New Comment does; an open plan starts it at once, another once it is loaded (read.js).
+	$scope.NewComment = function ( project, node )
+	{
+		if ( State.OpenId === node.Id && State.Open )
+		{
+			State.StartCompose( null );
+			return;
+		}
+		State.Pend( { Compose: true } );
+		$window.location.hash = '#/p/' + encodeURIComponent( node.Id );
 	};
 
 
@@ -529,7 +824,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		event.stopPropagation();
 		$scope.Creating = null;
 		$scope.Deleting = null;
-		$scope.Renaming = { Kind: kind, Project: project.Id, Id: node.Id, Name: ( kind === 'proposal' ) ? node.Title : node.Name };
+		$scope.Renaming = { Kind: kind, Project: project ? project.Id : null, Id: node.Id, Name: ( kind === 'proposal' ) ? node.Title : node.Name };
 	};
 
 
@@ -551,6 +846,17 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		let name = ( renaming && renaming.Name || '' ).trim();
 		if ( !name )
 		{
+			return;
+		}
+		if ( renaming.Kind === 'llm' )
+		{
+			let saved = await State.Act( function () { return Client.Put( '/api/llms/' + encodeURIComponent( renaming.Id ), { Name: name } ); } );
+			if ( saved )
+			{
+				$scope.Renaming = null;
+				await Llms.Reload();
+			}
+			$scope.$applyAsync();
 			return;
 		}
 		let answer = await State.Act( function ()
@@ -630,10 +936,6 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			if ( kind === 'proposal' )
 			{
 				Tabs.CloseItem( node.Id );
-			}
-			if ( $scope.Target && ( $scope.Target.Folder === node.Id || $scope.Target.Project === node.Id ) )
-			{
-				$scope.Target = null;
 			}
 			await State.LoadList();
 		}
@@ -746,47 +1048,130 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 
 	//-----------------------------------------------------------------
-	// Copy and paste: the copy button or Ctrl+C takes an item; a paste button or Ctrl+V puts a whole copy of it
-	// into a project's root or a folder.
+	// Copy, Paste and Export on export json (plan UI Tweaks V). Copy (a menu, or Ctrl+C on the open item) fetches the
+	// export and puts it on the system clipboard; Paste (a menu, or Ctrl+V into the open project's root) reads the
+	// clipboard and imports an export Into the target; Export opens the popup. Notice is the line under the tree's
+	// head: what was copied or pasted, or why the paste was refused.
 
-	$scope.Clipboard = null;
+	$scope.Notice = null;
 
-	$scope.CopyItem = function ( node, event )
+
+	function notice( text, is_error )
 	{
-		if ( event )
-		{
-			event.preventDefault();
-			event.stopPropagation();
-		}
-		$scope.Clipboard = { Id: node.Id, Name: node.Name || node.Title };
+		$scope.Notice = { Text: text, Error: !!is_error };
+		$scope.$applyAsync();
+	}
+
+
+	$scope.ClearNotice = function ()
+	{
+		$scope.Notice = null;
 	};
 
 
-	$scope.ClearClipboard = function ()
+	// The export of a project, or of a folder, plan or document (Kind as the tree names it), as the server gives it.
+	function export_path( kind, node )
 	{
-		$scope.Clipboard = null;
+		if ( kind === 'project' )
+		{
+			return '/api/projects/' + encodeURIComponent( node.Id ) + '/export';
+		}
+		return '/api/items/' + encodeURIComponent( node.Id ) + '/export';
+	}
+
+
+	function name_of( node )
+	{
+		return node.Name || node.Title || node.Id;
+	}
+
+
+	$scope.CopyItem = async function ( kind, project, node )
+	{
+		let exported = null;
+		try
+		{
+			exported = await Client.Get( export_path( kind, node ) );
+		}
+		catch ( error )
+		{
+			notice( error.message, true );
+			return;
+		}
+		let json = JSON.stringify( exported, null, '\t' );
+		try
+		{
+			await navigator.clipboard.writeText( json );
+			notice( 'copied: ' + name_of( node ) + ' (Paste in a project\'s or folder\'s menu, or Ctrl+V)' );
+		}
+		catch ( error )
+		{
+			// The clipboard refused (no focus, no permission): the popup shows the json to copy by hand.
+			Ports.ShowExport( exported, { Id: node.Id, Name: name_of( node ) } );
+			$scope.$applyAsync();
+		}
 	};
 
 
-	$scope.Paste = async function ( project, folder, event )
+	$scope.ExportItem = async function ( kind, project, node )
 	{
-		if ( event )
+		await Ports.StartExport( { Kind: kind, Id: node.Id, Name: name_of( node ) } );
+		$scope.$applyAsync();
+	};
+
+
+	// The clipboard's text as an export, or null with the notice said.
+	async function clipboard_export()
+	{
+		let text = '';
+		try
 		{
-			event.stopPropagation();
+			text = await navigator.clipboard.readText();
 		}
-		let clipboard = $scope.Clipboard;
-		if ( !clipboard )
+		catch ( error )
+		{
+			notice( 'the clipboard could not be read', true );
+			return null;
+		}
+		let exported = null;
+		try
+		{
+			exported = JSON.parse( text );
+		}
+		catch ( error )
+		{
+			exported = null;
+		}
+		if ( !exported || typeof exported !== 'object' || exported.Format !== 'consensus-project' )
+		{
+			notice( 'the clipboard holds no Consensus export', true );
+			return null;
+		}
+		return exported;
+	}
+
+
+	$scope.Paste = async function ( project, folder )
+	{
+		let exported = await clipboard_export();
+		if ( !exported )
 		{
 			return;
 		}
+		let parent = folder ? folder.Id : null;
 		let answer = await State.Act( function ()
 		{
-			return Client.Post( '/api/items/' + encodeURIComponent( clipboard.Id ) + '/copy', { Project: project.Id, Parent: folder ? folder.Id : null } );
+			return Client.Post( '/api/projects/import', { Export: exported, Into: { Project: project.Id, Parent: parent } } );
 		} );
 		if ( answer )
 		{
 			$scope.OpenProjectId = project.Id;
 			write_stored( OPEN_PROJECT_KEY, project.Id );
+			if ( parent )
+			{
+				unfold( parent );
+			}
+			notice( 'pasted: ' + ( exported.Project ? exported.Project.Name : 'the export' ) );
 			await State.LoadList();
 		}
 		$scope.$applyAsync();
@@ -816,19 +1201,16 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		let selection = window.getSelection();
 		if ( key === 'c' && State.Open && ( !selection || selection.isCollapsed ) )
 		{
-			$scope.$applyAsync( function ()
-			{
-				$scope.Clipboard = { Id: State.Open.Proposal.Id, Name: State.Open.Proposal.Title };
-			} );
+			event.preventDefault();
+			$scope.CopyItem( State.Open.Proposal.Kind || 'plan', State.Open.Project, { Id: State.Open.Proposal.Id, Title: State.Open.Proposal.Title } );
 		}
-		else if ( key === 'v' && $scope.Clipboard )
+		else if ( key === 'v' )
 		{
 			let project = State.Projects.find( function ( candidate ) { return candidate.Id === $scope.OpenProjectId; } );
 			if ( project )
 			{
 				event.preventDefault();
-				let folder = ( $scope.Target && $scope.Target.Project === project.Id ) ? { Id: $scope.Target.Folder } : null;
-				$scope.Paste( project, folder );
+				$scope.Paste( project, null );
 			}
 		}
 	}

@@ -90,7 +90,7 @@ docker compose up -d
 </code></pre>
 <p>The image runs the server with <code>--config /data --scope public --port 3500 --headless</code>: it listens on port 3500 and keeps its config and data in the <code>consensus-data</code> volume. <code>docker compose down</code> stops it; the volume stays. The <code>compose.yaml</code> as shipped publishes the port on every IPv4 address of the host, because it is written for a server on a private network; edit it for your own.</p>
 <h2 id="the-desktop">The desktop</h2>
-<p>Consensus Desktop is the same page in a window of its own, with a Consensus server of its own inside. It is the other entry point of the one program: it takes the same <code>--config</code>, <code>--port</code>, <code>--scope</code> and <code>--headless</code>, starts the server from the config folder as its Scope says, and keeps its own settings (the saved servers, the LLM connections, the workspaces, the themes) in that same settings file. From the checkout:</p>
+<p>Consensus Desktop is the same page in a window of its own, with a Consensus server of its own inside. It is the other entry point of the one program: it takes the same <code>--config</code>, <code>--port</code>, <code>--scope</code> and <code>--headless</code>, starts the server from the config folder as its Scope says, and keeps its own settings (the saved servers, the themes, the remembered view) in that same settings file. From the checkout:</p>
 <pre><code>npm run desktop
 npm run desktop -- --config W:\consensus --headless
 </code></pre>
@@ -100,7 +100,7 @@ npm run desktop -- --config W:\consensus --headless
 <li><strong>Servers</strong> lists the servers you saved. <strong>Add server</strong> asks for a name and a URL, tries the address before saving it, and says which Consensus version answers.</li>
 <li><strong>This machine</strong> is the app&#39;s own server: it starts with the app, from the settings&#39; Scope and Port, and stops with it. Connect opens it. With Scope None there is none, and the app is a client of the saved servers only; a port already in use shows the reason here.</li>
 </ul>
-<p>Once connected, the window shows the page, and the <strong>Server</strong> menu has Connect to another, Reload, and New window for a second instance. <code>--headless</code> runs the server with no window at all, printing what the command line prints. A desktop.json from before is moved into the settings file at the first start. The desktop also brings LLM connections and workspaces of its own; the page <a href="llm.html">Working with an LLM</a> covers them.</p>
+<p>Once connected, the window shows the page, and the <strong>Server</strong> menu has Connect to another, Reload, and New window for a second instance. <code>--headless</code> runs the server with no window at all, printing what the command line prints. A desktop.json from before is moved into the settings file at the first start, its LLM connections becoming the server&#39;s and its workspaces going into their projects. The LLM connections are the server&#39;s, run by it; the page <a href="llm.html">Working with an LLM</a> covers them.</p>
 <h2 id="what-to-do-first">What to do first</h2>
 <ol>
 <li>Open the Readme in the Context folder and write a few lines about what the project is for. Every LLM that works on the project reads it.</li>

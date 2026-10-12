@@ -535,7 +535,7 @@ const PAGE_PICTURES = [
 		{
 			await open_plan( Page, Url, Demo.Plans[ 'Shopping list' ] );
 			await Page.Click( '#settings-button' );
-			await Page.WaitFor( visible( '.settings-popup' ) );
+			await Page.WaitFor( visible( '#settings-popup' ) );
 			await wait( 400 );
 			let file = await capture( Page, Folder, 'settings', Theme );
 			await Page.Click( '#settings-close' );
@@ -548,14 +548,17 @@ const PAGE_PICTURES = [
 
 //---------------------------------------------------------------------
 // The desktop's pictures: the connect screen, the LLM page and a finished run, over the desktop started with its own
-// user-data folder, connected to the seeded server, with a stand-in command as the LLM.
+// user-data folder, connected to the seeded server, whose LLM connection (plan Run Shapes, Step 3: the server's, run
+// by it in the project's folder) is a stand-in command.
+
+const DOC_LLM_ID = 'llm-doc-cla-ude';
 
 const REVIEW_STAND_IN = 'let input = "";\n'
 	+ 'process.stdin.setEncoding( "utf8" );\n'
 	+ 'process.stdin.on( "data", function ( chunk ) { input += chunk; } );\n'
 	+ 'process.stdin.on( "end", function () {\n'
 	+ '\tconsole.log( "## Review of Shopping list\\n" );\n'
-	+ '\tconsole.log( "I read the plan, its three threads and the workspace (" + input.length + " characters of prompt).\\n" );\n'
+	+ '\tconsole.log( "I read the plan, its three threads and the project\'s folder (" + input.length + " characters of prompt).\\n" );\n'
 	+ '\tconsole.log( "- **grouped by aisle**: replied with the recipe-section grouping as the default; a store layout is a plan of its own." );\n'
 	+ '\tconsole.log( "- **a swipe removes it**: resolved by the owner; applied as \\"a swipe, confirmed, removes it\\"." );\n'
 	+ '\tconsole.log( "- The applied staples thread needs nothing more.\\n" );\n'
@@ -593,13 +596,6 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 	const PARTICIPANTS = require( '../src/Participants.js' );
 	let electron = require( 'electron' );
 	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-docs-desktop-' ) );
-	let workspace = PATH.join( DEMO_ROOT, 'recipe-box' );
-	FS.mkdirSync( PATH.join( workspace, 'src' ), { recursive: true } );
-	FS.writeFileSync( PATH.join( workspace, 'readme.md' ), '# Recipe Box\n\nThe app the demo project plans.\n' );
-	FS.writeFileSync( PATH.join( workspace, 'src', 'Search.js' ), '\'use strict\';\n\n// Search - the index and the ranking (plan Search).\n' );
-	FS.writeFileSync( PATH.join( workspace, 'src', 'List.js' ), '\'use strict\';\n\n// List - the shopping list (plan Shopping list).\n' );
-	let stand_in = PATH.join( DEMO_ROOT, 'claude-one-shot.js' );
-	FS.writeFileSync( stand_in, REVIEW_STAND_IN );
 	// The desktop's global config (plan Run Shapes): its own server not started (Scope None), the seeded one saved.
 	let config = PATH.join( DEMO_ROOT, 'desktop-config' );
 	FS.mkdirSync( config, { recursive: true } );
@@ -609,8 +605,6 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 		Last: null,
 		Theme: 'light',
 		Scale: 'normal',
-		Llms: [ { Id: 'llm-doc-cla-ude', Name: 'Claude Code', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Model: 'opus', Timeout: 120 } ],
-		Workspaces: [ { Id: 'wks-doc-rec-ipe', Name: 'recipe-box', Project: Demo.Id, Path: workspace, Include: [], Exclude: [ 'node_modules/**' ], Commands: [ 'npm test' ] } ],
 	} );
 	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( settings, null, '\t' ) );
 
@@ -641,13 +635,13 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 		page = await CDP.Attach( target.webSocketDebuggerUrl );
 		await page.Send( 'Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false } );
 		await page.WaitFor( count_of( '.tree-item' ) + ' > 0', 30000 );
-		// The same pane widths as the page's pictures (the desktop's copy keeps its own storage), then a reload.
+		// The same pane widths as the page's pictures (the window's page keeps its own storage), then a reload.
 		await page.Evaluate( 'localStorage.setItem( "consensus.--sidebar-width", ' + JSON.stringify( SIDEBAR_WIDTH ) + ' ); localStorage.setItem( "consensus.--threads-width", ' + JSON.stringify( THREADS_WIDTH ) + ' ); location.reload(); true' );
 		await wait( 1500 );
 		await page.WaitFor( count_of( '.tree-item' ) + ' > 0', 30000 );
-		// The demo project open, with its plan last opened, so the LLM page's picker starts on it.
+		// The demo project open, with its plan last opened, so the LLM page's pickers start on them.
 		await open_plan( page, Url, Demo.Plans[ 'Shopping list' ] );
-		await page.Evaluate( 'location.hash = "#/llm/' + Demo.Id + '/llm-doc-cla-ude"; true' );
+		await page.Evaluate( 'location.hash = "#/llm/' + DOC_LLM_ID + '"; true' );
 		await page.WaitFor( '!!document.getElementById( "llm-review-run" ) && !document.getElementById( "llm-review-run" ).disabled', 30000 );
 		await wait( 800 );
 		for ( let theme of THEMES )
@@ -710,6 +704,10 @@ async function Screenshots( Options )
 	FS.mkdirSync( data, { recursive: true } );
 	let settings = PARTICIPANTS.DefaultSettings( 3500 );
 	settings.Participants[ 1 ].Token = LLM_TOKEN;
+	// The LLM connection of the seeded server (plan Run Shapes, Step 3): a stand-in command that answers like a review.
+	let stand_in = PATH.join( DEMO_ROOT, 'claude-one-shot.js' );
+	FS.writeFileSync( stand_in, REVIEW_STAND_IN );
+	settings.Llms = [ { Id: DOC_LLM_ID, Name: 'claude-code', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Model: 'opus', Timeout: 120 } ];
 	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( settings, null, '\t' ) );
 	// The settings say 3500, as a real one's would; the server itself takes a free port.
 	let running = await SERVER.Start( { Data: data, Port: 0 } );

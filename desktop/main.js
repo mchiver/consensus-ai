@@ -6,12 +6,9 @@
 // point over src/Start.js: it takes the command line's --config, --port, --scope and --headless, starts this
 // machine's server from the global config as the Scope says, and keeps its own settings (Settings.js) in that same
 // consensus.json, where desktop.json is moved in once. With --headless there is no window. A second server at the
-// same time is a second instance (New window).
-// Step 3: the LLM connections and the workspaces (Settings.js), shown by the page in each project's Context
-// folder; a connection's Check (Llm.js); the one-shots, packaged here from what the connected server says
-// (Package.js) and run by Runs.js, their records in the user-data folder's runs/.
-// Step 4: an ollama connection's one-shot gets the desktop's tool instructions (Tools.js) in place of the agent
-// guide, and its Consensus tools the llm participant's token, read from the server's settings as the owner.
+// same time is a second instance (New window). Plan Run Shapes, Step 3: the LLM connections, the workspaces and
+// the runs the desktop kept (Consensus Desktop, Steps 3 and 4) are the server's: the page gets them from the API;
+// desktop.json's connections and workspaces are moved in once (Settings.js, then the server's migration).
 //
 //   npm run desktop          (electron desktop, from the checkout)
 
@@ -21,15 +18,10 @@ const ELECTRON = require( 'electron' );
 const SETTINGS = require( './Settings.js' );
 const START = require( '../src/Start.js' );
 const PAGE = require( './Page.js' );
-const LLM = require( './Llm.js' );
-const PACKAGE = require( './Package.js' );
-const RUNS = require( './Runs.js' );
-const FILES = require( './Files.js' );
-const TOOLS = require( './Tools.js' );
+const SERVER = require( '../src/Server.js' );
 
 const VERSION = require( '../package.json' ).version;
 const TRY_TIMEOUT = 5000;
-const FETCH_TIMEOUT = 15000;
 // Electron's own switches, which stay on the command line the app parses.
 const ELECTRON_SWITCH = /^--(remote-debugging-port|user-data-dir|inspect|enable-logging|no-sandbox|disable-gpu|trace-warnings)/;
 
@@ -37,7 +29,6 @@ let running = null;		// src/Server.js's, from START.Run: this machine's server, 
 let store = null;
 let settings = null;
 let page = null;
-let runs = null;
 let window = null;
 let current = null;		// { Kind: 'server' | 'local', Name, Url, Version } while connected
 let reason = null;		// why the last connection failed, for the connect screen
@@ -259,10 +250,7 @@ function create_window()
 		}
 		event.preventDefault();
 		closing = true;
-		runs.Close().catch( function () {} ).then( function ()
-		{
-			window.destroy();
-		} );
+		window.destroy();
 	} );
 	window.on( 'closed', function ()
 	{
@@ -354,285 +342,6 @@ function new_window()
 
 
 //---------------------------------------------------------------------
-// The LLM connections and the workspaces (Step 3): saved whole in desktop.json; an item is saved or deleted one
-// at a time, filled in and checked with the rest.
-
-function items_info()
-{
-	let in_progress = runs.List().filter( function ( run ) { return run.Status === 'running'; } );
-	return { Llms: settings.Llms, Workspaces: settings.Workspaces, Running: in_progress, DefaultPrompts: PACKAGE.DEFAULT_PROMPTS, Server: boot_info().Server };
-}
-
-
-function save_item( list_name, filler, item )
-{
-	let filled = filler( item );
-	let list = settings[ list_name ].filter( function ( one ) { return one.Id !== filled.Id; } );
-	let index = settings[ list_name ].findIndex( function ( one ) { return one.Id === filled.Id; } );
-	list.splice( ( index < 0 ) ? list.length : index, 0, filled );
-	let fresh = Object.assign( {}, settings );
-	fresh[ list_name ] = list;
-	let problems = SETTINGS.Problems( fresh );
-	if ( problems.length )
-	{
-		return { Problems: problems };
-	}
-	settings[ list_name ] = list;
-	save_settings();
-	return { Item: filled };
-}
-
-
-function delete_item( list_name, id )
-{
-	settings[ list_name ] = settings[ list_name ].filter( function ( one ) { return one.Id !== id; } );
-	save_settings();
-	return { Ok: true };
-}
-
-
-//---------------------------------------------------------------------
-// The package of a one-shot: what the connected server says, as the owner, put together by Package.js.
-// Request = { LlmId, Kind, ProjectId, PlanId?, WorkspaceId? } -> { Prompt, Llm, Project, Plan, Workspace, Participant } or { Error }
-
-async function fetch_json( path )
-{
-	let response = await fetch( current.Url + path, { signal: AbortSignal.timeout( FETCH_TIMEOUT ) } );
-	let json = await response.json().catch( function () { return {}; } );
-	if ( !response.ok )
-	{
-		throw new Error( path + ' answered ' + response.status + ( json.Error ? ': ' + json.Error : '' ) );
-	}
-	return json;
-}
-
-
-async function fetch_text( path )
-{
-	let response = await fetch( current.Url + path, { signal: AbortSignal.timeout( FETCH_TIMEOUT ) } );
-	if ( !response.ok )
-	{
-		throw new Error( path + ' answered ' + response.status );
-	}
-	return response.text();
-}
-
-
-function documents_of( items, readme_id )
-{
-	let documents = [];
-	for ( let node of items || [] )
-	{
-		if ( node.Kind === 'document' && node.Id !== readme_id )
-		{
-			documents.push( { Id: node.Id, Title: node.Title } );
-		}
-	}
-	return documents;
-}
-
-
-// The first words of a thread's last reply, for the packaging popup's list.
-function last_words( thread )
-{
-	let replies = thread.Replies || [];
-	let last = replies.length ? replies[ replies.length - 1 ] : null;
-	if ( !last )
-	{
-		return '';
-	}
-	let words = String( last.Text || '' ).replace( /\s+/g, ' ' ).trim();
-	return last.By + ': ' + ( ( words.length > 90 ) ? words.slice( 0, 90 ) + '…' : words );
-}
-
-
-// The lists the packaging popup checks: the other Context documents of the project, and the threads of the plan
-// waiting on the llm participant. Request = { ProjectId, PlanId? }
-async function package_lists( request )
-{
-	if ( !current )
-	{
-		return { Error: 'not connected to a Consensus server' };
-	}
-	try
-	{
-		let me = await fetch_json( '/api/me' );
-		let llm_participant = ( me.Participants || [] ).find( function ( participant ) { return participant.Role === 'llm'; } );
-		let participant = llm_participant ? llm_participant.Name : 'llm';
-		let projects = await fetch_json( '/api/projects' );
-		let project = ( projects.Projects || [] ).find( function ( candidate ) { return candidate.Id === request.ProjectId; } );
-		if ( !project )
-		{
-			return { Error: 'no project with the id ' + request.ProjectId };
-		}
-		let context_folder = ( project.Items || [] ).find( function ( node ) { return node.Id === project.ContextFolder; } );
-		let documents = documents_of( context_folder ? context_folder.Items : [], project.Context ? project.Context.Id : null );
-		let threads = [];
-		if ( request.PlanId )
-		{
-			let answer = await fetch_json( '/api/proposals/' + encodeURIComponent( request.PlanId ) );
-			for ( let thread of answer.Threads || [] )
-			{
-				if ( ( thread.Turn || [] ).includes( participant ) )
-				{
-					threads.push( { Id: thread.Id, Status: thread.Status, Anchor: thread.Anchor ? thread.Anchor.Text : null, Last: last_words( thread ) } );
-				}
-			}
-		}
-		return { Documents: documents, Threads: threads, Participant: participant };
-	}
-	catch ( error )
-	{
-		return { Error: 'the lists could not be read: ' + error.message };
-	}
-}
-
-
-async function make_package( request )
-{
-	if ( !current )
-	{
-		return { Error: 'not connected to a Consensus server' };
-	}
-	let llm = SETTINGS.LlmById( settings, request.LlmId );
-	if ( !llm )
-	{
-		return { Error: 'no LLM connection with the id ' + request.LlmId };
-	}
-	if ( request.Overrides && typeof request.Overrides === 'object' )
-	{
-		// a preview of what the packaging popup holds before it is saved
-		llm = SETTINGS.FillLlm( Object.assign( {}, llm, request.Overrides, { Id: llm.Id } ) );
-	}
-	let workspace = request.WorkspaceId ? SETTINGS.WorkspaceById( settings, request.WorkspaceId ) : null;
-	if ( request.WorkspaceId && !workspace )
-	{
-		return { Error: 'no workspace with the id ' + request.WorkspaceId };
-	}
-	if ( request.Kind === 'build' && !workspace )
-	{
-		return { Error: 'a build needs a workspace' };
-	}
-	try
-	{
-		let me = await fetch_json( '/api/me' );
-		let llm_participant = ( me.Participants || [] ).find( function ( participant ) { return participant.Role === 'llm'; } );
-		let participant = llm_participant ? llm_participant.Name : 'llm';
-		let projects = await fetch_json( '/api/projects' );
-		let project = ( projects.Projects || [] ).find( function ( candidate ) { return candidate.Id === request.ProjectId; } );
-		if ( !project )
-		{
-			return { Error: 'no project with the id ' + request.ProjectId + ' on ' + current.Name };
-		}
-		let context_folder = ( project.Items || [] ).find( function ( node ) { return node.Id === project.ContextFolder; } );
-		let readme_id = project.Context ? project.Context.Id : null;
-		let readme = null;
-		if ( llm.Checks.Readme && readme_id )
-		{
-			let answer = await fetch_json( '/api/proposals/' + encodeURIComponent( readme_id ) );
-			readme = { Id: readme_id, Title: answer.Proposal.Title, Text: answer.Text };
-		}
-		let is_ollama = ( llm.Kind === 'ollama' );
-		let instructions = null;
-		if ( llm.Checks.Instructions )
-		{
-			instructions = is_ollama ? tools_for( request.Kind, workspace, project.Id, null ).Instructions() : await fetch_text( '/instructions' );
-		}
-		let plan = null;
-		let threads = [];
-		if ( request.PlanId )
-		{
-			let answer = await fetch_json( '/api/proposals/' + encodeURIComponent( request.PlanId ) );
-			plan = { Id: answer.Proposal.Id, Title: answer.Proposal.Title, State: answer.Proposal.State };
-			threads = ( answer.Threads || [] ).filter( function ( thread ) { return ( thread.Turn || [] ).includes( participant ) && !llm.Unchecked.Threads.includes( thread.Id ); } );
-		}
-		else if ( request.Kind !== 'session' )
-		{
-			return { Error: 'a ' + request.Kind + ' needs a plan: select one in the tree' };
-		}
-		let prompt = PACKAGE.Build( {
-			Kind: request.Kind,
-			Llm: llm,
-			Server: { Url: current.Url },
-			Project: { Id: project.Id, Name: project.Name },
-			Plan: plan,
-			Workspace: workspace ? { Name: workspace.Name, Path: workspace.Path } : null,
-			Participant: participant,
-			Instructions: instructions,
-			InstructionsTitle: is_ollama ? 'Tool instructions' : 'Agent instructions',
-			DocumentsHint: is_ollama ? 'Read one with the read_document tool.' : undefined,
-			Readme: readme,
-			Documents: documents_of( context_folder ? context_folder.Items : [], readme_id ).filter( function ( document ) { return !llm.Unchecked.Documents.includes( document.Id ); } ),
-			Threads: threads,
-		} );
-		return { Prompt: prompt, Llm: llm, Project: { Id: project.Id, Name: project.Name }, Plan: plan, Workspace: workspace, Participant: participant };
-	}
-	catch ( error )
-	{
-		return { Error: 'the package could not be made: ' + error.message };
-	}
-}
-
-
-// The tools of an ollama run (Step 4): over the workspace and the connected server, as the llm participant.
-function tools_for( kind, workspace, project_id, token )
-{
-	return TOOLS.Tools( { Kind: kind, Workspace: workspace, Server: { Url: current.Url, Token: token, Project: project_id } } );
-}
-
-
-// The llm participant's token, from the server's settings (the owner reads them): what the Consensus tools post with.
-async function llm_token()
-{
-	let answer = await fetch_json( '/api/settings' );
-	let participants = ( answer.Settings && answer.Settings.Participants ) || [];
-	let llm_participant = participants.find( function ( participant ) { return participant.Role === 'llm'; } );
-	if ( !llm_participant || !llm_participant.Token )
-	{
-		throw new Error( 'the server has no llm participant with a Token; the owner sets one in its settings' );
-	}
-	return llm_participant.Token;
-}
-
-
-async function start_run( request )
-{
-	let made = await make_package( request );
-	if ( made.Error )
-	{
-		return made;
-	}
-	try
-	{
-		let server = null;
-		if ( made.Llm.Kind === 'ollama' )
-		{
-			server = { Url: current.Url, Token: await llm_token(), Project: made.Project.Id };
-		}
-		let run = runs.Start( { Llm: made.Llm, Kind: request.Kind, Project: made.Project, Plan: made.Plan, Workspace: made.Workspace, Prompt: made.Prompt, Server: server } );
-		return { Run: run };
-	}
-	catch ( error )
-	{
-		return { Error: error.message };
-	}
-}
-
-
-// Every window of the app hears that a run started or ended, and refreshes.
-function broadcast_run( summary )
-{
-	for ( let one of ELECTRON.BrowserWindow.getAllWindows() )
-	{
-		if ( !one.isDestroyed() )
-		{
-			one.webContents.send( 'runs-changed', summary );
-		}
-	}
-}
-
-
-//---------------------------------------------------------------------
 // The bridge's handlers.
 
 function attach_handlers()
@@ -720,83 +429,6 @@ function attach_handlers()
 		new_window();
 		return {};
 	} );
-
-	// Step 3: the items, their check, the package and the runs.
-	ELECTRON.ipcMain.handle( 'items', function ()
-	{
-		return items_info();
-	} );
-
-	ELECTRON.ipcMain.handle( 'llm-save', function ( event, llm )
-	{
-		return save_item( 'Llms', SETTINGS.FillLlm, llm );
-	} );
-
-	ELECTRON.ipcMain.handle( 'llm-delete', function ( event, id )
-	{
-		return delete_item( 'Llms', id );
-	} );
-
-	ELECTRON.ipcMain.handle( 'llm-check', async function ( event, id_or_llm )
-	{
-		if ( id_or_llm && typeof id_or_llm === 'object' )
-		{
-			return LLM.Check( SETTINGS.FillLlm( id_or_llm ) );
-		}
-		let llm = SETTINGS.LlmById( settings, id_or_llm );
-		if ( !llm )
-		{
-			return { Ok: false, Error: 'no LLM connection with the id ' + id_or_llm };
-		}
-		return LLM.Check( llm );
-	} );
-
-	ELECTRON.ipcMain.handle( 'package-lists', function ( event, request )
-	{
-		return package_lists( request || {} );
-	} );
-
-	// The files a workspace includes, for its page: Request = { Path, Include, Exclude }
-	ELECTRON.ipcMain.handle( 'files', function ( event, request )
-	{
-		let filled = SETTINGS.FillWorkspace( Object.assign( { Name: 'x', Project: 'x' }, request || {} ) );
-		return FILES.Walk( filled.Path, filled.Include, filled.Exclude );
-	} );
-
-	ELECTRON.ipcMain.handle( 'workspace-save', function ( event, workspace )
-	{
-		return save_item( 'Workspaces', SETTINGS.FillWorkspace, workspace );
-	} );
-
-	ELECTRON.ipcMain.handle( 'workspace-delete', function ( event, id )
-	{
-		return delete_item( 'Workspaces', id );
-	} );
-
-	ELECTRON.ipcMain.handle( 'package', function ( event, request )
-	{
-		return make_package( request || {} );
-	} );
-
-	ELECTRON.ipcMain.handle( 'run', function ( event, request )
-	{
-		return start_run( request || {} );
-	} );
-
-	ELECTRON.ipcMain.handle( 'run-stop', function ( event, id )
-	{
-		return { Stopped: runs.Stop( id ) };
-	} );
-
-	ELECTRON.ipcMain.handle( 'runs', function ( event, llm_id )
-	{
-		return { Runs: runs.List( llm_id ), Running: runs.Running( llm_id ) };
-	} );
-
-	ELECTRON.ipcMain.handle( 'run-read', function ( event, id )
-	{
-		return { Run: runs.Read( id ) };
-	} );
 }
 
 
@@ -832,10 +464,12 @@ async function main()
 	{
 		moved.forEach( function ( line ) { console.log( line ); } );
 		await store.WriteSettings( settings );
+		for ( let line of await SERVER.MigrateWorkspaces( store, settings ) )
+		{
+			console.log( line );
+		}
 	}
 	apply_native_theme();
-	runs = RUNS.Runs( { Folder: PATH.join( user_data, 'runs' ) } );
-	runs.OnChange( broadcast_run );
 	if ( options.Headless )
 	{
 		if ( !running.Server )
@@ -883,7 +517,7 @@ async function main()
 
 function quit_headless()
 {
-	runs.Close().catch( function () {} ).then( function () { return running.Close(); } ).catch( function () {} ).then( function () { ELECTRON.app.exit( 0 ); } );
+	running.Close().catch( function () {} ).then( function () { ELECTRON.app.exit( 0 ); } );
 }
 
 

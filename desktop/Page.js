@@ -1,7 +1,7 @@
 'use strict';
 
-// Page - serves the desktop's own copy of the Consensus page (desktop/page/: the Consensus page and the connect
-// screen) and the vendor files on 127.0.0.1, for the window to load (plan Consensus Desktop, Step 2), and forwards
+// Page - serves the Consensus page (public/, the one page since plan Run Shapes, Step 3), the connect screen
+// (desktop/page/) and the vendor files on 127.0.0.1, for the window to load (plan Consensus Desktop, Step 2), and forwards
 // the page's API calls (/api/*, the events stream included, and /instructions) to the connected server, so the page
 // and the API share one origin. The server sends no CORS headers and is not changed for the desktop, and Electron
 // runs no preload for a window whose web security is off, so the forwarding is what lets the page call another
@@ -17,7 +17,8 @@ const EXPRESS = require( 'express' );
 const SERVER = require( '../src/Server.js' );
 
 const HOST = '127.0.0.1';
-const DEFAULT_FOLDER = PATH.join( __dirname, 'page' );
+const DEFAULT_FOLDER = PATH.join( __dirname, '..', 'public' );
+const CONNECT_FOLDER = PATH.join( __dirname, 'page' );
 const FORWARDED = [ '/api', '/instructions' ];
 const HOP_BY_HOP = [ 'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade' ];
 
@@ -39,6 +40,7 @@ async function Serve( Options )
 		app.use( prefix, forward );
 	}
 	app.use( EXPRESS.static( folder ) );
+	app.use( EXPRESS.static( CONNECT_FOLDER ) );
 
 
 	// One request forwarded to the target as it is: method, path, headers (the host is the target's) and body, the
@@ -131,4 +133,5 @@ async function Serve( Options )
 module.exports = {
 	Serve: Serve,
 	DEFAULT_FOLDER: DEFAULT_FOLDER,
+	CONNECT_FOLDER: CONNECT_FOLDER,
 };

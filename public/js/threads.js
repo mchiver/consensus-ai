@@ -81,36 +81,22 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	}
 
 
+	// The filter's matches plus the selected thread, whatever the filter says of it (plan UI Tweaks V): a thread picked
+	// by a click on its anchored text stays listed until another is picked or the selection is cleared.
+	function listed( thread )
+	{
+		return thread.Id === State.Selected || matches( thread );
+	}
+
+
 	$scope.Threads = function ()
 	{
 		if ( !State.Open )
 		{
 			return [];
 		}
-		return State.Open.Threads.filter( matches ).sort( by_position );
+		return State.Open.Threads.filter( listed ).sort( by_position );
 	};
-
-
-	// A selected thread the filter leaves out is deselected: by a change of filter, a change to the thread (a post, a
-	// reply, a resolve), or a selection in the text.
-	function selected_hidden()
-	{
-		if ( !State.Selected || !State.Open )
-		{
-			return false;
-		}
-		let thread = State.Open.Threads.find( function ( candidate ) { return candidate.Id === State.Selected; } );
-		return !!thread && !matches( thread );
-	}
-
-
-	$scope.$watch( selected_hidden, function ( hidden )
-	{
-		if ( hidden )
-		{
-			State.Select( null );
-		}
-	} );
 
 
 	$scope.SetHighlight = function ()

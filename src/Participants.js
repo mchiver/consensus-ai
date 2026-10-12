@@ -8,7 +8,8 @@
 // The settings (consensus.json) are checked here too: Name, Port, Scope, States and Participants (plan Consensus
 // Desktop, Step 1: the settings modal writes them back through the API). Plan Run Shapes, Step 1: Scope (None, Local,
 // Public) says whether the server listens and for whom, in place of Host; Name is the server's; a file from before
-// is brought up to date by Migrate.
+// is brought up to date by Migrate. Step 3: every LLM connection of the settings (Llms, see Llms.js) is a participant
+// too, Role llm, named <connection Name>@<server Name>, with the connection's Token: All lists both kinds.
 
 const CRYPTO = require( 'crypto' );
 const OS = require( 'os' );
@@ -53,7 +54,7 @@ function NewToken()
 
 function Identify( Settings, Authorization )
 {
-	let participants = ( Settings && Settings.Participants ) || [];
+	let participants = All( Settings );
 	let header = ( Authorization || '' ).trim();
 	if ( !header )
 	{
@@ -76,6 +77,32 @@ function is_owner( participant )
 
 
 //---------------------------------------------------------------------
+// The LLM connections as participants (plan Run Shapes, Step 3): LlmParticipantName is <Name>@<server Name>;
+// LlmParticipants lists them with their tokens and the connection's id as Llm; All is the hand-made list and them.
+
+function LlmParticipantName( Llm, Settings )
+{
+	return String( ( Llm && Llm.Name ) || '' ) + '@' + String( ( Settings && Settings.Name ) || '' );
+}
+
+
+function LlmParticipants( Settings )
+{
+	let llms = ( Settings && Array.isArray( Settings.Llms ) ) ? Settings.Llms : [];
+	return llms.map( function ( llm )
+	{
+		return { Name: LlmParticipantName( llm, Settings ), Display: llm.Name, Role: 'llm', Token: llm.Token, Llm: llm.Id };
+	} );
+}
+
+
+function All( Settings )
+{
+	return ( ( Settings && Settings.Participants ) || [] ).concat( LlmParticipants( Settings ) );
+}
+
+
+//---------------------------------------------------------------------
 // Public: a participant as others see it, without the token.
 
 function Public( Participant )
@@ -84,13 +111,18 @@ function Public( Participant )
 	{
 		return null;
 	}
-	return { Name: Participant.Name, Display: Participant.Display || Participant.Name, Role: Participant.Role };
+	let shown = { Name: Participant.Name, Display: Participant.Display || Participant.Name, Role: Participant.Role };
+	if ( Participant.Llm )
+	{
+		shown.Llm = Participant.Llm;
+	}
+	return shown;
 }
 
 
 function PublicList( Settings )
 {
-	return ( ( Settings && Settings.Participants ) || [] ).map( Public );
+	return All( Settings ).map( Public );
 }
 
 
@@ -304,6 +336,9 @@ module.exports = {
 	Migrate: Migrate,
 	NewToken: NewToken,
 	Identify: Identify,
+	LlmParticipantName: LlmParticipantName,
+	LlmParticipants: LlmParticipants,
+	All: All,
 	Public: Public,
 	PublicList: PublicList,
 	Validate: Validate,

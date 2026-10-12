@@ -1,7 +1,8 @@
 'use strict';
 
 // Consensus - the one AngularJS module. State holds what every pane shares; AppController wires the
-// hash routes (#/p/<id>, #/waiting) and the live stream. Every rule is on the server.
+// hash routes (#/p/<id>, #/waiting; in the desktop #/llm/<project>/<id> and #/w/<id>, plan Consensus Desktop,
+// Step 3) and the live stream. Every rule is on the server.
 
 angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensus.Editor' ] )
 
@@ -60,37 +61,22 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 
 .factory( 'State', [ 'Client', '$rootScope', function ( Client, $rootScope )
 {
-	const THREADS_HIDDEN_KEY = 'consensus.threads-hidden';
-	const PREVIEW_HIDDEN_KEY = 'consensus.preview-hidden';
-	const TREE_HIDDEN_KEY = 'consensus.tree-hidden';
-	const HIGHLIGHT_KEY = 'consensus.highlight';
+	// The look, shared by every server (stored.js, plan UI Tweaks V).
+	const THREADS_HIDDEN_KEY = 'threads-hidden';
+	const PREVIEW_HIDDEN_KEY = 'preview-hidden';
+	const TREE_HIDDEN_KEY = 'tree-hidden';
+	const HIGHLIGHT_KEY = 'highlight';
 
 
-	// Remembered in this browser only; a blocked or empty storage falls back to the default.
 	function recall( key, fallback )
 	{
-		try
-		{
-			let value = window.localStorage.getItem( key );
-			return ( value === null ) ? fallback : JSON.parse( value );
-		}
-		catch ( error )
-		{
-			return fallback;
-		}
+		return window.ConsensusStored.Read( key, fallback, false );
 	}
 
 
 	function remember( key, value )
 	{
-		try
-		{
-			window.localStorage.setItem( key, JSON.stringify( value ) );
-		}
-		catch ( error )
-		{
-			// not remembered; nothing else depends on it
-		}
+		window.ConsensusStored.Write( key, value, false );
 	}
 
 
@@ -106,6 +92,8 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		Projects: [],
 		OpenId: null,
 		Open: null,
+		OpenItem: null,
+		LastPlan: {},
 		View: 'read',
 		Filter: 'mine',
 		Selected: null,
@@ -160,10 +148,19 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
-	// The proposals (for the counts) and the projects with their trees (for the sidebar), together.
+	// The proposals (for the counts) and the projects with their trees (for the sidebar), together. Loads overlap when
+	// changes come quickly: an older answer arriving after a newer one is dropped, so the list never goes back.
+	let list_sequence = 0;
+
 	async function LoadList()
 	{
+		list_sequence += 1;
+		let sequence = list_sequence;
 		let answers = await Promise.all( [ Client.Get( '/api/proposals' ), Client.Get( '/api/projects' ) ] );
+		if ( sequence !== list_sequence )
+		{
+			return;
+		}
 		state.Proposals = answers[ 0 ].Proposals;
 		state.Projects = answers[ 1 ].Projects;
 		digest();
@@ -218,6 +215,10 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 				return;
 			}
 			state.Open = answer;
+			if ( answer.Project && answer.Proposal && answer.Proposal.Kind !== 'document' )
+			{
+				state.LastPlan[ answer.Project.Id ] = id;
+			}
 			clear_error();
 		}
 		catch ( error )
@@ -490,18 +491,23 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 //---------------------------------------------------------------------
 // AppController: the routes and the live stream.
 
-.controller( 'AppController', [ '$scope', '$window', 'State', 'Client', 'Tabs', function ( $scope, $window, State, Client, Tabs )
+.controller( 'AppController', [ '$scope', '$window', 'State', 'Client', 'Tabs', 'Llms', function ( $scope, $window, State, Client, Tabs, Llms )
 {
 	$scope.State = State;
 
 
-	// What a hash stands for: { Kind: 'p' | 'waiting', Id? }, or null.
+	// What a hash stands for: { Kind: 'p' | 'waiting' | 'llm', Id? }, or null.
 	function route_of( hash )
 	{
 		let proposal = /^#\/p\/([^/]+)$/.exec( hash );
 		if ( proposal )
 		{
 			return { Kind: 'p', Id: decodeURIComponent( proposal[ 1 ] ) };
+		}
+		let llm = /^#\/llm\/([^/]+)$/.exec( hash );
+		if ( llm )
+		{
+			return { Kind: 'llm', Id: decodeURIComponent( llm[ 1 ] ) };
 		}
 		if ( hash === '#/waiting' )
 		{
@@ -541,9 +547,16 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		}
 		let tab = Tabs.Visit( { Kind: where.Kind, Id: where.Id, Hash: hash } );
 		Tabs.Announce();
+		State.OpenItem = null;
 		if ( where.Kind === 'p' )
 		{
 			State.OpenProposal( where.Id ).then( function () { Tabs.RestoreView( tab ); } );
+			return;
+		}
+		if ( where.Kind === 'llm' )
+		{
+			State.OpenItem = { Kind: 'llm', Id: where.Id };
+			State.OpenProposal( null, 'llm' );
 			return;
 		}
 		State.OpenProposal( null, 'waiting' );
@@ -555,6 +568,18 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		if ( event.Settings )
 		{
 			State.LoadMe();
+			return;
+		}
+		// the server's LLM connections and their runs (plan Run Shapes, Step 3)
+		if ( event.Kind === 'llms' )
+		{
+			Llms.Reload();
+			State.LoadMe();
+			return;
+		}
+		if ( event.Kind === 'run' )
+		{
+			Llms.RunChanged( event );
 			return;
 		}
 		State.LoadList();

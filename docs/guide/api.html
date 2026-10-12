@@ -98,7 +98,19 @@ DELETE /api/proposals/:id/threads/:tid           owner only
 POST   /api/proposals/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
 GET    /api/trash                                what is there
 GET    /api/waiting                              everything waiting on the caller, in every project
-GET    /api/events                               Server-Sent Events: { Proposal | Project, Kind, Thread? }
+GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Participant, Running; the owner sees the whole records
+POST   /api/llms                                 owner; a connection from its fields, with a new id and token
+POST   /api/llms/check                           owner; the connection as typed, tried: { Ok, Result | Error }
+PUT    /api/llms/:id                             owner; the fields given over the record
+POST   /api/llms/:id/check                       owner; tried as saved, the body&#39;s fields over it
+DELETE /api/llms/:id                             owner; not while it runs; its participant goes with it
+GET    /api/runs/lists?Project=&amp;Plan=&amp;Llm=       the other Context documents, the plan&#39;s threads waiting on the connection
+POST   /api/runs/package                         { Llm, Kind, Project, Plan?, Overrides? }  the prompt a run would get
+POST   /api/runs                                 { Llm, Kind, Project, Plan? }  a run started; not by an llm participant; one per connection at a time
+GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
+GET    /api/runs/:id                             the whole record, the output as it stands
+POST   /api/runs/:id/stop                        a running one stopped
+GET    /api/events                               Server-Sent Events: { Proposal | Project, Kind, Thread? }; { Kind: llms } and { Kind: run, Run, Llm, Status }
 </code></pre>
 <h2 id="the-rules-in-plain-words">The rules, in plain words</h2>
 <ul>

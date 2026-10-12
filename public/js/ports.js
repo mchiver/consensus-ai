@@ -1,9 +1,10 @@
 'use strict';
 
 // Ports - a whole project out and back in (the plan "Project Import and Export"), over the same API an agent uses.
-// Export: the project's json in a popup, to copy or download. Import: paste the json or load a file, Preview, then
-// Import. A project that is here already is imported as a copy ("Copy of … (imported <date>)", every id new) or
-// merged into the one here; the popup ends with the import's report.
+// Export: the project's json in a popup, to copy or download; a folder's, plan's or document's too (plan UI Tweaks
+// V, the same format). Import: paste the json or load a file, Preview, then Import. A project that is here already
+// is imported as a copy ("Copy of … (imported <date>)", every id new) or merged into the one here; the popup ends
+// with the import's report. Paste in the tree (sidebar.js) imports Into a project without this popup.
 
 angular.module( 'Consensus' )
 
@@ -36,14 +37,16 @@ angular.module( 'Consensus' )
 	//-----------------------------------------------------------------
 	// Export
 
-	async function StartExport( Project )
+	// Item: { Kind: 'project' | 'folder' | 'plan' | 'document', Id, Name }; a project without a Kind is a project.
+	async function StartExport( Item )
 	{
 		reset( 'export' );
-		ports.Project = { Id: Project.Id, Name: Project.Name };
+		ports.Project = { Id: Item.Id, Name: Item.Name };
 		ports.Busy = true;
+		let path = ( !Item.Kind || Item.Kind === 'project' ) ? '/api/projects/' + encodeURIComponent( Item.Id ) + '/export' : '/api/items/' + encodeURIComponent( Item.Id ) + '/export';
 		try
 		{
-			let exported = await Client.Get( '/api/projects/' + encodeURIComponent( Project.Id ) + '/export' );
+			let exported = await Client.Get( path );
 			ports.Json = JSON.stringify( exported, null, '\t' );
 		}
 		catch ( error )
@@ -51,6 +54,16 @@ angular.module( 'Consensus' )
 			ports.Error = error.message;
 		}
 		ports.Busy = false;
+	}
+
+
+	// An export already fetched, shown to copy or download (the tree's Copy, when the clipboard refused).
+	function ShowExport( Exported, Item )
+	{
+		reset( 'export' );
+		ports.Project = { Id: Item.Id, Name: Item.Name };
+		ports.Json = JSON.stringify( Exported, null, '\t' );
+		ports.Error = 'the clipboard refused: copy the text here';
 	}
 
 
@@ -177,6 +190,7 @@ angular.module( 'Consensus' )
 
 	ports.Close = Close;
 	ports.StartExport = StartExport;
+	ports.ShowExport = ShowExport;
 	ports.Copy = Copy;
 	ports.Download = Download;
 	ports.StartImport = StartImport;

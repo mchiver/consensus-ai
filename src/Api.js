@@ -5,7 +5,9 @@
 // Errors are { Error } with a status. Writes to one proposal run through the store's queue.
 // The server holds the core of Consensus only (plan Consensus Desktop, Step 1): projects and their trees, plans with
 // their threads and revisions, documents, the turn (Waiting), export and import, and the settings. The LLM takes part
-// through the API as a participant, from wherever it runs.
+// through the API as a participant, from wherever it runs. Plan Run Shapes, Step 3: the server runs the LLMs too:
+// the connections (/llms, each a participant of this server) and the runs (/runs) are routes here, over Llms.js,
+// Runner.js and Runs.js.
 // Each project has a Context folder (project.ContextFolder), first in its tree, holding its Readme
 // (project.Context) and any other document: a document goes nowhere else, and that folder holds nothing else. Neither
 // the folder nor the Readme is renamed, moved, copied or deleted.
@@ -18,6 +20,8 @@ const STORE = require( './Store.js' );
 const TREE = require( './Tree.js' );
 const PORT = require( './ProjectPort.js' );
 const IDS = require( './Ids.js' );
+const LLMS = require( './Llms.js' );
+const LLM = require( './Llm.js' );
 const VERSION = require( '../package.json' ).version;
 
 const BODY_LIMIT = '64mb';	// a project import is one json body, every revision of every plan in it
@@ -26,13 +30,15 @@ const CONTEXT_KEPT = 'the Context folder and its Readme stay as they are: never 
 
 
 //---------------------------------------------------------------------
-// Attach: mounts the routes on an Express app. Context = { Store, Settings, Events }
+// Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Runs?, Runner? }
 
 function Attach( App, Context )
 {
 	let store = Context.Store;
 	let settings = Context.Settings;
 	let events = Context.Events;
+	let runs = Context.Runs || null;
+	let runner = Context.Runner || null;
 	let router = EXPRESS.Router();
 	router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
 	router.use( identify );
@@ -1682,6 +1688,259 @@ function Attach( App, Context )
 			}
 		}
 		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Waiting: waiting } );
+	} );
+
+
+	//-----------------------------------------------------------------
+	// The LLM connections (plan Run Shapes, Step 3): the settings' Llms, each a participant of this server named
+	// <Name>@<server Name>. Everyone sees the list (its public part); the owner writes it and sees the whole records
+	// with their tokens. A connection's Check runs its command or asks its Ollama, saved or not.
+
+	function llm_running( llm )
+	{
+		return runs ? runs.Running( llm.Id ) : null;
+	}
+
+
+	function present_llm( llm, request )
+	{
+		let shown = LLMS.Public( llm, settings, request.Participant.Role === 'owner' );
+		shown.Running = llm_running( llm );
+		return shown;
+	}
+
+
+	function owner_only( request, response )
+	{
+		if ( request.Participant.Role !== 'owner' )
+		{
+			fail( response, 403, 'only the owner changes the LLM connections' );
+			return false;
+		}
+		return true;
+	}
+
+
+	function llm_of( request, response )
+	{
+		let llm = LLMS.ById( settings, request.params.id );
+		if ( !llm )
+		{
+			fail( response, 404, 'no LLM connection with the id ' + request.params.id );
+		}
+		return llm;
+	}
+
+
+	function body_of( request )
+	{
+		return ( request.body && typeof request.body === 'object' ) ? request.body : {};
+	}
+
+
+	// A connection saved: the body's fields over the record (a new one: over the defaults, with a new id and token),
+	// filled and checked with the rest; a new one goes to the end of the list.
+	async function save_llm( request, response, existing )
+	{
+		let given = body_of( request );
+		let filled = existing ? LLMS.Fill( Object.assign( {}, existing, given, { Id: existing.Id, Token: existing.Token } ) ) : LLMS.Fill( Object.assign( {}, given, { Id: undefined, Token: undefined } ) );
+		let list = ( settings.Llms || [] ).filter( function ( one ) { return one.Id !== filled.Id; } );
+		let index = ( settings.Llms || [] ).findIndex( function ( one ) { return one.Id === filled.Id; } );
+		list.splice( ( index < 0 ) ? list.length : index, 0, filled );
+		let problems = LLMS.Problems( Object.assign( {}, settings, { Llms: list } ) );
+		if ( problems.length )
+		{
+			return fail( response, 400, problems.join( '; ' ), { Problems: problems } );
+		}
+		settings.Llms = list;
+		await store.WriteSettings( settings );
+		events.Send( { Kind: 'llms', Llm: filled.Id } );
+		response.status( existing ? 200 : 201 ).json( { Llm: present_llm( filled, request ) } );
+	}
+
+
+	router.get( '/llms', function ( request, response )
+	{
+		let llms = ( settings.Llms || [] ).map( function ( llm ) { return present_llm( llm, request ); } );
+		response.json( { Llms: llms, Kinds: LLMS.KINDS, DefaultPrompts: LLMS.DEFAULT_PROMPTS, Runs: !!runner } );
+	} );
+
+
+	router.post( '/llms', async function ( request, response )
+	{
+		if ( !owner_only( request, response ) )
+		{
+			return;
+		}
+		await save_llm( request, response, null );
+	} );
+
+
+	// Check of a connection as typed, saved or not: { Ok, Result } or { Ok: false, Error }.
+	router.post( '/llms/check', async function ( request, response )
+	{
+		if ( !owner_only( request, response ) )
+		{
+			return;
+		}
+		response.json( await LLM.Check( LLMS.Fill( body_of( request ) ) ) );
+	} );
+
+
+	router.put( '/llms/:id', async function ( request, response )
+	{
+		if ( !owner_only( request, response ) )
+		{
+			return;
+		}
+		let llm = llm_of( request, response );
+		if ( llm )
+		{
+			await save_llm( request, response, llm );
+		}
+	} );
+
+
+	router.post( '/llms/:id/check', async function ( request, response )
+	{
+		if ( !owner_only( request, response ) )
+		{
+			return;
+		}
+		let llm = llm_of( request, response );
+		if ( llm )
+		{
+			response.json( await LLM.Check( LLMS.Fill( Object.assign( {}, llm, body_of( request ), { Id: llm.Id, Token: llm.Token } ) ) ) );
+		}
+	} );
+
+
+	router.delete( '/llms/:id', async function ( request, response )
+	{
+		if ( !owner_only( request, response ) )
+		{
+			return;
+		}
+		let llm = llm_of( request, response );
+		if ( !llm )
+		{
+			return;
+		}
+		if ( llm_running( llm ) )
+		{
+			return fail( response, 409, 'the connection "' + llm.Name + '" is running; stop it first' );
+		}
+		settings.Llms = settings.Llms.filter( function ( one ) { return one.Id !== llm.Id; } );
+		await store.WriteSettings( settings );
+		events.Send( { Kind: 'llms', Llm: llm.Id } );
+		response.json( { Deleted: llm.Id } );
+	} );
+
+
+	//-----------------------------------------------------------------
+	// The runs (plan Run Shapes, Step 3): a one-shot asked of a connection by any participant but an llm one, run by
+	// this server in the project's folder (Runner.js, Runs.js); the records are read by everyone. A run's start,
+	// progress and end go out as { Kind: run } events.
+
+	function may_run( request, response )
+	{
+		if ( !runner || !runs )
+		{
+			fail( response, 503, 'this server runs no LLMs' );
+			return false;
+		}
+		if ( request.Participant.Role === 'llm' )
+		{
+			fail( response, 403, 'an LLM participant starts no run' );
+			return false;
+		}
+		return true;
+	}
+
+
+	// The packaging popup's lists: the other Context documents of the project, the plan's threads waiting on the
+	// connection (query Project, Plan, Llm).
+	router.get( '/runs/lists', async function ( request, response )
+	{
+		if ( !runner )
+		{
+			return fail( response, 503, 'this server runs no LLMs' );
+		}
+		let made = await runner.Lists( { Project: request.query.Project, Plan: request.query.Plan, Llm: request.query.Llm } );
+		if ( made.Error )
+		{
+			return fail( response, 400, made.Error );
+		}
+		response.json( made );
+	} );
+
+
+	// The prompt a run would get: { Llm, Kind, Project, Plan?, Overrides? } (the popup's unsaved fields).
+	router.post( '/runs/package', async function ( request, response )
+	{
+		if ( !may_run( request, response ) )
+		{
+			return;
+		}
+		let made = await runner.Package( body_of( request ) );
+		if ( made.Error )
+		{
+			return fail( response, 400, made.Error );
+		}
+		response.json( { Prompt: made.Prompt, Participant: made.Participant, Project: made.Project, Plan: made.Plan, Folder: made.Folder ? made.Folder.Path : null } );
+	} );
+
+
+	// A run started: { Llm, Kind, Project, Plan? }; its record, with Status running, comes back at once.
+	router.post( '/runs', async function ( request, response )
+	{
+		if ( !may_run( request, response ) )
+		{
+			return;
+		}
+		let started = await runner.Start( body_of( request ), request.Participant.Name );
+		if ( started.Error )
+		{
+			return fail( response, started.Status || 400, started.Error );
+		}
+		response.status( 201 ).json( { Run: started.Run } );
+	} );
+
+
+	// The summaries, newest first; of one connection with ?Llm=, with its running one.
+	router.get( '/runs', function ( request, response )
+	{
+		if ( !runs )
+		{
+			return fail( response, 503, 'this server runs no LLMs' );
+		}
+		let llm_id = request.query.Llm || undefined;
+		response.json( { Runs: runs.List( llm_id ), Running: llm_id ? runs.Running( llm_id ) : null } );
+	} );
+
+
+	router.get( '/runs/:id', function ( request, response )
+	{
+		let run = ( runs && /^[a-z0-9-]+$/.test( request.params.id ) ) ? runs.Read( request.params.id ) : null;
+		if ( !run )
+		{
+			return fail( response, 404, 'no run with the id ' + request.params.id );
+		}
+		response.json( { Run: run } );
+	} );
+
+
+	router.post( '/runs/:id/stop', function ( request, response )
+	{
+		if ( !may_run( request, response ) )
+		{
+			return;
+		}
+		if ( !runs.Stop( request.params.id ) )
+		{
+			return fail( response, 404, 'no running run with the id ' + request.params.id );
+		}
+		response.json( { Stopped: true } );
 	} );
 
 

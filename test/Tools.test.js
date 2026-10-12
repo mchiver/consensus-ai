@@ -1,8 +1,8 @@
 'use strict';
 
-// Step 4 of Consensus Desktop (plan Step 4: Local Models), without Electron: the tools a local model gets (Tools.js) over
-// a temporary workspace and a Consensus started in the test, the tool loop (Ollama.js) against a fake Ollama answering
-// a scripted sequence, and an ollama connection's run through Runs.js.
+// Step 4 of Consensus Desktop (plan Step 4: Local Models), in the server since plan Run Shapes, Step 3: the tools a local
+// model gets (Tools.js) over a temporary folder and a Consensus started in the test, the tool loop (Ollama.js) against a
+// fake Ollama answering a scripted sequence, and an ollama connection's run through Runs.js.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -10,12 +10,13 @@ const FS = require( 'fs' );
 const OS = require( 'os' );
 const PATH = require( 'path' );
 const HTTP = require( 'http' );
-const SETTINGS = require( '../desktop/Settings.js' );
-const FILES = require( '../desktop/Files.js' );
-const TOOLS = require( '../desktop/Tools.js' );
-const OLLAMA = require( '../desktop/Ollama.js' );
-const RUNS = require( '../desktop/Runs.js' );
-const LLM = require( '../desktop/Llm.js' );
+const LLMS = require( '../src/Llms.js' );
+const STORE = require( '../src/Store.js' );
+const FILES = require( '../src/Files.js' );
+const TOOLS = require( '../src/Tools.js' );
+const OLLAMA = require( '../src/Ollama.js' );
+const RUNS = require( '../src/Runs.js' );
+const LLM = require( '../src/Llm.js' );
 const SERVER = require( '../src/Server.js' );
 
 const TOKEN = 'test-llm-token-step-4';
@@ -40,8 +41,8 @@ TEST.after( function ()
 } );
 
 
-// A workspace folder with a few files.
-function make_workspace()
+// A place folder with a few files.
+function make_place()
 {
 	let folder = temporary_folder( 'desktop-tools-' );
 	FS.mkdirSync( PATH.join( folder, 'src' ) );
@@ -53,7 +54,7 @@ function make_workspace()
 	FS.writeFileSync( PATH.join( folder, 'node_modules', 'dep', 'index.js' ), 'let a = 0;\n' );
 	FS.writeFileSync( PATH.join( folder, '~data', 'secret.json' ), '{ "a": 1 }\n' );
 	FS.writeFileSync( PATH.join( folder, 'tool.js' ), 'process.stdout.write( process.cwd() );\nif ( process.argv[ 2 ] === "fail" ) { process.stderr.write( "bad" ); process.exit( 2 ); }\n' );
-	return SETTINGS.FillWorkspace( { Name: 'w', Project: 'default', Path: folder, Commands: [ 'node --version', 'node tool.js' ] } );
+	return { Path: folder.replace( /\\/g, '/' ), Include: [], Exclude: STORE.DEFAULT_EXCLUDE.slice(), Commands: [ 'node --version', 'node tool.js' ] };
 }
 
 
@@ -75,53 +76,49 @@ TEST( 'a run may execute a listed command, exactly or with arguments after it, a
 	ASSERT.equal( TOOLS.Allowed( '', commands ), false );
 	ASSERT.equal( TOOLS.Allowed( 'npm test', [] ), false );
 	ASSERT.equal( TOOLS.Allowed( 'npm test', [ 'npm test | x' ] ), false );
-	// the settings refuse a listed command that chains
-	let settings = SETTINGS.Fill( { Workspaces: [ { Name: 'w', Project: 'p', Path: '/w', Commands: 'npm test\nnpm test && dir' } ] } );
-	ASSERT.deepEqual( settings.Workspaces[ 0 ].Commands, [ 'npm test', 'npm test && dir' ] );
-	ASSERT.deepEqual( SETTINGS.Problems( settings ), [ 'workspace "w": the command "npm test && dir" chains, pipes, redirects or substitutes; one plain command per line' ] );
 	// Context and Rounds on a connection
-	let llm = SETTINGS.FillLlm( { Name: 'o', Kind: 'ollama', Model: 'm' } );
-	ASSERT.equal( llm.Context, SETTINGS.DEFAULT_CONTEXT );
-	ASSERT.equal( llm.Rounds, SETTINGS.DEFAULT_ROUNDS );
-	ASSERT.equal( SETTINGS.FillLlm( { Name: 'o', Context: '8192', Rounds: 5.5 } ).Context, 8192 );
-	ASSERT.equal( SETTINGS.FillLlm( { Name: 'o', Context: -1, Rounds: 'x' } ).Rounds, SETTINGS.DEFAULT_ROUNDS );
+	let llm = LLMS.Fill( { Name: 'o', Kind: 'ollama', Model: 'm' } );
+	ASSERT.equal( llm.Context, LLMS.DEFAULT_CONTEXT );
+	ASSERT.equal( llm.Rounds, LLMS.DEFAULT_ROUNDS );
+	ASSERT.equal( LLMS.Fill( { Name: 'o', Context: '8192', Rounds: 5.5 } ).Context, 8192 );
+	ASSERT.equal( LLMS.Fill( { Name: 'o', Context: -1, Rounds: 'x' } ).Rounds, LLMS.DEFAULT_ROUNDS );
 } );
 
 
-TEST( 'a path a tool names is within the workspace, or refused with the reason', function ()
+TEST( 'a path a tool names is within the folder, or refused with the reason', function ()
 {
-	let workspace = make_workspace();
-	let within = FILES.Within( workspace.Path, workspace.Include, workspace.Exclude, 'src/a.js' );
+	let place = make_place();
+	let within = FILES.Within( place.Path, place.Include, place.Exclude, 'src/a.js' );
 	ASSERT.equal( within.Ok, true );
 	ASSERT.equal( within.Relative, 'src/a.js' );
-	ASSERT.equal( within.Absolute, PATH.join( workspace.Path, 'src', 'a.js' ) );
-	ASSERT.equal( FILES.Within( workspace.Path, [], [], 'src\\b.js' ).Relative, 'src/b.js' );
-	ASSERT.equal( FILES.Within( workspace.Path, [], [], PATH.join( workspace.Path, 'src', 'b.js' ) ).Relative, 'src/b.js' );
-	ASSERT.match( FILES.Within( workspace.Path, [], [], '../outside.js' ).Error, /outside the workspace/ );
-	ASSERT.match( FILES.Within( workspace.Path, [], [], PATH.join( OS.tmpdir(), 'elsewhere.js' ) ).Error, /outside the workspace/ );
-	ASSERT.match( FILES.Within( workspace.Path, [], [], '' ).Error, /a Path is needed/ );
-	ASSERT.match( FILES.Within( workspace.Path, [], [], '.' ).Error, /outside the workspace/ );
-	ASSERT.match( FILES.Within( workspace.Path, workspace.Include, workspace.Exclude, 'node_modules/dep/index.js' ).Error, /folder the workspace excludes/ );
-	ASSERT.match( FILES.Within( workspace.Path, workspace.Include, workspace.Exclude, '~data/secret.json' ).Error, /folder the workspace excludes/ );
-	ASSERT.match( FILES.Within( workspace.Path, [], [ '*.md' ], 'readme.md' ).Error, /file the workspace excludes/ );
-	ASSERT.match( FILES.Within( workspace.Path, [ 'src/**' ], [], 'readme.md' ).Error, /not a file the workspace includes/ );
-	ASSERT.equal( FILES.Within( workspace.Path, [ 'src/**' ], [], 'src/new.js' ).Ok, true );
+	ASSERT.equal( within.Absolute, PATH.join( place.Path, 'src', 'a.js' ) );
+	ASSERT.equal( FILES.Within( place.Path, [], [], 'src\\b.js' ).Relative, 'src/b.js' );
+	ASSERT.equal( FILES.Within( place.Path, [], [], PATH.join( place.Path, 'src', 'b.js' ) ).Relative, 'src/b.js' );
+	ASSERT.match( FILES.Within( place.Path, [], [], '../outside.js' ).Error, /outside the folder/ );
+	ASSERT.match( FILES.Within( place.Path, [], [], PATH.join( OS.tmpdir(), 'elsewhere.js' ) ).Error, /outside the folder/ );
+	ASSERT.match( FILES.Within( place.Path, [], [], '' ).Error, /a Path is needed/ );
+	ASSERT.match( FILES.Within( place.Path, [], [], '.' ).Error, /outside the folder/ );
+	ASSERT.match( FILES.Within( place.Path, place.Include, place.Exclude, 'node_modules/dep/index.js' ).Error, /folder the folder excludes/ );
+	ASSERT.match( FILES.Within( place.Path, place.Include, place.Exclude, '~data/secret.json' ).Error, /folder the folder excludes/ );
+	ASSERT.match( FILES.Within( place.Path, [], [ '*.md' ], 'readme.md' ).Error, /file the folder excludes/ );
+	ASSERT.match( FILES.Within( place.Path, [ 'src/**' ], [], 'readme.md' ).Error, /not a file the folder includes/ );
+	ASSERT.equal( FILES.Within( place.Path, [ 'src/**' ], [], 'src/new.js' ).Ok, true );
 } );
 
 
 //---------------------------------------------------------------------
 // The file tools
 
-TEST( 'the file tools: glob, grep and read over the workspace; write, edit and run for a build; a review gets read-only ones', async function ()
+TEST( 'the file tools: glob, grep and read over the folder; write, edit and run for a build; a review gets read-only ones', async function ()
 {
-	let workspace = make_workspace();
-	let review = TOOLS.Tools( { Kind: 'review', Workspace: workspace } );
+	let place = make_place();
+	let review = TOOLS.Tools( { Kind: 'review', Folder: place } );
 	ASSERT.deepEqual( review.Definitions.map( function ( d ) { return d.function.name; } ), [ 'glob', 'grep', 'read' ] );
 	ASSERT.match( await review.Call( 'write', { Path: 'x', Text: 'y' } ), /no tool named write; the tools are glob, grep, read/ );
-	ASSERT.equal( FS.existsSync( PATH.join( workspace.Path, 'x' ) ), false );
-	ASSERT.deepEqual( TOOLS.Tools( { Kind: 'review', Workspace: null } ).Definitions, [] );
+	ASSERT.equal( FS.existsSync( PATH.join( place.Path, 'x' ) ), false );
+	ASSERT.deepEqual( TOOLS.Tools( { Kind: 'review', Folder: null } ).Definitions, [] );
 
-	let build = TOOLS.Tools( { Kind: 'build', Workspace: workspace } );
+	let build = TOOLS.Tools( { Kind: 'build', Folder: place } );
 	ASSERT.deepEqual( build.Definitions.map( function ( d ) { return d.function.name; } ), [ 'glob', 'grep', 'read', 'write', 'edit', 'run' ] );
 	ASSERT.equal( build.Definitions[ 0 ].type, 'function' );
 	ASSERT.equal( build.Definitions[ 0 ].function.parameters.required[ 0 ], 'Pattern' );
@@ -129,7 +126,7 @@ TEST( 'the file tools: glob, grep and read over the workspace; write, edit and r
 	// glob: within the Include and Exclude; the excluded folders never appear
 	ASSERT.equal( await build.Call( 'glob', { Pattern: '**/*.js' } ), 'src/a.js\nsrc/b.js\ntool.js' );
 	ASSERT.equal( await build.Call( 'glob', { Pattern: '*.md' } ), 'readme.md' );
-	ASSERT.match( await build.Call( 'glob', { Pattern: '*.py' } ), /no file of the workspace matches/ );
+	ASSERT.match( await build.Call( 'glob', { Pattern: '*.py' } ), /no file of the folder matches/ );
 	ASSERT.match( await build.Call( 'glob', {} ), /a Pattern is needed/ );
 
 	// grep
@@ -144,14 +141,14 @@ TEST( 'the file tools: glob, grep and read over the workspace; write, edit and r
 	ASSERT.match( await build.Call( 'read', { Path: 'src/a.js', Offset: 9 } ), /has 5 lines; Offset 9 is past its end/ );
 	ASSERT.match( await build.Call( 'read', { Path: 'src/none.js' } ), /no file src\/none.js/ );
 	ASSERT.match( await build.Call( 'read', { Path: '~data/secret.json' } ), /excludes/ );
-	ASSERT.match( await build.Call( 'read', { Path: '../../etc' } ), /outside the workspace/ );
+	ASSERT.match( await build.Call( 'read', { Path: '../../etc' } ), /outside the folder/ );
 
 	// write makes folders; edit needs one match
 	ASSERT.equal( await build.Call( 'write', { Path: 'src/deep/c.js', Text: 'let c = 3;\n' } ), 'wrote src/deep/c.js (11 characters)' );
-	ASSERT.equal( FS.readFileSync( PATH.join( workspace.Path, 'src', 'deep', 'c.js' ), 'utf8' ), 'let c = 3;\n' );
+	ASSERT.equal( FS.readFileSync( PATH.join( place.Path, 'src', 'deep', 'c.js' ), 'utf8' ), 'let c = 3;\n' );
 	ASSERT.match( await build.Call( 'write', { Path: '../c.js', Text: '' } ), /outside/ );
 	ASSERT.equal( await build.Call( 'edit', { Path: 'src/b.js', Old: 'b + b', New: 'b * 2' } ), 'edited src/b.js' );
-	ASSERT.match( FS.readFileSync( PATH.join( workspace.Path, 'src', 'b.js' ), 'utf8' ), /return b \* 2;/ );
+	ASSERT.match( FS.readFileSync( PATH.join( place.Path, 'src', 'b.js' ), 'utf8' ), /return b \* 2;/ );
 	ASSERT.match( await build.Call( 'edit', { Path: 'src/b.js', Old: 'b', New: 'x' } ), /found \d+ times in src\/b.js; make it unique/ );
 	ASSERT.match( await build.Call( 'edit', { Path: 'src/b.js', Old: 'zzz', New: 'x' } ), /Old was not found/ );
 	ASSERT.match( await build.Call( 'edit', { Path: 'src/b.js', Old: '', New: 'x' } ), /Old is empty/ );
@@ -161,12 +158,12 @@ TEST( 'the file tools: glob, grep and read over the workspace; write, edit and r
 	let ran = await build.Call( 'run', { Command: 'node --version' } );
 	ASSERT.match( ran, /^exit 0\nv\d+/ );
 	let with_arguments = await build.Call( 'run', { Command: 'node tool.js' } );
-	ASSERT.equal( with_arguments, 'exit 0\n' + PATH.resolve( workspace.Path ) );
+	ASSERT.equal( with_arguments, 'exit 0\n' + PATH.resolve( place.Path ) );
 	let failing = await build.Call( 'run', { Command: 'node tool.js fail' } );
-	ASSERT.equal( failing, 'exit 2\n' + PATH.resolve( workspace.Path ) + '\n--- stderr ---\nbad' );
-	ASSERT.match( await build.Call( 'run', { Command: 'npm test' } ), /not allowed: the workspace allows/ );
+	ASSERT.equal( failing, 'exit 2\n' + PATH.resolve( place.Path ) + '\n--- stderr ---\nbad' );
+	ASSERT.match( await build.Call( 'run', { Command: 'npm test' } ), /not allowed: the folder allows/ );
 	ASSERT.match( await build.Call( 'run', { Command: 'node tool.js && dir' } ), /not allowed/ );
-	let none = TOOLS.Tools( { Kind: 'build', Workspace: SETTINGS.FillWorkspace( { Name: 'n', Project: 'p', Path: workspace.Path } ) } );
+	let none = TOOLS.Tools( { Kind: 'build', Folder: { Path: place.Path, Include: [], Exclude: [], Commands: [] } } );
 	ASSERT.match( await none.Call( 'run', { Command: 'node tool.js' } ), /allows no command/ );
 
 	// described for the transcript, and the instructions name the tools and the commands
@@ -174,7 +171,7 @@ TEST( 'the file tools: glob, grep and read over the workspace; write, edit and r
 	ASSERT.equal( build.Describe( 'grep', { Pattern: 'x', Glob: '*.js' } ), 'grep "x" in *.js' );
 	ASSERT.equal( build.Describe( 'write', { Path: 'p', Text: 'abc' } ), 'write p (3 characters)' );
 	ASSERT.equal( build.Describe( 'reply', { Thread: 'thr-1', Text: 'A reply of some length here' } ), 'reply thr-1 "A reply of some length here"' );
-	ASSERT.match( build.Instructions(), /- run: Runs one of the workspace/ );
+	ASSERT.match( build.Instructions(), /- run: Runs one of the project/ );
 	ASSERT.match( build.Instructions(), /The commands it allows: node --version, node tool\.js\./ );
 	ASSERT.match( build.Instructions(), /The build loop/ );
 	ASSERT.doesNotMatch( review.Instructions(), /The build loop/ );
@@ -226,7 +223,7 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		let resolved = ( await owner( url, 'POST', '/api/proposals/' + plan.Id + '/threads', { Text: 'Say third.', Anchor: { Text: 'A second line.' }, Resolve: true } ) ).Body.Thread;
 		let contested = ( await owner( url, 'POST', '/api/proposals/' + plan.Id + '/threads', { Text: 'Why a first line?' } ) ).Body.Thread;
 
-		let tools = TOOLS.Tools( { Kind: 'review', Workspace: null, Server: { Url: url, Token: TOKEN, Project: project.Id } } );
+		let tools = TOOLS.Tools( { Kind: 'review', Folder: null, Server: { Url: url, Token: TOKEN, Project: project.Id } } );
 		ASSERT.deepEqual( tools.Definitions.map( function ( d ) { return d.function.name; } ), [ 'list_project', 'read_plan', 'read_document', 'waiting', 'reply', 'apply', 'thread', 'set_state' ] );
 
 		let listed = await tools.Call( 'list_project', {} );
@@ -350,7 +347,7 @@ function fake_ollama( script, options )
 
 TEST( 'the tool loop: each call the model makes is run and sent back, the text without a call is the answer; the limits end a run', async function ()
 {
-	let workspace = make_workspace();
+	let place = make_place();
 	let fake = await fake_ollama( [
 		{ content: 'Let me look.', calls: [ [ 'glob', { Pattern: '**/*.js' } ] ] },
 		{ calls: [ [ 'read', '{ "Path": "src/a.js" }' ], [ 'grep', { Pattern: 'two' } ] ] },
@@ -358,8 +355,8 @@ TEST( 'the tool loop: each call the model makes is run and sent back, the text w
 	] );
 	try
 	{
-		let llm = SETTINGS.FillLlm( { Name: 'fake', Kind: 'ollama', Url: fake.Url, Model: 'fake:latest', Timeout: 30, Context: 4096, Rounds: 10 } );
-		let tools = TOOLS.Tools( { Kind: 'review', Workspace: workspace } );
+		let llm = LLMS.Fill( { Name: 'fake', Kind: 'ollama', Url: fake.Url, Model: 'fake:latest', Timeout: 30, Context: 4096, Rounds: 10 } );
+		let tools = TOOLS.Tools( { Kind: 'review', Folder: place } );
 		let transcript = [];
 		let result = await OLLAMA.Run( { Llm: llm, Prompt: 'What is here?', Tools: tools, OnProgress: function ( entry ) { transcript.push( entry ); } } );
 		ASSERT.equal( result.Answer, 'Two files, a and b.' );
@@ -413,8 +410,8 @@ TEST( 'the tool loop: each call the model makes is run and sent back, the text w
 	] );
 	try
 	{
-		let llm = SETTINGS.FillLlm( { Name: 'fake', Kind: 'ollama', Url: looping.Url, Model: 'fake:latest', Rounds: 2 } );
-		let result = await OLLAMA.Run( { Llm: llm, Prompt: 'p', Tools: TOOLS.Tools( { Kind: 'review', Workspace: workspace } ) } );
+		let llm = LLMS.Fill( { Name: 'fake', Kind: 'ollama', Url: looping.Url, Model: 'fake:latest', Rounds: 2 } );
+		let result = await OLLAMA.Run( { Llm: llm, Prompt: 'p', Tools: TOOLS.Tools( { Kind: 'review', Folder: place } ) } );
 		ASSERT.equal( result.Answer, 'Fine, here is my answer.' );
 		ASSERT.equal( result.Rounds, 2 );
 		ASSERT.equal( looping.Requests.length, 3 );
@@ -431,7 +428,7 @@ TEST( 'the tool loop: each call the model makes is run and sent back, the text w
 	let refusing = await fake_ollama( [ { status: 500, text: 'model not found' } ] );
 	try
 	{
-		let llm = SETTINGS.FillLlm( { Name: 'fake', Kind: 'ollama', Url: refusing.Url, Model: 'fake:latest' } );
+		let llm = LLMS.Fill( { Name: 'fake', Kind: 'ollama', Url: refusing.Url, Model: 'fake:latest' } );
 		await ASSERT.rejects( OLLAMA.Run( { Llm: llm, Prompt: 'p', Tools: TOOLS.Tools( {} ) } ), /Ollama refused: 500 model not found/ );
 	}
 	finally
@@ -441,11 +438,11 @@ TEST( 'the tool loop: each call the model makes is run and sent back, the text w
 	let slow = await fake_ollama( [ { content: 'late', delay: 3000 }, { content: 'late', delay: 3000 } ] );
 	try
 	{
-		let llm = SETTINGS.FillLlm( { Name: 'fake', Kind: 'ollama', Url: slow.Url, Model: 'fake:latest', Timeout: 1 } );
+		let llm = LLMS.Fill( { Name: 'fake', Kind: 'ollama', Url: slow.Url, Model: 'fake:latest', Timeout: 1 } );
 		await ASSERT.rejects( OLLAMA.Run( { Llm: llm, Prompt: 'p', Tools: TOOLS.Tools( {} ) } ), /longer than 1 seconds/ );
 		let abort = new AbortController();
 		setTimeout( function () { abort.abort(); }, 200 );
-		await ASSERT.rejects( OLLAMA.Run( { Llm: SETTINGS.FillLlm( { Name: 'fake', Kind: 'ollama', Url: slow.Url, Model: 'fake:latest', Timeout: 30 } ), Prompt: 'p', Tools: TOOLS.Tools( {} ), Signal: abort.signal } ), /stopped/ );
+		await ASSERT.rejects( OLLAMA.Run( { Llm: LLMS.Fill( { Name: 'fake', Kind: 'ollama', Url: slow.Url, Model: 'fake:latest', Timeout: 30 } ), Prompt: 'p', Tools: TOOLS.Tools( {} ), Signal: abort.signal } ), /stopped/ );
 	}
 	finally
 	{
@@ -454,12 +451,12 @@ TEST( 'the tool loop: each call the model makes is run and sent back, the text w
 	let gone = await fake_ollama( [] );
 	let gone_url = gone.Url;
 	await gone.Close();
-	await ASSERT.rejects( OLLAMA.Run( { Llm: SETTINGS.FillLlm( { Name: 'fake', Kind: 'ollama', Url: gone_url, Model: 'm' } ), Prompt: 'p', Tools: TOOLS.Tools( {} ) } ), /did not answer/ );
+	await ASSERT.rejects( OLLAMA.Run( { Llm: LLMS.Fill( { Name: 'fake', Kind: 'ollama', Url: gone_url, Model: 'm' } ), Prompt: 'p', Tools: TOOLS.Tools( {} ) } ), /did not answer/ );
 	let inventing = await fake_ollama( [ { calls: [ [ 'delete_everything', {} ] ] }, { content: 'ok' } ] );
 	try
 	{
-		let llm = SETTINGS.FillLlm( { Name: 'fake', Kind: 'ollama', Url: inventing.Url, Model: 'fake:latest' } );
-		let result = await OLLAMA.Run( { Llm: llm, Prompt: 'p', Tools: TOOLS.Tools( { Kind: 'review', Workspace: workspace } ) } );
+		let llm = LLMS.Fill( { Name: 'fake', Kind: 'ollama', Url: inventing.Url, Model: 'fake:latest' } );
+		let result = await OLLAMA.Run( { Llm: llm, Prompt: 'p', Tools: TOOLS.Tools( { Kind: 'review', Folder: place } ) } );
 		ASSERT.equal( result.Answer, 'ok' );
 		ASSERT.match( inventing.Requests[ 1 ].messages[ 2 ].content, /no tool named delete_everything/ );
 	}
@@ -475,13 +472,13 @@ TEST( 'the check of an ollama connection says whether its model calls tools', as
 	let fake = await fake_ollama( [] );
 	try
 	{
-		let calls = await LLM.Check( SETTINGS.FillLlm( { Name: 'o', Kind: 'ollama', Url: fake.Url, Model: 'fake:latest' } ) );
+		let calls = await LLM.Check( LLMS.Fill( { Name: 'o', Kind: 'ollama', Url: fake.Url, Model: 'fake:latest' } ) );
 		ASSERT.equal( calls.Ok, true );
 		ASSERT.equal( calls.Result, '2 models: fake:latest, plain:latest; fake:latest calls tools' );
-		let plain = await LLM.Check( SETTINGS.FillLlm( { Name: 'o', Kind: 'ollama', Url: fake.Url, Model: 'plain:latest' } ) );
+		let plain = await LLM.Check( LLMS.Fill( { Name: 'o', Kind: 'ollama', Url: fake.Url, Model: 'plain:latest' } ) );
 		ASSERT.equal( plain.Ok, false );
 		ASSERT.match( plain.Error, /does not call tools/ );
-		let missing = await LLM.Check( SETTINGS.FillLlm( { Name: 'o', Kind: 'ollama', Url: fake.Url, Model: 'none:latest' } ) );
+		let missing = await LLM.Check( LLMS.Fill( { Name: 'o', Kind: 'ollama', Url: fake.Url, Model: 'none:latest' } ) );
 		ASSERT.equal( missing.Ok, false );
 		ASSERT.match( missing.Error, /is not among them/ );
 	}
@@ -509,7 +506,7 @@ async function settled( runs, id )
 
 TEST( 'an ollama run keeps the transcript, the answer, the rounds and the usage; a stopped one and a timed out one say so', async function ()
 {
-	let workspace = make_workspace();
+	let place = make_place();
 	let folder = temporary_folder( 'desktop-ollama-runs-' );
 	let runs = RUNS.Runs( { Folder: PATH.join( folder, 'runs' ) } );
 	let fake = await fake_ollama( [
@@ -518,10 +515,10 @@ TEST( 'an ollama run keeps the transcript, the answer, the rounds and the usage;
 	] );
 	try
 	{
-		let llm = SETTINGS.FillLlm( { Name: 'fake', Kind: 'ollama', Url: fake.Url, Model: 'fake:latest', Timeout: 30 } );
+		let llm = LLMS.Fill( { Name: 'fake', Kind: 'ollama', Url: fake.Url, Model: 'fake:latest', Timeout: 30 } );
 		let heard = [];
 		runs.OnChange( function ( summary ) { heard.push( summary.Status ); } );
-		let started = runs.Start( { Llm: llm, Kind: 'review', Project: { Id: 'default', Name: 'Consensus' }, Plan: { Id: 'pln-1', Title: 'Step 4' }, Workspace: workspace, Prompt: 'What is here?' } );
+		let started = runs.Start( { Llm: llm, Kind: 'review', Project: { Id: 'default', Name: 'Consensus' }, Plan: { Id: 'pln-1', Title: 'Step 4' }, Folder: place, Prompt: 'What is here?' } );
 		ASSERT.equal( started.Status, 'running' );
 		ASSERT.equal( started.Command, 'ollama fake:latest at ' + fake.Url );
 		ASSERT.throws( function () { runs.Start( { Llm: llm, Kind: 'review', Prompt: 'again' } ); }, /already running/ );
@@ -550,13 +547,13 @@ TEST( 'an ollama run keeps the transcript, the answer, the rounds and the usage;
 	let slow = await fake_ollama( [ { content: 'late', delay: 3000 }, { content: 'late', delay: 3000 } ] );
 	try
 	{
-		let llm = SETTINGS.FillLlm( { Name: 'slow', Kind: 'ollama', Url: slow.Url, Model: 'fake:latest', Timeout: 30 } );
+		let llm = LLMS.Fill( { Name: 'slow', Kind: 'ollama', Url: slow.Url, Model: 'fake:latest', Timeout: 30 } );
 		let stopping = runs.Start( { Llm: llm, Kind: 'session', Prompt: 'p' } );
 		ASSERT.equal( runs.Stop( stopping.Id ), true );
 		let stopped = await settled( runs, stopping.Id );
 		ASSERT.equal( stopped.Status, 'stopped' );
 		ASSERT.equal( stopped.Error, 'stopped' );
-		let timing = SETTINGS.FillLlm( { Name: 'timing', Kind: 'ollama', Url: slow.Url, Model: 'fake:latest', Timeout: 1 } );
+		let timing = LLMS.Fill( { Name: 'timing', Kind: 'ollama', Url: slow.Url, Model: 'fake:latest', Timeout: 1 } );
 		let timed = await settled( runs, runs.Start( { Llm: timing, Kind: 'session', Prompt: 'p' } ).Id );
 		ASSERT.equal( timed.Status, 'failed' );
 		ASSERT.equal( timed.Error, 'Ollama took longer than 1 seconds' );
