@@ -47,7 +47,7 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 		{
 			return;
 		}
-		if ( !State.Open || !State.OpenId || [ 'read', 'edit', 'revisions' ].indexOf( State.View ) < 0 )
+		if ( !State.Open || !State.OpenId || [ 'read', 'edit', 'revisions' ].indexOf( State.View ) < 0 || $scope.IsArchived() )
 		{
 			return;
 		}
@@ -111,14 +111,28 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 	} );
 
 
-	// The settings' States, plus the proposal's own when the settings no longer name it.
+	// The project's States (the settings' when it has none; plan Run Shapes, Step 2), plus the proposal's own when
+	// the list no longer names it.
 	$scope.StateOptions = function ()
 	{
-		if ( !State.Open || State.States.includes( State.Open.Proposal.State ) )
+		let states = State.States;
+		let project = ( State.Open && State.Open.Project ) ? State.Projects.find( function ( candidate ) { return candidate.Id === State.Open.Project.Id; } ) : null;
+		if ( project && Array.isArray( project.States ) && project.States.length )
 		{
-			return State.States;
+			states = project.States;
 		}
-		return State.States.concat( [ State.Open.Proposal.State ] );
+		if ( !State.Open || states.includes( State.Open.Proposal.State ) )
+		{
+			return states;
+		}
+		return states.concat( [ State.Open.Proposal.State ] );
+	};
+
+
+	// An archived plan (plan Run Shapes, Step 2) is read and never written until it is restored from the tree.
+	$scope.IsArchived = function ()
+	{
+		return !!( State.Open && State.Open.Proposal && State.Open.Proposal.Archived );
 	};
 
 

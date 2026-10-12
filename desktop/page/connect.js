@@ -28,6 +28,7 @@ angular.module( 'Connect', [] )
 	$scope.Reason = window.ConsensusDesktop.Reason;
 	$scope.Settings = { Servers: [] };
 	$scope.Local = null;
+	$scope.Missing = [];
 	$scope.Editing = null;
 	$scope.Error = null;
 	$scope.Busy = false;
@@ -43,6 +44,7 @@ angular.module( 'Connect', [] )
 			let answer = await window.Desktop.Settings();
 			$scope.Settings = answer.Settings;
 			$scope.Local = answer.Local;
+			$scope.Missing = answer.Missing || [];
 			$scope.Server = answer.Server;
 			$scope.Reason = answer.Reason;
 		}

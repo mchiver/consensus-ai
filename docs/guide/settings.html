@@ -72,17 +72,17 @@
 <p>The desktop keeps its own fields in the same file (<code>Servers</code>, <code>Last</code>, <code>Theme</code>, <code>Scale</code>, <code>Llms</code>, <code>Workspaces</code>, <code>Remembered</code>), which the popup never touches. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a <code>Host</code>, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine&#39;s.</p>
 <h2 id="theme-and-size">Theme and size</h2>
 <p>Light, dark or the system&#39;s theme, and three sizes, are at the bottom of the sidebar. They are kept in the browser, per user and per server, not in the settings. The desktop offers a wider choice of palettes, from Sepia and Paper to Nord and Midnight, and its title bar follows.</p>
-<h2 id="the-config-folder">The config folder</h2>
-<p>Everything is plain files in the config folder, <code>.consensus</code> in your user folder by default, or the one <code>--config</code> names:</p>
-<pre><code>consensus.json                   the settings
-projects.json                    every project&#39;s name, in display order
-projects/&lt;id&gt;/project.json       a project&#39;s tree
-proposals/&lt;id&gt;/proposal.md       a plan&#39;s or document&#39;s text
-proposals/&lt;id&gt;/threads.json      its threads
-proposals/&lt;id&gt;/revisions/        every revision&#39;s text and record
-trash/&lt;id&gt;/                      a deleted item, moved whole
+<h2 id="the-config-folder-and-the-project-folders">The config folder and the project folders</h2>
+<p>The config folder, <code>.consensus</code> in your user folder by default or the one <code>--config</code> names, holds the settings, <code>consensus.json</code>, whose <code>Projects</code> list the project folders in display order. Each project is a folder of its own, a repository as a rule, with a <code>.consensus</code> sub-folder that is the project; a project made with no folder named goes under <code>projects/</code> in the config folder. Everything is plain files:</p>
+<pre><code>&lt;project&gt;/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands
+&lt;project&gt;/.consensus/content/&lt;id&gt;/content.md    a plan&#39;s or document&#39;s text
+&lt;project&gt;/.consensus/content/&lt;id&gt;/content.json  its record
+&lt;project&gt;/.consensus/content/&lt;id&gt;/threads.json  its threads
+&lt;project&gt;/.consensus/content/&lt;id&gt;/revisions/    every revision&#39;s text and record
+&lt;project&gt;/.consensus/archive/&lt;id&gt;/         an archived plan, moved whole
+&lt;project&gt;/.consensus/trash/&lt;id&gt;/           a deleted item, moved whole
 </code></pre>
-<p>Back it up by copying the folder.</p>
+<p>The <code>.consensus</code> folder is meant to go into source control with the repository, so the plans and threads travel with the source; nothing secret is written to it, the tokens staying in the config folder&#39;s settings. Back a project up by copying its folder. A config folder from before project folders (every project in one data folder) is migrated at the next start, each project into a folder of its own under <code>projects/</code>; the console says what moved. A listed folder that is missing, or on a drive not mounted, is skipped with a line and kept in the list; the desktop&#39;s connect screen names it.</p>
 
 			</article>
 			<nav class="guide-pager">

@@ -73,6 +73,10 @@
 				<button class="btn btn-sm btn-primary" id="local-connect" ng-show="Local" ng-click="ConnectLocal()" ng-disabled="Busy">Connect</button>
 				<span class="muted small" ng-show="Local">The server starts with the app, from its settings (Scope and Port), and stops with it.</span>
 			</div>
+			<div class="alert alert-warning py-2 small" id="missing-folders" ng-show="Missing.length">
+				<div>Project folders the settings list and this machine lacks (kept in the list; skipped until they are back):</div>
+				<ul class="mb-0"><li ng-repeat="entry in Missing track by $index">{{ entry.Path }}: {{ entry.Error }}</li></ul>
+			</div>
 		</section>
 
 		<div class="muted small">Another server at the same time: <a href="" ng-click="NewWindow()">New window</a> starts another instance of the app.</div>

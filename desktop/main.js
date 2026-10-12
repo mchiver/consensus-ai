@@ -668,7 +668,7 @@ function attach_handlers()
 
 	ELECTRON.ipcMain.handle( 'settings', function ()
 	{
-		return { Settings: desktop_settings(), Path: store.SettingsPath(), Version: VERSION, Server: boot_info().Server, Reason: reason, Local: local_running() };
+		return { Settings: desktop_settings(), Path: store.SettingsPath(), Version: VERSION, Server: boot_info().Server, Reason: reason, Local: local_running(), Missing: store.Missing() };
 	} );
 
 	ELECTRON.ipcMain.handle( 'save', function ( event, fresh )

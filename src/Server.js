@@ -2,7 +2,7 @@
 
 // Server - Start( { Config, Port, Scope } ) returns { App, Address, Url, Settings, Store, Events, Close }.
 // The config folder (plan Run Shapes, Step 1) is <user>/.consensus unless given (Data is the older name of the same
-// option); its consensus.json holds the settings, and the projects live in it as well until Step 2. The server
+// option); its consensus.json holds the settings, whose Projects list the project folders (Step 2: Store.js). The server
 // listens as the Scope says (the option, else the settings', else Local): Local on 127.0.0.1, Public on 0.0.0.0, and
 // None not at all, in which case Address, Url and Server are null and the settings and the store are still there for
 // the desktop. The settings are read once at start and changed in place by the settings routes (Api.js); Scope and
@@ -47,7 +47,7 @@ async function Start( Options )
 	{
 		throw new Error( 'settings ' + store.SettingsPath() + ': ' + problems.join( '; ' ) );
 	}
-	for ( let line of await store.Prepare() )
+	for ( let line of await store.Prepare( settings ) )
 	{
 		console.log( 'prepared ' + line );
 	}
@@ -161,6 +161,15 @@ async function rename_state( store, settings )
 	}
 	settings.States = states.map( function ( state ) { return ( state === from ) ? to : state; } );
 	await store.WriteSettings( settings );
+	// Each project's own list too (plan Run Shapes, Step 2), when it still has the old name.
+	for ( let project of await store.ListProjects() )
+	{
+		if ( Array.isArray( project.States ) && project.States.includes( from ) && !project.States.includes( to ) )
+		{
+			project.States = project.States.map( function ( state ) { return ( state === from ) ? to : state; } );
+			await store.WriteProject( project );
+		}
+	}
 	let count = 0;
 	for ( let proposal of await store.ListProposals() )
 	{

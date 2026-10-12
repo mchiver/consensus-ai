@@ -19,6 +19,7 @@ const LLM_TOKEN = 'ui-llm-token-0123456789abcdef';
 const TEXT = '# Browser check\n\nThe first paragraph makes a claim about anchors.\n\n- one list item\n- another list item\n\nA closing paragraph.\n';
 
 let running = null;
+let home = null;		// the first project's id (a prj- id in a folder of its own since plan Run Shapes, Step 2)
 let browser = null;
 let page = null;
 let proposal = null;
@@ -78,6 +79,7 @@ TEST.before( async function ()
 	let settings = PARTICIPANTS.DefaultSettings( 0 );
 	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( settings, null, '	' ) );
 	running = await SERVER.Start( { Data: data, Port: 0 } );
+	home = ( await running.Store.ListProjects() )[ 0 ].Id;
 	running.Settings.Participants[ 1 ].Token = LLM_TOKEN;
 	proposal = ( await api( 'POST', '/api/proposals', { Title: 'Browser check', Text: TEXT } ) ).Proposal;
 	browser = await CDP.StartBrowser();
@@ -188,7 +190,7 @@ TEST( 'once the llm applies, the state picker makes the proposal Working and the
 
 TEST( 'a new project opens and closes the others; a folder and a plan are made in it; a document goes in the Context folder', async function ()
 {
-	await page.WaitFor( count_of( '.project.open[data-project="default"]' ) + ' === 1' );
+	await page.WaitFor( count_of( '.project.open[data-project="' + home + '"]' ) + ' === 1' );
 	await page.Click( '#new-project' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
 	await page.Type( 'Browser project' );
@@ -196,7 +198,7 @@ TEST( 'a new project opens and closes the others; a folder and a plan are made i
 	await page.WaitFor( count_of( '.project' ) + ' === 2' );
 	await page.WaitFor( count_of( '.project.open' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( text_of( '.project.open .project-name' ) ), 'Browser project' );
-	ASSERT.equal( await page.Evaluate( count_of( '.project[data-project="default"] .tree-item' ) ), 0 );
+	ASSERT.equal( await page.Evaluate( count_of( '.project[data-project="' + home + '"] .tree-item' ) ), 0 );
 	await page.WaitFor( count_of( '.project.open .context-folder .context-item' ) + ' === 1' );
 	// a folder, picked as where the plan goes
 	await menu_pick( '.project.open > .project-head', 'New folder' );
@@ -228,8 +230,8 @@ TEST( 'a new project opens and closes the others; a folder and a plan are made i
 	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-folder .tree-item.document:not(.context-item) .item-state' ) ), 'document' );
 	ASSERT.equal( await page.Evaluate( count_of( '.project.open .folder:not(.context-folder) .tree-item.document' ) ), 0 );
 	// opening Default again closes the new project
-	await page.Click( '.project[data-project="default"] .project-head' );
-	await page.WaitFor( count_of( '.project.open[data-project="default"]' ) + ' === 1' );
+	await page.Click( '.project[data-project="' + home + '"] .project-head' );
+	await page.WaitFor( count_of( '.project.open[data-project="' + home + '"]' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( count_of( '.project.open' ) ), 1 );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
@@ -238,7 +240,7 @@ TEST( 'a new project opens and closes the others; a folder and a plan are made i
 TEST( 'an item dragged onto a project moves there; copy and paste makes a whole copy', async function ()
 {
 	// open the new project again, then drag the plan out of its folder onto the project's head: it moves to the root
-	await page.Click( '.project:not([data-project="default"]) .project-head' );
+	await page.Click( '.project:not([data-project="' + home + '"]) .project-head' );
 	await page.WaitFor( count_of( '.project.open .folder:not(.context-folder) .tree-item' ) + ' === 1' );
 	let moved = await page.Evaluate( '( function () {'
 		+ ' let data = new DataTransfer();'
@@ -363,7 +365,7 @@ function drag_to_top( source, target )
 
 TEST( 'an item dropped on the top edge of another goes just before it; the Context folder stays first; a project dropped on another\'s head goes before it', async function ()
 {
-	await page.Click( '.project:not([data-project="default"]) .project-head' );
+	await page.Click( '.project:not([data-project="' + home + '"]) .project-head' );
 	await page.WaitFor( count_of( '.project.open .tree-item:not(.context-item)' ) + ' === 3' );
 	function root_titles()
 	{
@@ -380,9 +382,9 @@ TEST( 'an item dropped on the top edge of another goes just before it; the Conte
 	await page.WaitFor( root_titles() + '.split( "|" )[ 1 ] === "Specs"' );
 	ASSERT.equal( ( await page.Evaluate( root_titles() ) ).split( '|' )[ 0 ], 'Context' );
 	// the project first, before Default
-	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".project" ) ].map( function ( project ) { return project.dataset.project; } )[ 0 ]' ), 'default' );
-	ASSERT.equal( await page.Evaluate( drag_to_top( '.project:not([data-project="default"]) .project-head', '.project[data-project="default"] .project-head' ) ), true );
-	await page.WaitFor( 'document.querySelector( ".project" ).dataset.project !== "default"' );
+	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".project" ) ].map( function ( project ) { return project.dataset.project; } )[ 0 ]' ), ( await api( 'GET', '/api/projects' ) ).Projects[ 0 ].Id );
+	ASSERT.equal( await page.Evaluate( drag_to_top( '.project:not([data-project="' + home + '"]) .project-head', '.project[data-project="' + home + '"] .project-head' ) ), true );
+	await page.WaitFor( 'document.querySelector( ".project" ).dataset.project !== "' + home + '"' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -822,11 +824,11 @@ TEST( 'Ctrl+E: Read to Edit, and back to Read from the editor, keeping the unsav
 
 TEST( 'export and import: a project\'s json in a popup; pasted back, the preview offers a copy, and the copy is made', async function ()
 {
-	const HEAD = '.project[data-project="default"] .project-head';
+	const HEAD = '.project[data-project="' + home + '"] .project-head';
 	await menu_pick( HEAD, 'Export project' );
 	await page.WaitFor( '( document.getElementById( "export-json" ) || { value: "" } ).value.includes( "consensus-project" )', 20000 );
 	let json = await page.Evaluate( 'document.getElementById( "export-json" ).value' );
-	ASSERT.equal( JSON.parse( json ).Project.Id, 'default' );
+	ASSERT.match( JSON.parse( json ).Project.Id, /^prj-/ );
 	ASSERT.equal( 'Corpora' in JSON.parse( json ), false );
 	await page.Evaluate( '[ ...document.querySelectorAll( ".port-form button" ) ].find( function ( button ) { return button.textContent.trim() === "Close"; } ).click(); true' );
 	await page.WaitFor( count_of( '#export-json' ) + ' === 0' );

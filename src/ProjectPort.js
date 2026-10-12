@@ -726,7 +726,7 @@ async function import_into( Store, Exported, Into, Preview, Context )
 		let id = id_map[ whole.Proposal.Id ];
 		let written = clone( whole );
 		written.Proposal.Id = id;
-		await Store.Queue( id, function () { return Store.WriteWholeProposal( written ); } );
+		await Store.Queue( id, function () { return Store.WriteWholeProposal( written, project.Id ); } );
 		report.Written.push( id );
 	}
 	let outcome = await Context.ChangeProject( project.Id, function ( changed )
@@ -855,21 +855,22 @@ async function import_copy( Store, Exported, name, report )
 }
 
 
-// The whole file written as a new project, each item under the id id_map gives it.
+// The whole file written as a new project (its folder made first, under the config folder), each item under the id
+// id_map gives it.
 async function write_project( Store, Exported, project_id, name, id_map, folder_map, report )
 {
+	let items = map_tree( Exported.Project.Items, id_map, folder_map );
+	let context_folder = Exported.Project.ContextFolder ? ( folder_map[ Exported.Project.ContextFolder ] || Exported.Project.ContextFolder ) : null;
+	let project = await Store.CreateProject( { Id: project_id, Name: name, Context: id_map[ Exported.Project.Context ], ContextFolder: context_folder, Items: items } );
 	for ( let whole of records_of( Exported ) )
 	{
 		let id = id_map[ whole.Proposal.Id ];
 		let written = clone( whole );
 		written.Proposal.Id = id;
-		await Store.Queue( id, function () { return Store.WriteWholeProposal( written ); } );
+		await Store.Queue( id, function () { return Store.WriteWholeProposal( written, project.Id ); } );
 		count_made( report, written );
 		report.Written.push( id );
 	}
-	let items = map_tree( Exported.Project.Items, id_map, folder_map );
-	let context_folder = Exported.Project.ContextFolder ? ( folder_map[ Exported.Project.ContextFolder ] || Exported.Project.ContextFolder ) : null;
-	let project = await Store.CreateProject( { Id: project_id, Name: name, Context: id_map[ Exported.Project.Context ], ContextFolder: context_folder, Items: items } );
 	report.Project.Id = project.Id;
 	report.Project.Name = project.Name;
 }
@@ -917,11 +918,11 @@ async function import_merge( Store, Exported, here, report, context )
 			let there = await read_whole( Store, id );
 			if ( !there )
 			{
-				await Store.WriteWholeProposal( file );
+				await Store.WriteWholeProposal( file, here.Id );
 				return null;
 			}
 			let result = Merge( there, file );
-			await Store.WriteWholeProposal( result.Whole );
+			await Store.WriteWholeProposal( result.Whole, here.Id );
 			return result;
 		} );
 		report.Written.push( id );

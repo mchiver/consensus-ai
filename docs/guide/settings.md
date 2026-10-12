@@ -47,18 +47,18 @@ The desktop keeps its own fields in the same file (`Servers`, `Last`, `Theme`, `
 
 Light, dark or the system's theme, and three sizes, are at the bottom of the sidebar. They are kept in the browser, per user and per server, not in the settings. The desktop offers a wider choice of palettes, from Sepia and Paper to Nord and Midnight, and its title bar follows.
 
-## The config folder
+## The config folder and the project folders
 
-Everything is plain files in the config folder, `.consensus` in your user folder by default, or the one `--config` names:
+The config folder, `.consensus` in your user folder by default or the one `--config` names, holds the settings, `consensus.json`, whose `Projects` list the project folders in display order. Each project is a folder of its own, a repository as a rule, with a `.consensus` sub-folder that is the project; a project made with no folder named goes under `projects/` in the config folder. Everything is plain files:
 
 ```
-consensus.json                   the settings
-projects.json                    every project's name, in display order
-projects/<id>/project.json       a project's tree
-proposals/<id>/proposal.md       a plan's or document's text
-proposals/<id>/threads.json      its threads
-proposals/<id>/revisions/        every revision's text and record
-trash/<id>/                      a deleted item, moved whole
+<project>/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands
+<project>/.consensus/content/<id>/content.md    a plan's or document's text
+<project>/.consensus/content/<id>/content.json  its record
+<project>/.consensus/content/<id>/threads.json  its threads
+<project>/.consensus/content/<id>/revisions/    every revision's text and record
+<project>/.consensus/archive/<id>/         an archived plan, moved whole
+<project>/.consensus/trash/<id>/           a deleted item, moved whole
 ```
 
-Back it up by copying the folder.
+The `.consensus` folder is meant to go into source control with the repository, so the plans and threads travel with the source; nothing secret is written to it, the tokens staying in the config folder's settings. Back a project up by copying its folder. A config folder from before project folders (every project in one data folder) is migrated at the next start, each project into a folder of its own under `projects/`; the console says what moved. A listed folder that is missing, or on a drive not mounted, is skipped with a line and kept in the list; the desktop's connect screen names it.

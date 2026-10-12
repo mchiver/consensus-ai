@@ -571,6 +571,30 @@ html, body
 	text-decoration: none;
 }
 
+/* The project's Archive (plan Run Shapes, Step 2) and its plans: read-only, so muted. */
+.archive-folder .folder-name, .tree-item.archived .proposal-title
+{
+	color: var(--muted);
+}
+
+.archived-badge
+{
+	opacity: 0.8;
+}
+
+.new-project-folder
+{
+	display: flex;
+	gap: 0.3rem;
+	margin-top: 0.3rem;
+}
+
+.new-project-folder .form-control
+{
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
 .tree-item.missing
 {
 	color: var(--muted);

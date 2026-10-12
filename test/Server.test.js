@@ -63,12 +63,12 @@ TEST( 'the state Proposal becomes Draft at start: in the settings, and in every 
 	// A plan left in the old state by an older server, and one in another state.
 	write_settings( data, [ 'Proposal', 'Plan', 'Working', 'Finished' ] );
 	let second = await SERVER.Start( { Data: data, Port: 0 } );
-	let plan = ( await call( second, 'POST', '/api/proposals', { Title: 'Old', Text: '# Old\n', Project: 'default' } ) ).Body.Proposal;
-	let other = ( await call( second, 'POST', '/api/proposals', { Title: 'Working', Text: '# Working\n', Project: 'default' } ) ).Body.Proposal;
+	let plan = ( await call( second, 'POST', '/api/proposals', { Title: 'Old', Text: '# Old\n' } ) ).Body.Proposal;
+	let other = ( await call( second, 'POST', '/api/proposals', { Title: 'Working', Text: '# Working\n' } ) ).Body.Proposal;
 	ASSERT.equal( ( await call( second, 'PUT', '/api/proposals/' + other.Id + '/state', { State: 'Working' } ) ).Status, 200 );
-	let document = ( await call( second, 'POST', '/api/proposals', { Title: 'Doc', Text: '# Doc\n', Kind: 'document', Project: 'default' } ) ).Body.Proposal;
+	let document = ( await call( second, 'POST', '/api/proposals', { Title: 'Doc', Text: '# Doc\n', Kind: 'document' } ) ).Body.Proposal;
 	await second.Close();
-	let stored = PATH.join( data, 'proposals', plan.Id, 'proposal.json' );
+	let stored = PATH.join( data, 'projects', 'Default', '.consensus', 'content', plan.Id, 'content.json' );
 	let record = JSON.parse( FS.readFileSync( stored, 'utf8' ) );
 	record.State = 'Proposal';
 	FS.writeFileSync( stored, JSON.stringify( record ) );

@@ -96,34 +96,47 @@ The owner settles a contested thread in one of two ways. **Reply and resolve** p
 resolves the thread with it: that reply is the outcome the LLM applies. **Resolve** with no reply accepts the
 outcome, or the recommendation, in the last reply.
 
-## The config folder
+## The config folder and the project folders
 
-`.consensus` in the user's folder by default, or the `--config` folder. Plain files:
+`.consensus` in the user's folder by default, or the `--config` folder, holds the settings; each project is a
+folder of its own with a `.consensus` sub-folder that is the project (plan Run Shapes, Step 2), under
+`<config>/projects/<name>/` when none was named. Plain files:
 
-	consensus.json                   settings: Name, Port, Scope, States, Participants, and the desktop's fields
-	projects.json                    { Projects: [ { Id, Name } ] }: every project's name, in display order
-	projects/<id>/project.json       { Id, Context, ContextFolder, Created, Updated, Version, Items: [ node ] }
-	proposals/<id>/proposal.json     { Id, Title, Kind: plan | document, State, Created, Updated, Revision }
-	proposals/<id>/proposal.md       the text at revision Revision
-	proposals/<id>/threads.json      the threads
-	proposals/<id>/revisions/0001.md, 0001.json    every revision's text and record
-	trash/<id>/                      a deleted proposal, moved whole
+	<config>/consensus.json                        settings: Name, Port, Scope, States, Participants, the desktop's fields, and
+	                                               Projects: [ { Path } ], the project folders in display order
+	<project>/.consensus/project.json              { Id, Name, Context, ContextFolder, Created, Updated, Version, Items: [ node ],
+	                                               Archive: [ node ], States, Include, Exclude, Commands }
+	<project>/.consensus/content/<id>/content.json { Id, Title, Kind: plan | document, State, Created, Updated, Revision, Head }
+	<project>/.consensus/content/<id>/content.md   the text at revision Revision
+	<project>/.consensus/content/<id>/threads.json the threads
+	<project>/.consensus/content/<id>/revisions/0001.md, 0001.json    every revision's text and record
+	<project>/.consensus/archive/<id>/             an archived plan, moved whole; read, never written, until restored
+	<project>/.consensus/trash/<id>/               a deleted item, moved whole
 
 A project's `Items` is its tree: `{ Kind: "folder", Id, Name, Items }`, `{ Kind: "plan", Id, Items? }` (its
 Subplans) or `{ Kind: "document", Id }`, pointing at the proposal by id; `Context` is the id of the Context
-document and `ContextFolder` of the folder that holds it, first in `Items`. Every write is whole-file and
-atomic, and writes to one proposal or project never interleave; a tree change that names an older `Version`
-is refused.
+document and `ContextFolder` of the folder that holds it, first in `Items`; `Archive` holds the archived plans,
+whole, out of the tree; `States` is the project's own list (the settings' is the default for a new project), and
+`Include`, `Exclude` and `Commands` travel with the folder. Every write is whole-file and atomic, and writes to
+one proposal or project never interleave; a tree change that names an older `Version` is refused. The store
+(`src/Store.js`) keeps an index of which project folder holds each item, built at start from the folders the
+settings list; a copy or a move between projects moves the item's folder; the `.consensus` is meant for source
+control, and holds nothing secret.
 
-A new config folder gets the Default project at its first start, and a new settings file its defaults. A settings
+A config folder with no project gets Default at its first start, and a new settings file its defaults. A settings
 file from before Run Shapes, with a `Host`, is brought up to date at the next start (a local address becomes Scope
-Local, any other Public; a missing Name becomes the machine's). A data folder from before Step 1 is migrated at
-the first start, once: each project's context proposal becomes its
-Readme in a new Context folder, corpora go to the trash, and the LLM's files (`usage.json`,
-`runs.json`, `index.json`) are removed; the console says what was done.
+Local, any other Public; a missing Name becomes the machine's; the retired Corpus, Context and Workers keys are
+dropped). A config folder from before Step 2 (projects.json, projects/<id>/, proposals/<id>/ and trash/ in it) is
+migrated at the next start, once: each project moves into `<config>/projects/<name>/.consensus/` in the layout
+above, Default under a new prj- id (the desktop's workspaces follow it), items in no tree and the old trash into
+the first project's trash; a data folder from before Step 1 is migrated on the way (each project's context
+proposal becomes its Readme in a new Context folder, corpora go to the trash, and the LLM's files are removed).
+A listed folder that is missing is skipped with a line and kept in the list (`Missing`); a folder under
+`projects/` that the list lacks joins it. The console says what was done.
 
 Ids are `<kind>-xxx-xxx-xxx` (plan Global Ids): `prj pln doc fld thr rep rev` and three groups of three base36
-characters; Default is `default`. A Readme made before Step 1 keeps its `ctx-…` id.
+characters; every project has a prj- id since Step 2 (Default was `default` before). A Readme made before Step 1
+keeps its `ctx-…` id.
 
 ## Settings
 
@@ -317,10 +330,10 @@ point.
 	GET    /api/me                                   who this request is, the participants, the States, the server's Name and Version
 	GET    /api/settings                             owner; the settings as they are, and the file's path
 	PUT    /api/settings                             owner; { Settings }  the server's fields, checked, the rest kept; Restart says when Scope or Port changed
-	GET    /api/projects                             every project with its tree, each item with title, state, tally; Context and ContextFolder
-	POST   /api/projects                             { Name }
-	PUT    /api/projects/:pid                        { Name, Version? }
-	DELETE /api/projects/:pid                        an empty project (only its Context folder and document); never Default
+	GET    /api/projects                             every project with its tree, each item with title, state, tally; its Archive, States, Path; Context and ContextFolder
+	POST   /api/projects                             { Name, Path? }  Path: the project's folder; one that holds a project already is opened (200, Opened)
+	PUT    /api/projects/:pid                        { Name?, States?, Include?, Exclude?, Commands?, Version? }  lists, or lines; a state in use stays
+	DELETE /api/projects/:pid                        an empty project (only its Context folder and document, nothing archived); never the last one
 	POST   /api/projects/:pid/folders                { Name, Parent?, Version? }  not inside the Context folder
 	PUT    /api/projects/:pid/folders/:fid           { Name, Version? }  not the Context folder
 	DELETE /api/projects/:pid/folders/:fid           an empty folder; not the Context folder
@@ -329,7 +342,9 @@ point.
 	POST   /api/projects/import                      owner or llm; { Export, Mode?, Preview?, Into? }  Into: { Project, Parent? } writes the file's items there, every id new
 	GET    /api/items/:id/export                     owner or llm; a folder, plan or document as one json object of the same format
 	POST   /api/items/:id/move                       { Project, Parent?, Before? }  a plan, document or folder; a document only into a Context folder
-	POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id
+	POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id, in that project's folder
+	POST   /api/items/:id/archive                    a plan, with its Subplans, out of the tree into the project's Archive; its writes answer 409 until
+	POST   /api/items/:id/restore                    back at the project's root
 	GET    /api/proposals[?state=]                   plans and documents with their tallies
 	POST   /api/proposals                            { Title, Text, Kind?, State?, Project?, Parent? }  a document with no Parent goes in the Context folder
 	GET    /api/proposals/:id                        proposal, project, text, threads with positions, tally, whose turn; Context: true for a Readme
@@ -379,7 +394,7 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 	src/Rules.js          the consensus rules, pure functions
 	src/Tree.js           a project's tree, pure functions; the Context folder's rules
 	src/Anchors.js        visible-text anchors
-	src/Store.js          the data folder, and the migration from before Step 1
+	src/Store.js          the config folder and the project folders, the archive, and the migrations (before Step 1, before Step 2)
 	src/ProjectPort.js    export and import
 	src/Participants.js   who is calling, the States, and the settings' checks
 	src/Ids.js            global ids

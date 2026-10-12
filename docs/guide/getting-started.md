@@ -27,7 +27,7 @@ Open `http://127.0.0.1:3500/` in a browser. You are the owner, and you see the *
 
 ![The page at first start: the Default project and its Readme.](../images/first-start.png)
 
-The config folder holds everything: the settings and, for now, the projects. Four options change where and how it runs:
+The config folder holds the settings, and the projects that were made with no folder of their own; a project is a folder with a `.consensus` in it (the page [Settings](settings.html) has the layout). Four options change where and how it runs:
 
 | Option | What it does |
 | --- | --- |

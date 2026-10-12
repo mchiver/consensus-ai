@@ -71,7 +71,9 @@ TEST( 'ids: three letters and three groups of three base36 characters, one kind 
 TEST( 'revisions: each has an Id and the Parent it was made from; the proposal\'s Head is the current one', async function ()
 {
 	let store = STORE.Open( temporary_folder( 'consensus-ids-store-' ) );
-	let document = await store.CreateProposal( { Title: 'Notes', Text: 'one', By: 'user', Kind: 'document' } );
+	await store.Prepare( {} );
+	let home = ( await store.ListProjects() )[ 0 ].Id;
+	let document = await store.CreateProposal( { Project: home, Title: 'Notes', Text: 'one', By: 'user', Kind: 'document' } );
 	ASSERT.equal( IDS.Is( document.Id, IDS.DOCUMENT ), true );
 	let first = await store.ReadRevision( document.Id, 1 );
 	ASSERT.equal( IDS.Is( first.Id, IDS.REVISION ), true );

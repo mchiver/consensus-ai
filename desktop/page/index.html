@@ -39,6 +39,8 @@
 		<symbol id="i-threads" viewBox="0 0 16 16"><path d="M1.5 3h8v6h-4L3 11V9H1.5zM11.5 6h3v6H13v1.5L11 12H7.5v-1"/></symbol>
 		<symbol id="i-trash" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9"/></symbol>
 		<symbol id="i-undo" viewBox="0 0 16 16"><path d="M4 6h6a3 3 0 0 1 0 6H7M6.5 3.5L4 6l2.5 2.5"/></symbol>
+		<symbol id="i-archive" viewBox="0 0 16 16"><path d="M2.5 3.5h11v3h-11zM3.5 6.5v7h9v-7M6.5 9h3"/></symbol>
+		<symbol id="i-settings" viewBox="0 0 16 16"><path d="M8 5.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.8 3.8l1 1M11.2 11.2l1 1M3.8 12.2l1-1M11.2 4.8l1-1"/></symbol>
 		<symbol id="i-upload" viewBox="0 0 16 16"><path d="M8 11V3M4.5 6.5L8 3l3.5 3.5M3 13h10"/></symbol>
 		<symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
 	</svg>
@@ -105,6 +107,22 @@
 	</script>
 
 
+	<!-- One level of a project's Archive (plan Run Shapes, Step 2): archived plans with their Subplans, opened read-only;
+	     Restore is in a top-level plan's menu. -->
+	<script type="text/ng-template" id="archive-nodes.html">
+		<div class="tree-node" ng-repeat="node in nodes track by node.Id">
+			<a class="proposal-item tree-item tree-row archived" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, parent: node.Items.length }" ng-href="#/p/{{ node.Id }}" data-id="{{ node.Id }}" on-context-menu="OpenMenu('archived', project, node, $event)" title="archived: read-only until restored">
+				<span class="chevron-space"></span>
+				<span class="tree-icon icon-plan"></span>
+				<span class="proposal-title">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
+				<span class="badges"><span class="item-state" title="state">{{ node.State }}</span></span>
+				<span class="row-menu" role="button" ng-class="{ shown: MenuOpenFor(node) }" ng-if="!node.Missing" title="actions" ng-click="OpenMenu('archived', project, node, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
+			</a>
+			<div class="folder-body subplans" ng-if="node.Items.length" ng-init="Depth = Depth + 1"><div ng-include="'archive-nodes.html'" ng-init="nodes = node.Items"></div></div>
+		</div>
+	</script>
+
+
 	<!-- The desktop's items in the Context folder (plan Consensus Desktop, Step 3): the LLM connections, in every
 	     project, and the project's workspaces. In a browser there are none. -->
 	<script type="text/ng-template" id="desktop-items.html">
@@ -156,6 +174,10 @@
 			</div>
 			<form class="new-proposal" ng-if="Creating.Kind === 'project'" ng-submit="Create()">
 				<input class="form-control form-control-sm" type="text" id="create-name" placeholder="{{ CreatePlaceholder() }}" ng-model="Creating.Name" auto-focus>
+				<div class="new-project-folder" ng-if="Items.Available" title="the project's folder: a repository, as a rule; its .consensus holds the project. Empty: a folder under the config folder. One that holds a project already is opened as it is.">
+					<input class="form-control form-control-sm" type="text" id="create-path" placeholder="folder (optional)" ng-model="Creating.Path">
+					<button class="btn btn-sm btn-outline-secondary" type="button" id="create-browse" ng-click="PickProjectFolder()">Browse</button>
+				</div>
 				<div class="new-proposal-buttons">
 					<button class="btn btn-sm btn-primary" type="submit" id="create-submit" ng-disabled="!Creating.Name"><svg class="icon lead"><use href="#i-check"></use></svg>Create</button>
 					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
@@ -203,6 +225,16 @@
 						<div class="clipboard" ng-show="Notice" ng-class="{ error: Notice.Error }" id="clipboard">{{ Notice.Text }} <button class="btn btn-link btn-sm" title="dismiss" ng-click="ClearNotice()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 						<div class="list-empty" ng-show="project.Items.length === 0">empty</div>
 						<div class="tree" ng-include="'tree-nodes.html'"></div>
+						<!-- The project's Archive (plan Run Shapes, Step 2): archived plans, read-only, folded by default. -->
+						<div class="folder archive-folder" ng-if="project.Archive.length" data-archive="{{ project.Id }}">
+							<div class="folder-head tree-row" style="--depth: 1" ng-click="ToggleArchive( project, $event )" title="archived plans: read-only until Restore in their menu">
+								<span class="chevron" ng-class="{ folded: !ShowingArchive[ project.Id ] }"></span>
+								<span class="tree-icon" ng-class="ShowingArchive[ project.Id ] ? 'icon-folder-open' : 'icon-folder'"></span>
+								<span class="folder-name">Archive</span>
+								<span class="count">{{ ItemCount( project.Archive ) }}</span>
+							</div>
+							<div class="folder-body" ng-if="ShowingArchive[ project.Id ]" ng-init="Depth = 2"><div ng-include="'archive-nodes.html'" ng-init="nodes = project.Archive"></div></div>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -262,7 +294,7 @@
 					<div class="header-views" ng-show="State.Open">
 						<div class="btn-group" role="group">
 							<button class="btn btn-sm" id="view-read" ng-class="State.View === 'read' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('read')"><svg class="icon lead"><use href="#i-eye"></use></svg>Read</button>
-							<button class="btn btn-sm" id="view-edit" ng-class="State.View === 'edit' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('edit')"><svg class="icon lead"><use href="#i-pencil"></use></svg>Edit</button>
+							<button class="btn btn-sm" id="view-edit" ng-class="State.View === 'edit' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('edit')" ng-hide="IsArchived()"><svg class="icon lead"><use href="#i-pencil"></use></svg>Edit</button>
 							<button class="btn btn-sm" id="view-revisions" ng-class="State.View === 'revisions' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="SetView('revisions')"><svg class="icon lead"><use href="#i-clock"></use></svg>Revisions</button>
 						</div>
 					</div>
@@ -270,13 +302,14 @@
 				<div class="header-row" ng-show="State.Open">
 					<div class="state-line">
 						<span class="document-badge" id="document-badge" ng-show="State.Open.Proposal.Kind === 'document'">{{ IsContext() ? 'Readme' : 'Document' }}</span>
-						<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="State.Open.Proposal.Kind !== 'document'" title="the proposal's state: anyone can change it" ng-model="PickedState" ng-change="SetState()" ng-disabled="Busy" ng-options="name for name in StateOptions()"></select>
+						<span class="document-badge archived-badge" id="archived-badge" ng-show="IsArchived()" title="archived: read-only until Restore in the tree's Archive folder">archived</span>
+						<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="State.Open.Proposal.Kind !== 'document'" title="the proposal's state: anyone can change it" ng-model="PickedState" ng-change="SetState()" ng-disabled="Busy || IsArchived()" ng-options="name for name in StateOptions()"></select>
 						<span id="state-line">{{ State.Open.Proposal.StateLine }}</span>
 						<span class="revision" id="revision">revision {{ State.Open.Proposal.Revision }}</span>
 					</div>
 					<div class="header-buttons">
-						<button class="btn btn-sm btn-outline-secondary" id="new-comment" ng-click="CommentOnWhole()" ng-show="State.View === 'read' && HasThreads()" title="a comment on the whole document; Re-anchor puts it on a passage"><svg class="icon lead"><use href="#i-comment"></use></svg>New Comment</button>
-						<button class="btn btn-sm btn-outline-secondary" id="new-subplan" ng-click="NewSubplan()" ng-show="IsPlan()" title="a new plan under this one"><svg class="icon lead"><use href="#i-subplan"></use></svg>New subplan</button>
+						<button class="btn btn-sm btn-outline-secondary" id="new-comment" ng-click="CommentOnWhole()" ng-show="State.View === 'read' && HasThreads() && !IsArchived()" title="a comment on the whole document; Re-anchor puts it on a passage"><svg class="icon lead"><use href="#i-comment"></use></svg>New Comment</button>
+						<button class="btn btn-sm btn-outline-secondary" id="new-subplan" ng-click="NewSubplan()" ng-show="IsPlan() && !IsArchived()" title="a new plan under this one"><svg class="icon lead"><use href="#i-subplan"></use></svg>New subplan</button>
 					</div>
 				</div>
 			</header>
@@ -744,6 +777,39 @@
 		</form>
 	</div>
 
+	<!-- A project's own settings (plan Run Shapes, Step 2): its States, Include, Exclude and Commands, one per line. -->
+	<div class="subplan-popup settings-popup project-settings-popup" ng-controller="ProjectSettingsController" ng-show="Panel.Open" ng-keydown="Key($event)">
+		<form class="subplan-form settings-form" ng-if="Panel.Open" ng-submit="Save()">
+			<div class="subplan-head">Project settings <span class="muted small">{{ Panel.Project.Name }}</span></div>
+			<div class="muted small" id="project-settings-path" ng-show="Panel.Project.Path">{{ Panel.Project.Path }}</div>
+			<div class="port-error" id="project-settings-problems" ng-show="Panel.Problems.length">
+				<div>Not saved. Fix these first:</div>
+				<ul class="mb-0"><li ng-repeat="problem in Panel.Problems track by $index">{{ problem }}</li></ul>
+			</div>
+			<div class="settings-row top">
+				<label for="project-states">States</label>
+				<textarea class="form-control form-control-sm" id="project-states" rows="4" ng-model="Panel.Form.StatesText" placeholder="one state per line; a new plan starts in the first" title="the states this project's plans are picked from, one per line; one in use by a plan cannot be removed"></textarea>
+			</div>
+			<div class="settings-row top">
+				<label for="project-include">Include</label>
+				<textarea class="form-control form-control-sm" id="project-include" rows="2" ng-model="Panel.Form.IncludeText" placeholder="globs, one per line; empty: everything" title="the files of the project's folder an LLM may read, as globs; empty means everything"></textarea>
+			</div>
+			<div class="settings-row top">
+				<label for="project-exclude">Exclude</label>
+				<textarea class="form-control form-control-sm" id="project-exclude" rows="2" ng-model="Panel.Form.ExcludeText" placeholder="globs, one per line" title="the files and folders left out, as globs"></textarea>
+			</div>
+			<div class="settings-row top">
+				<label for="project-commands">Commands</label>
+				<textarea class="form-control form-control-sm" id="project-commands" rows="2" ng-model="Panel.Form.CommandsText" placeholder="one command per line; none by default" title="the commands an LLM may run in the folder, one per line"></textarea>
+			</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-primary" type="submit" id="project-settings-save" ng-disabled="Panel.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="project-settings-close" ng-click="Close()"><svg class="icon lead"><use href="#i-x"></use></svg>{{ Panel.Saved ? 'Close' : 'Cancel' }}</button>
+				<span class="muted small" id="project-settings-saved" ng-show="Panel.Saved">Saved.</span>
+			</div>
+		</form>
+	</div>
+
 	<!-- Export and import a whole project. -->
 	<div class="subplan-popup port-popup" ng-controller="PortController" ng-show="Ports.Open" ng-keydown="Key($event)">
 		<div class="subplan-form port-form" ng-if="Ports.Open === 'export'">
@@ -821,6 +887,7 @@
 	<script src="/js/subplans.js"></script>
 	<script src="/js/ports.js"></script>
 	<script src="/js/settings.js"></script>
+	<script src="/js/project.js"></script>
 	<script src="/js/sidebar.js"></script>
 	<script src="/js/header.js"></script>
 	<script src="/js/read.js"></script>

@@ -21,6 +21,7 @@ const DEFAULT_SCOPE = 'Local';
 const SCOPE_HOSTS = { None: null, Local: '127.0.0.1', Public: '0.0.0.0' };
 const LOCAL_HOSTS = [ '127.0.0.1', 'localhost', '::1' ];
 const SETTINGS_FIELDS = [ 'Name', 'Port', 'Scope', 'States', 'Participants' ];
+const RETIRED_FIELDS = [ 'Corpus', 'Context', 'Workers' ];	// from before plan Consensus Desktop, Step 1
 
 
 //---------------------------------------------------------------------
@@ -131,6 +132,14 @@ function Migrate( Settings )
 	{
 		Settings.Name = OS.hostname();
 		lines.push( 'Name set to ' + Settings.Name );
+	}
+	for ( let field of RETIRED_FIELDS )
+	{
+		if ( Settings[ field ] !== undefined )
+		{
+			delete Settings[ field ];
+			lines.push( field + ' dropped' );
+		}
 	}
 	return lines;
 }

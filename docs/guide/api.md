@@ -42,10 +42,10 @@ An anchor's `Text` is matched against the text as it reads, without markdown mar
 GET    /api/me                                   who this request is, the participants, the States, the server's Name and Version
 GET    /api/settings                             owner; the settings as they are, and the file's path
 PUT    /api/settings                             owner; { Settings }  the whole file, checked
-GET    /api/projects                             every project with its tree; Context and ContextFolder
-POST   /api/projects                             { Name }
-PUT    /api/projects/:pid                        { Name, Version? }
-DELETE /api/projects/:pid                        an empty project; never Default
+GET    /api/projects                             every project with its tree, its Archive, States and Path; Context and ContextFolder
+POST   /api/projects                             { Name, Path? }  Path: the project's folder; one holding a project already is opened
+PUT    /api/projects/:pid                        { Name?, States?, Include?, Exclude?, Commands?, Version? }  lists, or lines of text
+DELETE /api/projects/:pid                        an empty project; never the last one
 POST   /api/projects/:pid/folders                { Name, Parent?, Version? }
 PUT    /api/projects/:pid/folders/:fid           { Name, Version? }
 DELETE /api/projects/:pid/folders/:fid           an empty folder
@@ -55,6 +55,8 @@ POST   /api/projects/import                      owner or llm; { Export, Mode?, 
 GET    /api/items/:id/export                     owner or llm; a folder, plan or document as one json object of the same format
 POST   /api/items/:id/move                       { Project, Parent?, Before? }
 POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id
+POST   /api/items/:id/archive                    a plan, with its Subplans, into the project's Archive, read-only
+POST   /api/items/:id/restore                    back to the project's root
 GET    /api/proposals[?state=]                   plans and documents with their tallies
 POST   /api/proposals                            { Title, Text, Kind?, State?, Project?, Parent? }
 GET    /api/proposals/:id                        text, threads with positions, tally, whose turn

@@ -85,9 +85,13 @@ function after_context( project )
 }
 
 
+let home = null;		// the first project's id (plan Run Shapes, Step 2: a prj- id, in a folder of its own)
+
+
 TEST.before( async function ()
 {
 	running = await SERVER.Start( { Data: temporary_folder(), Port: 0 } );
+	home = ( await running.Store.ListProjects() )[ 0 ].Id;
 	// The llm needs no token in the file; these tests play it over the API, so it gets one in memory.
 	token = PARTICIPANTS.NewToken();
 	running.Settings.Participants[ 1 ].Token = token;
@@ -203,9 +207,13 @@ TEST( 'settings: the owner reads and writes consensus.json; problems are refused
 	ASSERT.deepEqual( bad.Body.Problems, [ 'no participant has the owner role' ] );
 	let plan = await create( 'In a state' );
 	await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Working' } );
-	let in_use = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read.Body.Settings, { States: [ 'Draft', 'Finished' ] } ) } );
+	// the settings' list is the default for a new project; a project's own list (plan Run Shapes, Step 2) refuses a state in use
+	let in_use = await call( 'PUT', '/api/projects/' + home, { States: [ 'Draft', 'Finished' ] } );
 	ASSERT.equal( in_use.Status, 400 );
-	ASSERT.match( in_use.Body.Problems[ 0 ], /"Working" is used by the plan "In a state"/ );
+	ASSERT.match( in_use.Body.Error, /"Working" is used by the plan "In a state"/ );
+	ASSERT.equal( ( await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read.Body.Settings, { States: [ 'Draft', 'Finished' ] } ) } ) ).Status, 200 );
+	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.States, [ 'Draft', 'Finished' ] );
+	ASSERT.equal( ( await call( 'PUT', '/api/settings', { Settings: read.Body.Settings } ) ).Status, 200 );
 	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.States, [ 'Draft', 'Plan', 'Working', 'Finished' ] );
 
 	// written: the states, a member with a token, the display; the file and the running server follow at once
@@ -234,6 +242,10 @@ TEST( 'settings: the owner reads and writes consensus.json; problems are refused
 	ASSERT.deepEqual( on_disk.States, fresh.States );
 	ASSERT.equal( on_disk.Participants[ 2 ].Token, member_token );
 	ASSERT.deepEqual( on_disk.Servers, [ { Name: 'cube4', Url: 'http://cube4:3500' } ] );
+	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Shelved' } ) ).Status, 400 );
+	let project_states = await call( 'PUT', '/api/projects/' + home, { States: fresh.States } );
+	ASSERT.equal( project_states.Status, 200 );
+	ASSERT.deepEqual( project_states.Body.Project.States, fresh.States );
 	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Shelved' } ) ).Status, 200 );
 
 	// a new Port or Scope asks for a restart; the file has it, the server still listens where it did
@@ -589,7 +601,7 @@ TEST( 'every change sends a Server-Sent Event { Proposal, Kind }', async functio
 		}
 	}
 	let proposal = await create( 'Events' );
-	ASSERT.deepEqual( await next_event(), { Project: 'default', Kind: 'project' } );
+	ASSERT.deepEqual( await next_event(), { Project: home, Kind: 'project' } );
 	ASSERT.deepEqual( await next_event(), { Proposal: proposal.Id, Kind: 'created' } );
 	let thread = ( await call( 'POST', '/api/proposals/' + proposal.Id + '/threads', { Anchor: null, Text: 'Hello?' } ) ).Body.Thread;
 	ASSERT.deepEqual( await next_event(), { Proposal: proposal.Id, Kind: 'thread', Thread: thread.Id } );
@@ -604,7 +616,7 @@ TEST( 'every change sends a Server-Sent Event { Proposal, Kind }', async functio
 	await call( 'PUT', '/api/proposals/' + proposal.Id + '/text', { Text: 'changed', Revision: 1 } );
 	ASSERT.equal( ( await next_event() ).Kind, 'text' );
 	await call( 'DELETE', '/api/proposals/' + proposal.Id );
-	ASSERT.deepEqual( await next_event(), { Project: 'default', Kind: 'project' } );
+	ASSERT.deepEqual( await next_event(), { Project: home, Kind: 'project' } );
 	ASSERT.equal( ( await next_event() ).Kind, 'trashed' );
 	let settings = ( await call( 'GET', '/api/settings' ) ).Body.Settings;
 	await call( 'PUT', '/api/settings', { Settings: settings } );
@@ -638,15 +650,15 @@ TEST( 'items move within a project and into another; a folder never goes inside 
 
 	// a folder moves with everything in it, into another project
 	await call( 'POST', '/api/items/' + plan.Id + '/move', { Project: project.Id, Parent: inner.Id } );
-	let folder_moved = await call( 'POST', '/api/items/' + outer.Id + '/move', { Project: 'default' } );
+	let folder_moved = await call( 'POST', '/api/items/' + outer.Id + '/move', { Project: home } );
 	ASSERT.equal( folder_moved.Status, 200 );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + plan.Id ) ).Body.Project.Id, 'default' );
+	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + plan.Id ) ).Body.Project.Id, home );
 
 	// refusals
-	ASSERT.equal( ( await call( 'POST', '/api/items/nothing/move', { Project: 'default' } ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/nothing/move', { Project: home } ) ).Status, 404 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + plan.Id + '/move', {} ) ).Status, 400 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + plan.Id + '/move', { Project: 'none-000000' } ) ).Status, 404 );
-	ASSERT.equal( ( await call( 'POST', '/api/items/' + plan.Id + '/move', { Project: 'default', Parent: 'fnothing' } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + plan.Id + '/move', { Project: home, Parent: 'fnothing' } ) ).Status, 400 );
 } );
 
 
@@ -675,12 +687,12 @@ TEST( 'an item goes just before another; a project moves in the order', async fu
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + c.Id + '/move', { Project: project.Id, Before: c.Id } ) ).Status, 400 );
 
 	// the project, before Default, then back to the end
-	let order = await call( 'POST', '/api/projects/' + project.Id + '/move', { Before: 'default' } );
+	let order = await call( 'POST', '/api/projects/' + project.Id + '/move', { Before: home } );
 	ASSERT.equal( order.Status, 200 );
 	ASSERT.equal( order.Body.Projects[ 0 ].Id, project.Id );
 	order = await call( 'POST', '/api/projects/' + project.Id + '/move', {} );
 	ASSERT.equal( order.Body.Projects[ order.Body.Projects.length - 1 ].Id, project.Id );
-	ASSERT.equal( ( await call( 'GET', '/api/projects' ) ).Body.Projects[ 0 ].Id, 'default' );
+	ASSERT.equal( ( await call( 'GET', '/api/projects' ) ).Body.Projects[ 0 ].Id, home );
 	ASSERT.equal( ( await call( 'POST', '/api/projects/none/move', {} ) ).Status, 404 );
 	ASSERT.equal( ( await call( 'POST', '/api/projects/' + project.Id + '/move', { Before: 'none' } ) ).Status, 400 );
 } );
@@ -706,12 +718,12 @@ TEST( 'a copied plan carries its text, threads and revisions; a copied folder co
 	ASSERT.equal( copy.Project.Id, project.Id );
 	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + copy_id + '/revisions' ) ).Body.Revisions.length, 2 );
 	// the original is where it was, unchanged
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + plan.Id ) ).Body.Project.Id, 'default' );
+	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + plan.Id ) ).Body.Project.Id, home );
 
 	// a folder with a plan in it
 	let folder = ( await call( 'POST', '/api/projects/' + project.Id + '/folders', { Name: 'Bundle' } ) ).Body.Folder;
 	await call( 'POST', '/api/items/' + copy_id + '/move', { Project: project.Id, Parent: folder.Id } );
-	let folder_copy = await call( 'POST', '/api/items/' + folder.Id + '/copy', { Project: 'default' } );
+	let folder_copy = await call( 'POST', '/api/items/' + folder.Id + '/copy', { Project: home } );
 	ASSERT.equal( folder_copy.Status, 201 );
 	let node = folder_copy.Body.Node;
 	ASSERT.equal( node.Kind, 'folder' );
@@ -720,7 +732,7 @@ TEST( 'a copied plan carries its text, threads and revisions; a copied folder co
 	ASSERT.equal( node.Items.length, 1 );
 	ASSERT.notEqual( node.Items[ 0 ].Id, copy_id );
 	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + node.Items[ 0 ].Id ) ).Body.Proposal.Title, 'Original (copy) (copy)' );
-	ASSERT.equal( ( await call( 'POST', '/api/items/nothing/copy', { Project: 'default' } ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/nothing/copy', { Project: home } ) ).Status, 404 );
 } );
 
 
@@ -754,9 +766,9 @@ TEST( 'a Document is edited and kept like a Plan, has no threads and no state, a
 	ASSERT.equal( edited.Status, 200 );
 	ASSERT.equal( edited.Body.Proposal.Revision, 2 );
 	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + document.Id, { Title: 'Terms' } ) ).Body.Proposal.Title, 'Terms' );
-	let copied = await call( 'POST', '/api/items/' + document.Id + '/copy', { Project: 'default', Parent: default_project.ContextFolder } );
+	let copied = await call( 'POST', '/api/items/' + document.Id + '/copy', { Project: home, Parent: default_project.ContextFolder } );
 	ASSERT.equal( copied.Status, 201 );
-	ASSERT.equal( ( await call( 'POST', '/api/items/' + document.Id + '/copy', { Project: 'default' } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + document.Id + '/copy', { Project: home } ) ).Status, 400 );
 	ASSERT.equal( ( await call( 'DELETE', '/api/proposals/' + copied.Body.Node.Id ) ).Status, 200 );
 } );
 
@@ -782,8 +794,8 @@ TEST( 'the Context folder: first in every project, holding the Readme; never ren
 	let folder_path = '/api/projects/' + project.Id + '/folders/' + project.ContextFolder;
 	ASSERT.equal( ( await call( 'PUT', folder_path, { Name: 'Other' } ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'DELETE', folder_path ) ).Status, 409 );
-	ASSERT.equal( ( await call( 'POST', '/api/items/' + project.ContextFolder + '/move', { Project: 'default' } ) ).Status, 409 );
-	ASSERT.equal( ( await call( 'POST', '/api/items/' + project.ContextFolder + '/copy', { Project: 'default' } ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + project.ContextFolder + '/move', { Project: home } ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + project.ContextFolder + '/copy', { Project: home } ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + project.Context, { Title: 'Renamed' } ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'DELETE', '/api/proposals/' + project.Context ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + project.Context + '/move', { Project: project.Id } ) ).Status, 409 );
@@ -824,7 +836,7 @@ TEST( 'projects: Default holds new proposals; a project and its folders are crea
 {
 	let listed = await call( 'GET', '/api/projects' );
 	ASSERT.equal( listed.Status, 200 );
-	ASSERT.equal( listed.Body.Projects[ 0 ].Id, 'default' );
+	ASSERT.equal( listed.Body.Projects[ 0 ].Id, home );
 	ASSERT.equal( listed.Body.Projects[ 0 ].Name, 'Default' );
 
 	let loose = await create( 'Loose' );
@@ -834,7 +846,7 @@ TEST( 'projects: Default holds new proposals; a project and its folders are crea
 	ASSERT.equal( node.Title, 'Loose' );
 	ASSERT.equal( node.State, 'Draft' );
 	ASSERT.equal( node.StateLine, 'no threads yet' );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + loose.Id ) ).Body.Project.Id, 'default' );
+	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + loose.Id ) ).Body.Project.Id, home );
 
 	let made = await call( 'POST', '/api/projects', { Name: 'Consensus' } );
 	ASSERT.equal( made.Status, 201 );
@@ -874,7 +886,7 @@ TEST( 'projects: Default holds new proposals; a project and its folders are crea
 	// deletes: only when empty, never Default; a trashed proposal leaves its project
 	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + project.Id + '/folders/' + folder.Body.Folder.Id ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + project.Id ) ).Status, 409 );
-	ASSERT.equal( ( await call( 'DELETE', '/api/projects/default' ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + home ) ).Status, 409 );
 	await call( 'DELETE', '/api/proposals/' + placed.Body.Proposal.Id );
 	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + project.Id + '/folders/' + folder.Body.Folder.Id ) ).Status, 200 );
 	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + project.Id ) ).Status, 200 );
@@ -932,4 +944,115 @@ TEST( 'subplans: a plan holds plans; they move, copy and go to the trash with it
 	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + bottom.Id ) ).Status, 404 );
 	listed = await project_named( project.Id );
 	ASSERT.equal( listed.Items.some( function ( node ) { return node.Id === top.Id; } ), false );
+} );
+
+
+//---------------------------------------------------------------------
+// Plan Run Shapes, Step 2: projects as folders, Archive and Restore, a project's own lists.
+
+TEST( 'projects as folders: a Path is taken, a folder holding a project is opened, the last project is never deleted', async function ()
+{
+	let elsewhere = PATH.join( temporary_folder(), 'a-repo' );
+	let made = await call( 'POST', '/api/projects', { Name: 'In a folder', Path: elsewhere } );
+	ASSERT.equal( made.Status, 201 );
+	ASSERT.equal( made.Body.Project.Path, elsewhere );
+	ASSERT.equal( FS.existsSync( PATH.join( elsewhere, '.consensus', 'project.json' ) ), true );
+	ASSERT.deepEqual( made.Body.Project.States, ( await call( 'GET', '/api/me' ) ).Body.States );
+	// opened again by its folder: the same project, once in the list
+	let opened = await call( 'POST', '/api/projects', { Path: elsewhere } );
+	ASSERT.equal( opened.Status, 200 );
+	ASSERT.equal( opened.Body.Opened, true );
+	ASSERT.equal( opened.Body.Project.Id, made.Body.Project.Id );
+	ASSERT.equal( ( await call( 'GET', '/api/projects' ) ).Body.Projects.filter( function ( project ) { return project.Id === made.Body.Project.Id; } ).length, 1 );
+	ASSERT.equal( ( await call( 'POST', '/api/projects', { Path: temporary_folder() } ) ).Status, 400 );
+	// the listing carries Path, States and Archive
+	let listed = ( await call( 'GET', '/api/projects' ) ).Body.Projects.find( function ( project ) { return project.Id === made.Body.Project.Id; } );
+	ASSERT.equal( listed.Path, elsewhere );
+	ASSERT.deepEqual( listed.Archive, [] );
+	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + made.Body.Project.Id ) ).Status, 200 );
+	ASSERT.equal( FS.existsSync( PATH.join( elsewhere, '.consensus' ) ), false );
+	ASSERT.equal( FS.existsSync( elsewhere ), true );
+} );
+
+
+TEST( 'archive: a plan and its Subplans leave the tree for the Archive, read-only, and Restore puts them back', async function ()
+{
+	let project = ( await call( 'POST', '/api/projects', { Name: 'Archiving' } ) ).Body.Project;
+	let plan = ( await call( 'POST', '/api/proposals', { Title: 'Finished work', Text: TEXT, Project: project.Id } ) ).Body.Proposal;
+	let sub = ( await call( 'POST', '/api/proposals', { Title: 'Sub', Text: '# Sub\n', Project: project.Id, Parent: plan.Id } ) ).Body.Proposal;
+	let other = ( await call( 'POST', '/api/proposals', { Title: 'Still open', Text: TEXT, Project: project.Id } ) ).Body.Proposal;
+	let thread = ( await call( 'POST', '/api/proposals/' + plan.Id + '/threads', { Anchor: null, Text: 'Before.' } ) ).Body.Thread;
+	let archived = await call( 'POST', '/api/items/' + plan.Id + '/archive', {} );
+	ASSERT.equal( archived.Status, 200 );
+	ASSERT.equal( archived.Body.Node.Id, plan.Id );
+	ASSERT.equal( archived.Body.Node.Items[ 0 ].Id, sub.Id );
+	let listed = await project_named( project.Id );
+	ASSERT.deepEqual( listed.Items.map( function ( node ) { return node.Id; } ), [ project.ContextFolder, other.Id ] );
+	ASSERT.equal( listed.Archive.length, 1 );
+	ASSERT.equal( listed.Archive[ 0 ].Title, 'Finished work' );
+	ASSERT.equal( listed.Archive[ 0 ].Archived, true );
+	ASSERT.equal( listed.Archive[ 0 ].Items[ 0 ].Title, 'Sub' );
+	ASSERT.equal( listed.Archive[ 0 ].Tally.Contested, 1 );
+	// read, never written
+	let read = await call( 'GET', '/api/proposals/' + plan.Id );
+	ASSERT.equal( read.Status, 200 );
+	ASSERT.equal( read.Body.Proposal.Archived, true );
+	ASSERT.equal( read.Body.Project.Id, project.Id );
+	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + sub.Id ) ).Body.Proposal.Archived, true );
+	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + plan.Id + '/revisions' ) ).Status, 200 );
+	for ( let attempt of [
+		call( 'PUT', '/api/proposals/' + plan.Id + '/text', { Text: 'x', Revision: 1 } ),
+		call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Plan' } ),
+		call( 'POST', '/api/proposals/' + plan.Id + '/threads', { Anchor: null, Text: 'After?' } ),
+		call( 'POST', '/api/proposals/' + plan.Id + '/threads/' + thread.Id + '/replies', { Text: 'No.' }, true ),
+		call( 'PUT', '/api/proposals/' + sub.Id, { Title: 'Renamed' } ),
+	] )
+	{
+		let answer = await attempt;
+		ASSERT.equal( answer.Status, 409, JSON.stringify( answer.Body ) );
+		ASSERT.match( answer.Body.Error, /is archived/ );
+	}
+	ASSERT.equal( ( await call( 'GET', '/api/proposals' ) ).Body.Proposals.some( function ( candidate ) { return candidate.Id === plan.Id; } ), false );
+	// not again, not the Readme, not a Subplan on its own, not one that is not archived
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + plan.Id + '/archive', {} ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + project.Context + '/archive', {} ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + sub.Id + '/restore', {} ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/' + other.Id + '/restore', {} ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'POST', '/api/items/nothing/archive', {} ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + project.Id ) ).Status, 409 );
+	// restored: at the root, writable again, its Subplan with it
+	let restored = await call( 'POST', '/api/items/' + plan.Id + '/restore', {} );
+	ASSERT.equal( restored.Status, 200 );
+	listed = await project_named( project.Id );
+	ASSERT.deepEqual( listed.Items.map( function ( node ) { return node.Id; } ), [ project.ContextFolder, other.Id, plan.Id ] );
+	ASSERT.deepEqual( listed.Archive, [] );
+	ASSERT.equal( 'Archived' in listed.Items[ 2 ], false );
+	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Plan' } ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + sub.Id ) ).Body.Proposal.Archived, undefined );
+} );
+
+
+TEST( 'a project\'s own States, Include, Exclude and Commands; a state in use stays; the settings\' list is the default for a new project', async function ()
+{
+	let project = ( await call( 'POST', '/api/projects', { Name: 'Own states' } ) ).Body.Project;
+	let plan = ( await call( 'POST', '/api/proposals', { Title: 'Kept', Text: TEXT, Project: project.Id } ) ).Body.Proposal;
+	ASSERT.equal( plan.State, 'Draft' );
+	let changed = await call( 'PUT', '/api/projects/' + project.Id, { States: 'Idea\nDraft\n\nDone', Include: [ 'src/**' ], Exclude: 'node_modules/**', Commands: [ 'npm test' ] } );
+	ASSERT.equal( changed.Status, 200, JSON.stringify( changed.Body ) );
+	ASSERT.deepEqual( changed.Body.Project.States, [ 'Idea', 'Draft', 'Done' ] );
+	ASSERT.deepEqual( [ changed.Body.Project.Include, changed.Body.Project.Exclude, changed.Body.Project.Commands ], [ [ 'src/**' ], [ 'node_modules/**' ], [ 'npm test' ] ] );
+	ASSERT.equal( changed.Body.Project.Name, 'Own states' );
+	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'New here', Text: TEXT, Project: project.Id } ) ).Body.Proposal.State, 'Idea' );
+	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Done' } ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Working' } ) ).Status, 400 );
+	let in_use = await call( 'PUT', '/api/projects/' + project.Id, { States: [ 'Idea', 'Draft' ] } );
+	ASSERT.equal( in_use.Status, 400 );
+	ASSERT.match( in_use.Body.Error, /"Done" is used by the plan "Kept"/ );
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id, { States: [] } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id, { States: [ 'A', 'A' ] } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id, {} ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id, { Name: 'Renamed, states kept' } ) ).Body.Project.States.length, 3 );
+	// another project is untouched, and a new one takes the settings' list
+	ASSERT.deepEqual( ( await project_named( home ) ).States, ( await call( 'GET', '/api/me' ) ).Body.States );
+	ASSERT.deepEqual( ( await call( 'POST', '/api/projects', { Name: 'Fresh' } ) ).Body.Project.States, ( await call( 'GET', '/api/me' ) ).Body.States );
 } );

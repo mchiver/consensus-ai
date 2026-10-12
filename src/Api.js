@@ -163,9 +163,28 @@ function Attach( App, Context )
 	}
 
 
+	// The settings' States: the default list for a new project (plan Run Shapes, Step 2: each project keeps its own).
 	function states()
 	{
 		return PARTICIPANTS.States( settings );
+	}
+
+
+	function project_states( project )
+	{
+		if ( project && Array.isArray( project.States ) && project.States.length )
+		{
+			return project.States;
+		}
+		return states();
+	}
+
+
+	// The ids of the proposals a node holds: itself when it is one, and everything under it.
+	function proposal_ids_of( node )
+	{
+		let ids = ( node.Kind === 'folder' ) ? [] : [ node.Id ];
+		return ids.concat( TREE.ItemIds( node.Items || [] ) );
 	}
 
 
@@ -252,16 +271,6 @@ function Attach( App, Context )
 		let body = request.body || {};
 		let clean = PARTICIPANTS.Clean( body.Settings || body );
 		let problems = PARTICIPANTS.Validate( clean );
-		if ( !problems.length && Array.isArray( clean.States ) )
-		{
-			for ( let proposal of await store.ListProposals() )
-			{
-				if ( proposal.Kind === 'plan' && proposal.State && !clean.States.includes( proposal.State ) )
-				{
-					problems.push( 'the state "' + proposal.State + '" is used by the plan "' + proposal.Title + '"' );
-				}
-			}
-		}
 		if ( problems.length )
 		{
 			return fail( response, 400, 'the settings have problems: ' + problems[ 0 ], { Problems: problems } );
@@ -314,25 +323,20 @@ function Attach( App, Context )
 		{
 			return fail( response, 400, 'Kind must be plan or document' );
 		}
-		let state = states()[ 0 ];
 		if ( kind === 'document' && body.State !== undefined && body.State !== null )
 		{
 			return fail( response, 400, 'a Document has no State' );
 		}
-		if ( kind === 'plan' && body.State !== undefined )
-		{
-			let can = RULES.CanSetState( body.State, states() );
-			if ( !can.Ok )
-			{
-				return fail( response, 400, can.Reason );
-			}
-			state = body.State;
-		}
-		// Where it goes: a project (Default when not named) and a folder in it, or a plan for a Subplan (its root
+		// Where it goes: a project (the first when not named) and a folder in it, or a plan for a Subplan (its root
 		// when not named). A document with no Parent goes in the project's Context folder.
-		let project_id = ( body.Project === undefined || body.Project === null ) ? STORE.DEFAULT_PROJECT : body.Project;
+		let project_id = body.Project;
+		if ( project_id === undefined || project_id === null )
+		{
+			let first = ( await store.ListProjects() )[ 0 ];
+			project_id = first ? first.Id : null;
+		}
 		let parent = ( body.Parent === undefined ) ? null : body.Parent;
-		let result = await create_proposal( request.Participant, { Title: title, Text: text_of( body.Text ), Kind: kind, State: state, Project: project_id, Parent: parent } );
+		let result = await create_proposal( request.Participant, { Title: title, Text: text_of( body.Text ), Kind: kind, State: body.State, Project: project_id, Parent: parent } );
 		if ( result.Refused )
 		{
 			return send_result( response, result );
@@ -342,14 +346,24 @@ function Attach( App, Context )
 
 
 	// A new plan or document in a project, at Parent (a folder, or a plan for a Subplan), else at its root (a
-	// document: in its Context folder). Fields = { Title, Text, Kind, State, Project, Parent }. Returns
-	// { Proposal, Project } or a refusal.
+	// document: in its Context folder). Fields = { Title, Text, Kind, State, Project, Parent }; a plan's State is one
+	// of the project's, the first when not given. Returns { Proposal, Project } or a refusal.
 	async function create_proposal( participant, fields )
 	{
 		let target = await store.ReadProject( fields.Project );
 		if ( !target )
 		{
 			return refused( 404, 'no such project' );
+		}
+		let state = project_states( target )[ 0 ];
+		if ( fields.Kind === 'plan' && fields.State !== undefined )
+		{
+			let can = RULES.CanSetState( fields.State, project_states( target ) );
+			if ( !can.Ok )
+			{
+				return refused( 400, can.Reason );
+			}
+			state = fields.State;
 		}
 		let parent = fields.Parent;
 		if ( fields.Kind === 'document' && ( parent === null || parent === undefined ) )
@@ -360,7 +374,7 @@ function Attach( App, Context )
 		{
 			return refused( 400, PARENT_REFUSED );
 		}
-		let proposal = await store.CreateProposal( { Title: fields.Title, Text: fields.Text, By: participant.Name, Kind: fields.Kind, State: fields.State } );
+		let proposal = await store.CreateProposal( { Project: target.Id, Title: fields.Title, Text: fields.Text, By: participant.Name, Kind: fields.Kind, State: state } );
 		let placed = await change_project( target.Id, null, function ( project )
 		{
 			let node = { Kind: fields.Kind, Id: proposal.Id };
@@ -512,16 +526,16 @@ function Attach( App, Context )
 	} );
 
 
-	// A proposal's state: one of the settings' States, set by anyone at any time. { State }
+	// A proposal's state: one of its project's States, set by anyone at any time. { State }
 	router.put( '/proposals/:id/state', async function ( request, response )
 	{
 		let wanted = ( request.body || {} ).State;
-		let can = RULES.CanSetState( wanted, states() );
+		let id = request.params.id;
+		let can = RULES.CanSetState( wanted, project_states( await store.ProjectOf( id ) ) );
 		if ( !can.Ok )
 		{
 			return fail( response, 400, can.Reason );
 		}
-		let id = request.params.id;
 		let result = await store.Queue( id, async function ()
 		{
 			let read = await store.ReadProposal( id );
@@ -585,8 +599,9 @@ function Attach( App, Context )
 	}
 
 
-	// The projects as the page shows them: each item with its title, state and tally; Context names the Context
-	// document (and whether it is still empty) and ContextFolder the folder that holds it.
+	// The projects as the page shows them: each item with its title, state and tally, the archived ones too (plan Run
+	// Shapes, Step 2: Archive, read-only); Context names the Context document (and whether it is still empty) and
+	// ContextFolder the folder that holds it; States the project's own; Path its folder.
 	async function present_projects( projects, name )
 	{
 		let views = {};
@@ -595,6 +610,18 @@ function Attach( App, Context )
 			let read = await store.ReadProposal( proposal.Id );
 			let summary = summarize( proposal, read ? read.Threads : [], name );
 			views[ proposal.Id ] = { Title: summary.Title, State: summary.State, Tally: summary.Tally, StateLine: summary.StateLine, Created: summary.Created, Updated: summary.Updated };
+		}
+		for ( let project of projects )
+		{
+			for ( let id of TREE.ItemIds( project.Archive || [] ) )
+			{
+				let read = await store.ReadProposal( id );
+				if ( read )
+				{
+					let summary = summarize( read.Proposal, read.Threads, name );
+					views[ id ] = { Title: summary.Title, State: summary.State, Tally: summary.Tally, StateLine: summary.StateLine, Created: summary.Created, Updated: summary.Updated, Archived: true };
+				}
+			}
 		}
 		let empty = {};
 		for ( let project of projects )
@@ -605,7 +632,7 @@ function Attach( App, Context )
 		return projects.map( function ( project )
 		{
 			let context = project.Context ? { Id: project.Context, Empty: empty[ project.Id ] } : null;
-			return Object.assign( {}, project, { Items: present_items( project.Items, views ), Context: context, ContextFolder: project.ContextFolder || null } );
+			return Object.assign( {}, project, { Items: present_items( project.Items, views ), Archive: present_items( project.Archive || [], views ), Context: context, ContextFolder: project.ContextFolder || null, States: project_states( project ) } );
 		} );
 	}
 
@@ -668,42 +695,102 @@ function Attach( App, Context )
 	} );
 
 
+	// A new project: { Name, Path? }. Path is the project's folder, <config>/projects/<name>/ when not given; a folder
+	// that holds a project already (its .consensus) is opened instead, under its own name (plan Run Shapes, Step 2).
 	router.post( '/projects', async function ( request, response )
 	{
-		let name = name_of_body( request.body );
+		let body = request.body || {};
+		let name = name_of_body( body );
+		let path = ( typeof body.Path === 'string' ) ? body.Path.trim() : '';
+		if ( path )
+		{
+			let opened = await store.OpenProject( path );
+			if ( opened )
+			{
+				events.Send( { Project: opened.Id, Kind: 'project' } );
+				return response.status( 200 ).json( { Project: opened, Opened: true } );
+			}
+		}
 		if ( !name )
 		{
 			return fail( response, 400, 'Name is required' );
 		}
-		let project = await store.CreateProject( { Name: name } );
+		let project = await store.CreateProject( { Name: name, Path: path || undefined } );
 		events.Send( { Project: project.Id, Kind: 'project' } );
 		response.status( 201 ).json( { Project: project } );
 	} );
 
 
+	// A project's Name, and its own States, Include, Exclude and Commands (each a list, or lines of text); a state still
+	// used by one of its plans cannot be removed.
 	router.put( '/projects/:pid', async function ( request, response )
 	{
-		let name = name_of_body( request.body );
-		if ( !name )
+		let body = request.body || {};
+		let name = name_of_body( body );
+		let fields = project_fields( body );
+		if ( fields.Problems.length )
+		{
+			return fail( response, 400, fields.Problems[ 0 ], { Problems: fields.Problems } );
+		}
+		if ( !name && !Object.keys( fields.Values ).length )
 		{
 			return fail( response, 400, 'Name is required' );
 		}
-		let result = await change_project( request.params.pid, request.body.Version, function ( project )
+		let result = await change_project( request.params.pid, body.Version, async function ( project )
 		{
-			project.Name = name;
+			if ( name )
+			{
+				project.Name = name;
+			}
+			if ( fields.Values.States )
+			{
+				for ( let id of TREE.ItemIds( project.Items ) )
+				{
+					let read = await store.ReadProposal( id );
+					if ( read && read.Proposal.Kind === 'plan' && read.Proposal.State && !fields.Values.States.includes( read.Proposal.State ) )
+					{
+						return refused( 400, 'the state "' + read.Proposal.State + '" is used by the plan "' + read.Proposal.Title + '"' );
+					}
+				}
+			}
+			Object.assign( project, fields.Values );
 		} );
 		send_result( response, result, 200, { Project: result.Project } );
 	} );
 
 
-	// Only an empty project is deleted, and never the Default one. Its Readme goes to the trash with it.
+	// The project's lists as a body gives them: States (one or more names, none twice), Include, Exclude and Commands
+	// (any lines). Returns { Values, Problems }.
+	function project_fields( body )
+	{
+		let values = {};
+		let problems = [];
+		for ( let field of [ 'States', 'Include', 'Exclude', 'Commands' ] )
+		{
+			if ( body[ field ] === undefined )
+			{
+				continue;
+			}
+			let lines = Array.isArray( body[ field ] ) ? body[ field ] : String( body[ field ] || '' ).split( /\r?\n/ );
+			lines = lines.map( function ( line ) { return String( line ).trim(); } ).filter( function ( line ) { return line; } );
+			if ( field === 'States' && !lines.length )
+			{
+				problems.push( 'States must be a list of one or more names' );
+			}
+			if ( field === 'States' && new Set( lines ).size !== lines.length )
+			{
+				problems.push( 'States names a state twice' );
+			}
+			values[ field ] = lines;
+		}
+		return { Values: values, Problems: problems };
+	}
+
+
+	// Only an empty project is deleted, and never the last one. Its Readme goes to the trash with it.
 	router.delete( '/projects/:pid', async function ( request, response )
 	{
 		let id = request.params.pid;
-		if ( id === STORE.DEFAULT_PROJECT )
-		{
-			return fail( response, 409, 'the Default project is never deleted' );
-		}
 		let result = await store.Queue( project_queue( id ), async function ()
 		{
 			let project = await store.ReadProject( id );
@@ -711,15 +798,15 @@ function Attach( App, Context )
 			{
 				return refused( 404, 'no such project' );
 			}
-			if ( !only_context( project ) )
+			if ( ( await store.ListProjects() ).length <= 1 )
+			{
+				return refused( 409, 'the last project is never deleted' );
+			}
+			if ( !only_context( project ) || ( project.Archive || [] ).length )
 			{
 				return refused( 409, 'only an empty project is deleted: move or delete what it holds first' );
 			}
 			await store.DeleteProject( id );
-			if ( project.Context )
-			{
-				await store.Queue( project.Context, function () { return store.TrashProposal( project.Context ); } );
-			}
 			return { Deleted: id };
 		} );
 		if ( !result.Refused )
@@ -1034,6 +1121,14 @@ function Attach( App, Context )
 					TREE.Insert( project.Items, ( node.Kind === 'document' ) ? project.ContextFolder : null, node, undefined, project.ContextFolder );
 				} );
 			}
+			else
+			{
+				// The items' folders follow into the other project's .consensus (plan Run Shapes, Step 2).
+				for ( let moved of proposal_ids_of( node ) )
+				{
+					await store.Queue( moved, function () { return store.MoveProposal( moved, where.Project ); } );
+				}
+			}
 		}
 		send_result( response, result, 200, { Project: result.Project } );
 	} );
@@ -1061,7 +1156,7 @@ function Attach( App, Context )
 		{
 			return send_result( response, problem );
 		}
-		let copy = await copy_node( found.Node );
+		let copy = await copy_node( found.Node, where.Project );
 		if ( copy.Refused )
 		{
 			return send_result( response, copy );
@@ -1077,15 +1172,15 @@ function Attach( App, Context )
 	} );
 
 
-	// The copy of one node and everything under it, or a refusal.
-	async function copy_node( node )
+	// The copy of one node and everything under it, into the project (its folder), or a refusal.
+	async function copy_node( node, project_id )
 	{
 		if ( node.Kind === 'folder' )
 		{
 			let folder = { Kind: 'folder', Id: new_id( IDS.FOLDER ), Name: node.Name, Items: [] };
 			for ( let child of node.Items )
 			{
-				let copied = await copy_node( child );
+				let copied = await copy_node( child, project_id );
 				if ( copied.Refused )
 				{
 					return copied;
@@ -1096,7 +1191,7 @@ function Attach( App, Context )
 		}
 		if ( node.Kind === 'plan' || node.Kind === 'document' )
 		{
-			let proposal = await store.Queue( node.Id, function () { return store.CopyProposal( node.Id ); } );
+			let proposal = await store.Queue( node.Id, function () { return store.CopyProposal( node.Id, project_id ); } );
 			if ( !proposal )
 			{
 				return refused( 404, 'no such proposal: ' + node.Id );
@@ -1108,7 +1203,7 @@ function Attach( App, Context )
 				copied.Items = [];
 				for ( let child of node.Items )
 				{
-					let subplan = await copy_node( child );
+					let subplan = await copy_node( child, project_id );
 					if ( subplan.Refused )
 					{
 						return subplan;
@@ -1120,6 +1215,82 @@ function Attach( App, Context )
 		}
 		return refused( 409, 'a ' + node.Kind + ' item cannot be copied' );
 	}
+
+
+	//-----------------------------------------------------------------
+	// Archive (plan Run Shapes, Step 2): a plan, with its Subplans, leaves the tree for the project's Archive, where it
+	// is read and never written, until Restore puts it back at the root.
+
+	router.post( '/items/:id/archive', async function ( request, response )
+	{
+		let id = request.params.id;
+		let holder = await store.ProjectOf( id );
+		if ( !holder )
+		{
+			return fail( response, 404, 'no such item in any project' );
+		}
+		if ( is_context_item( holder, id ) )
+		{
+			return fail( response, 409, CONTEXT_KEPT );
+		}
+		let node = null;
+		let result = await change_project( holder.Id, null, function ( project )
+		{
+			let found = TREE.Find( project.Items, id );
+			if ( !found )
+			{
+				return refused( TREE.Find( project.Archive, id ) ? 409 : 404, TREE.Find( project.Archive, id ) ? 'the item is archived already' : 'no such item in the project' );
+			}
+			if ( found.Node.Kind !== 'plan' )
+			{
+				return refused( 409, 'only a plan is archived' );
+			}
+			node = TREE.Remove( project.Items, id );
+			project.Archive.push( node );
+		} );
+		if ( result.Refused )
+		{
+			return send_result( response, result );
+		}
+		for ( let archived of proposal_ids_of( node ) )
+		{
+			await store.Queue( archived, function () { return store.ArchiveProposal( archived ); } );
+			changed( archived, 'archived' );
+		}
+		response.json( { Project: result.Project, Node: node } );
+	} );
+
+
+	router.post( '/items/:id/restore', async function ( request, response )
+	{
+		let id = request.params.id;
+		let holder = await store.ProjectOf( id );
+		if ( !holder )
+		{
+			return fail( response, 404, 'no such item in any project' );
+		}
+		let node = null;
+		let result = await change_project( holder.Id, null, function ( project )
+		{
+			let index = project.Archive.findIndex( function ( candidate ) { return candidate.Id === id; } );
+			if ( index < 0 )
+			{
+				return refused( TREE.Find( project.Archive, id ) ? 409 : 404, TREE.Find( project.Archive, id ) ? 'a Subplan is restored with its plan' : 'the item is not archived' );
+			}
+			node = project.Archive.splice( index, 1 )[ 0 ];
+			TREE.Insert( project.Items, null, node, undefined, project.ContextFolder );
+		} );
+		if ( result.Refused )
+		{
+			return send_result( response, result );
+		}
+		for ( let restored of proposal_ids_of( node ) )
+		{
+			await store.Queue( restored, function () { return store.RestoreProposal( restored ); } );
+			changed( restored, 'restored' );
+		}
+		response.json( { Project: result.Project, Node: node } );
+	} );
 
 
 	//-----------------------------------------------------------------

@@ -27,11 +27,19 @@ The folder holds documents only. **New document** in the project's menu, or the 
 
 ## Making things
 
-- **+ Project** at the top of the sidebar makes a new project.
+- **+ Project** at the top of the sidebar makes a new project. In the desktop it asks for a folder as well (Browse, or leave it empty for one under the config folder): the project lives in that folder's `.consensus`, and a folder that holds a project already is opened as it is, under its own name.
 - **New plan**, **New folder** and **New document** in a project's menu; New plan and New folder in a folder's menu too, which create in it.
 - **New Subplan** in a plan's menu, or **New subplan** in the heading of a plan with none yet. From a thread being written or replied to, **Start a new Subplan** starts one with the anchored passage and the thread so far quoted, and the thread gets a reply linking to it. Selected text can start one too: the Subplan starts with that text, and the parent is not changed.
 
-The **Default** project is there from the first start and is never deleted; ad-hoc items live there.
+The **Default** project is there from the first start; ad-hoc items live there. Any empty project can be deleted except the last one.
+
+## A project's own settings
+
+**Settings** in a project's menu opens its own lists, one per line each: its **States** (the server's list is only the default for a new project; a state still used by one of its plans cannot be removed), and the **Include**, **Exclude** and **Commands** an LLM working in its folder goes by. The state picker and the menu's "New …" follow the project's States.
+
+## Archive
+
+**Archive** in a plan's menu moves it, with its Subplans, out of the tree into the project's **Archive** folder, shown folded at the bottom of the project. An archived plan opens and reads as it was, with every thread and revision, but takes no edit, comment, state or reply until **Restore** in its menu puts it back at the project's root. On disk it moves to the project's `archive/` folder.
 
 ## Moving, copying and deleting
 

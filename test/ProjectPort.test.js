@@ -18,6 +18,7 @@ let folders = [];
 let origin = null;
 let copy = null;
 let bare = null;
+let bare_home = null;		// bare's first project
 let exported = null;
 let alpha = null;
 let ids = {};
@@ -112,6 +113,7 @@ TEST.before( async function ()
 	origin = await start();
 	copy = await start();
 	bare = await start();
+	bare_home = ( await bare.Store.ListProjects() )[ 0 ].Id;
 
 	// The project on the origin: a folder with a plan and its Subplan, a document in the Context folder, a thread,
 	// and a Readme with text.
@@ -532,26 +534,26 @@ TEST( 'item export: a folder with its plans and subplans, a plan with its subpla
 
 TEST( 'import Into a root and Into a folder: new ids, the counts in the report, the preview writes nothing', async function ()
 {
-	let home = await project_of( bare, 'default' );
+	let home = await project_of( bare, bare_home );
 	let folder_file = await item_export_of( origin, ids.Folder );
 	let drafts = await drafts_folder();
 	let expected = await counts_of( origin, [ drafts ] );
 
-	let preview = await import_into( bare, { Export: folder_file, Preview: true, Into: { Project: 'default' } } );
+	let preview = await import_into( bare, { Export: folder_file, Preview: true, Into: { Project: bare_home } } );
 	ASSERT.equal( preview.Status, 200 );
 	ASSERT.deepEqual( preview.Body.Preview.Made, expected );
-	ASSERT.equal( preview.Body.Preview.Into.Project, 'default' );
-	ASSERT.deepEqual( shape( ( await project_of( bare, 'default' ) ).Items ), shape( home.Items ) );
+	ASSERT.equal( preview.Body.Preview.Into.Project, bare_home );
+	ASSERT.deepEqual( shape( ( await project_of( bare, bare_home ) ).Items ), shape( home.Items ) );
 
-	let result = await import_into( bare, { Export: folder_file, Into: { Project: 'default' } } );
+	let result = await import_into( bare, { Export: folder_file, Into: { Project: bare_home } } );
 	ASSERT.equal( result.Status, 201 );
 	let report = result.Body.Report;
-	ASSERT.deepEqual( report.Project, { Id: 'default', Name: home.Name, Mode: 'into' } );
+	ASSERT.deepEqual( report.Project, { Id: bare_home, Name: home.Name, Mode: 'into' } );
 	ASSERT.deepEqual( report.Made, expected );
 	ASSERT.equal( report.Into.Parent, null );
 	ASSERT.equal( report.Into.Nodes.length, 1 );
 	ASSERT.equal( report.Written.length, expected.Plans + expected.Documents );
-	let after = await project_of( bare, 'default' );
+	let after = await project_of( bare, bare_home );
 	let brought = after.Items.find( function ( node ) { return node.Id === report.Into.Nodes[ 0 ]; } );
 	ASSERT.equal( brought.Kind, 'folder' );
 	ASSERT.equal( brought.Name, 'Drafts' );
@@ -569,19 +571,19 @@ TEST( 'import Into a root and Into a folder: new ids, the counts in the report, 
 	ASSERT.equal( brought_plan.Threads[ 0 ].Id, ids.Thread );	// a thread keeps its id, as in a copy import
 
 	// Into a folder: the plan's file, with its subplan.
-	let target = ( await call( bare, 'POST', '/api/projects/default/folders', { Name: 'Target' } ) ).Body.Folder;
+	let target = ( await call( bare, 'POST', '/api/projects/' + bare_home + '/folders', { Name: 'Target' } ) ).Body.Folder;
 	let plan_file = await item_export_of( origin, ids.Plan );
-	let into_folder = await import_into( bare, { Export: plan_file, Into: { Project: 'default', Parent: target.Id } } );
+	let into_folder = await import_into( bare, { Export: plan_file, Into: { Project: bare_home, Parent: target.Id } } );
 	ASSERT.equal( into_folder.Status, 201 );
 	ASSERT.equal( into_folder.Body.Report.Into.Parent, target.Id );
-	let folder_after = ( await project_of( bare, 'default' ) ).Items.find( function ( node ) { return node.Id === target.Id; } );
+	let folder_after = ( await project_of( bare, bare_home ) ).Items.find( function ( node ) { return node.Id === target.Id; } );
 	ASSERT.equal( folder_after.Items.length, 1 );
 	ASSERT.equal( folder_after.Items[ 0 ].Kind, 'plan' );
 	ASSERT.equal( folder_after.Items[ 0 ].Items.length, 1 );
 	ASSERT.equal( ( await text_of( bare, folder_after.Items[ 0 ].Id ) ).Proposal.Title, 'Plan' );
 
 	// The same file again: another copy, new ids again.
-	let again = await import_into( bare, { Export: plan_file, Into: { Project: 'default', Parent: target.Id } } );
+	let again = await import_into( bare, { Export: plan_file, Into: { Project: bare_home, Parent: target.Id } } );
 	ASSERT.equal( again.Status, 201 );
 	ASSERT.notEqual( again.Body.Report.Into.Nodes[ 0 ], into_folder.Body.Report.Into.Nodes[ 0 ] );
 } );
@@ -592,11 +594,11 @@ TEST( 'import Into: a project\'s file goes in as a folder named after it, withou
 	let project_file = await export_of( origin, alpha.Id );
 	let outside = ( await project_of( origin, alpha.Id ) ).Items.filter( function ( node ) { return node.Id !== alpha.ContextFolder; } );
 	let expected = await counts_of( origin, outside );
-	let result = await import_into( bare, { Export: project_file, Into: { Project: 'default' } } );
+	let result = await import_into( bare, { Export: project_file, Into: { Project: bare_home } } );
 	ASSERT.equal( result.Status, 201 );
 	let report = result.Body.Report;
 	ASSERT.deepEqual( report.Made, expected );
-	let after = await project_of( bare, 'default' );
+	let after = await project_of( bare, bare_home );
 	let brought = after.Items.find( function ( node ) { return node.Id === report.Into.Nodes[ 0 ]; } );
 	ASSERT.equal( brought.Kind, 'folder' );
 	ASSERT.equal( brought.Name, 'Alpha' );
@@ -609,27 +611,27 @@ TEST( 'import Into: a project\'s file goes in as a folder named after it, withou
 
 TEST( 'import Into: a document goes into the Context folder only; a missing project or folder is refused; nothing is written on a refusal', async function ()
 {
-	let home = await project_of( bare, 'default' );
+	let home = await project_of( bare, bare_home );
 	let document_file = await item_export_of( origin, ids.Document );
 	let before = ( await call( bare, 'GET', '/api/proposals' ) ).Body;
-	let at_root = await import_into( bare, { Export: document_file, Into: { Project: 'default' } } );
+	let at_root = await import_into( bare, { Export: document_file, Into: { Project: bare_home } } );
 	ASSERT.equal( at_root.Status, 400 );
 	ASSERT.match( at_root.Body.Problems[ 0 ], /does not take a document/ );
 	ASSERT.deepEqual( ( await call( bare, 'GET', '/api/proposals' ) ).Body, before );
 
-	let in_context = await import_into( bare, { Export: document_file, Into: { Project: 'default', Parent: home.ContextFolder } } );
+	let in_context = await import_into( bare, { Export: document_file, Into: { Project: bare_home, Parent: home.ContextFolder } } );
 	ASSERT.equal( in_context.Status, 201 );
 	ASSERT.deepEqual( in_context.Body.Report.Made, { Plans: 0, Documents: 1, Threads: 0 } );
-	let context_folder = ( await project_of( bare, 'default' ) ).Items[ 0 ];
+	let context_folder = ( await project_of( bare, bare_home ) ).Items[ 0 ];
 	ASSERT.equal( context_folder.Id, home.ContextFolder );
 	ASSERT.equal( context_folder.Items[ context_folder.Items.length - 1 ].Id, in_context.Body.Report.Into.Nodes[ 0 ] );
 	ASSERT.equal( ( await text_of( bare, in_context.Body.Report.Into.Nodes[ 0 ] ) ).Proposal.Title, 'Notes' );
 
 	let folder_file = await item_export_of( origin, ids.Folder );
-	ASSERT.equal( ( await import_into( bare, { Export: folder_file, Into: { Project: 'default', Parent: home.ContextFolder } } ) ).Status, 400 );
+	ASSERT.equal( ( await import_into( bare, { Export: folder_file, Into: { Project: bare_home, Parent: home.ContextFolder } } ) ).Status, 400 );
 	ASSERT.equal( ( await import_into( bare, { Export: folder_file, Into: { Project: 'prj-no-such' } } ) ).Status, 400 );
-	ASSERT.equal( ( await import_into( bare, { Export: folder_file, Into: { Project: 'default', Parent: 'fld-no-such' } } ) ).Status, 400 );
-	ASSERT.equal( ( await import_into( bare, { Export: folder_file, Into: 'default' } ) ).Status, 400 );
+	ASSERT.equal( ( await import_into( bare, { Export: folder_file, Into: { Project: bare_home, Parent: 'fld-no-such' } } ) ).Status, 400 );
+	ASSERT.equal( ( await import_into( bare, { Export: folder_file, Into: bare_home } ) ).Status, 400 );
 } );
 
 
