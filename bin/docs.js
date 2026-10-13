@@ -407,7 +407,8 @@ async function show_all_threads( Page )
 async function open_plan( Page, Url, Id )
 {
 	await Page.Evaluate( 'location.hash = ' + JSON.stringify( '#/p/' + Id ) + '; true' );
-	await Page.WaitFor( 'angular.element( document.body ).injector().get( "State" ).OpenId === ' + JSON.stringify( Id ) + ' && ' + count_of( '#read-view h1' ) + ' === 1', 20000 );
+	// (the injector is missing while a document is still loading: not yet, rather than an error)
+	await Page.WaitFor( '!!angular.element( document.body ).injector() && angular.element( document.body ).injector().get( "State" ).OpenId === ' + JSON.stringify( Id ) + ' && ' + count_of( '#read-view h1' ) + ' === 1', 20000 );
 	await Page.WaitFor( 'document.querySelector( ".connection" ) && document.querySelector( ".connection" ).classList.contains( "live" )', 20000 );
 	await show_all_threads( Page );
 	await wait( 400 );
@@ -645,9 +646,10 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 		await page.Send( 'Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false } );
 		await page.WaitFor( count_of( '.tree-item' ) + ' > 0', 30000 );
 		// The same pane widths as the page's pictures (the window's page keeps its own storage), then a reload.
-		await page.Evaluate( 'localStorage.setItem( "consensus.--sidebar-width", ' + JSON.stringify( SIDEBAR_WIDTH ) + ' ); localStorage.setItem( "consensus.--threads-width", ' + JSON.stringify( THREADS_WIDTH ) + ' ); location.reload(); true' );
+		// The old document is marked, so the wait is for the new one and not for the old one still showing.
+		await page.Evaluate( 'window.DocsOldDocument = true; localStorage.setItem( "consensus.--sidebar-width", ' + JSON.stringify( SIDEBAR_WIDTH ) + ' ); localStorage.setItem( "consensus.--threads-width", ' + JSON.stringify( THREADS_WIDTH ) + ' ); location.reload(); true' );
 		await wait( 1500 );
-		await page.WaitFor( count_of( '.tree-item' ) + ' > 0', 30000 );
+		await page.WaitFor( '!window.DocsOldDocument && ' + count_of( '.tree-item' ) + ' > 0', 30000 );
 		// The demo project open, with its plan last opened, so the LLM page's pickers start on them.
 		await open_plan( page, Url, Demo.Plans[ 'Shopping list' ] );
 		await page.Evaluate( 'location.hash = "#/llm/' + DOC_LLM_ID + '"; true' );
