@@ -1,7 +1,8 @@
 'use strict';
 
 // Threads pane - filter, highlight, each thread with its anchor words and replies, reply, resolve, and the compose
-// card (Comment, or the owner's Comment and resolve).
+// card (Comment, or the owner's Comment and resolve). After your own Reply, Reply and Contest, Reply and resolve or
+// Resolve the selection passes to the next listed thread (plan UI Tweaks VI).
 
 angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$timeout', 'State', 'Client', 'Subplans', function ( $scope, $timeout, State, Client, Subplans )
 {
@@ -225,6 +226,38 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	};
 
 
+	// After your own reply or resolve, the selection passes to the next thread in line: the next listed one after it
+	// in the pane's order (the thread itself is still listed while selected; one the filter has just dropped is
+	// skipped), or the previous one when it was the last, or none. The card scrolls into view, its reply form open.
+	function move_on( thread )
+	{
+		let listed = $scope.Threads();
+		let at = listed.findIndex( function ( candidate ) { return candidate.Id === thread.Id; } );
+		let next = null;
+		if ( at >= 0 )
+		{
+			next = listed[ at + 1 ] || listed[ at - 1 ] || null;
+		}
+		else
+		{
+			next = listed[ 0 ] || null;
+		}
+		State.Select( next ? next.Id : null );
+		if ( next )
+		{
+			$timeout( function ()
+			{
+				let card = document.getElementById( 'thread-' + next.Id );
+				if ( card )
+				{
+					card.scrollIntoView( { block: 'nearest', behavior: 'smooth' } );
+				}
+			}, 0, false );
+		}
+	}
+
+
+	// Reply; on a resolved thread, Reply and Contest: the thread reopens and stays contested.
 	$scope.Reply = async function ( thread )
 	{
 		let text = State.Drafts[ thread.Id ];
@@ -239,6 +272,7 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 		if ( answer )
 		{
 			delete State.Drafts[ thread.Id ];
+			move_on( thread );
 			$scope.$applyAsync();
 		}
 	};
@@ -246,10 +280,15 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 
 	$scope.Resolve = async function ( thread )
 	{
-		await act( function ()
+		let answer = await act( function ()
 		{
 			return Client.Post( path( thread ) + '/resolve' );
 		} );
+		if ( answer )
+		{
+			move_on( thread );
+			$scope.$applyAsync();
+		}
 	};
 
 
@@ -268,6 +307,7 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 		if ( answer )
 		{
 			delete State.Drafts[ thread.Id ];
+			move_on( thread );
 			$scope.$applyAsync();
 		}
 	};

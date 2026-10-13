@@ -1,1 +1,566 @@
-[]
+[
+	{
+		"Id": "thr-6uh-z2f-40t",
+		"Anchor": {
+			"Text": "reads \"Reply and Contest\"",
+			"Prefix": "lved thread, the \"Reply\" button ",
+			"Suffix": " and takes the color of the Cont"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:19:30.468Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:40:47.627Z",
+			"Revision": 13,
+			"RevisionId": "rev-qa9-t52-x1p",
+			"Outcome": "Reading (a), as decided: the Reply button on a resolved thread reads \"Reply and Contest\" in the contested colour; \"Reply and resolve\" is unchanged."
+		},
+		"Created": "2026-10-12T21:15:14.369Z",
+		"Replies": [
+			{
+				"Id": "rep-j9h-b8m-qtm",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.369Z",
+				"Text": "\"Reply and resolve\" is the owner's one-request close: the reply is posted as the outcome and the thread is resolved with it (threads.js ReplyAndResolve, `POST .../replies` with Resolve: true). Labelling that \"Contest\" would say the opposite of what it does. Two readings of this item:\n\n(a) You mean the plain \"Reply\" button on a *resolved* thread, which reopens it (its placeholder already says \"Reply (reopens the thread)\"). That button would read \"Contest\", in the contested colour, on a resolved thread only; on a contested thread it stays \"Reply\". \"Reply and resolve\" and the compose form's \"Comment and resolve\" stay as they are.\n\n(b) You want \"Reply and resolve\" itself renamed, and I am misreading what it does.\n\nRecommendation: (a). If (b), tell me what \"Contest\" should do when pressed."
+			},
+			{
+				"Id": "rep-stg-go9-igm",
+				"By": "user",
+				"At": "2026-10-12T21:19:30.468Z",
+				"Text": "you are right, it is (a). use the verbiage \"Reply and Contest\" to indicate that the thread will stay open and contested."
+			}
+		]
+	},
+	{
+		"Id": "thr-yu6-9at-sqt",
+		"Anchor": {
+			"Text": "stays in Edit. After the save",
+			"Prefix": "ent (the Save button or Ctrl+S) ",
+			"Suffix": " the editor's base revision is t"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:19:59.219Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:40:47.647Z",
+			"Revision": 14,
+			"RevisionId": "rev-31d-5ha-jy8",
+			"Outcome": "Resolved without a reply, so the recommendation stands: the Save button and Ctrl+S both stay in Edit."
+		},
+		"Created": "2026-10-12T21:15:14.395Z",
+		"Replies": [
+			{
+				"Id": "rep-j44-y11-qhw",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.395Z",
+				"Text": "Today Save (the button and Ctrl+S, the same `$scope.Save` in edit.js) reloads and goes to Read. Decision: does the Save *button* also stay in Edit, or only Ctrl+S?\n\nRecommendation: both stay in Edit, so Save has one behaviour; the Read button and Ctrl+E are how one leaves. After a save the editor's base revision moves to the new one, so a further edit saves cleanly, and the toast from the Hotkeys item is the only sign that it happened. A save that fails because the proposal moved on (Stale) stays in Edit with the error as it does now."
+			}
+		]
+	},
+	{
+		"Id": "thr-5w2-pk4-mez",
+		"Anchor": {
+			"Text": "A menu bar above the project tree",
+			"Prefix": "Ctrl+E are how one leaves Edit. ",
+			"Suffix": ", in place of the Project and Im"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:24:36.272Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:40:47.669Z",
+			"Revision": 15,
+			"RevisionId": "rev-27l-m1u-rk8",
+			"Outcome": "A menu bar above the project tree in place of the Project and Import buttons; its Tools menu folded into the server row's menu (the Settings thread)."
+		},
+		"Created": "2026-10-12T21:15:14.405Z",
+		"Replies": [
+			{
+				"Id": "rep-t7o-4v3-v2t",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.405Z",
+				"Text": "There is no menu bar today: the page has the sidebar with each row's actions menu, the tab strip and the header. Where \"Help\" lives is the decision:\n\n(a) A Help button at the bottom of the sidebar beside the theme and size pickers, opening the page's one popup menu (the Menus factory, as the rows and tabs use it) with About, Settings and Hotkeys. No new component.\n\n(b) A menu bar across the top of the main area, with Help as its first (and only) menu.\n\nRecommendation: (a). A detached window hides the sidebar, so there the same Help button goes in the detached bar next to Re-attach. About and Hotkeys open as popups like Settings (the subplan-popup / settings-popup style), each closed by Escape."
+			},
+			{
+				"Id": "rep-ubo-s6w-n52",
+				"By": "user",
+				"At": "2026-10-12T21:24:36.272Z",
+				"Text": "Actually, create a menu bar above the project tree where the \"Project\" and \"Import\" buttons currently live. In the place of those two buttons put the menus \"Tools\" and \"Help\".\nThe \"Tools\" menu will have \"New Project\", \"Import Project\", and \"Settings\".\nThe \"Help\" menu will have \"About\" and \"Hotkeys\"."
+			}
+		]
+	},
+	{
+		"Id": "thr-hjz-cpn-8wb",
+		"Anchor": {
+			"Text": "link to source: https://github.com/mchiver/consensus-ai",
+			"Prefix": "om GET /api/me (already loaded) ",
+			"Suffix": " link to online guide: http://co"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:25:03.839Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:40:47.807Z",
+			"Revision": 17,
+			"RevisionId": "rev-rft-u94-6l5",
+			"Outcome": "The About facts written in: version and server from /api/me, the source and guide links, system browser in the desktop."
+		},
+		"Created": "2026-10-12T21:15:14.416Z",
+		"Replies": [
+			{
+				"Id": "rep-dah-4gj-xdh",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.416Z",
+				"Text": "The About popup's facts, as they stand: the version and server name come from GET /api/me (Version, Server), already loaded; the source link is https://github.com/mchiver/consensus-ai; the guide link is http://consensus-ai.liquicode.com (the bucket bin/docs.js publishes to). In the desktop, both links open in the system browser rather than inside the window."
+			}
+		]
+	},
+	{
+		"Id": "thr-onx-qh6-qwr",
+		"Anchor": {
+			"Text": "The counts are sums of the Tally",
+			"Prefix": "me, and number waiting on LLMs. ",
+			"Suffix": " the tree already loads for each"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:26:26.381Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:40:47.826Z",
+			"Revision": 18,
+			"RevisionId": "rev-b2b-xga-wnq",
+			"Outcome": "Resolved without a reply: counts from the loaded Tally, \"waiting on LLMs\" over every llm participant, one block per server, archived plans left out."
+		},
+		"Created": "2026-10-12T21:15:14.427Z",
+		"Replies": [
+			{
+				"Id": "rep-o3q-zrx-zny",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.427Z",
+				"Text": "The tree already carries every item's Tally from GET /api/projects (Total, Contested, Resolved, Applied, and WaitingOn per participant), so the summary is a sum over each project's plans on the client, no new route. Two points to settle:\n\n1. \"Waiting on LLM\": a server has several llm participants (here: llm, Claude-CLI@Cube12, Ollama@Cube12). Recommendation: one column, the sum of WaitingOn over every participant whose Role is llm, headed \"waiting on LLMs\".\n\n2. The desktop shows several servers. Recommendation: one block per server (its Name as the heading) with a row per project; \"waiting on me\" counts that server's own Me, which can differ per root.\n\nArchived plans: recommendation is to leave them out of the counts."
+			}
+		]
+	},
+	{
+		"Id": "thr-voh-ufs-a09",
+		"Anchor": {
+			"Text": "they are the server row's menu",
+			"Prefix": "ttings are not in the menu bar: ",
+			"Suffix": " (which has them already), so ea"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:28:53.359Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:40:47.690Z",
+			"Revision": 16,
+			"RevisionId": "rev-w8e-g92-kca",
+			"Outcome": "New Project, Import Project and Settings are the server row's menu, so they are server-specific; the menu bar has Help only."
+		},
+		"Created": "2026-10-12T21:15:14.455Z",
+		"Replies": [
+			{
+				"Id": "rep-232-gkp-c3h",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.455Z",
+				"Text": "The settings popup is per server and for its owner only (it opens from the root's row or menu with the root as its argument). Help > Settings would open it for the current root (State.Root, the root of the open item) and be disabled with a reason in the title when you are not that server's owner. The project settings popup is a different thing and stays where it is, in the project's menu. Say if you meant that one."
+			},
+			{
+				"Id": "rep-g4l-93i-eyy",
+				"By": "user",
+				"At": "2026-10-12T21:28:53.359Z",
+				"Text": "OK, move the \"Tools\" menu i described before and fold it into a server level menu so that all those operations will be server specific."
+			}
+		]
+	},
+	{
+		"Id": "thr-n2d-quk-ls4",
+		"Anchor": {
+			"Text": "One table in a new",
+			"Prefix": "t of available hotkeys Hotkeys. ",
+			"Suffix": " public/js/hotkeys.js factory ({"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:30:02.583Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:40:47.846Z",
+			"Revision": 19,
+			"RevisionId": "rev-mlc-40p-dn4",
+			"Outcome": "Resolved without a reply: one hotkeys table drives the Help page and one listener; the typing rule as recommended."
+		},
+		"Created": "2026-10-12T21:15:14.467Z",
+		"Replies": [
+			{
+				"Id": "rep-d0q-f2b-s59",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.467Z",
+				"Text": "Several of the hotkeys below exist already, each in its own file: Ctrl+E (header.js), Ctrl+C and Ctrl+V on the open item (sidebar.js: not while typing, nothing selected), Ctrl+S in Monaco (editor.js), Escape in the menu and in each popup. Recommendation for the build: one table of hotkeys in a new public/js/hotkeys.js factory, { Keys, Label, When, Act } per row, that both drives the Help > Hotkeys page and dispatches one window keydown listener; Ctrl+E and Ctrl+C/V move into it, Ctrl+S stays Monaco's binding (it fires only in the editor) but is listed. Escape stays with the popups and menu, which each close themselves, and is listed.\n\nThe typing rule, stated so it is decided: Ctrl+S and Ctrl+E work wherever the page has focus, the editor included; Ctrl+C and Ctrl+V are the browser's own while typing or with text selected; the Ctrl+Shift and tab keys work everywhere; a hotkey never fires while a popup is open except Escape. The Hotkeys page shows Cmd for Ctrl on a Mac."
+			}
+		]
+	},
+	{
+		"Id": "thr-ceh-l4p-eh5",
+		"Anchor": {
+			"Text": "it saves and then goes to Read",
+			"Prefix": "it with a dirty, unrefused edit ",
+			"Suffix": " (Ctrl+S saves and stays); a ref"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:31:34.577Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:40:47.865Z",
+			"Revision": 20,
+			"RevisionId": "rev-cqc-u9p-soj",
+			"Outcome": "Resolved without a reply: Ctrl+E from Edit saves and then reads; Ctrl+S saves and stays."
+		},
+		"Created": "2026-10-12T21:15:14.480Z",
+		"Replies": [
+			{
+				"Id": "rep-kwe-xpp-16o",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.480Z",
+				"Text": "Read has nothing to save, so I take this to mean the other direction: Ctrl+E in Edit saves and goes to Read. Today Ctrl+E from Edit keeps the unsaved edit as a draft, as the Read button does (UI Tweaks V). Decision: should Ctrl+E from Edit save?\n\nRecommendation: yes, when the edit is dirty and not stale, Ctrl+E saves and then goes to Read (so Ctrl+E is Save-and-read while Ctrl+S is Save-and-stay); when the save fails it stays in Edit with the error; with nothing to save it just goes to Read. The Read button keeps today's behaviour, keeping the draft."
+			}
+		]
+	},
+	{
+		"Id": "thr-3a2-ijr-jkl",
+		"Anchor": {
+			"Text": "The toast is new",
+			"Prefix": "r and shows a toast on success. ",
+			"Suffix": ": a small Toast factory (public/"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:32:00.632Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:40:47.929Z",
+			"Revision": 21,
+			"RevisionId": "rev-bn5-hu9-33v",
+			"Outcome": "A Toast factory, as agreed, for later use too."
+		},
+		"Created": "2026-10-12T21:15:14.511Z",
+		"Replies": [
+			{
+				"Id": "rep-7mt-7qf-p2x",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.511Z",
+				"Text": "There is no toast in the page today (only the flash on a changed passage). Recommendation: a small Toast factory (public/js/toast.js) with one element at the bottom of the main area: Show( Text ) fades it in and out over about two seconds, a second message replaces the first. Used here for \"Saved, revision N\", and for Copy and Paste, which today confirm nothing. If you would rather not have a new piece, the alternative is the revision number in the header flashing after a save."
+			},
+			{
+				"Id": "rep-olf-d3x-zn3",
+				"By": "user",
+				"At": "2026-10-12T21:32:00.632Z",
+				"Text": "Yes, add toast. We will use it for other things later."
+			}
+		]
+	},
+	{
+		"Id": "thr-mk5-3ad-644",
+		"Anchor": {
+			"Text": "second binding that a browser lets through",
+			"Prefix": "op they are ours. So each has a ",
+			"Suffix": ": Alt+PgUp, Alt+PgDn, Alt+Home, "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:34:56.027Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:40:47.948Z",
+			"Revision": 22,
+			"RevisionId": "rev-9d5-g17-st0",
+			"Outcome": "Resolved without a reply: the keys as written plus Alt+PgUp/PgDn/Home/End and Ctrl+Shift+H for browsers."
+		},
+		"Created": "2026-10-12T21:15:14.523Z",
+		"Replies": [
+			{
+				"Id": "rep-ega-eje-3up",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.523Z",
+				"Text": "In a browser Ctrl+PgUp, Ctrl+PgDn and Ctrl+Shift+T are Chrome's own (previous tab, next tab, reopen closed tab) and are on its reserved list: the page never sees them, preventDefault or not. In the desktop (Electron) they are ours and work as written. Decision: what reaches a browser page?\n\nRecommendation: bind the keys as written, and add a second binding for each that a browser lets through: Alt+PgUp, Alt+PgDn, Alt+Home, Alt+End for the tabs and Ctrl+Shift+H for the threads; the Hotkeys page lists both. Ctrl+Home and Ctrl+End are fine everywhere; in the editor they are Monaco's go-to-start/end, so there the tab keys yield to the editor."
+			}
+		]
+	},
+	{
+		"Id": "thr-xmw-ejh-s7o",
+		"Anchor": {
+			"Text": "the header's New Comment",
+			"Prefix": "omment to the current document (",
+			"Suffix": ": on a plan's Read view, not arc"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:33:15.527Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:40:47.965Z",
+			"Revision": 23,
+			"RevisionId": "rev-isz-ala-vtd",
+			"Outcome": "Kept, with its conditions written in."
+		},
+		"Created": "2026-10-12T21:15:14.534Z",
+		"Replies": [
+			{
+				"Id": "rep-o8z-d4g-ebo",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.534Z",
+				"Text": "This is the header's New Comment (StartCompose with no anchor), which shows only on a plan's Read view and not when archived; the hotkey follows the same conditions and does nothing otherwise. Note Ctrl+Shift+C is Chrome's inspect-element shortcut; a page can take it, so it works, it only shadows DevTools while the page has focus. Fine by me unless you want a different key."
+			},
+			{
+				"Id": "rep-q59-xm3-idr",
+				"By": "user",
+				"At": "2026-10-12T21:33:15.527Z",
+				"Text": "keep it"
+			}
+		]
+	},
+	{
+		"Id": "thr-ix1-v4p-w82",
+		"Anchor": {
+			"Text": "A threads toggle goes in the detached bar",
+			"Prefix": "ility with no way to toggle it. ",
+			"Suffix": " beside Re-attach (Ctrl+Shift+T "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:35:49.497Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:40:47.985Z",
+			"Revision": 24,
+			"RevisionId": "rev-eb7-c4w-0wm",
+			"Outcome": "Resolved without a reply: a toggle in the detached bar, and a detached window's setting kept in memory."
+		},
+		"Created": "2026-10-12T21:15:14.545Z",
+		"Replies": [
+			{
+				"Id": "rep-rwm-lej-ebh",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.545Z",
+				"Text": "The threads toggle sits in the tabs row, which a detached window does not show; and ThreadsHidden is a shared remembered key (consensus.threads-hidden), so a detached window reads the main window's value when it opens, and a toggle in one would set the other's next load. Recommendation: put a threads toggle in the detached bar beside Re-attach (and Ctrl+Shift+T works there too), and have a detached window keep its ThreadsHidden in memory only, starting from the shared value, so the two windows do not fight over the key. The tree toggle does not apply there, as a detached window has no sidebar."
+			}
+		]
+	},
+	{
+		"Id": "thr-xha-xe9-ea4",
+		"Anchor": {
+			"Text": "a click in the read view that is not on a highlight",
+			"Prefix": " the current thread. The rules: ",
+			"Suffix": ", with no text selection (a clic"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:43:20.876Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:47:49.991Z",
+			"Revision": 25,
+			"RevisionId": "rev-jyx-q3w-m9s",
+			"Outcome": "The deselect rules written into the item, as stated in the thread."
+		},
+		"Created": "2026-10-12T21:15:14.556Z",
+		"Replies": [
+			{
+				"Id": "rep-fpt-alk-fn8",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:15:14.556Z",
+				"Text": "Today the read view's click handler returns unless the click is on a mark.anchor (read.js on_click). The rules, as they stand: a click in the read view that is not on a highlight, with no text selection (a click that ends a selection keeps the selection buttons), and not while re-anchoring, calls State.Select( null ); the selected card's reply form folds, its draft kept in State.Drafts; nothing in the threads panel changes. Escape, when no menu or popup is open, also deselects. Deselecting does not hide the threads panel."
+			},
+			{
+				"Id": "rep-6zl-6ar-3zo",
+				"By": "user",
+				"At": "2026-10-12T21:37:52.157Z",
+				"Text": "I have tried clicking in blank areas with no effect on the selected thread."
+			},
+			{
+				"Id": "rep-hyp-emb-q7i",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:40:48.021Z",
+				"Text": "Right, that is today's behaviour: the read view's click handler ignores any click that is not on a highlight, so a blank click does nothing. This item changes that, with the rules above (off a highlight, no text selection, not while re-anchoring; Escape deselects too; the threads panel stays). Nothing left to decide here; resolve it when you are ready and I will write the rules into the line."
+			}
+		]
+	},
+	{
+		"Id": "thr-ppz-nxv-uwj",
+		"Anchor": {
+			"Text": "two new inline SVG symbols",
+			"Prefix": " and Projects need a nice icon: ",
+			"Suffix": " in index.html, a server for the"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:43:49.795Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:47:50.010Z",
+			"Revision": 26,
+			"RevisionId": "rev-cmn-ioj-mh9",
+			"Outcome": "Resolved without a reply: the rack-unit server and the filled, tabbed project folder."
+		},
+		"Created": "2026-10-12T21:40:48.030Z",
+		"Replies": [
+			{
+				"Id": "rep-v86-430-fxn",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:40:48.030Z",
+				"Text": "The page's icons are inline SVG symbols in index.html (#i-…), so these are two new symbols. Recommendation: a server for the root row (a flat box with a light on it, a rack unit), and a project (a filled folder with a tab, to tell it from the plain folders under it). Say if you have other shapes in mind; otherwise these are the ones I draw."
+			}
+		]
+	},
+	{
+		"Id": "thr-lus-zc4-ki4",
+		"Anchor": {
+			"Text": "the selection passes to the next thread in line",
+			"Prefix": "d, the thread is deselected and ",
+			"Suffix": ": the next listed thread after i"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-12T21:49:37.372Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-12T21:50:03.067Z",
+			"Revision": 27,
+			"RevisionId": "rev-y65-1ff-k9g",
+			"Outcome": "Resolved without a reply: the bullet added as proposed, the next thread being the next listed one in text order."
+		},
+		"Created": "2026-10-12T21:46:28.838Z",
+		"Replies": [
+			{
+				"Id": "rep-9sf-6nv-u8f",
+				"By": "user",
+				"At": "2026-10-12T21:46:28.838Z",
+				"Text": "I want to add: when a thread is replied to or resolved by the user, it should be deselected and the selection should pass to the next thread in line, if any.\nI miss the previous behavior where i could resolve a thread, it would deselect and be hidden (via the thread filter) and then the next thread would get selected. very helpful behavior."
+			},
+			{
+				"Id": "rep-njj-4pf-3c5",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T21:47:50.027Z",
+				"Text": "Understood. For the record, the page never selected the next thread on its own: UI Tweaks II deselected a thread the filter left out (so a resolved thread vanished from a \"Waiting on me\" list and the next card moved up into its place), and UI Tweaks V keeps the selected thread listed whatever the filter, which is why a resolved thread now stays put, selected. This item builds what you describe, as a new bullet I will add when you resolve this:\n\n\"After the user's own Reply, Reply and Contest, Reply and resolve or Resolve on a thread, the thread is deselected and the selection passes to the next thread in line: the next listed thread after it in text order (so one the filter has just dropped is skipped), or the previous one when it was the last, or none. The newly selected thread's card scrolls into view and its reply form opens, as a click would. A thread the filter still lists after a reply (under All, say) stays listed, but the selection still moves on. Comment and Comment and resolve keep selecting the thread they post.\"\n\nRecommendation: the next thread is the next in text order among the listed ones, not the next waiting on you, since the list is what you see; with the filter at Waiting on me the two are the same. Say if you want it the other way."
+			}
+		]
+	},
+	{
+		"Id": "thr-52c-h82-p1z",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-13T03:37:10.130Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-13T03:37:37.465Z",
+			"Revision": 28,
+			"RevisionId": "rev-r6i-ic4-ixj",
+			"Outcome": "Build accepted as reported, with the two fixes from the thread (the server row's Settings button gone, its menu shown always; the folds read per project's server). No text change. Committed as \"UI Tweaks VI\"."
+		},
+		"Created": "2026-10-12T22:12:49.985Z",
+		"Replies": [
+			{
+				"Id": "rep-efl-sbb-nkf",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-12T22:12:49.985Z",
+				"Text": "**Build log: UI Tweaks VI** (built by Claude Fable 5.1 through Claude Code; not committed)\n\n**What was built, and where**\n\n- **Reply and Contest** (`index.html`, `consensus.css`): on a resolved or applied thread the Reply button reads \"Reply and Contest\" in the contested colour, its title saying the thread reopens and stays contested; on a contested thread it stays \"Reply\". Nothing else changed.\n- **Save stays in Edit** (`edit.js`): the Save button and Ctrl+S save and keep the editor open on the new revision (the base moves on before the reload, so the reload does not read as stale); the toast says \"Saved, revision N\". The editor's line now reads \"Editing revision N. Ctrl+S saves; Ctrl+E saves and reads.\"\n- **Menu bar** (`index.html`, `help.js`, `consensus.css`): the Project and Import buttons are gone; the bar beside the brand has one menu, Help, opened in the page's popup menu with About and Hotkeys. New Project, Import and Settings stay in the server row's menu, as they were (the row's Settings button too). **About**: the version (the desktop's own, else the server's from /api/me), the Source and Online guide links (a new tab; the desktop hands them to the system browser), and one block per server with a table per project: threads, contested, waiting on me, waiting on LLMs, summed from the tallies the tree holds when the popup opens (plans and Subplans, folders walked; documents and the Archive left out; \"waiting on LLMs\" over every participant whose Role is llm). **Hotkeys**: the table below.\n- **Hotkeys** (`hotkeys.js`, new): one table of rows { Keys, Label, When, Act } drives the Help page and one window keydown listener (capture, so it is heard before the editor). Ctrl+E moved out of `header.js` and Ctrl+C/V out of `sidebar.js`; Ctrl+S stays Monaco's binding and the listener takes it too in Edit (so it saves with the focus on the preview, and the browser's own save never opens). Controllers hand in Save, EditToRead, Copy and Paste with `Hotkeys.Provide`. The rows: Ctrl+E (Edit; from Edit, save and read), Ctrl+S, Ctrl+C, Ctrl+V, Escape (deselects the thread when no menu or popup is open), Ctrl+Shift+E (tree), Ctrl+Shift+T or Ctrl+Shift+H (threads), Ctrl+Shift+C (comment on the whole document), Ctrl+PgUp or Alt+PgUp, Ctrl+PgDn or Alt+PgDn, Ctrl+Home or Alt+Home, Ctrl+End or Alt+End (the tabs, wrapping, ghosted tabs skipped). The rules as planned: no hotkey but Escape while a popup is open; Ctrl+C and Ctrl+V are the browser's own while typing or with text selected; the tab keys yield to the editor and do nothing in a detached window; Cmd for Ctrl on a Mac in the Hotkeys page. An act runs inside a digest, as a click's would.\n- **Ctrl+E from Edit** (`edit.js`): a dirty, unrefused edit is saved, then Read; a refused save stays in Edit with the error; nothing to save (or a stale edit, kept as a draft as the Read button keeps it) just goes to Read.\n- **Toast** (`toast.js`, new; `index.html`, `consensus.css`): one line at the bottom of the main pane, shown two seconds, a later message replacing the earlier; used by Save, and by Copy and Paste (the sidebar's notice line stays, and now toasts too).\n- **Detached window** (`index.html`, `app.js`): the bar beside Re-attach has Hide threads / Show threads (Ctrl+Shift+T there too); a detached window starts from the shared remembered value and never writes it.\n- **Deselect** (`read.js`): a click in the read section off any highlight, with no text selection, not on the selection's buttons and not while re-anchoring, deselects; the card's reply form folds, the draft kept. Escape too (hotkeys.js).\n- **The selection moves on** (`threads.js`): after your own Reply, Reply and Contest, Reply and resolve or Resolve, the selection goes to the next listed thread after it in the pane's order, else the previous, else none; the card scrolls into view with its form open. Comment and Comment and resolve still select the thread they post.\n- **Project tree** (`index.html`, `consensus.css`): under a server's row everything starts one indent further in (`.root-body { --row-start }`: the projects and their trees). Two new icons: a server (two rack units with a light each) beside the live dot, and a project (a folder with a tab, outlined when closed, filled when open, in its own green) in place of the dot. Two new sprite symbols (info, keyboard) for the Help menu.\n- **Docs**: `editing.md` (save and Ctrl+E, the detached bar's button, a Hotkeys section with the table), `threads.md` (Reply and Contest, deselect, the selection moving on), `projects.md` (the icons, Help, New Project in the server's menu), the README; the guide rebuilt with `node bin/docs.js build`, not published.\n\n**How it was tested**\n\n- `test/Ui.test.js` (a real headless Chrome over CDP, the server on a temporary folder): the existing tests updated where the page changed (New Project and Import picked from the server row's menu; the project and server icons; Ctrl+E now saving; Save staying in Edit with the toast and \"Editing revision 2\"; the resolve test now also checks the selection moving to none, Reply and Contest on the resolved thread, and the blank-click and Escape deselect; the reply-and-resolve test re-picks the thread after the reply moves on; the detached-window test clicks the threads button and checks the shared key is untouched). Two new tests: the hotkeys (Ctrl+Shift+T, H, E, C and the Alt tab keys with two tabs) and Help (About's version, links and summary rows; the Hotkeys table's twelve rows; Escape closing each).\n- The whole suite: `node --test`, 178 pass, 0 fail.\n- Screenshots over a temporary server, light and dark, checked by eye: the tree, the Help menu, About, Hotkeys, Reply and Contest, the toast after a save, a detached window with its threads hidden.\n\n**Decided during the build**\n\n- Ctrl+S with the focus outside the editor but in Edit saves too.\n- In the test harness Ctrl+Shift+C is taken by the renderer's inspect-element handling while a debugger is attached (a real browser does the same only with DevTools open), so that test dispatches the key event on the page itself.\n- The extra indent makes a long plan title truncate sooner at the sidebar's default width; the splitter widens it. Say if you would rather have a narrower indent for the projects.\n- The Help menu is not in a detached window, which has no sidebar, as the plan left it.\n- The server row keeps its Settings button and its live dot beside the new icon.\n\nResolve this thread to accept the build; I then apply it, commit as \"UI Tweaks VI\", set the plan Finished and update the Readme. A reply instead means fix and report again."
+			},
+			{
+				"Id": "rep-5cp-814-rc9",
+				"By": "user",
+				"At": "2026-10-13T03:19:15.956Z",
+				"Text": "The server's row menu still contains the \"Settings\" button rather than a menu."
+			},
+			{
+				"Id": "rep-gz9-0q8-sbo",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-13T03:27:39.144Z",
+				"Text": "**Fixed: the server row's Settings button is gone; the row's menu is the one place.**\n\nThe row had both: its Settings button and its ⋯ menu, and the menu's button was drawn only while open or on a right-click (the hover rule that shows a row's ⋯ never covered the server row), so the button was all one saw. Now:\n\n- The Settings button is removed from the server row (`index.html`, `consensus.css`). The row's ⋯ is shown always there, at the row's end, with New Project, Import, Settings (the owner's), Servers… in the desktop, and Reload, as before; a right-click opens the same menu. The first row's ⋯ is `#root-menu`.\n- The row no longer wraps: the name and the \"you are …\" text are cut short instead, the latter giving way first, so the ⋯ stays on the row's line at any sidebar width.\n- The plan's line \"The server row's Settings button stays\" is changed in revision 28 to say it goes and the menu is the one place.\n- The settings test opens the popup from the menu and checks the button is gone and the ⋯ visible; the guide's screenshot step does the same; `settings.md`, `llm.md` and `projects.md` no longer say \"at the bottom of the sidebar\" (Theme and size are still there). Guide rebuilt, not published.\n- The whole suite: `node --test`, 178 pass, 0 fail; the row looked at in a screenshot.\n\nResolve this thread to accept the build, or reply again."
+			},
+			{
+				"Id": "rep-zh7-c3u-wkj",
+				"By": "user",
+				"At": "2026-10-13T03:30:30.548Z",
+				"Text": "The context node in the consensus project does not expand. it seems to expand in other projects."
+			},
+			{
+				"Id": "rep-1fe-o95-sz1",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-13T03:35:57.583Z",
+				"Text": "**Fixed: the Consensus project's Context folder unfolds again.**\n\nThe cause was the folds, not the folder. The folds are remembered per server (`consensus.<server>.folded`, a list of folder ids), and the page took a node as folded when *any* server's list had its id (sidebar.js, since Run Shapes, Step 5: \"an id belongs to one root\"). The Consensus project came into the checkout from cube4 with its ids, and cube4's remembered list still names its Context folder (fld-vi6-61j-kzx) as folded; a click toggled the local server's list, which cube4's list overrode every time, so the folder never opened. The other projects' folders are only on one server, so they were fine.\n\nNow a node is folded when its own project's server remembers it so, and that list alone (`IsFolded( node, project )`, `ToggleFold( node, project, event )`, the template handing in the project); the other servers' lists are not looked at. The stale entry in cube4's list is harmless and left alone.\n\nA browser test reproduces it: a second, offline root whose remembered list holds the Context folder, which still folds and unfolds; the test fails with the old check and passes now. Whole suite: `node --test`, 179 pass, 0 fail.\n\nResolve this thread to accept the build, or reply again."
+			}
+		]
+	}
+]

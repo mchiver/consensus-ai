@@ -534,7 +534,9 @@ const PAGE_PICTURES = [
 		Make: async function ( Page, Url, Demo, Folder, Theme )
 		{
 			await open_plan( Page, Url, Demo.Plans[ 'Shopping list' ] );
-			await Page.Click( '#settings-button' );
+			await Page.Evaluate( 'document.getElementById( "root-menu" ).click(); true' );
+			await Page.WaitFor( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].some( function ( entry ) { return entry.textContent.trim() === "Settings"; } )' );
+			await Page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( entry ) { return entry.textContent.trim() === "Settings"; } ).click(); true' );
 			await Page.WaitFor( visible( '#settings-popup' ) );
 			await wait( 400 );
 			let file = await capture( Page, Folder, 'settings', Theme );

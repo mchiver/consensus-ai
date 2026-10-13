@@ -2,7 +2,8 @@
 
 // The page in a real browser (test/support/Cdp.js drives the installed Chrome or Edge headless):
 // the list loads, a selection becomes a thread, the llm's reply (over the API) arrives live, resolve, edit and
-// save, the state picker, projects and the Context folder, tabs, subplans, the tree, and the settings popup.
+// save, the state picker, projects and the Context folder, tabs, subplans, the tree, the settings popup, the
+// hotkeys and the Help popups (plan UI Tweaks VI).
 // The server runs on port 0 over a temporary folder; the llm is played with its token over the API.
 
 const TEST = require( 'node:test' );
@@ -152,18 +153,33 @@ TEST( 'the llm replies over the API, and the reply arrives live', async function
 } );
 
 
-TEST( 'the owner resolves from the page', async function ()
+TEST( 'the owner resolves from the page; the selection moves on; Reply and Contest on the resolved thread; a blank click or Escape deselects', async function ()
 {
 	await show_all_threads();
 	await page.Click( '.thread:not(.compose)' );
 	await page.WaitFor( count_of( '.thread.selected .resolve-button' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( text_of( '.thread.selected .reply-button' ) ), 'Reply' );
 	await page.Click( '.thread.selected .resolve-button' );
 	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "resolved"' );
 	await page.WaitFor( text_of( '#state-line' ) + ' === "1 resolved"' );
+	// after the owner's own resolve the selection passes on: with no other thread, to none (plan UI Tweaks VI)
+	await page.WaitFor( count_of( '.thread.selected' ) + ' === 0' );
+	// on the resolved thread, Reply reads Reply and Contest, in the contested colour
+	await page.Click( '.thread:not(.compose)' );
+	await page.WaitFor( count_of( '.thread.selected .reply-button.contest' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( text_of( '.thread.selected .reply-button' ) ), 'Reply and Contest' );
+	// a click in the text off any highlight deselects; so does Escape
+	await page.Click( '#read-view h1' );
+	await page.WaitFor( count_of( '.thread.selected' ) + ' === 0' );
+	await page.Click( '.thread:not(.compose)' );
+	await page.WaitFor( count_of( '.thread.selected' ) + ' === 1' );
+	await page.Press( 'Escape' );
+	await page.WaitFor( count_of( '.thread.selected' ) + ' === 0' );
+	ASSERT.deepEqual( page.Errors, [] );
 } );
 
 
-TEST( 'edit and save make a revision and keep the highlight', async function ()
+TEST( 'edit and save make a revision and keep the highlight; the editor stays, the toast says so', async function ()
 {
 	await page.Click( '#view-edit' );
 	await page.WaitFor( 'window.monaco && monaco.editor.getEditors().length === 1', 30000 );
@@ -172,6 +188,13 @@ TEST( 'edit and save make a revision and keep the highlight', async function ()
 	await page.WaitFor( '/edited in the browser/.test( ' + text_of( '#edit-preview' ) + ' )' );
 	await page.Click( '#save-button' );
 	await page.WaitFor( text_of( '#revision' ) + ' === "revision 2"' );
+	// saved, and still editing, now revision 2 (plan UI Tweaks VI)
+	await page.WaitFor( 'document.getElementById( "toast" ).classList.contains( "shown" ) && ' + text_of( '#toast' ) + ' === "Saved, revision 2"' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "view-edit" ).classList.contains( "btn-secondary" )' ), true );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "save-button" ).disabled' ), true );
+	ASSERT.match( await page.Evaluate( text_of( '.edit-bar .muted' ) ), /^Editing revision 2\./ );
+	await page.Click( '#view-read' );
+	await page.WaitFor( 'document.getElementById( "view-read" ).classList.contains( "btn-secondary" )' );
 	await page.WaitFor( text_of( '#read-view p:last-child' ) + ' === "A closing paragraph, edited in the browser."' );
 	ASSERT.equal( await page.Evaluate( count_of( '#read-view mark.anchor' ) ), 1 );
 } );
@@ -193,7 +216,8 @@ TEST( 'once the llm applies, the state picker makes the proposal Working and the
 TEST( 'a new project opens and closes the others; a folder and a plan are made in it; a document goes in the Context folder', async function ()
 {
 	await page.WaitFor( count_of( '.project.open[data-project="' + home + '"]' ) + ' === 1' );
-	await page.Click( '#new-project' );
+	// New Project is in the server row's menu (plan UI Tweaks VI)
+	await menu_pick( '.root-head', 'New Project' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
 	await page.Type( 'Browser project' );
 	await page.Click( '#create-submit' );
@@ -317,9 +341,14 @@ TEST( 'reply and resolve: one click posts the owner\'s answer and resolves the t
 	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
 	await page.Click( '.thread:not(.compose)' );
 	await page.WaitFor( count_of( '.thread.selected .reply-box' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( text_of( '.thread.selected .reply-button' ) ), 'Reply and Contest' );
 	await page.Evaluate( '( function () { let box = document.querySelector( ".thread.selected .reply-box" ); box.value = "Reopened to ask again."; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
 	await page.Click( '.thread.selected .reply-button' );
 	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "reopened"' );
+	// the reply moved the selection on (to none: the only thread); picked again, Reply reads plainly, and Reply and resolve shows
+	await page.WaitFor( count_of( '.thread.selected' ) + ' === 0' );
+	await page.Click( '.thread:not(.compose)' );
+	await page.WaitFor( text_of( '.thread.selected .reply-button' ) + ' === "Reply"' );
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.selected .reply-resolve-button" ) ).display !== "none"' );
 	// the posted draft is cleared a moment after the reply lands, so the button is waited for, not read at once
 	await page.WaitFor( 'document.querySelector( ".thread.selected .reply-resolve-button" ).disabled' );
@@ -524,6 +553,13 @@ TEST( 'tabs: a tab detaches into its own window, stays ghosted in the strip, and
 	await detached.WaitFor( text_of( '.header .title' ) + ' === "Tab one"', 20000 );
 	ASSERT.equal( await detached.Evaluate( 'getComputedStyle( document.querySelector( "aside.sidebar" ) ).display' ), 'none' );
 	ASSERT.equal( await detached.Evaluate( 'getComputedStyle( document.querySelector( ".tabs-row" ) ).display' ), 'none' );
+	// the bar's threads button hides and shows the threads there (plan UI Tweaks VI); the window keeps the choice to itself
+	let remembered = await detached.Evaluate( 'window.localStorage.getItem( "consensus.threads-hidden" )' );
+	await detached.Click( '#detached-threads' );
+	await detached.WaitFor( 'document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
+	ASSERT.equal( await detached.Evaluate( 'window.localStorage.getItem( "consensus.threads-hidden" )' ), remembered );
+	await detached.Click( '#detached-threads' );
+	await detached.WaitFor( '!document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
 	await page.WaitFor( 'window.heard.includes( "here" )' );
 	await detached.Click( '#reattach' );
 	await page.WaitFor( count_of( tab_selector( tab_one.Id ) ) + ' === 1' );
@@ -768,7 +804,7 @@ TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-docum
 } );
 
 
-TEST( 'tree menus: a right-click or the ⋯ opens a row\'s actions; Delete is there only, confirmed on the row; the open project has the solid dot', async function ()
+TEST( 'tree menus: a right-click or the ⋯ opens a row\'s actions; Delete is there only, confirmed on the row; the open project has the filled icon', async function ()
 {
 	let doomed = await created( 'Doomed plan' );
 	await page.Evaluate( 'window.location.hash = "#/p/' + doomed.Id + '"; true' );
@@ -776,11 +812,12 @@ TEST( 'tree menus: a right-click or the ⋯ opens a row\'s actions; Delete is th
 	const ROW = '.tree-item[data-id="' + doomed.Id + '"]';
 	await page.WaitFor( count_of( ROW ) + ' === 1' );
 
-	// no Delete in the heading; the open project's dot is solid, the others hollow
+	// no Delete in the heading; the open project's folder icon is filled, the others outlined (plan UI Tweaks VI); the server has its icon
 	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".header button" ) ].some( function ( button ) { return button.textContent.trim() === "Delete"; } )' ), false );
-	ASSERT.equal( await page.Evaluate( count_of( '.project.open .project-dot.open' ) ), 1 );
-	ASSERT.equal( await page.Evaluate( count_of( '.project-dot.open' ) ), 1 );
-	ASSERT.equal( await page.Evaluate( count_of( '.project-dot' ) + ' - ' + count_of( '.project' ) ), 0 );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.open .icon-project.open' ) ), 1 );
+	ASSERT.equal( await page.Evaluate( count_of( '.icon-project.open' ) ), 1 );
+	ASSERT.equal( await page.Evaluate( count_of( '.icon-project' ) + ' - ' + count_of( '.project' ) ), 0 );
+	ASSERT.equal( await page.Evaluate( count_of( '.root-head .icon-server' ) ), 1 );
 
 	// a right-click opens the same menu; Escape closes it
 	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( ROW ) + ' ).dispatchEvent( new MouseEvent( "contextmenu", { bubbles: true, cancelable: true, clientX: 60, clientY: 200 } ) ); true' );
@@ -800,7 +837,7 @@ TEST( 'tree menus: a right-click or the ⋯ opens a row\'s actions; Delete is th
 } );
 
 
-TEST( 'Ctrl+E: Read to Edit, and back to Read from the editor, keeping the unsaved edit', async function ()
+TEST( 'Ctrl+E: Read to Edit; from the editor it saves the edit and reads; with nothing to save it just reads', async function ()
 {
 	let plan = await created( 'Keyboard plan' );
 	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
@@ -810,16 +847,85 @@ TEST( 'Ctrl+E: Read to Edit, and back to Read from the editor, keeping the unsav
 	await page.Press( 'e', [ 'Control' ] );
 	await page.WaitFor( 'document.getElementById( "view-edit" ).classList.contains( "btn-secondary" )' );
 	const SAVED = JSON.stringify( '# Keyboard plan\n\nA line.\n' );
-	const EDITED = JSON.stringify( '# Keyboard plan\n\nA line, not saved.\n' );
+	const EDITED = JSON.stringify( '# Keyboard plan\n\nA line, saved by Ctrl+E.\n' );
 	await page.WaitFor( 'window.monaco && monaco.editor.getEditors().length === 1 && monaco.editor.getEditors()[ 0 ].getValue() === ' + SAVED, 30000 );
 	await page.Evaluate( '( function () { let editor = monaco.editor.getEditors()[ 0 ]; editor.setValue( ' + EDITED + ' ); editor.focus(); return true; } )()' );
-	// from inside the editor, back to Read; the edit, kept with the tab a moment after typing (stored.js: localStorage in a browser), is there on the way back
-	await page.WaitFor( '( window.localStorage.getItem( "consensus.tabs" ) || "" ).includes( "A line, not saved" )' );
+	// the edit is kept with the tab a moment after typing (stored.js: localStorage in a browser); Ctrl+E from inside the
+	// editor saves it (plan UI Tweaks VI) and goes to Read, where the saved text shows
+	await page.WaitFor( '( window.localStorage.getItem( "consensus.tabs" ) || "" ).includes( "saved by Ctrl+E" )' );
 	await page.Press( 'e', [ 'Control' ] );
 	await page.WaitFor( 'document.getElementById( "view-read" ).classList.contains( "btn-secondary" )' );
+	await page.WaitFor( text_of( '#revision' ) + ' === "revision 2"' );
+	await page.WaitFor( text_of( '#read-view p' ) + ' === "A line, saved by Ctrl+E."' );
+	ASSERT.equal( await page.Evaluate( '( window.localStorage.getItem( "consensus.tabs" ) || "" ).includes( "saved by Ctrl+E" )' ), false );
+	// back to Edit: the saved text, nothing dirty; Ctrl+E again just reads
 	await page.Press( 'e', [ 'Control' ] );
 	await page.WaitFor( 'document.getElementById( "view-edit" ).classList.contains( "btn-secondary" )' );
 	await page.WaitFor( 'monaco.editor.getEditors()[ 0 ].getValue() === ' + EDITED );
+	await page.WaitFor( 'document.getElementById( "save-button" ).disabled' );
+	await page.Press( 'e', [ 'Control' ] );
+	await page.WaitFor( 'document.getElementById( "view-read" ).classList.contains( "btn-secondary" )' );
+	ASSERT.equal( await page.Evaluate( text_of( '#revision' ) ), 'revision 2' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'hotkeys: Ctrl+Shift+T hides the threads, Ctrl+Shift+E the tree, Ctrl+Shift+C comments on the whole document, and the Alt tab keys move along the strip', async function ()
+{
+	await page.Click( '#read-view' );
+	await page.Press( 't', [ 'Control', 'Shift' ] );
+	await page.WaitFor( 'document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
+	await page.Press( 'h', [ 'Control', 'Shift' ] );
+	await page.WaitFor( '!document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
+	await page.Press( 'e', [ 'Control', 'Shift' ] );
+	await page.WaitFor( 'document.querySelector( ".layout" ).classList.contains( "no-tree" )' );
+	await page.Press( 'e', [ 'Control', 'Shift' ] );
+	await page.WaitFor( '!document.querySelector( ".layout" ).classList.contains( "no-tree" )' );
+	// Ctrl+Shift+C is the inspect-element key of a renderer with a debugger attached, as this one has, so the key event is
+	// made on the page itself; the listener hears it on the window as it would a real press
+	await page.Evaluate( 'document.body.dispatchEvent( new KeyboardEvent( "keydown", { key: "C", ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true } ) ); true' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.id === "compose-text"' );
+	ASSERT.equal( await page.Evaluate( text_of( '.thread.compose .thread-anchor.whole' ) ), 'the whole document' );
+	// while typing in the compose box, Ctrl+Shift+T still toggles; Escape leaves the box alone
+	await page.Evaluate( '[ ...document.querySelectorAll( ".thread.compose button" ) ].pop().click(); true' );
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.compose" ) ).display === "none"' );
+	// the tabs: a second plan opens as the last tab; Alt+Home, Alt+End, Alt+PgDn (wrapping) and Alt+PgUp move along the strip
+	let second = await created( 'Second keyboard plan' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + second.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Second keyboard plan"' );
+	await page.Click( '#read-view' );
+	let first_title = await page.Evaluate( text_of( '.tab-strip .tab:first-child .tab-title' ) );
+	await page.Press( 'Home', [ 'Alt' ] );
+	await page.WaitFor( text_of( '.header .title' ) + ' === ' + JSON.stringify( first_title ) );
+	await page.Press( 'End', [ 'Alt' ] );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Second keyboard plan"' );
+	await page.Press( 'PageDown', [ 'Alt' ] );
+	await page.WaitFor( text_of( '.header .title' ) + ' === ' + JSON.stringify( first_title ) );
+	await page.Press( 'PageUp', [ 'Alt' ] );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Second keyboard plan"' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'Help: About shows the version, the links and the project summary; Hotkeys lists the keys; Escape closes each', async function ()
+{
+	await menu_pick( '', 'About', '#help-menu' );
+	let me = await api( 'GET', '/api/me' );
+	await page.WaitFor( text_of( '#about-version' ) + ' === "version ' + me.Version + '"' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "about-source" ).href' ), 'https://github.com/mchiver/consensus-ai' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "about-guide" ).href' ), 'http://consensus-ai.liquicode.com/' );
+	ASSERT.equal( await page.Evaluate( text_of( '.help-server .view-heading' ) ), running.Settings.Name + ' version ' + me.Version );
+	let rows = await page.Evaluate( '[ ...document.querySelectorAll( ".about-table tbody tr" ) ].filter( function ( row ) { return getComputedStyle( row ).display !== "none"; } ).map( function ( row ) { return [ ...row.children ].map( function ( cell ) { return cell.textContent.trim(); } ); } )' );
+	ASSERT.ok( rows.length >= 2 );
+	ASSERT.ok( rows.some( function ( row ) { return row[ 0 ] === 'Default'; } ) );
+	ASSERT.ok( rows.every( function ( row ) { return row.length === 5 && row.slice( 1 ).every( function ( cell ) { return /^\d+$/.test( cell ); } ); } ) );
+	await page.Press( 'Escape' );
+	await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
+	await menu_pick( '', 'Hotkeys', '#help-menu' );
+	await page.WaitFor( count_of( '.hotkeys-table tr' ) + ' === 12' );
+	ASSERT.equal( await page.Evaluate( text_of( '.hotkeys-table tr:first-child kbd' ) ), 'Ctrl+E' );
+	await page.Click( '#hotkeys-close' );
+	await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -835,7 +941,7 @@ TEST( 'export and import: a project\'s json in a popup; pasted back, the preview
 	await page.Evaluate( '[ ...document.querySelectorAll( ".port-form button" ) ].find( function ( button ) { return button.textContent.trim() === "Close"; } ).click(); true' );
 	await page.WaitFor( count_of( '#export-json' ) + ' === 0' );
 
-	await page.Click( '#import-project' );
+	await menu_pick( '.root-head', 'Import' );
 	await page.WaitFor( count_of( '#import-json' ) + ' === 1' );
 	await page.Evaluate( '( function () { let box = document.getElementById( "import-json" ); box.value = ' + JSON.stringify( json ) + '; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
 	await page.Click( '#import-preview' );
@@ -853,7 +959,9 @@ TEST( 'export and import: a project\'s json in a popup; pasted back, the preview
 
 TEST( 'settings: the owner edits consensus.json in a popup; problems are shown and nothing saved; a state added to a project reaches the picker', async function ()
 {
-	await page.Click( '#settings-button' );
+	ASSERT.equal( await page.Evaluate( count_of( '.root-head .settings-button' ) ), 0 );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "root-menu" ) ).visibility' ), 'visible' );
+	await menu_pick( '.root-head', 'Settings' );
 	await page.WaitFor( 'document.getElementById( "settings-port" ) && document.getElementById( "settings-port" ).value === "0"', 20000 );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-name" ).value' ), running.Settings.Name );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-scope" ).selectedOptions[ 0 ].textContent.trim()' ), 'Local' );
@@ -891,4 +999,28 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	// the refused save is a 400 the browser logs as an error; nothing else is
 	ASSERT.deepEqual( page.Errors.filter( function ( error ) { return !/400 \(Bad Request\).*\/api\/settings/.test( error ); } ), [] );
 	page.Errors.length = 0;
+} );
+
+
+TEST( 'folds: a folder another server remembers folded still folds and unfolds here (plan UI Tweaks VI)', async function ()
+{
+	// The Consensus project moved from one server into the checkout with its ids, and the server it left remembered
+	// its Context folder folded: the page read every root's list, so the folder never unfolded on the local server.
+	let context = ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( project ) { return project.Id === home; } ).ContextFolder;
+	let chevron = '.project[data-project="' + home + '"] .folder-head .chevron';
+	let folded = 'document.querySelector( ' + JSON.stringify( chevron ) + ' ).classList.contains( "folded" )';
+	await page.WaitFor( count_of( chevron ) + ' >= 1' );
+	let before = await page.Evaluate( folded );
+	// another root, offline, whose remembered list has that folder
+	await page.Evaluate( '( function () { localStorage.setItem( "consensus.other:1.folded", JSON.stringify( [ ' + JSON.stringify( context ) + ' ] ) ); let injector = angular.element( document.body ).injector(); let roots = injector.get( "Roots" ); roots.List.push( { Key: "other", Name: "Other", Url: "http://other:1", Kind: "server", Version: null, Base: "/servers/other", Me: null, Participants: [], States: [], Proposals: [], Projects: [], Live: false, Error: "not reached", Loaded: true } ); angular.element( document.querySelector( "[ng-controller=SidebarController]" ) ).scope().Of( roots.List[ roots.List.length - 1 ] ); injector.get( "$rootScope" ).$apply(); return true; } )()' );
+	await page.WaitFor( count_of( '.root' ) + ' === 2' );
+	ASSERT.equal( await page.Evaluate( folded ), before );
+	await page.Click( chevron );
+	await page.WaitFor( folded + ' === ' + String( !before ) );
+	await page.Click( chevron );
+	await page.WaitFor( folded + ' === ' + String( before ) );
+	ASSERT.deepEqual( JSON.parse( await page.Evaluate( 'localStorage.getItem( "consensus.other:1.folded" )' ) ), [ context ] );
+	await page.Evaluate( '( function () { localStorage.removeItem( "consensus.other:1.folded" ); let roots = angular.element( document.body ).injector().get( "Roots" ); roots.List.pop(); angular.element( document.body ).injector().get( "$rootScope" ).$apply(); return true; } )()' );
+	await page.WaitFor( count_of( '.root' ) + ' === 1' );
+	ASSERT.deepEqual( page.Errors, [] );
 } );

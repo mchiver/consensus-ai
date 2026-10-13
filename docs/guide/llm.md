@@ -4,7 +4,7 @@ The server reads no code and indexes nothing on its own. Every LLM takes part as
 
 ## The llm participant and its token
 
-The settings list the participants. The llm participant holds a **token**; a request with `Authorization: Bearer <token>` is that participant. **Settings** at the bottom of the sidebar shows the participants: **New** makes a token, **Copy** copies it. See [Settings and themes](settings.html).
+The settings list the participants. The llm participant holds a **token**; a request with `Authorization: Bearer <token>` is that participant. **Settings** in the server row's menu shows the participants: **New** makes a token, **Copy** copies it. See [Settings and themes](settings.html).
 
 ## Giving an LLM the instructions
 

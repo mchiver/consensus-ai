@@ -41,10 +41,10 @@
 		<main class="guide-main">
 			<article class="guide-article">
 <h1 id="editing-and-revisions">Editing and revisions</h1>
-<p>A plan or document opens in <strong>Read</strong>, the rendered text. <strong>Edit</strong> opens the editor beside a live preview; <strong>Revisions</strong> shows the record. The three are in the heading, and Ctrl+E switches between Read and Edit, from the editor too.</p>
+<p>A plan or document opens in <strong>Read</strong>, the rendered text. <strong>Edit</strong> opens the editor beside a live preview; <strong>Revisions</strong> shows the record. The three are in the heading, and Ctrl+E switches between Read and Edit, from the editor too: from Edit it saves first, when there is something to save.</p>
 <figure class="shot"><img class="light-only" src="../images/edit.png" alt="Edit: the editor beside the live preview."><img class="dark-only" src="../images/edit-dark.png" alt="Edit: the editor beside the live preview."><figcaption>Edit: the editor beside the live preview.</figcaption></figure>
 <h2 id="editing">Editing</h2>
-<p>The editor is Monaco, the editor of VS Code, so the keys you know work: multiple cursors, find and replace, folding. Ctrl+S saves. <strong>Preview</strong> in the editor&#39;s heading hides or shows the preview, and the choice is remembered in the browser.</p>
+<p>The editor is Monaco, the editor of VS Code, so the keys you know work: multiple cursors, find and replace, folding. Ctrl+S saves and stays in the editor, now editing the new revision; a line at the bottom says &quot;Saved, revision N&quot; for a moment. Ctrl+E saves and goes to Read; the Read button goes without saving, keeping the edit as a draft. <strong>Preview</strong> in the editor&#39;s heading hides or shows the preview, and the choice is remembered in the browser.</p>
 <p>Editing is allowed at any time and makes a new revision. A manual edit changes no thread&#39;s status, and the anchors follow the text, so you can tidy a plan while its threads are open.</p>
 <p>Two people cannot overwrite each other: a save carries the revision it was made from, and a stale one is refused. The page reloads the newer text rather than losing it.</p>
 <h2 id="revisions">Revisions</h2>
@@ -53,11 +53,70 @@
 <h2 id="tabs">Tabs</h2>
 <p>Every item you open, and Waiting on you, opens in a <strong>tab</strong> above the document: one tab per item, dragged to reorder, closed with ×. Each tab comes back as you left it, Read, Edit or Revisions, an unsaved edit included. Open tabs come back after a restart, per server; a tab whose item is gone from the server is dropped. With none open, the start page shows.</p>
 <figure class="shot"><img class="light-only" src="../images/tabs.png" alt="The tab strip."><img class="dark-only" src="../images/tabs-dark.png" alt="The tab strip."><figcaption>The tab strip.</figcaption></figure>
-<p>A tab&#39;s menu (the ▾ beside its ×, or a right-click) has Close, Close others, Close to the right, Close all, and <strong>Detach</strong>, which opens the item in its own browser window, without the sidebar; allow pop-ups for the page. Its tab stays in the strip, ghosted, and its menu has <strong>Re-attach</strong> and Close. Re-attach in the window does the same. Two windows, and two browser tabs, stay in step: every change is pushed live.</p>
+<p>A tab&#39;s menu (the ▾ beside its ×, or a right-click) has Close, Close others, Close to the right, Close all, and <strong>Detach</strong>, which opens the item in its own browser window, without the sidebar; allow pop-ups for the page. Its tab stays in the strip, ghosted, and its menu has <strong>Re-attach</strong> and Close. Re-attach in the window does the same, and <strong>Hide threads</strong> / <strong>Show threads</strong> beside it hides or shows the window&#39;s threads pane, a choice the window keeps to itself. Two windows, and two browser tabs, stay in step: every change is pushed live.</p>
 <h2 id="the-threads-pane-and-the-tree">The threads pane and the tree</h2>
-<p>The small button at the right end of the tab strip hides or shows the threads pane, and its mirror at the left end the project tree; each is remembered in the browser. A document gives the threads pane&#39;s room to the text.</p>
+<p>The small button at the right end of the tab strip hides or shows the threads pane, and its mirror at the left end the project tree (Ctrl+Shift+T and Ctrl+Shift+E do the same); each is remembered in the browser. A document gives the threads pane&#39;s room to the text.</p>
 <p>The project tree&#39;s state per server, the open project, the folded folders and the LLMs fold, is remembered under the server; the sort order, the open tabs, the look of the page, the hidden panes and the pane widths, are the window&#39;s, whatever the servers it shows.</p>
 <p>Selecting text in Read offers <strong>Copy</strong>, which copies the text as it reads, beside Comment and Start a new Subplan.</p>
+<h2 id="hotkeys">Hotkeys</h2>
+<p><strong>Help &gt; Hotkeys</strong> above the project tree lists them. Ctrl reads as Cmd on a Mac.</p>
+<table>
+<thead>
+<tr>
+<th>Keys</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Ctrl+E</td>
+<td>Edit; from Edit, save and read</td>
+</tr>
+<tr>
+<td>Ctrl+S</td>
+<td>Save, staying in Edit</td>
+</tr>
+<tr>
+<td>Ctrl+C</td>
+<td>Copy the open item&#39;s export (not while typing, nothing selected)</td>
+</tr>
+<tr>
+<td>Ctrl+V</td>
+<td>Paste into the open project (not while typing)</td>
+</tr>
+<tr>
+<td>Escape</td>
+<td>Close the menu or the popup; deselect the thread</td>
+</tr>
+<tr>
+<td>Ctrl+Shift+E</td>
+<td>Show or hide the project tree</td>
+</tr>
+<tr>
+<td>Ctrl+Shift+T, or Ctrl+Shift+H</td>
+<td>Show or hide the threads</td>
+</tr>
+<tr>
+<td>Ctrl+Shift+C</td>
+<td>Comment on the whole document</td>
+</tr>
+<tr>
+<td>Ctrl+PgUp, or Alt+PgUp</td>
+<td>Previous tab, wrapping to the last</td>
+</tr>
+<tr>
+<td>Ctrl+PgDn, or Alt+PgDn</td>
+<td>Next tab, wrapping to the first</td>
+</tr>
+<tr>
+<td>Ctrl+Home, or Alt+Home</td>
+<td>First tab</td>
+</tr>
+<tr>
+<td>Ctrl+End, or Alt+End</td>
+<td>Last tab</td>
+</tr>
+</tbody></table>
+<p>In a browser, Ctrl+PgUp, Ctrl+PgDn and Ctrl+Shift+T are the browser&#39;s own and never reach the page; the second key of each does. In the desktop both work. The tab keys yield to the editor, whose own Ctrl+Home and Ctrl+End are; Ctrl+E and Ctrl+S work in the editor.</p>
 
 			</article>
 			<nav class="guide-pager">

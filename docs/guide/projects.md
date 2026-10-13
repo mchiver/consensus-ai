@@ -6,7 +6,9 @@ Everything in Consensus-AI lives in a **project**. The sidebar on the left is a 
 
 ## The tree
 
-One project is open at a time on each server: opening one closes the others of that server, and opening an item opens its project. The open project carries a solid green dot, the others a hollow circle. Each row shows a plan's state, its thread tallies, and a "you" badge when something waits on you.
+One project is open at a time on each server: opening one closes the others of that server, and opening an item opens its project. A server's row carries a server icon and its live dot; a project's row a folder with a tab, filled when the project is open and outlined otherwise. Each row shows a plan's state, its thread tallies, and a "you" badge when something waits on you.
+
+Above the tree, **Help** has **About** (the version, links to the source and this guide, and a summary of every project: its threads, how many are contested, how many wait on you and how many on the LLMs) and **Hotkeys**, the list of keys (see [Editing and revisions](editing.html)).
 
 Each row's actions are in its menu: the **⋯** at the row's end, or a right-click. Click a folder to make it where new items go; click it again for the project root. Click a folder's chevron to fold it.
 
@@ -27,7 +29,7 @@ The folder holds documents only. **New document** in the project's menu, or the 
 
 ## Making things
 
-- **+ Project** at the top of the sidebar makes a new project. In the desktop it asks for a folder as well (Browse, or leave it empty for one under the config folder): the project lives in that folder's `.consensus`, and a folder that holds a project already is opened as it is, under its own name.
+- **New Project** in a server row's menu (the ⋯ at its end, always shown, or a right-click) makes a new project on that server; **Import** and the owner's **Settings** are there too; the row has no other button. In the desktop it asks for a folder as well (Browse, or leave it empty for one under the config folder): the project lives in that folder's `.consensus`, and a folder that holds a project already is opened as it is, under its own name.
 - **New plan**, **New folder** and **New document** in a project's menu; New plan and New folder in a folder's menu too, which create in it.
 - **New Subplan** in a plan's menu, or **New subplan** in the heading of a plan with none yet. From a thread being written or replied to, **Start a new Subplan** starts one with the anchored passage and the thread so far quoted, and the thread gets a reply linking to it. Selected text can start one too: the Subplan starts with that text, and the parent is not changed.
 

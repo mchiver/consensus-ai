@@ -29,11 +29,13 @@ Only the owner resolves, and in one of two ways:
 - **Reply and resolve** posts your reply and resolves the thread with it. Your reply is the outcome the LLM applies, read as the answer to the question before it.
 - **Resolve** with no reply accepts the outcome, or the recommendation, in the last reply.
 
+On a resolved or applied thread the Reply button reads **Reply and Contest**, in the contested colour: it posts your reply and reopens the thread, which stays open and contested.
+
 Resolving means agreeing with how the thread was deliberated and decided, not with any one line in it: the last reply states what goes in.
 
 ## Whose turn
 
-The sidebar's **Waiting on you** shows every thread waiting on you, across projects, and opens the Waiting tab. The threads pane filters by state and by whose turn it is, and a plan's row shows a "you" badge with the count. Clicking an anchored passage selects its thread, and the selected thread stays listed whatever the filter, until another is picked or the selection is cleared.
+The sidebar's **Waiting on you** shows every thread waiting on you, across projects, and opens the Waiting tab. The threads pane filters by state and by whose turn it is, and a plan's row shows a "you" badge with the count. Clicking an anchored passage selects its thread, and the selected thread stays listed whatever the filter, until another is picked or the selection is cleared: a click in the text off any highlight clears it, and so does Escape. After your own reply or resolve the selection passes to the next thread in the pane (or the previous one, when it was the last), so you can work down the list.
 
 ![The Waiting tab: everything waiting on you.](../images/waiting.png)
 

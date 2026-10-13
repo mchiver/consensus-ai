@@ -62,7 +62,9 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 
 .factory( 'State', [ 'Client', '$rootScope', 'Roots', function ( Client, $rootScope, Roots )
 {
-	// The look, shared by every server (stored.js, plan UI Tweaks V).
+	// The look, shared by every server (stored.js, plan UI Tweaks V). A detached window keeps whether its threads
+	// are hidden to itself (plan UI Tweaks VI): it starts from the shared value and never writes it.
+	const DETACHED = /[?&]detached=1(&|$)/.test( window.location.search );
 	const THREADS_HIDDEN_KEY = 'threads-hidden';
 	const PREVIEW_HIDDEN_KEY = 'preview-hidden';
 	const TREE_HIDDEN_KEY = 'tree-hidden';
@@ -271,7 +273,10 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	function SetThreadsHidden( Hidden )
 	{
 		state.ThreadsHidden = !!Hidden;
-		remember( THREADS_HIDDEN_KEY, state.ThreadsHidden );
+		if ( !DETACHED )
+		{
+			remember( THREADS_HIDDEN_KEY, state.ThreadsHidden );
+		}
 	}
 
 

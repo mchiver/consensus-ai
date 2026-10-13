@@ -43,6 +43,8 @@
 		<symbol id="i-settings" viewBox="0 0 16 16"><path d="M8 5.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.8 3.8l1 1M11.2 11.2l1 1M3.8 12.2l1-1M11.2 4.8l1-1"/></symbol>
 		<symbol id="i-upload" viewBox="0 0 16 16"><path d="M8 11V3M4.5 6.5L8 3l3.5 3.5M3 13h10"/></symbol>
 		<symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
+		<symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 7.3v4M8 5v0.4"/></symbol>
+		<symbol id="i-keyboard" viewBox="0 0 16 16"><rect x="1.5" y="4.5" width="13" height="7" rx="1"/><path d="M4 7h1M6.5 7h1M9 7h1M11.5 7h1M5 9.5h6"/></symbol>
 	</svg>
 
 	<!-- One level of a project's tree; folders, and plans with Subplans, include it again for their own items. Depth
@@ -53,9 +55,9 @@
 	<script type="text/ng-template" id="tree-nodes.html">
 		<div class="tree-node" ng-repeat="node in Sorted( node ? node.Items : project.Items ) track by node.Id" ng-switch="node.Kind">
 			<div ng-switch-when="folder" class="folder" ng-class="{ 'context-folder': IsContextFolder( project, node ) }" data-id="{{ node.Id }}">
-				<div class="folder-head tree-row" style="--depth: {{ Depth }}" ng-click="ToggleFold(node, $event)" title="{{ IsContextFolder( project, node ) ? 'the project\'s Context folder: its Readme and other documents' : 'click to fold or unfold; drag to move or reorder; New plan and New folder are in its menu' }}" drag-item="IsContextFolder( project, node ) ? null : node.Id" tree-drop="{ Kind: 'folder', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('folder', project, node, $event)">
-					<span class="chevron" ng-class="{ folded: IsFolded(node) }" ng-click="ToggleFold(node, $event)"></span>
-					<span class="tree-icon" ng-class="IsContextFolder( project, node ) ? 'icon-context' : ( IsFolded(node) ? 'icon-folder' : 'icon-folder-open' )"></span>
+				<div class="folder-head tree-row" style="--depth: {{ Depth }}" ng-click="ToggleFold(node, project, $event)" title="{{ IsContextFolder( project, node ) ? 'the project\'s Context folder: its Readme and other documents' : 'click to fold or unfold; drag to move or reorder; New plan and New folder are in its menu' }}" drag-item="IsContextFolder( project, node ) ? null : node.Id" tree-drop="{ Kind: 'folder', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('folder', project, node, $event)">
+					<span class="chevron" ng-class="{ folded: IsFolded(node, project) }" ng-click="ToggleFold(node, project, $event)"></span>
+					<span class="tree-icon" ng-class="IsContextFolder( project, node ) ? 'icon-context' : ( IsFolded(node, project) ? 'icon-folder' : 'icon-folder-open' )"></span>
 					<form class="rename-form" ng-if="IsRenaming(node)" ng-submit="Rename()" ng-click="$event.stopPropagation()">
 						<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
 					</form>
@@ -75,10 +77,10 @@
 						<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 					</div>
 				</form>
-				<div class="folder-body" ng-if="!IsFolded(node)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
+				<div class="folder-body" ng-if="!IsFolded(node, project)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
 			</div>
 			<a ng-switch-default class="proposal-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document', 'context-item': IsContextDocument( project, node ), parent: node.Items.length }" ng-href="{{ HashFor( root, '/p/' + node.Id ) }}" data-id="{{ node.Id }}" drag-item="IsContextDocument( project, node ) ? null : node.Id" tree-drop="{ Kind: node.Kind === 'plan' ? 'plan' : 'item', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('item', project, node, $event)" title="{{ IsContextDocument( project, node ) ? 'the project\'s Readme: its background, read by everyone who works on the project' : '' }}">
-				<span class="chevron" ng-if="node.Items.length" ng-class="{ folded: IsFolded(node) }" ng-click="ToggleFold(node, $event)" title="{{ IsFolded(node) ? 'show' : 'hide' }} its Subplans"></span>
+				<span class="chevron" ng-if="node.Items.length" ng-class="{ folded: IsFolded(node, project) }" ng-click="ToggleFold(node, project, $event)" title="{{ IsFolded(node, project) ? 'show' : 'hide' }} its Subplans"></span>
 				<span class="chevron-space" ng-if="!node.Items.length"></span>
 				<span class="tree-icon" ng-class="IsContextDocument( project, node ) ? 'icon-context' : ( node.Kind === 'document' ? 'icon-document' : 'icon-plan' )"></span>
 				<form class="rename-form" ng-if="IsRenaming(node)" ng-submit="Rename()" ng-click="$event.preventDefault(); $event.stopPropagation()">
@@ -102,7 +104,7 @@
 				</span>
 				<span class="row-menu" role="button" ng-class="{ shown: MenuOpenFor(node) }" ng-if="!IsRenaming(node) && !node.Missing && Deleting !== node.Id && !IsContextDocument( project, node )" title="actions" ng-click="OpenMenu('item', project, node, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
 			</a>
-			<div class="folder-body subplans" ng-if="node.Kind === 'plan' && node.Items.length && !IsFolded(node)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
+			<div class="folder-body subplans" ng-if="node.Kind === 'plan' && node.Items.length && !IsFolded(node, project)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
 		</div>
 	</script>
 
@@ -127,10 +129,13 @@
 
 		<!-- ============================================================= -->
 		<aside class="sidebar" ng-controller="SidebarController">
+			<!-- The menu bar (plan UI Tweaks VI): Help, with About and Hotkeys. New Project, Import and Settings are each
+			     server's, in its row's menu. -->
 			<div class="sidebar-top">
 				<div class="brand">Consensus</div>
-				<button class="btn btn-sm btn-primary" id="new-project" ng-click="StartCreate('project', null, null, null, Roots.List[ 0 ])" title="a new project{{ Roots.Several() ? ' on ' + Roots.List[ 0 ].Name : '' }}"><svg class="icon lead"><use href="#i-plus"></use></svg>Project</button>
-				<button class="btn btn-sm btn-outline-secondary" id="import-project" ng-click="StartImport( Roots.List[ 0 ] )" title="import a project exported from this or another Consensus server{{ Roots.Several() ? ', into ' + Roots.List[ 0 ].Name : '' }}"><svg class="icon lead"><use href="#i-upload"></use></svg>Import</button>
+				<div class="menu-bar" ng-controller="HelpController">
+					<button class="menu-bar-item" type="button" id="help-menu" ng-class="{ shown: MenuOpen() }" ng-click="OpenHelpMenu($event)" title="about Consensus, and the hotkeys">Help</button>
+				</div>
 			</div>
 			<form class="new-proposal" ng-if="Creating.Kind === 'project'" ng-submit="Create()">
 				<input class="form-control form-control-sm" type="text" id="create-name" placeholder="{{ CreatePlaceholder() }}" ng-model="Creating.Name" auto-focus>
@@ -164,19 +169,19 @@
 			<div class="root" ng-repeat="root in Roots.List track by root.Key" ng-class="{ closed: IsRootClosed( root ), offline: !root.Live, several: Roots.Several() }" data-root="{{ root.Key }}">
 				<div class="root-head" ng-click="ToggleRoot( root )" title="{{ RootTitle( root ) }}" on-context-menu="OpenMenu('root', root, null, $event)">
 					<span class="chevron" ng-class="{ folded: IsRootClosed( root ) }"></span>
+					<span class="tree-icon icon-server"></span>
 					<span class="connection root-dot" ng-class="{ live: root.Live }"></span>
 					<span class="root-name">{{ root.Name }}</span>
 					<span class="me muted" ng-show="root.Me">you are {{ root.Me.Display }} ({{ root.Me.Role }})</span>
 					<span class="root-offline muted" ng-show="!root.Live">offline</span>
-					<button class="btn btn-sm btn-outline-secondary settings-button" ng-attr-id="{{ $first ? 'settings-button' : undefined }}" ng-show="root.Me.Role === 'owner'" ng-click="OpenSettings( root, $event )" title="the server's settings: consensus.json"><svg class="icon lead"><use href="#i-gear"></use></svg>Settings</button>
-					<button class="row-menu" ng-class="{ shown: MenuOpenFor( { Id: 'root:' + root.Key } ) }" title="actions" ng-click="OpenMenu('root', root, null, $event)"><svg class="icon"><use href="#i-more"></use></svg></button>
+					<button class="row-menu" ng-attr-id="{{ $first ? 'root-menu' : undefined }}" ng-class="{ shown: MenuOpenFor( { Id: 'root:' + root.Key } ) }" title="the server's menu: New Project, Import, Settings, Reload" ng-click="OpenMenu('root', root, null, $event)"><svg class="icon"><use href="#i-more"></use></svg></button>
 				</div>
 				<div class="root-body" ng-if="!IsRootClosed( root )">
 			<div class="projects">
 				<div class="project" ng-repeat="project in root.Projects track by project.Id" ng-class="{ open: IsOpen(project) }" data-project="{{ project.Id }}">
 					<div class="project-head" ng-click="ToggleProject(project)" title="{{ IsOpen(project) ? 'close' : 'open' }} this project; drag to reorder the projects; drop an item here to move it to the root" drag-project="project.Id" tree-drop="{ Kind: 'project', Project: project.Id, Id: project.Id }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('project', project, project, $event)">
 						<span class="chevron" ng-class="{ folded: !IsOpen(project) }"></span>
-						<span class="project-dot" ng-class="{ open: IsOpen(project) }"></span>
+						<span class="tree-icon icon-project" ng-class="{ open: IsOpen(project) }"></span>
 						<form class="rename-form" ng-if="IsRenaming(project)" ng-submit="Rename()" ng-click="$event.stopPropagation()">
 							<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
 						</form>
@@ -294,7 +299,10 @@
 				</div>
 				<div class="detached-bar" ng-show="Tabs.Detached">
 					<span class="muted">In its own window</span>
-					<button class="btn btn-sm btn-outline-secondary" id="reattach" ng-click="Reattach()" title="put it back as a tab in the main window"><svg class="icon lead"><use href="#i-attach"></use></svg>Re-attach</button>
+					<span class="detached-buttons">
+						<button class="btn btn-sm btn-outline-secondary" id="detached-threads" ng-show="HasThreads()" ng-click="ToggleThreads()" title="{{ State.ThreadsHidden ? 'show' : 'hide' }} the threads (Ctrl+Shift+T)"><svg class="icon lead"><use href="#i-threads"></use></svg>{{ State.ThreadsHidden ? 'Show threads' : 'Hide threads' }}</button>
+						<button class="btn btn-sm btn-outline-secondary" id="reattach" ng-click="Reattach()" title="put it back as a tab in the main window"><svg class="icon lead"><use href="#i-attach"></use></svg>Re-attach</button>
+					</span>
 				</div>
 			</div>
 
@@ -351,7 +359,7 @@
 			<section class="edit-view" ng-controller="EditController" ng-show="State.View === 'edit'">
 				<div class="edit-bar">
 					<span class="alert alert-warning py-1 px-2 m-0" ng-show="Stale">The text changed on the server since you started editing. Copy what you need, then discard and edit again.</span>
-					<span class="muted" ng-show="!Stale">Editing revision {{ Base }}. Ctrl+S saves.</span>
+					<span class="muted" ng-show="!Stale">Editing revision {{ Base }}. Ctrl+S saves; Ctrl+E saves and reads.</span>
 					<span class="edit-buttons">
 						<button class="btn btn-sm" id="preview-toggle" ng-class="State.PreviewHidden ? 'btn-outline-secondary' : 'btn-secondary'" ng-click="TogglePreview()" title="{{ State.PreviewHidden ? 'show' : 'hide' }} the preview"><svg class="icon lead"><use href="#i-eye"></use></svg>Preview</button>
 						<button class="btn btn-sm btn-primary" id="save-button" ng-click="Save()" ng-disabled="!Dirty || Stale || Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
@@ -614,6 +622,8 @@
 			</section>
 
 			</div>
+			<!-- The toast (plan UI Tweaks VI): a line at the bottom for a moment, after a save, a copy or a paste. -->
+			<div class="toast-line" id="toast" ng-controller="ToastController" ng-class="{ shown: Toast.Shown }">{{ Toast.Text }}</div>
 		</main>
 
 		<div class="splitter" data-splitter="threads"></div>
@@ -676,7 +686,7 @@
 				<div class="reply-form" ng-show="thread.Id === State.Selected">
 					<textarea class="form-control form-control-sm reply-box" rows="2" ng-model="State.Drafts[thread.Id]" placeholder="Reply{{ thread.Status === 'resolved' ? ' (reopens the thread)' : '' }}"></textarea>
 					<div class="thread-buttons">
-						<button class="btn btn-sm btn-primary reply-button" ng-click="Reply(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy"><svg class="icon lead"><use href="#i-reply"></use></svg>Reply</button>
+						<button class="btn btn-sm btn-primary reply-button" ng-class="{ contest: thread.Status === 'resolved' }" ng-click="Reply(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy" title="{{ thread.Status === 'resolved' ? 'post your reply and reopen the thread: it stays open and contested' : 'post your reply' }}"><svg class="icon lead"><use href="#i-reply"></use></svg>{{ thread.Status === 'resolved' ? 'Reply and Contest' : 'Reply' }}</button>
 						<button class="btn btn-sm btn-success reply-resolve-button" ng-show="CanResolve(thread)" ng-click="ReplyAndResolve(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy" title="post your reply as the outcome and resolve the thread"><svg class="icon lead"><use href="#i-check"></use></svg>Reply and resolve</button>
 						<button class="btn btn-sm btn-success resolve-button" ng-show="CanResolve(thread)" ng-click="Resolve(thread)" ng-disabled="Busy" title="accept the outcome or recommendation in the last reply"><svg class="icon lead"><use href="#i-check"></use></svg>Resolve</button>
 						<button class="btn btn-sm btn-outline-secondary reanchor-button" ng-click="Reanchor(thread)" title="{{ thread.Anchor ? 'anchor it to another passage' : 'anchor it to a passage' }}"><svg class="icon lead"><use href="#i-target"></use></svg>Re-anchor</button>
@@ -831,6 +841,46 @@
 		</div>
 	</div>
 
+	<!-- Help (plan UI Tweaks VI): About, and the hotkeys. -->
+	<div class="subplan-popup settings-popup help-popup" id="help-popup" ng-controller="HelpController" ng-show="Panel.Open" ng-keydown="Key($event)">
+		<div class="subplan-form settings-form help-form" ng-if="Panel.Open === 'about'" tabindex="-1" auto-focus>
+			<div class="subplan-head">About Consensus <span class="muted small" id="about-version" ng-show="Version()">version {{ Version() }}</span></div>
+			<div class="help-links">
+				<a ng-href="{{ SourceUrl }}" target="_blank" rel="noopener" id="about-source"><svg class="icon lead"><use href="#i-link"></use></svg>Source</a>
+				<a ng-href="{{ GuideUrl }}" target="_blank" rel="noopener" id="about-guide"><svg class="icon lead"><use href="#i-link"></use></svg>Online guide</a>
+			</div>
+			<div class="help-server" ng-repeat="server in Panel.Summary track by server.Root.Key">
+				<div class="view-heading">{{ server.Root.Name }} <span class="muted small" ng-show="server.Root.Version">version {{ server.Root.Version }}</span></div>
+				<table class="help-table about-table">
+					<thead><tr><th>Project</th><th>threads</th><th>contested</th><th>waiting on me</th><th>waiting on LLMs</th></tr></thead>
+					<tbody>
+						<tr ng-repeat="row in server.Rows track by row.Id"><td>{{ row.Name }}</td><td>{{ row.Total }}</td><td>{{ row.Contested }}</td><td>{{ row.Mine }}</td><td>{{ row.Llms }}</td></tr>
+						<tr ng-hide="server.Rows.length"><td class="muted" colspan="5">no projects</td></tr>
+					</tbody>
+				</table>
+			</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="help-close" ng-click="Close()"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
+			</div>
+		</div>
+		<div class="subplan-form settings-form help-form" ng-if="Panel.Open === 'hotkeys'" tabindex="-1" auto-focus>
+			<div class="subplan-head">Hotkeys</div>
+			<table class="help-table hotkeys-table">
+				<tbody>
+					<tr ng-repeat="row in Hotkeys.Rows track by $index">
+						<td class="help-keys"><span ng-repeat="keys in KeysOf( row ) track by $index"><kbd>{{ keys }}</kbd><span class="muted small" ng-if="!$last"> or </span></span></td>
+						<td>{{ row.Label }}</td>
+						<td class="muted small">{{ row.When }}</td>
+					</tr>
+				</tbody>
+			</table>
+			<div class="muted small">In a browser, Ctrl+PgUp, Ctrl+PgDn and Ctrl+Shift+T are the browser's own and never reach the page; the second key of each does. In the desktop both work.</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="hotkeys-close" ng-click="Close()"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
+			</div>
+		</div>
+	</div>
+
 	<!-- The one popup menu: a row's actions, a tab's. -->
 	<div class="popup-menu" id="popup-menu" ng-controller="MenuController" ng-show="Menus.Open" role="menu">
 		<div ng-repeat="item in Menus.Open.Items" ng-class="item.Separator ? 'menu-separator' : 'menu-item'">
@@ -851,6 +901,9 @@
 	<script src="/js/llm.js"></script>
 	<script src="/js/menus.js"></script>
 	<script src="/js/tabs.js"></script>
+	<script src="/js/hotkeys.js"></script>
+	<script src="/js/toast.js"></script>
+	<script src="/js/help.js"></script>
 	<script src="/js/subplans.js"></script>
 	<script src="/js/ports.js"></script>
 	<script src="/js/settings.js"></script>

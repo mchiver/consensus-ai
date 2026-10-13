@@ -1,10 +1,12 @@
 'use strict';
 
 // Edit view - Monaco over the markdown with a live preview beside it. Save (or Ctrl+S) sends the text with
-// the revision it was made from; a stale revision is refused by the server and the editor keeps the text.
-// An unsaved edit is kept with the proposal's tab (Tabs.SetDraft), so switching tabs and back brings it back.
+// the revision it was made from and stays in Edit, the toast saying so (plan UI Tweaks VI); a stale revision is
+// refused by the server and the editor keeps the text. Ctrl+E saves, when there is something to save, and reads
+// (hotkeys.js). An unsaved edit is kept with the proposal's tab (Tabs.SetDraft), so switching tabs and back brings
+// it back.
 
-angular.module( 'Consensus' ).controller( 'EditController', [ '$scope', '$timeout', 'State', 'Client', 'Editor', 'Render', 'Tabs', function ( $scope, $timeout, State, Client, Editor, Render, Tabs )
+angular.module( 'Consensus' ).controller( 'EditController', [ '$scope', '$timeout', 'State', 'Client', 'Editor', 'Render', 'Tabs', 'Hotkeys', 'Toast', function ( $scope, $timeout, State, Client, Editor, Render, Tabs, Hotkeys, Toast )
 {
 	const PREVIEW_DELAY = 150;
 	$scope.State = State;
@@ -70,11 +72,12 @@ angular.module( 'Consensus' ).controller( 'EditController', [ '$scope', '$timeou
 	}
 
 
+	// Save: the text goes up as a new revision and the editor stays, now editing that revision. True when saved.
 	$scope.Save = async function ()
 	{
 		if ( !$scope.Dirty || $scope.Stale || $scope.Busy || State.View !== 'edit' )
 		{
-			return;
+			return false;
 		}
 		$scope.Busy = true;
 		let text = Editor.Get();
@@ -86,18 +89,44 @@ angular.module( 'Consensus' ).controller( 'EditController', [ '$scope', '$timeou
 		$scope.Busy = false;
 		if ( answer )
 		{
+			// the base moves on before the reload, so the reload's newer revision does not read as stale
+			$scope.Base = answer.Proposal.Revision;
 			$scope.BaseText = text;
 			$scope.Dirty = false;
 			Tabs.SetDraft( State.OpenId, null );
 			await State.Reload();
-			State.SetView( 'read' );
+			Toast.Show( 'Saved, revision ' + answer.Proposal.Revision );
+			$scope.$applyAsync();
+			return true;
 		}
-		else if ( State.Error )
+		if ( State.Error )
 		{
 			$scope.Stale = true;
 		}
 		$scope.$applyAsync();
+		return false;
 	};
+
+
+	// Ctrl+E from Edit: a dirty, unrefused edit is saved first; a refused save stays here with the error; with nothing
+	// to save (or a stale edit, kept as a draft, as the Read button keeps it) it just goes to Read.
+	async function edit_to_read()
+	{
+		if ( $scope.Dirty && !$scope.Stale )
+		{
+			let saved = await $scope.Save();
+			if ( !saved )
+			{
+				return;
+			}
+		}
+		State.SetView( 'read' );
+		$scope.$applyAsync();
+	}
+
+
+	Hotkeys.Provide( 'Save', function () { $scope.Save(); } );
+	Hotkeys.Provide( 'EditToRead', edit_to_read );
 
 
 	$scope.Discard = function ()

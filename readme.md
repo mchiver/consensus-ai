@@ -70,8 +70,11 @@ deleted; the other documents are items like any other. An agent session reads th
 project's background. The Readme is a document like the others: revisions, no threads, no state.
 
 The **Default** project is created at first start and never deleted; ad-hoc items live there. Every item
-belongs to exactly one project. The open project carries a solid green dot, the others a hollow circle. Each
-row's actions are in its menu: **⋯** at the row's end (on hover, and on the current row) or a right-click. Click a folder to make it where new items go. Everything reorders by drag
+belongs to exactly one project. A server's row carries a server icon and its live dot, a project's a folder
+with a tab, filled when the project is open (plan UI Tweaks VI). Each
+row's actions are in its menu: **⋯** at the row's end (on hover, and on the current row) or a right-click. New
+Project, Import and the owner's Settings are in a server row's menu; above the tree, **Help** has About (the
+version, the links, and a summary of every project's threads) and Hotkeys. Click a folder to make it where new items go. Everything reorders by drag
 and drop: drop an item on the top or bottom edge of a row to put it just before or after that row, on the
 middle of a folder to move it inside, or on a project's heading to move it to that project's root (the
 Context folder stays first); drop a project's heading on another's to reorder the projects. Rename an item
@@ -84,8 +87,10 @@ confirmed on the row: a plan or document goes to the trash; a project or folder 
 (a project: when it holds only its Context folder and document). Trash is at the bottom of the sidebar.
 
 The button at the right end of the tab strip hides or shows the threads pane (its mirror at the left end the
-tree), and the editor's **Preview** button its preview; each is remembered in the browser. A selected thread
-stays listed whatever the filter. Selecting text in Read offers Copy (the text as it reads), Comment and Start
+tree; Ctrl+Shift+T and Ctrl+Shift+E too), and the editor's **Preview** button its preview; each is remembered in the browser. A selected thread
+stays listed whatever the filter; a click in the text off any highlight, or Escape, deselects it, and after
+the owner's own reply or resolve the selection passes to the next thread in the pane (plan UI Tweaks VI).
+Selecting text in Read offers Copy (the text as it reads), Comment and Start
 a new Subplan. The owner deletes a thread with the × on its first line; a
 revision that applied a deleted thread keeps its text and shows "(deleted thread)".
 
@@ -96,12 +101,14 @@ page shows. A tab's menu (▾ beside its ×, or a right-click) has Close, Close 
 Close all, and **Detach**, which opens it in its own browser window (allow pop-ups for the page): the item alone,
 without the sidebar. Its tab stays in the strip, ghosted: clicking it does nothing, and its menu has
 **Re-attach** (the window comes back as the tab) and Close (the window closes). **Re-attach** in the window does
-the same. Opening an item that is out brings its window forward; closing that window closes the item; and if
+the same, and **Hide threads** / **Show threads** beside it hides or shows the window's threads pane, a choice
+the window keeps to itself. Opening an item that is out brings its window forward; closing that window closes the item; and if
 the main window is gone, Re-attach makes the detached window the main one.
 
 The owner settles a contested thread in one of two ways. **Reply and resolve** posts the owner's reply and
 resolves the thread with it: that reply is the outcome the LLM applies. **Resolve** with no reply accepts the
-outcome, or the recommendation, in the last reply.
+outcome, or the recommendation, in the last reply. On a resolved or applied thread the Reply button reads
+**Reply and Contest**: the reply reopens the thread, which stays open and contested.
 
 ## The config folder and the project folders
 
@@ -213,7 +220,9 @@ The project tree on the left with each plan's state, its tallies and a "waiting 
 rendered plan or document in the middle, with each anchored passage of a plan highlighted by state
 (yellow contested, orange reopened, blue resolved, green applied); a plan's threads on the right,
 filterable by state and by whose turn it is. Select text in a plan to comment on it. Edit shows Monaco
-beside a live preview; Ctrl+S saves, and Ctrl+E switches between Read and Edit (from the editor too).
+beside a live preview; Ctrl+S saves and stays in the editor (a toast says so), and Ctrl+E switches between Read
+and Edit (from the editor too, saving first). The hotkeys are one table (`public/js/hotkeys.js`) that Help >
+Hotkeys lists.
 Revisions shows the record. A document gives the threads pane's room to the text. Light, dark or system
 theme and three sizes are at the bottom of the sidebar, with Settings for the owner. Two browser tabs stay
 in step: every change is a Server-Sent Event.

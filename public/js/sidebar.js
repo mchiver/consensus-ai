@@ -1,12 +1,12 @@
 'use strict';
 
 // Sidebar - the project tree: one project open at a time, its folders and items with their tallies;
-// new project, plan and folder, rename and delete; the waiting count, Trash and the Settings button at the
-// bottom. Items and projects move and reorder by drag and drop.
+// new project, plan and folder, rename and delete; the waiting count and Trash. Items and projects move and
+// reorder by drag and drop.
 // Copy, Paste and Export work on export json (plan UI Tweaks V): Copy puts a project's, folder's or item's export
 // on the system clipboard, Paste reads the clipboard and imports an export Into a project's root or a folder (every
 // id new; a project's file as a folder named after it), and Export opens the popup with the json. Ctrl+C copies
-// the open item, Ctrl+V pastes into the open project's root.
+// the open item, Ctrl+V pastes into the open project's root (the keys are hotkeys.js's since plan UI Tweaks VI).
 // Each project's Context folder comes first, holding its Readme and other documents: neither the folder
 // nor the document is renamed, moved, copied or deleted, and New Document goes there. Under the projects the
 // server's LLM connections (plan Run Shapes, Step 3; llm.js), with Open, Rename and Delete in their menus and New
@@ -21,11 +21,13 @@
 // at the bottom of the project, read-only until Restore; a new project may name its folder (the desktop picks one).
 // Each row's actions are in its menu (⋯, or a right-click); Delete is there only, confirmed on the row.
 // The tree can be sorted (by name, created or updated) and show each item's last update; both remembered here.
+// Above the tree, the menu bar (plan UI Tweaks VI): Help (help.js). New Project, Import and Settings are each
+// server's, in its row's menu (shown always on that row; the row's Settings button is gone).
 
 const DRAG_TYPE = 'application/x-consensus-item';
 const DRAG_PROJECT_TYPE = 'application/x-consensus-project';
 
-angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', 'Llms', 'Roots', function ( $scope, $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports, Llms, Roots )
+angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', 'Llms', 'Roots', 'Hotkeys', 'Toast', function ( $scope, $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports, Llms, Roots, Hotkeys, Toast )
 {
 	// Remembered per root (stored.js, plan UI Tweaks V; per root since plan Run Shapes, Step 5), and the sort and the
 	// stamps once per window.
@@ -408,24 +410,20 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	} );
 
 
-	// The folds, kept per root; an id belongs to one root, so a node is folded when any root's list has it.
-	function folded_lists()
+	// The folds, kept per root: a node is folded when its project's root's list has it, and that list alone. The
+	// other roots' lists are not looked at: a project moves from one server to another with its ids (Copy and Paste,
+	// a folder taken into a checkout), and the server it left may well remember one of its folders folded.
+	$scope.IsFolded = function ( node, project )
 	{
-		return Object.keys( per_root ).map( function ( key ) { return per_root[ key ].Folded; } );
-	}
-
-
-	$scope.IsFolded = function ( node )
-	{
-		return folded_lists().some( function ( list ) { return list.includes( node.Id ); } );
+		return of_root( root_of( project ) ).Folded.includes( node.Id );
 	};
 
 
-	$scope.ToggleFold = function ( node, event )
+	$scope.ToggleFold = function ( node, project, event )
 	{
 		event.preventDefault();
 		event.stopPropagation();
-		let root = root_holding( node.Id ) || State.Root || Roots.List[ 0 ];
+		let root = root_of( project );
 		let kept = of_root( root );
 		if ( kept.Folded.includes( node.Id ) )
 		{
@@ -1215,7 +1213,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	// Copy, Paste and Export on export json (plan UI Tweaks V). Copy (a menu, or Ctrl+C on the open item) fetches the
 	// export and puts it on the system clipboard; Paste (a menu, or Ctrl+V into the open project's root) reads the
 	// clipboard and imports an export Into the target; Export opens the popup. Notice is the line under the tree's
-	// head: what was copied or pasted, or why the paste was refused.
+	// head: what was copied or pasted, or why the paste was refused; the toast says the same for a moment.
 
 	$scope.Notice = null;
 
@@ -1223,6 +1221,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	function notice( text, is_error )
 	{
 		$scope.Notice = { Text: text, Error: !!is_error };
+		Toast.Show( text );
 		$scope.$applyAsync();
 	}
 
@@ -1342,44 +1341,25 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	};
 
 
-	// The keys work on the open item and the open project, and leave typing, the editor and selected text alone.
-	function is_typing()
+	// Ctrl+C and Ctrl+V (hotkeys.js decides when they fire): the open item's export, and a paste into the open
+	// project's root.
+	Hotkeys.Provide( 'Copy', function ()
 	{
-		let active = document.activeElement;
-		if ( !active )
-		{
-			return false;
-		}
-		let tag = active.tagName;
-		return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || active.isContentEditable || !!active.closest( '.monaco-editor' );
-	}
-
-
-	function on_key( event )
-	{
-		if ( !( event.ctrlKey || event.metaKey ) || event.altKey || event.shiftKey || is_typing() )
+		if ( !State.Open )
 		{
 			return;
 		}
-		let key = event.key.toLowerCase();
-		let selection = window.getSelection();
-		if ( key === 'c' && State.Open && ( !selection || selection.isCollapsed ) )
-		{
-			event.preventDefault();
-			$scope.CopyItem( State.Open.Proposal.Kind || 'plan', Object.assign( {}, State.Open.Project, { Root: State.Root ? State.Root.Key : '' } ), { Id: State.Open.Proposal.Id, Title: State.Open.Proposal.Title } );
-		}
-		else if ( key === 'v' )
-		{
-			let project = $scope.OpenProject( State.Root );
-			if ( project )
-			{
-				event.preventDefault();
-				$scope.Paste( project, null );
-			}
-		}
-	}
+		$scope.CopyItem( State.Open.Proposal.Kind || 'plan', Object.assign( {}, State.Open.Project, { Root: State.Root ? State.Root.Key : '' } ), { Id: State.Open.Proposal.Id, Title: State.Open.Proposal.Title } );
+	} );
 
-	document.addEventListener( 'keydown', on_key );
+	Hotkeys.Provide( 'Paste', function ()
+	{
+		let project = $scope.OpenProject( State.Root );
+		if ( project )
+		{
+			$scope.Paste( project, null );
+		}
+	} );
 
 
 	//-----------------------------------------------------------------

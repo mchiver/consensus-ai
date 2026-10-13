@@ -1,12 +1,12 @@
 # Editing and revisions
 
-A plan or document opens in **Read**, the rendered text. **Edit** opens the editor beside a live preview; **Revisions** shows the record. The three are in the heading, and Ctrl+E switches between Read and Edit, from the editor too.
+A plan or document opens in **Read**, the rendered text. **Edit** opens the editor beside a live preview; **Revisions** shows the record. The three are in the heading, and Ctrl+E switches between Read and Edit, from the editor too: from Edit it saves first, when there is something to save.
 
 ![Edit: the editor beside the live preview.](../images/edit.png)
 
 ## Editing
 
-The editor is Monaco, the editor of VS Code, so the keys you know work: multiple cursors, find and replace, folding. Ctrl+S saves. **Preview** in the editor's heading hides or shows the preview, and the choice is remembered in the browser.
+The editor is Monaco, the editor of VS Code, so the keys you know work: multiple cursors, find and replace, folding. Ctrl+S saves and stays in the editor, now editing the new revision; a line at the bottom says "Saved, revision N" for a moment. Ctrl+E saves and goes to Read; the Read button goes without saving, keeping the edit as a draft. **Preview** in the editor's heading hides or shows the preview, and the choice is remembered in the browser.
 
 Editing is allowed at any time and makes a new revision. A manual edit changes no thread's status, and the anchors follow the text, so you can tidy a plan while its threads are open.
 
@@ -24,12 +24,33 @@ Every item you open, and Waiting on you, opens in a **tab** above the document: 
 
 ![The tab strip.](../images/tabs.png)
 
-A tab's menu (the ▾ beside its ×, or a right-click) has Close, Close others, Close to the right, Close all, and **Detach**, which opens the item in its own browser window, without the sidebar; allow pop-ups for the page. Its tab stays in the strip, ghosted, and its menu has **Re-attach** and Close. Re-attach in the window does the same. Two windows, and two browser tabs, stay in step: every change is pushed live.
+A tab's menu (the ▾ beside its ×, or a right-click) has Close, Close others, Close to the right, Close all, and **Detach**, which opens the item in its own browser window, without the sidebar; allow pop-ups for the page. Its tab stays in the strip, ghosted, and its menu has **Re-attach** and Close. Re-attach in the window does the same, and **Hide threads** / **Show threads** beside it hides or shows the window's threads pane, a choice the window keeps to itself. Two windows, and two browser tabs, stay in step: every change is pushed live.
 
 ## The threads pane and the tree
 
-The small button at the right end of the tab strip hides or shows the threads pane, and its mirror at the left end the project tree; each is remembered in the browser. A document gives the threads pane's room to the text.
+The small button at the right end of the tab strip hides or shows the threads pane, and its mirror at the left end the project tree (Ctrl+Shift+T and Ctrl+Shift+E do the same); each is remembered in the browser. A document gives the threads pane's room to the text.
 
 The project tree's state per server, the open project, the folded folders and the LLMs fold, is remembered under the server; the sort order, the open tabs, the look of the page, the hidden panes and the pane widths, are the window's, whatever the servers it shows.
 
 Selecting text in Read offers **Copy**, which copies the text as it reads, beside Comment and Start a new Subplan.
+
+## Hotkeys
+
+**Help > Hotkeys** above the project tree lists them. Ctrl reads as Cmd on a Mac.
+
+| Keys | What |
+| --- | --- |
+| Ctrl+E | Edit; from Edit, save and read |
+| Ctrl+S | Save, staying in Edit |
+| Ctrl+C | Copy the open item's export (not while typing, nothing selected) |
+| Ctrl+V | Paste into the open project (not while typing) |
+| Escape | Close the menu or the popup; deselect the thread |
+| Ctrl+Shift+E | Show or hide the project tree |
+| Ctrl+Shift+T, or Ctrl+Shift+H | Show or hide the threads |
+| Ctrl+Shift+C | Comment on the whole document |
+| Ctrl+PgUp, or Alt+PgUp | Previous tab, wrapping to the last |
+| Ctrl+PgDn, or Alt+PgDn | Next tab, wrapping to the first |
+| Ctrl+Home, or Alt+Home | First tab |
+| Ctrl+End, or Alt+End | Last tab |
+
+In a browser, Ctrl+PgUp, Ctrl+PgDn and Ctrl+Shift+T are the browser's own and never reach the page; the second key of each does. In the desktop both work. The tab keys yield to the editor, whose own Ctrl+Home and Ctrl+End are; Ctrl+E and Ctrl+S work in the editor.

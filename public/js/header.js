@@ -2,7 +2,8 @@
 
 // Header - two lines. The first: the title and Read / Edit / Revisions (the threads toggle is in the tabs row,
 // tabs.js, since plan UI Tweaks V). The second: the state picker and the one-line state, then New Comment and New
-// subplan. Delete is in the item's menu in the tree. Ctrl+E switches the open item between Edit and Read.
+// subplan. Delete is in the item's menu in the tree. Ctrl+E (hotkeys.js, plan UI Tweaks VI) switches the open item
+// between Edit and Read.
 
 angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$window', 'State', 'Client', 'Subplans', 'Llms', 'Roots', function ( $scope, $window, State, Client, Subplans, Llms, Roots )
 {
@@ -37,31 +38,6 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 	{
 		State.SetView( view );
 	};
-
-
-	// Ctrl+E: Edit from Read or Revisions, and back to Read from Edit (an unsaved edit is kept, as the Read button
-	// keeps it). Heard before the editor or the browser act on it, so it works in the editor too.
-	function on_key( event )
-	{
-		let ctrl = event.ctrlKey || event.metaKey;
-		if ( !ctrl || event.shiftKey || event.altKey || ( event.key !== 'e' && event.key !== 'E' ) )
-		{
-			return;
-		}
-		if ( !State.Open || !State.OpenId || [ 'read', 'edit', 'revisions' ].indexOf( State.View ) < 0 || $scope.IsArchived() )
-		{
-			return;
-		}
-		event.preventDefault();
-		event.stopPropagation();
-		$scope.$applyAsync( function ()
-		{
-			State.SetView( ( State.View === 'edit' ) ? 'read' : 'edit' );
-		} );
-	}
-
-	window.addEventListener( 'keydown', on_key, true );
-	$scope.$on( '$destroy', function () { window.removeEventListener( 'keydown', on_key, true ); } );
 
 
 	// A plan has threads; a document has none, so it has no toggle.

@@ -1,6 +1,6 @@
 # Settings and themes
 
-**Settings** at the bottom of the sidebar opens the server's settings in a popup, for the owner. Theme and size are beside it, for everyone.
+**Settings** in a server row's menu (the ⋯ at the row's end) opens that server's settings in a popup, for the owner. Theme and size are at the bottom of the sidebar, for everyone.
 
 ![The settings popup: name, scope and port, the states, the participants.](../images/settings.png)
 

@@ -3,7 +3,7 @@
 // Read view - the rendered markdown with each anchored passage highlighted (every thread's, or only the open ones'
 // and the selected one's, as the Highlight picker says); a selection offers Copy (the text as it reads), Comment
 // and, on a plan, Start a new Subplan (or Re-anchor here, while a thread is being re-anchored); clicking a highlight
-// opens its thread.
+// opens its thread, and a click off any highlight deselects it (plan UI Tweaks VI).
 
 angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeout', 'State', 'Render', 'Client', 'Subplans', function ( $scope, $timeout, State, Render, Client, Subplans )
 {
@@ -211,11 +211,36 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 	}
 
 
+	// A click in the read view off any highlight deselects the thread: not one that ends a selection (its buttons
+	// stay), not on those buttons, and not while a thread is being re-anchored.
+	function on_blank_click( event )
+	{
+		if ( event.target.closest( 'mark.anchor' ) || event.target.closest( '.comment-button' ) || event.target.closest( '.reanchor-hint' ) )
+		{
+			return;
+		}
+		let selection = window.getSelection();
+		if ( selection && !selection.isCollapsed )
+		{
+			return;
+		}
+		if ( State.Reanchoring || !State.Selected )
+		{
+			return;
+		}
+		$scope.$applyAsync( function ()
+		{
+			State.Select( null );
+		} );
+	}
+
+
 	view.addEventListener( 'mouseup', function ()
 	{
 		$timeout( offer_comment, 0 );
 	} );
 	view.addEventListener( 'click', on_click );
+	section.addEventListener( 'click', on_blank_click );
 	document.addEventListener( 'selectionchange', function ()
 	{
 		let selection = window.getSelection();
