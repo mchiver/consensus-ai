@@ -1,7 +1,7 @@
 # Consensus
 
-Collaborative proposal building. The User and the LLM work a proposal through in discussion, thread by
-thread, until every thread is resolved and applied. Proposals live in **projects**, beside the documents of
+Collaborative plan building. The User and the LLM work a plan through in discussion, thread by
+thread, until every thread is resolved and applied. Plans live in **projects**, beside the documents of
 the project's **Context** folder that give everyone the background of the work.
 
 A standalone application: Node and Express on the server, AngularJS, Bootstrap, marked and Monaco in the
@@ -128,11 +128,11 @@ folder of its own with a `.consensus` sub-folder that is the project (plan Run S
 	<project>/.consensus/trash/<id>/               a deleted item, moved whole
 
 A project's `Items` is its tree: `{ Kind: "folder", Id, Name, Items }`, `{ Kind: "plan", Id, Items? }` (its
-Subplans) or `{ Kind: "document", Id }`, pointing at the proposal by id; `Context` is the id of the Context
+Subplans) or `{ Kind: "document", Id }`, pointing at the plan by id; `Context` is the id of the Context
 document and `ContextFolder` of the folder that holds it, first in `Items`; `Archive` holds the archived plans,
 whole, out of the tree; `States` is the project's own list (the settings' is the default for a new project), and
 `Include`, `Exclude` and `Commands` travel with the folder. Every write is whole-file and atomic, and writes to
-one proposal or project never interleave; a tree change that names an older `Version` is refused. The store
+one plan or project never interleave; a tree change that names an older `Version` is refused. The store
 (`src/Store.js`) keeps an index of which project folder holds each item, built at start from the folders the
 settings list; a copy or a move between projects moves the item's folder; the `.consensus` is meant for source
 control, and holds nothing secret.
@@ -144,7 +144,7 @@ dropped). A config folder from before Step 2 (projects.json, projects/<id>/, pro
 migrated at the next start, once: each project moves into `<config>/projects/<name>/.consensus/` in the layout
 above, Default under a new prj- id (the desktop's workspaces follow it), items in no tree and the old trash into
 the first project's trash; a data folder from before Step 1 is migrated on the way (each project's context
-proposal becomes its Readme in a new Context folder, corpora go to the trash, and the LLM's files are removed).
+plan becomes its Readme in a new Context folder, corpora go to the trash, and the LLM's files are removed).
 A listed folder that is missing is skipped with a line and kept in the list (`Missing`); a folder under
 `projects/` that the list lacks joins it. The console says what was done.
 
@@ -385,21 +385,21 @@ and the runs; `test/Tools.test.js` the tools and the Ollama loop; `test/Api.test
 	POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id, in that project's folder
 	POST   /api/items/:id/archive                    a plan, with its Subplans, out of the tree into the project's Archive; its writes answer 409 until
 	POST   /api/items/:id/restore                    back at the project's root
-	GET    /api/proposals[?state=]                   plans and documents with their tallies
-	POST   /api/proposals                            { Title, Text, Kind?, State?, Project?, Parent? }  a document with no Parent goes in the Context folder
-	GET    /api/proposals/:id                        proposal, project, text, threads with positions, tally, whose turn; Context: true for a Readme
-	PUT    /api/proposals/:id                        { Title }  not the Readme
-	PUT    /api/proposals/:id/state                  { State }  one of the States; not for a document
-	PUT    /api/proposals/:id/text                   { Text, Revision }  a manual edit
-	DELETE /api/proposals/:id                        to the trash; not the Readme
-	GET    /api/proposals/:id/revisions[/:n]         the record; a revision's text
-	GET    /api/proposals/:id/threads[?status=]      all | contested | resolved | applied | reopened | detached | mine
-	POST   /api/proposals/:id/threads                { Anchor: { Text, Prefix?, Suffix? } | null, Text, Resolve? }  not for a document
-	POST   /api/proposals/:id/threads/:tid/replies   { Text, Resolve? }  reopens a resolved thread
-	POST   /api/proposals/:id/threads/:tid/anchor    { Anchor }  re-anchor
-	POST   /api/proposals/:id/threads/:tid/resolve   owner only
-	DELETE /api/proposals/:id/threads/:tid           owner only
-	POST   /api/proposals/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
+	GET    /api/plans[?state=]                   plans and documents with their tallies
+	POST   /api/plans                            { Title, Text, Kind?, State?, Project?, Parent? }  a document with no Parent goes in the Context folder
+	GET    /api/plans/:id                        plan, project, text, threads with positions, tally, whose turn; Context: true for a Readme
+	PUT    /api/plans/:id                        { Title }  not the Readme
+	PUT    /api/plans/:id/state                  { State }  one of the States; not for a document
+	PUT    /api/plans/:id/text                   { Text, Revision }  a manual edit
+	DELETE /api/plans/:id                        to the trash; not the Readme
+	GET    /api/plans/:id/revisions[/:n]         the record; a revision's text
+	GET    /api/plans/:id/threads[?status=]      all | contested | resolved | applied | reopened | detached | mine
+	POST   /api/plans/:id/threads                { Anchor: { Text, Prefix?, Suffix? } | null, Text, Resolve? }  not for a document
+	POST   /api/plans/:id/threads/:tid/replies   { Text, Resolve? }  reopens a resolved thread
+	POST   /api/plans/:id/threads/:tid/anchor    { Anchor }  re-anchor
+	POST   /api/plans/:id/threads/:tid/resolve   owner only
+	DELETE /api/plans/:id/threads/:tid           owner only
+	POST   /api/plans/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
 	GET    /api/trash                                what is there
 	GET    /api/waiting                              everything waiting on the caller, in every project
 	GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Participant, Running; the owner sees the whole records
@@ -414,7 +414,7 @@ and the runs; `test/Tools.test.js` the tools and the Ollama loop; `test/Api.test
 	GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
 	GET    /api/runs/:id                             the whole record, the output as it stands
 	POST   /api/runs/:id/stop                        a running one stopped
-	GET    /api/events                               Server-Sent Events: { Proposal | Project, Kind, Thread? }, { Settings: true, Kind: "settings" }, { Kind: "llms", Llm } and { Kind: "run", Run, Llm, Status }
+	GET    /api/events                               Server-Sent Events: { Plan | Project, Kind, Thread? }, { Settings: true, Kind: "settings" }, { Kind: "llms", Llm } and { Kind: "run", Run, Llm, Status }
 
 Errors are `{ "Error": "..." }` with the status: 400 bad body (`Problems` lists them for the settings), 401
 unknown token, 403 not allowed for this role, 404 not found, 409 not allowed in this state or a stale

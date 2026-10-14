@@ -3,7 +3,7 @@
 // Edit view - Monaco over the markdown with a live preview beside it. Save (or Ctrl+S) sends the text with
 // the revision it was made from and stays in Edit, the toast saying so (plan UI Tweaks VI); a stale revision is
 // refused by the server and the editor keeps the text. Ctrl+E saves, when there is something to save, and reads
-// (hotkeys.js). An unsaved edit is kept with the proposal's tab (Tabs.SetDraft), so switching tabs and back brings
+// (hotkeys.js). An unsaved edit is kept with the plan's tab (Tabs.SetDraft), so switching tabs and back brings
 // it back.
 
 angular.module( 'Consensus' ).controller( 'EditController', [ '$scope', '$timeout', 'State', 'Client', 'Editor', 'Render', 'Tabs', 'Hotkeys', 'Toast', function ( $scope, $timeout, State, Client, Editor, Render, Tabs, Hotkeys, Toast )
@@ -26,13 +26,13 @@ angular.module( 'Consensus' ).controller( 'EditController', [ '$scope', '$timeou
 		{
 			return;
 		}
-		// a draft left in this proposal's tab comes back; made from an older revision, it is stale
+		// a draft left in this plan's tab comes back; made from an older revision, it is stale
 		let draft = Tabs.DraftOf( State.OpenId );
 		let text = draft ? draft.Text : State.Open.Text;
-		$scope.Base = draft ? draft.Base : State.Open.Proposal.Revision;
+		$scope.Base = draft ? draft.Base : State.Open.Plan.Revision;
 		$scope.BaseText = State.Open.Text;
 		$scope.Dirty = ( text !== State.Open.Text );
-		$scope.Stale = ( $scope.Base !== State.Open.Proposal.Revision );
+		$scope.Stale = ( $scope.Base !== State.Open.Plan.Revision );
 		render_preview( text );
 		await Editor.Create( element, text, on_change );
 		$scope.$applyAsync();
@@ -57,7 +57,7 @@ angular.module( 'Consensus' ).controller( 'EditController', [ '$scope', '$timeou
 		{
 			$timeout.cancel( preview_timer );
 		}
-		// the draft belongs to the proposal being edited now, even if another tab is shown before the timer fires
+		// the draft belongs to the plan being edited now, even if another tab is shown before the timer fires
 		let id = State.OpenId;
 		let base = $scope.Base;
 		let base_text = $scope.BaseText;
@@ -84,18 +84,18 @@ angular.module( 'Consensus' ).controller( 'EditController', [ '$scope', '$timeou
 		let base = $scope.Base;
 		let answer = await State.Act( function ()
 		{
-			return Client.Put( '/api/proposals/' + encodeURIComponent( State.OpenId ) + '/text', { Text: text, Revision: base } );
+			return Client.Put( '/api/plans/' + encodeURIComponent( State.OpenId ) + '/text', { Text: text, Revision: base } );
 		} );
 		$scope.Busy = false;
 		if ( answer )
 		{
 			// the base moves on before the reload, so the reload's newer revision does not read as stale
-			$scope.Base = answer.Proposal.Revision;
+			$scope.Base = answer.Plan.Revision;
 			$scope.BaseText = text;
 			$scope.Dirty = false;
 			Tabs.SetDraft( State.OpenId, null );
 			await State.Reload();
-			Toast.Show( 'Saved, revision ' + answer.Proposal.Revision );
+			Toast.Show( 'Saved, revision ' + answer.Plan.Revision );
 			$scope.$applyAsync();
 			return true;
 		}
@@ -163,9 +163,9 @@ angular.module( 'Consensus' ).controller( 'EditController', [ '$scope', '$timeou
 	} );
 
 	// While editing, a reload from a live event does not touch the editor; a newer revision makes it stale.
-	$scope.$on( 'proposal-loaded', function ()
+	$scope.$on( 'plan-loaded', function ()
 	{
-		if ( State.View === 'edit' && State.Open && $scope.Base !== null && State.Open.Proposal.Revision !== $scope.Base )
+		if ( State.View === 'edit' && State.Open && $scope.Base !== null && State.Open.Plan.Revision !== $scope.Base )
 		{
 			$scope.Stale = true;
 		}

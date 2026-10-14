@@ -58,7 +58,7 @@ TEST( 'ids: three letters and three groups of three base36 characters, one kind 
 	ASSERT.equal( IDS.Is( 'p95cb55db' ), false );
 	ASSERT.equal( IDS.Is( 'abc-000-000-000' ), false );
 	ASSERT.equal( IDS.Is( IDS.New( IDS.PLAN ), IDS.DOCUMENT ), false );
-	ASSERT.deepEqual( [ IDS.ForProposal( 'plan' ), IDS.ForProposal( 'document' ), IDS.ForProposal( 'context' ) ], [ 'pln', 'doc', 'ctx' ] );
+	ASSERT.deepEqual( [ IDS.ForPlan( 'plan' ), IDS.ForPlan( 'document' ), IDS.ForPlan( 'context' ) ], [ 'pln', 'doc', 'ctx' ] );
 	let many = new Set();
 	for ( let count = 0; count < 2000; count++ )
 	{
@@ -68,12 +68,12 @@ TEST( 'ids: three letters and three groups of three base36 characters, one kind 
 } );
 
 
-TEST( 'revisions: each has an Id and the Parent it was made from; the proposal\'s Head is the current one', async function ()
+TEST( 'revisions: each has an Id and the Parent it was made from; the plan\'s Head is the current one', async function ()
 {
 	let store = STORE.Open( temporary_folder( 'consensus-ids-store-' ) );
 	await store.Prepare( {} );
 	let home = ( await store.ListProjects() )[ 0 ].Id;
-	let document = await store.CreateProposal( { Project: home, Title: 'Notes', Text: 'one', By: 'user', Kind: 'document' } );
+	let document = await store.CreatePlan( { Project: home, Title: 'Notes', Text: 'one', By: 'user', Kind: 'document' } );
 	ASSERT.equal( IDS.Is( document.Id, IDS.DOCUMENT ), true );
 	let first = await store.ReadRevision( document.Id, 1 );
 	ASSERT.equal( IDS.Is( first.Id, IDS.REVISION ), true );
@@ -95,14 +95,14 @@ TEST( 'an applied thread names its revision by number and by RevisionId', async 
 	let running = await SERVER.Start( { Data: temporary_folder( 'consensus-ids-api-' ), Port: 0 } );
 	let token = PARTICIPANTS.NewToken();
 	running.Settings.Participants[ 1 ].Token = token;
-	let plan = ( await call( running, 'POST', '/api/proposals', { Title: 'Plan', Text: '# Plan\n\nA line to change.\n' } ) ).Body.Proposal;
+	let plan = ( await call( running, 'POST', '/api/plans', { Title: 'Plan', Text: '# Plan\n\nA line to change.\n' } ) ).Body.Plan;
 	ASSERT.equal( IDS.Is( plan.Id, IDS.PLAN ), true );
-	let thread = ( await call( running, 'POST', '/api/proposals/' + plan.Id + '/threads', { Text: 'Change it.', Resolve: true } ) ).Body.Thread;
+	let thread = ( await call( running, 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Change it.', Resolve: true } ) ).Body.Thread;
 	ASSERT.equal( IDS.Is( thread.Id, IDS.THREAD ), true );
 	ASSERT.equal( IDS.Is( thread.Replies[ 0 ].Id, IDS.REPLY ), true );
-	let response = await fetch( running.Url + '/api/proposals/' + plan.Id + '/threads/' + thread.Id + '/apply', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify( { Text: '# Plan\n\nA line changed.\n', Revision: 1, Outcome: 'changed' } ) } );
+	let response = await fetch( running.Url + '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/apply', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify( { Text: '# Plan\n\nA line changed.\n', Revision: 1, Outcome: 'changed' } ) } );
 	let applied = ( await response.json() ).Thread.Applied;
-	let revision = ( await call( running, 'GET', '/api/proposals/' + plan.Id + '/revisions' ) ).Body.Revisions[ 1 ];
+	let revision = ( await call( running, 'GET', '/api/plans/' + plan.Id + '/revisions' ) ).Body.Revisions[ 1 ];
 	ASSERT.deepEqual( [ applied.Revision, applied.RevisionId ], [ 2, revision.Id ] );
 	await running.Close();
 } );

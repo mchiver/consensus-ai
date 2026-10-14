@@ -23,7 +23,7 @@ let running = null;
 let home = null;		// the first project's id (a prj- id in a folder of its own since plan Run Shapes, Step 2)
 let browser = null;
 let page = null;
-let proposal = null;
+let plan = null;
 
 
 function count_of( selector )
@@ -82,9 +82,9 @@ TEST.before( async function ()
 	running = await SERVER.Start( { Data: data, Port: 0 } );
 	home = ( await running.Store.ListProjects() )[ 0 ].Id;
 	running.Settings.Participants[ 1 ].Token = LLM_TOKEN;
-	proposal = ( await api( 'POST', '/api/proposals', { Title: 'Browser check', Text: TEXT } ) ).Proposal;
+	plan = ( await api( 'POST', '/api/plans', { Title: 'Browser check', Text: TEXT } ) ).Plan;
 	browser = await CDP.StartBrowser();
-	page = await browser.OpenPage( running.Url + '/#/p/' + proposal.Id );
+	page = await browser.OpenPage( running.Url + '/#/p/' + plan.Id );
 	// the page's Copy and Paste go through the system clipboard: the headless browser is granted it for this origin
 	await page.Send( 'Browser.grantPermissions', { origin: running.Url, permissions: [ 'clipboardReadWrite', 'clipboardSanitizedWrite' ] } );
 } );
@@ -105,10 +105,10 @@ TEST.after( async function ()
 
 //---------------------------------------------------------------------
 
-TEST( 'the list and the proposal load, live; the Context folder comes first', async function ()
+TEST( 'the list and the plan load, live; the Context folder comes first', async function ()
 {
 	await page.WaitFor( count_of( '.tree-item:not(.context-item)' ) + ' === 1', 20000 );
-	ASSERT.equal( await page.Evaluate( text_of( '.tree-item:not(.context-item) .proposal-title' ) ), 'Browser check' );
+	ASSERT.equal( await page.Evaluate( text_of( '.tree-item:not(.context-item) .plan-title' ) ), 'Browser check' );
 	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Browser check"' );
 	await page.WaitFor( 'document.querySelector( ".connection" ).classList.contains( "live" )' );
 	ASSERT.equal( await page.Evaluate( text_of( '#state-line' ) ), 'no threads yet' );
@@ -116,7 +116,7 @@ TEST( 'the list and the proposal load, live; the Context folder comes first', as
 	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".project.open .project-body > .tree > .tree-node" ).querySelector( ".folder" ).classList.contains( "context-folder" )' ), true );
 	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-folder .folder-name' ) ), 'Context' );
 	ASSERT.equal( await page.Evaluate( count_of( '.project.open .context-folder .tree-item.context-item' ) ), 1 );
-	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-item .proposal-title' ) ), 'Readme' );
+	ASSERT.equal( await page.Evaluate( text_of( '.project.open .context-item .plan-title' ) ), 'Readme' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -143,8 +143,8 @@ TEST( 'a selection becomes an anchored thread', async function ()
 
 TEST( 'the llm replies over the API, and the reply arrives live', async function ()
 {
-	let threads = ( await api( 'GET', '/api/proposals/' + proposal.Id + '/threads' ) ).Threads;
-	await api( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + threads[ 0 ].Id + '/replies', { Text: 'Outcome: one item stays.' }, true );
+	let threads = ( await api( 'GET', '/api/plans/' + plan.Id + '/threads' ) ).Threads;
+	await api( 'POST', '/api/plans/' + plan.Id + '/threads/' + threads[ 0 ].Id + '/replies', { Text: 'Outcome: one item stays.' }, true );
 	await page.WaitFor( count_of( '.thread:not(.compose) .reply' ) + ' === 2' );
 	ASSERT.equal( await page.Evaluate( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).pop().textContent.trim()' ), 'Outcome: one item stays.' );
 	await page.WaitFor( text_of( '#state-line' ) + ' === "1 contested, waiting on you 1"' );
@@ -200,14 +200,14 @@ TEST( 'edit and save make a revision and keep the highlight; the editor stays, t
 } );
 
 
-TEST( 'once the llm applies, the state picker makes the proposal Working and the sidebar follows', async function ()
+TEST( 'once the llm applies, the state picker makes the plan Working and the sidebar follows', async function ()
 {
-	let threads = ( await api( 'GET', '/api/proposals/' + proposal.Id + '/threads' ) ).Threads;
-	await api( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + threads[ 0 ].Id + '/apply', { Outcome: 'one item stays' }, true );
+	let threads = ( await api( 'GET', '/api/plans/' + plan.Id + '/threads' ) ).Threads;
+	await api( 'POST', '/api/plans/' + plan.Id + '/threads/' + threads[ 0 ].Id + '/apply', { Outcome: 'one item stays' }, true );
 	await page.WaitFor( text_of( '#state-line' ) + ' === "1 applied"' );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).selectedOptions[ 0 ].label' ), 'Draft' );
 	await page.Evaluate( '( function () { let picker = document.getElementById( "state-picker" ); let option = Array.from( picker.options ).find( function ( candidate ) { return candidate.label === "Working"; } ); picker.value = option.value; picker.dispatchEvent( new Event( "change" ) ); return true; } )()' );
-	await page.WaitFor( text_of( '.tree-item[data-id="' + proposal.Id + '"] .item-state' ) + ' === "Working"' );
+	await page.WaitFor( text_of( '.tree-item[data-id="' + plan.Id + '"] .item-state' ) + ' === "Working"' );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).selectedOptions[ 0 ].label' ), 'Working' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
@@ -238,7 +238,7 @@ TEST( 'a new project opens and closes the others; a folder and a plan are made i
 	await page.Click( '#create-submit' );
 	await page.WaitFor( count_of( '.project.open .folder:not(.context-folder) .tree-item' ) + ' === 1' );
 	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Plan in a folder"' );
-	ASSERT.equal( await page.Evaluate( text_of( '.project.open .folder:not(.context-folder) .tree-item .proposal-title' ) ), 'Plan in a folder' );
+	ASSERT.equal( await page.Evaluate( text_of( '.project.open .folder:not(.context-folder) .tree-item .plan-title' ) ), 'Plan in a folder' );
 	// a document goes in the Context folder, from that folder's own menu: no threads pane, no state picker
 	await menu_pick( '.project.open .context-folder .folder-head', 'New Document' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.id === "create-name"' );
@@ -287,7 +287,7 @@ TEST( 'an item dragged onto a project moves there; copy and paste makes a whole 
 	await menu_pick( '.project.open > .project-head', 'Paste' );
 	await page.WaitFor( count_of( '.project.open .tree-item:not(.context-item)' ) + ' === 3' );
 	// the copy keeps the title, with new ids
-	await page.WaitFor( '[ ...document.querySelectorAll( ".project.open .proposal-title" ) ].filter( function ( title ) { return title.textContent.trim() === "Plan in a folder"; } ).length === 2' );
+	await page.WaitFor( '[ ...document.querySelectorAll( ".project.open .plan-title" ) ].filter( function ( title ) { return title.textContent.trim() === "Plan in a folder"; } ).length === 2' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -305,7 +305,7 @@ TEST( 'the theme and the scale switch', async function ()
 
 TEST( 'the threads and the preview hide and are remembered; a plan is renamed in its tree row', async function ()
 {
-	await page.Evaluate( 'window.location.hash = "#/p/' + proposal.Id + '"; true' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
 	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Browser check"' );
 	// the threads toggle hides the pane, and a reload keeps it hidden
 	await page.Click( '#threads-toggle' );
@@ -325,10 +325,10 @@ TEST( 'the threads and the preview hide and are remembered; a plan is renamed in
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".edit-preview" ) ).display !== "none"' );
 	await page.Click( '#view-read' );
 	// rename from the tree row: only the Title changes
-	await menu_pick( '.tree-item[data-id="' + proposal.Id + '"]', 'Rename' );
+	await menu_pick( '.tree-item[data-id="' + plan.Id + '"]', 'Rename' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.closest( ".rename-form" ) !== null' );
 	await page.Evaluate( '( function () { let input = document.activeElement; input.value = "Browser check, renamed"; input.dispatchEvent( new Event( "input" ) ); input.form.dispatchEvent( new Event( "submit", { cancelable: true } ) ); return true; } )()' );
-	await page.WaitFor( text_of( '.tree-item[data-id="' + proposal.Id + '"] .proposal-title' ) + ' === "Browser check, renamed"' );
+	await page.WaitFor( text_of( '.tree-item[data-id="' + plan.Id + '"] .plan-title' ) + ' === "Browser check, renamed"' );
 	await page.WaitFor( text_of( '.header .title' ) + ' === "Browser check, renamed"' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
@@ -399,7 +399,7 @@ TEST( 'an item dropped on the top edge of another goes just before it; the Conte
 	await page.WaitFor( count_of( '.project.open .tree-item:not(.context-item)' ) + ' === 3' );
 	function root_titles()
 	{
-		return '[ ...document.querySelectorAll( ".project.open .project-body > .tree > .tree-node" ) ].map( function ( node ) { let title = node.querySelector( ".proposal-title, .folder-name" ); return title ? title.textContent.trim() : ""; } ).join( "|" )';
+		return '[ ...document.querySelectorAll( ".project.open .project-body > .tree > .tree-node" ) ].map( function ( node ) { let title = node.querySelector( ".plan-title, .folder-name" ); return title ? title.textContent.trim() : ""; } ).join( "|" )';
 	}
 	ASSERT.equal( ( await page.Evaluate( root_titles() ) ).split( '|' )[ 0 ], 'Context' );
 	ASSERT.equal( ( await page.Evaluate( root_titles() ) ).split( '|' )[ 1 ], 'Specs' );
@@ -440,8 +440,8 @@ TEST( 'the Context folder and its Readme: opened, kept as they are, with their o
 	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].map( function ( entry ) { return entry.textContent.trim(); } )' ), [ 'New Document', 'Paste' ] );
 	await page.Press( 'Escape' );
 	// text written into it clears the empty badge
-	let context = await api( 'GET', '/api/proposals/' + ( await page.Evaluate( 'window.location.hash.slice( 4 )' ) ) );
-	await api( 'PUT', '/api/proposals/' + context.Proposal.Id + '/text', { Text: '# Browser project\n\nWhat it is.\n', Revision: context.Proposal.Revision } );
+	let context = await api( 'GET', '/api/plans/' + ( await page.Evaluate( 'window.location.hash.slice( 4 )' ) ) );
+	await api( 'PUT', '/api/plans/' + context.Plan.Id + '/text', { Text: '# Browser project\n\nWhat it is.\n', Revision: context.Plan.Revision } );
 	await page.WaitFor( text_of( '#read-view p' ) + ' === "What it is."' );
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".project.open .context-item .item-state" ) ).display === "none"' );
 	ASSERT.deepEqual( page.Errors, [] );
@@ -457,7 +457,7 @@ let tab_two = null;
 
 async function created( title )
 {
-	return ( await api( 'POST', '/api/proposals', { Title: title, Text: '# ' + title + '\n\nA line.\n' } ) ).Proposal;
+	return ( await api( 'POST', '/api/plans', { Title: title, Text: '# ' + title + '\n\nA line.\n' } ) ).Plan;
 }
 
 
@@ -489,7 +489,7 @@ TEST( 'tabs: one per item; each keeps its view and an unsaved edit; tabs reorder
 
 	// an edit in Tab one, unsaved; Tab two shows its own view; back in Tab one, the edit is still there
 	await page.Click( '#view-edit' );
-	// the editor from an earlier test is reused: wait until it holds this proposal's text
+	// the editor from an earlier test is reused: wait until it holds this plan's text
 	await page.WaitFor( 'window.monaco && monaco.editor.getEditors().length === 1 && monaco.editor.getEditors()[ 0 ].getValue() === "# Tab one\\n\\nA line.\\n"', 30000 );
 	await page.Evaluate( 'monaco.editor.getEditors()[ 0 ].setValue( "# Tab one\\n\\nA line, not saved yet.\\n" ); true' );
 	await page.WaitFor( '!document.getElementById( "save-button" ).disabled' );
@@ -636,7 +636,7 @@ TEST( 'subplans: started from the header, selected text, a new thread and a repl
 	}
 	async function threads_of( id )
 	{
-		return ( await api( 'GET', '/api/proposals/' + id ) ).Threads;
+		return ( await api( 'GET', '/api/plans/' + id ) ).Threads;
 	}
 
 	// from the header: an empty Subplan, opened
@@ -698,14 +698,14 @@ TEST( 'the tree: it hides and shows; it sorts by name, created and updated; it s
 	{
 		await page.Evaluate( '( function () { let select = document.getElementById( "tree-sort" ); select.value = "' + value + '"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
 	}
-	const TITLES = '[ ...document.querySelectorAll( ".project.open .tree-item:not(.context-item) .proposal-title" ) ].map( function ( title ) { return title.textContent.trim(); } ).join( "," )';
+	const TITLES = '[ ...document.querySelectorAll( ".project.open .tree-item:not(.context-item) .plan-title" ) ].map( function ( title ) { return title.textContent.trim(); } ).join( "," )';
 
 	let project = ( await api( 'POST', '/api/projects', { Name: 'Sorting' } ) ).Project;
-	let beta = ( await api( 'POST', '/api/proposals', { Title: 'Beta', Text: '# Beta\n', Project: project.Id } ) ).Proposal;
+	let beta = ( await api( 'POST', '/api/plans', { Title: 'Beta', Text: '# Beta\n', Project: project.Id } ) ).Plan;
 	await new Promise( function ( resolve ) { setTimeout( resolve, 20 ); } );
-	let alpha = ( await api( 'POST', '/api/proposals', { Title: 'Alpha', Text: '# Alpha\n', Project: project.Id } ) ).Proposal;
+	let alpha = ( await api( 'POST', '/api/plans', { Title: 'Alpha', Text: '# Alpha\n', Project: project.Id } ) ).Plan;
 	await new Promise( function ( resolve ) { setTimeout( resolve, 20 ); } );
-	await api( 'POST', '/api/proposals/' + beta.Id + '/threads', { Text: 'A question for the LLM.' } );
+	await api( 'POST', '/api/plans/' + beta.Id + '/threads', { Text: 'A question for the LLM.' } );
 
 	await page.Evaluate( 'window.location.hash = "#/p/' + alpha.Id + '"; true' );
 	await page.WaitFor( TITLES + ' === "Beta,Alpha"' );
@@ -769,9 +769,9 @@ TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-docum
 	const MARKED = '[ ...document.querySelectorAll( "#read-view mark.anchor" ) ].map( function ( mark ) { return mark.dataset.threads; } ).join( " " )';
 
 	let plan = await created( 'Highlights' );
-	await api( 'PUT', '/api/proposals/' + plan.Id + '/text', { Text: '# Highlights\n\nThe first passage.\n\nThe second passage.\n', Revision: plan.Revision } );
-	let open_thread = ( await api( 'POST', '/api/proposals/' + plan.Id + '/threads', { Text: 'Why first?', Anchor: { Text: 'first passage' } } ) ).Thread;
-	let resolved_thread = ( await api( 'POST', '/api/proposals/' + plan.Id + '/threads', { Text: 'Keep it.', Anchor: { Text: 'second passage' }, Resolve: true } ) ).Thread;
+	await api( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: '# Highlights\n\nThe first passage.\n\nThe second passage.\n', Revision: plan.Revision } );
+	let open_thread = ( await api( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Why first?', Anchor: { Text: 'first passage' } } ) ).Thread;
+	let resolved_thread = ( await api( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Keep it.', Anchor: { Text: 'second passage' }, Resolve: true } ) ).Thread;
 	ASSERT.equal( resolved_thread.Status, 'resolved' );
 
 	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
@@ -792,7 +792,7 @@ TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-docum
 	await page.WaitFor( '!document.getElementById( "compose-resolve" ).disabled' );
 	await page.Click( '#compose-resolve' );
 	await page.WaitFor( count_of( '.thread.selected' ) + ' === 1' );
-	let threads = ( await api( 'GET', '/api/proposals/' + plan.Id + '/threads' ) ).Threads;
+	let threads = ( await api( 'GET', '/api/plans/' + plan.Id + '/threads' ) ).Threads;
 	let posted = threads.find( function ( thread ) { return thread.Replies[ 0 ].Text === 'Add a summary at the top.'; } );
 	ASSERT.equal( posted.Status, 'resolved' );
 	ASSERT.equal( posted.Anchor, null );
@@ -832,7 +832,7 @@ TEST( 'tree menus: a right-click or the ⋯ opens a row\'s actions; Delete is th
 	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( ROW + ' .confirm-delete-item' ) + ' ).click(); true' );
 	await page.WaitFor( count_of( ROW ) + ' === 0' );
 	await page.WaitFor( count_of( tab_selector( doomed.Id ) ) + ' === 0' );
-	ASSERT.equal( ( await fetch( running.Url + '/api/proposals/' + doomed.Id ) ).status, 404 );
+	ASSERT.equal( ( await fetch( running.Url + '/api/plans/' + doomed.Id ) ).status, 404 );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -1008,7 +1008,7 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	await page.Click( '#project-settings-save' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "project-settings-saved" ) ).display !== "none"' );
 	await page.Click( '#project-settings-close' );
-	let plan = ( await api( 'POST', '/api/proposals', { Title: 'Shelved plan', Text: '# Shelved plan\n', Project: home } ) ).Proposal;
+	let plan = ( await api( 'POST', '/api/plans', { Title: 'Shelved plan', Text: '# Shelved plan\n', Project: home } ) ).Plan;
 	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
 	await page.WaitFor( '[ ...( document.getElementById( "state-picker" ) || { options: [] } ).options ].some( function ( option ) { return option.label === "Shelved"; } )' );
 	// the refused save is a 400 the browser logs as an error; nothing else is
@@ -1027,7 +1027,7 @@ TEST( 'folds: a folder another server remembers folded still folds and unfolds h
 	await page.WaitFor( count_of( chevron ) + ' >= 1' );
 	let before = await page.Evaluate( folded );
 	// another root, offline, whose remembered list has that folder
-	await page.Evaluate( '( function () { localStorage.setItem( "consensus.other:1.folded", JSON.stringify( [ ' + JSON.stringify( context ) + ' ] ) ); let injector = angular.element( document.body ).injector(); let roots = injector.get( "Roots" ); roots.List.push( { Key: "other", Name: "Other", Url: "http://other:1", Kind: "server", Version: null, Base: "/servers/other", Me: null, Participants: [], States: [], Proposals: [], Projects: [], Live: false, Error: "not reached", Loaded: true } ); angular.element( document.querySelector( "[ng-controller=SidebarController]" ) ).scope().Of( roots.List[ roots.List.length - 1 ] ); injector.get( "$rootScope" ).$apply(); return true; } )()' );
+	await page.Evaluate( '( function () { localStorage.setItem( "consensus.other:1.folded", JSON.stringify( [ ' + JSON.stringify( context ) + ' ] ) ); let injector = angular.element( document.body ).injector(); let roots = injector.get( "Roots" ); roots.List.push( { Key: "other", Name: "Other", Url: "http://other:1", Kind: "server", Version: null, Base: "/servers/other", Me: null, Participants: [], States: [], Plans: [], Projects: [], Live: false, Error: "not reached", Loaded: true } ); angular.element( document.querySelector( "[ng-controller=SidebarController]" ) ).scope().Of( roots.List[ roots.List.length - 1 ] ); injector.get( "$rootScope" ).$apply(); return true; } )()' );
 	await page.WaitFor( count_of( '.root' ) + ' === 2' );
 	ASSERT.equal( await page.Evaluate( folded ), before );
 	await page.Click( chevron );

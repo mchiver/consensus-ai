@@ -1,7 +1,7 @@
 'use strict';
 
 // Events - the Server-Sent Events hub. The page listens on one stream; every change is one event
-// { Proposal, Kind }, and the page reloads what it shows. Express serves this with nothing added.
+// { Plan, Kind }, and the page reloads what it shows. Express serves this with nothing added.
 
 const HEARTBEAT_MILLISECONDS = 25000;
 

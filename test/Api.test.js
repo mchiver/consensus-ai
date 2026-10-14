@@ -13,7 +13,7 @@ const SERVER = require( '../src/Server.js' );
 const PARTICIPANTS = require( '../src/Participants.js' );
 
 const TEXT = [
-	'# A proposal',
+	'# A plan',
 	'',
 	'The first paragraph makes a claim about **anchors** and how they survive.',
 	'',
@@ -57,17 +57,17 @@ async function call( method, path, body, as_llm )
 
 async function create( title, text )
 {
-	let result = await call( 'POST', '/api/proposals', { Title: title, Text: ( text === undefined ) ? TEXT : text } );
+	let result = await call( 'POST', '/api/plans', { Title: title, Text: ( text === undefined ) ? TEXT : text } );
 	ASSERT.equal( result.Status, 201 );
-	return result.Body.Proposal;
+	return result.Body.Plan;
 }
 
 
 // A thread by the owner on the given words, answered by the llm with an outcome.
 async function discussed_thread( id, words, outcome )
 {
-	let thread = ( await call( 'POST', '/api/proposals/' + id + '/threads', { Anchor: { Text: words }, Text: 'Please reconsider this.' } ) ).Body.Thread;
-	await call( 'POST', '/api/proposals/' + id + '/threads/' + thread.Id + '/replies', { Text: outcome }, true );
+	let thread = ( await call( 'POST', '/api/plans/' + id + '/threads', { Anchor: { Text: words }, Text: 'Please reconsider this.' } ) ).Body.Thread;
+	await call( 'POST', '/api/plans/' + id + '/threads/' + thread.Id + '/replies', { Text: outcome }, true );
 	return thread;
 }
 
@@ -206,7 +206,7 @@ TEST( 'settings: the owner reads and writes consensus.json; problems are refused
 	ASSERT.equal( bad.Status, 400 );
 	ASSERT.deepEqual( bad.Body.Problems, [ 'no participant has the owner role' ] );
 	let plan = await create( 'In a state' );
-	await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Working' } );
+	await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Working' } );
 	// the settings' list is the default for a new project; a project's own list (plan Run Shapes, Step 2) refuses a state in use
 	let in_use = await call( 'PUT', '/api/projects/' + home, { States: [ 'Draft', 'Finished' ] } );
 	ASSERT.equal( in_use.Status, 400 );
@@ -242,11 +242,11 @@ TEST( 'settings: the owner reads and writes consensus.json; problems are refused
 	ASSERT.deepEqual( on_disk.States, fresh.States );
 	ASSERT.equal( on_disk.Participants[ 2 ].Token, member_token );
 	ASSERT.deepEqual( on_disk.Servers, [ { Name: 'cube4', Url: 'http://cube4:3500' } ] );
-	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Shelved' } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Shelved' } ) ).Status, 400 );
 	let project_states = await call( 'PUT', '/api/projects/' + home, { States: fresh.States } );
 	ASSERT.equal( project_states.Status, 200 );
 	ASSERT.deepEqual( project_states.Body.Project.States, fresh.States );
-	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Shelved' } ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Shelved' } ) ).Status, 200 );
 
 	// a new Port or Scope asks for a restart; the file has it, the server still listens where it did
 	let moved = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, fresh, { Port: 3999 } ) } );
@@ -264,35 +264,35 @@ TEST( 'settings: the owner reads and writes consensus.json; problems are refused
 } );
 
 
-TEST( 'a proposal is created, listed with its tally, read, and retitled', async function ()
+TEST( 'a plan is created, listed with its tally, read, and retitled', async function ()
 {
-	let proposal = await create( 'First proposal' );
-	ASSERT.equal( proposal.State, 'Draft' );
-	ASSERT.equal( proposal.Revision, 1 );
-	ASSERT.equal( proposal.StateLine, 'no threads yet' );
-	let list = await call( 'GET', '/api/proposals' );
-	ASSERT.ok( list.Body.Proposals.some( function ( candidate ) { return candidate.Id === proposal.Id; } ) );
-	let read = await call( 'GET', '/api/proposals/' + proposal.Id );
+	let plan = await create( 'First plan' );
+	ASSERT.equal( plan.State, 'Draft' );
+	ASSERT.equal( plan.Revision, 1 );
+	ASSERT.equal( plan.StateLine, 'no threads yet' );
+	let list = await call( 'GET', '/api/plans' );
+	ASSERT.ok( list.Body.Plans.some( function ( candidate ) { return candidate.Id === plan.Id; } ) );
+	let read = await call( 'GET', '/api/plans/' + plan.Id );
 	ASSERT.equal( read.Status, 200 );
 	ASSERT.equal( read.Body.Text, TEXT );
 	ASSERT.deepEqual( read.Body.Threads, [] );
-	ASSERT.equal( read.Body.Proposal.Tally.Total, 0 );
+	ASSERT.equal( read.Body.Plan.Tally.Total, 0 );
 	ASSERT.equal( read.Body.Context, false );
-	let retitled = await call( 'PUT', '/api/proposals/' + proposal.Id, { Title: 'Renamed' } );
-	ASSERT.equal( retitled.Body.Proposal.Title, 'Renamed' );
-	ASSERT.equal( retitled.Body.Proposal.Id, proposal.Id );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Text: 'no title' } ) ).Status, 400 );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/none' ) ).Status, 404 );
+	let retitled = await call( 'PUT', '/api/plans/' + plan.Id, { Title: 'Renamed' } );
+	ASSERT.equal( retitled.Body.Plan.Title, 'Renamed' );
+	ASSERT.equal( retitled.Body.Plan.Id, plan.Id );
+	ASSERT.equal( ( await call( 'POST', '/api/plans', { Text: 'no title' } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/none' ) ).Status, 404 );
 	ASSERT.equal( ( await call( 'GET', '/api/nothing' ) ).Status, 404 );
 	ASSERT.equal( ( await call( 'GET', '/api/search?q=x' ) ).Status, 404 );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + proposal.Id + '/send' ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/send' ) ).Status, 404 );
 } );
 
 
 TEST( 'a thread anchors to visible text, or to the whole document; missing words are refused', async function ()
 {
-	let proposal = await create( 'Threads' );
-	let anchored = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads', { Anchor: { Text: 'anchors and how they survive' }, Text: 'Do they?' } );
+	let plan = await create( 'Threads' );
+	let anchored = await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: { Text: 'anchors and how they survive' }, Text: 'Do they?' } );
 	ASSERT.equal( anchored.Status, 201 );
 	let thread = anchored.Body.Thread;
 	ASSERT.equal( thread.Status, 'contested' );
@@ -303,59 +303,59 @@ TEST( 'a thread anchors to visible text, or to the whole document; missing words
 	ASSERT.equal( thread.WaitingOnMe, false );
 	ASSERT.equal( thread.Replies.length, 1 );
 	ASSERT.equal( thread.Replies[ 0 ].By, 'user' );
-	let whole = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads', { Anchor: null, Text: 'On the whole thing.' }, true );
+	let whole = await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: null, Text: 'On the whole thing.' }, true );
 	ASSERT.equal( whole.Body.Thread.Anchor, null );
 	ASSERT.equal( whole.Body.Thread.Found, null );
 	ASSERT.deepEqual( whole.Body.Thread.Turn, [ 'user' ] );
-	let missing = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads', { Anchor: { Text: 'words that are not there' }, Text: 'x' } );
+	let missing = await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: { Text: 'words that are not there' }, Text: 'x' } );
 	ASSERT.equal( missing.Status, 400 );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + proposal.Id + '/threads', { Text: '  ' } ) ).Status, 400 );
-	let read = await call( 'GET', '/api/proposals/' + proposal.Id );
-	ASSERT.equal( read.Body.Proposal.Tally.Contested, 2 );
-	ASSERT.equal( read.Body.Proposal.StateLine, '2 contested, waiting on you 1' );
-	let filtered = await call( 'GET', '/api/proposals/' + proposal.Id + '/threads?status=mine', undefined, true );
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: '  ' } ) ).Status, 400 );
+	let read = await call( 'GET', '/api/plans/' + plan.Id );
+	ASSERT.equal( read.Body.Plan.Tally.Contested, 2 );
+	ASSERT.equal( read.Body.Plan.StateLine, '2 contested, waiting on you 1' );
+	let filtered = await call( 'GET', '/api/plans/' + plan.Id + '/threads?status=mine', undefined, true );
 	ASSERT.deepEqual( filtered.Body.Threads.map( function ( candidate ) { return candidate.Id; } ), [ thread.Id ] );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + proposal.Id + '/threads?status=bogus' ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id + '/threads?status=bogus' ) ).Status, 400 );
 } );
 
 
 TEST( 'only the owner resolves; a reply to a resolved thread reopens it', async function ()
 {
-	let proposal = await create( 'Resolve' );
-	let thread = await discussed_thread( proposal.Id, 'one list item', 'Outcome: the item is reworded.' );
-	let by_llm = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/resolve', undefined, true );
+	let plan = await create( 'Resolve' );
+	let thread = await discussed_thread( plan.Id, 'one list item', 'Outcome: the item is reworded.' );
+	let by_llm = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve', undefined, true );
 	ASSERT.equal( by_llm.Status, 403 );
-	let resolved = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/resolve' );
+	let resolved = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve' );
 	ASSERT.equal( resolved.Status, 200 );
 	ASSERT.equal( resolved.Body.Thread.Status, 'resolved' );
 	ASSERT.equal( resolved.Body.Thread.State, 'resolved' );
 	ASSERT.equal( resolved.Body.Thread.Resolved.By, 'user' );
 	ASSERT.deepEqual( resolved.Body.Thread.Turn, [ 'llm' ] );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/resolve' ) ).Status, 409 );
-	let read = await call( 'GET', '/api/proposals/' + proposal.Id );
-	ASSERT.equal( read.Body.Proposal.StateLine, '1 resolved' );
-	let reply = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/replies', { Text: 'Wait, one more thing.' } );
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve' ) ).Status, 409 );
+	let read = await call( 'GET', '/api/plans/' + plan.Id );
+	ASSERT.equal( read.Body.Plan.StateLine, '1 resolved' );
+	let reply = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/replies', { Text: 'Wait, one more thing.' } );
 	ASSERT.equal( reply.Status, 201 );
 	ASSERT.equal( reply.Body.Reopened, true );
 	ASSERT.equal( reply.Body.Thread.Status, 'contested' );
 	ASSERT.equal( reply.Body.Thread.Reopened, true );
 	ASSERT.equal( reply.Body.Thread.Resolved, null );
-	let reopened = await call( 'GET', '/api/proposals/' + proposal.Id + '/threads?status=reopened' );
+	let reopened = await call( 'GET', '/api/plans/' + plan.Id + '/threads?status=reopened' );
 	ASSERT.equal( reopened.Body.Threads.length, 1 );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + proposal.Id ) ).Body.Proposal.StateLine, '1 contested, 1 reopened' );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + proposal.Id, undefined, true ) ).Body.Proposal.StateLine, '1 contested, waiting on you 1, 1 reopened' );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/none/replies', { Text: 'x' } ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id ) ).Body.Plan.StateLine, '1 contested, 1 reopened' );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id, undefined, true ) ).Body.Plan.StateLine, '1 contested, waiting on you 1, 1 reopened' );
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/none/replies', { Text: 'x' } ) ).Status, 404 );
 } );
 
 
 TEST( 'reply and resolve: the owner\'s reply becomes the outcome in one request; no one else may', async function ()
 {
-	let proposal = await create( 'Reply and resolve' );
-	let thread = await discussed_thread( proposal.Id, 'one list item', 'Question: keep it, or drop it? I would keep it.' );
-	let path = '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/replies';
+	let plan = await create( 'Reply and resolve' );
+	let thread = await discussed_thread( plan.Id, 'one list item', 'Question: keep it, or drop it? I would keep it.' );
+	let path = '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/replies';
 	let by_llm = await call( 'POST', path, { Text: 'Keep it.', Resolve: true }, true );
 	ASSERT.equal( by_llm.Status, 403 );
-	let read = await call( 'GET', '/api/proposals/' + proposal.Id );
+	let read = await call( 'GET', '/api/plans/' + plan.Id );
 	ASSERT.equal( thread_of_body( read, thread.Id ).Replies.length, 2 );
 	let both = await call( 'POST', path, { Text: 'Drop it.', Resolve: true } );
 	ASSERT.equal( both.Status, 201 );
@@ -374,8 +374,8 @@ TEST( 'reply and resolve: the owner\'s reply becomes the outcome in one request;
 
 TEST( 'comment and resolve: the owner posts a thread already resolved, its comment the outcome; no one else may', async function ()
 {
-	let proposal = await create( 'Comment and resolve' );
-	let path = '/api/proposals/' + proposal.Id + '/threads';
+	let plan = await create( 'Comment and resolve' );
+	let path = '/api/plans/' + plan.Id + '/threads';
 	let by_llm = await call( 'POST', path, { Text: 'Drop the last line.', Resolve: true }, true );
 	ASSERT.equal( by_llm.Status, 403 );
 	ASSERT.equal( ( await call( 'GET', path ) ).Body.Threads.length, 0 );
@@ -399,87 +399,87 @@ function thread_of_body( read, thread_id )
 
 TEST( 'only the owner deletes a thread, applied or not; the revision it made keeps its text', async function ()
 {
-	let proposal = await create( 'Delete a thread' );
-	let thread = await discussed_thread( proposal.Id, 'one list item', 'Outcome: the item is reworded.' );
-	await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/resolve' );
-	let applied = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Text: TEXT.replace( 'one list item', 'one reworded item' ), Revision: 1, Outcome: 'reworded' }, true );
+	let plan = await create( 'Delete a thread' );
+	let thread = await discussed_thread( plan.Id, 'one list item', 'Outcome: the item is reworded.' );
+	await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve' );
+	let applied = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/apply', { Text: TEXT.replace( 'one list item', 'one reworded item' ), Revision: 1, Outcome: 'reworded' }, true );
 	ASSERT.equal( applied.Status, 200 );
-	let other = ( await call( 'POST', '/api/proposals/' + proposal.Id + '/threads', { Text: 'A second thread.' } ) ).Body.Thread;
-	let path = '/api/proposals/' + proposal.Id + '/threads/' + thread.Id;
+	let other = ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'A second thread.' } ) ).Body.Thread;
+	let path = '/api/plans/' + plan.Id + '/threads/' + thread.Id;
 	ASSERT.equal( ( await call( 'DELETE', path, undefined, true ) ).Status, 403 );
 	let deleted = await call( 'DELETE', path );
 	ASSERT.equal( deleted.Status, 200 );
 	ASSERT.equal( deleted.Body.Deleted, thread.Id );
 	ASSERT.equal( ( await call( 'DELETE', path ) ).Status, 404 );
-	let read = await call( 'GET', '/api/proposals/' + proposal.Id );
+	let read = await call( 'GET', '/api/plans/' + plan.Id );
 	ASSERT.deepEqual( read.Body.Threads.map( function ( candidate ) { return candidate.Id; } ), [ other.Id ] );
 	ASSERT.match( read.Body.Text, /one reworded item/ );
-	let revisions = await call( 'GET', '/api/proposals/' + proposal.Id + '/revisions' );
+	let revisions = await call( 'GET', '/api/plans/' + plan.Id + '/revisions' );
 	ASSERT.equal( revisions.Body.Revisions[ 1 ].Thread, thread.Id );
-	ASSERT.equal( ( await call( 'DELETE', '/api/proposals/none/threads/' + other.Id ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'DELETE', '/api/plans/none/threads/' + other.Id ) ).Status, 404 );
 } );
 
 
 TEST( 'apply: resolved threads only, a text change makes a revision tied to the thread, a stale revision is refused', async function ()
 {
-	let proposal = await create( 'Apply' );
-	let thread = await discussed_thread( proposal.Id, 'another list item to comment on', 'Outcome: the item says "a reworded list item".' );
-	let too_early = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Outcome: 'x', Revision: 1 }, true );
+	let plan = await create( 'Apply' );
+	let thread = await discussed_thread( plan.Id, 'another list item to comment on', 'Outcome: the item says "a reworded list item".' );
+	let too_early = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/apply', { Outcome: 'x', Revision: 1 }, true );
 	ASSERT.equal( too_early.Status, 409 );
-	await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/resolve' );
+	await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve' );
 	let new_text = TEXT.replace( 'another list item to comment on', 'a reworded list item' );
-	let stale = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Outcome: 'reworded', Revision: 7 }, true );
+	let stale = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Outcome: 'reworded', Revision: 7 }, true );
 	ASSERT.equal( stale.Status, 409 );
 	ASSERT.equal( stale.Body.Revision, 1 );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Revision: 1 }, true ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Revision: 1 }, true ) ).Status, 400 );
 	// an anchor not found in the new text is refused before anything is written: no revision, the thread still resolved
-	let lost = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Outcome: 'reworded', Revision: 1, Anchor: { Text: '`a reworded list item`' } }, true );
+	let lost = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Outcome: 'reworded', Revision: 1, Anchor: { Text: '`a reworded list item`' } }, true );
 	ASSERT.equal( lost.Status, 400 );
-	let unchanged = await call( 'GET', '/api/proposals/' + proposal.Id );
-	ASSERT.equal( unchanged.Body.Proposal.Revision, 1 );
+	let unchanged = await call( 'GET', '/api/plans/' + plan.Id );
+	ASSERT.equal( unchanged.Body.Plan.Revision, 1 );
 	ASSERT.equal( unchanged.Body.Text, TEXT );
 	ASSERT.equal( thread_of_body( unchanged, thread.Id ).State, 'resolved' );
-	let applied =await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Outcome: 'reworded', Revision: 1, Anchor: { Text: 'a reworded list item' } }, true );
+	let applied =await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Outcome: 'reworded', Revision: 1, Anchor: { Text: 'a reworded list item' } }, true );
 	ASSERT.equal( applied.Status, 200 );
-	ASSERT.equal( applied.Body.Proposal.Revision, 2 );
+	ASSERT.equal( applied.Body.Plan.Revision, 2 );
 	ASSERT.equal( applied.Body.Thread.Applied.By, 'llm' );
 	ASSERT.equal( applied.Body.Thread.Applied.Revision, 2 );
 	ASSERT.equal( applied.Body.Thread.Applied.Outcome, 'reworded' );
 	ASSERT.equal( applied.Body.Thread.Anchor.Text, 'a reworded list item' );
 	ASSERT.equal( applied.Body.Thread.Found.Method, 'exact' );
 	ASSERT.deepEqual( applied.Body.Thread.Turn, [] );
-	ASSERT.equal( applied.Body.Proposal.StateLine, '1 applied' );
-	let revisions = await call( 'GET', '/api/proposals/' + proposal.Id + '/revisions' );
+	ASSERT.equal( applied.Body.Plan.StateLine, '1 applied' );
+	let revisions = await call( 'GET', '/api/plans/' + plan.Id + '/revisions' );
 	ASSERT.equal( revisions.Body.Revisions.length, 2 );
 	ASSERT.equal( revisions.Body.Revisions[ 1 ].Reason, 'apply' );
 	ASSERT.equal( revisions.Body.Revisions[ 1 ].Thread, thread.Id );
 	ASSERT.equal( revisions.Body.Revisions[ 1 ].By, 'llm' );
-	let second = await call( 'GET', '/api/proposals/' + proposal.Id + '/revisions/2' );
+	let second = await call( 'GET', '/api/plans/' + plan.Id + '/revisions/2' );
 	ASSERT.equal( second.Body.Revision.Text, new_text );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + proposal.Id + '/revisions/1' ) ).Body.Revision.Text, TEXT );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + proposal.Id + '/revisions/9' ) ).Status, 404 );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Outcome: 'again', Revision: 2 }, true ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id + '/revisions/1' ) ).Body.Revision.Text, TEXT );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id + '/revisions/9' ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/apply', { Outcome: 'again', Revision: 2 }, true ) ).Status, 409 );
 	// an outcome without a text change makes no revision
-	let dropped = await discussed_thread( proposal.Id, 'A closing paragraph', 'Outcome: dropped.' );
-	await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + dropped.Id + '/resolve' );
-	let only_outcome = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + dropped.Id + '/apply', { Outcome: 'dropped' }, true );
+	let dropped = await discussed_thread( plan.Id, 'A closing paragraph', 'Outcome: dropped.' );
+	await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + dropped.Id + '/resolve' );
+	let only_outcome = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + dropped.Id + '/apply', { Outcome: 'dropped' }, true );
 	ASSERT.equal( only_outcome.Status, 200 );
-	ASSERT.equal( only_outcome.Body.Proposal.Revision, 2 );
+	ASSERT.equal( only_outcome.Body.Plan.Revision, 2 );
 	ASSERT.equal( only_outcome.Body.Thread.Applied.Revision, 2 );
 } );
 
 
 TEST( 'anchors follow an applied change: kept, moved by context, or detached and re-anchored', async function ()
 {
-	let proposal = await create( 'Anchors' );
-	let kept = await discussed_thread( proposal.Id, 'A closing paragraph', 'Outcome: keep.' );
-	let moved = await discussed_thread( proposal.Id, 'one list item', 'Outcome: reword.' );
-	let lost = await discussed_thread( proposal.Id, 'another list item to comment on', 'Outcome: remove.' );
-	await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + lost.Id + '/resolve' );
+	let plan = await create( 'Anchors' );
+	let kept = await discussed_thread( plan.Id, 'A closing paragraph', 'Outcome: keep.' );
+	let moved = await discussed_thread( plan.Id, 'one list item', 'Outcome: reword.' );
+	let lost = await discussed_thread( plan.Id, 'another list item to comment on', 'Outcome: remove.' );
+	await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + lost.Id + '/resolve' );
 	let new_text = TEXT.replace( '- one list item\n', '- one changed item\n' ).replace( '- another list item to comment on\n', '' );
-	let applied = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + lost.Id + '/apply', { Text: new_text, Outcome: 'removed', Revision: 1 }, true );
+	let applied = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + lost.Id + '/apply', { Text: new_text, Outcome: 'removed', Revision: 1 }, true );
 	ASSERT.equal( applied.Status, 200 );
-	let read = await call( 'GET', '/api/proposals/' + proposal.Id );
+	let read = await call( 'GET', '/api/plans/' + plan.Id );
 	let by_id = {};
 	for ( let thread of read.Body.Threads )
 	{
@@ -492,11 +492,11 @@ TEST( 'anchors follow an applied change: kept, moved by context, or detached and
 	ASSERT.equal( by_id[ moved.Id ].Found.Method, 'exact' );
 	ASSERT.equal( by_id[ lost.Id ].Detached, true );
 	ASSERT.equal( by_id[ lost.Id ].Found, null );
-	ASSERT.equal( read.Body.Proposal.Tally.Detached, 1 );
-	let detached = await call( 'GET', '/api/proposals/' + proposal.Id + '/threads?status=detached' );
+	ASSERT.equal( read.Body.Plan.Tally.Detached, 1 );
+	let detached = await call( 'GET', '/api/plans/' + plan.Id + '/threads?status=detached' );
 	ASSERT.deepEqual( detached.Body.Threads.map( function ( thread ) { return thread.Id; } ), [ lost.Id ] );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + lost.Id + '/anchor', { Anchor: { Text: 'not present' } } ) ).Status, 400 );
-	let re_anchored = await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + lost.Id + '/anchor', { Anchor: { Text: 'A closing paragraph' } } );
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + lost.Id + '/anchor', { Anchor: { Text: 'not present' } } ) ).Status, 400 );
+	let re_anchored = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + lost.Id + '/anchor', { Anchor: { Text: 'A closing paragraph' } } );
 	ASSERT.equal( re_anchored.Status, 200 );
 	ASSERT.equal( re_anchored.Body.Thread.Detached, false );
 	ASSERT.equal( re_anchored.Body.Thread.Found.Method, 'exact' );
@@ -505,77 +505,77 @@ TEST( 'anchors follow an applied change: kept, moved by context, or detached and
 
 TEST( 'state: anyone sets any of the States at any time; an edit or a comment leaves it as it is', async function ()
 {
-	let proposal = await create( 'States' );
-	let thread = await discussed_thread( proposal.Id, 'one list item', 'Outcome: nothing to change.' );
+	let plan = await create( 'States' );
+	let thread = await discussed_thread( plan.Id, 'one list item', 'Outcome: nothing to change.' );
 	// with a thread still contested, by the llm
-	let working = await call( 'PUT', '/api/proposals/' + proposal.Id + '/state', { State: 'Working' }, true );
+	let working = await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Working' }, true );
 	ASSERT.equal( working.Status, 200 );
-	ASSERT.equal( working.Body.Proposal.State, 'Working' );
-	ASSERT.equal( working.Body.Proposal.StateLine, '1 contested' );
-	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + proposal.Id + '/state', { State: 'Done' } ) ).Status, 400 );
-	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + proposal.Id + '/state', {} ) ).Status, 400 );
-	ASSERT.equal( ( await call( 'PUT', '/api/proposals/none/state', { State: 'Plan' } ) ).Status, 404 );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals/' + proposal.Id + '/approve' ) ).Status, 404 );
-	let listed = await call( 'GET', '/api/proposals?state=Working' );
-	ASSERT.deepEqual( listed.Body.Proposals.map( function ( candidate ) { return candidate.Id; } ), [ proposal.Id ] );
+	ASSERT.equal( working.Body.Plan.State, 'Working' );
+	ASSERT.equal( working.Body.Plan.StateLine, '1 contested' );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Done' } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', {} ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/none/state', { State: 'Plan' } ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/approve' ) ).Status, 404 );
+	let listed = await call( 'GET', '/api/plans?state=Working' );
+	ASSERT.deepEqual( listed.Body.Plans.map( function ( candidate ) { return candidate.Id; } ), [ plan.Id ] );
 	// a manual edit from a stale revision is refused; from the current one it makes a revision and keeps the state
-	let stale = await call( 'PUT', '/api/proposals/' + proposal.Id + '/text', { Text: TEXT + '\nMore.\n', Revision: 0 } );
+	let stale = await call( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: TEXT + '\nMore.\n', Revision: 0 } );
 	ASSERT.equal( stale.Status, 409 );
 	ASSERT.equal( stale.Body.Revision, 1 );
-	let edited = await call( 'PUT', '/api/proposals/' + proposal.Id + '/text', { Text: TEXT + '\nMore.\n', Revision: 1 } );
+	let edited = await call( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: TEXT + '\nMore.\n', Revision: 1 } );
 	ASSERT.equal( edited.Status, 200 );
-	ASSERT.equal( edited.Body.Proposal.State, 'Working' );
-	ASSERT.equal( edited.Body.Proposal.Revision, 2 );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + proposal.Id + '/revisions' ) ).Body.Revisions[ 1 ].Reason, 'edit' );
+	ASSERT.equal( edited.Body.Plan.State, 'Working' );
+	ASSERT.equal( edited.Body.Plan.Revision, 2 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id + '/revisions' ) ).Body.Revisions[ 1 ].Reason, 'edit' );
 	// a manual edit changes no thread's status
-	await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/resolve' );
-	await call( 'PUT', '/api/proposals/' + proposal.Id + '/text', { Text: TEXT, Revision: 2 } );
-	let after_edit = await call( 'GET', '/api/proposals/' + proposal.Id );
+	await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve' );
+	await call( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: TEXT, Revision: 2 } );
+	let after_edit = await call( 'GET', '/api/plans/' + plan.Id );
 	ASSERT.equal( after_edit.Body.Threads[ 0 ].Status, 'resolved' );
 	// a comment keeps the state too
-	await call( 'POST', '/api/proposals/' + proposal.Id + '/threads', { Anchor: null, Text: 'Another thought.' } );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + proposal.Id ) ).Body.Proposal.State, 'Working' );
-	// a new proposal starts in the first state, or in one it names
-	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'Named', Text: TEXT, State: 'Plan' } ) ).Body.Proposal.State, 'Plan' );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'Bad', Text: TEXT, State: 'Nope' } ) ).Status, 400 );
+	await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: null, Text: 'Another thought.' } );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id ) ).Body.Plan.State, 'Working' );
+	// a new plan starts in the first state, or in one it names
+	ASSERT.equal( ( await call( 'POST', '/api/plans', { Title: 'Named', Text: TEXT, State: 'Plan' } ) ).Body.Plan.State, 'Plan' );
+	ASSERT.equal( ( await call( 'POST', '/api/plans', { Title: 'Bad', Text: TEXT, State: 'Nope' } ) ).Status, 400 );
 	let me = await call( 'GET', '/api/me' );
 	ASSERT.deepEqual( me.Body.States, [ 'Draft', 'Plan', 'Working', 'Finished', 'Shelved' ] );
 } );
 
 
-TEST( 'waiting lists each participant\'s threads across proposals', async function ()
+TEST( 'waiting lists each participant\'s threads across plans', async function ()
 {
 	let a = await create( 'Waiting A' );
 	let b = await create( 'Waiting B' );
-	let asked = ( await call( 'POST', '/api/proposals/' + a.Id + '/threads', { Anchor: null, Text: 'A question for the llm.' } ) ).Body.Thread;
+	let asked = ( await call( 'POST', '/api/plans/' + a.Id + '/threads', { Anchor: null, Text: 'A question for the llm.' } ) ).Body.Thread;
 	let answered = await discussed_thread( b.Id, 'one list item', 'Outcome: answered.' );
 	let llm = await call( 'GET', '/api/waiting', undefined, true );
 	ASSERT.equal( llm.Body.Me.Name, 'llm' );
-	let llm_threads = llm.Body.Waiting.filter( function ( item ) { return item.Proposal.Id === a.Id || item.Proposal.Id === b.Id; } );
+	let llm_threads = llm.Body.Waiting.filter( function ( item ) { return item.Plan.Id === a.Id || item.Plan.Id === b.Id; } );
 	ASSERT.deepEqual( llm_threads.map( function ( item ) { return item.Thread.Id; } ), [ asked.Id ] );
-	ASSERT.equal( llm_threads[ 0 ].Proposal.Title, 'Waiting A' );
+	ASSERT.equal( llm_threads[ 0 ].Plan.Title, 'Waiting A' );
 	let user = await call( 'GET', '/api/waiting' );
-	let user_threads = user.Body.Waiting.filter( function ( item ) { return item.Proposal.Id === a.Id || item.Proposal.Id === b.Id; } );
+	let user_threads = user.Body.Waiting.filter( function ( item ) { return item.Plan.Id === a.Id || item.Plan.Id === b.Id; } );
 	ASSERT.deepEqual( user_threads.map( function ( item ) { return item.Thread.Id; } ), [ answered.Id ] );
-	await call( 'POST', '/api/proposals/' + b.Id + '/threads/' + answered.Id + '/resolve' );
+	await call( 'POST', '/api/plans/' + b.Id + '/threads/' + answered.Id + '/resolve' );
 	let llm_again = await call( 'GET', '/api/waiting', undefined, true );
-	let ids = llm_again.Body.Waiting.filter( function ( item ) { return item.Proposal.Id === b.Id; } ).map( function ( item ) { return item.Thread.Id; } );
+	let ids = llm_again.Body.Waiting.filter( function ( item ) { return item.Plan.Id === b.Id; } ).map( function ( item ) { return item.Thread.Id; } );
 	ASSERT.deepEqual( ids, [ answered.Id ] );
 } );
 
 
-TEST( 'a deleted proposal goes to the trash', async function ()
+TEST( 'a deleted plan goes to the trash', async function ()
 {
-	let proposal = await create( 'Trash me' );
-	ASSERT.equal( ( await call( 'DELETE', '/api/proposals/' + proposal.Id ) ).Body.Trashed, proposal.Id );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + proposal.Id ) ).Status, 404 );
-	ASSERT.equal( ( await call( 'DELETE', '/api/proposals/' + proposal.Id ) ).Status, 404 );
+	let plan = await create( 'Trash me' );
+	ASSERT.equal( ( await call( 'DELETE', '/api/plans/' + plan.Id ) ).Body.Trashed, plan.Id );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'DELETE', '/api/plans/' + plan.Id ) ).Status, 404 );
 	let trash = await call( 'GET', '/api/trash' );
-	ASSERT.ok( trash.Body.Proposals.some( function ( candidate ) { return candidate.Id === proposal.Id; } ) );
+	ASSERT.ok( trash.Body.Plans.some( function ( candidate ) { return candidate.Id === plan.Id; } ) );
 } );
 
 
-TEST( 'every change sends a Server-Sent Event { Proposal, Kind }', async function ()
+TEST( 'every change sends a Server-Sent Event { Plan, Kind }', async function ()
 {
 	let response = await fetch( running.Url + '/api/events' );
 	ASSERT.equal( response.headers.get( 'content-type' ), 'text/event-stream' );
@@ -600,22 +600,22 @@ TEST( 'every change sends a Server-Sent Event { Proposal, Kind }', async functio
 			buffer += decoder.decode( chunk.value, { stream: true } );
 		}
 	}
-	let proposal = await create( 'Events' );
+	let plan = await create( 'Events' );
 	ASSERT.deepEqual( await next_event(), { Project: home, Kind: 'project' } );
-	ASSERT.deepEqual( await next_event(), { Proposal: proposal.Id, Kind: 'created' } );
-	let thread = ( await call( 'POST', '/api/proposals/' + proposal.Id + '/threads', { Anchor: null, Text: 'Hello?' } ) ).Body.Thread;
-	ASSERT.deepEqual( await next_event(), { Proposal: proposal.Id, Kind: 'thread', Thread: thread.Id } );
-	await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/replies', { Text: 'Hello.' }, true );
+	ASSERT.deepEqual( await next_event(), { Plan: plan.Id, Kind: 'created' } );
+	let thread = ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: null, Text: 'Hello?' } ) ).Body.Thread;
+	ASSERT.deepEqual( await next_event(), { Plan: plan.Id, Kind: 'thread', Thread: thread.Id } );
+	await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/replies', { Text: 'Hello.' }, true );
 	ASSERT.equal( ( await next_event() ).Kind, 'reply' );
-	await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/resolve' );
+	await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve' );
 	ASSERT.equal( ( await next_event() ).Kind, 'resolved' );
-	await call( 'POST', '/api/proposals/' + proposal.Id + '/threads/' + thread.Id + '/apply', { Outcome: 'said hello' }, true );
+	await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/apply', { Outcome: 'said hello' }, true );
 	ASSERT.equal( ( await next_event() ).Kind, 'applied' );
-	await call( 'PUT', '/api/proposals/' + proposal.Id + '/state', { State: 'Plan' } );
+	await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Plan' } );
 	ASSERT.equal( ( await next_event() ).Kind, 'state' );
-	await call( 'PUT', '/api/proposals/' + proposal.Id + '/text', { Text: 'changed', Revision: 1 } );
+	await call( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: 'changed', Revision: 1 } );
 	ASSERT.equal( ( await next_event() ).Kind, 'text' );
-	await call( 'DELETE', '/api/proposals/' + proposal.Id );
+	await call( 'DELETE', '/api/plans/' + plan.Id );
 	ASSERT.deepEqual( await next_event(), { Project: home, Kind: 'project' } );
 	ASSERT.equal( ( await next_event() ).Kind, 'trashed' );
 	let settings = ( await call( 'GET', '/api/settings' ) ).Body.Settings;
@@ -640,7 +640,7 @@ TEST( 'items move within a project and into another; a folder never goes inside 
 	ASSERT.deepEqual( moved.Body.Project.Items[ 1 ].Items[ 0 ].Items, [ { Kind: 'plan', Id: plan.Id } ] );
 	let default_items = ( await call( 'GET', '/api/projects' ) ).Body.Projects[ 0 ].Items;
 	ASSERT.equal( default_items.some( function ( item ) { return item.Id === plan.Id; } ), false );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + plan.Id ) ).Body.Project.Id, project.Id );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id ) ).Body.Project.Id, project.Id );
 
 	// within the project, to its root; then a folder into its own child is refused
 	let to_root = await call( 'POST', '/api/items/' + plan.Id + '/move', { Project: project.Id } );
@@ -652,7 +652,7 @@ TEST( 'items move within a project and into another; a folder never goes inside 
 	await call( 'POST', '/api/items/' + plan.Id + '/move', { Project: project.Id, Parent: inner.Id } );
 	let folder_moved = await call( 'POST', '/api/items/' + outer.Id + '/move', { Project: home } );
 	ASSERT.equal( folder_moved.Status, 200 );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + plan.Id ) ).Body.Project.Id, home );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id ) ).Body.Project.Id, home );
 
 	// refusals
 	ASSERT.equal( ( await call( 'POST', '/api/items/nothing/move', { Project: home } ) ).Status, 404 );
@@ -702,23 +702,23 @@ TEST( 'a copied plan carries its text, threads and revisions; a copied folder co
 {
 	let plan = await create( 'Original' );
 	let thread = await discussed_thread( plan.Id, 'one list item', 'Outcome: keep it.' );
-	await call( 'PUT', '/api/proposals/' + plan.Id + '/text', { Text: TEXT + '\nEdited.\n', Revision: 1 } );
+	await call( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: TEXT + '\nEdited.\n', Revision: 1 } );
 	let project = ( await call( 'POST', '/api/projects', { Name: 'Copies' } ) ).Body.Project;
 
 	let copied = await call( 'POST', '/api/items/' + plan.Id + '/copy', { Project: project.Id } );
 	ASSERT.equal( copied.Status, 201 );
 	let copy_id = copied.Body.Node.Id;
 	ASSERT.notEqual( copy_id, plan.Id );
-	let copy = ( await call( 'GET', '/api/proposals/' + copy_id ) ).Body;
-	ASSERT.equal( copy.Proposal.Title, 'Original (copy)' );
-	ASSERT.equal( copy.Proposal.Revision, 2 );
+	let copy = ( await call( 'GET', '/api/plans/' + copy_id ) ).Body;
+	ASSERT.equal( copy.Plan.Title, 'Original (copy)' );
+	ASSERT.equal( copy.Plan.Revision, 2 );
 	ASSERT.equal( copy.Text, TEXT + '\nEdited.\n' );
 	ASSERT.deepEqual( copy.Threads.map( function ( t ) { return t.Id; } ), [ thread.Id ] );
 	ASSERT.equal( copy.Threads[ 0 ].Replies.length, 2 );
 	ASSERT.equal( copy.Project.Id, project.Id );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + copy_id + '/revisions' ) ).Body.Revisions.length, 2 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + copy_id + '/revisions' ) ).Body.Revisions.length, 2 );
 	// the original is where it was, unchanged
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + plan.Id ) ).Body.Project.Id, home );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id ) ).Body.Project.Id, home );
 
 	// a folder with a plan in it
 	let folder = ( await call( 'POST', '/api/projects/' + project.Id + '/folders', { Name: 'Bundle' } ) ).Body.Folder;
@@ -731,7 +731,7 @@ TEST( 'a copied plan carries its text, threads and revisions; a copied folder co
 	ASSERT.notEqual( node.Id, folder.Id );
 	ASSERT.equal( node.Items.length, 1 );
 	ASSERT.notEqual( node.Items[ 0 ].Id, copy_id );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + node.Items[ 0 ].Id ) ).Body.Proposal.Title, 'Original (copy) (copy)' );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + node.Items[ 0 ].Id ) ).Body.Plan.Title, 'Original (copy) (copy)' );
 	ASSERT.equal( ( await call( 'POST', '/api/items/nothing/copy', { Project: home } ) ).Status, 404 );
 } );
 
@@ -741,14 +741,14 @@ TEST( 'a copied plan carries its text, threads and revisions; a copied folder co
 
 TEST( 'a Document is edited and kept like a Plan, has no threads and no state, and lives in the Context folder', async function ()
 {
-	let made = await call( 'POST', '/api/proposals', { Title: 'Glossary', Text: '# Glossary\n\nA quokka is a small wallaby that smiles.\n', Kind: 'document' } );
+	let made = await call( 'POST', '/api/plans', { Title: 'Glossary', Text: '# Glossary\n\nA quokka is a small wallaby that smiles.\n', Kind: 'document' } );
 	ASSERT.equal( made.Status, 201 );
-	let document = made.Body.Proposal;
+	let document = made.Body.Plan;
 	ASSERT.equal( document.Kind, 'document' );
 	ASSERT.equal( document.State, null );
 	ASSERT.equal( document.StateLine, 'a document' );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'X', Text: '', Kind: 'document', State: 'Plan' } ) ).Status, 400 );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'X', Text: '', Kind: 'poem' } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'POST', '/api/plans', { Title: 'X', Text: '', Kind: 'document', State: 'Plan' } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'POST', '/api/plans', { Title: 'X', Text: '', Kind: 'poem' } ) ).Status, 400 );
 	// in its project's Context folder, after the Readme
 	let default_project = ( await call( 'GET', '/api/projects' ) ).Body.Projects[ 0 ];
 	let context_folder = default_project.Items[ 0 ];
@@ -757,19 +757,19 @@ TEST( 'a Document is edited and kept like a Plan, has no threads and no state, a
 	ASSERT.equal( context_folder.Items.find( function ( item ) { return item.Id === document.Id; } ).Kind, 'document' );
 	ASSERT.equal( default_project.Items.some( function ( item ) { return item.Id === document.Id; } ), false );
 	// no threads, no state
-	let thread = await call( 'POST', '/api/proposals/' + document.Id + '/threads', { Anchor: null, Text: 'A comment?' } );
+	let thread = await call( 'POST', '/api/plans/' + document.Id + '/threads', { Anchor: null, Text: 'A comment?' } );
 	ASSERT.equal( thread.Status, 409 );
 	ASSERT.match( thread.Body.Error, /no threads/ );
-	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + document.Id + '/state', { State: 'Plan' } ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + document.Id + '/state', { State: 'Plan' } ) ).Status, 409 );
 	// edits make revisions; it is renamed, copied within the Context folder, and trashed like any item
-	let edited = await call( 'PUT', '/api/proposals/' + document.Id + '/text', { Text: '# Glossary\n\nA quokka is a small wallaby that smiles for photographs.\n', Revision: 1 } );
+	let edited = await call( 'PUT', '/api/plans/' + document.Id + '/text', { Text: '# Glossary\n\nA quokka is a small wallaby that smiles for photographs.\n', Revision: 1 } );
 	ASSERT.equal( edited.Status, 200 );
-	ASSERT.equal( edited.Body.Proposal.Revision, 2 );
-	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + document.Id, { Title: 'Terms' } ) ).Body.Proposal.Title, 'Terms' );
+	ASSERT.equal( edited.Body.Plan.Revision, 2 );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + document.Id, { Title: 'Terms' } ) ).Body.Plan.Title, 'Terms' );
 	let copied = await call( 'POST', '/api/items/' + document.Id + '/copy', { Project: home, Parent: default_project.ContextFolder } );
 	ASSERT.equal( copied.Status, 201 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + document.Id + '/copy', { Project: home } ) ).Status, 400 );
-	ASSERT.equal( ( await call( 'DELETE', '/api/proposals/' + copied.Body.Node.Id ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'DELETE', '/api/plans/' + copied.Body.Node.Id ) ).Status, 200 );
 } );
 
 
@@ -783,11 +783,11 @@ TEST( 'the Context folder: first in every project, holding the Readme; never ren
 	ASSERT.deepEqual( shown.Context, { Id: project.Context, Empty: true } );
 	ASSERT.equal( shown.ContextFolder, project.ContextFolder );
 	ASSERT.equal( shown.Items[ 0 ].Items[ 0 ].Title, 'Readme' );
-	let read = await call( 'GET', '/api/proposals/' + project.Context );
+	let read = await call( 'GET', '/api/plans/' + project.Context );
 	ASSERT.equal( read.Body.Context, true );
-	ASSERT.equal( read.Body.Proposal.Kind, 'document' );
+	ASSERT.equal( read.Body.Plan.Kind, 'document' );
 	ASSERT.equal( read.Body.Project.Id, project.Id );
-	await call( 'PUT', '/api/proposals/' + project.Context + '/text', { Text: '# Contextual\n\nWhat this is.\n', Revision: 1 } );
+	await call( 'PUT', '/api/plans/' + project.Context + '/text', { Text: '# Contextual\n\nWhat this is.\n', Revision: 1 } );
 	ASSERT.equal( ( await project_named( project.Id ) ).Context.Empty, false );
 
 	// the folder and the document stay as they are
@@ -796,18 +796,18 @@ TEST( 'the Context folder: first in every project, holding the Readme; never ren
 	ASSERT.equal( ( await call( 'DELETE', folder_path ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + project.ContextFolder + '/move', { Project: home } ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + project.ContextFolder + '/copy', { Project: home } ) ).Status, 409 );
-	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + project.Context, { Title: 'Renamed' } ) ).Status, 409 );
-	ASSERT.equal( ( await call( 'DELETE', '/api/proposals/' + project.Context ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + project.Context, { Title: 'Renamed' } ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'DELETE', '/api/plans/' + project.Context ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + project.Context + '/move', { Project: project.Id } ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + project.Context + '/copy', { Project: project.Id, Parent: project.ContextFolder } ) ).Status, 409 );
 
 	// documents only in the Context folder; nothing else in it
 	let specs = ( await call( 'POST', '/api/projects/' + project.Id + '/folders', { Name: 'Specs' } ) ).Body.Folder;
 	ASSERT.equal( ( await call( 'POST', '/api/projects/' + project.Id + '/folders', { Name: 'Inside', Parent: project.ContextFolder } ) ).Status, 400 );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'Plan there', Text: TEXT, Project: project.Id, Parent: project.ContextFolder } ) ).Status, 400 );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'Doc elsewhere', Text: '', Kind: 'document', Project: project.Id, Parent: specs.Id } ) ).Status, 400 );
-	let notes = ( await call( 'POST', '/api/proposals', { Title: 'Notes', Text: '# Notes\n', Kind: 'document', Project: project.Id } ) ).Body.Proposal;
-	let plan = ( await call( 'POST', '/api/proposals', { Title: 'A plan', Text: TEXT, Project: project.Id, Parent: specs.Id } ) ).Body.Proposal;
+	ASSERT.equal( ( await call( 'POST', '/api/plans', { Title: 'Plan there', Text: TEXT, Project: project.Id, Parent: project.ContextFolder } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'POST', '/api/plans', { Title: 'Doc elsewhere', Text: '', Kind: 'document', Project: project.Id, Parent: specs.Id } ) ).Status, 400 );
+	let notes = ( await call( 'POST', '/api/plans', { Title: 'Notes', Text: '# Notes\n', Kind: 'document', Project: project.Id } ) ).Body.Plan;
+	let plan = ( await call( 'POST', '/api/plans', { Title: 'A plan', Text: TEXT, Project: project.Id, Parent: specs.Id } ) ).Body.Plan;
 	let tree = await project_named( project.Id );
 	ASSERT.deepEqual( tree.Items[ 0 ].Items.map( function ( item ) { return item.Id; } ), [ project.Context, notes.Id ] );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + notes.Id + '/move', { Project: project.Id, Parent: specs.Id } ) ).Status, 400 );
@@ -822,17 +822,17 @@ TEST( 'the Context folder: first in every project, holding the Readme; never ren
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + notes.Id + '/move', { Project: project.Id } ) ).Status, 400 );
 
 	// a project with only its Context folder is empty, and deleted with its Readme
-	await call( 'DELETE', '/api/proposals/' + plan.Id );
+	await call( 'DELETE', '/api/plans/' + plan.Id );
 	await call( 'DELETE', '/api/projects/' + project.Id + '/folders/' + specs.Id );
 	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + project.Id ) ).Status, 200 );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + project.Context ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + project.Context ) ).Status, 404 );
 } );
 
 
 //---------------------------------------------------------------------
 // Projects
 
-TEST( 'projects: Default holds new proposals; a project and its folders are created, renamed and deleted when empty', async function ()
+TEST( 'projects: Default holds new plans; a project and its folders are created, renamed and deleted when empty', async function ()
 {
 	let listed = await call( 'GET', '/api/projects' );
 	ASSERT.equal( listed.Status, 200 );
@@ -846,7 +846,7 @@ TEST( 'projects: Default holds new proposals; a project and its folders are crea
 	ASSERT.equal( node.Title, 'Loose' );
 	ASSERT.equal( node.State, 'Draft' );
 	ASSERT.equal( node.StateLine, 'no threads yet' );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + loose.Id ) ).Body.Project.Id, home );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + loose.Id ) ).Body.Project.Id, home );
 
 	let made = await call( 'POST', '/api/projects', { Name: 'Consensus' } );
 	ASSERT.equal( made.Status, 201 );
@@ -864,16 +864,16 @@ TEST( 'projects: Default holds new proposals; a project and its folders are crea
 	ASSERT.equal( ( await call( 'POST', '/api/projects/' + project.Id + '/folders', { Name: 'Inner', Parent: 'fnothing' } ) ).Status, 400 );
 	ASSERT.equal( ( await call( 'POST', '/api/projects/none-000000/folders', { Name: 'X' } ) ).Status, 404 );
 
-	// a proposal created into the folder
-	let placed = await call( 'POST', '/api/proposals', { Title: 'Placed', Text: TEXT, Project: project.Id, Parent: folder.Body.Folder.Id } );
+	// a plan created into the folder
+	let placed = await call( 'POST', '/api/plans', { Title: 'Placed', Text: TEXT, Project: project.Id, Parent: folder.Body.Folder.Id } );
 	ASSERT.equal( placed.Status, 201 );
 	ASSERT.equal( placed.Body.Project, project.Id );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'Nowhere', Text: TEXT, Project: 'none-000000' } ) ).Status, 404 );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'Nowhere', Text: TEXT, Kind: 'document', Project: project.Id, Parent: placed.Body.Proposal.Id } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'POST', '/api/plans', { Title: 'Nowhere', Text: TEXT, Project: 'none-000000' } ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'POST', '/api/plans', { Title: 'Nowhere', Text: TEXT, Kind: 'document', Project: project.Id, Parent: placed.Body.Plan.Id } ) ).Status, 400 );
 	let read = await project_named( project.Id );
 	ASSERT.equal( read.Items[ 1 ].Kind, 'folder' );
 	ASSERT.equal( read.Items[ 1 ].Items[ 0 ].Title, 'Placed' );
-	ASSERT.equal( read.Items[ 1 ].Items[ 0 ].Created, placed.Body.Proposal.Created );
+	ASSERT.equal( read.Items[ 1 ].Items[ 0 ].Created, placed.Body.Plan.Created );
 	ASSERT.equal( typeof read.Items[ 1 ].Items[ 0 ].Updated, 'string' );
 
 	// renames
@@ -883,11 +883,11 @@ TEST( 'projects: Default holds new proposals; a project and its folders are crea
 	ASSERT.equal( folder_renamed.Body.Project.Items[ 1 ].Name, 'Specifications' );
 	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/folders/fnothing', { Name: 'X' } ) ).Status, 404 );
 
-	// deletes: only when empty, never Default; a trashed proposal leaves its project
+	// deletes: only when empty, never Default; a trashed plan leaves its project
 	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + project.Id + '/folders/' + folder.Body.Folder.Id ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + project.Id ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + home ) ).Status, 409 );
-	await call( 'DELETE', '/api/proposals/' + placed.Body.Proposal.Id );
+	await call( 'DELETE', '/api/plans/' + placed.Body.Plan.Id );
 	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + project.Id + '/folders/' + folder.Body.Folder.Id ) ).Status, 200 );
 	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + project.Id ) ).Status, 200 );
 	ASSERT.equal( ( await call( 'DELETE', '/api/projects/' + project.Id ) ).Status, 404 );
@@ -902,19 +902,19 @@ TEST( 'subplans: a plan holds plans; they move, copy and go to the trash with it
 	let project = ( await call( 'POST', '/api/projects', { Name: 'Subplans' } ) ).Body.Project;
 	let made = async function ( title, parent, kind, body_text )
 	{
-		let result = await call( 'POST', '/api/proposals', { Title: title, Text: body_text || ( '# ' + title + '\n\nThe text of ' + title + '.\n' ), Kind: kind || 'plan', Project: project.Id, Parent: parent } );
+		let result = await call( 'POST', '/api/plans', { Title: title, Text: body_text || ( '# ' + title + '\n\nThe text of ' + title + '.\n' ), Kind: kind || 'plan', Project: project.Id, Parent: parent } );
 		return result;
 	};
-	let top = ( await made( 'Top' ) ).Body.Proposal;
+	let top = ( await made( 'Top' ) ).Body.Plan;
 	let middle = await made( 'Middle', top.Id );
 	ASSERT.equal( middle.Status, 201 );
-	middle = middle.Body.Proposal;
-	let bottom = ( await made( 'Bottom', middle.Id ) ).Body.Proposal;
-	let side = ( await made( 'Side', top.Id ) ).Body.Proposal;
+	middle = middle.Body.Plan;
+	let bottom = ( await made( 'Bottom', middle.Id ) ).Body.Plan;
+	let side = ( await made( 'Side', top.Id ) ).Body.Plan;
 
 	// only plans go under a plan
 	ASSERT.equal( ( await made( 'Doc', top.Id, 'document' ) ).Status, 400 );
-	let doc = ( await made( 'Doc', null, 'document' ) ).Body.Proposal;
+	let doc = ( await made( 'Doc', null, 'document' ) ).Body.Plan;
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + doc.Id + '/move', { Project: project.Id, Parent: top.Id } ) ).Status, 400 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + top.Id + '/move', { Project: project.Id, Parent: bottom.Id } ) ).Status, 400 );
 
@@ -926,7 +926,7 @@ TEST( 'subplans: a plan holds plans; they move, copy and go to the trash with it
 	ASSERT.equal( top_node.Items[ 1 ].Items, undefined );
 
 	// a plan dragged onto a plan becomes its subplan; dragged out, it is not
-	let loose = ( await made( 'Loose' ) ).Body.Proposal;
+	let loose = ( await made( 'Loose' ) ).Body.Plan;
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + loose.Id + '/move', { Project: project.Id, Parent: side.Id } ) ).Status, 200 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + loose.Id + '/move', { Project: project.Id, Parent: null } ) ).Status, 200 );
 
@@ -935,13 +935,13 @@ TEST( 'subplans: a plan holds plans; they move, copy and go to the trash with it
 	ASSERT.equal( copied.Status, 201 );
 	ASSERT.equal( copied.Body.Node.Items.length, 1 );
 	ASSERT.notEqual( copied.Body.Node.Items[ 0 ].Id, bottom.Id );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + copied.Body.Node.Items[ 0 ].Id ) ).Body.Proposal.Title.startsWith( 'Bottom' ), true );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + copied.Body.Node.Items[ 0 ].Id ) ).Body.Plan.Title.startsWith( 'Bottom' ), true );
 
 	// the trash takes a plan's subplans with it
-	let trashed = await call( 'DELETE', '/api/proposals/' + top.Id );
+	let trashed = await call( 'DELETE', '/api/plans/' + top.Id );
 	ASSERT.equal( trashed.Status, 200 );
 	ASSERT.deepEqual( trashed.Body.Subplans.slice().sort(), [ middle.Id, bottom.Id, side.Id ].sort() );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + bottom.Id ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + bottom.Id ) ).Status, 404 );
 	listed = await project_named( project.Id );
 	ASSERT.equal( listed.Items.some( function ( node ) { return node.Id === top.Id; } ), false );
 } );
@@ -978,10 +978,10 @@ TEST( 'projects as folders: a Path is taken, a folder holding a project is opene
 TEST( 'archive: a plan and its Subplans leave the tree for the Archive, read-only, and Restore puts them back', async function ()
 {
 	let project = ( await call( 'POST', '/api/projects', { Name: 'Archiving' } ) ).Body.Project;
-	let plan = ( await call( 'POST', '/api/proposals', { Title: 'Finished work', Text: TEXT, Project: project.Id } ) ).Body.Proposal;
-	let sub = ( await call( 'POST', '/api/proposals', { Title: 'Sub', Text: '# Sub\n', Project: project.Id, Parent: plan.Id } ) ).Body.Proposal;
-	let other = ( await call( 'POST', '/api/proposals', { Title: 'Still open', Text: TEXT, Project: project.Id } ) ).Body.Proposal;
-	let thread = ( await call( 'POST', '/api/proposals/' + plan.Id + '/threads', { Anchor: null, Text: 'Before.' } ) ).Body.Thread;
+	let plan = ( await call( 'POST', '/api/plans', { Title: 'Finished work', Text: TEXT, Project: project.Id } ) ).Body.Plan;
+	let sub = ( await call( 'POST', '/api/plans', { Title: 'Sub', Text: '# Sub\n', Project: project.Id, Parent: plan.Id } ) ).Body.Plan;
+	let other = ( await call( 'POST', '/api/plans', { Title: 'Still open', Text: TEXT, Project: project.Id } ) ).Body.Plan;
+	let thread = ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: null, Text: 'Before.' } ) ).Body.Thread;
 	let archived = await call( 'POST', '/api/items/' + plan.Id + '/archive', {} );
 	ASSERT.equal( archived.Status, 200 );
 	ASSERT.equal( archived.Body.Node.Id, plan.Id );
@@ -994,25 +994,25 @@ TEST( 'archive: a plan and its Subplans leave the tree for the Archive, read-onl
 	ASSERT.equal( listed.Archive[ 0 ].Items[ 0 ].Title, 'Sub' );
 	ASSERT.equal( listed.Archive[ 0 ].Tally.Contested, 1 );
 	// read, never written
-	let read = await call( 'GET', '/api/proposals/' + plan.Id );
+	let read = await call( 'GET', '/api/plans/' + plan.Id );
 	ASSERT.equal( read.Status, 200 );
-	ASSERT.equal( read.Body.Proposal.Archived, true );
+	ASSERT.equal( read.Body.Plan.Archived, true );
 	ASSERT.equal( read.Body.Project.Id, project.Id );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + sub.Id ) ).Body.Proposal.Archived, true );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + plan.Id + '/revisions' ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + sub.Id ) ).Body.Plan.Archived, true );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id + '/revisions' ) ).Status, 200 );
 	for ( let attempt of [
-		call( 'PUT', '/api/proposals/' + plan.Id + '/text', { Text: 'x', Revision: 1 } ),
-		call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Plan' } ),
-		call( 'POST', '/api/proposals/' + plan.Id + '/threads', { Anchor: null, Text: 'After?' } ),
-		call( 'POST', '/api/proposals/' + plan.Id + '/threads/' + thread.Id + '/replies', { Text: 'No.' }, true ),
-		call( 'PUT', '/api/proposals/' + sub.Id, { Title: 'Renamed' } ),
+		call( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: 'x', Revision: 1 } ),
+		call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Plan' } ),
+		call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: null, Text: 'After?' } ),
+		call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/replies', { Text: 'No.' }, true ),
+		call( 'PUT', '/api/plans/' + sub.Id, { Title: 'Renamed' } ),
 	] )
 	{
 		let answer = await attempt;
 		ASSERT.equal( answer.Status, 409, JSON.stringify( answer.Body ) );
 		ASSERT.match( answer.Body.Error, /is archived/ );
 	}
-	ASSERT.equal( ( await call( 'GET', '/api/proposals' ) ).Body.Proposals.some( function ( candidate ) { return candidate.Id === plan.Id; } ), false );
+	ASSERT.equal( ( await call( 'GET', '/api/plans' ) ).Body.Plans.some( function ( candidate ) { return candidate.Id === plan.Id; } ), false );
 	// not again, not the Readme, not a Subplan on its own, not one that is not archived
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + plan.Id + '/archive', {} ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'POST', '/api/items/' + project.Context + '/archive', {} ) ).Status, 409 );
@@ -1027,24 +1027,24 @@ TEST( 'archive: a plan and its Subplans leave the tree for the Archive, read-onl
 	ASSERT.deepEqual( listed.Items.map( function ( node ) { return node.Id; } ), [ project.ContextFolder, other.Id, plan.Id ] );
 	ASSERT.deepEqual( listed.Archive, [] );
 	ASSERT.equal( 'Archived' in listed.Items[ 2 ], false );
-	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Plan' } ) ).Status, 200 );
-	ASSERT.equal( ( await call( 'GET', '/api/proposals/' + sub.Id ) ).Body.Proposal.Archived, undefined );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Plan' } ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + sub.Id ) ).Body.Plan.Archived, undefined );
 } );
 
 
 TEST( 'a project\'s own States, Include, Exclude and Commands; a state in use stays; the settings\' list is the default for a new project', async function ()
 {
 	let project = ( await call( 'POST', '/api/projects', { Name: 'Own states' } ) ).Body.Project;
-	let plan = ( await call( 'POST', '/api/proposals', { Title: 'Kept', Text: TEXT, Project: project.Id } ) ).Body.Proposal;
+	let plan = ( await call( 'POST', '/api/plans', { Title: 'Kept', Text: TEXT, Project: project.Id } ) ).Body.Plan;
 	ASSERT.equal( plan.State, 'Draft' );
 	let changed = await call( 'PUT', '/api/projects/' + project.Id, { States: 'Idea\nDraft\n\nDone', Include: [ 'src/**' ], Exclude: 'node_modules/**', Commands: [ 'npm test' ] } );
 	ASSERT.equal( changed.Status, 200, JSON.stringify( changed.Body ) );
 	ASSERT.deepEqual( changed.Body.Project.States, [ 'Idea', 'Draft', 'Done' ] );
 	ASSERT.deepEqual( [ changed.Body.Project.Include, changed.Body.Project.Exclude, changed.Body.Project.Commands ], [ [ 'src/**' ], [ 'node_modules/**' ], [ 'npm test' ] ] );
 	ASSERT.equal( changed.Body.Project.Name, 'Own states' );
-	ASSERT.equal( ( await call( 'POST', '/api/proposals', { Title: 'New here', Text: TEXT, Project: project.Id } ) ).Body.Proposal.State, 'Idea' );
-	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Done' } ) ).Status, 200 );
-	ASSERT.equal( ( await call( 'PUT', '/api/proposals/' + plan.Id + '/state', { State: 'Working' } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'POST', '/api/plans', { Title: 'New here', Text: TEXT, Project: project.Id } ) ).Body.Plan.State, 'Idea' );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Done' } ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Working' } ) ).Status, 400 );
 	let in_use = await call( 'PUT', '/api/projects/' + project.Id, { States: [ 'Idea', 'Draft' ] } );
 	ASSERT.equal( in_use.Status, 400 );
 	ASSERT.match( in_use.Body.Error, /"Done" is used by the plan "Kept"/ );
@@ -1135,7 +1135,7 @@ TEST( 'a run is asked of a connection by the owner or a member, packaged from th
 {
 	let echo = ( await call( 'GET', '/api/llms' ) ).Body.Llms[ 0 ];
 	let plan = await create( 'A plan to review' );
-	let thread = ( await call( 'POST', '/api/proposals/' + plan.Id + '/threads', { Anchor: { Text: 'a claim' }, Text: 'Is this so?' } ) ).Body.Thread;
+	let thread = ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: { Text: 'a claim' }, Text: 'Is this so?' } ) ).Body.Thread;
 	// the lists: the waiting threads of the connection, the other documents
 	let lists = await call( 'GET', '/api/runs/lists?Project=' + home + '&Plan=' + plan.Id + '&Llm=' + echo.Id, undefined, true );
 	ASSERT.equal( lists.Status, 200 );

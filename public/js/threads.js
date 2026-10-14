@@ -39,7 +39,7 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 
 	function path( thread )
 	{
-		return '/api/proposals/' + encodeURIComponent( State.OpenId ) + '/threads' + ( thread ? '/' + thread.Id : '' );
+		return '/api/plans/' + encodeURIComponent( State.OpenId ) + '/threads' + ( thread ? '/' + thread.Id : '' );
 	}
 
 
@@ -324,7 +324,7 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 
 	$scope.IsPlan = function ()
 	{
-		return !!State.Open && ( State.Open.Proposal.Kind || 'plan' ) === 'plan';
+		return !!State.Open && ( State.Open.Plan.Kind || 'plan' ) === 'plan';
 	};
 
 

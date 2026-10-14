@@ -1,6 +1,6 @@
 {
 	"Format": "consensus-project",
-	"Version": 1,
+	"Version": 2,
 	"Exported": "2026-10-05T04:48:32.081Z",
 	"Project": {
 		"Id": "prj-t0e-hoa-8xr",
@@ -48,9 +48,9 @@
 			}
 		]
 	},
-	"Proposals": [
+	"Plans": [
 		{
-			"Proposal": {
+			"Plan": {
 				"Id": "doc-b4j-c7k-rpl",
 				"Title": "Readme",
 				"Kind": "document",
@@ -84,7 +84,7 @@
 			]
 		},
 		{
-			"Proposal": {
+			"Plan": {
 				"Id": "doc-000-0v4-58v",
 				"Title": "Design notes",
 				"Kind": "document",
@@ -109,7 +109,7 @@
 			]
 		},
 		{
-			"Proposal": {
+			"Plan": {
 				"Id": "pln-cnv-udx-lns",
 				"Title": "Search",
 				"Kind": "plan",
@@ -162,11 +162,11 @@
 			]
 		},
 		{
-			"Proposal": {
+			"Plan": {
 				"Id": "pln-ey2-67z-f7y",
 				"Title": "Shopping list",
 				"Kind": "plan",
-				"State": "Proposal",
+				"State": "Draft",
 				"Created": "2026-10-05T04:48:31.539Z",
 				"Updated": "2026-10-05T04:48:32.060Z",
 				"Revision": 2,
@@ -294,11 +294,11 @@
 			]
 		},
 		{
-			"Proposal": {
+			"Plan": {
 				"Id": "pln-bat-go6-bzz",
 				"Title": "Quantities",
 				"Kind": "plan",
-				"State": "Proposal",
+				"State": "Draft",
 				"Created": "2026-10-05T04:48:31.778Z",
 				"Updated": "2026-10-05T04:48:31.778Z",
 				"Revision": 1,

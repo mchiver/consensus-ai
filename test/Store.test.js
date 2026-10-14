@@ -69,34 +69,34 @@ TEST( 'opening makes the config folder; settings are absent until written; Prepa
 } );
 
 
-TEST( 'a created proposal has its files in its project\'s content folder, revision 1 and a plain id', async function ()
+TEST( 'a created plan has its files in its project\'s content folder, revision 1 and a plain id', async function ()
 {
 	let ready = await prepared();
 	let store = ready.Store;
-	let proposal = await store.CreateProposal( { Project: ready.Home.Id, Title: 'Hello, World!', Text: '# Hello\n\nText.\n', By: 'user', State: 'Draft' } );
-	ASSERT.match( proposal.Id, /^pln-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
-	ASSERT.equal( IDS.Is( proposal.Id, IDS.PLAN ), true );
-	ASSERT.equal( proposal.Revision, 1 );
-	ASSERT.equal( proposal.State, 'Draft' );
-	ASSERT.equal( proposal.Kind, 'plan' );
-	let folder = PATH.join( home_of( store, ready.Home ), 'content', proposal.Id );
+	let plan = await store.CreatePlan( { Project: ready.Home.Id, Title: 'Hello, World!', Text: '# Hello\n\nText.\n', By: 'user', State: 'Draft' } );
+	ASSERT.match( plan.Id, /^pln-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
+	ASSERT.equal( IDS.Is( plan.Id, IDS.PLAN ), true );
+	ASSERT.equal( plan.Revision, 1 );
+	ASSERT.equal( plan.State, 'Draft' );
+	ASSERT.equal( plan.Kind, 'plan' );
+	let folder = PATH.join( home_of( store, ready.Home ), 'content', plan.Id );
 	for ( let name of [ 'content.json', 'content.md', 'threads.json', 'revisions/0001.md', 'revisions/0001.json' ] )
 	{
 		ASSERT.equal( FS.existsSync( PATH.join( folder, name ) ), true, name );
 	}
-	let read = await store.ReadProposal( proposal.Id );
-	ASSERT.deepEqual( read.Proposal, proposal );
+	let read = await store.ReadPlan( plan.Id );
+	ASSERT.deepEqual( read.Plan, plan );
 	ASSERT.equal( read.Text, '# Hello\n\nText.\n' );
 	ASSERT.deepEqual( read.Threads, [] );
-	let revisions = await store.ListRevisions( proposal.Id );
+	let revisions = await store.ListRevisions( plan.Id );
 	ASSERT.equal( revisions.length, 1 );
 	ASSERT.equal( revisions[ 0 ].Reason, 'create' );
 	ASSERT.equal( revisions[ 0 ].By, 'user' );
 	// the Readme is there too
-	ASSERT.equal( ( await store.ListProposals() ).length, 2 );
-	ASSERT.equal( await store.ReadProposal( 'nope' ), null );
-	ASSERT.equal( ( await store.ProjectOf( proposal.Id ) ).Id, ready.Home.Id );
-	await ASSERT.rejects( store.CreateProposal( { Project: 'prj-no-such', Title: 'x', Text: '', By: 'user' } ), /no such project/ );
+	ASSERT.equal( ( await store.ListPlans() ).length, 2 );
+	ASSERT.equal( await store.ReadPlan( 'nope' ), null );
+	ASSERT.equal( ( await store.ProjectOf( plan.Id ) ).Id, ready.Home.Id );
+	await ASSERT.rejects( store.CreatePlan( { Project: 'prj-no-such', Title: 'x', Text: '', By: 'user' } ), /no such project/ );
 } );
 
 
@@ -104,32 +104,32 @@ TEST( 'writing text makes a new revision with its snapshot and reason', async fu
 {
 	let ready = await prepared();
 	let store = ready.Store;
-	let proposal = await store.CreateProposal( { Project: ready.Home.Id, Title: 'T', Text: 'one', By: 'user' } );
-	let updated = await store.WriteText( proposal.Id, { Text: 'two', By: 'llm', Reason: 'apply', Thread: 't1' } );
+	let plan = await store.CreatePlan( { Project: ready.Home.Id, Title: 'T', Text: 'one', By: 'user' } );
+	let updated = await store.WriteText( plan.Id, { Text: 'two', By: 'llm', Reason: 'apply', Thread: 't1' } );
 	ASSERT.equal( updated.Revision, 2 );
-	let read = await store.ReadProposal( proposal.Id );
+	let read = await store.ReadPlan( plan.Id );
 	ASSERT.equal( read.Text, 'two' );
-	let revision = await store.ReadRevision( proposal.Id, 2 );
+	let revision = await store.ReadRevision( plan.Id, 2 );
 	ASSERT.equal( revision.Text, 'two' );
 	ASSERT.equal( revision.Reason, 'apply' );
 	ASSERT.equal( revision.Thread, 't1' );
-	ASSERT.equal( ( await store.ReadRevision( proposal.Id, 1 ) ).Text, 'one' );
-	ASSERT.equal( await store.ReadRevision( proposal.Id, 3 ), null );
-	ASSERT.equal( ( await store.ListRevisions( proposal.Id ) ).length, 2 );
+	ASSERT.equal( ( await store.ReadRevision( plan.Id, 1 ) ).Text, 'one' );
+	ASSERT.equal( await store.ReadRevision( plan.Id, 3 ), null );
+	ASSERT.equal( ( await store.ListRevisions( plan.Id ) ).length, 2 );
 	ASSERT.equal( await store.WriteText( 'nope', { Text: 'x', By: 'user', Reason: 'edit' } ), null );
 } );
 
 
-TEST( 'proposal changes and threads are written whole', async function ()
+TEST( 'plan changes and threads are written whole', async function ()
 {
 	let ready = await prepared();
 	let store = ready.Store;
-	let proposal = await store.CreateProposal( { Project: ready.Home.Id, Title: 'T', Text: '', By: 'user' } );
-	let updated = await store.UpdateProposal( proposal.Id, { Title: 'New', State: 'Working' } );
+	let plan = await store.CreatePlan( { Project: ready.Home.Id, Title: 'T', Text: '', By: 'user' } );
+	let updated = await store.UpdatePlan( plan.Id, { Title: 'New', State: 'Working' } );
 	ASSERT.equal( updated.Title, 'New' );
 	ASSERT.equal( updated.State, 'Working' );
-	await store.WriteThreads( proposal.Id, [ { Id: 't1' } ] );
-	ASSERT.deepEqual( ( await store.ReadProposal( proposal.Id ) ).Threads, [ { Id: 't1' } ] );
+	await store.WriteThreads( plan.Id, [ { Id: 't1' } ] );
+	ASSERT.deepEqual( ( await store.ReadPlan( plan.Id ) ).Threads, [ { Id: 't1' } ] );
 } );
 
 
@@ -137,15 +137,15 @@ TEST( 'writes are atomic: no .tmp files remain and the file is whole', async fun
 {
 	let ready = await prepared();
 	let store = ready.Store;
-	let proposal = await store.CreateProposal( { Project: ready.Home.Id, Title: 'T', Text: 'x'.repeat( 100000 ), By: 'user' } );
-	let folder = PATH.join( home_of( store, ready.Home ), 'content', proposal.Id );
+	let plan = await store.CreatePlan( { Project: ready.Home.Id, Title: 'T', Text: 'x'.repeat( 100000 ), By: 'user' } );
+	let folder = PATH.join( home_of( store, ready.Home ), 'content', plan.Id );
 	let files = FS.readdirSync( folder ).concat( FS.readdirSync( PATH.join( folder, 'revisions' ) ) );
 	ASSERT.equal( files.some( function ( name ) { return name.endsWith( '.tmp' ); } ), false );
 	ASSERT.equal( FS.readFileSync( PATH.join( folder, 'content.md' ), 'utf8' ).length, 100000 );
 } );
 
 
-TEST( 'the queue runs one proposal\'s work in order and other proposals\' work independently', async function ()
+TEST( 'the queue runs one plan\'s work in order and other plans\' work independently', async function ()
 {
 	let store = STORE.Open( temporary_folder() );
 	let order = [];
@@ -171,73 +171,73 @@ TEST( 'the queue runs one proposal\'s work in order and other proposals\' work i
 } );
 
 
-TEST( 'queued writes to one proposal do not interleave', async function ()
+TEST( 'queued writes to one plan do not interleave', async function ()
 {
 	let ready = await prepared();
 	let store = ready.Store;
-	let proposal = await store.CreateProposal( { Project: ready.Home.Id, Title: 'T', Text: '0', By: 'user' } );
+	let plan = await store.CreatePlan( { Project: ready.Home.Id, Title: 'T', Text: '0', By: 'user' } );
 	let writes = [];
 	for ( let index = 1; index <= 5; index++ )
 	{
-		writes.push( store.Queue( proposal.Id, async function ()
+		writes.push( store.Queue( plan.Id, async function ()
 		{
-			let read = await store.ReadProposal( proposal.Id );
-			await store.WriteText( proposal.Id, { Text: String( parseInt( read.Text, 10 ) + 1 ), By: 'user', Reason: 'edit' } );
+			let read = await store.ReadPlan( plan.Id );
+			await store.WriteText( plan.Id, { Text: String( parseInt( read.Text, 10 ) + 1 ), By: 'user', Reason: 'edit' } );
 		} ) );
 	}
 	await Promise.all( writes );
-	let read = await store.ReadProposal( proposal.Id );
+	let read = await store.ReadPlan( plan.Id );
 	ASSERT.equal( read.Text, '5' );
-	ASSERT.equal( read.Proposal.Revision, 6 );
+	ASSERT.equal( read.Plan.Revision, 6 );
 } );
 
 
-TEST( 'a trashed proposal moves whole into its project\'s trash and leaves the list', async function ()
+TEST( 'a trashed plan moves whole into its project\'s trash and leaves the list', async function ()
 {
 	let ready = await prepared();
 	let store = ready.Store;
-	let proposal = await store.CreateProposal( { Project: ready.Home.Id, Title: 'Gone', Text: 'x', By: 'user' } );
-	ASSERT.equal( await store.TrashProposal( proposal.Id ), true );
-	ASSERT.equal( await store.TrashProposal( proposal.Id ), false );
-	ASSERT.equal( ( await store.ListProposals() ).length, 1 );
-	ASSERT.equal( await store.ReadProposal( proposal.Id ), null );
+	let plan = await store.CreatePlan( { Project: ready.Home.Id, Title: 'Gone', Text: 'x', By: 'user' } );
+	ASSERT.equal( await store.TrashPlan( plan.Id ), true );
+	ASSERT.equal( await store.TrashPlan( plan.Id ), false );
+	ASSERT.equal( ( await store.ListPlans() ).length, 1 );
+	ASSERT.equal( await store.ReadPlan( plan.Id ), null );
 	let trash = await store.ListTrash();
 	ASSERT.equal( trash.length, 1 );
-	ASSERT.equal( trash[ 0 ].Id, proposal.Id );
+	ASSERT.equal( trash[ 0 ].Id, plan.Id );
 	ASSERT.equal( trash[ 0 ].Project, ready.Home.Id );
-	ASSERT.equal( FS.existsSync( PATH.join( home_of( store, ready.Home ), 'trash', proposal.Id, 'revisions', '0001.md' ) ), true );
+	ASSERT.equal( FS.existsSync( PATH.join( home_of( store, ready.Home ), 'trash', plan.Id, 'revisions', '0001.md' ) ), true );
 } );
 
 
-TEST( 'an archived proposal moves to its project\'s archive, reads as archived, refuses writes, and comes back', async function ()
+TEST( 'an archived plan moves to its project\'s archive, reads as archived, refuses writes, and comes back', async function ()
 {
 	let ready = await prepared();
 	let store = ready.Store;
-	let proposal = await store.CreateProposal( { Project: ready.Home.Id, Title: 'Done', Text: 'x', By: 'user', State: 'Finished' } );
-	ASSERT.equal( await store.ArchiveProposal( proposal.Id ), true );
-	ASSERT.equal( await store.ArchiveProposal( proposal.Id ), false );
-	ASSERT.equal( FS.existsSync( PATH.join( home_of( store, ready.Home ), 'archive', proposal.Id, 'content.md' ) ), true );
-	ASSERT.equal( FS.existsSync( PATH.join( home_of( store, ready.Home ), 'content', proposal.Id ) ), false );
-	let read = await store.ReadProposal( proposal.Id );
-	ASSERT.equal( read.Proposal.Archived, true );
+	let plan = await store.CreatePlan( { Project: ready.Home.Id, Title: 'Done', Text: 'x', By: 'user', State: 'Finished' } );
+	ASSERT.equal( await store.ArchivePlan( plan.Id ), true );
+	ASSERT.equal( await store.ArchivePlan( plan.Id ), false );
+	ASSERT.equal( FS.existsSync( PATH.join( home_of( store, ready.Home ), 'archive', plan.Id, 'content.md' ) ), true );
+	ASSERT.equal( FS.existsSync( PATH.join( home_of( store, ready.Home ), 'content', plan.Id ) ), false );
+	let read = await store.ReadPlan( plan.Id );
+	ASSERT.equal( read.Plan.Archived, true );
 	ASSERT.equal( read.Text, 'x' );
-	ASSERT.equal( ( await store.ListRevisions( proposal.Id ) ).length, 1 );
+	ASSERT.equal( ( await store.ListRevisions( plan.Id ) ).length, 1 );
 	// not listed among the live ones; still its project's
-	ASSERT.equal( ( await store.ListProposals() ).some( function ( one ) { return one.Id === proposal.Id; } ), false );
-	ASSERT.equal( ( await store.ProjectOf( proposal.Id ) ).Id, ready.Home.Id );
-	await ASSERT.rejects( store.WriteText( proposal.Id, { Text: 'y', By: 'user', Reason: 'edit' } ), /is archived/ );
-	await ASSERT.rejects( store.WriteThreads( proposal.Id, [] ), /is archived/ );
-	await ASSERT.rejects( store.UpdateProposal( proposal.Id, { Title: 'z' } ), /is archived/ );
-	ASSERT.equal( await store.MoveProposal( proposal.Id, ready.Home.Id ), false );
-	ASSERT.equal( await store.RestoreProposal( proposal.Id ), true );
-	ASSERT.equal( await store.RestoreProposal( proposal.Id ), false );
-	ASSERT.equal( 'Archived' in ( await store.ReadProposal( proposal.Id ) ).Proposal, false );
-	ASSERT.equal( ( await store.UpdateProposal( proposal.Id, { Title: 'z' } ) ).Title, 'z' );
+	ASSERT.equal( ( await store.ListPlans() ).some( function ( one ) { return one.Id === plan.Id; } ), false );
+	ASSERT.equal( ( await store.ProjectOf( plan.Id ) ).Id, ready.Home.Id );
+	await ASSERT.rejects( store.WriteText( plan.Id, { Text: 'y', By: 'user', Reason: 'edit' } ), /is archived/ );
+	await ASSERT.rejects( store.WriteThreads( plan.Id, [] ), /is archived/ );
+	await ASSERT.rejects( store.UpdatePlan( plan.Id, { Title: 'z' } ), /is archived/ );
+	ASSERT.equal( await store.MovePlan( plan.Id, ready.Home.Id ), false );
+	ASSERT.equal( await store.RestorePlan( plan.Id ), true );
+	ASSERT.equal( await store.RestorePlan( plan.Id ), false );
+	ASSERT.equal( 'Archived' in ( await store.ReadPlan( plan.Id ) ).Plan, false );
+	ASSERT.equal( ( await store.UpdatePlan( plan.Id, { Title: 'z' } ) ).Title, 'z' );
 	// a store opened again over the same config knows the archived one
-	await store.ArchiveProposal( proposal.Id );
+	await store.ArchivePlan( plan.Id );
 	let again = STORE.Open( store.Folder );
 	await again.Prepare( await again.ReadSettings() );
-	ASSERT.equal( ( await again.ReadProposal( proposal.Id ) ).Proposal.Archived, true );
+	ASSERT.equal( ( await again.ReadPlan( plan.Id ) ).Plan.Archived, true );
 } );
 
 
@@ -261,7 +261,7 @@ TEST( 'projects: folders in the settings\' order, new ones last; created, opened
 	ASSERT.equal( alpha.Items[ 0 ].Name, 'Context' );
 	ASSERT.deepEqual( alpha.Items[ 0 ].Items, [ { Kind: 'document', Id: alpha.Context } ] );
 	ASSERT.equal( IDS.Is( alpha.ContextFolder, IDS.FOLDER ), true );
-	ASSERT.equal( ( await store.ReadProposal( alpha.Context ) ).Proposal.Title, 'Readme' );
+	ASSERT.equal( ( await store.ReadPlan( alpha.Context ) ).Plan.Title, 'Readme' );
 	ASSERT.equal( FS.existsSync( PATH.join( elsewhere, '.consensus', 'content', alpha.Context, 'content.md' ) ), true );
 	ASSERT.equal( ( await store.ProjectOf( alpha.Context ) ).Id, alpha.Id );
 	function names( projects ) { return projects.map( function ( p ) { return p.Name; } ); }
@@ -277,7 +277,7 @@ TEST( 'projects: folders in the settings\' order, new ones last; created, opened
 	ASSERT.equal( ( await store.ReadProject( alpha.Id ) ).Name, 'Alpha, renamed' );
 	ASSERT.equal( ( await store.ProjectOf( 'p1' ) ).Id, alpha.Id );
 	ASSERT.equal( await store.ProjectOf( 'p2' ), null );
-	ASSERT.equal( await store.ReadProject( '../proposals' ), null );
+	ASSERT.equal( await store.ReadProject( '../plans' ), null );
 	// a folder that holds a project already is opened, not made again
 	await ASSERT.rejects( store.CreateProject( { Name: 'Again', Path: elsewhere } ), /already holds a project/ );
 	ASSERT.equal( ( await store.OpenProject( elsewhere ) ).Id, alpha.Id );
@@ -310,24 +310,24 @@ TEST( 'a copy lands in the project asked for; a move carries the item\'s folder 
 	let ready = await prepared();
 	let store = ready.Store;
 	let other = await store.CreateProject( { Name: 'Other' } );
-	let proposal = await store.CreateProposal( { Project: ready.Home.Id, Title: 'T', Text: 'text', By: 'user' } );
-	await store.WriteThreads( proposal.Id, [ { Id: 't1' } ] );
-	let copy = await store.CopyProposal( proposal.Id, other.Id );
+	let plan = await store.CreatePlan( { Project: ready.Home.Id, Title: 'T', Text: 'text', By: 'user' } );
+	await store.WriteThreads( plan.Id, [ { Id: 't1' } ] );
+	let copy = await store.CopyPlan( plan.Id, other.Id );
 	ASSERT.equal( copy.Title, 'T (copy)' );
 	ASSERT.equal( ( await store.ProjectOf( copy.Id ) ).Id, other.Id );
 	ASSERT.equal( FS.existsSync( PATH.join( home_of( store, other ), 'content', copy.Id, 'content.md' ) ), true );
-	ASSERT.deepEqual( ( await store.ReadProposal( copy.Id ) ).Threads, [ { Id: 't1' } ] );
-	let same = await store.CopyProposal( proposal.Id );
+	ASSERT.deepEqual( ( await store.ReadPlan( copy.Id ) ).Threads, [ { Id: 't1' } ] );
+	let same = await store.CopyPlan( plan.Id );
 	ASSERT.equal( ( await store.ProjectOf( same.Id ) ).Id, ready.Home.Id );
-	ASSERT.equal( await store.CopyProposal( 'nope' ), null );
-	ASSERT.equal( await store.MoveProposal( proposal.Id, other.Id ), true );
-	ASSERT.equal( ( await store.ProjectOf( proposal.Id ) ).Id, other.Id );
-	ASSERT.equal( FS.existsSync( PATH.join( home_of( store, ready.Home ), 'content', proposal.Id ) ), false );
-	ASSERT.equal( ( await store.ReadProposal( proposal.Id ) ).Text, 'text' );
-	ASSERT.equal( await store.MoveProposal( proposal.Id, other.Id ), true );
-	ASSERT.equal( await store.MoveProposal( 'nope', other.Id ), false );
-	await ASSERT.rejects( store.MoveProposal( proposal.Id, 'prj-no-such' ), /no such project/ );
-	ASSERT.equal( ( await store.ListProposals() ).length, 5 );
+	ASSERT.equal( await store.CopyPlan( 'nope' ), null );
+	ASSERT.equal( await store.MovePlan( plan.Id, other.Id ), true );
+	ASSERT.equal( ( await store.ProjectOf( plan.Id ) ).Id, other.Id );
+	ASSERT.equal( FS.existsSync( PATH.join( home_of( store, ready.Home ), 'content', plan.Id ) ), false );
+	ASSERT.equal( ( await store.ReadPlan( plan.Id ) ).Text, 'text' );
+	ASSERT.equal( await store.MovePlan( plan.Id, other.Id ), true );
+	ASSERT.equal( await store.MovePlan( 'nope', other.Id ), false );
+	await ASSERT.rejects( store.MovePlan( plan.Id, 'prj-no-such' ), /no such project/ );
+	ASSERT.equal( ( await store.ListPlans() ).length, 5 );
 } );
 
 
@@ -358,25 +358,25 @@ TEST( 'a listed folder that is gone is skipped and kept in the list; one under p
 } );
 
 
-TEST( 'proposals list newest updated first', async function ()
+TEST( 'plans list newest updated first', async function ()
 {
 	let ready = await prepared();
 	let store = ready.Store;
-	let first = await store.CreateProposal( { Project: ready.Home.Id, Title: 'First', Text: '', By: 'user' } );
+	let first = await store.CreatePlan( { Project: ready.Home.Id, Title: 'First', Text: '', By: 'user' } );
 	await new Promise( function ( resolve ) { setTimeout( resolve, 5 ); } );
-	let second = await store.CreateProposal( { Project: ready.Home.Id, Title: 'Second', Text: '', By: 'user' } );
-	ASSERT.deepEqual( ( await store.ListProposals() ).slice( 0, 2 ).map( function ( p ) { return p.Id; } ), [ second.Id, first.Id ] );
+	let second = await store.CreatePlan( { Project: ready.Home.Id, Title: 'Second', Text: '', By: 'user' } );
+	ASSERT.deepEqual( ( await store.ListPlans() ).slice( 0, 2 ).map( function ( p ) { return p.Id; } ), [ second.Id, first.Id ] );
 	await new Promise( function ( resolve ) { setTimeout( resolve, 5 ); } );
-	await store.UpdateProposal( first.Id, { Title: 'First again' } );
-	ASSERT.deepEqual( ( await store.ListProposals() ).slice( 0, 2 ).map( function ( p ) { return p.Id; } ), [ first.Id, second.Id ] );
+	await store.UpdatePlan( first.Id, { Title: 'First again' } );
+	ASSERT.deepEqual( ( await store.ListPlans() ).slice( 0, 2 ).map( function ( p ) { return p.Id; } ), [ first.Id, second.Id ] );
 } );
 
 
 //---------------------------------------------------------------------
 // The migration
 
-// An old-layout proposal in the config folder.
-function write_old_proposal( folder, id, record, text, extra_files )
+// An old-layout plan in the config folder.
+function write_old_plan( folder, id, record, text, extra_files )
 {
 	FS.mkdirSync( PATH.join( folder, 'proposals', id, 'revisions' ), { recursive: true } );
 	FS.writeFileSync( PATH.join( folder, 'proposals', id, 'proposal.json' ), JSON.stringify( record ) );
@@ -394,11 +394,11 @@ function write_old_proposal( folder, id, record, text, extra_files )
 TEST( 'migration: a config folder from before Step 2 moves each project into a folder of its own, under a prj- id, with its items; strays and the old trash go to the first project\'s trash', async function ()
 {
 	let folder = temporary_folder();
-	write_old_proposal( folder, 'ctx-aaa-aaa-aaa', { Id: 'ctx-aaa-aaa-aaa', Title: 'Readme', Kind: 'document', State: null, Created: 't', Updated: 't', Revision: 1 }, '# Readme\n' );
-	write_old_proposal( folder, 'pln-bbb-bbb-bbb', { Id: 'pln-bbb-bbb-bbb', Title: 'Plan', Kind: 'plan', State: 'Draft', Created: 't', Updated: 't', Revision: 1 }, '# Plan\n' );
-	write_old_proposal( folder, 'doc-ccc-ccc-ccc', { Id: 'doc-ccc-ccc-ccc', Title: 'Readme', Kind: 'document', State: null, Created: 't', Updated: 't', Revision: 1 }, '# Other readme\n' );
-	write_old_proposal( folder, 'pln-ddd-ddd-ddd', { Id: 'pln-ddd-ddd-ddd', Title: 'Elsewhere', Kind: 'plan', State: 'Plan', Created: 't', Updated: 't', Revision: 1 }, '# Elsewhere\n' );
-	write_old_proposal( folder, 'pln-eee-eee-eee', { Id: 'pln-eee-eee-eee', Title: 'Stray', Kind: 'plan', State: 'Draft', Created: 't', Updated: 't', Revision: 1 }, '# Stray\n' );
+	write_old_plan( folder, 'ctx-aaa-aaa-aaa', { Id: 'ctx-aaa-aaa-aaa', Title: 'Readme', Kind: 'document', State: null, Created: 't', Updated: 't', Revision: 1 }, '# Readme\n' );
+	write_old_plan( folder, 'pln-bbb-bbb-bbb', { Id: 'pln-bbb-bbb-bbb', Title: 'Plan', Kind: 'plan', State: 'Draft', Created: 't', Updated: 't', Revision: 1 }, '# Plan\n' );
+	write_old_plan( folder, 'doc-ccc-ccc-ccc', { Id: 'doc-ccc-ccc-ccc', Title: 'Readme', Kind: 'document', State: null, Created: 't', Updated: 't', Revision: 1 }, '# Other readme\n' );
+	write_old_plan( folder, 'pln-ddd-ddd-ddd', { Id: 'pln-ddd-ddd-ddd', Title: 'Elsewhere', Kind: 'plan', State: 'Plan', Created: 't', Updated: 't', Revision: 1 }, '# Elsewhere\n' );
+	write_old_plan( folder, 'pln-eee-eee-eee', { Id: 'pln-eee-eee-eee', Title: 'Stray', Kind: 'plan', State: 'Draft', Created: 't', Updated: 't', Revision: 1 }, '# Stray\n' );
 	FS.mkdirSync( PATH.join( folder, 'projects', 'default' ), { recursive: true } );
 	FS.writeFileSync( PATH.join( folder, 'projects', 'default', 'project.json' ), JSON.stringify( { Id: 'default', Context: 'ctx-aaa-aaa-aaa', ContextFolder: 'fld-ctx-ctx-ctx', Created: 't', Updated: 't', Version: 3, Items: [ { Kind: 'folder', Id: 'fld-ctx-ctx-ctx', Name: 'Context', Items: [ { Kind: 'document', Id: 'ctx-aaa-aaa-aaa' } ] }, { Kind: 'folder', Id: 'fld-ddd-ddd-ddd', Name: 'Drafts', Items: [ { Kind: 'plan', Id: 'pln-bbb-bbb-bbb' } ] } ] } ) );
 	FS.mkdirSync( PATH.join( folder, 'projects', 'prj-ooo-ooo-ooo' ), { recursive: true } );
@@ -434,10 +434,10 @@ TEST( 'migration: a config folder from before Step 2 moves each project into a f
 		ASSERT.equal( FS.existsSync( PATH.join( home.Path, '.consensus', 'content', 'pln-bbb-bbb-bbb', name ) ), true, name );
 	}
 	ASSERT.equal( FS.existsSync( PATH.join( home.Path, '.consensus', 'content', 'pln-bbb-bbb-bbb', 'proposal.json' ) ), false );
-	ASSERT.equal( ( await store.ReadProposal( 'pln-bbb-bbb-bbb' ) ).Text, '# Plan\n' );
-	ASSERT.equal( ( await store.ReadProposal( 'ctx-aaa-aaa-aaa' ) ).Proposal.Title, 'Readme' );
+	ASSERT.equal( ( await store.ReadPlan( 'pln-bbb-bbb-bbb' ) ).Text, '# Plan\n' );
+	ASSERT.equal( ( await store.ReadPlan( 'ctx-aaa-aaa-aaa' ) ).Plan.Title, 'Readme' );
 	ASSERT.equal( ( await store.ProjectOf( 'pln-ddd-ddd-ddd' ) ).Id, other.Id );
-	ASSERT.equal( ( await store.ReadProposal( 'doc-ccc-ccc-ccc' ) ).Text, '# Other readme\n' );
+	ASSERT.equal( ( await store.ReadPlan( 'doc-ccc-ccc-ccc' ) ).Text, '# Other readme\n' );
 	// strays and the old trash, in the first project's trash, in the new layout
 	let trash = await store.ListTrash();
 	ASSERT.deepEqual( trash.map( function ( item ) { return item.Id + '@' + item.Project; } ).sort(), [ 'pln-eee-eee-eee@' + other.Id, 'pln-fff-fff-fff@' + other.Id ] );
@@ -456,8 +456,8 @@ TEST( 'migration: a config folder from before Step 2 moves each project into a f
 TEST( 'migration: a data folder from before Consensus Desktop gets its Context folder, loses its corpora and the LLM\'s files, on the way into its folder', async function ()
 {
 	let folder = temporary_folder();
-	write_old_proposal( folder, 'ctx-aaa-aaa-aaa', { Id: 'ctx-aaa-aaa-aaa', Title: 'Context', Kind: 'context', State: null, Created: 't', Updated: 't', Revision: 1 }, '# Context\n', [ 'index.json' ] );
-	write_old_proposal( folder, 'pln-bbb-bbb-bbb', { Id: 'pln-bbb-bbb-bbb', Title: 'Plan', Kind: 'plan', State: 'Proposal', Created: 't', Updated: 't', Revision: 1 }, '# Plan\n', [ 'runs.json' ] );
+	write_old_plan( folder, 'ctx-aaa-aaa-aaa', { Id: 'ctx-aaa-aaa-aaa', Title: 'Context', Kind: 'context', State: null, Created: 't', Updated: 't', Revision: 1 }, '# Context\n', [ 'index.json' ] );
+	write_old_plan( folder, 'pln-bbb-bbb-bbb', { Id: 'pln-bbb-bbb-bbb', Title: 'Plan', Kind: 'plan', State: 'Plan', Created: 't', Updated: 't', Revision: 1 }, '# Plan\n', [ 'runs.json' ] );
 	FS.mkdirSync( PATH.join( folder, 'projects', 'default', 'corpora', 'cor-ccc-ccc-ccc' ), { recursive: true } );
 	FS.writeFileSync( PATH.join( folder, 'projects', 'default', 'corpora', 'cor-ccc-ccc-ccc', 'corpus.json' ), JSON.stringify( { Id: 'cor-ccc-ccc-ccc', Kind: 'corpus', Name: 'repo', Updated: 't', Files: [] } ) );
 	FS.writeFileSync( PATH.join( folder, 'projects', 'default', 'project.json' ), JSON.stringify( {
@@ -476,8 +476,8 @@ TEST( 'migration: a data folder from before Consensus Desktop gets its Context f
 	ASSERT.deepEqual( project.Items[ 0 ].Items, [ { Kind: 'document', Id: 'ctx-aaa-aaa-aaa' } ] );
 	ASSERT.deepEqual( project.Items[ 1 ], { Kind: 'folder', Id: 'fld-ddd-ddd-ddd', Name: 'Drafts', Items: [ { Kind: 'plan', Id: 'pln-bbb-bbb-bbb' } ] } );
 	ASSERT.equal( 'Workspace' in project, false );
-	ASSERT.equal( ( await store.ReadProposal( 'ctx-aaa-aaa-aaa' ) ).Proposal.Kind, 'document' );
-	ASSERT.equal( ( await store.ReadProposal( 'ctx-aaa-aaa-aaa' ) ).Proposal.Title, 'Readme' );
+	ASSERT.equal( ( await store.ReadPlan( 'ctx-aaa-aaa-aaa' ) ).Plan.Kind, 'document' );
+	ASSERT.equal( ( await store.ReadPlan( 'ctx-aaa-aaa-aaa' ) ).Plan.Title, 'Readme' );
 	let home = PATH.join( project.Path, '.consensus' );
 	ASSERT.equal( FS.existsSync( PATH.join( home, 'trash', 'cor-ccc-ccc-ccc', 'corpus.json' ) ), true );
 	ASSERT.equal( FS.existsSync( PATH.join( home, 'content', 'ctx-aaa-aaa-aaa', 'index.json' ) ), false );

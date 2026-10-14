@@ -130,11 +130,11 @@ TEST( 'the page server serves the page, the connect screen and the vendor files,
 			let me = await fetch( served.Url + '/servers/a/api/me' );
 			ASSERT.equal( me.status, 200 );
 			ASSERT.equal( ( await me.json() ).Version, VERSION );
-			let made = await fetch( served.Url + '/servers/a/api/proposals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Through the desktop', Text: '# T\n' } ) } );
+			let made = await fetch( served.Url + '/servers/a/api/plans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Through the desktop', Text: '# T\n' } ) } );
 			ASSERT.equal( made.status, 201 );
-			let id = ( await made.json() ).Proposal.Id;
-			ASSERT.equal( ( await ( await fetch( target.Url + '/api/proposals/' + id ) ).json() ).Proposal.Title, 'Through the desktop' );
-			ASSERT.equal( ( await fetch( served.Url + '/servers/a/api/proposals/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Renamed through the desktop' } ) } ) ).status, 200 );
+			let id = ( await made.json() ).Plan.Id;
+			ASSERT.equal( ( await ( await fetch( target.Url + '/api/plans/' + id ) ).json() ).Plan.Title, 'Through the desktop' );
+			ASSERT.equal( ( await fetch( served.Url + '/servers/a/api/plans/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Renamed through the desktop' } ) } ) ).status, 200 );
 			ASSERT.equal( ( await fetch( served.Url + '/servers/a/api/nothing' ) ).status, 404 );
 			ASSERT.equal( ( await fetch( served.Url + '/servers/a/nothing' ) ).status, 404 );
 			ASSERT.equal( ( await fetch( served.Url + '/servers/b/api/me' ) ).status, 502 );
@@ -144,7 +144,7 @@ TEST( 'the page server serves the page, the connect screen and the vendor files,
 			let events = await fetch( served.Url + '/servers/a/api/events' );
 			ASSERT.equal( events.headers.get( 'content-type' ), 'text/event-stream' );
 			let reader = events.body.getReader();
-			await fetch( target.Url + '/api/proposals/' + id + '/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { State: 'Plan' } ) } );
+			await fetch( target.Url + '/api/plans/' + id + '/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { State: 'Plan' } ) } );
 			let heard = '';
 			for ( let attempt = 0; attempt < 20 && !/"Kind":"state"/.test( heard ); attempt++ )
 			{

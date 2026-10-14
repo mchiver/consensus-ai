@@ -100,7 +100,7 @@ angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope'
 	}
 
 
-	// Listen: the root's events stream; Handler( { Proposal, Kind, Thread? } ) inside a digest; Status( live ) on
+	// Listen: the root's events stream; Handler( { Plan, Kind, Thread? } ) inside a digest; Status( live ) on
 	// connect and drop.
 	function Listen( Root, Handler, Status )
 	{

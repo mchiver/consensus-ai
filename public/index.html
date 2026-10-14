@@ -70,16 +70,16 @@
 						<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
 					</span>
 				</div>
-				<form class="new-proposal in-folder" style="--depth: {{ Depth + 1 }}" ng-if="Creating.Parent === node.Id" ng-submit="Create()" ng-click="$event.stopPropagation()">
+				<form class="new-plan in-folder" style="--depth: {{ Depth + 1 }}" ng-if="Creating.Parent === node.Id" ng-submit="Create()" ng-click="$event.stopPropagation()">
 					<input class="form-control form-control-sm" type="text" id="create-name" placeholder="{{ CreatePlaceholder() }}" ng-model="Creating.Name" auto-focus>
-					<div class="new-proposal-buttons">
+					<div class="new-plan-buttons">
 						<button class="btn btn-sm btn-primary" type="submit" id="create-submit" ng-disabled="!Creating.Name"><svg class="icon lead"><use href="#i-check"></use></svg>Create</button>
 						<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 					</div>
 				</form>
 				<div class="folder-body" ng-if="!IsFolded(node, project)" ng-init="Depth = Depth + 1"><div ng-include="'tree-nodes.html'"></div></div>
 			</div>
-			<a ng-switch-default class="proposal-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document', 'context-item': IsContextDocument( project, node ), parent: node.Items.length }" ng-href="{{ HashFor( root, '/p/' + node.Id ) }}" data-id="{{ node.Id }}" drag-item="IsContextDocument( project, node ) ? null : node.Id" tree-drop="{ Kind: node.Kind === 'plan' ? 'plan' : 'item', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('item', project, node, $event)" title="{{ IsContextDocument( project, node ) ? 'the project\'s Readme: its background, read by everyone who works on the project' : '' }}">
+			<a ng-switch-default class="plan-item tree-item tree-row" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, document: node.Kind === 'document', 'context-item': IsContextDocument( project, node ), parent: node.Items.length }" ng-href="{{ HashFor( root, '/p/' + node.Id ) }}" data-id="{{ node.Id }}" drag-item="IsContextDocument( project, node ) ? null : node.Id" tree-drop="{ Kind: node.Kind === 'plan' ? 'plan' : 'item', Project: project.Id, Id: node.Id, Sorted: IsSorted() }" on-tree-drop="TreeDrop( Drag, Target, Zone )" on-context-menu="OpenMenu('item', project, node, $event)" title="{{ IsContextDocument( project, node ) ? 'the project\'s Readme: its background, read by everyone who works on the project' : '' }}">
 				<span class="chevron" ng-if="node.Items.length" ng-class="{ folded: IsFolded(node, project) }" ng-click="ToggleFold(node, project, $event)" title="{{ IsFolded(node, project) ? 'show' : 'hide' }} its Subplans"></span>
 				<span class="chevron-space" ng-if="!node.Items.length"></span>
 				<span class="tree-icon" ng-class="IsContextDocument( project, node ) ? 'icon-context' : ( node.Kind === 'document' ? 'icon-document' : 'icon-plan' )"></span>
@@ -87,7 +87,7 @@
 					<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
 				</form>
 				<span class="tree-date" ng-if="DateOf(node) && !IsRenaming(node)">{{ DateOf(node) | day }}</span>
-				<span class="proposal-title" ng-if="!IsRenaming(node)">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
+				<span class="plan-title" ng-if="!IsRenaming(node)">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
 				<span class="badges" ng-if="!IsRenaming(node)">
 					<span class="item-state" ng-if="IsContextDocument( project, node )" ng-show="project.Context.Empty" title="the Readme has no text yet">empty</span>
 					<span class="item-state" ng-if="!IsContextDocument( project, node )" title="{{ node.Kind === 'document' ? 'a document: no threads, no state' : 'state' }}">{{ node.Kind === 'document' ? 'document' : node.State }}</span>
@@ -99,7 +99,7 @@
 				<span class="tree-stamp" ng-if="ShowUpdated && node.Updated && !IsRenaming(node)" title="updated {{ node.Updated | fullstamp }}">{{ node.Updated | stamp }}</span>
 				<span class="confirm" ng-if="Deleting === node.Id">
 					to the trash?
-					<button class="btn btn-sm btn-danger confirm-delete-item" ng-click="Delete('proposal', project, node, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+					<button class="btn btn-sm btn-danger confirm-delete-item" ng-click="Delete('plan', project, node, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
 					<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
 				</span>
 				<span class="row-menu" role="button" ng-class="{ shown: MenuOpenFor(node) }" ng-if="!IsRenaming(node) && !node.Missing && Deleting !== node.Id && !IsContextDocument( project, node )" title="actions" ng-click="OpenMenu('item', project, node, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
@@ -113,10 +113,10 @@
 	     Restore is in a top-level plan's menu. -->
 	<script type="text/ng-template" id="archive-nodes.html">
 		<div class="tree-node" ng-repeat="node in nodes track by node.Id">
-			<a class="proposal-item tree-item tree-row archived" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, parent: node.Items.length }" ng-href="{{ HashFor( root, '/p/' + node.Id ) }}" data-id="{{ node.Id }}" on-context-menu="OpenMenu('archived', project, node, $event)" title="archived: read-only until restored">
+			<a class="plan-item tree-item tree-row archived" style="--depth: {{ Depth }}" ng-class="{ open: node.Id === State.OpenId, missing: node.Missing, parent: node.Items.length }" ng-href="{{ HashFor( root, '/p/' + node.Id ) }}" data-id="{{ node.Id }}" on-context-menu="OpenMenu('archived', project, node, $event)" title="archived: read-only until restored">
 				<span class="chevron-space"></span>
 				<span class="tree-icon icon-plan"></span>
-				<span class="proposal-title">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
+				<span class="plan-title">{{ node.Missing ? node.Id + ' (missing)' : node.Title }}</span>
 				<span class="badges"><span class="item-state" title="state">{{ node.State }}</span></span>
 				<span class="row-menu" role="button" ng-class="{ shown: MenuOpenFor(node) }" ng-if="!node.Missing" title="actions" ng-click="OpenMenu('archived', project, node, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
 			</a>
@@ -125,7 +125,7 @@
 	</script>
 
 
-	<div class="layout" ng-class="{ 'no-threads': State.Open.Proposal.Kind === 'document' || State.ThreadsHidden || State.View === 'llm', 'no-tree': State.TreeHidden }">
+	<div class="layout" ng-class="{ 'no-threads': State.Open.Plan.Kind === 'document' || State.ThreadsHidden || State.View === 'llm', 'no-tree': State.TreeHidden }">
 
 		<!-- ============================================================= -->
 		<aside class="sidebar" ng-controller="SidebarController">
@@ -137,14 +137,14 @@
 					<button class="menu-bar-item" type="button" id="help-menu" ng-class="{ shown: MenuOpen() }" ng-click="OpenHelpMenu($event)" title="about Consensus, and the hotkeys">Help</button>
 				</div>
 			</div>
-			<form class="new-proposal" ng-if="Creating.Kind === 'project'" ng-submit="Create()">
+			<form class="new-plan" ng-if="Creating.Kind === 'project'" ng-submit="Create()">
 				<input class="form-control form-control-sm" type="text" id="create-name" placeholder="{{ CreatePlaceholder() }}" ng-model="Creating.Name" auto-focus>
 				<div class="muted small" ng-show="Roots.Several() && CreatingRoot()">on {{ CreatingRoot().Name }}</div>
 				<div class="new-project-folder" ng-if="HasDesktop && CreatingIsLocal()" title="the project's folder: a repository, as a rule; its .consensus holds the project. Empty: a folder under the config folder. One that holds a project already is opened as it is.">
 					<input class="form-control form-control-sm" type="text" id="create-path" placeholder="folder (optional)" ng-model="Creating.Path">
 					<button class="btn btn-sm btn-outline-secondary" type="button" id="create-browse" ng-click="PickProjectFolder()">Browse</button>
 				</div>
-				<div class="new-proposal-buttons">
+				<div class="new-plan-buttons">
 					<button class="btn btn-sm btn-primary" type="submit" id="create-submit" ng-disabled="!Creating.Name"><svg class="icon lead"><use href="#i-check"></use></svg>Create</button>
 					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 				</div>
@@ -196,9 +196,9 @@
 						</span>
 					</div>
 					<div class="project-body" ng-if="IsOpen(project)" ng-init="Depth = 1">
-						<form class="new-proposal" ng-if="Creating.Project === project.Id && !Creating.Parent" ng-submit="Create()">
+						<form class="new-plan" ng-if="Creating.Project === project.Id && !Creating.Parent" ng-submit="Create()">
 							<input class="form-control form-control-sm" type="text" id="create-name" placeholder="{{ CreatePlaceholder() }}" ng-model="Creating.Name" auto-focus>
-							<div class="new-proposal-buttons">
+							<div class="new-plan-buttons">
 								<button class="btn btn-sm btn-primary" type="submit" id="create-submit" ng-disabled="!Creating.Name"><svg class="icon lead"><use href="#i-check"></use></svg>Create</button>
 								<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 							</div>
@@ -226,9 +226,9 @@
 				<span class="row-menu" role="button" ng-if="root.Me.Role === 'owner'" ng-class="{ shown: MenuOpenFor( { Id: 'llms:' + root.Key } ) }" title="actions" ng-click="OpenMenu('llms', root, null, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
 			</div>
 			<div class="llm-list" ng-attr-id="{{ $first ? 'llm-list' : undefined }}" ng-show="Of( root ).ShowingLlms">
-				<form class="new-proposal" ng-if="Creating.Kind === 'llm' && Creating.Root === root.Key" ng-submit="Create()">
+				<form class="new-plan" ng-if="Creating.Kind === 'llm' && Creating.Root === root.Key" ng-submit="Create()">
 					<input class="form-control form-control-sm" type="text" id="create-llm-name" placeholder="{{ CreatePlaceholder() }}" ng-model="Creating.Name" auto-focus>
-					<div class="new-proposal-buttons">
+					<div class="new-plan-buttons">
 						<button class="btn btn-sm btn-primary" type="submit" id="create-llm-submit" ng-disabled="!Creating.Name"><svg class="icon lead"><use href="#i-check"></use></svg>Create</button>
 						<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 					</div>
@@ -240,7 +240,7 @@
 					<form class="rename-form" ng-if="IsRenaming(llm)" ng-submit="Rename()" ng-click="$event.preventDefault(); $event.stopPropagation()">
 						<input class="form-control form-control-sm" type="text" ng-model="Renaming.Name" ng-keydown="RenameKey($event)" auto-focus>
 					</form>
-					<span class="proposal-title" ng-if="!IsRenaming(llm)">{{ llm.Name }}</span>
+					<span class="plan-title" ng-if="!IsRenaming(llm)">{{ llm.Name }}</span>
 					<span class="badges" ng-if="!IsRenaming(llm)">
 						<span class="item-state" title="the connection's kind">{{ llm.Kind }}</span>
 						<span class="badge mine" ng-show="IsRunning( root, llm )" title="a one-shot is running">running</span>
@@ -257,9 +257,9 @@
 			<div class="list-heading trash-heading" ng-click="ToggleTrash( root )">Trash <span class="count">{{ Of( root ).ShowingTrash ? '▾' : '▸' }}</span></div>
 			<div ng-show="Of( root ).ShowingTrash">
 				<div class="list-empty" ng-show="Of( root ).Trash.length === 0">empty</div>
-				<div class="proposal-item trashed" ng-repeat="proposal in Of( root ).Trash">
-					<div class="proposal-title">{{ proposal.Title }}</div>
-					<div class="muted small">{{ proposal.Updated | when }}</div>
+				<div class="plan-item trashed" ng-repeat="plan in Of( root ).Trash">
+					<div class="plan-title">{{ plan.Title }}</div>
+					<div class="muted small">{{ plan.Updated | when }}</div>
 				</div>
 			</div>
 
@@ -308,7 +308,7 @@
 
 			<header class="header" ng-controller="HeaderController">
 				<div class="header-row">
-					<div class="title" ng-show="State.Open">{{ IsContext() ? 'Readme of ' + State.Open.Project.Name : State.Open.Proposal.Title }} <span class="muted small root-mark" ng-if="RootName()">on {{ RootName() }}</span></div>
+					<div class="title" ng-show="State.Open">{{ IsContext() ? 'Readme of ' + State.Open.Project.Name : State.Open.Plan.Title }} <span class="muted small root-mark" ng-if="RootName()">on {{ RootName() }}</span></div>
 					<div class="title muted" ng-hide="State.Open">{{ EmptyTitle() }}</div>
 					<div class="header-views" ng-show="State.Open">
 						<div class="btn-group" role="group">
@@ -320,11 +320,11 @@
 				</div>
 				<div class="header-row" ng-show="State.Open">
 					<div class="state-line">
-						<span class="document-badge" id="document-badge" ng-show="State.Open.Proposal.Kind === 'document'">{{ IsContext() ? 'Readme' : 'Document' }}</span>
+						<span class="document-badge" id="document-badge" ng-show="State.Open.Plan.Kind === 'document'">{{ IsContext() ? 'Readme' : 'Document' }}</span>
 						<span class="document-badge archived-badge" id="archived-badge" ng-show="IsArchived()" title="archived: read-only until Restore in the tree's Archive folder">archived</span>
-						<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="State.Open.Proposal.Kind !== 'document'" title="the proposal's state: anyone can change it" ng-model="PickedState" ng-change="SetState()" ng-disabled="Busy || IsArchived()" ng-options="name for name in StateOptions()"></select>
-						<span id="state-line">{{ State.Open.Proposal.StateLine }}</span>
-						<span class="revision" id="revision">revision {{ State.Open.Proposal.Revision }}</span>
+						<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="State.Open.Plan.Kind !== 'document'" title="the plan's state: anyone can change it" ng-model="PickedState" ng-change="SetState()" ng-disabled="Busy || IsArchived()" ng-options="name for name in StateOptions()"></select>
+						<span id="state-line">{{ State.Open.Plan.StateLine }}</span>
+						<span class="revision" id="revision">revision {{ State.Open.Plan.Revision }}</span>
 					</div>
 					<div class="header-buttons">
 						<button class="btn btn-sm btn-outline-secondary" id="new-comment" ng-click="CommentOnWhole()" ng-show="State.View === 'read' && HasThreads() && !IsArchived()" title="a comment on the whole document; Re-anchor puts it on a passage"><svg class="icon lead"><use href="#i-comment"></use></svg>New Comment</button>
@@ -343,8 +343,8 @@
 
 			<section class="read" ng-controller="ReadController" ng-show="State.View === 'read'">
 				<div class="read-empty" ng-hide="State.Open">
-					<p>Pick a proposal on the left, or create one.</p>
-					<p class="muted">Select a passage of a proposal to comment on it. Waiting on you lists the threads that are your turn.</p>
+					<p>Pick a plan on the left, or create one.</p>
+					<p class="muted">Select a passage of a plan to comment on it. Waiting on you lists the threads that are your turn.</p>
 				</div>
 				<div class="reanchor-hint alert alert-info" ng-show="State.Reanchoring">
 					Select the passage this thread belongs to, then press Re-anchor.
@@ -385,7 +385,7 @@
 					</div>
 				</div>
 				<div class="revision-text">
-					<div class="muted small" ng-show="Shown">revision {{ Shown.Revision }}{{ Shown.Revision === State.Open.Proposal.Revision ? ' (current)' : '' }}</div>
+					<div class="muted small" ng-show="Shown">revision {{ Shown.Revision }}{{ Shown.Revision === State.Open.Plan.Revision ? ' (current)' : '' }}</div>
 					<article class="markdown" id="revision-view"></article>
 				</div>
 			</section>
@@ -610,8 +610,8 @@
 				<div class="view-heading">Waiting on you <span class="muted">{{ Items.length }}</span></div>
 				<div class="muted" ng-show="Items.length === 0">Nothing waits on you.</div>
 				<div class="waiting-group" ng-repeat="group in Groups">
-					<div class="waiting-proposal"><a ng-href="{{ HashFor( group.Root, '/p/' + group.Proposal.Id ) }}">{{ group.Proposal.Title }}</a> <span class="muted small">{{ group.Proposal.State }}</span><span class="muted small" ng-show="Roots.Several()"> on {{ group.Root.Name }}</span></div>
-					<a class="waiting-item" ng-repeat="item in group.Items" ng-class="item.Thread.State" ng-href="{{ HashFor( group.Root, '/p/' + group.Proposal.Id ) }}" ng-click="Open(item)">
+					<div class="waiting-plan"><a ng-href="{{ HashFor( group.Root, '/p/' + group.Plan.Id ) }}">{{ group.Plan.Title }}</a> <span class="muted small">{{ group.Plan.State }}</span><span class="muted small" ng-show="Roots.Several()"> on {{ group.Root.Name }}</span></div>
+					<a class="waiting-item" ng-repeat="item in group.Items" ng-class="item.Thread.State" ng-href="{{ HashFor( group.Root, '/p/' + group.Plan.Id ) }}" ng-click="Open(item)">
 						<div class="thread-head">
 							<span class="state-badge" ng-class="item.Thread.State">{{ item.Thread.State }}</span>
 							<span class="muted">{{ item.Thread.Anchor ? '“' + item.Thread.Anchor.Text + '”' : 'the whole document' }}</span>

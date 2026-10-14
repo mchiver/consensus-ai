@@ -29,8 +29,8 @@ const JOB = 'job';
 const LLM = 'llm';
 const KINDS = [ PROJECT, PLAN, DOCUMENT, CONTEXT, FOLDER, CORPUS, THREAD, REPLY, REVISION, RUN, JOB, LLM ];
 
-// A proposal's Kind, as its id's kind.
-const PROPOSAL_KINDS = { plan: PLAN, document: DOCUMENT, context: CONTEXT };
+// A plan's Kind, as its id's kind.
+const PLAN_KINDS = { plan: PLAN, document: DOCUMENT, context: CONTEXT };
 
 const PATTERN = /^([a-z]{3})-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/;
 
@@ -68,10 +68,10 @@ function Is( Id, Kind )
 }
 
 
-// ForProposal: the kind of a proposal's id, from its Kind ('plan' when not known).
-function ForProposal( Kind )
+// ForPlan: the kind of a plan's id, from its Kind ('plan' when not known).
+function ForPlan( Kind )
 {
-	return PROPOSAL_KINDS[ Kind ] || PLAN;
+	return PLAN_KINDS[ Kind ] || PLAN;
 }
 
 
@@ -93,5 +93,5 @@ module.exports = {
 	KINDS: KINDS,
 	New: New,
 	Is: Is,
-	ForProposal: ForProposal,
+	ForPlan: ForPlan,
 };

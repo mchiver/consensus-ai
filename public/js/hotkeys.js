@@ -87,7 +87,7 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	}
 
 
-	function open_proposal()
+	function open_plan()
 	{
 		return !!State.Open && !!State.OpenId;
 	}
@@ -95,19 +95,19 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 
 	function archived()
 	{
-		return !!( State.Open && State.Open.Proposal && State.Open.Proposal.Archived );
+		return !!( State.Open && State.Open.Plan && State.Open.Plan.Archived );
 	}
 
 
 	function has_threads()
 	{
-		return open_proposal() && State.Open.Proposal.Kind !== 'document';
+		return open_plan() && State.Open.Plan.Kind !== 'document';
 	}
 
 
 	function is_plan()
 	{
-		return open_proposal() && ( State.Open.Proposal.Kind || 'plan' ) === 'plan';
+		return open_plan() && ( State.Open.Plan.Kind || 'plan' ) === 'plan';
 	}
 
 
@@ -117,7 +117,7 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	// Ctrl+E: Edit from Read or Revisions; from Edit, save (when there is something to save) and read.
 	function edit_or_read()
 	{
-		if ( !open_proposal() || VIEWS_WITH_EDIT.indexOf( State.View ) < 0 || archived() )
+		if ( !open_plan() || VIEWS_WITH_EDIT.indexOf( State.View ) < 0 || archived() )
 		{
 			return false;
 		}
@@ -144,7 +144,7 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 
 	function copy()
 	{
-		if ( typing() || text_selected() || !open_proposal() )
+		if ( typing() || text_selected() || !open_plan() )
 		{
 			return false;
 		}

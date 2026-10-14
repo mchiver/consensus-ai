@@ -77,7 +77,7 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 			hide_button();
 			return;
 		}
-		let is_document = State.Open.Proposal.Kind === 'document';
+		let is_document = State.Open.Plan.Kind === 'document';
 		let anchor = is_document ? null : Render.SelectionAnchor( view );
 		let rect = selection.getRangeAt( 0 ).getBoundingClientRect();
 		let section_rect = section.getBoundingClientRect();
@@ -89,7 +89,7 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 		if ( anchor )
 		{
 			shown.push( button );
-			let is_plan = ( State.Open.Proposal.Kind || 'plan' ) === 'plan';
+			let is_plan = ( State.Open.Plan.Kind || 'plan' ) === 'plan';
 			if ( is_plan && !State.Reanchoring )
 			{
 				shown.push( subplan_button );
@@ -159,7 +159,7 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 			let thread_id = State.Reanchoring;
 			let answer = await State.Act( function ()
 			{
-				return Client.Post( '/api/proposals/' + encodeURIComponent( State.OpenId ) + '/threads/' + thread_id + '/anchor', { Anchor: anchor } );
+				return Client.Post( '/api/plans/' + encodeURIComponent( State.OpenId ) + '/threads/' + thread_id + '/anchor', { Anchor: anchor } );
 			} );
 			if ( answer )
 			{
@@ -250,7 +250,7 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 		}
 	} );
 
-	// A search hit or a waiting item asked for a thread or a passage once the proposal is loaded.
+	// A search hit or a waiting item asked for a thread or a passage once the plan is loaded.
 	function settle_pending()
 	{
 		show();
@@ -280,7 +280,7 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 	}
 
 
-	$scope.$on( 'proposal-loaded', settle_pending );
+	$scope.$on( 'plan-loaded', settle_pending );
 	$scope.$on( 'thread-selected', function ( event, id )
 	{
 		show();

@@ -228,13 +228,13 @@ html, body
 	font-size: 1.1rem;
 }
 
-.new-proposal
+.new-plan
 {
 	padding: 0.75rem;
 	border-bottom: 1px solid var(--border);
 }
 
-.new-proposal-buttons
+.new-plan-buttons
 {
 	display: flex;
 	gap: 0.5rem;
@@ -263,7 +263,7 @@ html, body
 	font-size: 0.9rem;
 }
 
-.proposal-item
+.plan-item
 {
 	display: block;
 	padding: 0.5rem 0.75rem;
@@ -272,12 +272,12 @@ html, body
 	border-left: 3px solid transparent;
 }
 
-.proposal-item:hover
+.plan-item:hover
 {
 	background-color: rgba( 128, 128, 128, 0.12 );
 }
 
-.proposal-title
+.plan-title
 {
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -426,12 +426,12 @@ html, body
 	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5l4-1.5 5 1.5 4-1.5v10.5l-4 1.5-5-1.5-4 1.5z M5.5 2v10.5 M10.5 3.5V14' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
 }
 
-.context-item .proposal-title
+.context-item .plan-title
 {
 	font-weight: 600;
 }
 
-.project-name, .folder-name, .tree-row .proposal-title
+.project-name, .folder-name, .tree-row .plan-title
 {
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -439,7 +439,7 @@ html, body
 	min-width: 0;
 }
 
-.tree-row .proposal-title
+.tree-row .plan-title
 {
 	flex: 1 1 auto;
 }
@@ -612,7 +612,7 @@ html, body
 }
 
 /* The project's Archive (plan Run Shapes, Step 2) and its plans: read-only, so muted. */
-.archive-folder .folder-name, .tree-item.archived .proposal-title
+.archive-folder .folder-name, .tree-item.archived .plan-title
 {
 	color: var(--muted);
 }
@@ -1152,7 +1152,7 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	margin-top: 0.5rem;
 }
 
-.proposal-item.trashed
+.plan-item.trashed
 {
 	color: var(--muted);
 }
@@ -1538,13 +1538,13 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	margin-bottom: 1.25rem;
 }
 
-.waiting-proposal
+.waiting-plan
 {
 	font-weight: 600;
 	margin-bottom: 0.3rem;
 }
 
-.waiting-proposal a
+.waiting-plan a
 {
 	color: inherit;
 	text-decoration: none;
@@ -2227,7 +2227,7 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5h4.3l1.5 1.5h7.2v8h-13z' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M5 7.5l2 1.5-2 1.5M8 10.5h3' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
 }
 
-.llm-row.running .proposal-title
+.llm-row.running .plan-title
 {
 	font-style: italic;
 }
@@ -2507,7 +2507,7 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 }
 
 /* A new plan or folder made from a folder's menu: its name box sits under the folder's row. */
-.new-proposal.in-folder
+.new-plan.in-folder
 {
 	margin-left: calc( var(--indent) * var(--depth) );
 }

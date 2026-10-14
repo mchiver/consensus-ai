@@ -6,8 +6,8 @@
 //     Key    'p:<id>' or 'waiting': one tab per item; 'llm:<id>' for an LLM connection (plan Run Shapes, Step 3);
 //            '<root>|p:<id>' on a named root (plan Run Shapes, Step 5: Root is the root's key, '' in a browser)
 //     Hash   the route that shows it (#/p/<id>, #/waiting, #/s/<root>/p/<id>)
-//     View   read | edit | revisions, for a proposal: each tab comes back as it was left
-//     Filter the threads pane's filter, for a proposal: a new tab starts at Waiting on me
+//     View   read | edit | revisions, for a plan: each tab comes back as it was left
+//     Filter the threads pane's filter, for a plan: a new tab starts at Waiting on me
 //     Draft  { Text, Base }: an unsaved edit, kept while its tab is not the one shown
 //
 // The hash stays the route: AppController calls Visit for it, and a tab's click sets it. The tabs are kept once per
@@ -101,7 +101,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	}
 
 
-	// A remembered tab whose proposal is in no project any more (deleted while the app was closed) is dropped
+	// A remembered tab whose plan is in no project any more (deleted while the app was closed) is dropped
 	// silently once the projects are loaded; the strip moves to a neighbour when it was the active one. A tab the list
 	// does not know may be newer than the list (made a moment ago, or opened by link) or archived (plan Run Shapes,
 	// Step 2), so only the server's 404 closes it.
@@ -137,7 +137,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		}
 		Promise.all( doubtful.map( function ( tab )
 		{
-			return Client.Get( root, '/api/proposals/' + encodeURIComponent( tab.Id ) ).then( function () { return null; }, function ( error ) { return ( error.Status === 404 ) ? tab : null; } );
+			return Client.Get( root, '/api/plans/' + encodeURIComponent( tab.Id ) ).then( function () { return null; }, function ( error ) { return ( error.Status === 404 ) ? tab : null; } );
 		} ) ).then( function ( results )
 		{
 			let gone = results.filter( function ( tab ) { return tab && tabs.List.includes( tab ); } );
@@ -211,7 +211,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	}
 
 
-	// After a proposal's tab is visited and its proposal loaded: the view it was left in.
+	// After a plan's tab is visited and its plan loaded: the view it was left in.
 	function RestoreView( Tab )
 	{
 		if ( Tab && Tab.Kind === 'p' && State.OpenId === Tab.Id && Tab.View && Tab.View !== State.View )
@@ -362,7 +362,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	}
 
 
-	// The unsaved edit of the proposal Id's tab, or null to forget it.
+	// The unsaved edit of the plan Id's tab, or null to forget it.
 	function SetDraft( Id, Draft )
 	{
 		let tab = find_item( 'p', Id );
@@ -388,7 +388,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	}
 
 
-	// Each proposal's tab keeps the view it is left in.
+	// Each plan's tab keeps the view it is left in.
 	$rootScope.$on( 'view-changed', function ( event, view )
 	{
 		let tab = Active();
@@ -400,7 +400,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	} );
 
 
-	// Each proposal's tab keeps its threads filter.
+	// Each plan's tab keeps its threads filter.
 	$rootScope.$watch( function () { return State.Filter; }, function ( filter )
 	{
 		let tab = Active();
@@ -709,15 +709,15 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	};
 
 
-	function proposal_of( tab )
+	function plan_of( tab )
 	{
 		let id = tab.Id;
-		if ( State.Open && State.Open.Proposal.Id === id && root_of( tab ) === State.Root )
+		if ( State.Open && State.Open.Plan.Id === id && root_of( tab ) === State.Root )
 		{
-			return State.Open.Proposal;
+			return State.Open.Plan;
 		}
 		let root = root_of( tab );
-		return root ? ( root.Proposals.find( function ( proposal ) { return proposal.Id === id; } ) || null ) : null;
+		return root ? ( root.Plans.find( function ( plan ) { return plan.Id === id; } ) || null ) : null;
 	}
 
 
@@ -760,15 +760,15 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		}
 		else
 		{
-			let proposal = proposal_of( tab );
+			let plan = plan_of( tab );
 			let project = context_project( tab );
 			if ( project )
 			{
 				title = 'Readme · ' + project.Name;
 			}
-			else if ( proposal )
+			else if ( plan )
 			{
-				title = proposal.Title;
+				title = plan.Title;
 			}
 		}
 		if ( title )
@@ -809,8 +809,8 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		{
 			return 'icon-context';
 		}
-		let proposal = proposal_of( tab );
-		let kind = proposal ? proposal.Kind : 'plan';
+		let plan = plan_of( tab );
+		let kind = plan ? plan.Kind : 'plan';
 		return ( kind === 'document' ) ? 'icon-document' : 'icon-plan';
 	};
 
@@ -844,7 +844,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 	$scope.HasThreads = function ()
 	{
-		return !!State.Open && State.Open.Proposal.Kind !== 'document';
+		return !!State.Open && State.Open.Plan.Kind !== 'document';
 	};
 
 

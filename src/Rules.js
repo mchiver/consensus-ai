@@ -1,16 +1,16 @@
 'use strict';
 
-// Rules - the consensus rules as pure functions over a proposal, its threads and the participants.
+// Rules - the consensus rules as pure functions over a plan, its threads and the participants.
 // Nothing here touches a file or a request; every rule is asserted in test/Rules.test.js.
 //
 //   thread = { Id, Anchor, Detached, Status: 'contested' | 'resolved', Reopened, Resolved, Applied, Replies }
-//   proposal = { Id, Title, State, Revision }   State is one of the settings' States, changed by anyone at any time
+//   plan = { Id, Title, State, Revision }   State is one of the settings' States, changed by anyone at any time
 //   participant = { Name, Display, Role: 'owner' | 'llm' | 'member' }
 //
 // A thread's life: Contested -> Resolved (waiting to be applied) -> Applied. A reply to a resolved or applied
 // thread reopens it (contested, marked reopened); an applied change stays applied, and after the thread is
 // resolved again it is waiting to be applied again, since the resolution is newer than the applied record.
-// A proposal's State does not depend on its threads.
+// A plan's State does not depend on its threads.
 
 
 //---------------------------------------------------------------------
@@ -71,9 +71,9 @@ function name_of( participant )
 
 
 //---------------------------------------------------------------------
-// Tally: what a proposal's threads add up to, and who each count waits on.
+// Tally: what a plan's threads add up to, and who each count waits on.
 
-function Tally( Proposal, Threads, Participants )
+function Tally( Plan, Threads, Participants )
 {
 	let tally = { Total: Threads.length, Contested: 0, Reopened: 0, Resolved: 0, Applied: 0, Detached: 0, WaitingOn: {} };
 	for ( let participant of Participants )
@@ -201,7 +201,7 @@ function CanDeleteThread( Who )
 }
 
 
-// A proposal's state: any of the settings' States, by anyone, at any time.
+// A plan's state: any of the settings' States, by anyone, at any time.
 function CanSetState( State, States )
 {
 	if ( typeof State !== 'string' || !States.includes( State ) )

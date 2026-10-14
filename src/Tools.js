@@ -444,15 +444,15 @@ function Tools( Options )
 	}
 
 
-	// A proposal of the project, whole; one of another project is refused.
-	async function proposal_of( id )
+	// A plan of the project, whole; one of another project is refused.
+	async function plan_of( id )
 	{
 		let clean = String( id || '' ).trim();
 		if ( !clean )
 		{
 			return { Error: 'an id is needed' };
 		}
-		let answer = await api( 'GET', '/api/proposals/' + encodeURIComponent( clean ) );
+		let answer = await api( 'GET', '/api/plans/' + encodeURIComponent( clean ) );
 		if ( !answer.Project || answer.Project.Id !== server.Project )
 		{
 			return { Error: clean + ' is not in this project' };
@@ -516,13 +516,13 @@ function Tools( Options )
 
 	handlers.read_plan = async function ( input )
 	{
-		let answer = await proposal_of( input.Id );
+		let answer = await plan_of( input.Id );
 		if ( answer.Error )
 		{
 			return answer.Error;
 		}
-		let proposal = answer.Proposal;
-		let lines = [ '# ' + proposal.Title + ' (' + proposal.Id + ')' + ( proposal.State ? ', state ' + proposal.State : '' ) + ', revision ' + proposal.Revision, '' ];
+		let plan = answer.Plan;
+		let lines = [ '# ' + plan.Title + ' (' + plan.Id + ')' + ( plan.State ? ', state ' + plan.State : '' ) + ', revision ' + plan.Revision, '' ];
 		lines.push( String( answer.Text || '' ).replace( /\s+$/, '' ) );
 		lines.push( '' );
 		lines.push( '## Threads (' + ( answer.Threads || [] ).length + ')' );
@@ -537,12 +537,12 @@ function Tools( Options )
 
 	handlers.read_document = async function ( input )
 	{
-		let answer = await proposal_of( input.Id );
+		let answer = await plan_of( input.Id );
 		if ( answer.Error )
 		{
 			return answer.Error;
 		}
-		return '# ' + answer.Proposal.Title + ' (' + answer.Proposal.Id + ')\n\n' + String( answer.Text || '' ).replace( /\s+$/, '' );
+		return '# ' + answer.Plan.Title + ' (' + answer.Plan.Id + ')\n\n' + String( answer.Text || '' ).replace( /\s+$/, '' );
 	};
 
 
@@ -568,12 +568,12 @@ function Tools( Options )
 		let lines = [];
 		for ( let entry of answer.Waiting || [] )
 		{
-			let in_scope = wanted ? ( entry.Proposal.Id === wanted ) : ids.has( entry.Proposal.Id );
+			let in_scope = wanted ? ( entry.Plan.Id === wanted ) : ids.has( entry.Plan.Id );
 			if ( !in_scope )
 			{
 				continue;
 			}
-			lines.push( '## ' + entry.Proposal.Title + ' (' + entry.Proposal.Id + ', revision ' + entry.Proposal.Revision + ')' );
+			lines.push( '## ' + entry.Plan.Title + ' (' + entry.Plan.Id + ', revision ' + entry.Plan.Revision + ')' );
 			lines.push( '' );
 			thread_lines( entry.Thread, lines );
 		}
@@ -583,24 +583,24 @@ function Tools( Options )
 
 	handlers.reply = async function ( input )
 	{
-		let answer = await proposal_of( input.Plan );
+		let answer = await plan_of( input.Plan );
 		if ( answer.Error )
 		{
 			return answer.Error;
 		}
-		await api( 'POST', '/api/proposals/' + encodeURIComponent( input.Plan ) + '/threads/' + encodeURIComponent( String( input.Thread || '' ) ) + '/replies', { Text: String( input.Text || '' ) } );
+		await api( 'POST', '/api/plans/' + encodeURIComponent( input.Plan ) + '/threads/' + encodeURIComponent( String( input.Thread || '' ) ) + '/replies', { Text: String( input.Text || '' ) } );
 		return 'replied on ' + input.Thread;
 	};
 
 
 	handlers.apply = async function ( input )
 	{
-		let answer = await proposal_of( input.Plan );
+		let answer = await plan_of( input.Plan );
 		if ( answer.Error )
 		{
 			return answer.Error;
 		}
-		let body = { Outcome: String( input.Outcome || '' ), Revision: answer.Proposal.Revision };
+		let body = { Outcome: String( input.Outcome || '' ), Revision: answer.Plan.Revision };
 		if ( typeof input.Text === 'string' )
 		{
 			body.Text = input.Text;
@@ -609,15 +609,15 @@ function Tools( Options )
 		{
 			body.Anchor = { Text: String( input.Anchor ) };
 		}
-		let applied = await api( 'POST', '/api/proposals/' + encodeURIComponent( input.Plan ) + '/threads/' + encodeURIComponent( String( input.Thread || '' ) ) + '/apply', body );
-		let revision = ( applied.Proposal && applied.Proposal.Revision ) ? ', the plan is at revision ' + applied.Proposal.Revision : '';
+		let applied = await api( 'POST', '/api/plans/' + encodeURIComponent( input.Plan ) + '/threads/' + encodeURIComponent( String( input.Thread || '' ) ) + '/apply', body );
+		let revision = ( applied.Plan && applied.Plan.Revision ) ? ', the plan is at revision ' + applied.Plan.Revision : '';
 		return 'applied ' + input.Thread + revision;
 	};
 
 
 	handlers.thread = async function ( input )
 	{
-		let answer = await proposal_of( input.Plan );
+		let answer = await plan_of( input.Plan );
 		if ( answer.Error )
 		{
 			return answer.Error;
@@ -627,19 +627,19 @@ function Tools( Options )
 		{
 			body.Anchor = { Text: String( input.Anchor ) };
 		}
-		let posted = await api( 'POST', '/api/proposals/' + encodeURIComponent( input.Plan ) + '/threads', body );
+		let posted = await api( 'POST', '/api/plans/' + encodeURIComponent( input.Plan ) + '/threads', body );
 		return 'posted thread ' + ( posted.Thread ? posted.Thread.Id : '' ) + ( input.Anchor ? ' on "' + input.Anchor + '"' : ' on the whole document' );
 	};
 
 
 	handlers.set_state = async function ( input )
 	{
-		let answer = await proposal_of( input.Plan );
+		let answer = await plan_of( input.Plan );
 		if ( answer.Error )
 		{
 			return answer.Error;
 		}
-		await api( 'PUT', '/api/proposals/' + encodeURIComponent( input.Plan ) + '/state', { State: String( input.State || '' ) } );
+		await api( 'PUT', '/api/plans/' + encodeURIComponent( input.Plan ) + '/state', { State: String( input.State || '' ) } );
 		return input.Plan + ' is now ' + input.State;
 	};
 

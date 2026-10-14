@@ -44,7 +44,7 @@ angular.module( 'Consensus' )
 	// The open plan, as a Subplan's parent, on its root.
 	function open_parent()
 	{
-		return { Parent: { Id: State.Open.Proposal.Id, Title: State.Open.Proposal.Title }, Project: State.Open.Project ? State.Open.Project.Id : null, Root: State.Root ? State.Root.Key : '' };
+		return { Parent: { Id: State.Open.Plan.Id, Title: State.Open.Plan.Title }, Project: State.Open.Project ? State.Open.Project.Id : null, Root: State.Root ? State.Root.Key : '' };
 	}
 
 
@@ -111,15 +111,15 @@ angular.module( 'Consensus' )
 		}
 		subplans.Busy = true;
 		let root = Roots.Of( pending.Root ) || State.Root;
-		let threads = '/api/proposals/' + encodeURIComponent( pending.Parent.Id ) + '/threads';
+		let threads = '/api/plans/' + encodeURIComponent( pending.Parent.Id ) + '/threads';
 		let made = await State.Act( function ()
 		{
 			let text = '# ' + title + '\n\n' + ( pending.Seed ? pending.Seed + '\n' : '' );
-			return Client.Post( root, '/api/proposals', { Title: title, Text: text, Kind: 'plan', Project: pending.Project, Parent: pending.Parent.Id } );
+			return Client.Post( root, '/api/plans', { Title: title, Text: text, Kind: 'plan', Project: pending.Project, Parent: pending.Parent.Id } );
 		} );
 		if ( made )
 		{
-			let link = link_to( title, made.Proposal.Id, root );
+			let link = link_to( title, made.Plan.Id, root );
 			if ( pending.Compose )
 			{
 				await State.Act( function () { return Client.Post( root, threads, { Anchor: pending.Compose.Anchor, Text: joined( pending.Compose.Text, link ) } ); } );
@@ -132,7 +132,7 @@ angular.module( 'Consensus' )
 			}
 			subplans.Pending = null;
 			await Roots.LoadList( root );
-			$window.location.hash = Roots.HashFor( root, '/p/' + encodeURIComponent( made.Proposal.Id ) );
+			$window.location.hash = Roots.HashFor( root, '/p/' + encodeURIComponent( made.Plan.Id ) );
 		}
 		subplans.Busy = false;
 	}

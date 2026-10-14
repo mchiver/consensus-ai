@@ -2,7 +2,7 @@
 
 // Api - the REST routes under /api, over Store, Rules, Anchors and Participants.
 // Every rule lives here or in Rules.js, none in a client: the page and the LLM's curl see the same API.
-// Errors are { Error } with a status. Writes to one proposal run through the store's queue.
+// Errors are { Error } with a status. Writes to one plan run through the store's queue.
 // The server holds the core of Consensus only (plan Consensus Desktop, Step 1): projects and their trees, plans with
 // their threads and revisions, documents, the turn (Waiting), export and import, and the settings. The LLM takes part
 // through the API as a participant, from wherever it runs. Plan Run Shapes, Step 3: the server runs the LLMs too:
@@ -115,7 +115,7 @@ function Attach( App, Context )
 	// A change happened: tell the listeners.
 	function changed( id, kind, thread_id )
 	{
-		let event = { Proposal: id, Kind: kind };
+		let event = { Plan: id, Kind: kind };
 		if ( thread_id )
 		{
 			event.Thread = thread_id;
@@ -125,7 +125,7 @@ function Attach( App, Context )
 
 
 	//-----------------------------------------------------------------
-	// Views: what a proposal looks like to a participant.
+	// Views: what a plan looks like to a participant.
 
 	function present_threads( threads, text, name )
 	{
@@ -154,18 +154,18 @@ function Attach( App, Context )
 	}
 
 
-	function summarize( proposal, threads, name )
+	function summarize( plan, threads, name )
 	{
-		let tally = RULES.Tally( proposal, threads, participants() );
-		let line = is_document( proposal ) ? 'a document' : RULES.StateLine( tally, name );
-		return Object.assign( {}, proposal, { Tally: tally, StateLine: line } );
+		let tally = RULES.Tally( plan, threads, participants() );
+		let line = is_document( plan ) ? 'a document' : RULES.StateLine( tally, name );
+		return Object.assign( {}, plan, { Tally: tally, StateLine: line } );
 	}
 
 
 	// A Document is edited and kept like a Plan, but has no threads and no state.
-	function is_document( proposal )
+	function is_document( plan )
 	{
-		return proposal.Kind === 'document' || proposal.Kind === 'context';
+		return plan.Kind === 'document' || plan.Kind === 'context';
 	}
 
 
@@ -186,8 +186,8 @@ function Attach( App, Context )
 	}
 
 
-	// The ids of the proposals a node holds: itself when it is one, and everything under it.
-	function proposal_ids_of( node )
+	// The ids of the plans a node holds: itself when it is one, and everything under it.
+	function plan_ids_of( node )
 	{
 		let ids = ( node.Kind === 'folder' ) ? [] : [ node.Id ];
 		return ids.concat( TREE.ItemIds( node.Items || [] ) );
@@ -296,27 +296,27 @@ function Attach( App, Context )
 
 
 	//-----------------------------------------------------------------
-	// Proposals
+	// Plans
 
-	router.get( '/proposals', async function ( request, response )
+	router.get( '/plans', async function ( request, response )
 	{
-		let proposals = await store.ListProposals();
+		let plans = await store.ListPlans();
 		let state = request.query.state;
 		let list = [];
-		for ( let proposal of proposals )
+		for ( let plan of plans )
 		{
-			if ( state && proposal.State !== state )
+			if ( state && plan.State !== state )
 			{
 				continue;
 			}
-			let read = await store.ReadProposal( proposal.Id );
-			list.push( summarize( proposal, read ? read.Threads : [], request.Participant.Name ) );
+			let read = await store.ReadPlan( plan.Id );
+			list.push( summarize( plan, read ? read.Threads : [], request.Participant.Name ) );
 		}
-		response.json( { Proposals: list } );
+		response.json( { Plans: list } );
 	} );
 
 
-	router.post( '/proposals', async function ( request, response )
+	router.post( '/plans', async function ( request, response )
 	{
 		let body = request.body || {};
 		let title = text_of( body.Title ).trim();
@@ -342,19 +342,19 @@ function Attach( App, Context )
 			project_id = first ? first.Id : null;
 		}
 		let parent = ( body.Parent === undefined ) ? null : body.Parent;
-		let result = await create_proposal( request.Participant, { Title: title, Text: text_of( body.Text ), Kind: kind, State: body.State, Project: project_id, Parent: parent } );
+		let result = await create_plan( request.Participant, { Title: title, Text: text_of( body.Text ), Kind: kind, State: body.State, Project: project_id, Parent: parent } );
 		if ( result.Refused )
 		{
 			return send_result( response, result );
 		}
-		response.status( 201 ).json( { Proposal: summarize( result.Proposal, [], request.Participant.Name ), Project: result.Project } );
+		response.status( 201 ).json( { Plan: summarize( result.Plan, [], request.Participant.Name ), Project: result.Project } );
 	} );
 
 
 	// A new plan or document in a project, at Parent (a folder, or a plan for a Subplan), else at its root (a
 	// document: in its Context folder). Fields = { Title, Text, Kind, State, Project, Parent }; a plan's State is one
-	// of the project's, the first when not given. Returns { Proposal, Project } or a refusal.
-	async function create_proposal( participant, fields )
+	// of the project's, the first when not given. Returns { Plan, Project } or a refusal.
+	async function create_plan( participant, fields )
 	{
 		let target = await store.ReadProject( fields.Project );
 		if ( !target )
@@ -380,10 +380,10 @@ function Attach( App, Context )
 		{
 			return refused( 400, PARENT_REFUSED );
 		}
-		let proposal = await store.CreateProposal( { Project: target.Id, Title: fields.Title, Text: fields.Text, By: participant.Name, Kind: fields.Kind, State: state } );
+		let plan = await store.CreatePlan( { Project: target.Id, Title: fields.Title, Text: fields.Text, By: participant.Name, Kind: fields.Kind, State: state } );
 		let placed = await change_project( target.Id, null, function ( project )
 		{
-			let node = { Kind: fields.Kind, Id: proposal.Id };
+			let node = { Kind: fields.Kind, Id: plan.Id };
 			if ( !TREE.Insert( project.Items, parent, node, undefined, project.ContextFolder ) )
 			{
 				TREE.Insert( project.Items, ( fields.Kind === 'document' ) ? project.ContextFolder : null, node, undefined, project.ContextFolder );
@@ -391,19 +391,19 @@ function Attach( App, Context )
 		} );
 		if ( placed.Refused )
 		{
-			console.error( 'projects: ' + proposal.Id + ' was created but not placed: ' + placed.Refused.Error );
+			console.error( 'projects: ' + plan.Id + ' was created but not placed: ' + placed.Refused.Error );
 		}
-		changed( proposal.Id, 'created' );
-		return { Proposal: proposal, Project: target.Id };
+		changed( plan.Id, 'created' );
+		return { Plan: plan, Project: target.Id };
 	}
 
 
-	router.get( '/proposals/:id', async function ( request, response )
+	router.get( '/plans/:id', async function ( request, response )
 	{
-		let read = await store.ReadProposal( request.params.id );
+		let read = await store.ReadPlan( request.params.id );
 		if ( !read )
 		{
-			return fail( response, 404, 'no such proposal' );
+			return fail( response, 404, 'no such plan' );
 		}
 		let name = request.Participant.Name;
 		let holder = await store.ProjectOf( request.params.id );
@@ -412,14 +412,14 @@ function Attach( App, Context )
 			Participants: participants(),
 			Project: holder ? { Id: holder.Id, Name: holder.Name } : null,
 			Context: !!( holder && holder.Context === request.params.id ),
-			Proposal: summarize( read.Proposal, read.Threads, name ),
+			Plan: summarize( read.Plan, read.Threads, name ),
 			Text: read.Text,
 			Threads: present_threads( read.Threads, read.Text, name ),
 		} );
 	} );
 
 
-	router.put( '/proposals/:id', async function ( request, response )
+	router.put( '/plans/:id', async function ( request, response )
 	{
 		let title = text_of( ( request.body || {} ).Title ).trim();
 		if ( !title )
@@ -433,25 +433,25 @@ function Attach( App, Context )
 		}
 		let result = await store.Queue( id, async function ()
 		{
-			let read = await store.ReadProposal( id );
+			let read = await store.ReadPlan( id );
 			if ( !read )
 			{
-				return fail( response, 404, 'no such proposal' );
+				return fail( response, 404, 'no such plan' );
 			}
-			let proposal = await store.UpdateProposal( id, { Title: title } );
-			return summarize( proposal, read.Threads, request.Participant.Name );
+			let plan = await store.UpdatePlan( id, { Title: title } );
+			return summarize( plan, read.Threads, request.Participant.Name );
 		} );
 		if ( !result )
 		{
 			return;
 		}
 		changed( id, 'title' );
-		response.json( { Proposal: result } );
+		response.json( { Plan: result } );
 	} );
 
 
 	// A manual edit: a new revision; no thread's status changes. Refused when made from a stale revision.
-	router.put( '/proposals/:id/text', async function ( request, response )
+	router.put( '/plans/:id/text', async function ( request, response )
 	{
 		let body = request.body || {};
 		if ( typeof body.Text !== 'string' )
@@ -461,30 +461,30 @@ function Attach( App, Context )
 		let id = request.params.id;
 		let result = await store.Queue( id, async function ()
 		{
-			let read = await store.ReadProposal( id );
+			let read = await store.ReadPlan( id );
 			if ( !read )
 			{
-				return fail( response, 404, 'no such proposal' );
+				return fail( response, 404, 'no such plan' );
 			}
-			if ( body.Revision !== read.Proposal.Revision )
+			if ( body.Revision !== read.Plan.Revision )
 			{
-				return fail( response, 409, 'the text changed since revision ' + body.Revision + '; reload and edit again', { Revision: read.Proposal.Revision } );
+				return fail( response, 409, 'the text changed since revision ' + body.Revision + '; reload and edit again', { Revision: read.Plan.Revision } );
 			}
-			let proposal = await store.WriteText( id, { Text: body.Text, By: request.Participant.Name, Reason: 'edit' } );
+			let plan = await store.WriteText( id, { Text: body.Text, By: request.Participant.Name, Reason: 'edit' } );
 			refind( read.Threads, body.Text );
 			await store.WriteThreads( id, read.Threads );
-			return summarize( proposal, read.Threads, request.Participant.Name );
+			return summarize( plan, read.Threads, request.Participant.Name );
 		} );
 		if ( !result )
 		{
 			return;
 		}
 		changed( id, 'text' );
-		response.json( { Proposal: result } );
+		response.json( { Plan: result } );
 	} );
 
 
-	router.delete( '/proposals/:id', async function ( request, response )
+	router.delete( '/plans/:id', async function ( request, response )
 	{
 		let id = request.params.id;
 		let holder = await store.ProjectOf( id );
@@ -497,16 +497,16 @@ function Attach( App, Context )
 		let subplans = ( found && Array.isArray( found.Node.Items ) ) ? TREE.ItemIds( found.Node.Items ) : [];
 		let moved = await store.Queue( id, async function ()
 		{
-			return await store.TrashProposal( id );
+			return await store.TrashPlan( id );
 		} );
 		if ( !moved )
 		{
-			return fail( response, 404, 'no such proposal' );
+			return fail( response, 404, 'no such plan' );
 		}
 		let trashed = [ id ];
 		for ( let subplan of subplans )
 		{
-			if ( await store.Queue( subplan, function () { return store.TrashProposal( subplan ); } ) )
+			if ( await store.Queue( subplan, function () { return store.TrashPlan( subplan ); } ) )
 			{
 				trashed.push( subplan );
 			}
@@ -528,12 +528,12 @@ function Attach( App, Context )
 
 	router.get( '/trash', async function ( request, response )
 	{
-		response.json( { Proposals: await store.ListTrash() } );
+		response.json( { Plans: await store.ListTrash() } );
 	} );
 
 
-	// A proposal's state: one of its project's States, set by anyone at any time. { State }
-	router.put( '/proposals/:id/state', async function ( request, response )
+	// A plan's state: one of its project's States, set by anyone at any time. { State }
+	router.put( '/plans/:id/state', async function ( request, response )
 	{
 		let wanted = ( request.body || {} ).State;
 		let id = request.params.id;
@@ -544,24 +544,24 @@ function Attach( App, Context )
 		}
 		let result = await store.Queue( id, async function ()
 		{
-			let read = await store.ReadProposal( id );
+			let read = await store.ReadPlan( id );
 			if ( !read )
 			{
-				return fail( response, 404, 'no such proposal' );
+				return fail( response, 404, 'no such plan' );
 			}
-			if ( is_document( read.Proposal ) )
+			if ( is_document( read.Plan ) )
 			{
 				return fail( response, 409, 'a Document has no State' );
 			}
-			let proposal = await store.UpdateProposal( id, { State: wanted } );
-			return summarize( proposal, read.Threads, request.Participant.Name );
+			let plan = await store.UpdatePlan( id, { State: wanted } );
+			return summarize( plan, read.Threads, request.Participant.Name );
 		} );
 		if ( !result )
 		{
 			return;
 		}
 		changed( id, 'state' );
-		response.json( { Proposal: result } );
+		response.json( { Plan: result } );
 	} );
 
 
@@ -611,20 +611,20 @@ function Attach( App, Context )
 	async function present_projects( projects, name )
 	{
 		let views = {};
-		for ( let proposal of await store.ListProposals() )
+		for ( let plan of await store.ListPlans() )
 		{
-			let read = await store.ReadProposal( proposal.Id );
-			let summary = summarize( proposal, read ? read.Threads : [], name );
-			views[ proposal.Id ] = { Title: summary.Title, State: summary.State, Tally: summary.Tally, StateLine: summary.StateLine, Created: summary.Created, Updated: summary.Updated };
+			let read = await store.ReadPlan( plan.Id );
+			let summary = summarize( plan, read ? read.Threads : [], name );
+			views[ plan.Id ] = { Title: summary.Title, State: summary.State, Tally: summary.Tally, StateLine: summary.StateLine, Created: summary.Created, Updated: summary.Updated };
 		}
 		for ( let project of projects )
 		{
 			for ( let id of TREE.ItemIds( project.Archive || [] ) )
 			{
-				let read = await store.ReadProposal( id );
+				let read = await store.ReadPlan( id );
 				if ( read )
 				{
-					let summary = summarize( read.Proposal, read.Threads, name );
+					let summary = summarize( read.Plan, read.Threads, name );
 					views[ id ] = { Title: summary.Title, State: summary.State, Tally: summary.Tally, StateLine: summary.StateLine, Created: summary.Created, Updated: summary.Updated, Archived: true };
 				}
 			}
@@ -632,7 +632,7 @@ function Attach( App, Context )
 		let empty = {};
 		for ( let project of projects )
 		{
-			let read = project.Context ? await store.ReadProposal( project.Context ) : null;
+			let read = project.Context ? await store.ReadPlan( project.Context ) : null;
 			empty[ project.Id ] = !read || !read.Text.trim();
 		}
 		return projects.map( function ( project )
@@ -752,10 +752,10 @@ function Attach( App, Context )
 			{
 				for ( let id of TREE.ItemIds( project.Items ) )
 				{
-					let read = await store.ReadProposal( id );
-					if ( read && read.Proposal.Kind === 'plan' && read.Proposal.State && !fields.Values.States.includes( read.Proposal.State ) )
+					let read = await store.ReadPlan( id );
+					if ( read && read.Plan.Kind === 'plan' && read.Plan.State && !fields.Values.States.includes( read.Plan.State ) )
 					{
-						return refused( 400, 'the state "' + read.Proposal.State + '" is used by the plan "' + read.Proposal.Title + '"' );
+						return refused( 400, 'the state "' + read.Plan.State + '" is used by the plan "' + read.Plan.Title + '"' );
 					}
 				}
 			}
@@ -1130,9 +1130,9 @@ function Attach( App, Context )
 			else
 			{
 				// The items' folders follow into the other project's .consensus (plan Run Shapes, Step 2).
-				for ( let moved of proposal_ids_of( node ) )
+				for ( let moved of plan_ids_of( node ) )
 				{
-					await store.Queue( moved, function () { return store.MoveProposal( moved, where.Project ); } );
+					await store.Queue( moved, function () { return store.MovePlan( moved, where.Project ); } );
 				}
 			}
 		}
@@ -1197,13 +1197,13 @@ function Attach( App, Context )
 		}
 		if ( node.Kind === 'plan' || node.Kind === 'document' )
 		{
-			let proposal = await store.Queue( node.Id, function () { return store.CopyProposal( node.Id, project_id ); } );
-			if ( !proposal )
+			let plan = await store.Queue( node.Id, function () { return store.CopyPlan( node.Id, project_id ); } );
+			if ( !plan )
 			{
-				return refused( 404, 'no such proposal: ' + node.Id );
+				return refused( 404, 'no such plan: ' + node.Id );
 			}
-			changed( proposal.Id, 'created' );
-			let copied = { Kind: node.Kind, Id: proposal.Id };
+			changed( plan.Id, 'created' );
+			let copied = { Kind: node.Kind, Id: plan.Id };
 			if ( Array.isArray( node.Items ) && node.Items.length )
 			{
 				copied.Items = [];
@@ -1258,9 +1258,9 @@ function Attach( App, Context )
 		{
 			return send_result( response, result );
 		}
-		for ( let archived of proposal_ids_of( node ) )
+		for ( let archived of plan_ids_of( node ) )
 		{
-			await store.Queue( archived, function () { return store.ArchiveProposal( archived ); } );
+			await store.Queue( archived, function () { return store.ArchivePlan( archived ); } );
 			changed( archived, 'archived' );
 		}
 		response.json( { Project: result.Project, Node: node } );
@@ -1290,9 +1290,9 @@ function Attach( App, Context )
 		{
 			return send_result( response, result );
 		}
-		for ( let restored of proposal_ids_of( node ) )
+		for ( let restored of plan_ids_of( node ) )
 		{
-			await store.Queue( restored, function () { return store.RestoreProposal( restored ); } );
+			await store.Queue( restored, function () { return store.RestorePlan( restored ); } );
 			changed( restored, 'restored' );
 		}
 		response.json( { Project: result.Project, Node: node } );
@@ -1302,18 +1302,18 @@ function Attach( App, Context )
 	//-----------------------------------------------------------------
 	// Revisions: the record.
 
-	router.get( '/proposals/:id/revisions', async function ( request, response )
+	router.get( '/plans/:id/revisions', async function ( request, response )
 	{
-		let read = await store.ReadProposal( request.params.id );
+		let read = await store.ReadPlan( request.params.id );
 		if ( !read )
 		{
-			return fail( response, 404, 'no such proposal' );
+			return fail( response, 404, 'no such plan' );
 		}
 		response.json( { Revisions: await store.ListRevisions( request.params.id ) } );
 	} );
 
 
-	router.get( '/proposals/:id/revisions/:n', async function ( request, response )
+	router.get( '/plans/:id/revisions/:n', async function ( request, response )
 	{
 		let revision = await store.ReadRevision( request.params.id, parseInt( request.params.n, 10 ) );
 		if ( !revision )
@@ -1327,12 +1327,12 @@ function Attach( App, Context )
 	//-----------------------------------------------------------------
 	// Threads
 
-	router.get( '/proposals/:id/threads', async function ( request, response )
+	router.get( '/plans/:id/threads', async function ( request, response )
 	{
-		let read = await store.ReadProposal( request.params.id );
+		let read = await store.ReadPlan( request.params.id );
 		if ( !read )
 		{
-			return fail( response, 404, 'no such proposal' );
+			return fail( response, 404, 'no such plan' );
 		}
 		let name = request.Participant.Name;
 		let filtered = RULES.Filter( read.Threads, request.query.status, participants(), name );
@@ -1346,7 +1346,7 @@ function Attach( App, Context )
 
 	// A new thread: the first reply is the comment. Anchor is { Text, Prefix?, Suffix? } or null for the whole document.
 	// With Resolve (the owner's Comment and resolve), it is posted resolved, the comment being its outcome.
-	router.post( '/proposals/:id/threads', async function ( request, response )
+	router.post( '/plans/:id/threads', async function ( request, response )
 	{
 		let body = request.body || {};
 		let text = text_of( body.Text ).trim();
@@ -1363,18 +1363,18 @@ function Attach( App, Context )
 	} );
 
 
-	// A new thread on a proposal, on Anchor ({ Text, Prefix?, Suffix? }, found in the text) or the whole document.
+	// A new thread on a plan, on Anchor ({ Text, Prefix?, Suffix? }, found in the text) or the whole document.
 	// With Resolve (the owner's Comment and resolve), resolved as it is posted. Returns { Thread } or a refusal.
 	async function create_thread( id, participant, text, anchor_given, resolve )
 	{
 		let result = await store.Queue( id, async function ()
 		{
-			let read = await store.ReadProposal( id );
+			let read = await store.ReadPlan( id );
 			if ( !read )
 			{
-				return refused( 404, 'no such proposal' );
+				return refused( 404, 'no such plan' );
 			}
-			if ( is_document( read.Proposal ) )
+			if ( is_document( read.Plan ) )
 			{
 				return refused( 409, 'a Document has no threads' );
 			}
@@ -1384,7 +1384,7 @@ function Attach( App, Context )
 				anchor = place_anchor( anchor_given, read.Text );
 				if ( !anchor )
 				{
-					return refused( 400, 'the anchor text was not found in the proposal' );
+					return refused( 400, 'the anchor text was not found in the plan' );
 				}
 			}
 			let at = now();
@@ -1410,7 +1410,7 @@ function Attach( App, Context )
 			}
 			read.Threads.push( thread );
 			await store.WriteThreads( id, read.Threads );
-			await store.UpdateProposal( id, {} );
+			await store.UpdatePlan( id, {} );
 			return { Thread: present_threads( [ thread ], read.Text, participant.Name )[ 0 ] };
 		} );
 		if ( !result.Refused )
@@ -1428,10 +1428,10 @@ function Attach( App, Context )
 	{
 		let result = await store.Queue( id, async function ()
 		{
-			let read = await store.ReadProposal( id );
+			let read = await store.ReadPlan( id );
 			if ( !read )
 			{
-				return refused( 404, 'no such proposal' );
+				return refused( 404, 'no such plan' );
 			}
 			let thread = find_thread( read, thread_id );
 			if ( !thread )
@@ -1456,7 +1456,7 @@ function Attach( App, Context )
 				Object.assign( thread, RULES.ResolveEffect( participant, now() ) );
 			}
 			await store.WriteThreads( id, read.Threads );
-			await store.UpdateProposal( id, {} );
+			await store.UpdatePlan( id, {} );
 			return { Thread: present_threads( [ thread ], read.Text, participant.Name )[ 0 ], Reopened: effect.Reopen, Resolved: !!resolve };
 		} );
 		if ( !result.Refused )
@@ -1469,7 +1469,7 @@ function Attach( App, Context )
 
 
 	// Body = { Text, Resolve? }  Resolve: true is the owner's Reply and resolve.
-	router.post( '/proposals/:id/threads/:tid/replies', async function ( request, response )
+	router.post( '/plans/:id/threads/:tid/replies', async function ( request, response )
 	{
 		let body = request.body || {};
 		let text = text_of( body.Text ).trim();
@@ -1487,16 +1487,16 @@ function Attach( App, Context )
 
 
 	// Re-anchor a thread, detached or not, to a passage of the current text.
-	router.post( '/proposals/:id/threads/:tid/anchor', async function ( request, response )
+	router.post( '/plans/:id/threads/:tid/anchor', async function ( request, response )
 	{
 		let body = request.body || {};
 		let id = request.params.id;
 		let result = await store.Queue( id, async function ()
 		{
-			let read = await store.ReadProposal( id );
+			let read = await store.ReadPlan( id );
 			if ( !read )
 			{
-				return fail( response, 404, 'no such proposal' );
+				return fail( response, 404, 'no such plan' );
 			}
 			let thread = read.Threads.find( function ( candidate ) { return candidate.Id === request.params.tid; } );
 			if ( !thread )
@@ -1506,7 +1506,7 @@ function Attach( App, Context )
 			let anchor = place_anchor( body.Anchor, read.Text );
 			if ( !anchor )
 			{
-				return fail( response, 400, 'the anchor text was not found in the proposal' );
+				return fail( response, 400, 'the anchor text was not found in the plan' );
 			}
 			thread.Anchor = anchor;
 			thread.Detached = false;
@@ -1523,15 +1523,15 @@ function Attach( App, Context )
 
 
 	// Resolve: owner only, contested threads only. Resolving accepts the outcome stated in the last reply.
-	router.post( '/proposals/:id/threads/:tid/resolve', async function ( request, response )
+	router.post( '/plans/:id/threads/:tid/resolve', async function ( request, response )
 	{
 		let id = request.params.id;
 		let result = await store.Queue( id, async function ()
 		{
-			let read = await store.ReadProposal( id );
+			let read = await store.ReadPlan( id );
 			if ( !read )
 			{
-				return fail( response, 404, 'no such proposal' );
+				return fail( response, 404, 'no such plan' );
 			}
 			let thread = read.Threads.find( function ( candidate ) { return candidate.Id === request.params.tid; } );
 			if ( !thread )
@@ -1557,15 +1557,15 @@ function Attach( App, Context )
 
 
 	// Delete: owner only, any thread. The revisions that applied it keep their text and their Thread id.
-	router.delete( '/proposals/:id/threads/:tid', async function ( request, response )
+	router.delete( '/plans/:id/threads/:tid', async function ( request, response )
 	{
 		let id = request.params.id;
 		let result = await store.Queue( id, async function ()
 		{
-			let read = await store.ReadProposal( id );
+			let read = await store.ReadPlan( id );
 			if ( !read )
 			{
-				return fail( response, 404, 'no such proposal' );
+				return fail( response, 404, 'no such plan' );
 			}
 			let can = RULES.CanDeleteThread( request.Participant );
 			if ( !can.Ok )
@@ -1579,7 +1579,7 @@ function Attach( App, Context )
 			}
 			read.Threads.splice( index, 1 );
 			await store.WriteThreads( id, read.Threads );
-			await store.UpdateProposal( id, {} );
+			await store.UpdatePlan( id, {} );
 			return { Id: request.params.tid };
 		} );
 		if ( !result )
@@ -1593,7 +1593,7 @@ function Attach( App, Context )
 
 	// Apply: a resolved thread's outcome goes into the text. Body = { Text?, Outcome, Revision, Anchor? }
 	// With Text: a new revision tied to the thread, made from Revision (409 when stale). Without: the outcome alone.
-	// Anchor, when given, points the thread at the passage the change produced. Returns { Thread, Proposal } or
+	// Anchor, when given, points the thread at the passage the change produced. Returns { Thread, Plan } or
 	// { Refused: { Status, Error, Extra } }.
 	async function apply_outcome( id, thread_id, participant, body )
 	{
@@ -1604,10 +1604,10 @@ function Attach( App, Context )
 		}
 		let result = await store.Queue( id, async function ()
 		{
-			let read = await store.ReadProposal( id );
+			let read = await store.ReadPlan( id );
 			if ( !read )
 			{
-				return refused( 404, 'no such proposal' );
+				return refused( 404, 'no such plan' );
 			}
 			let thread = find_thread( read, thread_id );
 			if ( !thread )
@@ -1619,23 +1619,23 @@ function Attach( App, Context )
 			{
 				return refused( 409, can.Reason );
 			}
-			let proposal = read.Proposal;
+			let plan = read.Plan;
 			let changed_text = ( typeof body.Text === 'string' && body.Text !== read.Text );
 			let text = changed_text ? body.Text : read.Text;
-			if ( changed_text && body.Revision !== proposal.Revision )
+			if ( changed_text && body.Revision !== plan.Revision )
 			{
-				return refused( 409, 'the text changed since revision ' + body.Revision + '; reload and apply again', { Revision: proposal.Revision } );
+				return refused( 409, 'the text changed since revision ' + body.Revision + '; reload and apply again', { Revision: plan.Revision } );
 			}
 			// The anchor is placed in the text it will point into before anything is written, so a refusal leaves
-			// the proposal as it was.
+			// the plan as it was.
 			let anchor = body.Anchor ? place_anchor( body.Anchor, text ) : null;
 			if ( body.Anchor && !anchor )
 			{
-				return refused( 400, 'the anchor text was not found in the proposal' );
+				return refused( 400, 'the anchor text was not found in the plan' );
 			}
 			if ( changed_text )
 			{
-				proposal = await store.WriteText( id, { Text: body.Text, By: participant.Name, Reason: 'apply', Thread: thread.Id } );
+				plan = await store.WriteText( id, { Text: body.Text, By: participant.Name, Reason: 'apply', Thread: thread.Id } );
 				refind( read.Threads, text );
 			}
 			if ( anchor )
@@ -1643,9 +1643,9 @@ function Attach( App, Context )
 				thread.Anchor = anchor;
 				thread.Detached = false;
 			}
-			Object.assign( thread, RULES.ApplyEffect( participant, now(), proposal.Revision, proposal.Head || null, outcome ) );
+			Object.assign( thread, RULES.ApplyEffect( participant, now(), plan.Revision, plan.Head || null, outcome ) );
 			await store.WriteThreads( id, read.Threads );
-			return { Thread: present_threads( [ thread ], text, participant.Name )[ 0 ], Proposal: summarize( proposal, read.Threads, participant.Name ) };
+			return { Thread: present_threads( [ thread ], text, participant.Name )[ 0 ], Plan: summarize( plan, read.Threads, participant.Name ) };
 		} );
 		if ( !result.Refused )
 		{
@@ -1655,7 +1655,7 @@ function Attach( App, Context )
 	}
 
 
-	router.post( '/proposals/:id/threads/:tid/apply', async function ( request, response )
+	router.post( '/plans/:id/threads/:tid/apply', async function ( request, response )
 	{
 		let result = await apply_outcome( request.params.id, request.params.tid, request.Participant, request.body || {} );
 		if ( result.Refused )
@@ -1667,16 +1667,16 @@ function Attach( App, Context )
 
 
 	//-----------------------------------------------------------------
-	// Waiting: everything waiting on the caller, across proposals.
+	// Waiting: everything waiting on the caller, across plans.
 
 	router.get( '/waiting', async function ( request, response )
 	{
 		let name = request.Participant.Name;
 		let all = participants();
 		let waiting = [];
-		for ( let proposal of await store.ListProposals() )
+		for ( let plan of await store.ListPlans() )
 		{
-			let read = await store.ReadProposal( proposal.Id );
+			let read = await store.ReadPlan( plan.Id );
 			if ( !read )
 			{
 				continue;
@@ -1684,7 +1684,7 @@ function Attach( App, Context )
 			let threads = RULES.WaitingOn( name, read.Threads, all );
 			for ( let thread of present_threads( threads, read.Text, name ) )
 			{
-				waiting.push( { Proposal: { Id: proposal.Id, Title: proposal.Title, State: proposal.State, Revision: proposal.Revision }, Thread: thread } );
+				waiting.push( { Plan: { Id: plan.Id, Title: plan.Title, State: plan.State, Revision: plan.Revision }, Thread: thread } );
 			}
 		}
 		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Waiting: waiting } );

@@ -111,7 +111,7 @@ function Runner( Options )
 		let threads = [];
 		if ( request.Plan )
 		{
-			let read = await store.ReadProposal( request.Plan );
+			let read = await store.ReadPlan( request.Plan );
 			if ( !read )
 			{
 				return { Error: 'no plan with the id ' + request.Plan };
@@ -164,10 +164,10 @@ function Runner( Options )
 		let readme = null;
 		if ( llm.Checks.Readme && project.Context )
 		{
-			let read = await store.ReadProposal( project.Context );
+			let read = await store.ReadPlan( project.Context );
 			if ( read )
 			{
-				readme = { Id: project.Context, Title: read.Proposal.Title, Text: read.Text };
+				readme = { Id: project.Context, Title: read.Plan.Title, Text: read.Text };
 			}
 		}
 		let instructions = null;
@@ -186,12 +186,12 @@ function Runner( Options )
 		let threads = [];
 		if ( request.Plan )
 		{
-			let read = await store.ReadProposal( request.Plan );
-			if ( !read || read.Proposal.Kind !== 'plan' )
+			let read = await store.ReadPlan( request.Plan );
+			if ( !read || read.Plan.Kind !== 'plan' )
 			{
 				return { Error: 'no plan with the id ' + request.Plan };
 			}
-			plan = { Id: read.Proposal.Id, Title: read.Proposal.Title, State: read.Proposal.State };
+			plan = { Id: read.Plan.Id, Title: read.Plan.Title, State: read.Plan.State };
 			threads = waiting_threads( read, participant ).filter( function ( thread ) { return !llm.Unchecked.Threads.includes( thread.Id ); } );
 		}
 		else if ( request.Kind !== 'session' )

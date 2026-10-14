@@ -150,7 +150,7 @@ function Build( Request )
 	if ( checks.Documents && request.Documents && request.Documents.length )
 	{
 		heading( lines, 'Other documents of the Context folder' );
-		lines.push( request.DocumentsHint || 'Read one through the API: GET /api/proposals/<id>.' );
+		lines.push( request.DocumentsHint || 'Read one through the API: GET /api/plans/<id>.' );
 		lines.push( '' );
 		for ( let document of request.Documents )
 		{

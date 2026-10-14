@@ -18,7 +18,7 @@ angular.module( 'Consensus' ).controller( 'RevisionsController', [ '$scope', 'St
 		}
 		let answer = await State.Act( function ()
 		{
-			return Client.Get( '/api/proposals/' + encodeURIComponent( State.OpenId ) + '/revisions' );
+			return Client.Get( '/api/plans/' + encodeURIComponent( State.OpenId ) + '/revisions' );
 		} );
 		$scope.Revisions = answer ? answer.Revisions.slice().reverse() : [];
 		let current = $scope.Revisions.find( function ( revision ) { return $scope.Shown && revision.Revision === $scope.Shown.Revision; } );
@@ -37,7 +37,7 @@ angular.module( 'Consensus' ).controller( 'RevisionsController', [ '$scope', 'St
 		}
 		let answer = await State.Act( function ()
 		{
-			return Client.Get( '/api/proposals/' + encodeURIComponent( State.OpenId ) + '/revisions/' + revision.Revision );
+			return Client.Get( '/api/plans/' + encodeURIComponent( State.OpenId ) + '/revisions/' + revision.Revision );
 		} );
 		if ( answer )
 		{
@@ -96,7 +96,7 @@ angular.module( 'Consensus' ).controller( 'RevisionsController', [ '$scope', 'St
 		}
 	} );
 
-	$scope.$on( 'proposal-loaded', function ()
+	$scope.$on( 'plan-loaded', function ()
 	{
 		if ( State.View === 'revisions' )
 		{
@@ -104,7 +104,7 @@ angular.module( 'Consensus' ).controller( 'RevisionsController', [ '$scope', 'St
 		}
 		else
 		{
-			// another proposal's list is never shown, even for a moment, when the view comes back
+			// another plan's list is never shown, even for a moment, when the view comes back
 			$scope.Shown = null;
 			$scope.Revisions = [];
 		}

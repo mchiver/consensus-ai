@@ -232,11 +232,11 @@ async function rename_state( store, settings )
 		}
 	}
 	let count = 0;
-	for ( let proposal of await store.ListProposals() )
+	for ( let plan of await store.ListPlans() )
 	{
-		if ( proposal.Kind === 'plan' && proposal.State === from )
+		if ( plan.Kind === 'plan' && plan.State === from )
 		{
-			await store.UpdateProposal( proposal.Id, { State: to } );
+			await store.UpdatePlan( plan.Id, { State: to } );
 			count += 1;
 		}
 	}

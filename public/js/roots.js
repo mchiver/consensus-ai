@@ -6,10 +6,10 @@
 // through the desktop's forwarding at /servers/<key>. In a browser there is one root, the page's own origin, Key ""
 // and today's routes. What is one at a time (the open item, the view, the selection) is State's, which names its root.
 //
-//   root = { Key, Name, Url, Kind: 'local' | 'server' | 'browser', Version, Base, Me, Participants, States, Proposals,
+//   root = { Key, Name, Url, Kind: 'local' | 'server' | 'browser', Version, Base, Me, Participants, States, Plans,
 //            Projects, Live, Error, Loaded }
 //   Roots  { List, Of( key ), HashFor( root, path ), Address( root ), LoadMe( root ), LoadList( root ),
-//            Listen( root, on_change, on_status ), ByProject( id ), ByProposal( id ), Several() }
+//            Listen( root, on_change, on_status ), ByProject( id ), ByPlan( id ), Several() }
 
 angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', function ( $rootScope, Client )
 {
@@ -29,7 +29,7 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 			Me: null,
 			Participants: [],
 			States: [],
-			Proposals: [],
+			Plans: [],
 			Projects: [],
 			Live: false,
 			Error: null,
@@ -99,7 +99,7 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 	}
 
 
-	// The proposals (for the counts) and the projects with their trees (for the sidebar), together; each project
+	// The plans (for the counts) and the projects with their trees (for the sidebar), together; each project
 	// marked with its root. Loads overlap when changes come quickly: an older answer arriving after a newer one is
 	// dropped, so the list never goes back.
 	async function LoadList( Root )
@@ -109,7 +109,7 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 		let answers = null;
 		try
 		{
-			answers = await Promise.all( [ Client.Get( Root, '/api/proposals' ), Client.Get( Root, '/api/projects' ) ] );
+			answers = await Promise.all( [ Client.Get( Root, '/api/plans' ), Client.Get( Root, '/api/projects' ) ] );
 		}
 		catch ( error )
 		{
@@ -121,7 +121,7 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 		{
 			return;
 		}
-		Root.Proposals = answers[ 0 ].Proposals;
+		Root.Plans = answers[ 0 ].Plans;
 		Root.Projects = answers[ 1 ].Projects.map( function ( project ) { project.Root = Root.Key; return project; } );
 		Root.Loaded = true;
 		Root.Error = null;
@@ -145,9 +145,9 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 	}
 
 
-	function ByProposal( Id )
+	function ByPlan( Id )
 	{
-		return roots.List.find( function ( root ) { return root.Proposals.some( function ( proposal ) { return proposal.Id === Id; } ); } ) || null;
+		return roots.List.find( function ( root ) { return root.Plans.some( function ( plan ) { return plan.Id === Id; } ); } ) || null;
 	}
 
 
@@ -159,6 +159,6 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 	roots.LoadList = LoadList;
 	roots.Listen = Listen;
 	roots.ByProject = ByProject;
-	roots.ByProposal = ByProposal;
+	roots.ByPlan = ByPlan;
 	return roots;
 } ] );

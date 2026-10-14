@@ -1,7 +1,7 @@
 'use strict';
 
 // Consensus - the one AngularJS module. State holds what is one at a time (the open item, the view, the selection)
-// and names its root; the roots (roots.js, plan Run Shapes, Step 5) hold each server's participants, proposals and
+// and names its root; the roots (roots.js, plan Run Shapes, Step 5) hold each server's participants, plans and
 // projects. AppController wires the hash routes (#/p/<id>, #/llm/<id>, #/waiting, under #/s/<key> for a named
 // root) and each root's live stream. Every rule is on the server.
 
@@ -105,7 +105,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	};
 
 
-	// The current root's participants, states, proposals, projects and liveness, as every pane read them when the
+	// The current root's participants, states, plans, projects and liveness, as every pane read them when the
 	// page had one server.
 	function of_root( field, fallback )
 	{
@@ -115,7 +115,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	Object.defineProperty( state, 'Me', { get: of_root( 'Me', null ), enumerable: true } );
 	Object.defineProperty( state, 'Participants', { get: of_root( 'Participants', [] ), enumerable: true } );
 	Object.defineProperty( state, 'States', { get: of_root( 'States', [] ), enumerable: true } );
-	Object.defineProperty( state, 'Proposals', { get: of_root( 'Proposals', [] ), enumerable: true } );
+	Object.defineProperty( state, 'Plans', { get: of_root( 'Plans', [] ), enumerable: true } );
 	Object.defineProperty( state, 'Projects', { get: of_root( 'Projects', [] ), enumerable: true } );
 	Object.defineProperty( state, 'Live', { get: of_root( 'Live', false ), enumerable: true } );
 
@@ -183,9 +183,9 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
-	// OpenProposal( id, view, root ): show it, on its root; OpenProposal( null, view ): a view without a proposal
+	// OpenPlan( id, view, root ): show it, on its root; OpenPlan( null, view ): a view without a plan
 	// (waiting, an LLM connection).
-	async function OpenProposal( Id, View, Root )
+	async function OpenPlan( Id, View, Root )
 	{
 		if ( Root && Root !== state.Root )
 		{
@@ -201,7 +201,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			state.Compose = null;
 			state.Reanchoring = null;
 			SetView( View || 'read' );
-			$rootScope.$broadcast( 'proposal-loaded' );
+			$rootScope.$broadcast( 'plan-loaded' );
 			digest();
 			return;
 		}
@@ -227,18 +227,18 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		{
 			return;
 		}
-		// Switching tabs quickly can leave an older load still on its way: an answer for a proposal that is no longer
+		// Switching tabs quickly can leave an older load still on its way: an answer for a plan that is no longer
 		// the open one is dropped, so it never shows over the newer one.
 		let id = state.OpenId;
 		try
 		{
-			let answer = await Client.Get( '/api/proposals/' + id );
+			let answer = await Client.Get( '/api/plans/' + id );
 			if ( id !== state.OpenId )
 			{
 				return;
 			}
 			state.Open = answer;
-			if ( answer.Project && answer.Proposal && answer.Proposal.Kind !== 'document' )
+			if ( answer.Project && answer.Plan && answer.Plan.Kind !== 'document' )
 			{
 				state.LastPlan[ answer.Project.Id ] = id;
 			}
@@ -253,7 +253,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			state.Open = null;
 			state.Error = error.message;
 		}
-		$rootScope.$broadcast( 'proposal-loaded' );
+		$rootScope.$broadcast( 'plan-loaded' );
 		digest();
 	}
 
@@ -351,7 +351,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
-	// Something to do once the next proposal is loaded: select a thread, or scroll to a passage.
+	// Something to do once the next plan is loaded: select a thread, or scroll to a passage.
 	function Pend( What )
 	{
 		state.Pending = What;
@@ -379,7 +379,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	state.SetRoot = SetRoot;
 	state.LoadMe = LoadMe;
 	state.LoadList = LoadList;
-	state.OpenProposal = OpenProposal;
+	state.OpenPlan = OpenPlan;
 	state.Reload = Reload;
 	state.SetView = SetView;
 	state.SetThreadsHidden = SetThreadsHidden;
@@ -540,10 +540,10 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		{
 			return null;
 		}
-		let proposal = /^#\/p\/([^/]+)$/.exec( rest );
-		if ( proposal )
+		let plan = /^#\/p\/([^/]+)$/.exec( rest );
+		if ( plan )
 		{
-			return { Kind: 'p', Id: decodeURIComponent( proposal[ 1 ] ), Root: root };
+			return { Kind: 'p', Id: decodeURIComponent( plan[ 1 ] ), Root: root };
 		}
 		let llm = /^#\/llm\/([^/]+)$/.exec( rest );
 		if ( llm )
@@ -572,7 +572,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 				$window.location.replace( last.Hash );
 				return;
 			}
-			State.OpenProposal( null );
+			State.OpenPlan( null );
 			return;
 		}
 		let info = { Kind: where.Kind, Id: where.Id, Root: where.Root.Key, Hash: hash };
@@ -583,7 +583,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			$window.history.replaceState( null, '', active ? active.Hash : '#' );
 			if ( !active )
 			{
-				State.OpenProposal( null );
+				State.OpenPlan( null );
 			}
 			return;
 		}
@@ -592,17 +592,17 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		State.OpenItem = null;
 		if ( where.Kind === 'p' )
 		{
-			State.OpenProposal( where.Id, undefined, where.Root ).then( function () { Tabs.RestoreView( tab ); } );
+			State.OpenPlan( where.Id, undefined, where.Root ).then( function () { Tabs.RestoreView( tab ); } );
 			return;
 		}
 		if ( where.Kind === 'llm' )
 		{
 			State.SetRoot( where.Root );
 			State.OpenItem = { Kind: 'llm', Id: where.Id, Root: where.Root.Key };
-			State.OpenProposal( null, 'llm' );
+			State.OpenPlan( null, 'llm' );
 			return;
 		}
-		State.OpenProposal( null, 'waiting' );
+		State.OpenPlan( null, 'waiting' );
 	}
 
 
@@ -629,9 +629,9 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		Roots.LoadList( root );
 		if ( event.Kind === 'trashed' )
 		{
-			Tabs.CloseItem( event.Proposal, root.Key );
+			Tabs.CloseItem( event.Plan, root.Key );
 		}
-		else if ( event.Proposal && event.Proposal === State.OpenId && root === State.Root )
+		else if ( event.Plan && event.Plan === State.OpenId && root === State.Root )
 		{
 			State.Reload();
 		}

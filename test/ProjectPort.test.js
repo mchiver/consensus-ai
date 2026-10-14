@@ -2,7 +2,7 @@
 
 // Project export and import (ProjectPort.js): a project on one server goes out as one json object and comes into
 // others. Merge is tried on its own; the rest through the API, over temporary folders. An export from before plan
-// Consensus Desktop (corpora, workers, a context proposal of Kind context) is read too. Nothing here reads ~data.
+// Consensus Desktop (corpora, workers, a context plan of Kind context) is read too. Nothing here reads ~data.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -63,14 +63,14 @@ async function project_of( server, id )
 
 async function text_of( server, id )
 {
-	return ( await call( server, 'GET', '/api/proposals/' + id ) ).Body;
+	return ( await call( server, 'GET', '/api/plans/' + id ) ).Body;
 }
 
 
 async function edit( server, id, text )
 {
 	let read = await text_of( server, id );
-	let result = await call( server, 'PUT', '/api/proposals/' + id + '/text', { Text: text, Revision: read.Proposal.Revision } );
+	let result = await call( server, 'PUT', '/api/plans/' + id + '/text', { Text: text, Revision: read.Plan.Revision } );
 	ASSERT.equal( result.Status, 200 );
 }
 
@@ -120,10 +120,10 @@ TEST.before( async function ()
 	alpha = ( await call( origin, 'POST', '/api/projects', { Name: 'Alpha' } ) ).Body.Project;
 	let folder = ( await call( origin, 'POST', '/api/projects/' + alpha.Id + '/folders', { Name: 'Drafts' } ) ).Body.Folder;
 	ids.Folder = folder.Id;
-	ids.Plan = ( await call( origin, 'POST', '/api/proposals', { Title: 'Plan', Text: '# Plan\n\nThe plan says the heron fishes at dawn.\n', Project: alpha.Id, Parent: folder.Id } ) ).Body.Proposal.Id;
-	ids.Subplan = ( await call( origin, 'POST', '/api/proposals', { Title: 'Subplan', Text: '# Subplan\n\nA smaller part.\n', Project: alpha.Id, Parent: ids.Plan } ) ).Body.Proposal.Id;
-	ids.Document = ( await call( origin, 'POST', '/api/proposals', { Title: 'Notes', Text: '# Notes\n\nSome notes.\n', Kind: 'document', Project: alpha.Id } ) ).Body.Proposal.Id;
-	ids.Thread = ( await call( origin, 'POST', '/api/proposals/' + ids.Plan + '/threads', { Anchor: { Text: 'fishes at dawn' }, Text: 'Why dawn?' } ) ).Body.Thread.Id;
+	ids.Plan = ( await call( origin, 'POST', '/api/plans', { Title: 'Plan', Text: '# Plan\n\nThe plan says the heron fishes at dawn.\n', Project: alpha.Id, Parent: folder.Id } ) ).Body.Plan.Id;
+	ids.Subplan = ( await call( origin, 'POST', '/api/plans', { Title: 'Subplan', Text: '# Subplan\n\nA smaller part.\n', Project: alpha.Id, Parent: ids.Plan } ) ).Body.Plan.Id;
+	ids.Document = ( await call( origin, 'POST', '/api/plans', { Title: 'Notes', Text: '# Notes\n\nSome notes.\n', Kind: 'document', Project: alpha.Id } ) ).Body.Plan.Id;
+	ids.Thread = ( await call( origin, 'POST', '/api/plans/' + ids.Plan + '/threads', { Anchor: { Text: 'fishes at dawn' }, Text: 'Why dawn?' } ) ).Body.Thread.Id;
 	await edit( origin, alpha.Context, '# Alpha\n\nThe context of Alpha.\n' );
 } );
 
@@ -146,7 +146,7 @@ TEST.after( async function ()
 
 //---------------------------------------------------------------------
 
-// A proposal whole for the merge tests: revisions [ [ Id, Parent, At, Text, Merged? ] ] in order.
+// A plan whole for the merge tests: revisions [ [ Id, Parent, At, Text, Merged? ] ] in order.
 function whole( revisions, threads )
 {
 	let records = revisions.map( function ( entry, index )
@@ -159,7 +159,7 @@ function whole( revisions, threads )
 		return record;
 	} );
 	let head = records[ records.length - 1 ];
-	return { Proposal: { Id: 'pln-aaa-bbb', Title: 'T', Kind: 'plan', State: 'Proposal', Revision: head.Revision, Updated: head.At }, Text: head.Text, Threads: threads || [], Revisions: records };
+	return { Plan: { Id: 'pln-aaa-bbb', Title: 'T', Kind: 'plan', State: 'Plan', Revision: head.Revision, Updated: head.At }, Text: head.Text, Threads: threads || [], Revisions: records };
 }
 
 
@@ -174,7 +174,7 @@ TEST( 'merge by revision id: a history that goes on is appended; one behind, or 
 	ASSERT.equal( ahead.Diverged, null );
 	ASSERT.equal( ahead.Revisions, 1 );
 	ASSERT.equal( ahead.Whole.Text, 'one, from A' );
-	ASSERT.equal( ahead.Whole.Proposal.Revision, 2 );
+	ASSERT.equal( ahead.Whole.Plan.Revision, 2 );
 	ASSERT.deepEqual( ahead.Whole.Revisions.map( function ( revision ) { return revision.Id; } ), [ R1[ 0 ], A2[ 0 ] ] );
 
 	let behind = PORT.Merge( whole( [ R1, A2 ] ), whole( [ R1 ] ) );
@@ -199,7 +199,7 @@ TEST( 'merge by revision id: a conflict keeps both edits, adds a merge revision 
 	ASSERT.deepEqual( revisions.map( function ( revision ) { return [ revision.Revision, revision.Id ]; } ), [ [ 1, R1[ 0 ] ], [ 2, B2[ 0 ] ], [ 3, A2[ 0 ] ], [ 4, 'rev-mmm-000-004' ] ] );
 	ASSERT.deepEqual( [ revisions[ 3 ].Parent, revisions[ 3 ].Merged, revisions[ 3 ].Reason ], [ B2[ 0 ], A2[ 0 ], 'merge' ] );
 	ASSERT.equal( into_b.Whole.Text, 'one, from B' );
-	ASSERT.equal( into_b.Whole.Proposal.Revision, 4 );
+	ASSERT.equal( into_b.Whole.Plan.Revision, 4 );
 
 	// B into A: the merge revision descends from A2, so A simply goes on to it; both end with the same text
 	let into_a = PORT.Merge( a, into_b.Whole, '2026-01-05', 'rev-never-used' );
@@ -243,7 +243,7 @@ TEST( 'check: a file that is not an export, or from a newer Consensus, is refuse
 	ASSERT.match( PORT.Check( null )[ 0 ], /not a json object/ );
 	ASSERT.match( PORT.Check( { Format: 'other' } )[ 0 ], /not a Consensus project export/ );
 	ASSERT.match( PORT.Check( { Format: PORT.FORMAT, Version: 99 } )[ 0 ], /newer Consensus/ );
-	let broken = { Format: PORT.FORMAT, Version: 1, Project: { Id: 'j1', Name: 'X', Context: 'p1', Items: [ { Kind: 'plan', Id: 'p2' } ] }, Proposals: [] };
+	let broken = { Format: PORT.FORMAT, Version: 1, Project: { Id: 'j1', Name: 'X', Context: 'p1', Items: [ { Kind: 'plan', Id: 'p2' } ] }, Plans: [] };
 	let problems = PORT.Check( broken );
 	ASSERT.ok( problems.some( function ( problem ) { return /names plan p2/.test( problem ); } ) );
 	ASSERT.ok( problems.some( function ( problem ) { return /Project.Context/.test( problem ); } ) );
@@ -259,7 +259,7 @@ TEST( 'export: the whole project, every revision, no token, no corpora; the owne
 
 	exported = await export_of( origin, alpha.Id );
 	ASSERT.equal( exported.Format, 'consensus-project' );
-	ASSERT.equal( exported.Version, 1 );
+	ASSERT.equal( exported.Version, 2 );
 	ASSERT.equal( exported.Project.Name, 'Alpha' );
 	ASSERT.equal( exported.Project.Context, alpha.Context );
 	ASSERT.equal( exported.Project.ContextFolder, alpha.ContextFolder );
@@ -268,17 +268,32 @@ TEST( 'export: the whole project, every revision, no token, no corpora; the owne
 	ASSERT.equal( 'Workers' in exported, false );
 	let json = JSON.stringify( exported );
 	ASSERT.equal( json.includes( llm_token ), false );
-	let proposal_ids = exported.Proposals.map( function ( whole ) { return whole.Proposal.Id; } ).sort();
-	ASSERT.deepEqual( proposal_ids, [ alpha.Context, ids.Plan, ids.Subplan, ids.Document ].sort() );
-	let context_whole = exported.Proposals.find( function ( whole ) { return whole.Proposal.Id === alpha.Context; } );
-	ASSERT.equal( context_whole.Proposal.Kind, 'document' );
+	let plan_ids = exported.Plans.map( function ( whole ) { return whole.Plan.Id; } ).sort();
+	ASSERT.deepEqual( plan_ids, [ alpha.Context, ids.Plan, ids.Subplan, ids.Document ].sort() );
+	let context_whole = exported.Plans.find( function ( whole ) { return whole.Plan.Id === alpha.Context; } );
+	ASSERT.equal( context_whole.Plan.Kind, 'document' );
 	ASSERT.equal( context_whole.Revisions.length, 2 );
 	ASSERT.equal( context_whole.Revisions[ 0 ].Text, '' );
-	let plan = exported.Proposals.find( function ( whole ) { return whole.Proposal.Id === ids.Plan; } );
+	let plan = exported.Plans.find( function ( whole ) { return whole.Plan.Id === ids.Plan; } );
 	ASSERT.equal( plan.Threads[ 0 ].Id, ids.Thread );
 	ASSERT.deepEqual( PORT.Check( exported ), [] );
 } );
 
+
+TEST( 'a Version 1 export (Proposals / Proposal) is read as Version 2 by Check and Normalize; the file is left as it is', function ()
+{
+	let old = JSON.parse( JSON.stringify( exported ) );
+	old.Version = 1;
+	old.Proposals = old.Plans.map( function ( whole ) { let whole_v1 = Object.assign( {}, whole ); whole_v1.Proposal = whole.Plan; delete whole_v1.Plan; return whole_v1; } );
+	delete old.Plans;
+	ASSERT.deepEqual( PORT.Check( old ), [] );
+	let normalized = PORT.Normalize( old );
+	ASSERT.equal( normalized.Version, 2 );
+	ASSERT.deepEqual( normalized.Plans.map( function ( whole ) { return whole.Plan.Id; } ), exported.Plans.map( function ( whole ) { return whole.Plan.Id; } ) );
+	ASSERT.equal( normalized.Proposals, undefined );
+	ASSERT.equal( old.Version, 1 );
+	ASSERT.equal( old.Plans, undefined );
+} );
 
 TEST( 'import of a project that is not here: every id intact, the Context folder and document as they were', async function ()
 {
@@ -309,7 +324,7 @@ TEST( 'import of a project that is not here: every id intact, the Context folder
 	ASSERT.equal( read.Threads[ 0 ].Detached, false );
 	ASSERT.equal( ( await text_of( copy, alpha.Context ) ).Text, '# Alpha\n\nThe context of Alpha.\n' );
 	ASSERT.equal( ( await text_of( copy, alpha.Context ) ).Context, true );
-	let revisions = ( await call( copy, 'GET', '/api/proposals/' + alpha.Context + '/revisions' ) ).Body;
+	let revisions = ( await call( copy, 'GET', '/api/plans/' + alpha.Context + '/revisions' ) ).Body;
 	ASSERT.equal( JSON.stringify( revisions ).includes( '"Revision":2' ), true );
 } );
 
@@ -330,8 +345,8 @@ TEST( 'merge existing, by the llm over the API: new revisions, replies and plans
 {
 	// the origin moves on: a new revision, a reply and a new plan in the folder
 	await edit( origin, ids.Plan, '# Plan\n\nThe plan says the heron fishes at dawn, and rests at noon.\n' );
-	await call( origin, 'POST', '/api/proposals/' + ids.Plan + '/threads/' + ids.Thread + '/replies', { Text: 'Because the light is low.' } );
-	let added = ( await call( origin, 'POST', '/api/proposals', { Title: 'Later', Text: '# Later\n\nAdded later.\n', Project: alpha.Id, Parent: ids.Folder } ) ).Body.Proposal.Id;
+	await call( origin, 'POST', '/api/plans/' + ids.Plan + '/threads/' + ids.Thread + '/replies', { Text: 'Because the light is low.' } );
+	let added = ( await call( origin, 'POST', '/api/plans', { Title: 'Later', Text: '# Later\n\nAdded later.\n', Project: alpha.Id, Parent: ids.Folder } ) ).Body.Plan.Id;
 	// the document is edited on both servers, the origin last
 	await edit( copy, ids.Document, '# Notes\n\nNotes kept here.\n' );
 	await edit( origin, ids.Document, '# Notes\n\nNotes kept there.\n' );
@@ -349,12 +364,12 @@ TEST( 'merge existing, by the llm over the API: new revisions, replies and plans
 	ASSERT.deepEqual( report.Diverged.map( function ( item ) { return [ item.Id, item.At ]; } ), [ [ ids.Document, 1 ] ] );
 	ASSERT.match( ( await text_of( copy, ids.Plan ) ).Text, /rests at noon/ );
 	ASSERT.equal( ( await text_of( copy, ids.Plan ) ).Threads[ 0 ].Replies.length, 2 );
-	ASSERT.equal( ( await text_of( copy, added ) ).Proposal.Title, 'Later' );
+	ASSERT.equal( ( await text_of( copy, added ) ).Plan.Title, 'Later' );
 	ASSERT.deepEqual( shape( ( await project_of( copy, alpha.Id ) ).Items ), shape( ( await project_of( origin, alpha.Id ) ).Items ) );
 	// the conflict: both edits kept, and a merge revision with the newer text, the origin's
 	let document_here = await text_of( copy, ids.Document );
 	ASSERT.match( document_here.Text, /kept there/ );
-	let history = ( await call( copy, 'GET', '/api/proposals/' + ids.Document + '/revisions' ) ).Body.Revisions;
+	let history = ( await call( copy, 'GET', '/api/plans/' + ids.Document + '/revisions' ) ).Body.Revisions;
 	ASSERT.deepEqual( history.map( function ( revision ) { return revision.Reason; } ), [ 'create', 'edit', 'edit', 'merge' ] );
 
 	// back the other way: the origin goes on to the merge revision, and both servers hold the same
@@ -365,7 +380,7 @@ TEST( 'merge existing, by the llm over the API: new revisions, replies and plans
 		let here = await text_of( copy, id );
 		let there = await text_of( origin, id );
 		ASSERT.equal( here.Text, there.Text );
-		ASSERT.equal( here.Proposal.Head, there.Proposal.Head );
+		ASSERT.equal( here.Plan.Head, there.Plan.Head );
 	}
 
 	// and again either way: nothing new
@@ -397,7 +412,7 @@ TEST( 'import as a copy: a new project named "Copy of …", every id new, the pr
 	ASSERT.deepEqual( shape( made.Items ).length, shape( ( await project_of( origin, alpha.Id ) ).Items ).length );
 	ASSERT.equal( ( await text_of( copy, made.Context.Id ) ).Text, '# Alpha\n\nThe context of Alpha.\n' );
 	let copied_plan = made.Items[ 1 ].Items.find( function ( node ) { return node.Items && node.Items.length; } );
-	ASSERT.equal( ( await text_of( copy, copied_plan.Id ) ).Proposal.Title, 'Plan' );
+	ASSERT.equal( ( await text_of( copy, copied_plan.Id ) ).Plan.Title, 'Plan' );
 	ASSERT.deepEqual( shape( ( await project_of( copy, alpha.Id ) ).Items ), shape( before.Items ) );
 } );
 
@@ -412,11 +427,11 @@ TEST( 'an export from before Consensus Desktop: corpora and workers dropped, the
 	older.Project.Items[ 0 ].Items.push( { Kind: 'corpus', Id: 'cor-old-old-old' } );
 	older.Corpora = [ { Id: 'cor-old-old-old', Name: 'code', Files: [ { Path: 'a.md', Size: 3 } ] } ];
 	older.Workers = [ { Name: 'Box', Workspaces: [ 'Docs' ], Inference: [] } ];
-	for ( let whole of older.Proposals )
+	for ( let whole of older.Plans )
 	{
-		if ( whole.Proposal.Id === alpha.Context )
+		if ( whole.Plan.Id === alpha.Context )
 		{
-			whole.Proposal.Kind = 'context';
+			whole.Plan.Kind = 'context';
 		}
 	}
 	ASSERT.deepEqual( PORT.Check( older ), [] );
@@ -431,7 +446,7 @@ TEST( 'an export from before Consensus Desktop: corpora and workers dropped, the
 	ASSERT.deepEqual( here.Items[ 0 ].Items.map( function ( node ) { return node.Id; } ), [ alpha.Context, ids.Document ] );
 	ASSERT.equal( JSON.stringify( here.Items ).includes( 'cor-old-old-old' ), false );
 	let context = await text_of( bare, alpha.Context );
-	ASSERT.equal( context.Proposal.Kind, 'document' );
+	ASSERT.equal( context.Plan.Kind, 'document' );
 	ASSERT.equal( context.Context, true );
 	ASSERT.equal( context.Text, '# Alpha\n\nThe context of Alpha.\n' );
 } );
@@ -456,7 +471,7 @@ function ids_in( items )
 
 
 // The plan and document nodes under items, in tree order.
-function proposal_nodes( items )
+function plan_nodes( items )
 {
 	let found = [];
 	for ( let node of items )
@@ -467,7 +482,7 @@ function proposal_nodes( items )
 		}
 		if ( Array.isArray( node.Items ) )
 		{
-			found = found.concat( proposal_nodes( node.Items ) );
+			found = found.concat( plan_nodes( node.Items ) );
 		}
 	}
 	return found;
@@ -478,7 +493,7 @@ function proposal_nodes( items )
 async function counts_of( server, items )
 {
 	let counts = { Plans: 0, Documents: 0, Threads: 0 };
-	for ( let node of proposal_nodes( items ) )
+	for ( let node of plan_nodes( items ) )
 	{
 		let read = await text_of( server, node.Id );
 		counts[ ( node.Kind === 'plan' ) ? 'Plans' : 'Documents' ] += 1;
@@ -499,29 +514,29 @@ TEST( 'item export: a folder with its plans and subplans, a plan with its subpla
 {
 	let folder_file = await item_export_of( origin, ids.Folder );
 	ASSERT.equal( folder_file.Format, 'consensus-project' );
-	ASSERT.equal( folder_file.Version, 1 );
+	ASSERT.equal( folder_file.Version, 2 );
 	ASSERT.match( folder_file.Project.Id, /^prj-/ );
 	ASSERT.equal( folder_file.Project.Name, 'Drafts' );
 	ASSERT.equal( folder_file.Project.Context, null );
 	ASSERT.equal( folder_file.Project.ContextFolder, null );
 	let drafts = await drafts_folder();
 	ASSERT.deepEqual( shape( folder_file.Project.Items ), shape( [ drafts ] ) );
-	ASSERT.deepEqual( folder_file.Proposals.map( function ( whole ) { return whole.Proposal.Id; } ).sort(), proposal_nodes( [ drafts ] ).map( function ( node ) { return node.Id; } ).sort() );
-	ASSERT.equal( folder_file.Proposals.length >= 2, true );
+	ASSERT.deepEqual( folder_file.Plans.map( function ( whole ) { return whole.Plan.Id; } ).sort(), plan_nodes( [ drafts ] ).map( function ( node ) { return node.Id; } ).sort() );
+	ASSERT.equal( folder_file.Plans.length >= 2, true );
 	ASSERT.deepEqual( PORT.Check( folder_file ), [] );
 
 	let plan_file = await item_export_of( origin, ids.Plan );
 	ASSERT.equal( plan_file.Project.Name, 'Plan' );
 	ASSERT.deepEqual( shape( plan_file.Project.Items ), [ { Kind: 'plan', Id: ids.Plan, Items: [ { Kind: 'plan', Id: ids.Subplan } ] } ] );
-	ASSERT.equal( plan_file.Proposals.length, 2 );
-	let plan_whole = plan_file.Proposals.find( function ( whole ) { return whole.Proposal.Id === ids.Plan; } );
+	ASSERT.equal( plan_file.Plans.length, 2 );
+	let plan_whole = plan_file.Plans.find( function ( whole ) { return whole.Plan.Id === ids.Plan; } );
 	ASSERT.equal( plan_whole.Threads[ 0 ].Id, ids.Thread );
 	ASSERT.equal( plan_whole.Revisions.length >= 1, true );
 
 	let document_file = await item_export_of( origin, ids.Document );
 	ASSERT.equal( document_file.Project.Name, 'Notes' );
 	ASSERT.deepEqual( shape( document_file.Project.Items ), [ { Kind: 'document', Id: ids.Document } ] );
-	ASSERT.equal( document_file.Proposals.length, 1 );
+	ASSERT.equal( document_file.Plans.length, 1 );
 
 	ASSERT.equal( ( await call( origin, 'GET', '/api/items/' + alpha.Context + '/export' ) ).Status, 409 );
 	ASSERT.equal( ( await call( origin, 'GET', '/api/items/' + alpha.ContextFolder + '/export' ) ).Status, 409 );
@@ -565,7 +580,7 @@ TEST( 'import Into a root and Into a folder: new ids, the counts in the report, 
 		ASSERT.equal( ids_in( after.Items ).includes( id ), false );
 	}
 	let brought_plan = await text_of( bare, brought.Items[ 0 ].Id );
-	ASSERT.equal( brought_plan.Proposal.Title, 'Plan' );
+	ASSERT.equal( brought_plan.Plan.Title, 'Plan' );
 	ASSERT.equal( brought_plan.Text, ( await text_of( origin, ids.Plan ) ).Text );
 	ASSERT.equal( brought_plan.Threads.length >= 1, true );
 	ASSERT.equal( brought_plan.Threads[ 0 ].Id, ids.Thread );	// a thread keeps its id, as in a copy import
@@ -580,7 +595,7 @@ TEST( 'import Into a root and Into a folder: new ids, the counts in the report, 
 	ASSERT.equal( folder_after.Items.length, 1 );
 	ASSERT.equal( folder_after.Items[ 0 ].Kind, 'plan' );
 	ASSERT.equal( folder_after.Items[ 0 ].Items.length, 1 );
-	ASSERT.equal( ( await text_of( bare, folder_after.Items[ 0 ].Id ) ).Proposal.Title, 'Plan' );
+	ASSERT.equal( ( await text_of( bare, folder_after.Items[ 0 ].Id ) ).Plan.Title, 'Plan' );
 
 	// The same file again: another copy, new ids again.
 	let again = await import_into( bare, { Export: plan_file, Into: { Project: bare_home, Parent: target.Id } } );
@@ -613,11 +628,11 @@ TEST( 'import Into: a document goes into the Context folder only; a missing proj
 {
 	let home = await project_of( bare, bare_home );
 	let document_file = await item_export_of( origin, ids.Document );
-	let before = ( await call( bare, 'GET', '/api/proposals' ) ).Body;
+	let before = ( await call( bare, 'GET', '/api/plans' ) ).Body;
 	let at_root = await import_into( bare, { Export: document_file, Into: { Project: bare_home } } );
 	ASSERT.equal( at_root.Status, 400 );
 	ASSERT.match( at_root.Body.Problems[ 0 ], /does not take a document/ );
-	ASSERT.deepEqual( ( await call( bare, 'GET', '/api/proposals' ) ).Body, before );
+	ASSERT.deepEqual( ( await call( bare, 'GET', '/api/plans' ) ).Body, before );
 
 	let in_context = await import_into( bare, { Export: document_file, Into: { Project: bare_home, Parent: home.ContextFolder } } );
 	ASSERT.equal( in_context.Status, 201 );
@@ -625,7 +640,7 @@ TEST( 'import Into: a document goes into the Context folder only; a missing proj
 	let context_folder = ( await project_of( bare, bare_home ) ).Items[ 0 ];
 	ASSERT.equal( context_folder.Id, home.ContextFolder );
 	ASSERT.equal( context_folder.Items[ context_folder.Items.length - 1 ].Id, in_context.Body.Report.Into.Nodes[ 0 ] );
-	ASSERT.equal( ( await text_of( bare, in_context.Body.Report.Into.Nodes[ 0 ] ) ).Proposal.Title, 'Notes' );
+	ASSERT.equal( ( await text_of( bare, in_context.Body.Report.Into.Nodes[ 0 ] ) ).Plan.Title, 'Notes' );
 
 	let folder_file = await item_export_of( origin, ids.Folder );
 	ASSERT.equal( ( await import_into( bare, { Export: folder_file, Into: { Project: bare_home, Parent: home.ContextFolder } } ) ).Status, 400 );
@@ -651,7 +666,7 @@ TEST( 'an item\'s file imports as a new project too, with an empty Readme', asyn
 	ASSERT.equal( made.Items.length, 2 );
 	ASSERT.equal( made.Items[ 1 ].Name, 'Drafts' );
 	ASSERT.notEqual( made.Items[ 1 ].Id, ids.Folder );
-	ASSERT.equal( ( await text_of( bare, made.Items[ 1 ].Items[ 0 ].Id ) ).Proposal.Title, 'Plan' );
+	ASSERT.equal( ( await text_of( bare, made.Items[ 1 ].Items[ 0 ].Id ) ).Plan.Title, 'Plan' );
 
 	// A file with no plan here comes in as it is.
 	let fresh = await start();
@@ -661,7 +676,7 @@ TEST( 'an item\'s file imports as a new project too, with an empty Readme', asyn
 	let made_new = await project_of( fresh, as_new.Body.Report.Project.Id );
 	ASSERT.equal( made_new.Name, 'Drafts' );
 	ASSERT.equal( made_new.Items[ 1 ].Id, ids.Folder );
-	ASSERT.equal( ( await text_of( fresh, ids.Plan ) ).Proposal.Title, 'Plan' );
+	ASSERT.equal( ( await text_of( fresh, ids.Plan ) ).Plan.Title, 'Plan' );
 	await fresh.Close();
 
 	let document_file = await item_export_of( origin, ids.Document );

@@ -1,7 +1,7 @@
 'use strict';
 
-// Waiting view - everything waiting on you, across proposals and across every root (plan Run Shapes, Step 5),
-// grouped by proposal; each group names its server when the page shows more than one.
+// Waiting view - everything waiting on you, across plans and across every root (plan Run Shapes, Step 5),
+// grouped by plan; each group names its server when the page shows more than one.
 
 angular.module( 'Consensus' ).controller( 'WaitingController', [ '$scope', 'State', 'Client', 'Roots', function ( $scope, State, Client, Roots )
 {
@@ -37,11 +37,11 @@ angular.module( 'Consensus' ).controller( 'WaitingController', [ '$scope', 'Stat
 		let by_key = {};
 		for ( let item of items )
 		{
-			let key = item.Root.Key + '|' + item.Proposal.Id;
+			let key = item.Root.Key + '|' + item.Plan.Id;
 			let group = by_key[ key ];
 			if ( !group )
 			{
-				group = { Proposal: item.Proposal, Root: item.Root, Items: [] };
+				group = { Plan: item.Plan, Root: item.Root, Items: [] };
 				by_key[ key ] = group;
 				groups.push( group );
 			}

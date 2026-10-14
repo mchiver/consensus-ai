@@ -1,7 +1,7 @@
 'use strict';
 
 // Visible-text anchors: bold, links, lists, headings; an edit before the anchor, inside it, and one that removes it.
-// The thresholds were measured on the three Outline proposals at step 0 (2026-09-24).
+// The thresholds were measured on the three Outline plans at step 0 (2026-09-24).
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );

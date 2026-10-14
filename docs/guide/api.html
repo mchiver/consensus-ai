@@ -49,17 +49,17 @@
 <p>A reply on a thread:</p>
 <pre><code>curl -s -X POST -H &quot;Authorization: Bearer &lt;token&gt;&quot; -H &quot;Content-Type: application/json&quot; \
   -d &#39;{ &quot;Text&quot;: &quot;Agreed; the wording I will apply: ...&quot; }&#39; \
-  http://127.0.0.1:3500/api/proposals/&lt;plan id&gt;/threads/&lt;thread id&gt;/replies
+  http://127.0.0.1:3500/api/plans/&lt;plan id&gt;/threads/&lt;thread id&gt;/replies
 </code></pre>
 <p>Applying a resolved thread, with the new text of the whole plan and the revision it was made from:</p>
 <pre><code>curl -s -X POST -H &quot;Authorization: Bearer &lt;token&gt;&quot; -H &quot;Content-Type: application/json&quot; \
   -d &#39;{ &quot;Outcome&quot;: &quot;The section now says ...&quot;, &quot;Revision&quot;: 4, &quot;Text&quot;: &quot;# The plan\n\n...&quot; }&#39; \
-  http://127.0.0.1:3500/api/proposals/&lt;plan id&gt;/threads/&lt;thread id&gt;/apply
+  http://127.0.0.1:3500/api/plans/&lt;plan id&gt;/threads/&lt;thread id&gt;/apply
 </code></pre>
 <p>A new thread on a passage of the text:</p>
 <pre><code>curl -s -X POST -H &quot;Authorization: Bearer &lt;token&gt;&quot; -H &quot;Content-Type: application/json&quot; \
   -d &#39;{ &quot;Text&quot;: &quot;Is this the right default?&quot;, &quot;Anchor&quot;: { &quot;Text&quot;: &quot;the words to anchor to&quot; } }&#39; \
-  http://127.0.0.1:3500/api/proposals/&lt;plan id&gt;/threads
+  http://127.0.0.1:3500/api/plans/&lt;plan id&gt;/threads
 </code></pre>
 <p>An anchor&#39;s <code>Text</code> is matched against the text as it reads, without markdown marks: no backticks or asterisks.</p>
 <h2 id="the-routes">The routes</h2>
@@ -81,21 +81,21 @@ POST   /api/items/:id/move                       { Project, Parent?, Before? }
 POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id
 POST   /api/items/:id/archive                    a plan, with its Subplans, into the project&#39;s Archive, read-only
 POST   /api/items/:id/restore                    back to the project&#39;s root
-GET    /api/proposals[?state=]                   plans and documents with their tallies
-POST   /api/proposals                            { Title, Text, Kind?, State?, Project?, Parent? }
-GET    /api/proposals/:id                        text, threads with positions, tally, whose turn
-PUT    /api/proposals/:id                        { Title }
-PUT    /api/proposals/:id/state                  { State }
-PUT    /api/proposals/:id/text                   { Text, Revision }  a manual edit
-DELETE /api/proposals/:id                        to the trash
-GET    /api/proposals/:id/revisions[/:n]         the record; a revision&#39;s text
-GET    /api/proposals/:id/threads[?status=]      all | contested | resolved | applied | reopened | detached | mine
-POST   /api/proposals/:id/threads                { Anchor: { Text, Prefix?, Suffix? } | null, Text, Resolve? }
-POST   /api/proposals/:id/threads/:tid/replies   { Text, Resolve? }  reopens a resolved thread
-POST   /api/proposals/:id/threads/:tid/anchor    { Anchor }  re-anchor
-POST   /api/proposals/:id/threads/:tid/resolve   owner only
-DELETE /api/proposals/:id/threads/:tid           owner only
-POST   /api/proposals/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
+GET    /api/plans[?state=]                   plans and documents with their tallies
+POST   /api/plans                            { Title, Text, Kind?, State?, Project?, Parent? }
+GET    /api/plans/:id                        text, threads with positions, tally, whose turn
+PUT    /api/plans/:id                        { Title }
+PUT    /api/plans/:id/state                  { State }
+PUT    /api/plans/:id/text                   { Text, Revision }  a manual edit
+DELETE /api/plans/:id                        to the trash
+GET    /api/plans/:id/revisions[/:n]         the record; a revision&#39;s text
+GET    /api/plans/:id/threads[?status=]      all | contested | resolved | applied | reopened | detached | mine
+POST   /api/plans/:id/threads                { Anchor: { Text, Prefix?, Suffix? } | null, Text, Resolve? }
+POST   /api/plans/:id/threads/:tid/replies   { Text, Resolve? }  reopens a resolved thread
+POST   /api/plans/:id/threads/:tid/anchor    { Anchor }  re-anchor
+POST   /api/plans/:id/threads/:tid/resolve   owner only
+DELETE /api/plans/:id/threads/:tid           owner only
+POST   /api/plans/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
 GET    /api/trash                                what is there
 GET    /api/waiting                              everything waiting on the caller, in every project
 GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Participant, Running; the owner sees the whole records
@@ -110,7 +110,7 @@ POST   /api/runs                                 { Llm, Kind, Project, Plan? }  
 GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
 GET    /api/runs/:id                             the whole record, the output as it stands
 POST   /api/runs/:id/stop                        a running one stopped
-GET    /api/events                               Server-Sent Events: { Proposal | Project, Kind, Thread? }; { Kind: llms } and { Kind: run, Run, Llm, Status }
+GET    /api/events                               Server-Sent Events: { Plan | Project, Kind, Thread? }; { Kind: llms } and { Kind: run, Run, Llm, Status }
 </code></pre>
 <h2 id="the-rules-in-plain-words">The rules, in plain words</h2>
 <ul>
@@ -124,7 +124,7 @@ GET    /api/events                               Server-Sent Events: { Proposal 
 <li>A text change carries the revision it was made from; a stale one is refused with the current revision.</li>
 </ul>
 <h2 id="live-events">Live events</h2>
-<p><code>GET /api/events</code> is a stream of Server-Sent Events: one event per change, naming the proposal or project and the kind of change. The page uses it to stay in step; a client of your own can too.</p>
+<p><code>GET /api/events</code> is a stream of Server-Sent Events: one event per change, naming the plan or project and the kind of change. The page uses it to stay in step; a client of your own can too.</p>
 
 			</article>
 			<nav class="guide-pager">

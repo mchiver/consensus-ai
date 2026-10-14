@@ -1,0 +1,29 @@
+[
+	{
+		"Id": "thr-8iw-5ff-vnh",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-14T07:40:09.075Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-14T07:40:54.023Z",
+			"Revision": 1,
+			"RevisionId": "rev-hon-m6w-om2",
+			"Outcome": "Accepted by the owner. Committed as \"Plan Nomenclature\"; the plan is Finished; version 0.5.0."
+		},
+		"Created": "2026-10-14T07:35:36.408Z",
+		"Replies": [
+			{
+				"Id": "rep-219-kca-cgj",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-14T07:35:36.408Z",
+				"Text": "Build log: Plan Nomenclature (Claude Fable 5.1, 2026-10-14).\n\nWhat was built, in one pass over src, public, bin, desktop, test, docs/guide, the agent instructions and readme.md (1,328 replacements, by ordered word-boundary rules with the kept names protected, then reviewed):\n- The API: every /api/proposals route is /api/plans; the fields Proposal and Proposals are Plan and Plans in every answer, the waiting list and the events; the run package's hint names GET /api/plans/<id>. No aliases.\n- The export format: Version 2 with Plans / Plan. ProjectPort.Upgrade reads a Version 1 file (Proposals / Proposal) as Version 2 inside Check and Normalize, the file untouched; Export writes 2. docs/demo/recipe-box.json, the demo file, brought to Version 2 (its two plans in the retired state Proposal are Draft).\n- The code: Store (ListPlans, ReadPlan, CreatePlan, UpdatePlan, WriteWholePlan, CopyPlan, MovePlan, ArchivePlan, RestorePlan, TrashPlan), Api, Events, ProjectPort, Ids (ForPlan, PLAN_KINDS), Package, Runner, Tools (plan_of), Rules, Anchors, Participants; the page (State.Open.Plan, the plan-loaded broadcast, OpenPlan, ByPlan, open_plan, the kind \"plan\" in the sidebar's rename and delete, the classes new-plan, plan-item, plan-title, waiting-plan, the two visible texts); bin/docs.js; the tests, every file, with a new test of a Version 1 import.\n- Kept, as the plan says: the ids, /api/items, #/p/, the store's OLD_PROPOSALS_FOLDER and OLD_RETIRED_PROPOSAL_FILES with the old file names proposal.json and proposal.md the migration reads (restored after the pass, with their test fixtures), the migration constant RENAMED_STATE From \"Proposal\" (restored: the pass had made it From \"Plan\", which would have renamed the Plan state to Draft; the Server test caught it), and the history notes in the settings guide and the readme.\n- The documentation: api.md (routes and events), export-import.md (a Version 2 and Version 1 note), the rest of the guide, rebuilt; .guides/build-with-consensus.md; readme.md; package.json's description (\"work a draft through\"); the project Readme (revision 41: Purpose, Plan kinds, the glossary entry, the routes, a Settled decisions line, the test count).\n- Version 0.5.0 in package.json and desktop/package.json.\n\nHow it was tested:\n- node --check on every script after the pass; npm test: 181 pass, 0 fail (180 before; the Version 1 import test is new). The first run failed 3: the two export version assertions (1 to 2) and the state migration, fixed as above.\n- The done check: grep -ri proposal over src, public, bin, desktop, test, docs, .guides, readme.md and package.json leaves only the kept names and the Upgrade function that reads Version 1.\n\nNot committed. Your server at 3500 runs the code from before this build and still answers /api/proposals until it is restarted; after the restart the page and the API are the new ones. The plan stays Working until this log is resolved; then one commit, \"Plan Nomenclature\", the plan Finished. Push, redeploy and publish on your word."
+			}
+		]
+	}
+]

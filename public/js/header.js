@@ -18,7 +18,7 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 	};
 
 
-	// The title when no proposal is open: the waiting view, or an LLM connection of the server (plan Run Shapes, Step 3).
+	// The title when no plan is open: the waiting view, or an LLM connection of the server (plan Run Shapes, Step 3).
 	$scope.EmptyTitle = function ()
 	{
 		if ( State.View === 'waiting' )
@@ -43,14 +43,14 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 	// A plan has threads; a document has none, so it has no toggle.
 	$scope.HasThreads = function ()
 	{
-		return !!State.Open && State.Open.Proposal.Kind !== 'document';
+		return !!State.Open && State.Open.Plan.Kind !== 'document';
 	};
 
 
 	// A plan (not a document) takes Subplans.
 	$scope.IsPlan = function ()
 	{
-		return !!State.Open && ( State.Open.Proposal.Kind || 'plan' ) === 'plan';
+		return !!State.Open && ( State.Open.Plan.Kind || 'plan' ) === 'plan';
 	};
 
 
@@ -82,13 +82,13 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 	// The state picker: any of the settings' States, by anyone, at any time.
 	$scope.PickedState = null;
 
-	$scope.$watch( function () { return State.Open ? State.Open.Proposal.State : null; }, function ( current )
+	$scope.$watch( function () { return State.Open ? State.Open.Plan.State : null; }, function ( current )
 	{
 		$scope.PickedState = current;
 	} );
 
 
-	// The project's States (the settings' when it has none; plan Run Shapes, Step 2), plus the proposal's own when
+	// The project's States (the settings' when it has none; plan Run Shapes, Step 2), plus the plan's own when
 	// the list no longer names it.
 	$scope.StateOptions = function ()
 	{
@@ -98,32 +98,32 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 		{
 			states = project.States;
 		}
-		if ( !State.Open || states.includes( State.Open.Proposal.State ) )
+		if ( !State.Open || states.includes( State.Open.Plan.State ) )
 		{
 			return states;
 		}
-		return states.concat( [ State.Open.Proposal.State ] );
+		return states.concat( [ State.Open.Plan.State ] );
 	};
 
 
 	// An archived plan (plan Run Shapes, Step 2) is read and never written until it is restored from the tree.
 	$scope.IsArchived = function ()
 	{
-		return !!( State.Open && State.Open.Proposal && State.Open.Proposal.Archived );
+		return !!( State.Open && State.Open.Plan && State.Open.Plan.Archived );
 	};
 
 
 	$scope.SetState = async function ()
 	{
 		let wanted = $scope.PickedState;
-		if ( !State.Open || wanted === State.Open.Proposal.State )
+		if ( !State.Open || wanted === State.Open.Plan.State )
 		{
 			return;
 		}
 		$scope.Busy = true;
 		let answer = await State.Act( function ()
 		{
-			return Client.Put( '/api/proposals/' + encodeURIComponent( State.OpenId ) + '/state', { State: wanted } );
+			return Client.Put( '/api/plans/' + encodeURIComponent( State.OpenId ) + '/state', { State: wanted } );
 		} );
 		$scope.Busy = false;
 		if ( answer )
@@ -133,7 +133,7 @@ angular.module( 'Consensus' ).controller( 'HeaderController', [ '$scope', '$wind
 		}
 		else
 		{
-			$scope.PickedState = State.Open ? State.Open.Proposal.State : null;
+			$scope.PickedState = State.Open ? State.Open.Plan.State : null;
 		}
 		$scope.$applyAsync();
 	};

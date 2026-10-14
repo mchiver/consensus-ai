@@ -284,32 +284,32 @@ const BUILD_LOG = '**Build log** (Claude Code, Claude Opus 5.5)\n\n'
 async function seed_demo( Url )
 {
 	let project = ( await api( Url, 'POST', '/api/projects', { Name: 'Recipe Box' } ) ).Project;
-	let readme = ( await api( Url, 'GET', '/api/proposals/' + project.Context ) ).Proposal;
-	await api( Url, 'PUT', '/api/proposals/' + project.Context + '/text', { Text: README, Revision: readme.Revision } );
-	await api( Url, 'POST', '/api/proposals', { Title: 'Design notes', Text: DESIGN_NOTES, Kind: 'document', Project: project.Id } );
+	let readme = ( await api( Url, 'GET', '/api/plans/' + project.Context ) ).Plan;
+	await api( Url, 'PUT', '/api/plans/' + project.Context + '/text', { Text: README, Revision: readme.Revision } );
+	await api( Url, 'POST', '/api/plans', { Title: 'Design notes', Text: DESIGN_NOTES, Kind: 'document', Project: project.Id } );
 	let folder = ( await api( Url, 'POST', '/api/projects/' + project.Id + '/folders', { Name: 'Plans' } ) ).Folder;
-	let search = ( await api( Url, 'POST', '/api/proposals', { Title: 'Search', Text: SEARCH, Project: project.Id, Parent: folder.Id } ) ).Proposal;
-	let shopping = ( await api( Url, 'POST', '/api/proposals', { Title: 'Shopping list', Text: SHOPPING_LIST, Project: project.Id, Parent: folder.Id } ) ).Proposal;
-	await api( Url, 'POST', '/api/proposals', { Title: 'Quantities', Text: QUANTITIES, Project: project.Id, Parent: shopping.Id } );
+	let search = ( await api( Url, 'POST', '/api/plans', { Title: 'Search', Text: SEARCH, Project: project.Id, Parent: folder.Id } ) ).Plan;
+	let shopping = ( await api( Url, 'POST', '/api/plans', { Title: 'Shopping list', Text: SHOPPING_LIST, Project: project.Id, Parent: folder.Id } ) ).Plan;
+	await api( Url, 'POST', '/api/plans', { Title: 'Quantities', Text: QUANTITIES, Project: project.Id, Parent: shopping.Id } );
 
 	// Search: finished, with its build log applied.
-	let log = ( await api( Url, 'POST', '/api/proposals/' + search.Id + '/threads', { Text: BUILD_LOG, Anchor: null }, true ) ).Thread;
-	await api( Url, 'POST', '/api/proposals/' + search.Id + '/threads/' + log.Id + '/resolve', {} );
-	await api( Url, 'POST', '/api/proposals/' + search.Id + '/threads/' + log.Id + '/apply', { Outcome: 'The build was accepted as reported; no text change.' }, true );
-	await api( Url, 'PUT', '/api/proposals/' + search.Id + '/state', { State: 'Finished' } );
+	let log = ( await api( Url, 'POST', '/api/plans/' + search.Id + '/threads', { Text: BUILD_LOG, Anchor: null }, true ) ).Thread;
+	await api( Url, 'POST', '/api/plans/' + search.Id + '/threads/' + log.Id + '/resolve', {} );
+	await api( Url, 'POST', '/api/plans/' + search.Id + '/threads/' + log.Id + '/apply', { Outcome: 'The build was accepted as reported; no text change.' }, true );
+	await api( Url, 'PUT', '/api/plans/' + search.Id + '/state', { State: 'Finished' } );
 
 	// Shopping list: an applied thread, a resolved one, and a contested one waiting on the owner.
-	let staples = ( await api( Url, 'POST', '/api/proposals/' + shopping.Id + '/threads', { Text: 'We do not track the pantry yet, so "unless the pantry says they are out" cannot work. Leave staples on the list, but marked.', Anchor: { Text: 'Pantry staples are left off unless the pantry says they are out.' } } ) ).Thread;
-	await api( Url, 'POST', '/api/proposals/' + shopping.Id + '/threads/' + staples.Id + '/replies', { Text: 'Agreed. The wording I will apply: "Pantry staples are on the list too, marked as staples, until the pantry is tracked."' }, true );
-	await api( Url, 'POST', '/api/proposals/' + shopping.Id + '/threads/' + staples.Id + '/resolve', {} );
-	await api( Url, 'POST', '/api/proposals/' + shopping.Id + '/threads/' + staples.Id + '/apply', { Outcome: 'Staples stay on the list, marked, until the pantry is tracked.', Revision: 1, Text: SHOPPING_LIST_APPLIED, Anchor: { Text: 'Pantry staples are on the list too, marked as staples, until the pantry is tracked.' } }, true );
+	let staples = ( await api( Url, 'POST', '/api/plans/' + shopping.Id + '/threads', { Text: 'We do not track the pantry yet, so "unless the pantry says they are out" cannot work. Leave staples on the list, but marked.', Anchor: { Text: 'Pantry staples are left off unless the pantry says they are out.' } } ) ).Thread;
+	await api( Url, 'POST', '/api/plans/' + shopping.Id + '/threads/' + staples.Id + '/replies', { Text: 'Agreed. The wording I will apply: "Pantry staples are on the list too, marked as staples, until the pantry is tracked."' }, true );
+	await api( Url, 'POST', '/api/plans/' + shopping.Id + '/threads/' + staples.Id + '/resolve', {} );
+	await api( Url, 'POST', '/api/plans/' + shopping.Id + '/threads/' + staples.Id + '/apply', { Outcome: 'Staples stay on the list, marked, until the pantry is tracked.', Revision: 1, Text: SHOPPING_LIST_APPLIED, Anchor: { Text: 'Pantry staples are on the list too, marked as staples, until the pantry is tracked.' } }, true );
 
-	let swipe = ( await api( Url, 'POST', '/api/proposals/' + shopping.Id + '/threads', { Text: 'A swipe is too easy to do by accident, in a store, with one hand.', Anchor: { Text: 'a swipe removes it' } } ) ).Thread;
-	await api( Url, 'POST', '/api/proposals/' + shopping.Id + '/threads/' + swipe.Id + '/replies', { Text: 'Agreed: a swipe asks first. The wording I will apply: "A tap checks an item off; a swipe, confirmed, removes it."' }, true );
-	await api( Url, 'POST', '/api/proposals/' + shopping.Id + '/threads/' + swipe.Id + '/resolve', {} );
+	let swipe = ( await api( Url, 'POST', '/api/plans/' + shopping.Id + '/threads', { Text: 'A swipe is too easy to do by accident, in a store, with one hand.', Anchor: { Text: 'a swipe removes it' } } ) ).Thread;
+	await api( Url, 'POST', '/api/plans/' + shopping.Id + '/threads/' + swipe.Id + '/replies', { Text: 'Agreed: a swipe asks first. The wording I will apply: "A tap checks an item off; a swipe, confirmed, removes it."' }, true );
+	await api( Url, 'POST', '/api/plans/' + shopping.Id + '/threads/' + swipe.Id + '/resolve', {} );
 
-	let aisles = ( await api( Url, 'POST', '/api/proposals/' + shopping.Id + '/threads', { Text: 'Whose aisles? Every store is laid out differently.', Anchor: { Text: 'grouped by aisle' } } ) ).Thread;
-	await api( Url, 'POST', '/api/proposals/' + shopping.Id + '/threads/' + aisles.Id + '/replies', { Text: 'The store\'s, once the app knows one. Until then I recommend grouping by the recipe\'s own sections: produce, dairy, meat, dry goods. A store layout would be a plan of its own. Shall I write that in?' }, true );
+	let aisles = ( await api( Url, 'POST', '/api/plans/' + shopping.Id + '/threads', { Text: 'Whose aisles? Every store is laid out differently.', Anchor: { Text: 'grouped by aisle' } } ) ).Thread;
+	await api( Url, 'POST', '/api/plans/' + shopping.Id + '/threads/' + aisles.Id + '/replies', { Text: 'The store\'s, once the app knows one. Until then I recommend grouping by the recipe\'s own sections: produce, dairy, meat, dry goods. A store layout would be a plan of its own. Shall I write that in?' }, true );
 
 	let exported = await api( Url, 'GET', '/api/projects/' + project.Id + '/export' );
 	return exported;

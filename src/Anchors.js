@@ -1,6 +1,6 @@
 'use strict';
 
-// Anchors - a comment anchors to the visible text of a proposal, not to its markdown source.
+// Anchors - a comment anchors to the visible text of a plan, not to its markdown source.
 // An anchor is { Text, Prefix, Suffix }: the anchored words plus a few dozen visible characters on each side.
 
 const MARKED = require( 'marked' );

@@ -217,11 +217,11 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		let projects = ( await owner( url, 'GET', '/api/projects' ) ).Body.Projects;
 		let project = projects[ 0 ];
 		let other = ( await owner( url, 'POST', '/api/projects', { Name: 'Other' } ) ).Body.Project;
-		let elsewhere = ( await owner( url, 'POST', '/api/proposals', { Title: 'Elsewhere', Text: '# E\n', Project: other.Id } ) ).Body.Proposal;
-		let plan = ( await owner( url, 'POST', '/api/proposals', { Title: 'The plan', Text: '# The plan\n\nA first line.\n\nA second line.\n', Project: project.Id } ) ).Body.Proposal;
-		let document = ( await owner( url, 'POST', '/api/proposals', { Title: 'Notes', Text: '# Notes\n\nSome notes.\n', Project: project.Id, Kind: 'document' } ) ).Body.Proposal;
-		let resolved = ( await owner( url, 'POST', '/api/proposals/' + plan.Id + '/threads', { Text: 'Say third.', Anchor: { Text: 'A second line.' }, Resolve: true } ) ).Body.Thread;
-		let contested = ( await owner( url, 'POST', '/api/proposals/' + plan.Id + '/threads', { Text: 'Why a first line?' } ) ).Body.Thread;
+		let elsewhere = ( await owner( url, 'POST', '/api/plans', { Title: 'Elsewhere', Text: '# E\n', Project: other.Id } ) ).Body.Plan;
+		let plan = ( await owner( url, 'POST', '/api/plans', { Title: 'The plan', Text: '# The plan\n\nA first line.\n\nA second line.\n', Project: project.Id } ) ).Body.Plan;
+		let document = ( await owner( url, 'POST', '/api/plans', { Title: 'Notes', Text: '# Notes\n\nSome notes.\n', Project: project.Id, Kind: 'document' } ) ).Body.Plan;
+		let resolved = ( await owner( url, 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Say third.', Anchor: { Text: 'A second line.' }, Resolve: true } ) ).Body.Thread;
+		let contested = ( await owner( url, 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Why a first line?' } ) ).Body.Thread;
 
 		let tools = TOOLS.Tools( { Kind: 'review', Folder: null, Server: { Url: url, Token: TOKEN, Project: project.Id } } );
 		ASSERT.deepEqual( tools.Definitions.map( function ( d ) { return d.function.name; } ), [ 'list_project', 'read_plan', 'read_document', 'waiting', 'reply', 'apply', 'thread', 'set_state' ] );
@@ -250,7 +250,7 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		ASSERT.equal( await tools.Call( 'waiting', { Plan: elsewhere.Id } ), 'nothing waits on you in ' + elsewhere.Id );
 
 		ASSERT.equal( await tools.Call( 'reply', { Plan: plan.Id, Thread: contested.Id, Text: 'Because it comes first.' } ), 'replied on ' + contested.Id );
-		let after_reply = ( await owner( url, 'GET', '/api/proposals/' + plan.Id ) ).Body;
+		let after_reply = ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body;
 		let replied = after_reply.Threads.find( function ( t ) { return t.Id === contested.Id; } );
 		ASSERT.equal( replied.Replies[ 1 ].By, 'llm' );
 		ASSERT.equal( replied.Replies[ 1 ].Text, 'Because it comes first.' );
@@ -259,8 +259,8 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		// apply: the current revision is supplied; the anchor moves the thread
 		let applied = await tools.Call( 'apply', { Plan: plan.Id, Thread: resolved.Id, Outcome: 'Said third.', Text: '# The plan\n\nA first line.\n\nA third line.\n', Anchor: 'A third line.' } );
 		ASSERT.equal( applied, 'applied ' + resolved.Id + ', the plan is at revision 2' );
-		let after_apply = ( await owner( url, 'GET', '/api/proposals/' + plan.Id ) ).Body;
-		ASSERT.equal( after_apply.Proposal.Revision, 2 );
+		let after_apply = ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body;
+		ASSERT.equal( after_apply.Plan.Revision, 2 );
 		ASSERT.match( after_apply.Text, /A third line\./ );
 		let moved = after_apply.Threads.find( function ( t ) { return t.Id === resolved.Id; } );
 		ASSERT.equal( moved.Anchor.Text, 'A third line.' );
@@ -272,10 +272,10 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		ASSERT.match( posted, /^posted thread thr-\S+ on "A first line."$/ );
 		ASSERT.match( await tools.Call( 'thread', { Plan: plan.Id, Text: 'On the whole.' } ), /^posted thread thr-\S+ on the whole document$/ );
 		ASSERT.match( await tools.Call( 'thread', { Plan: plan.Id, Text: 'x', Anchor: 'nowhere at all' } ), /anchor text was not found/ );
-		ASSERT.equal( ( await owner( url, 'GET', '/api/proposals/' + plan.Id ) ).Body.Threads.length, 4 );
+		ASSERT.equal( ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body.Threads.length, 4 );
 
 		ASSERT.equal( await tools.Call( 'set_state', { Plan: plan.Id, State: 'Working' } ), plan.Id + ' is now Working' );
-		ASSERT.equal( ( await owner( url, 'GET', '/api/proposals/' + plan.Id ) ).Body.Proposal.State, 'Working' );
+		ASSERT.equal( ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body.Plan.State, 'Working' );
 		ASSERT.match( await tools.Call( 'set_state', { Plan: plan.Id, State: 'Done' } ), /State must be one of/ );
 		ASSERT.match( await tools.Call( 'set_state', { Plan: elsewhere.Id, State: 'Working' } ), /not in this project/ );
 		ASSERT.match( await tools.Call( 'nothing', {} ), /no tool named nothing/ );

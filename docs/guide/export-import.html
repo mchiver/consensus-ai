@@ -45,6 +45,7 @@
 <h2 id="export">Export</h2>
 <p><strong>Export</strong> in a project&#39;s menu shows the file, to copy or download. The same comes from the API at <code>GET /api/projects/&lt;id&gt;/export</code>.</p>
 <p>A folder, a plan or a document exports the same way, from its menu or <code>GET /api/items/&lt;id&gt;/export</code>: the same format, holding that item and what is under it, with no Readme. Such a file imports as a project of its own (it gets an empty Readme) or, as any file does, into a project.</p>
+<p>An export says <code>Version: 2</code> since the plan Plan Nomenclature, its plans under <code>Plans</code>. A <code>Version: 1</code> file, from before, names them <code>Proposals</code> and still imports as it is.</p>
 <figure class="shot"><img class="light-only" src="../images/menu.png" alt="A project's menu, with Export."><img class="dark-only" src="../images/menu-dark.png" alt="A project's menu, with Export."><figcaption>A project's menu, with Export.</figcaption></figure>
 <h2 id="import">Import</h2>
 <p><strong>Import</strong> at the top of the sidebar asks for an exported file. What happens depends on whether the project is already here:</p>

@@ -217,9 +217,9 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		for ( let root of Roots.List )
 		{
 			let name = root.Me ? root.Me.Name : null;
-			for ( let proposal of root.Proposals )
+			for ( let plan of root.Plans )
 			{
-				count += ( proposal.Tally.WaitingOn[ name ] || 0 );
+				count += ( plan.Tally.WaitingOn[ name ] || 0 );
 			}
 		}
 		return count;
@@ -383,7 +383,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	};
 
 
-	// Opening a proposal opens the project that holds it, on its root.
+	// Opening a plan opens the project that holds it, on its root.
 	$scope.$watch( function () { return ( State.Open && State.Open.Project ) ? State.Open.Project.Id : null; }, function ( project_id )
 	{
 		if ( project_id && State.Root && project_id !== of_root( State.Root ).OpenProjectId )
@@ -655,7 +655,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	// Document: Copy, Rename, Export, ---, Delete.
 	function item_actions( project, node )
 	{
-		let kind = 'proposal';
+		let kind = 'plan';
 		let actions = [];
 		if ( node.Kind === 'plan' )
 		{
@@ -901,7 +901,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 				return Client.Post( root, '/api/projects/' + encodeURIComponent( creating.Project ) + '/folders', { Name: name, Parent: creating.Parent } );
 			}
 			let kind = ( creating.Kind === 'document' ) ? 'document' : 'plan';
-			return Client.Post( root, '/api/proposals', { Title: name, Text: '# ' + name + '\n\n', Kind: kind, Project: creating.Project, Parent: creating.Parent } );
+			return Client.Post( root, '/api/plans', { Title: name, Text: '# ' + name + '\n\n', Kind: kind, Project: creating.Project, Parent: creating.Parent } );
 		} );
 		if ( answer )
 		{
@@ -912,7 +912,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			}
 			if ( creating.Kind === 'plan' || creating.Kind === 'document' )
 			{
-				$window.location.hash = Roots.HashFor( root, '/p/' + encodeURIComponent( answer.Proposal.Id ) );
+				$window.location.hash = Roots.HashFor( root, '/p/' + encodeURIComponent( answer.Plan.Id ) );
 			}
 			await Roots.LoadList( root );
 		}
@@ -961,7 +961,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 
 
 	//-----------------------------------------------------------------
-	// Renaming: { Kind: 'project' | 'folder' | 'proposal', Project, Id, Name }. A plan or document is renamed by its
+	// Renaming: { Kind: 'project' | 'folder' | 'plan', Project, Id, Name }. A plan or document is renamed by its
 	// Title; its Id stays.
 
 	$scope.StartRename = function ( kind, project, node, event )
@@ -971,7 +971,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		$scope.Creating = null;
 		$scope.Deleting = null;
 		let root = ( kind === 'llm' ) ? project : root_of( project );
-		$scope.Renaming = { Kind: kind, Project: ( project && kind !== 'llm' ) ? project.Id : null, Id: node.Id, Name: ( kind === 'proposal' ) ? node.Title : node.Name, Root: root ? root.Key : '' };
+		$scope.Renaming = { Kind: kind, Project: ( project && kind !== 'llm' ) ? project.Id : null, Id: node.Id, Name: ( kind === 'plan' ) ? node.Title : node.Name, Root: root ? root.Key : '' };
 	};
 
 
@@ -1009,9 +1009,9 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		}
 		let answer = await State.Act( function ()
 		{
-			if ( renaming.Kind === 'proposal' )
+			if ( renaming.Kind === 'plan' )
 			{
-				return Client.Put( root, '/api/proposals/' + encodeURIComponent( renaming.Id ), { Title: name } );
+				return Client.Put( root, '/api/plans/' + encodeURIComponent( renaming.Id ), { Title: name } );
 			}
 			let path = '/api/projects/' + encodeURIComponent( renaming.Project );
 			if ( renaming.Kind === 'folder' )
@@ -1024,7 +1024,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		{
 			$scope.Renaming = null;
 			await Roots.LoadList( root );
-			if ( renaming.Kind === 'proposal' && renaming.Id === State.OpenId )
+			if ( renaming.Kind === 'plan' && renaming.Id === State.OpenId )
 			{
 				await State.Reload();
 			}
@@ -1073,16 +1073,16 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		{
 			path += '/folders/' + encodeURIComponent( node.Id );
 		}
-		else if ( kind === 'proposal' )
+		else if ( kind === 'plan' )
 		{
-			path = '/api/proposals/' + encodeURIComponent( node.Id );
+			path = '/api/plans/' + encodeURIComponent( node.Id );
 		}
 		let root = root_of( project );
 		let answer = await State.Act( function () { return Client.Delete( root, path ); } );
 		$scope.Deleting = null;
 		if ( answer )
 		{
-			if ( kind === 'proposal' )
+			if ( kind === 'plan' )
 			{
 				Tabs.CloseItem( node.Id, root.Key );
 			}
@@ -1358,7 +1358,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 		{
 			return;
 		}
-		$scope.CopyItem( State.Open.Proposal.Kind || 'plan', Object.assign( {}, State.Open.Project, { Root: State.Root ? State.Root.Key : '' } ), { Id: State.Open.Proposal.Id, Title: State.Open.Proposal.Title } );
+		$scope.CopyItem( State.Open.Plan.Kind || 'plan', Object.assign( {}, State.Open.Project, { Root: State.Root ? State.Root.Key : '' } ), { Id: State.Open.Plan.Id, Title: State.Open.Plan.Title } );
 	} );
 
 	Hotkeys.Provide( 'Paste', function ()
@@ -1377,7 +1377,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	async function load_trash( root )
 	{
 		let answer = await State.Act( function () { return Client.Get( root, '/api/trash' ); } );
-		of_root( root ).Trash = answer ? answer.Proposals : [];
+		of_root( root ).Trash = answer ? answer.Plans : [];
 		$scope.$applyAsync();
 	}
 
@@ -1393,7 +1393,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	};
 
 
-	$scope.$watchCollection( function () { return Roots.List.map( function ( root ) { return root.Proposals; } ); }, function ()
+	$scope.$watchCollection( function () { return Roots.List.map( function ( root ) { return root.Plans; } ); }, function ()
 	{
 		for ( let root of Roots.List )
 		{

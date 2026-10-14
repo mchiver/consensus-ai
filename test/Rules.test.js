@@ -24,9 +24,9 @@ function thread( overrides )
 }
 
 
-function proposal( overrides )
+function plan( overrides )
 {
-	return Object.assign( { Id: 'p', Title: 'P', State: 'Proposal', Revision: 3 }, overrides || {} );
+	return Object.assign( { Id: 'p', Title: 'P', State: 'Plan', Revision: 3 }, overrides || {} );
 }
 
 
@@ -109,8 +109,8 @@ TEST( 'a reopened, applied thread that is resolved again waits to be applied aga
 	let reopened = thread( { Status: 'contested', Reopened: true, Applied: { By: 'llm', At: 'x' }, Replies: [ { By: 'user' }, { By: 'llm' }, { By: 'user' } ] } );
 	ASSERT.equal( RULES.IsApplied( reopened ), false );
 	ASSERT.deepEqual( RULES.Turn( reopened, PARTICIPANTS ), [ 'llm' ] );
-	ASSERT.equal( RULES.Tally( proposal(), [ reopened ], PARTICIPANTS ).Reopened, 1 );
-	ASSERT.equal( RULES.Tally( proposal(), [ reopened ], PARTICIPANTS ).Applied, 0 );
+	ASSERT.equal( RULES.Tally( plan(), [ reopened ], PARTICIPANTS ).Reopened, 1 );
+	ASSERT.equal( RULES.Tally( plan(), [ reopened ], PARTICIPANTS ).Applied, 0 );
 } );
 
 
@@ -140,13 +140,13 @@ TEST( 'reopening an applied thread keeps its applied record', function ()
 } );
 
 
-TEST( 'a proposal\'s state is any of the settings\' States (user, 2026-09-25)', function ()
+TEST( 'a plan\'s state is any of the settings\' States (user, 2026-09-25)', function ()
 {
-	let states = [ 'Proposal', 'Plan', 'Working', 'Finished' ];
+	let states = [ 'Plan', 'Plan', 'Working', 'Finished' ];
 	ASSERT.equal( RULES.CanSetState( 'Working', states ).Ok, true );
-	ASSERT.equal( RULES.CanSetState( 'Proposal', states ).Ok, true );
+	ASSERT.equal( RULES.CanSetState( 'Plan', states ).Ok, true );
 	ASSERT.equal( RULES.CanSetState( 'Done', states ).Ok, false );
-	ASSERT.match( RULES.CanSetState( 'Done', states ).Reason, /Proposal, Plan, Working, Finished/ );
+	ASSERT.match( RULES.CanSetState( 'Done', states ).Reason, /Plan, Plan, Working, Finished/ );
 	ASSERT.equal( RULES.CanSetState( undefined, states ).Ok, false );
 	ASSERT.equal( RULES.CanSetState( 3, states ).Ok, false );
 } );
@@ -161,7 +161,7 @@ TEST( 'the tally counts contested, reopened, resolved, applied and detached, and
 		thread( { Id: 'd', Status: 'resolved', Applied: { By: 'llm' } } ),
 		thread( { Id: 'e', Detached: true, Status: 'resolved', Applied: { By: 'llm' } } ),
 	];
-	let tally = RULES.Tally( proposal(), threads, PARTICIPANTS );
+	let tally = RULES.Tally( plan(), threads, PARTICIPANTS );
 	ASSERT.equal( tally.Total, 5 );
 	ASSERT.equal( tally.Contested, 2 );
 	ASSERT.equal( tally.Reopened, 1 );
@@ -181,12 +181,12 @@ TEST( 'the state line says what to do next', function ()
 		thread( { Id: 'c', Status: 'resolved' } ),
 		thread( { Id: 'd', Status: 'resolved', Applied: { By: 'llm' } } ),
 	];
-	let tally = RULES.Tally( proposal(), threads, PARTICIPANTS );
+	let tally = RULES.Tally( plan(), threads, PARTICIPANTS );
 	ASSERT.equal( RULES.StateLine( tally, 'user' ), '2 contested, waiting on you 1 · 1 resolved · 1 applied' );
 	ASSERT.equal( RULES.StateLine( tally, 'llm' ), '2 contested, waiting on you 2 · 1 resolved · 1 applied' );
-	let done = RULES.Tally( proposal(), [ threads[ 3 ] ], PARTICIPANTS );
+	let done = RULES.Tally( plan(), [ threads[ 3 ] ], PARTICIPANTS );
 	ASSERT.equal( RULES.StateLine( done, 'user' ), '1 applied' );
-	ASSERT.equal( RULES.StateLine( RULES.Tally( proposal(), [], PARTICIPANTS ), 'user' ), 'no threads yet' );
+	ASSERT.equal( RULES.StateLine( RULES.Tally( plan(), [], PARTICIPANTS ), 'user' ), 'no threads yet' );
 } );
 
 

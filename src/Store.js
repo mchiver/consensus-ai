@@ -1,7 +1,7 @@
 'use strict';
 
 // Store - the config folder and the project folders (plan Run Shapes, Step 2). Plain files, whole-file atomic writes,
-// and a queue per proposal so two requests never interleave their writes. The config folder holds the settings; each
+// and a queue per plan so two requests never interleave their writes. The config folder holds the settings; each
 // project is a folder of its own (a repository, as a rule) with a .consensus sub-folder that is the project:
 //
 //   <config>/consensus.json                            settings; its Projects: [ { Path } ] lists the project folders, in display order
@@ -16,12 +16,12 @@
 //   <project>/.consensus/archive/<id>/                 an archived item, moved whole; read, never written, until restored
 //   <project>/.consensus/trash/<id>/                   a deleted item, moved whole
 //
-// Ids are global (Ids.js): pln-…, doc-… a proposal (ctx-… a Readme made before plan Consensus Desktop), prj-… a project,
+// Ids are global (Ids.js): pln-…, doc-… a plan (ctx-… a Readme made before plan Consensus Desktop), prj-… a project,
 // fld-… a folder, rev-… a revision. Every project has a prj- id: the Default project's id "default" ended with Step 2.
 //
 // Prepare, at start, migrates a config folder from before Step 2 (projects.json, projects/<id>/project.json, proposals/<id>/,
 // trash/, all in the config folder) into a folder per project under <config>/projects/<name>/, and a data folder from
-// before plan Consensus Desktop, Step 1, on the way (each project's context proposal becomes its Readme in a Context
+// before plan Consensus Desktop, Step 1, on the way (each project's context plan becomes its Readme in a Context
 // folder, corpora go to the trash, the LLM's files are removed). A project folder the settings list and the disk lacks
 // is skipped, with a line, and kept in the list (Missing). Prepare with { Project: path } (plan Run Shapes, Step 4:
 // `consensus <path>`) registers that folder's project alone, making its .consensus when missing, and puts it first in
@@ -66,7 +66,7 @@ function Open( Folder )
 	FS.mkdirSync( folder, { recursive: true } );
 	let queues = {};
 	let roots = {};		// project id -> { Id, Path, Home }
-	let homes = {};		// proposal id -> { Project, Archived }
+	let homes = {};		// plan id -> { Project, Archived }
 	let missing = [];	// [ { Path, Error } ]
 	let isolated = null;	// the project id when Prepare was given one project (Step 4), else null
 	let settings = null;
@@ -210,7 +210,7 @@ function Open( Folder )
 
 
 	//-----------------------------------------------------------------
-	// Queue: writes to one proposal run one after another.
+	// Queue: writes to one plan run one after another.
 
 	function Queue( Id, Work )
 	{
@@ -347,25 +347,25 @@ function Open( Folder )
 
 
 	//-----------------------------------------------------------------
-	// Proposals
+	// Plans
 
-	async function ListProposals()
+	async function ListPlans()
 	{
-		let proposals = [];
+		let plans = [];
 		for ( let id of Object.keys( homes ) )
 		{
 			if ( homes[ id ].Archived )
 			{
 				continue;
 			}
-			let proposal = await read_json_or_null( PATH.join( content_folder( id ), 'content.json' ) );
-			if ( proposal )
+			let plan = await read_json_or_null( PATH.join( content_folder( id ), 'content.json' ) );
+			if ( plan )
 			{
-				proposals.push( proposal );
+				plans.push( plan );
 			}
 		}
-		proposals.sort( by_updated_descending );
-		return proposals;
+		plans.sort( by_updated_descending );
+		return plans;
 	}
 
 
@@ -386,11 +386,11 @@ function Open( Folder )
 	}
 
 
-	// An archived proposal reads with Archived: true.
-	async function ReadProposal( Id )
+	// An archived plan reads with Archived: true.
+	async function ReadPlan( Id )
 	{
-		let proposal = await read_record( Id );
-		if ( !proposal )
+		let plan = await read_record( Id );
+		if ( !plan )
 		{
 			return null;
 		}
@@ -399,9 +399,9 @@ function Open( Folder )
 		let threads = await read_json_or_null( PATH.join( where, 'threads.json' ) );
 		if ( homes[ Id ].Archived )
 		{
-			proposal.Archived = true;
+			plan.Archived = true;
 		}
-		return { Proposal: proposal, Text: text, Threads: threads || [] };
+		return { Plan: plan, Text: text, Threads: threads || [] };
 	}
 
 
@@ -414,7 +414,7 @@ function Open( Folder )
 	}
 
 
-	// A proposal's folder for a write: never an archived one.
+	// A plan's folder for a write: never an archived one.
 	function writable_folder( id )
 	{
 		let where = content_folder( id );
@@ -427,14 +427,14 @@ function Open( Folder )
 
 
 	// Parameters: { Project, Title, Text, By, Kind: 'plan' | 'document', State }  Only a plan has a State.
-	async function CreateProposal( Parameters )
+	async function CreatePlan( Parameters )
 	{
 		let home = home_of( Parameters.Project );
 		let kind = Parameters.Kind || 'plan';
-		let id = unique_id( IDS.ForProposal( kind ) );
+		let id = unique_id( IDS.ForPlan( kind ) );
 		let now = new Date().toISOString();
 		let head = IDS.New( IDS.REVISION );
-		let proposal = {
+		let plan = {
 			Id: id,
 			Title: Parameters.Title,
 			Kind: kind,
@@ -450,8 +450,8 @@ function Open( Folder )
 		await write_snapshot( where, 1, Parameters.Text || '', { Id: head, Parent: null, Revision: 1, By: Parameters.By, At: now, Reason: 'create' } );
 		await write_file( PATH.join( where, 'content.md' ), Parameters.Text || '' );
 		await write_json( PATH.join( where, 'threads.json' ), [] );
-		await write_json( PATH.join( where, 'content.json' ), proposal );
-		return proposal;
+		await write_json( PATH.join( where, 'content.json' ), plan );
+		return plan;
 	}
 
 
@@ -476,21 +476,21 @@ function Open( Folder )
 
 
 	// Changes to content.json other than the text: title, state.
-	async function UpdateProposal( Id, Changes )
+	async function UpdatePlan( Id, Changes )
 	{
 		let where = writable_folder( Id );
-		let proposal = where ? await read_json_or_null( PATH.join( where, 'content.json' ) ) : null;
-		if ( !proposal )
+		let plan = where ? await read_json_or_null( PATH.join( where, 'content.json' ) ) : null;
+		if ( !plan )
 		{
 			return null;
 		}
 		for ( let key of Object.keys( Changes ) )
 		{
-			proposal[ key ] = Changes[ key ];
+			plan[ key ] = Changes[ key ];
 		}
-		proposal.Updated = new Date().toISOString();
-		await write_json( PATH.join( where, 'content.json' ), proposal );
-		return proposal;
+		plan.Updated = new Date().toISOString();
+		await write_json( PATH.join( where, 'content.json' ), plan );
+		return plan;
 	}
 
 
@@ -499,14 +499,14 @@ function Open( Folder )
 	async function WriteText( Id, Parameters )
 	{
 		let where = writable_folder( Id );
-		let proposal = where ? await read_json_or_null( PATH.join( where, 'content.json' ) ) : null;
-		if ( !proposal )
+		let plan = where ? await read_json_or_null( PATH.join( where, 'content.json' ) ) : null;
+		if ( !plan )
 		{
 			return null;
 		}
 		let now = new Date().toISOString();
-		let revision = proposal.Revision + 1;
-		let record = { Id: IDS.New( IDS.REVISION ), Parent: proposal.Head || null, Revision: revision, By: Parameters.By, At: now, Reason: Parameters.Reason };
+		let revision = plan.Revision + 1;
+		let record = { Id: IDS.New( IDS.REVISION ), Parent: plan.Head || null, Revision: revision, By: Parameters.By, At: now, Reason: Parameters.Reason };
 		if ( Parameters.Thread )
 		{
 			record.Thread = Parameters.Thread;
@@ -517,11 +517,11 @@ function Open( Folder )
 		}
 		await write_snapshot( where, revision, Parameters.Text, record );
 		await write_file( PATH.join( where, 'content.md' ), Parameters.Text );
-		proposal.Revision = revision;
-		proposal.Head = record.Id;
-		proposal.Updated = now;
-		await write_json( PATH.join( where, 'content.json' ), proposal );
-		return proposal;
+		plan.Revision = revision;
+		plan.Head = record.Id;
+		plan.Updated = now;
+		await write_json( PATH.join( where, 'content.json' ), plan );
+		return plan;
 	}
 
 
@@ -538,7 +538,7 @@ function Open( Folder )
 		let where = writable_folder( Id );
 		if ( !where )
 		{
-			throw new Error( 'no such proposal: ' + Id );
+			throw new Error( 'no such plan: ' + Id );
 		}
 		await write_json( PATH.join( where, 'threads.json' ), Threads );
 	}
@@ -584,12 +584,12 @@ function Open( Folder )
 	}
 
 
-	// A proposal whole, as an import brings it, under its own Id, into Project (needed for an id not here yet):
-	// Whole = { Proposal, Text, Threads, Revisions: [ { Revision, By, At, Reason, Thread?, Note?, Text } ] }. The
+	// A plan whole, as an import brings it, under its own Id, into Project (needed for an id not here yet):
+	// Whole = { Plan, Text, Threads, Revisions: [ { Revision, By, At, Reason, Thread?, Note?, Text } ] }. The
 	// folder is made when missing; what is there is written over.
-	async function WriteWholeProposal( Whole, Project )
+	async function WriteWholePlan( Whole, Project )
 	{
-		let id = Whole.Proposal.Id;
+		let id = Whole.Plan.Id;
 		let where = writable_folder( id );
 		if ( !where )
 		{
@@ -606,14 +606,14 @@ function Open( Folder )
 		}
 		await write_file( PATH.join( where, 'content.md' ), Whole.Text );
 		await write_json( PATH.join( where, 'threads.json' ), Whole.Threads );
-		await write_json( PATH.join( where, 'content.json' ), Whole.Proposal );
-		return Whole.Proposal;
+		await write_json( PATH.join( where, 'content.json' ), Whole.Plan );
+		return Whole.Plan;
 	}
 
 
-	// A copy of a proposal, whole: text, threads and revisions, under a new id, titled "<title> (copy)", in Project
-	// (its own project when not given). Returns the new proposal, or null.
-	async function CopyProposal( Id, Project )
+	// A copy of a plan, whole: text, threads and revisions, under a new id, titled "<title> (copy)", in Project
+	// (its own project when not given). Returns the new plan, or null.
+	async function CopyPlan( Id, Project )
 	{
 		let source = await read_record( Id );
 		if ( !source )
@@ -623,20 +623,20 @@ function Open( Folder )
 		let project = Project || homes[ Id ].Project;
 		let home = home_of( project );
 		let title = source.Title + ' (copy)';
-		let id = unique_id( IDS.ForProposal( source.Kind ) );
+		let id = unique_id( IDS.ForPlan( source.Kind ) );
 		let where = PATH.join( home, CONTENT_FOLDER, id );
 		await FS.promises.cp( content_folder( Id ), where, { recursive: true } );
 		homes[ id ] = { Project: project, Archived: false };
 		let now = new Date().toISOString();
-		let proposal = Object.assign( {}, source, { Id: id, Title: title, Created: now, Updated: now } );
-		await write_json( PATH.join( where, 'content.json' ), proposal );
-		return proposal;
+		let plan = Object.assign( {}, source, { Id: id, Title: title, Created: now, Updated: now } );
+		await write_json( PATH.join( where, 'content.json' ), plan );
+		return plan;
 	}
 
 
-	// A proposal's folder moved into another project (an item moved between projects). Returns false when there is
-	// no such proposal, or it is archived.
-	async function MoveProposal( Id, Project )
+	// A plan's folder moved into another project (an item moved between projects). Returns false when there is
+	// no such plan, or it is archived.
+	async function MovePlan( Id, Project )
 	{
 		let where = content_folder( Id );
 		if ( !where || homes[ Id ].Archived )
@@ -657,7 +657,7 @@ function Open( Folder )
 	//-----------------------------------------------------------------
 	// Archive: an item's folder moved to its project's archive/, read-only there, and back.
 
-	async function ArchiveProposal( Id )
+	async function ArchivePlan( Id )
 	{
 		let where = content_folder( Id );
 		if ( !where || homes[ Id ].Archived )
@@ -670,7 +670,7 @@ function Open( Folder )
 	}
 
 
-	async function RestoreProposal( Id )
+	async function RestorePlan( Id )
 	{
 		let where = content_folder( Id );
 		if ( !where || !homes[ Id ].Archived )
@@ -853,7 +853,7 @@ function Open( Folder )
 	// A project's Readme: a document titled Readme, in its Context folder, with no text yet.
 	async function create_context( project_id )
 	{
-		return await CreateProposal( { Project: project_id, Title: CONTEXT_TITLE, Text: '', By: 'consensus', Kind: 'document' } );
+		return await CreatePlan( { Project: project_id, Title: CONTEXT_TITLE, Text: '', By: 'consensus', Kind: 'document' } );
 	}
 
 
@@ -971,7 +971,7 @@ function Open( Folder )
 	//-----------------------------------------------------------------
 	// Trash: a deleted item goes to its project's trash, whole.
 
-	async function TrashProposal( Id )
+	async function TrashPlan( Id )
 	{
 		let where = content_folder( Id );
 		if ( !where )
@@ -986,28 +986,28 @@ function Open( Folder )
 
 	async function ListTrash()
 	{
-		let proposals = [];
+		let plans = [];
 		for ( let project_id of Object.keys( roots ) )
 		{
 			let trash = PATH.join( roots[ project_id ].Home, TRASH_FOLDER );
 			for ( let id of await folder_names( trash ) )
 			{
-				let proposal = await read_json_or_null( PATH.join( trash, id, 'content.json' ) );
-				if ( proposal )
+				let plan = await read_json_or_null( PATH.join( trash, id, 'content.json' ) );
+				if ( plan )
 				{
-					proposal.Project = project_id;
-					proposals.push( proposal );
+					plan.Project = project_id;
+					plans.push( plan );
 					continue;
 				}
 				let corpus = await read_json_or_null( PATH.join( trash, id, 'corpus.json' ) );
 				if ( corpus )
 				{
-					proposals.push( { Id: corpus.Id, Kind: 'corpus', Title: corpus.Name, Updated: corpus.Updated, Project: project_id } );
+					plans.push( { Id: corpus.Id, Kind: 'corpus', Title: corpus.Name, Updated: corpus.Updated, Project: project_id } );
 				}
 			}
 		}
-		proposals.sort( by_updated_descending );
-		return proposals;
+		plans.sort( by_updated_descending );
+		return plans;
 	}
 
 
@@ -1113,12 +1113,12 @@ function Open( Folder )
 
 	//-----------------------------------------------------------------
 	// The migration from the layout before Step 2: every project of the config folder's projects/<id>/project.json
-	// moves, with its proposals, into <config>/projects/<name>/.consensus/ (a project is named in projects.json, or
-	// in its project.json), under a prj- id when it had "default"; a proposal in no tree goes to the first project's
+	// moves, with its plans, into <config>/projects/<name>/.consensus/ (a project is named in projects.json, or
+	// in its project.json), under a prj- id when it had "default"; a plan in no tree goes to the first project's
 	// trash, as does the old trash. On the way, a project from before Consensus Desktop gets its Context folder, loses
 	// its corpora and the LLM's files. The settings' Workspaces follow the renamed project id.
 
-	function old_proposal_folder( id )
+	function old_plan_folder( id )
 	{
 		return PATH.join( folder, OLD_PROPOSALS_FOLDER, id );
 	}
@@ -1189,7 +1189,7 @@ function Open( Folder )
 				}
 			}
 			let context_id = old.Context;
-			if ( !context_id || !FS.existsSync( old_proposal_folder( context_id ) ) )
+			if ( !context_id || !FS.existsSync( old_plan_folder( context_id ) ) )
 			{
 				roots[ id ] = { Id: id, Path: path, Home: home };
 				context_id = ( await create_context( id ) ).Id;
@@ -1217,15 +1217,15 @@ function Open( Folder )
 			{
 				ids.push( context_id );
 			}
-			for ( let proposal_id of ids )
+			for ( let plan_id of ids )
 			{
-				if ( placed.has( proposal_id ) )
+				if ( placed.has( plan_id ) )
 				{
 					continue;
 				}
-				if ( await move_old_proposal( proposal_id, PATH.join( home, CONTENT_FOLDER, proposal_id ) ) )
+				if ( await move_old_plan( plan_id, PATH.join( home, CONTENT_FOLDER, plan_id ) ) )
 				{
-					placed.add( proposal_id );
+					placed.add( plan_id );
 					moved++;
 				}
 			}
@@ -1235,13 +1235,13 @@ function Open( Folder )
 			first_home = first_home || home;
 			lines.push( 'project ' + candidate.Name + ' moved to ' + path + ' (' + moved + ' items' + ( ( id !== candidate.Id ) ? ', its id now ' + id : '' ) + ')' );
 		}
-		// Proposals in no tree, and the old trash, into the first project's trash.
+		// Plans in no tree, and the old trash, into the first project's trash.
 		if ( first_home )
 		{
 			let strays = 0;
-			for ( let proposal_id of await folder_names( PATH.join( folder, OLD_PROPOSALS_FOLDER ) ) )
+			for ( let plan_id of await folder_names( PATH.join( folder, OLD_PROPOSALS_FOLDER ) ) )
 			{
-				if ( !placed.has( proposal_id ) && await move_old_proposal( proposal_id, PATH.join( first_home, TRASH_FOLDER, proposal_id ) ) )
+				if ( !placed.has( plan_id ) && await move_old_plan( plan_id, PATH.join( first_home, TRASH_FOLDER, plan_id ) ) )
 				{
 					strays++;
 				}
@@ -1251,7 +1251,7 @@ function Open( Folder )
 				let source = PATH.join( folder, TRASH_FOLDER, trashed_id );
 				if ( FS.existsSync( PATH.join( source, 'proposal.json' ) ) )
 				{
-					await move_old_proposal( trashed_id, PATH.join( first_home, TRASH_FOLDER, trashed_id ), source );
+					await move_old_plan( trashed_id, PATH.join( first_home, TRASH_FOLDER, trashed_id ), source );
 				}
 				else
 				{
@@ -1290,11 +1290,11 @@ function Open( Folder )
 	}
 
 
-	// An old proposal folder (proposal.json, proposal.md, threads.json, revisions/, retired files) moved and renamed
-	// into the new layout at target. Returns false when there is no such proposal.
-	async function move_old_proposal( id, target, source )
+	// An old plan folder (proposal.json, proposal.md, threads.json, revisions/, retired files) moved and renamed
+	// into the new layout at target. Returns false when there is no such plan.
+	async function move_old_plan( id, target, source )
 	{
-		let from = source || old_proposal_folder( id );
+		let from = source || old_plan_folder( id );
 		let record = await read_json_or_null( PATH.join( from, 'proposal.json' ) );
 		if ( !record )
 		{
@@ -1348,19 +1348,19 @@ function Open( Folder )
 		ReadSettings: ReadSettings,
 		WriteSettings: WriteSettings,
 		SettingsPath: SettingsPath,
-		ListProposals: ListProposals,
-		ReadProposal: ReadProposal,
-		CreateProposal: CreateProposal,
-		UpdateProposal: UpdateProposal,
+		ListPlans: ListPlans,
+		ReadPlan: ReadPlan,
+		CreatePlan: CreatePlan,
+		UpdatePlan: UpdatePlan,
 		WriteText: WriteText,
 		WriteThreads: WriteThreads,
 		ListRevisions: ListRevisions,
 		ReadRevision: ReadRevision,
-		WriteWholeProposal: WriteWholeProposal,
-		CopyProposal: CopyProposal,
-		MoveProposal: MoveProposal,
-		ArchiveProposal: ArchiveProposal,
-		RestoreProposal: RestoreProposal,
+		WriteWholePlan: WriteWholePlan,
+		CopyPlan: CopyPlan,
+		MovePlan: MovePlan,
+		ArchivePlan: ArchivePlan,
+		RestorePlan: RestorePlan,
 		ListProjects: ListProjects,
 		ReadProject: ReadProject,
 		CreateProject: CreateProject,
@@ -1372,7 +1372,7 @@ function Open( Folder )
 		Roots: Roots,
 		Missing: Missing,
 		Isolated: Isolated,
-		TrashProposal: TrashProposal,
+		TrashPlan: TrashPlan,
 		ListTrash: ListTrash,
 		Prepare: Prepare,
 	};

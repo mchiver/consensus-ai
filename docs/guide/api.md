@@ -15,7 +15,7 @@ A reply on a thread:
 ```
 curl -s -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
   -d '{ "Text": "Agreed; the wording I will apply: ..." }' \
-  http://127.0.0.1:3500/api/proposals/<plan id>/threads/<thread id>/replies
+  http://127.0.0.1:3500/api/plans/<plan id>/threads/<thread id>/replies
 ```
 
 Applying a resolved thread, with the new text of the whole plan and the revision it was made from:
@@ -23,7 +23,7 @@ Applying a resolved thread, with the new text of the whole plan and the revision
 ```
 curl -s -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
   -d '{ "Outcome": "The section now says ...", "Revision": 4, "Text": "# The plan\n\n..." }' \
-  http://127.0.0.1:3500/api/proposals/<plan id>/threads/<thread id>/apply
+  http://127.0.0.1:3500/api/plans/<plan id>/threads/<thread id>/apply
 ```
 
 A new thread on a passage of the text:
@@ -31,7 +31,7 @@ A new thread on a passage of the text:
 ```
 curl -s -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
   -d '{ "Text": "Is this the right default?", "Anchor": { "Text": "the words to anchor to" } }' \
-  http://127.0.0.1:3500/api/proposals/<plan id>/threads
+  http://127.0.0.1:3500/api/plans/<plan id>/threads
 ```
 
 An anchor's `Text` is matched against the text as it reads, without markdown marks: no backticks or asterisks.
@@ -57,21 +57,21 @@ POST   /api/items/:id/move                       { Project, Parent?, Before? }
 POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id
 POST   /api/items/:id/archive                    a plan, with its Subplans, into the project's Archive, read-only
 POST   /api/items/:id/restore                    back to the project's root
-GET    /api/proposals[?state=]                   plans and documents with their tallies
-POST   /api/proposals                            { Title, Text, Kind?, State?, Project?, Parent? }
-GET    /api/proposals/:id                        text, threads with positions, tally, whose turn
-PUT    /api/proposals/:id                        { Title }
-PUT    /api/proposals/:id/state                  { State }
-PUT    /api/proposals/:id/text                   { Text, Revision }  a manual edit
-DELETE /api/proposals/:id                        to the trash
-GET    /api/proposals/:id/revisions[/:n]         the record; a revision's text
-GET    /api/proposals/:id/threads[?status=]      all | contested | resolved | applied | reopened | detached | mine
-POST   /api/proposals/:id/threads                { Anchor: { Text, Prefix?, Suffix? } | null, Text, Resolve? }
-POST   /api/proposals/:id/threads/:tid/replies   { Text, Resolve? }  reopens a resolved thread
-POST   /api/proposals/:id/threads/:tid/anchor    { Anchor }  re-anchor
-POST   /api/proposals/:id/threads/:tid/resolve   owner only
-DELETE /api/proposals/:id/threads/:tid           owner only
-POST   /api/proposals/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
+GET    /api/plans[?state=]                   plans and documents with their tallies
+POST   /api/plans                            { Title, Text, Kind?, State?, Project?, Parent? }
+GET    /api/plans/:id                        text, threads with positions, tally, whose turn
+PUT    /api/plans/:id                        { Title }
+PUT    /api/plans/:id/state                  { State }
+PUT    /api/plans/:id/text                   { Text, Revision }  a manual edit
+DELETE /api/plans/:id                        to the trash
+GET    /api/plans/:id/revisions[/:n]         the record; a revision's text
+GET    /api/plans/:id/threads[?status=]      all | contested | resolved | applied | reopened | detached | mine
+POST   /api/plans/:id/threads                { Anchor: { Text, Prefix?, Suffix? } | null, Text, Resolve? }
+POST   /api/plans/:id/threads/:tid/replies   { Text, Resolve? }  reopens a resolved thread
+POST   /api/plans/:id/threads/:tid/anchor    { Anchor }  re-anchor
+POST   /api/plans/:id/threads/:tid/resolve   owner only
+DELETE /api/plans/:id/threads/:tid           owner only
+POST   /api/plans/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
 GET    /api/trash                                what is there
 GET    /api/waiting                              everything waiting on the caller, in every project
 GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Participant, Running; the owner sees the whole records
@@ -86,7 +86,7 @@ POST   /api/runs                                 { Llm, Kind, Project, Plan? }  
 GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
 GET    /api/runs/:id                             the whole record, the output as it stands
 POST   /api/runs/:id/stop                        a running one stopped
-GET    /api/events                               Server-Sent Events: { Proposal | Project, Kind, Thread? }; { Kind: llms } and { Kind: run, Run, Llm, Status }
+GET    /api/events                               Server-Sent Events: { Plan | Project, Kind, Thread? }; { Kind: llms } and { Kind: run, Run, Llm, Status }
 ```
 
 ## The rules, in plain words
@@ -102,4 +102,4 @@ GET    /api/events                               Server-Sent Events: { Proposal 
 
 ## Live events
 
-`GET /api/events` is a stream of Server-Sent Events: one event per change, naming the proposal or project and the kind of change. The page uses it to stay in step; a client of your own can too.
+`GET /api/events` is a stream of Server-Sent Events: one event per change, naming the plan or project and the kind of change. The page uses it to stay in step; a client of your own can too.

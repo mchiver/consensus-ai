@@ -2,12 +2,14 @@
 
 // ProjectPort - a whole project out to one json object, and back in (the plan "Project Import and Export").
 //
-//   export = { Format: 'consensus-project', Version: 1, Exported,
+//   export = { Format: 'consensus-project', Version: 2, Exported,
 //              Project: { Id, Name, Created, Updated, Context, ContextFolder, Items },
-//              Proposals: [ { Proposal, Text, Threads, Revisions: [ { Revision, By, At, Reason, Thread?, Note?, Text } ] } ] }
+//              Plans: [ { Plan, Text, Threads, Revisions: [ { Revision, By, At, Reason, Thread?, Note?, Text } ] } ] }
+//
+// Version 1 (before plan Plan Nomenclature) said Proposals and Proposal for Plans and Plan: Upgrade reads it as 2.
 //
 // No token is ever written to an export; the trash stays behind. An export made before plan Consensus Desktop
-// (Step 1) may hold Corpora, Workers or ContextServers and a context proposal of Kind 'context', and name corpus
+// (Step 1) may hold Corpora, Workers or ContextServers and a context plan of Kind 'context', and name corpus
 // nodes in its tree: an import drops the corpora and the workers, reads the context as the Readme, and
 // makes the Context folder when the tree lacks it.
 //
@@ -29,11 +31,11 @@ const ANCHORS = require( './Anchors.js' );
 const IDS = require( './Ids.js' );
 
 const FORMAT = 'consensus-project';
-const VERSION = 1;
+const VERSION = 2;
 const MODES = [ 'copy', 'merge' ];
 const COPY_PREFIX = 'Copy of ';
 const SAFE_ID = /^[a-z0-9-]+$/;
-const PROPOSAL_KINDS = [ 'plan', 'document', 'context' ];
+const PLAN_KINDS = [ 'plan', 'document', 'context' ];
 const MERGE_BY = 'consensus';
 const SYSTEM_NAMES = [ MERGE_BY ];
 
@@ -112,25 +114,25 @@ async function Export( Store, Id )
 	{
 		return null;
 	}
-	let proposals = [];
-	let proposal_ids = [];
+	let plans = [];
+	let plan_ids = [];
 	if ( project.Context )
 	{
-		proposal_ids.push( project.Context );
+		plan_ids.push( project.Context );
 	}
 	for ( let entry of nodes_of( project.Items, null ) )
 	{
-		if ( !proposal_ids.includes( entry.Node.Id ) )
+		if ( !plan_ids.includes( entry.Node.Id ) )
 		{
-			proposal_ids.push( entry.Node.Id );
+			plan_ids.push( entry.Node.Id );
 		}
 	}
-	for ( let id of proposal_ids )
+	for ( let id of plan_ids )
 	{
 		let whole = await Store.Queue( id, function () { return read_whole( Store, id ); } );
 		if ( whole )
 		{
-			proposals.push( whole );
+			plans.push( whole );
 		}
 	}
 	return {
@@ -138,7 +140,7 @@ async function Export( Store, Id )
 		Version: VERSION,
 		Exported: new Date().toISOString(),
 		Project: { Id: project.Id, Name: project.Name, Created: project.Created, Updated: project.Updated, Context: project.Context, ContextFolder: project.ContextFolder || null, Items: project.Items },
-		Proposals: proposals,
+		Plans: plans,
 	};
 }
 
@@ -158,20 +160,20 @@ async function ExportItem( Store, Id )
 		return { Context: true };
 	}
 	let node = clone( found.Node );
-	let proposals = [];
+	let plans = [];
 	for ( let entry of nodes_of( [ node ], null ) )
 	{
 		let whole = await Store.Queue( entry.Node.Id, function () { return read_whole( Store, entry.Node.Id ); } );
 		if ( whole )
 		{
-			proposals.push( whole );
+			plans.push( whole );
 		}
 	}
 	let name = node.Name;
 	if ( node.Kind !== 'folder' )
 	{
-		let own = proposals.find( function ( whole ) { return whole.Proposal.Id === node.Id; } );
-		name = own ? own.Proposal.Title : node.Id;
+		let own = plans.find( function ( whole ) { return whole.Plan.Id === node.Id; } );
+		name = own ? own.Plan.Title : node.Id;
 	}
 	let now = new Date().toISOString();
 	return {
@@ -179,15 +181,15 @@ async function ExportItem( Store, Id )
 		Version: VERSION,
 		Exported: now,
 		Project: { Id: IDS.New( IDS.PROJECT ), Name: name, Created: now, Updated: now, Context: null, ContextFolder: null, Items: [ node ] },
-		Proposals: proposals,
+		Plans: plans,
 	};
 }
 
 
-// A proposal whole: its record, text, threads and every revision with its text; null when there is none.
+// A plan whole: its record, text, threads and every revision with its text; null when there is none.
 async function read_whole( Store, id )
 {
-	let read = await Store.ReadProposal( id );
+	let read = await Store.ReadPlan( id );
 	if ( !read )
 	{
 		return null;
@@ -201,7 +203,30 @@ async function read_whole( Store, id )
 			revisions.push( revision );
 		}
 	}
-	return { Proposal: read.Proposal, Text: read.Text, Threads: read.Threads, Revisions: revisions };
+	return { Plan: read.Plan, Text: read.Text, Threads: read.Threads, Revisions: revisions };
+}
+
+
+//---------------------------------------------------------------------
+// Upgrade: a Version 1 export (Proposals / Proposal) as Version 2 (Plans / Plan), a copy; any other as it is.
+
+function Upgrade( Exported )
+{
+	if ( !Exported || typeof Exported !== 'object' || Exported.Version !== 1 || !Array.isArray( Exported.Proposals ) )
+	{
+		return Exported;
+	}
+	let upgraded = clone( Exported );
+	upgraded.Version = 2;
+	upgraded.Plans = upgraded.Proposals.map( function ( whole )
+	{
+		let plan = Object.assign( {}, whole );
+		plan.Plan = whole.Proposal;
+		delete plan.Proposal;
+		return plan;
+	} );
+	delete upgraded.Proposals;
+	return upgraded;
 }
 
 
@@ -210,8 +235,9 @@ async function read_whole( Store, id )
 // Normalize leaves it (corpus nodes gone).
 
 
-function Check( Exported )
+function Check( Given )
 {
+	let Exported = Upgrade( Given );
 	if ( !Exported || typeof Exported !== 'object' )
 	{
 		return [ 'the export is not a json object' ];
@@ -253,17 +279,17 @@ function Check( Exported )
 	{
 		problems.push( 'Project.Items: ' + problem );
 	}
-	if ( !Array.isArray( Exported.Proposals ) )
+	if ( !Array.isArray( Exported.Plans ) )
 	{
-		problems.push( 'Proposals is not a list' );
+		problems.push( 'Plans is not a list' );
 	}
 	if ( problems.length )
 	{
 		return problems;
 	}
 
-	let proposals = {};
-	for ( let whole of Exported.Proposals )
+	let plans = {};
+	for ( let whole of Exported.Plans )
 	{
 		let problem = whole_problem( whole );
 		if ( problem )
@@ -271,7 +297,7 @@ function Check( Exported )
 			problems.push( problem );
 			continue;
 		}
-		proposals[ whole.Proposal.Id ] = whole.Proposal;
+		plans[ whole.Plan.Id ] = whole.Plan;
 	}
 	for ( let entry of all_nodes_of( items, null ) )
 	{
@@ -281,12 +307,12 @@ function Check( Exported )
 			problems.push( 'node ' + node.Id + ' is not a plain id' );
 			continue;
 		}
-		if ( ( node.Kind === 'plan' || node.Kind === 'document' ) && !proposals[ node.Id ] )
+		if ( ( node.Kind === 'plan' || node.Kind === 'document' ) && !plans[ node.Id ] )
 		{
 			problems.push( 'the tree names ' + node.Kind + ' ' + node.Id + ', which the file does not hold' );
 		}
 	}
-	let context = proposals[ project.Context ];
+	let context = plans[ project.Context ];
 	if ( project.Context !== null && ( !context || ( context.Kind !== 'document' && context.Kind !== 'context' ) ) )
 	{
 		problems.push( 'Project.Context is not a document in the file' );
@@ -297,24 +323,24 @@ function Check( Exported )
 
 function whole_problem( whole )
 {
-	if ( !whole || !whole.Proposal || !SAFE_ID.test( String( whole.Proposal.Id ) ) )
+	if ( !whole || !whole.Plan || !SAFE_ID.test( String( whole.Plan.Id ) ) )
 	{
-		return 'a proposal has no plain Id';
+		return 'a plan has no plain Id';
 	}
-	let id = whole.Proposal.Id;
-	if ( !PROPOSAL_KINDS.includes( whole.Proposal.Kind ) )
+	let id = whole.Plan.Id;
+	if ( !PLAN_KINDS.includes( whole.Plan.Kind ) )
 	{
-		return 'proposal ' + id + ' has no known Kind';
+		return 'plan ' + id + ' has no known Kind';
 	}
 	if ( typeof whole.Text !== 'string' || !Array.isArray( whole.Threads ) || !Array.isArray( whole.Revisions ) || !whole.Revisions.length )
 	{
-		return 'proposal ' + id + ' needs Text, Threads and Revisions';
+		return 'plan ' + id + ' needs Text, Threads and Revisions';
 	}
 	for ( let revision of whole.Revisions )
 	{
 		if ( !revision || !Number.isInteger( revision.Revision ) || revision.Revision < 1 || typeof revision.Text !== 'string' )
 		{
-			return 'proposal ' + id + ' has a revision with no number or no Text';
+			return 'plan ' + id + ' has a revision with no number or no Text';
 		}
 	}
 	return null;
@@ -322,20 +348,20 @@ function whole_problem( whole )
 
 
 // Normalize: a copy of a checked export as this server keeps projects: corpus nodes out of the tree, no Corpora or
-// Workers, the context proposal a document.
+// Workers, the context plan a document.
 function Normalize( Exported )
 {
-	let exported = clone( Exported );
+	let exported = clone( Upgrade( Exported ) );
 	strip_corpora( exported.Project.Items );
 	delete exported.Corpora;
 	delete exported.Workers;
 	delete exported.ContextServers;
-	for ( let whole of exported.Proposals )
+	for ( let whole of exported.Plans )
 	{
-		if ( whole.Proposal.Id === exported.Project.Context && whole.Proposal.Kind !== 'document' )
+		if ( whole.Plan.Id === exported.Project.Context && whole.Plan.Kind !== 'document' )
 		{
-			whole.Proposal.Kind = 'document';
-			whole.Proposal.State = null;
+			whole.Plan.Kind = 'document';
+			whole.Plan.State = null;
 		}
 	}
 	return exported;
@@ -343,7 +369,7 @@ function Normalize( Exported )
 
 
 //=====================================================================
-// Merge: a proposal here and the file's, as one. Revisions are matched by their global Id (the plan Global Ids),
+// Merge: a plan here and the file's, as one. Revisions are matched by their global Id (the plan Global Ids),
 // never by number: those not here are appended, numbered after the ones here, keeping their Id and Parent.
 //   the file's current revision descends from the one here   the history goes on to the file's
 //   the one here descends from the file's (or is it)          the file is behind; the text here stays
@@ -383,7 +409,7 @@ function Merge( Here, File, Now, New_Id )
 		result.Revisions += 1;
 	}
 
-	let proposal = clone( Here.Proposal );
+	let plan = clone( Here.Plan );
 	let text = Here.Text;
 	let behind = ( file_head.Id === here_head.Id ) || ancestors_of( by_id, here_head.Id ).has( file_head.Id );
 	if ( !behind )
@@ -391,8 +417,8 @@ function Merge( Here, File, Now, New_Id )
 		if ( ancestors_of( by_id, file_head.Id ).has( here_head.Id ) )
 		{
 			text = File.Text;
-			proposal.Head = file_head.Id;
-			take_record( proposal, File.Proposal );
+			plan.Head = file_head.Id;
+			take_record( plan, File.Plan );
 		}
 		else
 		{
@@ -401,15 +427,15 @@ function Merge( Here, File, Now, New_Id )
 			revisions.push( merge );
 			by_id[ merge.Id ] = merge;
 			text = merge.Text;
-			proposal.Head = merge.Id;
+			plan.Head = merge.Id;
 			if ( newer === file_head )
 			{
-				take_record( proposal, File.Proposal );
+				take_record( plan, File.Plan );
 			}
 			result.Diverged = common_number( by_id, here_head.Id, file_head.Id );
 		}
-		proposal.Revision = revisions[ revisions.length - 1 ].Revision;
-		proposal.Updated = now;
+		plan.Revision = revisions[ revisions.length - 1 ].Revision;
+		plan.Updated = now;
 	}
 
 	let threads = clone( Here.Threads );
@@ -447,7 +473,7 @@ function Merge( Here, File, Now, New_Id )
 	}
 	mark_detached( threads, text );
 
-	result.Whole = { Proposal: proposal, Text: text, Threads: threads, Revisions: revisions };
+	result.Whole = { Plan: plan, Text: text, Threads: threads, Revisions: revisions };
 	return result;
 }
 
@@ -459,7 +485,7 @@ function MissingRevisionId( Whole )
 	{
 		if ( !revision.Id )
 		{
-			return 'revision ' + revision.Revision + ' of "' + Whole.Proposal.Title + '" has no Id: merging needs the revision ids of the plan Global Ids';
+			return 'revision ' + revision.Revision + ' of "' + Whole.Plan.Title + '" has no Id: merging needs the revision ids of the plan Global Ids';
 		}
 	}
 	return null;
@@ -467,14 +493,14 @@ function MissingRevisionId( Whole )
 
 
 // A newer head brings its title and state along; the Readme keeps its own.
-function take_record( proposal, from )
+function take_record( plan, from )
 {
-	if ( proposal.Kind === 'document' )
+	if ( plan.Kind === 'document' )
 	{
 		return;
 	}
-	proposal.Title = from.Title;
-	proposal.State = from.State;
+	plan.Title = from.Title;
+	plan.State = from.State;
 }
 
 
@@ -677,12 +703,12 @@ async function import_into( Store, Exported, Into, Preview, Context )
 		return { Problems: [ 'the project has no folder ' + Into.Parent ] };
 	}
 	let brought = brought_items( Exported );
-	let proposal_ids = nodes_of( brought, null ).map( function ( entry ) { return entry.Node.Id; } );
-	let wholes = Exported.Proposals.filter( function ( whole ) { return proposal_ids.includes( whole.Proposal.Id ); } );
+	let plan_ids = nodes_of( brought, null ).map( function ( entry ) { return entry.Node.Id; } );
+	let wholes = Exported.Plans.filter( function ( whole ) { return plan_ids.includes( whole.Plan.Id ); } );
 	let id_map = {};
 	for ( let whole of wholes )
 	{
-		id_map[ whole.Proposal.Id ] = await fresh_id( Store, IDS.ForProposal( whole.Proposal.Kind ) );
+		id_map[ whole.Plan.Id ] = await fresh_id( Store, IDS.ForPlan( whole.Plan.Kind ) );
 	}
 	let folder_map = {};
 	for ( let entry of all_nodes_of( brought, null ) )
@@ -723,10 +749,10 @@ async function import_into( Store, Exported, Into, Preview, Context )
 	}
 	for ( let whole of wholes )
 	{
-		let id = id_map[ whole.Proposal.Id ];
+		let id = id_map[ whole.Plan.Id ];
 		let written = clone( whole );
-		written.Proposal.Id = id;
-		await Store.Queue( id, function () { return Store.WriteWholeProposal( written, project.Id ); } );
+		written.Plan.Id = id;
+		await Store.Queue( id, function () { return Store.WriteWholePlan( written, project.Id ); } );
 		report.Written.push( id );
 	}
 	let outcome = await Context.ChangeProject( project.Id, function ( changed )
@@ -774,7 +800,7 @@ function today()
 }
 
 
-// The file's proposals that come in: its context and those its tree names.
+// The file's plans that come in: its context and those its tree names.
 function records_of( Exported )
 {
 	let wanted = new Set( [ Exported.Project.Context ] );
@@ -782,32 +808,32 @@ function records_of( Exported )
 	{
 		wanted.add( entry.Node.Id );
 	}
-	return Exported.Proposals.filter( function ( whole ) { return wanted.has( whole.Proposal.Id ); } );
+	return Exported.Plans.filter( function ( whole ) { return wanted.has( whole.Plan.Id ); } );
 }
 
 
-// The file's proposal ids that something here already has.
+// The file's plan ids that something here already has.
 async function taken_ids( Store, Exported )
 {
 	let taken = [];
 	for ( let whole of records_of( Exported ) )
 	{
-		if ( await Store.ReadProposal( whole.Proposal.Id ) )
+		if ( await Store.ReadPlan( whole.Plan.Id ) )
 		{
-			taken.push( whole.Proposal.Id );
+			taken.push( whole.Plan.Id );
 		}
 	}
 	return taken;
 }
 
 
-// A new id no proposal or project here has.
+// A new id no plan or project here has.
 async function fresh_id( Store, kind )
 {
 	while ( true )
 	{
 		let id = IDS.New( kind );
-		let taken = await Store.ReadProposal( id ) || await Store.ReadProject( id );
+		let taken = await Store.ReadPlan( id ) || await Store.ReadProject( id );
 		if ( !taken )
 		{
 			return id;
@@ -824,7 +850,7 @@ async function import_new( Store, Exported, report )
 	let id_map = {};
 	for ( let whole of records_of( Exported ) )
 	{
-		id_map[ whole.Proposal.Id ] = whole.Proposal.Id;
+		id_map[ whole.Plan.Id ] = whole.Plan.Id;
 	}
 	await write_project( Store, Exported, Exported.Project.Id, Exported.Project.Name, id_map, {}, report );
 	report.Project.Mode = 'new';
@@ -839,7 +865,7 @@ async function import_copy( Store, Exported, name, report )
 	let id_map = {};
 	for ( let whole of records_of( Exported ) )
 	{
-		id_map[ whole.Proposal.Id ] = await fresh_id( Store, IDS.ForProposal( whole.Proposal.Kind ) );
+		id_map[ whole.Plan.Id ] = await fresh_id( Store, IDS.ForPlan( whole.Plan.Kind ) );
 	}
 	let folder_map = {};
 	for ( let entry of all_nodes_of( Exported.Project.Items, null ) )
@@ -864,10 +890,10 @@ async function write_project( Store, Exported, project_id, name, id_map, folder_
 	let project = await Store.CreateProject( { Id: project_id, Name: name, Context: id_map[ Exported.Project.Context ], ContextFolder: context_folder, Items: items } );
 	for ( let whole of records_of( Exported ) )
 	{
-		let id = id_map[ whole.Proposal.Id ];
+		let id = id_map[ whole.Plan.Id ];
 		let written = clone( whole );
-		written.Proposal.Id = id;
-		await Store.Queue( id, function () { return Store.WriteWholeProposal( written, project.Id ); } );
+		written.Plan.Id = id;
+		await Store.Queue( id, function () { return Store.WriteWholePlan( written, project.Id ); } );
 		count_made( report, written );
 		report.Written.push( id );
 	}
@@ -879,19 +905,19 @@ async function write_project( Store, Exported, project_id, name, id_map, folder_
 //---------------------------------------------------------------------
 // Merge: into the project here. Nothing here is removed.
 
-// The id a file's proposal is merged into: its own, or the project's Readme for the file's.
+// The id a file's plan is merged into: its own, or the project's Readme for the file's.
 function merge_target( Exported, here, id )
 {
 	return ( id === Exported.Project.Context ) ? here.Context : id;
 }
 
 
-// Why the file cannot be merged, before anything is written: a proposal in both whose revisions have no Id.
+// Why the file cannot be merged, before anything is written: a plan in both whose revisions have no Id.
 async function merge_problem( Store, Exported, here )
 {
 	for ( let whole of records_of( Exported ) )
 	{
-		let there = await read_whole( Store, merge_target( Exported, here, whole.Proposal.Id ) );
+		let there = await read_whole( Store, merge_target( Exported, here, whole.Plan.Id ) );
 		if ( there )
 		{
 			let problem = MissingRevisionId( whole ) || MissingRevisionId( there );
@@ -910,19 +936,19 @@ async function import_merge( Store, Exported, here, report, context )
 	for ( let whole of records_of( Exported ) )
 	{
 		// The file's context lands on the project's Readme, whatever its id.
-		let id = merge_target( Exported, here, whole.Proposal.Id );
+		let id = merge_target( Exported, here, whole.Plan.Id );
 		let file = clone( whole );
-		file.Proposal.Id = id;
+		file.Plan.Id = id;
 		let merged = await Store.Queue( id, async function ()
 		{
 			let there = await read_whole( Store, id );
 			if ( !there )
 			{
-				await Store.WriteWholeProposal( file, here.Id );
+				await Store.WriteWholePlan( file, here.Id );
 				return null;
 			}
 			let result = Merge( there, file );
-			await Store.WriteWholeProposal( result.Whole, here.Id );
+			await Store.WriteWholePlan( result.Whole, here.Id );
 			return result;
 		} );
 		report.Written.push( id );
@@ -931,10 +957,10 @@ async function import_merge( Store, Exported, here, report, context )
 			count_made( report, file );
 			continue;
 		}
-		report.Merged.push( { Id: id, Title: merged.Whole.Proposal.Title, Revisions: merged.Revisions, Threads: merged.Threads, Replies: merged.Replies } );
+		report.Merged.push( { Id: id, Title: merged.Whole.Plan.Title, Revisions: merged.Revisions, Threads: merged.Threads, Replies: merged.Replies } );
 		if ( merged.Diverged !== null )
 		{
-			report.Diverged.push( { Id: id, Title: merged.Whole.Proposal.Title, At: merged.Diverged } );
+			report.Diverged.push( { Id: id, Title: merged.Whole.Plan.Title, At: merged.Diverged } );
 		}
 	}
 	// The file's tree, with its Readme and folder named as they are here.
@@ -962,11 +988,11 @@ async function import_merge( Store, Exported, here, report, context )
 
 function count_made( report, whole )
 {
-	if ( whole.Proposal.Kind === 'plan' )
+	if ( whole.Plan.Kind === 'plan' )
 	{
 		report.Made.Plans += 1;
 	}
-	if ( whole.Proposal.Kind === 'document' )
+	if ( whole.Plan.Kind === 'document' )
 	{
 		report.Made.Documents += 1;
 	}

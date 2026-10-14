@@ -63,10 +63,10 @@ TEST( 'the state Proposal becomes Draft at start: in the settings, and in every 
 	// A plan left in the old state by an older server, and one in another state.
 	write_settings( data, [ 'Proposal', 'Plan', 'Working', 'Finished' ] );
 	let second = await SERVER.Start( { Data: data, Port: 0 } );
-	let plan = ( await call( second, 'POST', '/api/proposals', { Title: 'Old', Text: '# Old\n' } ) ).Body.Proposal;
-	let other = ( await call( second, 'POST', '/api/proposals', { Title: 'Working', Text: '# Working\n' } ) ).Body.Proposal;
-	ASSERT.equal( ( await call( second, 'PUT', '/api/proposals/' + other.Id + '/state', { State: 'Working' } ) ).Status, 200 );
-	let document = ( await call( second, 'POST', '/api/proposals', { Title: 'Doc', Text: '# Doc\n', Kind: 'document' } ) ).Body.Proposal;
+	let plan = ( await call( second, 'POST', '/api/plans', { Title: 'Old', Text: '# Old\n' } ) ).Body.Plan;
+	let other = ( await call( second, 'POST', '/api/plans', { Title: 'Working', Text: '# Working\n' } ) ).Body.Plan;
+	ASSERT.equal( ( await call( second, 'PUT', '/api/plans/' + other.Id + '/state', { State: 'Working' } ) ).Status, 200 );
+	let document = ( await call( second, 'POST', '/api/plans', { Title: 'Doc', Text: '# Doc\n', Kind: 'document' } ) ).Body.Plan;
 	await second.Close();
 	let stored = PATH.join( data, 'projects', 'Default', '.consensus', 'content', plan.Id, 'content.json' );
 	let record = JSON.parse( FS.readFileSync( stored, 'utf8' ) );
@@ -76,10 +76,10 @@ TEST( 'the state Proposal becomes Draft at start: in the settings, and in every 
 
 	let third = await SERVER.Start( { Data: data, Port: 0 } );
 	ASSERT.deepEqual( ( await call( third, 'GET', '/api/me' ) ).Body.States, [ 'Draft', 'Plan', 'Working', 'Finished' ] );
-	ASSERT.equal( ( await call( third, 'GET', '/api/proposals/' + plan.Id ) ).Body.Proposal.State, 'Draft' );
-	ASSERT.equal( ( await call( third, 'GET', '/api/proposals/' + other.Id ) ).Body.Proposal.State, 'Working' );
-	ASSERT.equal( ( await call( third, 'GET', '/api/proposals/' + document.Id ) ).Body.Proposal.State, null );
-	ASSERT.equal( ( await call( third, 'GET', '/api/proposals/' + plan.Id + '/revisions' ) ).Body.Revisions.length, 1 );
+	ASSERT.equal( ( await call( third, 'GET', '/api/plans/' + plan.Id ) ).Body.Plan.State, 'Draft' );
+	ASSERT.equal( ( await call( third, 'GET', '/api/plans/' + other.Id ) ).Body.Plan.State, 'Working' );
+	ASSERT.equal( ( await call( third, 'GET', '/api/plans/' + document.Id ) ).Body.Plan.State, null );
+	ASSERT.equal( ( await call( third, 'GET', '/api/plans/' + plan.Id + '/revisions' ) ).Body.Revisions.length, 1 );
 	await third.Close();
 } );
 
@@ -92,9 +92,9 @@ TEST( 'a list without Proposal, or with Draft already, is left as the owner wrot
 	ASSERT.deepEqual( first.Settings.States, [ 'Idea', 'Done' ] );
 	await first.Close();
 
-	write_settings( data, [ 'Draft', 'Proposal', 'Done' ] );
+	write_settings( data, [ 'Draft', 'Plan', 'Done' ] );
 	let second = await SERVER.Start( { Data: data, Port: 0 } );
-	ASSERT.deepEqual( second.Settings.States, [ 'Draft', 'Proposal', 'Done' ] );
-	ASSERT.deepEqual( read_settings( data ).States, [ 'Draft', 'Proposal', 'Done' ] );
+	ASSERT.deepEqual( second.Settings.States, [ 'Draft', 'Plan', 'Done' ] );
+	ASSERT.deepEqual( read_settings( data ).States, [ 'Draft', 'Plan', 'Done' ] );
 	await second.Close();
 } );

@@ -38,23 +38,24 @@ Consensus ones included, and gives it this page's rules in its own words.
 
   curl -s -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
     -d '{ "Text": "Agreed; the wording I will apply: ..." }' \
-    http://<server>:<port>/api/proposals/<plan id>/threads/<thread id>/replies
+    http://<server>:<port>/api/plans/<plan id>/threads/<thread id>/replies
   ```
 
-- The useful routes:
-  - `GET /api/waiting`: the threads waiting on you, across proposals.
+- The useful routes (`plans` in a path is the API's name for plans and documents alike; in the app a plan
+  starts as a Draft, and "plan" is not a word of its own):
+  - `GET /api/waiting`: the threads waiting on you, across plans and documents.
   - `GET /api/projects`: every project with its tree (folders, plans with their states, documents), the id of
     its Readme (`Context`) and of its Context folder (`ContextFolder`).
   - `POST /api/projects` `{ Name }`: a new project.
-  - `GET /api/proposals/<id>`: text, revision, threads, project; `Context: true` for a project's Readme.
-  - `POST /api/proposals` `{ Title, Text, Project, Parent?, Kind? }`: a new plan (Parent: a folder's or a plan's
+  - `GET /api/plans/<id>`: text, revision, threads, project; `Context: true` for a project's Readme.
+  - `POST /api/plans` `{ Title, Text, Project, Parent?, Kind? }`: a new plan (Parent: a folder's or a plan's
     id), or a document (`Kind: "document"`; it goes in the project's Context folder).
-  - `POST /api/proposals/<id>/threads` `{ Text, Anchor?: { Text } }`: a new thread (no Anchor: the whole document).
-  - `POST /api/proposals/<id>/threads/<tid>/replies` `{ Text }`
-  - `POST /api/proposals/<id>/threads/<tid>/apply` `{ Outcome, Revision, Text?, Anchor?: { Text } }`
-  - `POST /api/proposals/<id>/threads/<tid>/anchor` `{ Anchor: { Text } }`: re-anchor a thread.
-  - `PUT /api/proposals/<id>/state` `{ State }`
-  - `PUT /api/proposals/<id>/text` `{ Text, Revision }`: an edit, for example to a project's Readme.
+  - `POST /api/plans/<id>/threads` `{ Text, Anchor?: { Text } }`: a new thread (no Anchor: the whole document).
+  - `POST /api/plans/<id>/threads/<tid>/replies` `{ Text }`
+  - `POST /api/plans/<id>/threads/<tid>/apply` `{ Outcome, Revision, Text?, Anchor?: { Text } }`
+  - `POST /api/plans/<id>/threads/<tid>/anchor` `{ Anchor: { Text } }`: re-anchor a thread.
+  - `PUT /api/plans/<id>/state` `{ State }`
+  - `PUT /api/plans/<id>/text` `{ Text, Revision }`: an edit, for example to a project's Readme.
 - An anchor's `Text` is matched against the text as it reads, without markdown marks: no backticks or asterisks.
 
 ## Finding your project
@@ -112,6 +113,6 @@ document is answered with a reply holding the exact new text, applied once the o
 
 ## Starting a project from a codebase
 
-Create the project and write its Readme yourself (`PUT /api/proposals/<context id>/text`), from the
+Create the project and write its Readme yourself (`PUT /api/plans/<context id>/text`), from the
 codebase you can read: what the project is, where things live, the conventions, and what has been decided.
 After that, plans are drafted and discussed in threads as usual.
