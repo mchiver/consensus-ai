@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-14T05:43:25.116Z",
-	"Version": 8,
+	"Updated": "2026-10-14T06:57:51.116Z",
+	"Version": 10,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -49,7 +49,7 @@
 				},
 				{
 					"Kind": "plan",
-					"Id": "pln-102-s49-5zy"
+					"Id": "pln-fei-7kd-j7w"
 				}
 			]
 		},
@@ -203,6 +203,10 @@
 				{
 					"Kind": "plan",
 					"Id": "pln-qpl-z3r-wp6"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-102-s49-5zy"
 				}
 			]
 		}

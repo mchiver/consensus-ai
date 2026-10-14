@@ -1,7 +1,7 @@
 {
 	"name": "consensus",
 	"version": "0.4.0",
-	"description": "Collaborative proposal building and approval: the User and the LLM work a proposal through, thread by thread, until it is approved as a Plan.",
+	"description": "Collaborative proposal building and approval: the User and the LLM work a proposal through, thread by thread, until it is approved as an actionable Plan.",
 	"private": true,
 	"license": "MIT",
 	"main": "src/Server.js",

@@ -26,6 +26,7 @@ const PAGE = require( './Page.js' );
 const SERVER = require( '../src/Server.js' );
 
 const VERSION = require( '../package.json' ).version;
+const ICON = PATH.join( __dirname, 'icon.ico' );		// the windows' icon from the checkout; the packaged executable carries its own (plan Installer)
 const TRY_TIMEOUT = 5000;
 // Electron's own switches, which stay on the command line the app parses.
 const ELECTRON_SWITCH = /^--(remote-debugging-port|user-data-dir|inspect|enable-logging|no-sandbox|disable-gpu|trace-warnings)/;
@@ -215,6 +216,7 @@ function create_window()
 		width: 1400,
 		height: 900,
 		title: 'Consensus Desktop',
+		icon: ICON,
 		webPreferences: web_preferences(),
 	} );
 	window.webContents.on( 'preload-error', function ( event, path, error )
@@ -226,7 +228,7 @@ function create_window()
 	{
 		if ( details.url.startsWith( page.Url + '/' ) )
 		{
-			return { action: 'allow', overrideBrowserWindowOptions: { width: 1000, height: 800, title: 'Consensus Desktop', webPreferences: web_preferences() } };
+			return { action: 'allow', overrideBrowserWindowOptions: { width: 1000, height: 800, title: 'Consensus Desktop', icon: ICON, webPreferences: web_preferences() } };
 		}
 		ELECTRON.shell.openExternal( details.url );
 		return { action: 'deny' };

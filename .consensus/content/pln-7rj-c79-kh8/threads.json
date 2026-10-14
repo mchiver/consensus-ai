@@ -3,19 +3,22 @@
 		"Id": "thr-xcc-5hb-qvm",
 		"Anchor": {
 			"Text": "Icon",
-			"Prefix": "s folder. What needs to be done ",
-			"Suffix": ". The build warns \"default Elect"
+			"Prefix": "esh config and projects folder. ",
+			"Suffix": ". Built 2026-10-14. The build no"
 		},
 		"Detached": false,
-		"Status": "contested",
-		"Reopened": true,
-		"Resolved": null,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-14T06:46:55.705Z"
+		},
 		"Applied": {
 			"By": "Claude-CLI@Cube12",
-			"At": "2026-10-14T05:17:42.301Z",
-			"Revision": 2,
-			"RevisionId": "rev-yu0-qil-0on",
-			"Outcome": "Applied: one branding image, a vector master at public/img/consensus.svg, is the source of the installer, executable, taskbar, web page, About dialog and docs icons; the derived files, where each is linked, and the drawing as the first step. The mark proposed: three overlapping speech bubbles with a check in the front one, no text, in the accent color."
+			"At": "2026-10-14T06:59:43.060Z",
+			"Revision": 7,
+			"RevisionId": "rev-e5p-qce-k6l",
+			"Outcome": "Applied: the mark is on the installer, the executable, the web page and the docs; the checkout run's window icon added to desktop/main.js on the owner's word and noted in the text. The .icns waits for the Mac build."
 		},
 		"Created": "2026-10-14T05:13:22.458Z",
 		"Replies": [
@@ -36,6 +39,12 @@
 				"By": "Claude-CLI@Cube12",
 				"At": "2026-10-14T06:39:55.503Z",
 				"Text": "Yes, for the executable and the installer: desktop/icon.ico is rendered from the mark, electron-builder stamps it on Consensus.exe and on the Setup .exe (and the uninstaller), and I extracted the icon from both built files to check; the taskbar and the Start menu show it once installed. The web page shows it too: public/img/mark.svg is the favicon and the About popup's mark.\n\nThe docs needed nothing: the mark came from there (docs/images/mark.svg is the drawing the docs' favicon and brand header already used), so the docs site already carries it.\n\nTwo places do not have it yet:\n- Running from the checkout (npm run desktop), the window and taskbar show Electron's icon, because the icon in the .exe is only there in the packaged build. Recommendation: name desktop/icon.ico as the BrowserWindow icon in desktop/main.js (the page window and the servers screen), one line each; harmless in the packaged build.\n- No .icns for a Mac build yet, as the plan says; it comes with that build.\n\nResolve to take the recommendation; I will add the window icon and commit it with the next change."
+			},
+			{
+				"Id": "rep-svh-i1e-mbx",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-14T06:45:17.927Z",
+				"Text": "Done, on the owner's word in the chat: desktop/main.js names desktop/icon.ico as the icon of the window (the servers screen and the page share it) and of a detached tab's window; the packaged executable keeps its own. Checked by launching from the checkout on a temporary config and capturing the title bar: the mark shows beside the title. The desktop tests pass (4). Not committed yet; it goes with the next commit. Resolve to close this thread."
 			}
 		]
 	},
@@ -125,28 +134,6 @@
 				"By": "user",
 				"At": "2026-10-14T06:09:00.352Z",
 				"Text": "I think we will go with Certum Cloud Code )https://www.sslmentor.com/certum/certumcodecloud) as a certificate service for signing the installer.\nupdate the plan accordingly."
-			}
-		]
-	},
-	{
-		"Id": "thr-wst-gpu-ceg",
-		"Anchor": {
-			"Text": "Microsoft as the CA at $9.99 a month",
-			"Prefix": "Jsign. Azure Trusted Signing is ",
-			"Suffix": ", supported natively by electron"
-		},
-		"Detached": false,
-		"Status": "contested",
-		"Reopened": false,
-		"Resolved": null,
-		"Applied": null,
-		"Created": "2026-10-14T06:29:50.101Z",
-		"Replies": [
-			{
-				"Id": "rep-qth-wwz-sxl",
-				"By": "user",
-				"At": "2026-10-14T06:29:50.101Z",
-				"Text": "can i just pay for a month, get the installed sign, and then discontinue the service? until needed again?"
 			}
 		]
 	}
