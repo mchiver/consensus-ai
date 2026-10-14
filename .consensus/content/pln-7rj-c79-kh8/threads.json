@@ -1,0 +1,91 @@
+[
+	{
+		"Id": "thr-xcc-5hb-qvm",
+		"Anchor": {
+			"Text": "Icon",
+			"Prefix": "s folder. What needs to be done ",
+			"Suffix": ". The build warns \"default Elect"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-14T05:13:22.458Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-14T05:17:42.301Z",
+			"Revision": 2,
+			"RevisionId": "rev-yu0-qil-0on",
+			"Outcome": "Applied: one branding image, a vector master at public/img/consensus.svg, is the source of the installer, executable, taskbar, web page, About dialog and docs icons; the derived files, where each is linked, and the drawing as the first step. The mark proposed: three overlapping speech bubbles with a check in the front one, no text, in the accent color."
+		},
+		"Created": "2026-10-14T05:13:22.458Z",
+		"Replies": [
+			{
+				"Id": "rep-fsu-zy3-aam",
+				"By": "user",
+				"At": "2026-10-14T05:13:22.458Z",
+				"Text": "Yes, please.\nwe do need a branding image that can be shared across installer, executable, and docs."
+			}
+		]
+	},
+	{
+		"Id": "thr-ojd-i0x-r9s",
+		"Anchor": {
+			"Text": "Signing",
+			"Prefix": "ows the SVG beside the version. ",
+			"Suffix": ". The build calls signtool with "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-14T05:14:39.121Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-14T05:17:42.320Z",
+			"Revision": 3,
+			"RevisionId": "rev-1g4-a03-xnh",
+			"Outcome": "Applied: AWS and Azure compared in the text. AWS cannot issue a publicly trusted code-signing certificate (Certificate Manager is TLS only, Private CA is not trusted by Windows, Signer needs an importable key the CAs no longer give); it can only hold a KMS key for a certificate bought elsewhere ($200 to $600 a year) signed through Jsign. Azure Trusted Signing is the CA itself at $9.99 a month, supported natively by electron-builder. Decided: Azure Trusted Signing, with the setup steps listed."
+		},
+		"Created": "2026-10-14T05:14:39.121Z",
+		"Replies": [
+			{
+				"Id": "rep-u08-n4n-276",
+				"By": "user",
+				"At": "2026-10-14T05:14:39.121Z",
+				"Text": "i currently use AWS as a primary cloud provider. Compare certificate services from both AWS and Azure."
+			}
+		]
+	},
+	{
+		"Id": "thr-g3s-2ab-to8",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-14T05:53:49.579Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-14T05:55:30.124Z",
+			"Revision": 4,
+			"RevisionId": "rev-i6v-ewn-yq6",
+			"Outcome": "Accepted by the owner. Committed as \"Installer: the icon\"; the plan goes back to Draft, the signing part not built."
+		},
+		"Created": "2026-10-14T05:52:54.976Z",
+		"Replies": [
+			{
+				"Id": "rep-dzk-q7l-orq",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-14T05:52:54.976Z",
+				"Text": "Build log: the icon (Claude Fable 5.1, 2026-10-14).\n\nWhat was built:\n- The branding image is the mark the docs already had (docs/images/mark.svg: the open ring with a check, in the accent color). No new drawing; the speech-bubble proposal is dropped from the text. The master copy is public/img/mark.svg, served by the web server and the desktop.\n- desktop/icon.ico (16 to 256 pixels) and desktop/icon.png (512) rendered from the master with ImageMagick; the command lines are in the plan so it can be redone. package.json names the .ico in win.icon.\n- public/index.html links the SVG as the favicon in place of the empty data URL, and the About popup shows the mark before its title; one rule, .about-mark, in consensus.css.\n- No .icns: this ImageMagick cannot write one; it comes with the Mac build.\n\nHow it was tested:\n- npm run dist rebuilt the installer with no icon warning; the icon extracted from the built Consensus.exe and from Consensus Setup 0.4.0.exe is the mark.\n- The running server serves /img/mark.svg as image/svg+xml and the page carries the favicon link and the About mark.\n- npm test: 179 pass, 0 fail.\n\nNot committed. The plan stays Working until this log is resolved; then one commit, \"Installer: the icon\"."
+			}
+		]
+	}
+]

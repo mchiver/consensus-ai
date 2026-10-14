@@ -8,7 +8,8 @@
 	"scripts": {
 		"start": "node bin/consensus.js",
 		"test": "node --test",
-		"desktop": "electron desktop"
+		"desktop": "electron desktop",
+		"dist": "electron-builder --win nsis"
 	},
 	"engines": {
 		"node": ">=22"
@@ -24,6 +25,32 @@
 		"consensus": "bin/consensus.js"
 	},
 	"devDependencies": {
-		"electron": "^44.5.1"
+		"electron": "^44.5.1",
+		"electron-builder": "^26.15.3"
+	},
+	"build": {
+		"appId": "com.mchiver.consensus",
+		"productName": "Consensus",
+		"extraMetadata": {
+			"main": "desktop/main.js"
+		},
+		"directories": {
+			"output": "~dist"
+		},
+		"files": [
+			"desktop/**",
+			"src/**",
+			"public/**",
+			".guides/build-with-consensus.md",
+			"package.json"
+		],
+		"win": {
+			"target": "nsis",
+			"icon": "desktop/icon.ico"
+		},
+		"nsis": {
+			"oneClick": false,
+			"allowToChangeInstallationDirectory": true
+		}
 	}
 }

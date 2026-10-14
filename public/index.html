@@ -4,7 +4,7 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Consensus</title>
-	<link rel="icon" href="data:,">
+	<link rel="icon" href="/img/mark.svg" type="image/svg+xml">
 	<link rel="stylesheet" href="/vendor/bootstrap.min.css">
 	<link rel="stylesheet" href="/css/consensus.css">
 	<script src="/js/theme.js"></script>
@@ -844,7 +844,7 @@
 	<!-- Help (plan UI Tweaks VI): About, and the hotkeys. -->
 	<div class="subplan-popup settings-popup help-popup" id="help-popup" ng-controller="HelpController" ng-show="Panel.Open" ng-keydown="Key($event)">
 		<div class="subplan-form settings-form help-form" ng-if="Panel.Open === 'about'" tabindex="-1" auto-focus>
-			<div class="subplan-head">About Consensus <span class="muted small" id="about-version" ng-show="Version()">version {{ Version() }}</span></div>
+			<div class="subplan-head"><img class="about-mark" src="/img/mark.svg" alt="">About Consensus <span class="muted small" id="about-version" ng-show="Version()">version {{ Version() }}</span></div>
 			<div class="help-links">
 				<a ng-href="{{ SourceUrl }}" target="_blank" rel="noopener" id="about-source"><svg class="icon lead"><use href="#i-link"></use></svg>Source</a>
 				<a ng-href="{{ GuideUrl }}" target="_blank" rel="noopener" id="about-guide"><svg class="icon lead"><use href="#i-link"></use></svg>Online guide</a>

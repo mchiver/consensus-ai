@@ -1866,6 +1866,14 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	overflow: auto;
 }
 
+.about-mark
+{
+	width: 1.25em;
+	height: 1.25em;
+	vertical-align: -0.25em;
+	margin-right: 0.4em;
+}
+
 .help-links
 {
 	display: flex;

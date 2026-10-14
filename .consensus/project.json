@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-12T16:49:25.893Z",
-	"Version": 2,
+	"Updated": "2026-10-14T05:43:25.116Z",
+	"Version": 8,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -37,11 +37,19 @@
 				},
 				{
 					"Kind": "plan",
-					"Id": "pln-qpl-z3r-wp6"
+					"Id": "pln-hv9-t4n-45m"
 				},
 				{
 					"Kind": "plan",
-					"Id": "pln-hv9-t4n-45m"
+					"Id": "pln-7rj-c79-kh8"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-vhz-wg6-e4v"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-102-s49-5zy"
 				}
 			]
 		},
@@ -191,6 +199,10 @@
 				{
 					"Kind": "plan",
 					"Id": "pln-w8v-auz-wvr"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-qpl-z3r-wp6"
 				}
 			]
 		}

@@ -1,0 +1,7 @@
+# UI Tweaks VII
+
+- When selecting text in the page view, the copy button is correctly displayed but has a transparent background. make sure it has a solid background instead.
+
+- A Project level (?) menu item to view and copy the LLM instructions for manual seeding into the LLM.
+
+

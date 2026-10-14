@@ -328,7 +328,8 @@ function own_arguments( argv )
 // would start it (a project folder: that project alone).
 function new_window( Arguments )
 {
-	let child = CHILD_PROCESS.spawn( process.execPath, [ ELECTRON.app.getAppPath() ].concat( Arguments || [] ), { detached: true, stdio: 'ignore' } );
+	let leading = ELECTRON.app.isPackaged ? [] : [ ELECTRON.app.getAppPath() ];		// installed, the executable is the app; from the checkout, electron takes the app folder
+	let child = CHILD_PROCESS.spawn( process.execPath, leading.concat( Arguments || [] ), { detached: true, stdio: 'ignore' } );
 	child.unref();
 }
 
