@@ -827,6 +827,12 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	display: block;
 }
 
+/* Copy is the outline one of the three; it covers the text under it like the others (plan UI Tweaks VII). */
+.comment-button.btn-outline-secondary
+{
+	background: var(--page-bg);
+}
+
 .read-error
 {
 	position: sticky;
@@ -842,6 +848,10 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	gap: 0.5rem;
 	padding: 0.75rem;
 	border-bottom: 1px solid var(--border);
+	position: sticky;		/* stays at the top while the list scrolls (plan UI Tweaks VII) */
+	top: 0;
+	z-index: 5;
+	background: var(--panel-bg);
 }
 
 /* The filter and the Highlight picker share the row, the count between them. */
@@ -1943,6 +1953,12 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 	font-family: var(--bs-font-monospace);
 	font-size: 0.75rem;
 	white-space: pre;
+}
+
+/* The LLM instructions (plan UI Tweaks VII): prose, so the lines wrap. */
+.instructions-text
+{
+	white-space: pre-wrap;
 }
 
 .port-preview

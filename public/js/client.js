@@ -129,5 +129,6 @@ angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope'
 		Delete: Delete,
 		SetCurrent: SetCurrent,
 		Listen: Listen,
+		Base: base_of,		// the base a root's own pages are fetched from (plan UI Tweaks VII: /instructions)
 	};
 } ] );

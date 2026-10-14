@@ -27,7 +27,7 @@
 const DRAG_TYPE = 'application/x-consensus-item';
 const DRAG_PROJECT_TYPE = 'application/x-consensus-project';
 
-angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', 'Llms', 'Roots', 'Hotkeys', 'Toast', function ( $scope, $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports, Llms, Roots, Hotkeys, Toast )
+angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', 'Llms', 'Roots', 'Hotkeys', 'Toast', 'Instructions', function ( $scope, $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports, Llms, Roots, Hotkeys, Toast, Instructions )
 {
 	// Remembered per root (stored.js, plan UI Tweaks V; per root since plan Run Shapes, Step 5), and the sort and the
 	// stamps once per window.
@@ -607,7 +607,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	}
 
 
-	// Project: New Folder, New Draft, ---, Copy, Paste, Rename, Export, ---, Delete.
+	// Project: New Folder, New Draft, ---, Copy, Paste, Rename, Export, Settings, LLM Instructions, ---, Delete.
 	function project_actions( project )
 	{
 		return [
@@ -619,6 +619,7 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			action( 'Rename', 'pencil', function () { $scope.StartRename( 'project', project, project, QUIET ); } ),
 			export_action( 'project', project, project ),
 			action( 'Settings', 'settings', function () { $scope.OpenProjectSettings( project ); } ),
+			action( 'LLM Instructions', 'info', function () { $scope.OpenInstructions( project ); } ),
 			{ Separator: true },
 			action( 'Delete', 'trash', function () { $scope.StartDelete( project, QUIET ); }, { Danger: true, Disabled: root_of( project ).Projects.length <= 1 || !only_context( project ) || ( project.Archive || [] ).length > 0 } ),
 		];
@@ -1273,6 +1274,14 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 			Ports.ShowExport( exported, { Id: node.Id, Name: name_of( node ) } );
 			$scope.$applyAsync();
 		}
+	};
+
+
+	// LLM Instructions (plan UI Tweaks VII): the server's page, the project named first, in a popup to copy.
+	$scope.OpenInstructions = async function ( project )
+	{
+		await Instructions.Start( project, root_of( project ) );
+		$scope.$applyAsync();
 	};
 
 

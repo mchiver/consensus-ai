@@ -930,6 +930,21 @@ TEST( 'Help: About shows the version, the links and the project summary; Hotkeys
 } );
 
 
+TEST( 'LLM Instructions (plan UI Tweaks VII): a project row\'s menu shows the server\'s instructions with the project named first; Open links the page; Escape closes', async function ()
+{
+	await menu_pick( '.project.open > .project-head', 'LLM Instructions' );
+	await page.WaitFor( '( document.getElementById( "instructions-text" ) || { value: "" } ).value.indexOf( "# This server" ) >= 0' );
+	let text = await page.Evaluate( 'document.getElementById( "instructions-text" ).value' );
+	ASSERT.match( text, /^# Your project\n\n- .+ \(prj-[^)]+\), its Readme (doc|ctx)-[^\n]+\n\n# This server\n/ );
+	ASSERT.ok( text.indexOf( LLM_TOKEN ) >= 0 );
+	ASSERT.ok( text.indexOf( '- API: ' + running.Url + '/api' ) >= 0 );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "instructions-open" ).getAttribute( "href" )' ), '/instructions' );
+	await page.Press( 'Escape' );
+	await page.WaitFor( count_of( '#instructions-popup .port-form' ) + ' === 0' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
 TEST( 'export and import: a project\'s json in a popup; pasted back, the preview offers a copy, and the copy is made', async function ()
 {
 	const HEAD = '.project[data-project="' + home + '"] .project-head';

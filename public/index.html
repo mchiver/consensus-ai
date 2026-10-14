@@ -715,6 +715,22 @@
 	</div>
 
 	<!-- The server's settings (consensus.json), edited whole by the owner (plan Consensus Desktop, Step 1). -->
+	<!-- LLM Instructions (plan UI Tweaks VII): the server's /instructions, the project named first, to read and copy for seeding an LLM by hand. -->
+	<div class="subplan-popup port-popup" id="instructions-popup" ng-controller="InstructionsController" ng-show="Instructions.Open" ng-keydown="Key($event)">
+		<div class="subplan-form port-form" ng-if="Instructions.Open" tabindex="-1" auto-focus>
+			<div class="subplan-head">LLM Instructions for &ldquo;{{ Instructions.Project.Name }}&rdquo;</div>
+			<div class="muted small">What an LLM needs to take part, to paste into its session by hand: the project named first, then the server's address and token, then the guide.</div>
+			<div class="muted small" ng-show="Instructions.Busy">Loading…</div>
+			<textarea class="form-control form-control-sm port-json instructions-text" id="instructions-text" rows="14" readonly ng-model="Instructions.Text" ng-hide="Instructions.Busy"></textarea>
+			<div class="port-error" ng-show="Instructions.Error">{{ Instructions.Error }}</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-primary" type="button" id="instructions-copy" ng-click="Copy()" ng-disabled="!Instructions.Text"><svg class="icon lead"><use href="#i-copy"></use></svg>{{ Instructions.Copied ? 'Copied' : 'Copy' }}</button>
+				<a class="btn btn-sm btn-outline-secondary" id="instructions-open" ng-href="{{ Instructions.Url }}" target="_blank" rel="noopener" ng-show="Instructions.InBrowser" title="the page itself, in a new tab"><svg class="icon lead"><use href="#i-link"></use></svg>Open</a>
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="instructions-close" ng-click="Close()"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
+			</div>
+		</div>
+	</div>
+
 	<div class="subplan-popup settings-popup" id="settings-popup" ng-controller="SettingsController" ng-show="Panel.Open" ng-keydown="Key($event)">
 		<form class="subplan-form settings-form" ng-if="Panel.Open" ng-submit="Save()">
 			<div class="subplan-head">Settings <span class="muted small">{{ Panel.Path }}</span></div>
@@ -906,6 +922,7 @@
 	<script src="/js/help.js"></script>
 	<script src="/js/subplans.js"></script>
 	<script src="/js/ports.js"></script>
+	<script src="/js/instructions.js"></script>
 	<script src="/js/settings.js"></script>
 	<script src="/js/project.js"></script>
 	<script src="/js/sidebar.js"></script>

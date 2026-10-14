@@ -8,7 +8,7 @@ The settings list the participants. The llm participant holds a **token**; a req
 
 ## Giving an LLM the instructions
 
-Your server serves its own guide for LLMs at `/instructions`: what Consensus is, how to call the API, what your words mean ("check consensus", "your turn", "build it"), and the build loop. Its first section, **This server**, holds the API's address as the request reached it and the llm participant's token, so an LLM that has read the page has everything it needs to take part. Nothing is installed or configured on the LLM's side.
+Your server serves its own guide for LLMs at `/instructions`: what Consensus is, how to call the API, what your words mean ("check consensus", "your turn", "build it"), and the build loop. Its first section, **This server**, holds the API's address as the request reached it and the llm participant's token, so an LLM that has read the page has everything it needs to take part. Nothing is installed or configured on the LLM's side. **LLM Instructions** in a project's menu shows that page in a popup, a section naming the project and its Readme put first, with **Copy** for pasting it into an LLM's session by hand; in a browser, **Open** shows the page itself.
 
 How you hand the page over depends on what runs the LLM:
 

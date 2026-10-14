@@ -1,1 +1,97 @@
-[]
+[
+	{
+		"Id": "thr-h3d-miu-gll",
+		"Anchor": {
+			"Text": "A Project level menu item to view and copy the LLM instructions",
+			"Prefix": "has a solid background instead. ",
+			"Suffix": " for manual seeding into the LLM"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-14T06:23:19.470Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-14T06:25:35.167Z",
+			"Revision": 5,
+			"RevisionId": "rev-aj6-5st-vge",
+			"Outcome": "Applied as decided: (a) the project row's menu with the project named first; the token as /instructions gives it today, per the owner; (a) the popup with Copy and, in a browser, Open."
+		},
+		"Created": "2026-10-14T06:19:05.366Z",
+		"Replies": [
+			{
+				"Id": "rep-knd-ma2-z8c",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-14T06:19:05.366Z",
+				"Text": "Design questions for the LLM instructions item, with a recommendation each; resolving with no reply takes them all.\n\n1. Which row's menu. The instructions the server serves at /instructions are the server's: its API address, a token, the guide. Nothing in them is project-specific; the guide tells the LLM to find its project by the repo's name and ask if unsure. Two places: (a) the project row's menu, \"LLM Instructions\" after Settings, the text with a line put first that names the project (\"Your project: <name>, its Readme <id>\"), so the seeded LLM knows which project is its own and the \"(?)\" is answered; (b) the server row's menu, beside Settings, the text exactly as /instructions serves it. Recommendation: (a).\n\n2. Whose token. /instructions gives the first hand-made llm participant's token. Since Run Shapes every LLM connection has a participant and token of its own, and on this server the hand-made llm has none. Options: (a) the hand-made llm participant's, as today; (b) a picker in the popup of every llm-role participant that has a token (hand-made or a connection's), the text remade for the one picked, the first with a token picked by default. (b) needs the route to take the participant: GET /instructions?participant=<name>, the plain route unchanged. Recommendation: (b).\n\n3. View and copy. (a) A popup like Export: the text read-only in a scrolling box, a Copy button with the toast \"copied\", and in a browser an Open link to /instructions in a new tab (the desktop opens links in the system browser, where the token would show, so no link there); (b) no view: the menu item copies to the clipboard and the toast says so. Recommendation: (a), as the item says view and copy.\n\nTaken as decided unless contested: the item is named \"LLM Instructions\"; the popup scales with the page like the others."
+			},
+			{
+				"Id": "rep-gjk-hiq-fhq",
+				"By": "user",
+				"At": "2026-10-14T06:23:19.470Z",
+				"Text": "1. go with (a)\n2. i dont care if we use hardcoded tokens for now, dont worry about it\n3. go with (a)"
+			}
+		]
+	},
+	{
+		"Id": "thr-o14-lsa-b4x",
+		"Anchor": {
+			"Text": "The thread filter and highlighting dropdowns should be outside of the thread scroll area",
+			"Prefix": " the project and its Readme id. ",
+			"Suffix": " so that they remain visible whe"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-14T06:24:49.930Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-14T06:25:35.187Z",
+			"Revision": 6,
+			"RevisionId": "rev-si8-pxi-rcp",
+			"Outcome": "Applied as recommended, resolved without reply: a sticky row with the panel background; the compose box scrolls with the list; the count stays."
+		},
+		"Created": "2026-10-14T06:19:05.400Z",
+		"Replies": [
+			{
+				"Id": "rep-mnv-jfp-7gt",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-14T06:19:05.400Z",
+				"Text": "Design questions for the thread filter and Highlight row, with a recommendation each; resolving with no reply takes them all.\n\n1. How the row stays put. The threads pane is one scrolling column today, the row at its top scrolling away with the list. (a) position: sticky on the row, with the panel background and above the threads: one rule; the pane's scrollbar keeps running the whole height, the threads pass under the row. (b) The row out of the scrolling area: the pane stops scrolling and a new element under the row holds the compose box and the list and scrolls alone; the scrollbar starts under the row. A markup change plus the styles; a detached window shares the markup, so both ways cover it. Recommendation: (a), the simpler one.\n\n2. The compose box (a comment being written) sits at the top of the list and scrolls with it. (a) Keep that: it appears where one is looking, and a long list keeps the pane's height; (b) pin it under the row as well. Recommendation: (a).\n\nThe count between the two pickers stays where it is."
+			}
+		]
+	},
+	{
+		"Id": "thr-5mu-9bu-32o",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-14T06:38:26.611Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-14T06:39:55.428Z",
+			"Revision": 6,
+			"RevisionId": "rev-si8-pxi-rcp",
+			"Outcome": "Accepted by the owner. Committed as \"UI Tweaks VII\"; the plan is Finished."
+		},
+		"Created": "2026-10-14T06:37:37.397Z",
+		"Replies": [
+			{
+				"Id": "rep-nm5-rhq-og5",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-14T06:37:37.397Z",
+				"Text": "Build log: UI Tweaks VII (Claude Fable 5.1, 2026-10-14).\n\nWhat was built:\n- Copy button: one rule in consensus.css gives the outline button of the three selection buttons the page background, so it covers the text under it like Comment and Start a new Subplan.\n- Thread filter row: .threads-top is position: sticky at the top of the threads pane, with the panel background above the threads; the pane keeps its one scrollbar, the compose box and the list scroll under it. A detached window shares the markup.\n- LLM Instructions: a new component, public/js/instructions.js (the Instructions service and its controller), and a popup in index.html after the Export popup's pattern: the text read-only in a scrolling box that wraps, Copy with the toast \"copied\", Open to /instructions in a new tab in a browser only (the desktop opens links in the system browser), Close and Escape. The project row's menu has \"LLM Instructions\" after Settings (sidebar.js, OpenInstructions). The text is the server's /instructions as served, fetched over the root's base (Client.Base is new, the base a root's own pages are fetched from), with a section put first: \"# Your project\" naming the project, its id and its Readme's id.\n- The guide: projects.md (the project menu's items), llm.md (the popup, under Giving an LLM the instructions), threads.md (the pickers stay at the top); the pages rebuilt with bin/docs.js build. Not published.\n\nHow it was tested:\n- test/Ui.test.js has a new test: the project row's menu opens the popup, the text starts with the project section and goes on with This server, the token and the API address, Open links /instructions, Escape closes it.\n- npm test: 180 pass, 0 fail (179 before).\n- The running server serves the changed page live, so the copy button and the sticky row can be seen there now.\n\nNot committed. The plan stays Working until this log is resolved; then one commit, \"UI Tweaks VII\"."
+			}
+		]
+	}
+]

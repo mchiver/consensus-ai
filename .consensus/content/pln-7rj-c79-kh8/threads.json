@@ -7,12 +7,9 @@
 			"Suffix": ". The build warns \"default Elect"
 		},
 		"Detached": false,
-		"Status": "resolved",
-		"Reopened": false,
-		"Resolved": {
-			"By": "user",
-			"At": "2026-10-14T05:13:22.458Z"
-		},
+		"Status": "contested",
+		"Reopened": true,
+		"Resolved": null,
 		"Applied": {
 			"By": "Claude-CLI@Cube12",
 			"At": "2026-10-14T05:17:42.301Z",
@@ -27,6 +24,18 @@
 				"By": "user",
 				"At": "2026-10-14T05:13:22.458Z",
 				"Text": "Yes, please.\nwe do need a branding image that can be shared across installer, executable, and docs."
+			},
+			{
+				"Id": "rep-lz5-go0-v0k",
+				"By": "user",
+				"At": "2026-10-14T06:32:13.411Z",
+				"Text": "was this image propagated to docs and executables etc?"
+			},
+			{
+				"Id": "rep-wio-qvo-pdl",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-14T06:39:55.503Z",
+				"Text": "Yes, for the executable and the installer: desktop/icon.ico is rendered from the mark, electron-builder stamps it on Consensus.exe and on the Setup .exe (and the uninstaller), and I extracted the icon from both built files to check; the taskbar and the Start menu show it once installed. The web page shows it too: public/img/mark.svg is the favicon and the About popup's mark.\n\nThe docs needed nothing: the mark came from there (docs/images/mark.svg is the drawing the docs' favicon and brand header already used), so the docs site already carries it.\n\nTwo places do not have it yet:\n- Running from the checkout (npm run desktop), the window and taskbar show Electron's icon, because the icon in the .exe is only there in the packaged build. Recommendation: name desktop/icon.ico as the BrowserWindow icon in desktop/main.js (the page window and the servers screen), one line each; harmless in the packaged build.\n- No .icns for a Mac build yet, as the plan says; it comes with that build.\n\nResolve to take the recommendation; I will add the window icon and commit it with the next change."
 			}
 		]
 	},
@@ -85,6 +94,59 @@
 				"By": "Claude-CLI@Cube12",
 				"At": "2026-10-14T05:52:54.976Z",
 				"Text": "Build log: the icon (Claude Fable 5.1, 2026-10-14).\n\nWhat was built:\n- The branding image is the mark the docs already had (docs/images/mark.svg: the open ring with a check, in the accent color). No new drawing; the speech-bubble proposal is dropped from the text. The master copy is public/img/mark.svg, served by the web server and the desktop.\n- desktop/icon.ico (16 to 256 pixels) and desktop/icon.png (512) rendered from the master with ImageMagick; the command lines are in the plan so it can be redone. package.json names the .ico in win.icon.\n- public/index.html links the SVG as the favicon in place of the empty data URL, and the About popup shows the mark before its title; one rule, .about-mark, in consensus.css.\n- No .icns: this ImageMagick cannot write one; it comes with the Mac build.\n\nHow it was tested:\n- npm run dist rebuilt the installer with no icon warning; the icon extracted from the built Consensus.exe and from Consensus Setup 0.4.0.exe is the mark.\n- The running server serves /img/mark.svg as image/svg+xml and the page carries the favicon link and the About mark.\n- npm test: 179 pass, 0 fail.\n\nNot committed. The plan stays Working until this log is resolved; then one commit, \"Installer: the icon\"."
+			}
+		]
+	},
+	{
+		"Id": "thr-e76-at3-wv3",
+		"Anchor": {
+			"Text": "Signing",
+			"Prefix": "es (179). What needs to be done ",
+			"Suffix": ". The build calls signtool with "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-14T06:09:00.352Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-14T06:13:03.285Z",
+			"Revision": 6,
+			"RevisionId": "rev-1oj-78a-58v",
+			"Outcome": "Applied: the Signing section now decides Certum Code Signing in the Cloud through SSLmentor, with its price, validation, how SimplySign and signtool sign, the electron-builder settings (win.signtoolOptions with the thumbprint, the Certum timestamp server, sha256 only), the owner and build steps, and the AWS and Azure comparison kept for the record."
+		},
+		"Created": "2026-10-14T06:09:00.352Z",
+		"Replies": [
+			{
+				"Id": "rep-ko5-mv8-oyb",
+				"By": "user",
+				"At": "2026-10-14T06:09:00.352Z",
+				"Text": "I think we will go with Certum Cloud Code )https://www.sslmentor.com/certum/certumcodecloud) as a certificate service for signing the installer.\nupdate the plan accordingly."
+			}
+		]
+	},
+	{
+		"Id": "thr-wst-gpu-ceg",
+		"Anchor": {
+			"Text": "Microsoft as the CA at $9.99 a month",
+			"Prefix": "Jsign. Azure Trusted Signing is ",
+			"Suffix": ", supported natively by electron"
+		},
+		"Detached": false,
+		"Status": "contested",
+		"Reopened": false,
+		"Resolved": null,
+		"Applied": null,
+		"Created": "2026-10-14T06:29:50.101Z",
+		"Replies": [
+			{
+				"Id": "rep-qth-wwz-sxl",
+				"By": "user",
+				"At": "2026-10-14T06:29:50.101Z",
+				"Text": "can i just pay for a month, get the installed sign, and then discontinue the service? until needed again?"
 			}
 		]
 	}
