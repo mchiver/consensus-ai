@@ -9,7 +9,7 @@ A Windows installer for Consensus Desktop, built with electron-builder from the 
     - The app archive (resources/app.asar) holds `desktop`, `src`, `public`, `.guides/build-with-consensus.md` (the server reads it for /instructions) and package.json, plus the production `node_modules`. Dev dependencies, `bin`, `docs`, `test`, the dot folders and the tilde folders stay out.
     - The vendor files (angular, bootstrap, marked) are served from where `require` resolves them, which works inside the archive.
 - Output goes to `~dist` (excluded from source control by the tilde rule):
-    - `Consensus Setup <version>.exe`: the NSIS installer, about 121 MB; not one-click, the install folder can be chosen, per-user install.
+    - `Consensus-Setup-<version>.exe` (the `artifactName` setting, no spaces, so the download link is plain; 2026-10-14): the NSIS installer, about 121 MB; not one-click, the install folder can be chosen, per-user install.
     - `win-unpacked/`: the installed layout, runnable as is for a smoke.
     - `latest.yml` and the `.blockmap`: what electron-updater would read; unused for now.
 - The version on the installer is the root package.json version.
@@ -25,6 +25,8 @@ A Windows installer for Consensus Desktop, built with electron-builder from the 
     - No `.icns` yet: this ImageMagick cannot write one; it is made from the same renders when the Mac build comes.
     - The web page links the SVG as its favicon (`<link rel="icon" href="/img/mark.svg">`, in place of the empty data URL) and the About popup shows the mark before its title (`.about-mark` in consensus.css). The docs already link theirs.
     - Checked: the icon extracted from the built `Consensus.exe` and from `Consensus Setup 0.4.0.exe` is the mark; the running server serves `/img/mark.svg` and the page with the favicon; the test suite passes (179).
+
+- Published (2026-10-14): a GitHub Release per version, tagged `v<version>` on the commit it is built from (v0.5.0 on fdc836d), with the installer, its blockmap and `latest.yml` attached; the docs link the releases page (https://github.com/mchiver/consensus-ai/releases/latest) from the landing page's installer card and the guide's "The installer" section, which also says the installer is unsigned and how SmartScreen is passed. The release is made with the GitHub CLI (`gh release create v<version> ~dist/Consensus-Setup-<version>.exe ...`) or on the releases page by hand.
 
 ## What needs to be done
 

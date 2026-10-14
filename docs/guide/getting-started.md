@@ -1,8 +1,8 @@
 # Getting started
 
-Consensus-AI is a web application you run yourself. It keeps your plans as plain files in a folder, shows them in a browser, and lets an LLM take part through its API. This page gets it running in the three ways there are: from the checkout, in Docker, and as the desktop application.
+Consensus-AI is a web application you run yourself. It keeps your plans as plain files in a folder, shows them in a browser, and lets an LLM take part through its API. This page gets it running in the four ways there are: from the checkout, in Docker, as the desktop application from the checkout, and from the Windows installer.
 
-The code is public at [github.com/mchiver/consensus-ai](https://github.com/mchiver/consensus-ai). An installer is coming; until then, every way starts from the checkout.
+The code is public at [github.com/mchiver/consensus-ai](https://github.com/mchiver/consensus-ai). The Windows installer is on the [releases page](https://github.com/mchiver/consensus-ai/releases/latest); the other ways start from the checkout.
 
 ## From the checkout
 
@@ -70,6 +70,10 @@ It opens on the page with every server it has, each a **root** of the tree: its 
 - **This machine** is the app's own server: it starts with the app, from the settings' Scope and Port, and stops with it; the page shows it first. With Scope None there is none, and the page shows the saved servers only; the configured port in use gives way to a free one, and a port asked for on the command line that is in use shows the reason here. With a path on the command line the line says which project the server is on alone. **Open the page** goes back to the page.
 
 The page shows the servers at once: a row per server at the top of the tree, with its name, a dot that is green while its updates are live, who you are there, and a menu with New Project, Import, Settings, Servers… and Reload; beneath it that server's projects, LLM connections and Trash. A server that does not answer stays in the tree, offline, with the reason in its tooltip, and is read again when it answers. Every action goes to the server its row belongs to; an item moves within its server, and Copy and Paste carry a plan to another server, with new ids. The **Server** menu has Servers…, The page, Reload, New window for a second instance, and Open folder in new window, which starts one on a folder alone, as `consensus <path>` does: that window shows the folder's project and nothing else. `--headless` runs the server with no window at all, printing what the command line prints. A desktop.json from before is moved into the settings file at the first start, its LLM connections becoming the server's and its workspaces going into their projects. The LLM connections are the server's, run by it; the page [Working with an LLM](llm.html) covers them.
+
+## The installer
+
+On Windows, the desktop comes packaged with its server, with nothing to install first: download `Consensus-Setup-<version>.exe` from the [latest release](https://github.com/mchiver/consensus-ai/releases/latest), run it, and pick the folder (the default is under your user profile). It puts Consensus in the Start menu and starts it; the app reads the same config folder, `<user>/.consensus`, as the other ways do, so a checkout and the installed app share the settings and the local server's projects. The installer is not signed yet: Windows SmartScreen warns once ("Windows protected your PC"); More info, then Run anyway, lets it through. A new version is installed over the old one from its own installer; the config folder stays.
 
 ## What to do first
 
