@@ -1,40 +1,19 @@
 'use strict';
 
-// Threads pane - filter, highlight, each thread with its anchor words and replies, reply, resolve, and the compose
-// card (Comment, or the owner's Comment and resolve). After your own Reply, Reply and Contest, Reply and resolve or
-// Resolve the selection passes to the next listed thread (plan UI Tweaks VI).
+// Threads - the service behind the threads pane (plan UI Components, Step 1): which threads the filter lists, in
+// the pane's order, and every request on a thread: Comment (with the owner's Comment and resolve), Reply (Reply
+// and Contest on a resolved thread), Reply and resolve, Resolve, Delete, Re-anchor, and the Subplan starts. The
+// components (thread-filters, thread-list, thread-card and its parts, thread-compose) call it; nothing else holds
+// thread requests. After your own Reply, Reply and Contest, Reply and resolve or Resolve, thread-done goes out
+// with the thread's id, and thread-list passes the selection on (plan UI Tweaks VI).
+//
+//   Threads = { Busy, Listed(), Matches( thread ), IsOwner(), CanResolve( thread ), CanDelete(), IsPlan(),
+//               Post( Resolve ), Reply( thread ), ReplyAndResolve( thread ), Resolve( thread ), Delete( thread ),
+//               Reanchor( thread ), SubplanFromCompose(), SubplanFromThread( thread ) }
 
-angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$timeout', 'State', 'Client', 'Subplans', function ( $scope, $timeout, State, Client, Subplans )
+angular.module( 'Consensus' ).factory( 'Threads', [ '$rootScope', 'State', 'Client', 'Subplans', function ( $rootScope, State, Client, Subplans )
 {
-	$scope.State = State;
-	$scope.Busy = false;
-	const BASE_FILTERS = [
-		{ Value: 'all', Label: 'All threads' },
-		{ Value: 'contested', Label: 'Contested' },
-		{ Value: 'mine', Label: 'Waiting on me' },
-	];
-	const TAIL_FILTERS = [
-		{ Value: 'resolved', Label: 'Resolved (waiting to be applied)' },
-		{ Value: 'applied', Label: 'Applied' },
-		{ Value: 'reopened', Label: 'Reopened' },
-		{ Value: 'detached', Label: 'Detached' },
-	];
-	$scope.Filters = BASE_FILTERS.concat( TAIL_FILTERS );
-	$scope.Highlights = [
-		{ Value: 'all', Label: 'Highlight all threads' },
-		{ Value: 'open', Label: 'Highlight open threads' },
-	];
-
-
-	// One "Waiting on <participant>" filter per participant, from the settings.
-	function build_filters()
-	{
-		let per_participant = State.Participants.map( function ( participant )
-		{
-			return { Value: 'turn:' + participant.Name, Label: 'Waiting on ' + participant.Display };
-		} );
-		$scope.Filters = BASE_FILTERS.concat( per_participant, TAIL_FILTERS );
-	}
+	let threads = { Busy: false };
 
 
 	function path( thread )
@@ -43,7 +22,12 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	}
 
 
-	function matches( thread )
+	//-----------------------------------------------------------------
+	// The list: the filter's matches plus the selected thread, whatever the filter says of it (plan UI Tweaks V):
+	// a thread picked by a click on its anchored text stays listed until another is picked or the selection is
+	// cleared. Detached threads first, then in the order of the text, whole-document threads last.
+
+	function Matches( thread )
 	{
 		if ( State.Filter.startsWith( 'turn:' ) )
 		{
@@ -62,10 +46,12 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	}
 
 
-	$scope.$watch( function () { return State.Participants; }, build_filters );
+	function listed( thread )
+	{
+		return thread.Id === State.Selected || Matches( thread );
+	}
 
 
-	// Detached threads first, then in the order of the text, whole-document threads last.
 	function by_position( a, b )
 	{
 		if ( a.Detached !== b.Detached )
@@ -82,125 +68,73 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 	}
 
 
-	// The filter's matches plus the selected thread, whatever the filter says of it (plan UI Tweaks V): a thread picked
-	// by a click on its anchored text stays listed until another is picked or the selection is cleared.
-	function listed( thread )
-	{
-		return thread.Id === State.Selected || matches( thread );
-	}
-
-
-	$scope.Threads = function ()
+	function Listed()
 	{
 		if ( !State.Open )
 		{
 			return [];
 		}
 		return State.Open.Threads.filter( listed ).sort( by_position );
-	};
-
-
-	$scope.SetHighlight = function ()
-	{
-		State.SetHighlight( State.Highlight );
-	};
-
-
-	$scope.Select = function ( thread )
-	{
-		if ( State.Selected !== thread.Id )
-		{
-			State.Select( thread.Id );
-		}
-	};
-
-
-	$scope.ScrollToAnchor = function ( thread, event )
-	{
-		event.stopPropagation();
-		State.Select( thread.Id );
-	};
+	}
 
 
 	//-----------------------------------------------------------------
-	// Collapsed replies, by reply id, kept in State so a reload keeps them.
+	// Who may do what.
 
-	$scope.IsCollapsed = function ( reply )
-	{
-		return State.Collapsed[ reply.Id ] === true;
-	};
-
-
-	$scope.ToggleReply = function ( reply, event )
-	{
-		event.stopPropagation();
-		if ( State.Collapsed[ reply.Id ] )
-		{
-			delete State.Collapsed[ reply.Id ];
-		}
-		else
-		{
-			State.Collapsed[ reply.Id ] = true;
-		}
-	};
-
-
-	// Collapse every reply but the most recent one.
-	$scope.CollapseEarlier = function ( thread, event )
-	{
-		event.stopPropagation();
-		let last_index = thread.Replies.length - 1;
-		for ( let index = 0; index < last_index; index++ )
-		{
-			State.Collapsed[ thread.Replies[ index ].Id ] = true;
-		}
-		delete State.Collapsed[ thread.Replies[ last_index ].Id ];
-	};
-
-
-	$scope.ExpandAll = function ( thread, event )
-	{
-		event.stopPropagation();
-		for ( let reply of thread.Replies )
-		{
-			delete State.Collapsed[ reply.Id ];
-		}
-	};
-
-
-	$scope.IsOwner = function ()
+	function IsOwner()
 	{
 		return !!State.Me && State.Me.Role === 'owner';
-	};
+	}
 
 
-	$scope.CanResolve = function ( thread )
+	function CanResolve( thread )
 	{
-		return State.Me && State.Me.Role === 'owner' && thread.Status === 'contested';
-	};
+		return IsOwner() && thread.Status === 'contested';
+	}
 
+
+	function CanDelete()
+	{
+		return IsOwner();
+	}
+
+
+	function IsPlan()
+	{
+		return !!State.Open && ( State.Open.Plan.Kind || 'plan' ) === 'plan';
+	}
+
+
+	//-----------------------------------------------------------------
+	// The requests. Each runs through State.Act (errors land in the state) and reloads the plan when it worked.
 
 	async function act( work )
 	{
-		$scope.Busy = true;
+		threads.Busy = true;
 		let result = await State.Act( work );
-		$scope.Busy = false;
+		threads.Busy = false;
 		if ( result )
 		{
 			await State.Reload();
 		}
-		$scope.$applyAsync();
+		$rootScope.$applyAsync();
 		return result;
 	}
 
 
+	function done( thread )
+	{
+		$rootScope.$broadcast( 'thread-done', thread.Id );
+	}
+
+
 	// Comment; with Resolve (the owner's Comment and resolve), the thread is posted resolved, the comment its outcome.
-	$scope.Post = async function ( Resolve )
+	async function Post( Resolve )
 	{
 		let compose = State.Compose;
 		if ( !compose || !compose.Text )
 		{
-			return;
+			return null;
 		}
 		let body = { Anchor: compose.Anchor, Text: compose.Text };
 		if ( Resolve )
@@ -215,55 +149,19 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 		{
 			State.CancelCompose();
 			State.Select( answer.Thread.Id );
-			$scope.$applyAsync();
+			$rootScope.$applyAsync();
 		}
-	};
-
-
-	$scope.CancelCompose = function ()
-	{
-		State.CancelCompose();
-	};
-
-
-	// After your own reply or resolve, the selection passes to the next thread in line: the next listed one after it
-	// in the pane's order (the thread itself is still listed while selected; one the filter has just dropped is
-	// skipped), or the previous one when it was the last, or none. The card scrolls into view, its reply form open.
-	function move_on( thread )
-	{
-		let listed = $scope.Threads();
-		let at = listed.findIndex( function ( candidate ) { return candidate.Id === thread.Id; } );
-		let next = null;
-		if ( at >= 0 )
-		{
-			next = listed[ at + 1 ] || listed[ at - 1 ] || null;
-		}
-		else
-		{
-			next = listed[ 0 ] || null;
-		}
-		State.Select( next ? next.Id : null );
-		if ( next )
-		{
-			$timeout( function ()
-			{
-				let card = document.getElementById( 'thread-' + next.Id );
-				if ( card )
-				{
-					card.scrollIntoView( { block: 'nearest', behavior: 'smooth' } );
-				}
-			}, 0, false );
-		}
+		return answer;
 	}
 
 
 	// Reply; on a resolved thread, Reply and Contest: the thread reopens and stays contested.
-	$scope.Reply = async function ( thread )
+	async function Reply( thread )
 	{
 		let text = State.Drafts[ thread.Id ];
 		if ( !text )
 		{
-			return;
+			return null;
 		}
 		let answer = await act( function ()
 		{
@@ -272,33 +170,20 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 		if ( answer )
 		{
 			delete State.Drafts[ thread.Id ];
-			move_on( thread );
-			$scope.$applyAsync();
+			done( thread );
+			$rootScope.$applyAsync();
 		}
-	};
-
-
-	$scope.Resolve = async function ( thread )
-	{
-		let answer = await act( function ()
-		{
-			return Client.Post( path( thread ) + '/resolve' );
-		} );
-		if ( answer )
-		{
-			move_on( thread );
-			$scope.$applyAsync();
-		}
-	};
+		return answer;
+	}
 
 
 	// Reply and resolve: the owner's reply is the outcome, and the thread is resolved with it, in one request.
-	$scope.ReplyAndResolve = async function ( thread )
+	async function ReplyAndResolve( thread )
 	{
 		let text = State.Drafts[ thread.Id ];
 		if ( !text )
 		{
-			return;
+			return null;
 		}
 		let answer = await act( function ()
 		{
@@ -307,92 +192,79 @@ angular.module( 'Consensus' ).controller( 'ThreadsController', [ '$scope', '$tim
 		if ( answer )
 		{
 			delete State.Drafts[ thread.Id ];
-			move_on( thread );
-			$scope.$applyAsync();
+			done( thread );
+			$rootScope.$applyAsync();
 		}
-	};
+		return answer;
+	}
 
 
-	$scope.Reanchor = function ( thread )
+	async function Resolve( thread )
+	{
+		let answer = await act( function ()
+		{
+			return Client.Post( path( thread ) + '/resolve' );
+		} );
+		if ( answer )
+		{
+			done( thread );
+			$rootScope.$applyAsync();
+		}
+		return answer;
+	}
+
+
+	// Delete: owner only, any thread; the selection is cleared when it was the one deleted.
+	async function Delete( thread )
+	{
+		let answer = await act( function ()
+		{
+			return Client.Delete( path( thread ) );
+		} );
+		if ( answer && State.Selected === thread.Id )
+		{
+			State.Select( null );
+		}
+		$rootScope.$applyAsync();
+		return answer;
+	}
+
+
+	function Reanchor( thread )
 	{
 		State.StartReanchor( thread.Id );
-	};
+	}
 
 
-	//-----------------------------------------------------------------
 	// Start a new Subplan from the thread being composed, or from a thread (with the draft reply, if any).
-
-	$scope.IsPlan = function ()
-	{
-		return !!State.Open && ( State.Open.Plan.Kind || 'plan' ) === 'plan';
-	};
-
-
-	$scope.SubplanFromCompose = function ()
+	function SubplanFromCompose()
 	{
 		if ( State.Compose )
 		{
 			Subplans.FromCompose( State.Compose );
 		}
-	};
+	}
 
 
-	$scope.SubplanFromThread = function ( thread )
+	function SubplanFromThread( thread )
 	{
 		Subplans.FromThread( thread, State.Drafts[ thread.Id ] );
-	};
+	}
 
 
-	//-----------------------------------------------------------------
-	// Delete: owner only, any thread, confirmed inline.
-
-	$scope.Deleting = null;
-
-	$scope.CanDelete = function ()
-	{
-		return !!State.Me && State.Me.Role === 'owner';
-	};
-
-
-	$scope.StartDelete = function ( thread, event )
-	{
-		event.stopPropagation();
-		$scope.Deleting = thread.Id;
-	};
-
-
-	$scope.CancelDelete = function ( event )
-	{
-		event.stopPropagation();
-		$scope.Deleting = null;
-	};
-
-
-	$scope.Delete = async function ( thread, event )
-	{
-		event.stopPropagation();
-		let answer = await act( function ()
-		{
-			return Client.Delete( path( thread ) );
-		} );
-		$scope.Deleting = null;
-		if ( answer && State.Selected === thread.Id )
-		{
-			State.Select( null );
-		}
-		$scope.$applyAsync();
-	};
-
-
-	$scope.$on( 'compose-started', function ()
-	{
-		$timeout( function ()
-		{
-			let box = document.getElementById( 'compose-text' );
-			if ( box )
-			{
-				box.focus();
-			}
-		}, 0 );
-	} );
+	threads.Listed = Listed;
+	threads.Matches = Matches;
+	threads.IsOwner = IsOwner;
+	threads.CanResolve = CanResolve;
+	threads.CanDelete = CanDelete;
+	threads.IsPlan = IsPlan;
+	threads.Post = Post;
+	threads.Reply = Reply;
+	threads.ReplyAndResolve = ReplyAndResolve;
+	threads.Resolve = Resolve;
+	threads.Delete = Delete;
+	threads.Reanchor = Reanchor;
+	threads.SubplanFromCompose = SubplanFromCompose;
+	threads.SubplanFromThread = SubplanFromThread;
+	return threads;
 } ] );

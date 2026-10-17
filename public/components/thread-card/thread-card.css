@@ -1,0 +1,18 @@
+/* thread-card: the card, its left edge coloured by the thread's state; selected, detached and mine. */
+
+.thread
+{
+	margin: 0.6rem 0.75rem 0;
+	padding: 0.6rem 0.75rem;
+	background: var(--page-bg);
+	border: 1px solid var(--border);
+	border-left: 4px solid var(--contested-edge);
+	border-radius: 0.3rem;
+	cursor: pointer;
+}
+
+.thread.reopened { border-left-color: var(--reopened-edge); }
+.thread.resolved { border-left-color: var(--resolved-edge); }
+.thread.applied { border-left-color: var(--applied-edge); }
+.thread.detached { border-style: dashed; }
+.thread.selected { box-shadow: 0 0 0 2px var(--accent); }

@@ -1,0 +1,16 @@
+<div class="thread-head">
+	<span class="state-badge" ng-class="$ctrl.thread.State">{{ $ctrl.thread.State }}</span>
+	<span class="detached-badge" ng-show="$ctrl.thread.Detached">detached</span>
+	<span class="turn" ng-show="$ctrl.thread.Turn.length">waiting on {{ $ctrl.thread.Turn.join(', ') }}</span>
+	<span class="turn none" ng-hide="$ctrl.thread.Turn.length">nothing to do</span>
+	<span class="thread-delete" ng-show="$ctrl.CanDelete()">
+		<button class="btn btn-link btn-sm delete-thread" ng-hide="$ctrl.Deleting" title="delete this thread" ng-click="$ctrl.StartDelete($event)"><svg class="icon"><use href="#i-x"></use></svg></button>
+		<span class="confirm" ng-show="$ctrl.Deleting">
+			delete?
+			<button class="btn btn-sm btn-danger confirm-delete-thread" ng-click="$ctrl.Delete($event)" ng-disabled="$ctrl.Threads.Busy"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+			<button class="btn btn-sm btn-outline-secondary" ng-click="$ctrl.CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+		</span>
+	</span>
+</div>
+<div class="thread-anchor" ng-show="$ctrl.thread.Anchor" ng-click="$ctrl.ScrollToAnchor($event)" title="show in the text">&ldquo;{{ $ctrl.thread.Anchor.Text }}&rdquo;</div>
+<div class="thread-anchor whole" ng-hide="$ctrl.thread.Anchor">the whole document</div>

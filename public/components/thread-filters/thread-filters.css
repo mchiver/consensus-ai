@@ -1,0 +1,28 @@
+/* thread-filters: the filter and the Highlight picker share the row, the count between them; the row stays at the
+   top while the list scrolls (plan UI Tweaks VII). */
+
+.threads-top
+{
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.75rem;
+	border-bottom: 1px solid var(--border);
+	position: sticky;
+	top: 0;
+	z-index: 5;
+	background: var(--panel-bg);
+}
+
+.threads-top .form-select
+{
+	flex: 1 1 0;
+	min-width: 0;
+	width: auto;
+}
+
+.threads-top .count
+{
+	color: var(--muted);
+	font-size: 0.85rem;
+}

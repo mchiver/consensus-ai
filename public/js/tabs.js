@@ -2,12 +2,11 @@
 
 // Tabs - the open items above the document view, and the windows they can be detached into.
 //
-//   tab = { Key, Kind: 'p' | 'waiting' | 'llm', Id?, Root, Hash, Title?, View?, Filter?, Draft? }
+//   tab = { Key, Kind: 'p' | 'waiting' | 'llm', Id?, Root, Hash, Title?, View?, Draft? }
 //     Key    'p:<id>' or 'waiting': one tab per item; 'llm:<id>' for an LLM connection (plan Run Shapes, Step 3);
 //            '<root>|p:<id>' on a named root (plan Run Shapes, Step 5: Root is the root's key, '' in a browser)
 //     Hash   the route that shows it (#/p/<id>, #/waiting, #/s/<root>/p/<id>)
 //     View   read | edit | revisions, for a plan: each tab comes back as it was left
-//     Filter the threads pane's filter, for a plan: a new tab starts at Waiting on me
 //     Draft  { Text, Base }: an unsaved edit, kept while its tab is not the one shown
 //
 // The hash stays the route: AppController calls Visit for it, and a tab's click sets it. The tabs are kept once per
@@ -33,7 +32,6 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	const CHANNEL_NAME = 'consensus-windows';
 	const REATTACH_WAIT = 700;
 	const VIEWS = [ 'read', 'edit', 'revisions' ];
-	const DEFAULT_FILTER = 'mine';
 
 	let tabs = {
 		List: [],
@@ -202,10 +200,6 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 			tabs.List = [ tab ];
 		}
 		tabs.ActiveKey = key;
-		if ( tab.Kind === 'p' )
-		{
-			State.Filter = tab.Filter || DEFAULT_FILTER;
-		}
 		save();
 		return tab;
 	}
@@ -395,18 +389,6 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 		if ( tab && tab.Kind === 'p' && tab.Id === State.OpenId && VIEWS.includes( view ) && tab.View !== view )
 		{
 			tab.View = view;
-			save();
-		}
-	} );
-
-
-	// Each plan's tab keeps its threads filter.
-	$rootScope.$watch( function () { return State.Filter; }, function ( filter )
-	{
-		let tab = Active();
-		if ( tab && tab.Kind === 'p' && tab.Filter !== filter )
-		{
-			tab.Filter = filter;
 			save();
 		}
 	} );

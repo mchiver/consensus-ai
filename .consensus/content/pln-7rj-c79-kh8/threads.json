@@ -136,5 +136,23 @@
 				"Text": "I think we will go with Certum Cloud Code )https://www.sslmentor.com/certum/certumcodecloud) as a certificate service for signing the installer.\nupdate the plan accordingly."
 			}
 		]
+	},
+	{
+		"Id": "thr-5zf-4k9-ypw",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "contested",
+		"Reopened": false,
+		"Resolved": null,
+		"Applied": null,
+		"Created": "2026-10-17T01:08:47.405Z",
+		"Replies": [
+			{
+				"Id": "rep-ge2-q35-qxs",
+				"By": "user",
+				"At": "2026-10-17T01:08:47.405Z",
+				"Text": "The installer should set up a context menu for the system's file explorer to \"Open with Consensus\" on any folder."
+			}
+		]
 	}
 ]

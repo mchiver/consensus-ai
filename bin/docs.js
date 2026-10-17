@@ -462,7 +462,7 @@ const PAGE_PICTURES = [
 			await Page.Evaluate( '( function () { let p = document.querySelector( "#read-view p:last-of-type" ); let range = document.createRange(); range.selectNodeContents( p ); let selection = window.getSelection(); selection.removeAllRanges(); selection.addRange( range ); document.getElementById( "read-view" ).dispatchEvent( new MouseEvent( "mouseup", { bubbles: true } ) ); return true; } )()' );
 			await Page.WaitFor( 'document.getElementById( "comment-button" ).classList.contains( "shown" )' );
 			await Page.Click( '#comment-button' );
-			await Page.WaitFor( 'document.activeElement && document.activeElement.id === "compose-text"' );
+			await Page.WaitFor( 'document.activeElement && document.activeElement.closest( "#compose-text" ) !== null' );
 			await Page.Type( 'Should checked items stay where they are instead? Dropping them moves the list under your thumb.' );
 			await wait( 300 );
 			let file = await capture( Page, Folder, 'comment', Theme );
@@ -478,7 +478,7 @@ const PAGE_PICTURES = [
 			// The threads pane is hidden, so the editor and its preview have the room.
 			await Page.Click( '#threads-toggle' );
 			await Page.Click( '#view-edit' );
-			await Page.WaitFor( 'window.monaco && monaco.editor.getEditors().length === 1', 30000 );
+			await Page.WaitFor( 'window.monaco && !!monaco.editor.getEditors().find( function ( editor ) { return document.getElementById( "editor" ).contains( editor.getDomNode() ); } )', 30000 );
 			await wait( 800 );
 			let file = await capture( Page, Folder, 'edit', Theme );
 			await Page.Click( '#view-read' );

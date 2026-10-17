@@ -17,6 +17,9 @@ const PARTICIPANTS = require( '../src/Participants.js' );
 
 const LLM_TOKEN = 'ui-llm-token-0123456789abcdef';
 
+// The Edit view's editor: Monaco's list also holds the comment boxes (plan UI Components, Step 1).
+const EDIT_EDITOR = 'monaco.editor.getEditors().find( function ( editor ) { return document.getElementById( "editor" ).contains( editor.getDomNode() ); } )';
+
 const TEXT = '# Browser check\n\nThe first paragraph makes a claim about anchors.\n\n- one list item\n- another list item\n\nA closing paragraph.\n';
 
 let running = null;
@@ -48,6 +51,21 @@ async function menu_pick( row, label, opener )
 	let entry = '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( entry ) { return entry.textContent.trim().startsWith( ' + JSON.stringify( label ) + ' ); } )';
 	await page.WaitFor( '!!' + entry );
 	await page.Evaluate( entry + '.click(); true' );
+}
+
+
+// The selected thread's reply draft, set the way a person's typing would leave it: the reply box is an editor
+// (plan UI Components, Step 1), so the draft is written where it binds, State.Drafts.
+function draft_of( text )
+{
+	return '( function () { let injector = angular.element( document.body ).injector(); let state = injector.get( "State" ); state.Drafts[ state.Selected ] = ' + JSON.stringify( text ) + '; injector.get( "$rootScope" ).$apply(); return true; } )()';
+}
+
+
+// The threads filter picked by its label, as a person picks it in the dropdown.
+async function pick_filter( label )
+{
+	await page.Evaluate( '( function () { let select = document.getElementById( "thread-filter" ); select.selectedIndex = [ ...select.options ].findIndex( function ( option ) { return option.textContent.trim() === ' + JSON.stringify( label ) + '; } ); select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
 }
 
 
@@ -129,12 +147,14 @@ TEST( 'a selection becomes an anchored thread', async function ()
 	await page.Evaluate( '( function () { let li = document.querySelector( "#read-view li" ); let range = document.createRange(); range.selectNodeContents( li ); let selection = window.getSelection(); selection.removeAllRanges(); selection.addRange( range ); document.getElementById( "read-view" ).dispatchEvent( new MouseEvent( "mouseup", { bubbles: true } ) ); return true; } )()' );
 	await page.WaitFor( 'document.getElementById( "comment-button" ).classList.contains( "shown" )' );
 	await page.Click( '#comment-button' );
-	await page.WaitFor( 'document.activeElement && document.activeElement.id === "compose-text"' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.closest( "#compose-text" ) !== null' );
 	await page.Type( 'Is one item enough?' );
+	await page.WaitFor( '!document.getElementById( "compose-post" ).disabled' );
 	await page.Click( '#compose-post' );
 	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
-	ASSERT.equal( await page.Evaluate( text_of( '.thread:not(.compose) .thread-anchor' ) ), '“one list item”' );
-	ASSERT.equal( await page.Evaluate( text_of( '.thread:not(.compose) .state-badge' ) ), 'contested');
+	// the card's parts arrive with their templates (plan UI Components, Step 1), so they are waited for
+	await page.WaitFor( text_of( '.thread:not(.compose) .thread-anchor' ) + ' === "“one list item”"' );
+	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "contested"' );
 	await page.WaitFor( count_of( '#read-view mark.anchor' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( text_of( '#read-view mark.anchor' ) ), 'one list item' );
 	ASSERT.equal( await page.Evaluate( text_of( '#state-line' ) ), '1 contested' );
@@ -182,8 +202,8 @@ TEST( 'the owner resolves from the page; the selection moves on; Reply and Conte
 TEST( 'edit and save make a revision and keep the highlight; the editor stays, the toast says so', async function ()
 {
 	await page.Click( '#view-edit' );
-	await page.WaitFor( 'window.monaco && monaco.editor.getEditors().length === 1', 30000 );
-	await page.Evaluate( 'monaco.editor.getEditors()[ 0 ].setValue( ' + JSON.stringify( TEXT.replace( 'A closing paragraph.', 'A closing paragraph, edited in the browser.' ) ) + ' )' );
+	await page.WaitFor( 'window.monaco && !!' + EDIT_EDITOR, 30000 );
+	await page.Evaluate( EDIT_EDITOR + '.setValue( ' + JSON.stringify( TEXT.replace( 'A closing paragraph.', 'A closing paragraph, edited in the browser.' ) ) + ' )' );
 	await page.WaitFor( '!document.getElementById( "save-button" ).disabled' );
 	await page.WaitFor( '/edited in the browser/.test( ' + text_of( '#edit-preview' ) + ' )' );
 	await page.Click( '#save-button' );
@@ -317,7 +337,7 @@ TEST( 'the threads and the preview hide and are remembered; a plan is renamed in
 	await page.WaitFor( '!document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
 	// the preview toggle gives the editor the whole width
 	await page.Click( '#view-edit' );
-	await page.WaitFor( 'window.monaco && monaco.editor.getEditors().length === 1', 30000 );
+	await page.WaitFor( 'window.monaco && !!' + EDIT_EDITOR, 30000 );
 	await page.Click( '#preview-toggle' );
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".edit-preview" ) ).display === "none"' );
 	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.preview-hidden" )' ), 'true' );
@@ -342,7 +362,7 @@ TEST( 'reply and resolve: one click posts the owner\'s answer and resolves the t
 	await page.Click( '.thread:not(.compose)' );
 	await page.WaitFor( count_of( '.thread.selected .reply-box' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( text_of( '.thread.selected .reply-button' ) ), 'Reply and Contest' );
-	await page.Evaluate( '( function () { let box = document.querySelector( ".thread.selected .reply-box" ); box.value = "Reopened to ask again."; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.Evaluate( draft_of( 'Reopened to ask again.' ) );
 	await page.Click( '.thread.selected .reply-button' );
 	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "reopened"' );
 	// the reply moved the selection on (to none: the only thread); picked again, Reply reads plainly, and Reply and resolve shows
@@ -352,7 +372,7 @@ TEST( 'reply and resolve: one click posts the owner\'s answer and resolves the t
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.selected .reply-resolve-button" ) ).display !== "none"' );
 	// the posted draft is cleared a moment after the reply lands, so the button is waited for, not read at once
 	await page.WaitFor( 'document.querySelector( ".thread.selected .reply-resolve-button" ).disabled' );
-	await page.Evaluate( '( function () { let box = document.querySelector( ".thread.selected .reply-box" ); box.value = "Keep one item."; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.Evaluate( draft_of( 'Keep one item.' ) );
 	await page.WaitFor( '!document.querySelector( ".thread.selected .reply-resolve-button" ).disabled' );
 	await page.Click( '.thread.selected .reply-resolve-button' );
 	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "resolved"' );
@@ -490,8 +510,8 @@ TEST( 'tabs: one per item; each keeps its view and an unsaved edit; tabs reorder
 	// an edit in Tab one, unsaved; Tab two shows its own view; back in Tab one, the edit is still there
 	await page.Click( '#view-edit' );
 	// the editor from an earlier test is reused: wait until it holds this plan's text
-	await page.WaitFor( 'window.monaco && monaco.editor.getEditors().length === 1 && monaco.editor.getEditors()[ 0 ].getValue() === "# Tab one\\n\\nA line.\\n"', 30000 );
-	await page.Evaluate( 'monaco.editor.getEditors()[ 0 ].setValue( "# Tab one\\n\\nA line, not saved yet.\\n" ); true' );
+	await page.WaitFor( 'window.monaco && !!' + EDIT_EDITOR + ' && ' + EDIT_EDITOR + '.getValue() === "# Tab one\\n\\nA line.\\n"', 30000 );
+	await page.Evaluate( EDIT_EDITOR + '.setValue( "# Tab one\\n\\nA line, not saved yet.\\n" ); true' );
 	await page.WaitFor( '!document.getElementById( "save-button" ).disabled' );
 	await new Promise( function ( resolve ) { setTimeout( resolve, 400 ); } );
 	await page.Click( tab_selector( tab_two.Id ) );
@@ -499,7 +519,7 @@ TEST( 'tabs: one per item; each keeps its view and an unsaved edit; tabs reorder
 	await page.WaitFor( 'document.getElementById( "view-read" ).classList.contains( "btn-secondary" )' );
 	await page.Click( tab_selector( tab_one.Id ) );
 	await page.WaitFor( 'document.getElementById( "view-edit" ).classList.contains( "btn-secondary" )' );
-	await page.WaitFor( 'monaco.editor.getEditors()[ 0 ].getValue() === "# Tab one\\n\\nA line, not saved yet.\\n"' );
+	await page.WaitFor( EDIT_EDITOR + '.getValue() === "# Tab one\\n\\nA line, not saved yet.\\n"' );
 	await page.WaitFor( '!document.getElementById( "save-button" ).disabled' );
 	await page.Evaluate( '[ ...document.querySelectorAll( ".edit-buttons .btn-outline-secondary" ) ].pop().click(); true' );
 	await page.WaitFor( 'document.getElementById( "view-read" ).classList.contains( "btn-secondary" )' );
@@ -657,7 +677,7 @@ TEST( 'subplans: started from the header, selected text, a new thread and a repl
 	await page.Evaluate( select_line() );
 	await page.WaitFor( 'document.getElementById( "comment-button" ).classList.contains( "shown" )' );
 	await page.Click( '#comment-button' );
-	await page.WaitFor( 'document.activeElement && document.activeElement.id === "compose-text"' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.closest( "#compose-text" ) !== null' );
 	await page.Type( 'This needs its own plan.' );
 	await page.Click( '#compose-subplan' );
 	await name_it( 'From a new thread' );
@@ -670,7 +690,7 @@ TEST( 'subplans: started from the header, selected text, a new thread and a repl
 	await show_all_threads();
 	await page.Click( '.thread:not(.compose)' );
 	await page.WaitFor( count_of( '.thread.selected .reply-box' ) + ' === 1' );
-	await page.Evaluate( '( function () { let box = document.querySelector( ".thread.selected .reply-box" ); box.value = "Or split it further."; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.Evaluate( draft_of( 'Or split it further.' ) );
 	await page.Click( '.thread.selected .subplan-from-thread' );
 	await name_it( 'From a reply' );
 	ASSERT.match( await page.Evaluate( text_of( '#read-view' ) ), /This needs its own plan\./ );
@@ -737,11 +757,13 @@ TEST( 'the tree: it hides and shows; it sorts by name, created and updated; it s
 	await page.Click( '#tree-toggle' );
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".sidebar" ) ).display !== "none"' );
 
-	// the threads filter: a new tab starts at Waiting on me, and each tab keeps its own
+	// the threads filter is global (plan UI Components, Step 1): the same in every tab, remembered in the browser
 	const FILTER = 'document.getElementById( "thread-filter" ).selectedOptions[ 0 ].textContent.trim()';
+	await pick_filter( 'Waiting on me' );
+	await page.WaitFor( FILTER + ' === "Waiting on me"' );
 	await page.Evaluate( 'window.location.hash = "#/p/' + beta.Id + '"; true' );
 	await page.WaitFor( text_of( '.header .title' ) + ' === "Beta"' );
-	await page.WaitFor( FILTER + ' === "Waiting on me"' );
+	ASSERT.equal( await page.Evaluate( FILTER ), 'Waiting on me' );
 	ASSERT.equal( await page.Evaluate( count_of( '.thread:not(.compose)' ) ), 0 );
 	await show_all_threads();
 	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
@@ -755,11 +777,18 @@ TEST( 'the tree: it hides and shows; it sorts by name, created and updated; it s
 	await show_all_threads();
 	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( count_of( '.thread.selected' ) ), 0 );
+	// the choice goes with you to another tab, and is remembered
+	await pick_filter( 'Contested' );
+	await page.WaitFor( FILTER + ' === "Contested"' );
 	await page.Click( tab_selector( alpha.Id ) );
 	await page.WaitFor( text_of( '.header .title' ) + ' === "Alpha"' );
-	ASSERT.equal( await page.Evaluate( FILTER ), 'Waiting on me' );
+	ASSERT.equal( await page.Evaluate( FILTER ), 'Contested' );
+	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.filter" )' ), '"contested"' );
+	await pick_filter( 'Waiting on me' );
+	await page.WaitFor( FILTER + ' === "Waiting on me"' );
 	await page.Click( tab_selector( beta.Id ) );
-	await page.WaitFor( FILTER + ' === "All threads"' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Beta"' );
+	ASSERT.equal( await page.Evaluate( FILTER ), 'Waiting on me' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -787,7 +816,7 @@ TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-docum
 	await show_all_threads();
 	ASSERT.equal( await page.Evaluate( text_of( '#new-comment' ) ), 'New Comment' );
 	await page.Click( '#new-comment' );
-	await page.WaitFor( 'document.activeElement && document.activeElement.id === "compose-text"' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.closest( "#compose-text" ) !== null' );
 	await page.Type( 'Add a summary at the top.' );
 	await page.WaitFor( '!document.getElementById( "compose-resolve" ).disabled' );
 	await page.Click( '#compose-resolve' );
@@ -848,8 +877,8 @@ TEST( 'Ctrl+E: Read to Edit; from the editor it saves the edit and reads; with n
 	await page.WaitFor( 'document.getElementById( "view-edit" ).classList.contains( "btn-secondary" )' );
 	const SAVED = JSON.stringify( '# Keyboard plan\n\nA line.\n' );
 	const EDITED = JSON.stringify( '# Keyboard plan\n\nA line, saved by Ctrl+E.\n' );
-	await page.WaitFor( 'window.monaco && monaco.editor.getEditors().length === 1 && monaco.editor.getEditors()[ 0 ].getValue() === ' + SAVED, 30000 );
-	await page.Evaluate( '( function () { let editor = monaco.editor.getEditors()[ 0 ]; editor.setValue( ' + EDITED + ' ); editor.focus(); return true; } )()' );
+	await page.WaitFor( 'window.monaco && !!' + EDIT_EDITOR + ' && ' + EDIT_EDITOR + '.getValue() === ' + SAVED, 30000 );
+	await page.Evaluate( '( function () { let editor = ' + EDIT_EDITOR + '; editor.setValue( ' + EDITED + ' ); editor.focus(); return true; } )()' );
 	// the edit is kept with the tab a moment after typing (stored.js: localStorage in a browser); Ctrl+E from inside the
 	// editor saves it (plan UI Tweaks VI) and goes to Read, where the saved text shows
 	await page.WaitFor( '( window.localStorage.getItem( "consensus.tabs" ) || "" ).includes( "saved by Ctrl+E" )' );
@@ -861,7 +890,7 @@ TEST( 'Ctrl+E: Read to Edit; from the editor it saves the edit and reads; with n
 	// back to Edit: the saved text, nothing dirty; Ctrl+E again just reads
 	await page.Press( 'e', [ 'Control' ] );
 	await page.WaitFor( 'document.getElementById( "view-edit" ).classList.contains( "btn-secondary" )' );
-	await page.WaitFor( 'monaco.editor.getEditors()[ 0 ].getValue() === ' + EDITED );
+	await page.WaitFor( EDIT_EDITOR + '.getValue() === ' + EDITED );
 	await page.WaitFor( 'document.getElementById( "save-button" ).disabled' );
 	await page.Press( 'e', [ 'Control' ] );
 	await page.WaitFor( 'document.getElementById( "view-read" ).classList.contains( "btn-secondary" )' );
@@ -884,11 +913,11 @@ TEST( 'hotkeys: Ctrl+Shift+T hides the threads, Ctrl+Shift+E the tree, Ctrl+Shif
 	// Ctrl+Shift+C is the inspect-element key of a renderer with a debugger attached, as this one has, so the key event is
 	// made on the page itself; the listener hears it on the window as it would a real press
 	await page.Evaluate( 'document.body.dispatchEvent( new KeyboardEvent( "keydown", { key: "C", ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true } ) ); true' );
-	await page.WaitFor( 'document.activeElement && document.activeElement.id === "compose-text"' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.closest( "#compose-text" ) !== null' );
 	ASSERT.equal( await page.Evaluate( text_of( '.thread.compose .thread-anchor.whole' ) ), 'the whole document' );
 	// while typing in the compose box, Ctrl+Shift+T still toggles; Escape leaves the box alone
 	await page.Evaluate( '[ ...document.querySelectorAll( ".thread.compose button" ) ].pop().click(); true' );
-	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.compose" ) ).display === "none"' );
+	await page.WaitFor( 'document.querySelector( ".thread.compose" ) === null' );
 	// the tabs: a second plan opens as the last tab; Alt+Home, Alt+End, Alt+PgDn (wrapping) and Alt+PgUp move along the strip
 	let second = await created( 'Second keyboard plan' );
 	await page.Evaluate( 'window.location.hash = "#/p/' + second.Id + '"; true' );

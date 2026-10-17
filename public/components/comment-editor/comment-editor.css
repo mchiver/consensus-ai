@@ -1,0 +1,46 @@
+/* comment-editor: the plain-mode editor box of a reply or a new comment, with a grip under it that drags its
+   height (plan UI Components, Step 1). */
+
+.comment-editor
+{
+	position: relative;
+	border: 1px solid var(--border);
+	border-radius: 0.3rem;
+	background: var(--page-bg);
+	overflow: hidden;
+}
+
+.comment-editor-box
+{
+	height: 7rem;
+	min-height: 2rem;
+}
+
+.comment-editor-placeholder
+{
+	position: absolute;
+	top: 6px;
+	left: 10px;
+	right: 10px;
+	color: var(--muted);
+	font-size: 14px;
+	line-height: 1.4;
+	pointer-events: none;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.comment-editor-grip
+{
+	height: 6px;
+	cursor: ns-resize;
+	background: var(--panel-bg);
+	border-top: 1px solid var(--border);
+	touch-action: none;
+}
+
+.comment-editor-grip:hover
+{
+	background: var(--border);
+}

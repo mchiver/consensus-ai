@@ -1,0 +1,5 @@
+<div class="thread" ng-class="[ $ctrl.thread.State, { selected: $ctrl.Selected(), detached: $ctrl.thread.Detached, mine: $ctrl.thread.WaitingOnMe } ]" id="thread-{{ $ctrl.thread.Id }}" ng-click="$ctrl.Select()">
+	<thread-header thread="$ctrl.thread"></thread-header>
+	<thread-transcript thread="$ctrl.thread"></thread-transcript>
+	<thread-actions ng-if="$ctrl.Selected()" thread="$ctrl.thread"></thread-actions>
+</div>

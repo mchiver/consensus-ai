@@ -1,0 +1,93 @@
+/* thread-header: the head row with its badges and the delete, then the anchor words. */
+
+.thread-head
+{
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+	font-size: 0.8rem;
+	margin-bottom: 0.3rem;
+}
+
+.state-badge
+{
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 0.05rem 0.4rem;
+	border-radius: 0.25rem;
+	background: var(--contested-bg);
+	border: 1px solid var(--contested-edge);
+}
+
+.state-badge.reopened { background: var(--reopened-bg); border-color: var(--reopened-edge); }
+.state-badge.resolved { background: var(--resolved-bg); border-color: var(--resolved-edge); }
+.state-badge.applied { background: var(--applied-bg); border-color: var(--applied-edge); }
+
+.detached-badge
+{
+	color: var(--detached-edge);
+	border: 1px solid var(--detached-edge);
+	padding: 0.05rem 0.4rem;
+	border-radius: 0.25rem;
+}
+
+.turn
+{
+	margin-left: auto;
+	color: var(--muted);
+}
+
+.thread.mine .turn
+{
+	color: var(--mine-edge);
+	font-weight: 600;
+}
+
+.thread-anchor
+{
+	font-style: italic;
+	color: var(--muted);
+	margin-bottom: 0.4rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+}
+
+.thread-anchor.whole
+{
+	font-style: normal;
+	font-size: 0.85rem;
+}
+
+/* A thread's delete: an × at the end of its first line, confirmed inline. */
+.thread-delete .btn
+{
+	padding: 0 0.3rem;
+	line-height: 1;
+	font-size: 1rem;
+	color: var(--muted);
+	text-decoration: none;
+}
+
+.thread-delete .btn.btn-danger, .thread-delete .btn.btn-outline-secondary
+{
+	font-size: 0.75rem;
+	padding: 0.05rem 0.4rem;
+}
+
+.thread-delete .btn.btn-danger
+{
+	color: #ffffff;
+}
+
+.thread-delete .delete-thread:hover
+{
+	color: var(--detached-edge);
+}
+
+.thread-delete .confirm
+{
+	font-size: 0.8rem;
+}

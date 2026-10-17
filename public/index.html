@@ -7,6 +7,15 @@
 	<link rel="icon" href="/img/mark.svg" type="image/svg+xml">
 	<link rel="stylesheet" href="/vendor/bootstrap.min.css">
 	<link rel="stylesheet" href="/css/consensus.css">
+	<!-- The components (plan UI Components): one stylesheet and one script each, under /components/<name>/. -->
+	<link rel="stylesheet" href="/components/comment-editor/comment-editor.css">
+	<link rel="stylesheet" href="/components/thread-filters/thread-filters.css">
+	<link rel="stylesheet" href="/components/thread-list/thread-list.css">
+	<link rel="stylesheet" href="/components/thread-card/thread-card.css">
+	<link rel="stylesheet" href="/components/thread-header/thread-header.css">
+	<link rel="stylesheet" href="/components/thread-transcript/thread-transcript.css">
+	<link rel="stylesheet" href="/components/thread-actions/thread-actions.css">
+	<link rel="stylesheet" href="/components/thread-compose/thread-compose.css">
 	<script src="/js/theme.js"></script>
 </head>
 <body ng-controller="AppController" ng-cloak>
@@ -629,71 +638,11 @@
 		<div class="splitter" data-splitter="threads"></div>
 
 		<!-- ============================================================= -->
-		<aside class="threads" ng-controller="ThreadsController">
-			<div class="threads-top">
-				<select class="form-select form-select-sm" id="thread-filter" ng-model="State.Filter" ng-options="option.Value as option.Label for option in Filters"></select>
-				<span class="count">{{ Threads().length }}</span>
-				<select class="form-select form-select-sm" id="thread-highlight" ng-model="State.Highlight" ng-change="SetHighlight()" ng-options="option.Value as option.Label for option in Highlights" title="which threads' passages are highlighted in the text"></select>
-			</div>
-
-			<div class="thread compose" ng-show="State.Compose">
-				<div class="thread-anchor" ng-show="State.Compose.Anchor">&ldquo;{{ State.Compose.Anchor.Text }}&rdquo;</div>
-				<div class="thread-anchor whole" ng-hide="State.Compose.Anchor">the whole document</div>
-				<textarea class="form-control form-control-sm" rows="3" ng-model="State.Compose.Text" placeholder="Your comment" id="compose-text"></textarea>
-				<div class="thread-buttons">
-					<button class="btn btn-sm btn-primary" id="compose-post" ng-click="Post()" ng-disabled="!State.Compose.Text || Busy"><svg class="icon lead"><use href="#i-comment"></use></svg>Comment</button>
-					<button class="btn btn-sm btn-success" id="compose-resolve" ng-show="IsOwner()" ng-click="Post(true)" ng-disabled="!State.Compose.Text || Busy" title="post your comment as the outcome and resolve the thread"><svg class="icon lead"><use href="#i-check"></use></svg>Comment and resolve</button>
-					<button class="btn btn-sm btn-outline-secondary" id="compose-subplan" ng-show="IsPlan()" ng-click="SubplanFromCompose()" ng-disabled="Busy" title="post this thread with a link to a new Subplan that starts from it"><svg class="icon lead"><use href="#i-subplan"></use></svg>Start a new Subplan</button>
-					<button class="btn btn-sm btn-outline-secondary" ng-click="CancelCompose()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
-				</div>
-			</div>
-
-			<div class="threads-empty" ng-show="State.Open && Threads().length === 0 && !State.Compose">no threads {{ State.Filter === 'all' ? '' : 'match this filter' }}</div>
-
-			<div class="thread" ng-repeat="thread in Threads()" ng-class="[ thread.State, { selected: thread.Id === State.Selected, detached: thread.Detached, mine: thread.WaitingOnMe } ]" id="thread-{{ thread.Id }}" ng-click="Select(thread)">
-				<div class="thread-head">
-					<span class="state-badge" ng-class="thread.State">{{ thread.State }}</span>
-					<span class="detached-badge" ng-show="thread.Detached">detached</span>
-					<span class="turn" ng-show="thread.Turn.length">waiting on {{ thread.Turn.join(', ') }}</span>
-					<span class="turn none" ng-hide="thread.Turn.length">nothing to do</span>
-					<span class="thread-delete" ng-show="CanDelete()">
-						<button class="btn btn-link btn-sm delete-thread" ng-hide="Deleting === thread.Id" title="delete this thread" ng-click="StartDelete(thread, $event)"><svg class="icon"><use href="#i-x"></use></svg></button>
-						<span class="confirm" ng-show="Deleting === thread.Id">
-							delete?
-							<button class="btn btn-sm btn-danger confirm-delete-thread" ng-click="Delete(thread, $event)" ng-disabled="Busy"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
-							<button class="btn btn-sm btn-outline-secondary" ng-click="CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
-						</span>
-					</span>
-				</div>
-				<div class="thread-anchor" ng-show="thread.Anchor" ng-click="ScrollToAnchor(thread, $event)" title="show in the text">&ldquo;{{ thread.Anchor.Text }}&rdquo;</div>
-				<div class="thread-anchor whole" ng-hide="thread.Anchor">the whole document</div>
-
-				<div class="reply-controls" ng-show="thread.Replies.length > 1">
-					<button class="btn btn-link btn-sm" ng-click="CollapseEarlier(thread, $event)">collapse earlier</button>
-					<button class="btn btn-link btn-sm" ng-click="ExpandAll(thread, $event)">expand all</button>
-				</div>
-
-				<div class="reply" ng-repeat="reply in thread.Replies" ng-class="{ collapsed: IsCollapsed(reply) }">
-					<div class="reply-head">
-						<span class="reply-badge" ng-click="ToggleReply(reply, $event)" title="{{ reply.At | fullstamp }}"><span class="caret">{{ IsCollapsed(reply) ? '&#9656;' : '&#9662;' }}</span> <span class="by">{{ reply.By | display }}</span> <span class="at">{{ reply.At | stamp }}</span></span>
-					</div>
-					<div class="reply-text" ng-hide="IsCollapsed(reply)" ng-bind-html="reply.Text | markdown"></div>
-				</div>
-
-				<div class="record" ng-show="thread.Resolved">resolved by {{ thread.Resolved.By | display }} {{ thread.Resolved.At | when }}</div>
-				<div class="record" ng-show="thread.Applied">applied by {{ thread.Applied.By | display }} at revision {{ thread.Applied.Revision }}: {{ thread.Applied.Outcome }}</div>
-
-				<div class="reply-form" ng-show="thread.Id === State.Selected">
-					<textarea class="form-control form-control-sm reply-box" rows="2" ng-model="State.Drafts[thread.Id]" placeholder="Reply{{ thread.Status === 'resolved' ? ' (reopens the thread)' : '' }}"></textarea>
-					<div class="thread-buttons">
-						<button class="btn btn-sm btn-primary reply-button" ng-class="{ contest: thread.Status === 'resolved' }" ng-click="Reply(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy" title="{{ thread.Status === 'resolved' ? 'post your reply and reopen the thread: it stays open and contested' : 'post your reply' }}"><svg class="icon lead"><use href="#i-reply"></use></svg>{{ thread.Status === 'resolved' ? 'Reply and Contest' : 'Reply' }}</button>
-						<button class="btn btn-sm btn-success reply-resolve-button" ng-show="CanResolve(thread)" ng-click="ReplyAndResolve(thread)" ng-disabled="!State.Drafts[thread.Id] || Busy" title="post your reply as the outcome and resolve the thread"><svg class="icon lead"><use href="#i-check"></use></svg>Reply and resolve</button>
-						<button class="btn btn-sm btn-success resolve-button" ng-show="CanResolve(thread)" ng-click="Resolve(thread)" ng-disabled="Busy" title="accept the outcome or recommendation in the last reply"><svg class="icon lead"><use href="#i-check"></use></svg>Resolve</button>
-						<button class="btn btn-sm btn-outline-secondary reanchor-button" ng-click="Reanchor(thread)" title="{{ thread.Anchor ? 'anchor it to another passage' : 'anchor it to a passage' }}"><svg class="icon lead"><use href="#i-target"></use></svg>Re-anchor</button>
-						<button class="btn btn-sm btn-outline-secondary subplan-from-thread" ng-show="IsPlan()" ng-click="SubplanFromThread(thread)" ng-disabled="Busy" title="reply with a link to a new Subplan that starts from this thread"><svg class="icon lead"><use href="#i-subplan"></use></svg>Start a new Subplan</button>
-					</div>
-				</div>
-			</div>
+		<!-- The threads pane (plan UI Components, Step 1): the filters and the list are components under
+		     /components; the Threads service (threads.js) holds the requests. -->
+		<aside class="threads">
+			<thread-filters></thread-filters>
+			<thread-list></thread-list>
 		</aside>
 
 	</div>
@@ -932,5 +881,13 @@
 	<script src="/js/revisions.js"></script>
 	<script src="/js/waiting.js"></script>
 	<script src="/js/threads.js"></script>
+	<script src="/components/comment-editor/comment-editor.js"></script>
+	<script src="/components/thread-filters/thread-filters.js"></script>
+	<script src="/components/thread-list/thread-list.js"></script>
+	<script src="/components/thread-card/thread-card.js"></script>
+	<script src="/components/thread-header/thread-header.js"></script>
+	<script src="/components/thread-transcript/thread-transcript.js"></script>
+	<script src="/components/thread-actions/thread-actions.js"></script>
+	<script src="/components/thread-compose/thread-compose.js"></script>
 </body>
 </html>

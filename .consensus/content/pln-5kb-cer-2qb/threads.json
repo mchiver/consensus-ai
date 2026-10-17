@@ -1,0 +1,373 @@
+[
+	{
+		"Id": "thr-g3w-t44-tm9",
+		"Anchor": {
+			"Text": "one folder per component under public/components",
+			"Prefix": "t is an AngularJS .component(), ",
+			"Suffix": "//, holding .js (the registratio"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T03:14:07.781Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T03:30:44.523Z",
+			"Revision": 12,
+			"RevisionId": "rev-riz-pkf-aer",
+			"Outcome": "AngularJS components, one folder each with script, template and stylesheet; State and events as the interface; the CLAUDE.md naming exception is in."
+		},
+		"Created": "2026-10-17T02:36:19.588Z",
+		"Replies": [
+			{
+				"Id": "rep-ys9-rsb-nbz",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T02:36:19.588Z",
+				"Text": "What a component is, in code. Today the page is one index.html of about 900 lines, with a controller per section (SidebarController, TabsController, HeaderController, ReadController, EditController, ThreadsController and so on) sharing the State factory and talking through $rootScope broadcasts. AngularJS 1.8 has .component() for exactly this: a name, a template, a controller with bindings, and it is already in the page.\n\nI recommend: one folder per component under public/components/<name>/, holding <name>.js (the .component registration and its controller), <name>.html (the template, loaded by templateUrl; no build step, one fetch each, cached) and <name>.css (its styles, one link tag each; consensus.css keeps only the page, the palette and the shared classes). index.html becomes a skeleton of component tags. Every component takes what it shows through bindings or the State service and reports through events, and its header comment names both: that is its interface.\n\nOne snag with the house style: Angular registers a component under a camelCase name and matches it as a kebab-case tag (.component( 'threadCard' ) is <thread-card>); a PascalCase name would not match a usable tag. I recommend an exception written into CLAUDE.md: the registration name is Angular's camelCase, the tag is kebab-case, and nothing else is camelCase. The alternative is single-word lowercase names only (tree, tabs, header, threads), which gets awkward at thread-transcript."
+			},
+			{
+				"Id": "rep-6sc-et1-sjp",
+				"By": "user",
+				"At": "2026-10-17T02:40:33.981Z",
+				"Text": "all good. give me the change needed for CLAUDE.md and I will make it."
+			},
+			{
+				"Id": "rep-cmt-qc6-0n7",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T03:08:22.520Z",
+				"Text": "The change for CLAUDE.md, two pieces. Under Naming Conventions, after the camelCase line:\n\n```\n- The one exception is AngularJS registration: Angular derives a tag from the name it is registered under, so a component is registered under Angular's camelCase name (`.component( 'threadCard', ... )`) and used as the kebab-case tag (`<thread-card>`), and a binding's name maps to its attribute the same way (`thread` to `thread=\"...\"`). Keep binding names to one word where you can. The registration name and the binding names are the only camelCase in the code; the controller, its functions and its variables follow the rules above.\n```\n\nUnder Platform Preferences, Web, after the AngularJS + Bootstrap line:\n\n```\n- Build the front end as AngularJS components: one folder per component under `public/components/<name>/`, holding `<name>.js` (the registration and its controller), `<name>.html` (the template, loaded by templateUrl) and `<name>.css` (its styles). A component takes what it shows through bindings or the State service, reports through events, and its header comment names both.\n```\n\nResolve when it is in, and I will write the decision into the plan."
+			}
+		]
+	},
+	{
+		"Id": "thr-yjx-yab-mhv",
+		"Anchor": {
+			"Text": "the desktop window uses Electron's hidden title bar with the native overlay buttons",
+			"Prefix": "ow Size/Close buttons. Decided: ",
+			"Suffix": " (minimize, maximize and close, "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T02:42:13.625Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T03:08:22.371Z",
+			"Revision": 3,
+			"RevisionId": "rev-foj-x5z-tpa",
+			"Outcome": "Electron's hidden title bar with the native overlay buttons in the desktop; the same bar without buttons in a browser."
+		},
+		"Created": "2026-10-17T02:36:19.617Z",
+		"Replies": [
+			{
+				"Id": "rep-m14-0ru-5mh",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T02:36:19.617Z",
+				"Text": "The desktop uses Electron's native frame: the OS title bar and buttons, and a native menu bar (Server, View, Quit). A browser has no chrome of ours at all. Window Size/Close buttons of our own mean a frameless window.\n\nI recommend Electron's middle way: titleBarStyle \"hidden\" with titleBarOverlay, which keeps the native minimize, maximize and close buttons (drawn by Electron, coloured from our palette, and they follow the theme) and gives the rest of the bar to the page as a drag region. Our Title Bar component fills that region; in a browser the same component shows without the window buttons and without the drag region. Fully custom buttons over IPC are more code for the same result, and on a Mac the traffic lights should stay native anyway.\n\nIs the chrome meant for the desktop only, with the browser showing the Title Bar as an ordinary top bar? I assume yes."
+			}
+		]
+	},
+	{
+		"Id": "thr-5kl-rbd-wgn",
+		"Anchor": {
+			"Text": "one application menu in both hosts",
+			"Prefix": "hreads waiting on me). Decided: ",
+			"Suffix": ". The desktop's native menu bar "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T02:44:37.667Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T03:08:22.388Z",
+			"Revision": 4,
+			"RevisionId": "rev-k5f-ieu-leq",
+			"Outcome": "One application menu absorbs the desktop's native menu; the status is the waiting count and the running LLM runs."
+		},
+		"Created": "2026-10-17T02:36:19.629Z",
+		"Replies": [
+			{
+				"Id": "rep-up6-plx-0gq",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T02:36:19.629Z",
+				"Text": "Today the brand and the Help menu sit at the top of the sidebar, Waiting on you is a link below them, and the desktop has a second menu, the native one (Server: Servers…, the page, Reload, New window, Open folder; View; Quit). Each server's New Project, Import and Settings are in its row's menu in the tree.\n\nQuestions: does the application menu absorb the desktop's native menu, so there is one menu in both hosts? I recommend yes: the native menu bar goes, its items (Servers…, Reload, New window, Open folder in new window, Quit) appear in the app menu only when the desktop is the host, and the server-row menus stay where they are. And what counts as status: I recommend the waiting count (the link as now) and the number of LLM runs in progress, each a link to its view, and nothing else for now."
+			}
+		]
+	},
+	{
+		"Id": "thr-5yd-vvu-0du",
+		"Anchor": {
+			"Text": "the components are project-tree",
+			"Prefix": " and popup menus, etc. Decided: ",
+			"Suffix": " (the sort and the drop logic), "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T02:47:01.239Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T03:08:22.405Z",
+			"Revision": 5,
+			"RevisionId": "rev-e8d-fdd-3o8",
+			"Outcome": "project-tree, tree-node, server-row and llm-fold; the Menus service and the panels unchanged."
+		},
+		"Created": "2026-10-17T02:36:19.640Z",
+		"Replies": [
+			{
+				"Id": "rep-uqm-9cg-i1o",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T02:36:19.640Z",
+				"Text": "sidebar.js is 1575 lines and holds more than the tree: the server rows and their menus, the project rows, the create forms (project, plan, folder), the archive fold, the LLMs fold with its connections, drag and drop, the sort control, and the openers for Settings, Project settings and LLM Instructions. How far down does the split go?\n\nI recommend: a project-tree component owning the sort and the drop logic; a tree-node component, recursive (the two ng-include templates become one component with a Depth binding); a server-row component (the row, its menu, its create form); and an llm-fold component. The popup menu itself stays the Menus service and its one popup element. Settings, Project settings and Instructions stay the panels they are, opened by events as now."
+			}
+		]
+	},
+	{
+		"Id": "thr-6ha-2b7-xyu",
+		"Anchor": {
+			"Text": "the pane picks the component by the tab's kind",
+			"Prefix": "or for that item type. Decided: ",
+			"Suffix": ": document-editor for a plan or "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T02:48:06.225Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T03:08:22.421Z",
+			"Revision": 6,
+			"RevisionId": "rev-7bp-twk-5ya",
+			"Outcome": "The pane picks a component by tab kind; the LLM session and Waiting views come along as tab contents."
+		},
+		"Created": "2026-10-17T02:36:19.650Z",
+		"Replies": [
+			{
+				"Id": "rep-y74-1g7-n5p",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T02:36:19.650Z",
+				"Text": "The item types a tab can hold today: a plan or document (same views: Read, Edit, Revisions), an LLM session (the llm view), and Waiting on you (its own view); with no tab open, the start page shows. Please confirm the Documents Pane picks one component by the tab's kind: document-editor for a plan or document, llm-session for an LLM, waiting-list for the waiting tab, and the start page otherwise, all under the one Tab Bar. The LLM and Waiting views would then be componentized in this plan too, as they are tab contents, though the plan does not list them. I recommend including them, unchanged inside."
+			}
+		]
+	},
+	{
+		"Id": "thr-feo-p0s-paj",
+		"Anchor": {
+			"Text": "a breadcrumb line under the title shows the location",
+			"Prefix": ". Plus Editor Buttons. Decided: ",
+			"Suffix": " (server / project / folder / pa"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T02:50:08.926Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T03:08:22.443Z",
+			"Revision": 7,
+			"RevisionId": "rev-g1x-j5d-rt4",
+			"Outcome": "A breadcrumb line for the location, and the text's size as characters and approximate tokens, beside the revision."
+		},
+		"Created": "2026-10-17T02:36:19.665Z",
+		"Replies": [
+			{
+				"Id": "rep-6ez-w7h-iap",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T02:36:19.665Z",
+				"Text": "The header today shows the title with \"on <server>\", the Read / Edit / Revisions group, the document and archived badges, the state picker, the state line, the revision, and New Comment and New subplan. \"Location\" is new: I read it as the path in the tree (server / project / folder / parent plan). I recommend a breadcrumb line under the title, each part a link that selects the node in the tree, and that the Revisions view stays as the third button of the group. Is that the intent?"
+			},
+			{
+				"Id": "rep-cko-32v-5fe",
+				"By": "user",
+				"At": "2026-10-17T02:50:08.926Z",
+				"Text": "The breadcrumbs sounds great. also display a character size approximate token size."
+			}
+		]
+	},
+	{
+		"Id": "thr-ab0-udo-7tc",
+		"Anchor": {
+			"Text": "one html-view component serves both the Read view and the Edit preview",
+			"Prefix": " be toggled show/hide. Decided: ",
+			"Suffix": ", with the anchors, the click to"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T02:53:46.455Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T03:08:22.460Z",
+			"Revision": 8,
+			"RevisionId": "rev-4mi-xfm-3d8",
+			"Outcome": "One html-view component for Read and for the preview, anchors and clicks in both."
+		},
+		"Created": "2026-10-17T02:36:19.675Z",
+		"Replies": [
+			{
+				"Id": "rep-6m9-e1s-xcw",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T02:36:19.675Z",
+				"Text": "There are two rendered views today: the Read view (Render.Show: the HTML with each thread's passage marked, click to select, the selection buttons) and the Edit preview (Render.Html: the HTML alone, no anchors, no clicks). I recommend one html-view component for both, with the anchors, the click and the selection buttons in both, so the preview beside the editor gains the highlights for free, and the show/hide toggle is the one the Edit view's Preview button is now. Read then is the html-view alone, Edit the editor with the html-view beside it. Agreed?"
+			}
+		]
+	},
+	{
+		"Id": "thr-rm6-qxp-uej",
+		"Anchor": {
+			"Text": "this plan builds the CodeMirror 6 editor as a component beside Monaco",
+			"Prefix": "t hides the Html view. Decided: ",
+			"Suffix": ", in source mode, with the ancho"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T02:56:18.304Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T03:08:22.477Z",
+			"Revision": 9,
+			"RevisionId": "rev-rm5-6p6-3cr",
+			"Outcome": "CodeMirror in source mode with anchors, chosen by a setting, built here; Live Preview and the end of the modes stay with the Markdown Editor plan."
+		},
+		"Created": "2026-10-17T02:36:19.688Z",
+		"Replies": [
+			{
+				"Id": "rep-xkn-bzz-ouq",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T02:36:19.688Z",
+				"Text": "This item overlaps the Markdown Editor plan, whose first and third steps I proposed as \"CodeMirror replaces Monaco\" and \"the threads' highlights in the editor\". I read the intent as: UI Components builds the CodeMirror editor as a component beside Monaco, in source mode, with the anchors coloured and clickable, chosen by a setting; Markdown Editor then adds the Live Preview, retires Monaco and the Html view, and removes the Read and Edit modes. If so, I will trim that plan once this one is settled. Please confirm.\n\nThree points under it:\n1. \"Can be toggled to replace the Monaco editor\": I recommend a setting in Settings (Editor: Monaco or CodeMirror), remembered in the browser as the look is, not a button in the header.\n2. \"Default hides the Html view\": I take it as the preview starting hidden when CodeMirror is the editor, since its anchors make the preview less needed; the Preview button still shows it. Confirm.\n3. The coloured anchors need the thread's Found positions, which the server finds in the rendered plain text, mapped onto source offsets. That mapping is the real work of this item, and it is where the Markdown Editor would have paid it. I recommend building the map from CodeMirror's markdown syntax tree, deriving the plain text the way the server's Anchors.PlainText does, and showing a thread without a highlight when the two disagree. Monaco does not get the anchors; it is on its way out."
+			}
+		]
+	},
+	{
+		"Id": "thr-lcg-ua7-4ic",
+		"Anchor": {
+			"Text": "the Waiting-on filter becomes global like Highlight",
+			"Prefix": "just the selected one. Decided: ",
+			"Suffix": ", remembered in the browser, and"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T02:58:36.726Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T03:08:22.494Z",
+			"Revision": 10,
+			"RevisionId": "rev-esq-914-0m9",
+			"Outcome": "Both filters global and remembered; the per-tab filter goes; a filter-changed event; the dropdowns stay above the list."
+		},
+		"Created": "2026-10-17T02:36:19.699Z",
+		"Replies": [
+			{
+				"Id": "rep-axf-ho1-ohp",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T02:36:19.699Z",
+				"Text": "Today they differ: Highlight is global and remembered in the browser (State.Highlight), but the Waiting-on filter is kept per tab (tabs.js keeps a Filter per plan tab, a new tab starting at Waiting on me, and each tab comes back at its own filter). This line makes the filter global too, so changing it in one tab changes it in all. I recommend exactly that, remembered in the browser like Highlight, and the per-tab Filter dropped; the guide's Tabs section changes with it. Confirm, since the per-tab filter was built on purpose in the Tabs plan.\n\nOn the broadcast: the filters live in State, and a change is a State event (highlight-changed exists; filter-changed would join it) that the html-view, the CodeMirror editor and the thread list all listen to. The dropdowns themselves become a thread-filters component. I recommend it stays above the thread list rather than moving into the Application Title, so it sits beside what it filters."
+			}
+		]
+	},
+	{
+		"Id": "thr-92q-fsj-p4i",
+		"Anchor": {
+			"Text": "the reply box and the compose box are an editor of the kind the Editor setting names",
+			"Prefix": "lying, Resolving, etc. Decided: ",
+			"Suffix": ", Monaco or CodeMirror, in a pla"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T03:28:42.995Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T03:30:44.541Z",
+			"Revision": 13,
+			"RevisionId": "rev-pwr-4zy-1xu",
+			"Outcome": "The reply and compose boxes are the chosen editor in a plain mode, five lines, sizable, one instance per place; thread-compose is its own component."
+		},
+		"Created": "2026-10-17T02:36:19.710Z",
+		"Replies": [
+			{
+				"Id": "rep-gve-r7l-fr7",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T02:36:19.710Z",
+				"Text": "The thread list has a second card shape: the compose card for a new comment (the anchor or \"the whole document\", the text box, Comment, Comment and resolve, Start a new Subplan, Cancel). I recommend a thread-compose component of its own, beside thread-card with its thread-header, thread-transcript and thread-actions, rather than a thread-card in a special mode; the two share the button styles and nothing else. The inline delete confirmation stays in the header, the collapse controls in the transcript. Agreed?"
+			},
+			{
+				"Id": "rep-c0z-akf-3ls",
+				"By": "user",
+				"At": "2026-10-17T03:03:33.994Z",
+				"Text": "Sounds good. The edit input should be either Monaco or CodeMirror based on the global setting for the editor. The CodeMirror editor would not have full capabilities of course (e.g. colorized anchor text). The size of the editor should be sizable and default to 5 lines of text high."
+			},
+			{
+				"Id": "rep-88g-934-xoh",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T03:08:22.531Z",
+				"Text": "Understood: the reply box and the compose box become an editor of the kind the global setting names, Monaco or CodeMirror, in a plain mode (markdown, word wrap, no line numbers, no anchors, no preview, no save), with a drag handle on its bottom edge, five lines high to start. The reply draft stays kept per thread (State.Drafts) as now.\n\nTwo points I will take as decided unless you say otherwise. First, one instance per place, not one per card: Monaco is heavy, and the reply form only shows on the selected thread, so one editor serves the reply form and one the compose card, each mounted when its box appears. Second, the dragged height is remembered in the browser as the look is, one height for both boxes.\n\nResolve to take the lot; I will write it into the plan under Thread Actions."
+			}
+		]
+	},
+	{
+		"Id": "thr-kpz-moj-pjc",
+		"Anchor": {
+			"Text": "Each step extracts components and changes no behaviour",
+			"Prefix": "ying, Resolving, etc. The build ",
+			"Suffix": ", except where a decision above "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T03:06:11.611Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T03:08:22.511Z",
+			"Revision": 11,
+			"RevisionId": "rev-qy4-iiz-y35",
+			"Outcome": "Six steps, each a commit with a design thread first; the server tests untouched, the smoke at every step."
+		},
+		"Created": "2026-10-17T02:36:19.721Z",
+		"Replies": [
+			{
+				"Id": "rep-c2b-xjd-uey",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T02:36:19.721Z",
+				"Text": "The shape of the build. The point is to end with the same app, componentized, so each step extracts components and changes no behaviour, except where a thread above decides one (the global filter, the app menu, the chrome). I recommend this order, each step a commit, with a design thread on its line first as before:\n\n1. The scaffold: the components folder, the loading of templates and styles, the CLAUDE.md note on names, and the first extraction, Item Thread Filters and Item Threads (items 6 and 7), the most self-contained part.\n2. The Documents Pane: the Tab Bar, the Editor Header with its location line, the html-view used by Read and by the preview, the Monaco editor, the Revisions view, the LLM and Waiting views as tab contents (items 4, 5.1 to 5.3).\n3. The CodeMirror editor with its anchors and the setting (item 5.4).\n4. The Project Tree and its parts (item 3).\n5. The Application Title and the Application Chrome, with the desktop's menu and title bar changes (items 1 and 2).\n6. The guide and its pictures, the help, the smokes.\n\nTests: the 180 node tests are the server's and keep passing untouched; the page has the Electron smokes over DevTools only. I recommend each step ends with that smoke and a look at the page, as the UI Tweaks plans did, and no test framework added for the components."
+			}
+		]
+	}
+]

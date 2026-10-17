@@ -1,7 +1,8 @@
 'use strict';
 
 // Editor - Monaco over the markdown, loaded once through its AMD loader from /vendor/monaco.
-// One editor instance lives in the edit view; Create replaces its text, Dispose frees it.
+// One editor instance lives in the edit view; Create replaces its text. Plain makes an independent instance for a
+// comment box (plan UI Components, Step 1), disposed by its owner.
 // The editor's colours follow the page's palette (plan UI Tweaks IV): a Monaco theme is defined from the page's
 // CSS variables each time the theme changes, and the editor scrolls past the end of the text.
 
@@ -119,6 +120,55 @@ angular.module( 'Consensus.Editor', [] ).factory( 'Editor', [ '$q', function ( $
 	}
 
 
+	// Plain: an independent editor for a comment box: markdown, wrapped, no gutter, no minimap, the page's theme, and
+	// the wheel left to the pane when the box cannot scroll. OnChange fires on every edit, OnSubmit on Ctrl+Enter.
+	async function Plain( Element, Text, OnChange, OnSubmit )
+	{
+		let monaco = await Load();
+		let instance = monaco.editor.create( Element, {
+			value: Text,
+			language: 'markdown',
+			theme: define_theme( monaco ),
+			wordWrap: 'on',
+			minimap: { enabled: false },
+			lineNumbers: 'off',
+			glyphMargin: false,
+			folding: false,
+			lineDecorationsWidth: 8,
+			lineNumbersMinChars: 0,
+			renderLineHighlight: 'none',
+			fontSize: 14,
+			scrollBeyondLastLine: false,
+			automaticLayout: true,
+			renderWhitespace: 'none',
+			quickSuggestions: false,
+			wordBasedSuggestions: 'off',
+			overviewRulerLanes: 0,
+			hideCursorInOverviewRuler: true,
+			overviewRulerBorder: false,
+			scrollbar: { horizontal: 'hidden', verticalScrollbarSize: 8, alwaysConsumeMouseWheel: false },
+			padding: { top: 6, bottom: 6 },
+		} );
+		instance.onDidChangeModelContent( function ()
+		{
+			OnChange();
+		} );
+		instance.onKeyDown( function ( event )
+		{
+			if ( ( event.ctrlKey || event.metaKey ) && event.keyCode === monaco.KeyCode.Enter )
+			{
+				event.preventDefault();
+				event.stopPropagation();
+				if ( OnSubmit )
+				{
+					OnSubmit();
+				}
+			}
+		} );
+		return instance;
+	}
+
+
 	function Get()
 	{
 		return editor ? editor.getValue() : '';
@@ -149,10 +199,10 @@ angular.module( 'Consensus.Editor', [] ).factory( 'Editor', [ '$q', function ( $
 	}
 
 
-	// Theme: the editor takes the page's palette as it stands.
+	// Theme: every editor takes the page's palette as it stands (the theme is one for all instances).
 	function Theme()
 	{
-		if ( editor && window.monaco )
+		if ( window.monaco )
 		{
 			window.monaco.editor.setTheme( define_theme( window.monaco ) );
 		}
@@ -169,6 +219,7 @@ angular.module( 'Consensus.Editor', [] ).factory( 'Editor', [ '$q', function ( $
 	return {
 		Load: Load,
 		Create: Create,
+		Plain: Plain,
 		Get: Get,
 		Set: Set,
 		Layout: Layout,

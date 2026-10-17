@@ -288,4 +288,5 @@ angular.module( 'Consensus' ).controller( 'ReadController', [ '$scope', '$timeou
 	} );
 	$scope.$on( 'compose-started', show );
 	$scope.$on( 'highlight-changed', show );
+	$scope.$on( 'filter-changed', show );
 } ] );

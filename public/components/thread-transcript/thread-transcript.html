@@ -1,0 +1,14 @@
+<div class="reply-controls" ng-show="$ctrl.thread.Replies.length > 1">
+	<button class="btn btn-link btn-sm" ng-click="$ctrl.CollapseEarlier($event)">collapse earlier</button>
+	<button class="btn btn-link btn-sm" ng-click="$ctrl.ExpandAll($event)">expand all</button>
+</div>
+
+<div class="reply" ng-repeat="reply in $ctrl.thread.Replies track by reply.Id" ng-class="{ collapsed: $ctrl.IsCollapsed(reply) }">
+	<div class="reply-head">
+		<span class="reply-badge" ng-click="$ctrl.ToggleReply(reply, $event)" title="{{ reply.At | fullstamp }}"><span class="caret">{{ $ctrl.IsCollapsed(reply) ? '&#9656;' : '&#9662;' }}</span> <span class="by">{{ reply.By | display }}</span> <span class="at">{{ reply.At | stamp }}</span></span>
+	</div>
+	<div class="reply-text" ng-hide="$ctrl.IsCollapsed(reply)" ng-bind-html="reply.Text | markdown"></div>
+</div>
+
+<div class="record" ng-show="$ctrl.thread.Resolved">resolved by {{ $ctrl.thread.Resolved.By | display }} {{ $ctrl.thread.Resolved.At | when }}</div>
+<div class="record" ng-show="$ctrl.thread.Applied">applied by {{ $ctrl.thread.Applied.By | display }} at revision {{ $ctrl.thread.Applied.Revision }}: {{ $ctrl.thread.Applied.Outcome }}</div>

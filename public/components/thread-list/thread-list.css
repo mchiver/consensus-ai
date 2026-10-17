@@ -1,0 +1,8 @@
+/* thread-list: the line shown when the filter lists nothing. The cards are thread-card's. */
+
+.threads-empty
+{
+	padding: 1rem 0.75rem;
+	color: var(--muted);
+	font-size: 0.9rem;
+}

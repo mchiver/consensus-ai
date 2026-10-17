@@ -69,6 +69,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	const PREVIEW_HIDDEN_KEY = 'preview-hidden';
 	const TREE_HIDDEN_KEY = 'tree-hidden';
 	const HIGHLIGHT_KEY = 'highlight';
+	const FILTER_KEY = 'filter';
 
 
 	function recall( key, fallback )
@@ -94,7 +95,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		OpenItem: null,
 		LastPlan: {},
 		View: 'read',
-		Filter: 'mine',
+		Filter: recall( FILTER_KEY, 'mine' ),	// the threads pane's filter, the same in every item (plan UI Components, Step 1)
 		Selected: null,
 		Compose: null,
 		Reanchoring: null,
@@ -304,6 +305,16 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
+	// Which threads the pane lists, the same for every item and remembered in this browser (plan UI Components,
+	// Step 1); the views that show threads listen to filter-changed.
+	function SetFilter( Filter )
+	{
+		state.Filter = Filter || 'mine';
+		remember( FILTER_KEY, state.Filter );
+		$rootScope.$broadcast( 'filter-changed' );
+	}
+
+
 	// Selecting a thread shows the threads pane, so the thread is in view.
 	function Select( ThreadId )
 	{
@@ -386,6 +397,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	state.SetPreviewHidden = SetPreviewHidden;
 	state.SetTreeHidden = SetTreeHidden;
 	state.SetHighlight = SetHighlight;
+	state.SetFilter = SetFilter;
 	state.Select = Select;
 	state.StartCompose = StartCompose;
 	state.CancelCompose = CancelCompose;

@@ -1,0 +1,60 @@
+[
+	{
+		"Id": "thr-eij-1dx-8t8",
+		"Anchor": {
+			"Text": "Decided before the build",
+			"Prefix": "tor setting, the box is Monaco. ",
+			"Suffix": " Loading. Each component registe"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T03:47:37.815Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T03:48:54.493Z",
+			"Revision": 2,
+			"RevisionId": "rev-10m-h21-oew",
+			"Outcome": "All nine decisions taken as recommended and written in under \"Decided before the build\"."
+		},
+		"Created": "2026-10-17T03:41:46.614Z",
+		"Replies": [
+			{
+				"Id": "rep-6cc-46f-br1",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T03:41:46.614Z",
+				"Text": "Design for Step 1. Each point is a decision with my recommendation; resolve with no reply to take them all, or answer the ones you want otherwise.\n\n1. Loading. Each component registers on the Consensus module with .component( name, { templateUrl: '/components/<name>/<name>.html', controller: [ ... ], bindings: { ... } } ). index.html gets one link tag per component stylesheet in its head and one script tag per component after the services (after app.js). Express serves public as it is, so no server change; Angular fetches each template once and caches it. No manifest, no template cache priming.\n\n2. The components of this step, and their bindings:\n   - thread-filters: no bindings. The two dropdowns and the count; reads State.Filter and State.Highlight and sets them through State.SetFilter and State.SetHighlight. The per-participant filters come from State.Participants as now.\n   - thread-list: no bindings. The compose card and the thread cards in the pane's order (detached first, then by position, whole-document last), the \"no threads\" line, and the selection moving on after your own reply or resolve.\n   - thread-card: thread. The card's classes (state, selected, detached, mine), the click that selects, and inside it thread-header, thread-transcript and, when selected, thread-actions.\n   - thread-header: thread. The state badge, detached badge, waiting on, the anchor words (click scrolls to the passage), and delete with its inline confirmation.\n   - thread-transcript: thread. The replies with their owners and times, the collapse controls, and the resolved and applied records. Collapsed replies stay in State.Collapsed.\n   - thread-actions: thread. The comment-editor over State.Drafts[ thread.Id ] and the buttons: Reply or Reply and Contest, Reply and resolve, Resolve, Re-anchor, Start a new Subplan.\n   - thread-compose: no bindings. State.Compose: the anchor words or \"the whole document\", the comment-editor over State.Compose.Text, and Comment, Comment and resolve, Start a new Subplan, Cancel.\n   - comment-editor: text (two-way, =), placeholder (@), autofocus (@). The plain-mode editor box, used by thread-actions and thread-compose. Two-way binding keeps it simple: the box edits the draft in place, as the textarea does now.\n\n3. The requests. Post, Reply, ReplyAndResolve, Resolve, Delete and Reanchor move out of the controller into a Threads service (public/js/threads.js becomes it), with Busy and the reload after each. The components call it; nothing else holds thread requests, so the hotkeys or another view can call the same later. move_on (the selection passing to the next thread) stays with thread-list, which knows the order.\n\n4. The global filter. State gains Filter remembered under its own key (default Waiting on me) and SetFilter, which remembers and broadcasts filter-changed; tabs.js drops the per-tab Filter (the restore when a tab is shown and the watch that writes it back); a Filter left in a remembered tab is ignored. The read view listens to filter-changed the way it listens to highlight-changed, though its highlights do not depend on the filter; the listener is there for the html-view and the CodeMirror editor of the later steps.\n\n5. The comment-editor over Monaco. The Editor factory gains Plain( Element, Text, OnChange ), which creates an independent Monaco instance (the Edit view's instance stays as it is) with: language markdown, word wrap on, no line numbers, no glyph margin, no folding, no minimap, no current-line highlight, no scroll past the end, the page's theme (it follows consensus-theme as the big editor does). The component creates its instance in $onInit and disposes it in $onDestroy; the reply form and the compose card are ng-if, so there is one instance per place. Ctrl+Enter in the box presses the card's primary button (Reply, or Comment), since Enter is a newline there and the mouse was the only way to post.\n\n6. The height. Five lines to start: five times the editor's line height plus its padding. A six-pixel drag bar under the box; dragging it sets the height (the editor lays out as it moves, a minimum of two lines) and remembers it in the browser under one shared key, so both boxes open at the last dragged height. The remembered height is of the look, not of a server.\n\n7. Styles. The threads blocks of consensus.css (.threads-top, .thread and its badges, .thread-anchor, .reply*, .record, .compose) move to the component stylesheets that use them: thread-filters.css, thread-card.css, thread-header.css, thread-transcript.css, thread-actions.css, thread-compose.css, comment-editor.css. The threads aside itself and its width stay in consensus.css with the layout.\n\n8. index.html. The threads aside becomes <thread-filters> and <thread-list>; the ThreadsController and its markup go. Nothing else in the page changes in this step.\n\n9. The smoke, at the end: the filter changes the list and survives a switch to another tab and a reload; Highlight still changes the read view; compose, Comment, Reply, Reply and resolve, Resolve, Re-anchor and Delete work as before; the reply draft survives selecting another thread and back; the drag bar resizes and the height comes back after a reload; the theme switch recolours the boxes; Ctrl+Enter posts. The 180 node tests run untouched."
+			}
+		]
+	},
+	{
+		"Id": "thr-5ow-ms1-nl7",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T04:26:09.400Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T04:26:54.424Z",
+			"Revision": 3,
+			"RevisionId": "rev-mbn-kjx-mgb",
+			"Outcome": "The build was accepted as reported; no text change. Committed as \"UI Components: Step 1\"."
+		},
+		"Created": "2026-10-17T04:14:12.349Z",
+		"Replies": [
+			{
+				"Id": "rep-kik-wpz-x4u",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T04:14:12.349Z",
+				"Text": "Build log, Step 1: Scaffold and Threads. Built by Claude Fable 5.1 (claude-fable-5-1) through the Claude Code CLI, as the nine decisions say. Not committed yet: resolve to accept, and I commit it as \"UI Components: Step 1\".\n\nWhat was built, and where:\n- The scaffold: public/components/<name>/ with <name>.js, <name>.html and <name>.css, eight components, 24 files. index.html links the eight stylesheets after consensus.css and loads the eight scripts after threads.js; the threads aside is `<thread-filters>` and `<thread-list>`, the ThreadsController and its markup gone (87 lines of index.html, 271 of consensus.css moved out; .thread-buttons and .confirm stay, shared).\n- thread-filters, thread-list, thread-card, thread-header, thread-transcript, thread-actions, thread-compose and comment-editor, with the bindings decided: thread on the card and its parts, text (two-way), placeholder, autofocus and submit on the box. Each file's header names its interface.\n- The Threads service (public/js/threads.js, in place of the controller): Listed and Matches, IsOwner, CanResolve, CanDelete, IsPlan, Post, Reply, ReplyAndResolve, Resolve, Delete, Reanchor, the two Subplan starts, and Busy.\n- State: Filter remembered under \"filter\" (default Waiting on me) and SetFilter, which remembers and broadcasts filter-changed; read.js listens. tabs.js lost the per-tab Filter (the restore on visit and the watch); a Filter left in a remembered tab is ignored.\n- Editor.Plain( Element, Text, OnChange, OnSubmit ): an independent Monaco instance with the plain options decided; the component makes it in $postLink and disposes it in $onDestroy. Five lines to start, the grip under the box drags the height (two lines minimum), remembered under \"comment-height\" for both boxes.\n- bin/docs.js: the compose focus check and the Edit view's editor pick, so the picture script still runs (not run; the pictures are Step 6).\n\nDecided during the build:\n1. The service broadcasts thread-done with the thread's id after your own Reply, Reply and Contest, Reply and resolve or Resolve; thread-list listens and passes the selection on, so move_on stayed with the list as decided.\n2. The box pushes each keystroke into the draft at once, in a digest of its own (as ng-model does), not deferred: deferred, the Comment button was still disabled when a quick click landed, and the browser test caught it once in three runs.\n3. Ctrl+Enter is the instance's onKeyDown, not editor.addCommand: addCommand's keybindings are global to Monaco and would pile up, one per box ever made.\n4. The box leaves the mouse wheel to the pane when it has nothing to scroll (alwaysConsumeMouseWheel false), so the thread list still scrolls under the pointer.\n5. Editor.Theme recolours whenever Monaco is loaded, not only when the Edit view's editor exists, so the boxes follow the theme on a page that never opened Edit.\n6. The card's parts arrive with their templates: the first card ever shown is empty for the few milliseconds until thread-header.html and the others are fetched (once per page load). The design said no template priming; say so if you see the flash and I will prime the eight templates at start.\n7. The box is monospace, as Monaco is, where the textarea was the page's font. Step 3's CodeMirror box can take the page's font if you prefer it there.\n8. The browser test (test/Ui.test.js) changed where the textarea became an editor: the compose focus check looks for the box, the three reply drafts are set through State.Drafts (draft_of), the Edit view's editor is picked out of Monaco's list (EDIT_EDITOR) since the list now holds the boxes too, the Comment click waits for the button, the card's words are waited for, and the per-tab filter test became the global one: the filter picked in one tab is the same in the next and lands in localStorage as consensus.filter.\n\nHow it was tested:\n- npm test: 181 tests pass (the 153 server tests untouched, plus the 28 browser tests in a real headless Chrome, which cover compose, Comment, Comment and resolve, Reply, Reply and Contest, Reply and resolve, Resolve, Re-anchor, Delete, the Subplan starts, the filter and Highlight, and the hotkeys).\n- A look at the page over your running server, light and dark: the reply box under the selected thread with its placeholder and grip, the compose card with typed text and the buttons, the filters row. Nothing was posted. A reload of your page shows the new pane.\n\nNot in this step: the guide's Tabs section and Help text for the global filter (Step 6), the Editor setting and the CodeMirror box (Step 3)."
+			}
+		]
+	}
+]

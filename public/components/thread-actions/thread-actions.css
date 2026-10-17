@@ -1,0 +1,14 @@
+/* thread-actions: the reply form under the selected thread. The buttons' row is the shared .thread-buttons. */
+
+.reply-form
+{
+	margin-top: 0.5rem;
+}
+
+/* Reply and Contest (plan UI Tweaks VI): the Reply button on a resolved thread, in the contested colour. */
+.reply-button.contest, .reply-button.contest:hover, .reply-button.contest:focus
+{
+	background: var(--contested-bg);
+	border-color: var(--contested-edge);
+	color: var(--text);
+}

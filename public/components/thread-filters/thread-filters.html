@@ -1,0 +1,5 @@
+<div class="threads-top">
+	<select class="form-select form-select-sm" id="thread-filter" ng-model="$ctrl.State.Filter" ng-change="$ctrl.SetFilter()" ng-options="option.Value as option.Label for option in $ctrl.Filters" title="which threads are listed, in every item"></select>
+	<span class="count">{{ $ctrl.Count() }}</span>
+	<select class="form-select form-select-sm" id="thread-highlight" ng-model="$ctrl.State.Highlight" ng-change="$ctrl.SetHighlight()" ng-options="option.Value as option.Label for option in $ctrl.Highlights" title="which threads' passages are highlighted in the text"></select>
+</div>

@@ -1,0 +1,12 @@
+/* thread-compose: the card of a comment being written, in the accent colour; not a card to click. */
+
+.thread.compose
+{
+	border-left-color: var(--accent);
+	cursor: default;
+}
+
+.thread.compose .comment-editor
+{
+	margin-top: 0.2rem;
+}
