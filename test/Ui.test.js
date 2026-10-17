@@ -62,6 +62,17 @@ function draft_of( text )
 }
 
 
+// The editor engine picked in the title bar's look popover (plan UI Components, Step 5): opened, set, closed.
+async function set_editor( engine )
+{
+	await page.Click( '#look-button' );
+	await page.WaitFor( count_of( '#look-popover #editor-select' ) + ' === 1' );
+	await page.Evaluate( '( function () { let select = document.getElementById( "editor-select" ); select.value = ' + JSON.stringify( engine ) + '; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	await page.Click( '#look-button' );
+	await page.WaitFor( count_of( '#look-popover' ) + ' === 0' );
+}
+
+
 // The threads filter picked by its label, as a person picks it in the dropdown.
 async function pick_filter( label )
 {
@@ -938,7 +949,7 @@ TEST( 'hotkeys: Ctrl+Shift+T hides the threads, Ctrl+Shift+E the tree, Ctrl+Shif
 
 TEST( 'Help: About shows the version, the links and the project summary; Hotkeys lists the keys; Escape closes each', async function ()
 {
-	await menu_pick( '', 'About', '#help-menu' );
+	await menu_pick( '', 'About', '#app-menu' );
 	let me = await api( 'GET', '/api/me' );
 	await page.WaitFor( text_of( '#about-version' ) + ' === "version ' + me.Version + '"' );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "about-source" ).href' ), 'https://github.com/mchiver/consensus-ai' );
@@ -950,11 +961,36 @@ TEST( 'Help: About shows the version, the links and the project summary; Hotkeys
 	ASSERT.ok( rows.every( function ( row ) { return row.length === 5 && row.slice( 1 ).every( function ( cell ) { return /^\d+$/.test( cell ); } ); } ) );
 	await page.Press( 'Escape' );
 	await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
-	await menu_pick( '', 'Hotkeys', '#help-menu' );
+	await menu_pick( '', 'Hotkeys', '#app-menu' );
 	await page.WaitFor( count_of( '.hotkeys-table tr' ) + ' === 12' );
 	ASSERT.equal( await page.Evaluate( text_of( '.hotkeys-table tr:first-child kbd' ) ), 'Ctrl+E' );
 	await page.Click( '#hotkeys-close' );
 	await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'the title bar (plan UI Components, Step 5): the brand, the menu without the desktop items, the status, the look popover', async function ()
+{
+	ASSERT.equal( await page.Evaluate( text_of( 'title-bar .brand' ) ), 'Consensus' );
+	ASSERT.equal( await page.Evaluate( count_of( '#title-bar #app-menu' ) + ' + ' + count_of( '#title-bar #waiting-link' ) + ' + ' + count_of( '#title-bar #look-button' ) ), 3 );
+	ASSERT.equal( await page.Evaluate( count_of( '#running-link' ) ), 0 );
+	ASSERT.equal( await page.Evaluate( count_of( '.sidebar .brand, .sidebar #help-menu, .sidebar #theme-select' ) ), 0 );
+	// the menu in a browser: About and Hotkeys, nothing of the desktop's
+	await page.Click( '#app-menu' );
+	await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' === 2' );
+	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].map( function ( entry ) { return entry.textContent.trim(); } ).join( "," )' ), 'About,Hotkeys' );
+	await page.Press( 'Escape' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display === "none"' );
+	// the look popover: the three selects; a theme picked applies; Escape closes it
+	let before = await page.Evaluate( 'window.ConsensusTheme.Get().Theme' );
+	await page.Click( '#look-button' );
+	await page.WaitFor( count_of( '#look-popover #theme-select' ) + ' + ' + count_of( '#look-popover #scale-select' ) + ' + ' + count_of( '#look-popover #editor-select' ) + ' === 3' );
+	await page.Evaluate( '( function () { let select = document.getElementById( "theme-select" ); select.selectedIndex = [ ...select.options ].findIndex( function ( option ) { return option.textContent.trim() === "Dark"; } ); select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	await page.WaitFor( 'document.documentElement.dataset.theme === "dark"' );
+	await page.Press( 'Escape' );
+	await page.WaitFor( count_of( '#look-popover' ) + ' === 0' );
+	await page.Evaluate( 'window.ConsensusTheme.SetTheme( ' + JSON.stringify( before ) + ' ); true' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
@@ -1090,8 +1126,8 @@ TEST( 'CodeMirror (plan UI Components, Step 3): the Editor setting switches the 
 	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
 	await page.WaitFor( text_of( '.header .title' ) + ' === "Mirror plan"' );
 	await show_all_threads();
-	// the setting, as the sidebar's select sets it
-	await page.Evaluate( '( function () { let select = document.getElementById( "editor-select" ); select.value = "codemirror"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	// the setting, as the look popover's select sets it
+	await set_editor( 'codemirror' );
 	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.editor" )' ), '"codemirror"' );
 	await page.Click( '#view-edit' );
 	await page.WaitFor( count_of( '#editor .cm-editor' ) + ' === 1 && ' + count_of( '#editor .monaco-editor' ) + ' === 0', 30000 );
@@ -1124,7 +1160,7 @@ TEST( 'CodeMirror (plan UI Components, Step 3): the Editor setting switches the 
 	await page.Press( 'Enter', [ 'Control' ] );
 	await page.WaitFor( 'Array.from( document.querySelectorAll( "#thread-' + claim.Id + ' .reply-text" ) ).pop().textContent.trim() === "From the CodeMirror box."' );
 	// back to Monaco: the next Edit opens it
-	await page.Evaluate( '( function () { let select = document.getElementById( "editor-select" ); select.value = "monaco"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	await set_editor( 'monaco' );
 	await page.Click( '#view-edit' );
 	await page.WaitFor( count_of( '#editor .monaco-editor' ) + ' === 1 && ' + count_of( '#editor .cm-editor' ) + ' === 0', 30000 );
 	ASSERT.deepEqual( page.Errors, [] );

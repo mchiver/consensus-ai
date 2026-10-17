@@ -83,6 +83,13 @@ html, body
 	font-size: calc( 15px * var(--scale) );
 }
 
+/* The page is a column: the title bar (public/components/title-bar, plan UI Components, Step 5), then the layout. */
+body
+{
+	display: flex;
+	flex-direction: column;
+}
+
 [ng-cloak]
 {
 	display: none !important;
@@ -99,7 +106,8 @@ html, body
 {
 	display: grid;
 	grid-template-columns: var(--sidebar-width) 6px 1fr 6px var(--threads-width);
-	height: 100vh;
+	flex: 1 1 auto;
+	min-height: 0;
 	overflow: hidden;
 }
 
@@ -213,20 +221,9 @@ html, body
 
 /* --------------------------------------------------------------------- sidebar */
 
-.sidebar-top
-{
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 0.75rem;
-	border-bottom: 1px solid var(--border);
-}
+/* The brand, the application menu, the waiting count and the look controls that topped and tailed the sidebar are
+   title-bar's and look-controls' (public/components, plan UI Components, Step 5). */
 
-.brand
-{
-	font-weight: 600;
-	font-size: 1.1rem;
-}
 
 .list-heading .count, .threads-top .count
 {
@@ -248,16 +245,6 @@ html, body
 	--row-start: 8px;
 }
 
-.sidebar-bottom
-{
-	margin-top: auto;
-	padding: 0.75rem;
-	border-top: 1px solid var(--border);
-	font-size: 0.85rem;
-	color: var(--muted);
-	display: flex;
-	justify-content: space-between;
-}
 
 .connection::before
 {
@@ -340,56 +327,6 @@ html, body
 
 /* The Edit view is edit-view's, the Revisions view revisions-view's (plan UI Components, Steps 2 and 3). */
 
-/* --------------------------------------------------------------------- sidebar: search, waiting, theme */
-
-.waiting-link
-{
-	display: block;
-	margin: 0.5rem 0.75rem 0;
-	padding: 0.4rem 0.6rem;
-	border-radius: 0.3rem;
-	border: 1px solid var(--mine-edge);
-	color: var(--mine-edge);
-	text-decoration: none;
-	font-size: 0.9rem;
-}
-
-.waiting-link.open, .waiting-link:hover
-{
-	background: rgba( 124, 58, 237, 0.12 );
-	color: var(--mine-edge);
-}
-
-.sidebar-bottom
-{
-	flex-wrap: wrap;
-	gap: 0.5rem;
-}
-
-/* The theme, the size and the editor (plan UI Components, Step 3): each as wide as its words, wrapping when the
-   sidebar is narrow. */
-.theme-controls
-{
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.5rem;
-	width: 100%;
-}
-
-.theme-controls .form-select
-{
-	width: auto;
-	flex: 1 1 auto;
-}
-
-/* --------------------------------------------------------------------- sidebar: the roots (plan Run Shapes, Step 5) */
-
-.theme-controls select
-{
-	font-size: 0.8rem;
-	padding: 0.1rem 1.5rem 0.1rem 0.4rem;
-	background-position: right 0.4rem center;
-}
 
 /* --------------------------------------------------------------------- waiting and search views */
 
@@ -493,29 +430,6 @@ html, body
 
 /* --------------------------------------------------------------------- export and import */
 
-/* The menu bar (plan UI Tweaks VI) sits at the right of the brand: Help. */
-.menu-bar
-{
-	margin-left: auto;
-	display: flex;
-	gap: 0.25rem;
-}
-
-.menu-bar-item
-{
-	padding: 0.2rem 0.6rem;
-	border: 0;
-	border-radius: 0.25rem;
-	background: none;
-	color: var(--text);
-	font-size: 0.9rem;
-}
-
-.menu-bar-item:hover, .menu-bar-item.shown
-{
-	background: var(--tree-hover);
-	color: var(--accent);
-}
 
 /* The Help popups: the About summary and the hotkeys table. */
 .help-form

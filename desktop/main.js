@@ -13,7 +13,12 @@
 // desktop.json's connections and workspaces are moved in once (Settings.js, then the server's migration). Plan Run
 // Shapes, Step 4: a project folder on the command line (`consensus <path>`) opens the app on this machine's server
 // with that project alone, whatever was open last; Open folder in new window starts another instance that way; the
-// configured port in use leaves the server a free one (Server.js).
+// configured port in use leaves the server a free one (Server.js). Plan UI Components, Step 5: the window has no
+// frame of its own: Electron draws the window buttons over the page's title bar (titleBarStyle hidden with
+// titleBarOverlay; the page sends the bar's colours and height over the chrome message, so the buttons follow the
+// palette), the bar is the drag region, and the native menu is not shown; it is still set, for its accelerators,
+// and the page's application menu (public/components/title-bar) has Servers…, New window, Open folder in new
+// window, Reload and Quit, over the bridge.
 //
 //   npm run desktop          (electron desktop, from the checkout)
 
@@ -84,7 +89,20 @@ function theme_in_use()
 }
 
 
-// The window's title bar and menu bar follow the theme, light or dark (plan UI Tweaks IV); System follows the system.
+// The window buttons Electron draws over the title bar (plan UI Components, Step 5): a light or a dark pair to open
+// with; the page sends the palette's own colours and the bar's height once it is drawn (the chrome message).
+const LIGHT_OVERLAY = { color: '#f8f9fa', symbolColor: '#212529', height: 35 };
+const DARK_OVERLAY = { color: '#1e1e1e', symbolColor: '#e6e6e6', height: 35 };
+
+function overlay_for_theme()
+{
+	let theme = theme_in_use();
+	let dark = ( theme === 'system' ) ? ELECTRON.nativeTheme.shouldUseDarkColors : SETTINGS.DARK_THEMES.includes( theme );
+	return Object.assign( {}, dark ? DARK_OVERLAY : LIGHT_OVERLAY );
+}
+
+
+// The window's dialogs and native parts follow the theme, light or dark (plan UI Tweaks IV); System follows the system.
 function apply_native_theme()
 {
 	let theme = theme_in_use();
@@ -210,15 +228,25 @@ function web_preferences()
 }
 
 
-function create_window()
+// A window of the app (plan UI Components, Step 5): no frame, Electron's window buttons over the page's title bar.
+function window_options( Width, Height )
 {
-	window = new ELECTRON.BrowserWindow( {
-		width: 1400,
-		height: 900,
+	return {
+		width: Width,
+		height: Height,
 		title: 'Consensus Desktop',
 		icon: ICON,
+		titleBarStyle: 'hidden',
+		titleBarOverlay: overlay_for_theme(),
 		webPreferences: web_preferences(),
-	} );
+	};
+}
+
+
+function create_window()
+{
+	window = new ELECTRON.BrowserWindow( window_options( 1400, 900 ) );
+	window.setMenuBarVisibility( false );
 	window.webContents.on( 'preload-error', function ( event, path, error )
 	{
 		console.error( 'preload error in ' + path + ': ' + ( error && error.stack || error ) );
@@ -228,10 +256,14 @@ function create_window()
 	{
 		if ( details.url.startsWith( page.Url + '/' ) )
 		{
-			return { action: 'allow', overrideBrowserWindowOptions: { width: 1000, height: 800, title: 'Consensus Desktop', icon: ICON, webPreferences: web_preferences() } };
+			return { action: 'allow', overrideBrowserWindowOptions: window_options( 1000, 800 ) };
 		}
 		ELECTRON.shell.openExternal( details.url );
 		return { action: 'deny' };
+	} );
+	window.webContents.on( 'did-create-window', function ( child )
+	{
+		child.setMenuBarVisibility( false );
 	} );
 	window.on( 'close', function ( event )
 	{
@@ -251,7 +283,9 @@ function create_window()
 
 
 //---------------------------------------------------------------------
-// The menu: Server (Servers…, the page, Reload, New window, Open folder in new window), View, Quit.
+// The menu: Server (Servers…, the page, Reload, New window, Open folder in new window), View, Quit. Not shown since
+// plan UI Components, Step 5 (the window has no menu bar; the page's application menu has the Server items), but
+// set, since its accelerators are what keep Ctrl+R, Ctrl+N, Ctrl+Shift+O, the DevTools, the zoom and F11 working.
 
 function build_menu()
 {
@@ -337,9 +371,9 @@ function new_window( Arguments )
 
 
 // Open folder in new window: a folder picked, opened in another instance on that project alone (`consensus <path>`).
-async function open_folder_window()
+async function open_folder_window( owner )
 {
-	let picked = await pick_folder( window, null );
+	let picked = await pick_folder( owner || window, null );
 	if ( picked )
 	{
 		new_window( [ picked ] );
@@ -450,6 +484,51 @@ function attach_handlers()
 	{
 		new_window();
 		return {};
+	} );
+
+	// The page's application menu (plan UI Components, Step 5): Open folder in new window, and Quit.
+	ELECTRON.ipcMain.handle( 'open-folder-window', function ( event )
+	{
+		return open_folder_window( ELECTRON.BrowserWindow.fromWebContents( event.sender ) ).then( function () { return {}; } );
+	} );
+
+	ELECTRON.ipcMain.handle( 'quit', function ()
+	{
+		ELECTRON.app.quit();
+		return {};
+	} );
+
+	// The title bar's colours and height, from the page once its bar is drawn and after every change of theme or size
+	// (plan UI Components, Step 5): the window buttons follow the palette.
+	ELECTRON.ipcMain.on( 'chrome', function ( event, chrome )
+	{
+		let owner = ELECTRON.BrowserWindow.fromWebContents( event.sender );
+		if ( !owner || !chrome )
+		{
+			return;
+		}
+		let overlay = {};
+		if ( /^#[0-9a-f]{6}$/i.test( chrome.Color || '' ) )
+		{
+			overlay.color = chrome.Color;
+		}
+		if ( /^#[0-9a-f]{6}$/i.test( chrome.Symbol || '' ) )
+		{
+			overlay.symbolColor = chrome.Symbol;
+		}
+		let height = Number( chrome.Height );
+		if ( height >= 24 && height <= 96 )
+		{
+			overlay.height = Math.round( height );
+		}
+		try
+		{
+			owner.setTitleBarOverlay( overlay );
+		}
+		catch ( error )
+		{
+			console.error( 'the title bar overlay was not set: ' + error.message );
+		}
 	} );
 }
 

@@ -58,6 +58,8 @@ h2
 
 /* --------------------------------------------------------------------- the head */
 
+/* The header is the window's title bar (plan UI Components, Step 5): Electron draws the window buttons over its right
+   end, so the controls stop short of them (the titlebar-area variables of the overlay), and it is the drag region. */
 .connect-head
 {
 	display: flex;
@@ -67,6 +69,7 @@ h2
 	padding: 0.6rem 1rem;
 	border-bottom: 1px solid var(--border);
 	background: var(--panel-bg);
+	-webkit-app-region: drag;
 }
 
 .connect-title
@@ -85,6 +88,8 @@ h2
 {
 	display: flex;
 	gap: 0.4rem;
+	margin-right: calc( 100vw - env( titlebar-area-x, 0px ) - env( titlebar-area-width, 100vw ) );
+	-webkit-app-region: no-drag;
 }
 
 .connect-controls .form-select

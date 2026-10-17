@@ -1,44 +1,19 @@
 'use strict';
 
-// Help (plan UI Tweaks VI) - the Help menu in the bar above the project tree, and its two popups: About (the
-// version, the source and the guide, and a summary of every project: its threads, how many are contested, how many
-// wait on you and how many on the LLMs) and Hotkeys (the table in hotkeys.js). The summary is made when About
-// opens, from the tallies the tree already holds: each server's projects, their plans and Subplans, archived plans
-// left out; "waiting on LLMs" counts every participant whose Role is llm.
+// Help (plan UI Tweaks VI) - the two help popups: About (the version, the source and the guide, and a summary of
+// every project: its threads, how many are contested, how many wait on you and how many on the LLMs) and Hotkeys
+// (the table in hotkeys.js). They open from the application menu in the title bar (public/components/title-bar,
+// plan UI Components, Step 5) through HelpPanel.Show. The summary is made when About opens, from the tallies the
+// tree already holds: each server's projects, their plans and Subplans, archived plans left out; "waiting on LLMs"
+// counts every participant whose Role is llm.
 //
-//   HelpPanel = { Open: null | 'about' | 'hotkeys', Summary: [ { Root, Rows: [ { Id, Name, Total, Contested, Mine, Llms } ] } ] }
+//   HelpPanel = { Open: null | 'about' | 'hotkeys', Summary: [ { Root, Rows: [ { Id, Name, Total, Contested, Mine, Llms } ] } ],
+//                 Show( which ), Close() }
 
-angular.module( 'Consensus' ).factory( 'HelpPanel', [ function ()
+angular.module( 'Consensus' ).factory( 'HelpPanel', [ 'Roots', function ( Roots )
 {
-	return { Open: null, Summary: [] };
-} ] )
+	let panel = { Open: null, Summary: [] };
 
-
-.controller( 'HelpController', [ '$scope', '$window', 'State', 'Roots', 'Menus', 'HelpPanel', 'Hotkeys', function ( $scope, $window, State, Roots, Menus, HelpPanel, Hotkeys )
-{
-	const SOURCE_URL = 'https://github.com/mchiver/consensus-ai';
-	const GUIDE_URL = 'http://consensus-ai.liquicode.com';
-	$scope.Panel = HelpPanel;
-	$scope.Roots = Roots;
-	$scope.Hotkeys = Hotkeys;
-	$scope.SourceUrl = SOURCE_URL;
-	$scope.GuideUrl = GUIDE_URL;
-
-
-	// The page's own version: the desktop's, or the server's as /api/me gave it.
-	$scope.Version = function ()
-	{
-		if ( $window.ConsensusDesktop && $window.ConsensusDesktop.Version )
-		{
-			return $window.ConsensusDesktop.Version;
-		}
-		let root = Roots.List[ 0 ];
-		return ( root && root.Version ) ? root.Version : '';
-	};
-
-
-	//-----------------------------------------------------------------
-	// The summary
 
 	// The tallies of a project's plans and Subplans, folders walked, documents and the Archive left out.
 	function tallies_of( items, into )
@@ -88,38 +63,58 @@ angular.module( 'Consensus' ).factory( 'HelpPanel', [ function ()
 	}
 
 
-	function open( which )
+	// Show: 'about' or 'hotkeys'; About's summary is made as it opens.
+	function Show( Which )
 	{
-		if ( which === 'about' )
+		if ( Which === 'about' )
 		{
-			HelpPanel.Summary = Roots.List.map( summary_of );
+			panel.Summary = Roots.List.map( summary_of );
 		}
-		HelpPanel.Open = which;
+		panel.Open = Which;
 	}
 
 
-	//-----------------------------------------------------------------
-	// The menu and the popups
-
-	$scope.OpenHelpMenu = function ( event )
+	function Close()
 	{
-		let items = [
-			{ Label: 'About', Icon: 'info', Act: function () { open( 'about' ); } },
-			{ Label: 'Hotkeys', Icon: 'keyboard', Act: function () { open( 'hotkeys' ); } },
-		];
-		Menus.Show( items, event, 'help' );
-	};
+		panel.Open = null;
+	}
 
 
-	$scope.MenuOpen = function ()
+	panel.Show = Show;
+	panel.Close = Close;
+	return panel;
+} ] )
+
+
+//---------------------------------------------------------------------
+// HelpController: the popups' own scope, on the help popup element.
+
+.controller( 'HelpController', [ '$scope', '$window', 'Roots', 'HelpPanel', 'Hotkeys', function ( $scope, $window, Roots, HelpPanel, Hotkeys )
+{
+	const SOURCE_URL = 'https://github.com/mchiver/consensus-ai';
+	const GUIDE_URL = 'http://consensus-ai.liquicode.com';
+	$scope.Panel = HelpPanel;
+	$scope.Roots = Roots;
+	$scope.Hotkeys = Hotkeys;
+	$scope.SourceUrl = SOURCE_URL;
+	$scope.GuideUrl = GUIDE_URL;
+
+
+	// The page's own version: the desktop's, or the server's as /api/me gave it.
+	$scope.Version = function ()
 	{
-		return Menus.IsOpenFor( 'help' );
+		if ( $window.ConsensusDesktop && $window.ConsensusDesktop.Version )
+		{
+			return $window.ConsensusDesktop.Version;
+		}
+		let root = Roots.List[ 0 ];
+		return ( root && root.Version ) ? root.Version : '';
 	};
 
 
 	$scope.Close = function ()
 	{
-		HelpPanel.Open = null;
+		HelpPanel.Close();
 	};
 
 

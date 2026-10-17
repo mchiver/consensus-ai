@@ -8,6 +8,8 @@
 	<link rel="stylesheet" href="/vendor/bootstrap.min.css">
 	<link rel="stylesheet" href="/css/consensus.css">
 	<!-- The components (plan UI Components): one stylesheet and one script each, under /components/<name>/. -->
+	<link rel="stylesheet" href="/components/title-bar/title-bar.css">
+	<link rel="stylesheet" href="/components/look-controls/look-controls.css">
 	<link rel="stylesheet" href="/components/project-tree/project-tree.css">
 	<link rel="stylesheet" href="/components/server-row/server-row.css">
 	<link rel="stylesheet" href="/components/project-row/project-row.css">
@@ -106,37 +108,17 @@
 
 
 
+	<!-- The title bar (plan UI Components, Step 5): the brand, the application menu, the status and the look button; in the
+	     desktop the window's title bar, with Electron's window buttons over its right end. -->
+	<title-bar></title-bar>
+
 	<div class="layout" ng-class="{ 'no-threads': State.Open.Plan.Kind === 'document' || State.ThreadsHidden || State.View === 'llm', 'no-tree': State.TreeHidden }">
 
 		<!-- ============================================================= -->
-		<aside class="sidebar" ng-controller="SidebarController">
-			<!-- The menu bar (plan UI Tweaks VI): Help, with About and Hotkeys. New Project, Import and Settings are each
-			     server's, in its row's menu. -->
-			<div class="sidebar-top">
-				<div class="brand">Consensus</div>
-				<div class="menu-bar" ng-controller="HelpController">
-					<button class="menu-bar-item" type="button" id="help-menu" ng-class="{ shown: MenuOpen() }" ng-click="OpenHelpMenu($event)" title="about Consensus, and the hotkeys">Help</button>
-				</div>
-			</div>
-			<a class="waiting-link" ng-href="#/waiting" ng-class="{ open: State.View === 'waiting' }" id="waiting-link">Waiting on you: {{ WaitingCount() }}</a>
-
-			<!-- The project tree (plan UI Components, Step 4): project-tree and the Tree service (public/js/tree.js). -->
+		<aside class="sidebar">
+			<!-- The project tree (plan UI Components, Step 4): project-tree and the Tree service (public/js/tree.js). The brand,
+			     the menu, the status and the look controls are title-bar's, above the layout (Step 5). -->
 			<project-tree></project-tree>
-
-			<div class="sidebar-bottom">
-				<div class="theme-controls">
-					<select class="form-select form-select-sm" ng-model="Theme" ng-change="SetTheme()" title="theme" id="theme-select" ng-options="palette.Id as palette.Label for palette in Palettes"></select>
-					<select class="form-select form-select-sm" ng-model="Scale" ng-change="SetScale()" title="size" id="scale-select">
-						<option value="small">Small</option>
-						<option value="normal">Normal</option>
-						<option value="large">Large</option>
-					</select>
-					<select class="form-select form-select-sm" ng-model="Editor" ng-change="SetEditor()" title="the editor: Monaco, or CodeMirror (plan UI Components, Step 3); the Edit view takes it when it next opens" id="editor-select">
-						<option value="monaco">Monaco</option>
-						<option value="codemirror">CodeMirror</option>
-					</select>
-				</div>
-			</div>
 		</aside>
 
 		<div class="splitter" data-splitter="sidebar"></div>
@@ -390,9 +372,10 @@
 	<script src="/js/settings.js"></script>
 	<script src="/js/project.js"></script>
 	<script src="/js/tree.js"></script>
-	<script src="/js/sidebar.js"></script>
 	<script src="/js/threads.js"></script>
 	<script src="/components/html-view/html-view.js"></script>
+	<script src="/components/title-bar/title-bar.js"></script>
+	<script src="/components/look-controls/look-controls.js"></script>
 	<script src="/components/project-tree/project-tree.js"></script>
 	<script src="/components/server-row/server-row.js"></script>
 	<script src="/components/project-row/project-row.js"></script>

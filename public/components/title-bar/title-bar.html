@@ -1,0 +1,12 @@
+<div class="title-bar" id="title-bar">
+	<div class="brand">Consensus</div>
+	<button class="title-button" type="button" id="app-menu" ng-class="{ shown: $ctrl.MenuOpen() }" ng-click="$ctrl.OpenMenu($event)" title="about Consensus, the hotkeys, and the desktop's commands">Menu<svg class="icon"><use href="#i-caret"></use></svg></button>
+	<div class="title-status">
+		<a class="waiting-link" ng-href="#/waiting" ng-class="{ open: $ctrl.State.View === 'waiting' }" id="waiting-link" title="the threads waiting on you, on every server">Waiting on you: {{ $ctrl.WaitingCount() }}</a>
+		<a class="running-link" ng-if="$ctrl.RunningCount()" ng-href="{{ $ctrl.RunningHref() }}" id="running-link" title="{{ $ctrl.RunningTitle() }}">Running: {{ $ctrl.RunningCount() }}</a>
+	</div>
+	<button class="title-button look-button" type="button" id="look-button" ng-class="{ shown: $ctrl.LookOpen }" ng-click="$ctrl.ToggleLook($event)" title="the theme, the size and the editor"><svg class="icon"><use href="#i-gear"></use></svg></button>
+	<div class="look-popover" id="look-popover" ng-if="$ctrl.LookOpen">
+		<look-controls></look-controls>
+	</div>
+</div>

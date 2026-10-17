@@ -29,10 +29,14 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	SetScale: function ( Scale ) { ELECTRON.ipcRenderer.send( 'theme', { Scale: Scale } ); },
 	// The page's remembered state (stored.js, plan UI Tweaks V): a value by key into desktop.json; null forgets it.
 	Remember: function ( Key, Value ) { ELECTRON.ipcRenderer.send( 'remember', { Key: Key, Value: Value } ); },
+	// The title bar's colours and height (theme.js ReportChrome, plan UI Components, Step 5): the window buttons
+	// Electron draws over the bar follow them.
+	SetChrome: function ( Chrome ) { ELECTRON.ipcRenderer.send( 'chrome', { Color: Chrome.Color, Symbol: Chrome.Symbol, Height: Chrome.Height } ); },
 } );
 
 
-// For the connect screen (the servers), and the page's folder picker; Servers shows that screen, OpenPage the page.
+// For the connect screen (the servers), the page's folder picker and the page's application menu (plan UI
+// Components, Step 5); Servers shows the servers screen, OpenPage the page.
 ELECTRON.contextBridge.exposeInMainWorld( 'Desktop', {
 	Settings: function () { return invoke( 'settings' ); },
 	Save: function ( Settings ) { return invoke( 'save', Settings ); },
@@ -42,4 +46,6 @@ ELECTRON.contextBridge.exposeInMainWorld( 'Desktop', {
 	LocalStatus: function () { return invoke( 'local-status' ); },
 	PickFolder: function ( Current ) { return invoke( 'folder', Current ); },
 	NewWindow: function () { return invoke( 'new-window' ); },
+	OpenFolderWindow: function () { return invoke( 'open-folder-window' ); },
+	Quit: function () { return invoke( 'quit' ); },
 } );

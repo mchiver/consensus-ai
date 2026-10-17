@@ -137,6 +137,41 @@
 	}
 
 
+	// A computed colour as "#rrggbb", which the desktop's overlay takes.
+	function hex_of( color )
+	{
+		let found = /rgba?\(\s*(\d+)\D+(\d+)\D+(\d+)/.exec( color || '' );
+		if ( !found )
+		{
+			return '#000000';
+		}
+		let parts = [ found[ 1 ], found[ 2 ], found[ 3 ] ].map( function ( part )
+		{
+			return ( '0' + Number( part ).toString( 16 ) ).slice( -2 );
+		} );
+		return '#' + parts.join( '' );
+	}
+
+
+	// ReportChrome (plan UI Components, Step 5): in the desktop, Electron draws the window buttons over the page's
+	// title bar (desktop/main.js, titleBarOverlay); told the bar's background, text colour and height, once it is
+	// drawn and after every change here, they follow the palette and the size. Element is the bar; nothing happens
+	// in a browser.
+	function ReportChrome( Element )
+	{
+		if ( !desktop || typeof desktop.SetChrome !== 'function' || !Element )
+		{
+			return;
+		}
+		let style = window.getComputedStyle( Element );
+		desktop.SetChrome( {
+			Color: hex_of( style.backgroundColor ),
+			Symbol: hex_of( style.color ),
+			Height: Math.round( Element.getBoundingClientRect().height ),
+		} );
+	}
+
+
 	current.Theme = THEMES.includes( read( 'consensus.theme', 'system' ) ) ? read( 'consensus.theme', 'system' ) : 'system';
 	current.Scale = SCALES[ read( 'consensus.scale', 'normal' ) ] ? read( 'consensus.scale', 'normal' ) : 'normal';
 	media.addEventListener( 'change', function ()
@@ -157,5 +192,6 @@
 		Get: Get,
 		IsDark: IsDark,
 		Palette: Palette,
+		ReportChrome: ReportChrome,
 	};
 } )();

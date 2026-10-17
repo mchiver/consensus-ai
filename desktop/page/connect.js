@@ -171,5 +171,18 @@ angular.module( 'Connect', [] )
 	};
 
 
+	// The window buttons Electron draws over the header (plan UI Components, Step 5) follow its colours and height,
+	// once drawn and after every change of theme or size, as the page's title bar does.
+	function report_chrome()
+	{
+		window.requestAnimationFrame( function ()
+		{
+			window.ConsensusTheme.ReportChrome( document.querySelector( '.connect-head' ) );
+		} );
+	}
+
+
+	document.addEventListener( 'consensus-theme', report_chrome );
+	report_chrome();
 	load();
 } ] );

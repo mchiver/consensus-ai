@@ -1,0 +1,116 @@
+/* title-bar: the bar across the top of the page (plan UI Components, Step 5). The host spans the whole width and
+   carries the colours, so the room under the desktop's window buttons matches; the bar inside sits where the
+   window leaves it (the titlebar-area variables of Electron's overlay; a browser has none, and the fallbacks make it
+   the full width) and is the window's drag region, its buttons and links left out of it. */
+
+title-bar
+{
+	display: block;
+	flex: none;
+	background: var(--panel-bg);
+	border-bottom: 1px solid var(--border);
+	color: var(--text);
+}
+
+.title-bar
+{
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	box-sizing: border-box;
+	height: 2.25rem;
+	padding: 0 0.5rem 0 0.75rem;
+	margin-left: env( titlebar-area-x, 0px );
+	width: env( titlebar-area-width, 100% );
+	-webkit-app-region: drag;
+}
+
+.brand
+{
+	font-weight: 600;
+	font-size: 1.1rem;
+	white-space: nowrap;
+}
+
+/* The menu button and the look button. */
+
+.title-button
+{
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	padding: 0.15rem 0.5rem;
+	border: 0;
+	border-radius: 0.25rem;
+	background: none;
+	color: var(--text);
+	font-size: 0.9rem;
+	white-space: nowrap;
+	-webkit-app-region: no-drag;
+}
+
+.title-button:hover, .title-button.shown
+{
+	background: var(--tree-hover);
+	color: var(--accent);
+}
+
+/* The status: Waiting on you, and Running while a run is in progress. */
+
+.title-status
+{
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	min-width: 0;
+}
+
+.waiting-link, .running-link
+{
+	display: inline-block;
+	padding: 0.1rem 0.6rem;
+	border-radius: 0.3rem;
+	border: 1px solid var(--mine-edge);
+	color: var(--mine-edge);
+	text-decoration: none;
+	font-size: 0.85rem;
+	white-space: nowrap;
+	-webkit-app-region: no-drag;
+}
+
+.waiting-link.open, .waiting-link:hover
+{
+	background: rgba( 124, 58, 237, 0.12 );
+	color: var(--mine-edge);
+}
+
+.running-link
+{
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+.running-link:hover
+{
+	background: var(--tree-hover);
+	color: var(--accent);
+}
+
+/* The look popover, under its button at the bar's right end. */
+
+.look-popover
+{
+	position: absolute;
+	top: 100%;
+	right: 0.5rem;
+	z-index: 1050;
+	margin-top: 2px;
+	padding: 0.6rem 0.75rem;
+	background: var(--panel-bg);
+	border: 1px solid var(--border);
+	border-radius: 0.3rem;
+	box-shadow: 0 6px 20px rgba( 0, 0, 0, 0.18 );
+	-webkit-app-region: no-drag;
+}
