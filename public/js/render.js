@@ -3,11 +3,12 @@
 // Render - marked in the page, anchor highlighting over the rendered text nodes, and a selection turned
 // into an anchor. The visible text is normalized the way the server's Anchors.PlainText does: whitespace
 // runs become one space and the whole is trimmed, so the server's Found positions land on the same characters.
+// The character map is kept per container (plan UI Components, Step 2), so several html-views coexist.
 
 angular.module( 'Consensus.Render', [] ).factory( 'Render', [ function ()
 {
 	const CONTEXT_LENGTH = 32;
-	let last_map = null;
+	const MAPS = new WeakMap();
 
 
 	function Html( Markdown )
@@ -86,8 +87,9 @@ angular.module( 'Consensus.Render', [] ).factory( 'Render', [ function ()
 			}
 		}
 		wrap_marks( map, sets, SelectedId );
-		last_map = map_text( Container );
-		return last_map;
+		let final_map = map_text( Container );
+		MAPS.set( Container, final_map );
+		return final_map;
 	}
 
 
@@ -207,6 +209,7 @@ angular.module( 'Consensus.Render', [] ).factory( 'Render', [ function ()
 	function SelectionAnchor( Container )
 	{
 		let selection = window.getSelection();
+		let last_map = MAPS.get( Container );
 		if ( !selection || selection.rangeCount === 0 || selection.isCollapsed || !last_map )
 		{
 			return null;
@@ -321,6 +324,7 @@ angular.module( 'Consensus.Render', [] ).factory( 'Render', [ function ()
 
 	function ScrollToText( Container, Text )
 	{
+		let last_map = MAPS.get( Container );
 		if ( !last_map || !Text )
 		{
 			return false;

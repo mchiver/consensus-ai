@@ -46,10 +46,9 @@
 	}
 
 
-	function attach( splitter )
+	function start_drag( splitter, down )
 	{
 		let name = splitter.dataset.splitter;
-		splitter.addEventListener( 'mousedown', function ( down )
 		{
 			down.preventDefault();
 			splitter.classList.add( 'dragging' );
@@ -69,16 +68,19 @@
 			}
 			window.addEventListener( 'mousemove', move );
 			window.addEventListener( 'mouseup', up );
-		} );
+		}
 	}
 
 
+	// Every splitter, those in the page and those a component brings later (plan UI Components, Step 2), through one
+	// listener on the document.
 	restore();
-	document.addEventListener( 'DOMContentLoaded', function ()
+	document.addEventListener( 'mousedown', function ( down )
 	{
-		for ( let splitter of document.querySelectorAll( '.splitter' ) )
+		let splitter = down.target.closest ? down.target.closest( '.splitter[data-splitter]' ) : null;
+		if ( splitter )
 		{
-			attach( splitter );
+			start_drag( splitter, down );
 		}
 	} );
 } )();

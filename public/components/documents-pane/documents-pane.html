@@ -1,0 +1,9 @@
+<tab-bar></tab-bar>
+<div class="main-error alert alert-danger" ng-show="$ctrl.State.Error">
+	{{ $ctrl.State.Error }}
+	<button type="button" class="btn-close" aria-label="Close" ng-click="$ctrl.State.ClearError()"></button>
+</div>
+<document-editor ng-show="$ctrl.ShowsDocument()"></document-editor>
+<llm-session ng-show="$ctrl.State.View === 'llm'"></llm-session>
+<waiting-list ng-show="$ctrl.State.View === 'waiting'"></waiting-list>
+<start-page ng-show="$ctrl.ShowsStart()"></start-page>

@@ -1,0 +1,15 @@
+/* documents-pane: the main column's parts are flex children of .main; the pane itself takes no room. */
+
+documents-pane, llm-session, waiting-list
+{
+	display: contents;
+}
+
+.main-error
+{
+	margin: 0.5rem 1.25rem 0;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.5rem 0.75rem;
+}

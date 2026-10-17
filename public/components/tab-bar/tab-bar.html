@@ -1,0 +1,19 @@
+<div class="tabs-row" ng-show="!$ctrl.Tabs.Detached">
+	<button class="tree-toggle" id="tree-toggle" ng-class="{ off: $ctrl.State.TreeHidden }" ng-click="$ctrl.ToggleTree()" title="{{ $ctrl.State.TreeHidden ? 'show' : 'hide' }} the project tree"><svg class="icon"><use href="#i-sidebar"></use></svg></button>
+	<nav class="tab-strip" ng-show="$ctrl.Tabs.List.length">
+		<div class="tab" ng-repeat="tab in $ctrl.Tabs.List track by tab.Key" ng-class="{ active: tab.Key === $ctrl.Tabs.ActiveKey, out: $ctrl.Tabs.IsOut(tab.Key) }" data-key="{{ tab.Key }}" ng-click="$ctrl.Open(tab)" tab-drag="tab.Key" on-tab-drop="$ctrl.MoveTab( Key, Before )" on-context-menu="$ctrl.OpenTabMenu(tab, $event)" title="{{ $ctrl.Tooltip(tab) }}">
+			<span class="tree-icon" ng-class="$ctrl.Icon(tab)"></span>
+			<span class="tab-title">{{ $ctrl.Title(tab) }}</span>
+			<button class="tab-button tab-menu" ng-class="{ shown: $ctrl.MenuOpenFor(tab) }" title="close, detach, re-attach" ng-click="$ctrl.OpenTabMenu(tab, $event)"><svg class="icon"><use href="#i-caret"></use></svg></button>
+			<button class="tab-button close-tab" title="close" ng-click="$ctrl.Close(tab, $event)"><svg class="icon"><use href="#i-x"></use></svg></button>
+		</div>
+	</nav>
+	<button class="tree-toggle threads-toggle" id="threads-toggle" ng-show="$ctrl.HasThreads()" ng-class="{ off: $ctrl.State.ThreadsHidden }" ng-click="$ctrl.ToggleThreads()" title="{{ $ctrl.State.ThreadsHidden ? 'show' : 'hide' }} the threads"><svg class="icon"><use href="#i-sidebar"></use></svg></button>
+</div>
+<div class="detached-bar" ng-show="$ctrl.Tabs.Detached">
+	<span class="muted">In its own window</span>
+	<span class="detached-buttons">
+		<button class="btn btn-sm btn-outline-secondary" id="detached-threads" ng-show="$ctrl.HasThreads()" ng-click="$ctrl.ToggleThreads()" title="{{ $ctrl.State.ThreadsHidden ? 'show' : 'hide' }} the threads (Ctrl+Shift+T)"><svg class="icon lead"><use href="#i-threads"></use></svg>{{ $ctrl.State.ThreadsHidden ? 'Show threads' : 'Hide threads' }}</button>
+		<button class="btn btn-sm btn-outline-secondary" id="reattach" ng-click="$ctrl.Reattach()" title="put it back as a tab in the main window"><svg class="icon lead"><use href="#i-attach"></use></svg>Re-attach</button>
+	</span>
+</div>

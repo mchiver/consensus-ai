@@ -1,0 +1,59 @@
+/* waiting-list: the groups by plan and their items. The heading's rule (.view-heading) is shared with the help
+   popup and stays in consensus.css. */
+
+.waiting-view
+{
+	flex: 1;
+	overflow-y: auto;
+	padding: 1.5rem 2rem 4rem;
+}
+
+.waiting-group
+{
+	margin-bottom: 1.25rem;
+}
+
+.waiting-plan
+{
+	font-weight: 600;
+	margin-bottom: 0.3rem;
+}
+
+.waiting-plan a
+{
+	color: inherit;
+	text-decoration: none;
+}
+
+.waiting-item
+{
+	display: block;
+	color: inherit;
+	text-decoration: none;
+	padding: 0.5rem 0.75rem;
+	margin-bottom: 0.4rem;
+	border: 1px solid var(--border);
+	border-left: 4px solid var(--contested-edge);
+	border-radius: 0.3rem;
+	background: var(--page-bg);
+}
+
+.waiting-item:hover
+{
+	background: rgba( 128, 128, 128, 0.08 );
+	color: inherit;
+}
+
+.waiting-item.reopened { border-left-color: var(--reopened-edge); }
+.waiting-item.resolved { border-left-color: var(--resolved-edge); }
+
+.waiting-item .last
+{
+	color: var(--muted);
+	font-size: 0.9rem;
+	white-space: pre-wrap;
+	overflow: hidden;
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+}

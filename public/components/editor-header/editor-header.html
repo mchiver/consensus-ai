@@ -1,0 +1,34 @@
+<header class="header">
+	<div class="header-row">
+		<div class="title">{{ $ctrl.IsContext() ? 'Readme of ' + $ctrl.State.Open.Project.Name : $ctrl.State.Open.Plan.Title }} <span class="muted small root-mark" ng-if="$ctrl.RootName()">on {{ $ctrl.RootName() }}</span></div>
+		<div class="header-views">
+			<div class="btn-group" role="group">
+				<button class="btn btn-sm" id="view-read" ng-class="$ctrl.State.View === 'read' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="$ctrl.SetView('read')"><svg class="icon lead"><use href="#i-eye"></use></svg>Read</button>
+				<button class="btn btn-sm" id="view-edit" ng-class="$ctrl.State.View === 'edit' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="$ctrl.SetView('edit')" ng-hide="$ctrl.IsArchived()"><svg class="icon lead"><use href="#i-pencil"></use></svg>Edit</button>
+				<button class="btn btn-sm" id="view-revisions" ng-class="$ctrl.State.View === 'revisions' ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="$ctrl.SetView('revisions')"><svg class="icon lead"><use href="#i-clock"></use></svg>Revisions</button>
+			</div>
+		</div>
+	</div>
+	<div class="header-row location" id="location" ng-show="$ctrl.Crumbs().length">
+		<span class="crumb" ng-repeat="crumb in $ctrl.Crumbs() track by $index">
+			<span class="crumb-separator" ng-if="$index">/</span>
+			<a class="crumb-link" ng-if="crumb.Kind === 'plan'" ng-href="{{ crumb.Hash }}" title="open this plan">{{ crumb.Label }}</a>
+			<a class="crumb-link" href="" ng-if="crumb.Kind === 'project' || crumb.Kind === 'folder'" ng-click="$ctrl.Reveal(crumb)" title="show it in the tree">{{ crumb.Label }}</a>
+			<span class="crumb-text" ng-if="crumb.Kind === 'server' || crumb.Kind === 'item'">{{ crumb.Label }}</span>
+		</span>
+	</div>
+	<div class="header-row">
+		<div class="state-line">
+			<span class="document-badge" id="document-badge" ng-show="$ctrl.State.Open.Plan.Kind === 'document'">{{ $ctrl.IsContext() ? 'Readme' : 'Document' }}</span>
+			<span class="document-badge archived-badge" id="archived-badge" ng-show="$ctrl.IsArchived()" title="archived: read-only until Restore in the tree's Archive folder">archived</span>
+			<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="$ctrl.State.Open.Plan.Kind !== 'document'" title="the plan's state: anyone can change it" ng-model="$ctrl.PickedState" ng-change="$ctrl.SetState()" ng-disabled="$ctrl.Busy || $ctrl.IsArchived()" ng-options="name for name in $ctrl.StateOptions()"></select>
+			<span id="state-line">{{ $ctrl.State.Open.Plan.StateLine }}</span>
+			<span class="revision" id="revision">revision {{ $ctrl.State.Open.Plan.Revision }}</span>
+			<span class="revision text-size" id="text-size" title="the text's characters as saved, and about a quarter as many tokens">{{ $ctrl.Size() }}</span>
+		</div>
+		<div class="header-buttons">
+			<button class="btn btn-sm btn-outline-secondary" id="new-comment" ng-click="$ctrl.CommentOnWhole()" ng-show="$ctrl.State.View === 'read' && $ctrl.HasThreads() && !$ctrl.IsArchived()" title="a comment on the whole document; Re-anchor puts it on a passage"><svg class="icon lead"><use href="#i-comment"></use></svg>New Comment</button>
+			<button class="btn btn-sm btn-outline-secondary" id="new-subplan" ng-click="$ctrl.NewSubplan()" ng-show="$ctrl.IsPlan() && !$ctrl.IsArchived()" title="a new plan under this one"><svg class="icon lead"><use href="#i-subplan"></use></svg>New subplan</button>
+		</div>
+	</div>
+</header>

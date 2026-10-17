@@ -1,0 +1,54 @@
+/* html-view: the rendered text (the shared .markdown rules are consensus.css's), the threads' highlights, and the
+   buttons that float under a selection. The host is the frame the buttons are placed in. */
+
+html-view
+{
+	display: block;
+	position: relative;
+}
+
+mark.anchor
+{
+	padding: 0.05em 0;
+	color: inherit;
+	cursor: pointer;
+	border-bottom: 2px solid transparent;
+	background: var(--contested-bg);
+	border-bottom-color: var(--contested-edge);
+}
+
+mark.anchor.reopened { background: var(--reopened-bg); border-bottom-color: var(--reopened-edge); }
+mark.anchor.resolved { background: var(--resolved-bg); border-bottom-color: var(--resolved-edge); }
+mark.anchor.applied { background: var(--applied-bg); border-bottom-color: var(--applied-edge); }
+mark.anchor.selected { outline: 2px solid var(--accent); outline-offset: 1px; }
+mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
+
+.markdown .flash
+{
+	animation: flash 1.6s ease-out;
+}
+
+@keyframes flash
+{
+	0% { background: var(--resolved-bg); }
+	100% { background: transparent; }
+}
+
+.comment-button
+{
+	position: absolute;
+	display: none;
+	z-index: 10;
+	box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.25 );
+}
+
+.comment-button.shown
+{
+	display: block;
+}
+
+/* Copy is the outline one of the three; it covers the text under it like the others (plan UI Tweaks VII). */
+.comment-button.btn-outline-secondary
+{
+	background: var(--page-bg);
+}

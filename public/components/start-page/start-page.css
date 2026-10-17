@@ -1,0 +1,21 @@
+/* start-page: the main column with nothing open. */
+
+start-page
+{
+	display: contents;
+}
+
+.start-page
+{
+	flex: 1;
+	overflow-y: auto;
+	padding: 1.5rem 2rem;
+}
+
+.read-empty
+{
+	max-width: 40rem;
+	margin: 4rem auto;
+	text-align: center;
+	color: var(--muted);
+}

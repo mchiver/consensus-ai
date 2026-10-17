@@ -1,0 +1,157 @@
+/* tab-bar: the tabs row with its two toggles and the strip; the detached window's bar. */
+
+tab-bar
+{
+	display: contents;
+}
+
+.tabs-row
+{
+	display: flex;
+	align-items: stretch;
+	background: var(--panel-bg);
+	border-bottom: 1px solid var(--border);
+}
+
+.tree-toggle
+{
+	flex: none;
+	display: flex;
+	align-items: center;
+	padding: 0.35rem 0.6rem;
+	border: none;
+	border-right: 1px solid var(--border);
+	background: transparent;
+	color: var(--accent);
+	font-size: 1rem;
+}
+
+.tree-toggle.off
+{
+	color: var(--muted);
+}
+
+.tree-toggle:hover
+{
+	background: var(--tree-hover);
+}
+
+/* The threads toggle (plan UI Tweaks V): the tree toggle's mirror, at the right end of the tabs row. */
+.threads-toggle
+{
+	margin-left: auto;
+	border-right: none;
+	border-left: 1px solid var(--border);
+}
+
+.threads-toggle .icon
+{
+	transform: scaleX( -1 );
+}
+
+.tab-strip
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	overflow-x: auto;
+	scrollbar-width: thin;
+}
+
+.tab
+{
+	--indent: calc( 16px * var(--scale) );
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	flex: 0 0 auto;
+	max-width: 16rem;
+	padding: 0.35rem 0.4rem 0.35rem 0.7rem;
+	border-right: 1px solid var(--border);
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+	font-size: 0.85rem;
+	color: var(--muted);
+}
+
+.tab:hover
+{
+	background-color: var(--tree-hover);
+}
+
+.tab.active
+{
+	background: var(--page-bg);
+	color: var(--text);
+	box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.tab.drop-before
+{
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.tab.drop-after
+{
+	box-shadow: inset -2px 0 0 var(--accent);
+}
+
+.tab-title
+{
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+
+.tab-button
+{
+	border: 0;
+	background: none;
+	color: var(--muted);
+	padding: 0 0.2rem;
+	line-height: 1;
+	border-radius: 0.2rem;
+	visibility: hidden;
+}
+
+.tab:hover .tab-button, .tab.active .tab-button, .tab-button.shown
+{
+	visibility: visible;
+}
+
+/* A tab whose item is in its own window (plan UI Tweaks V): ghosted in the strip. */
+.tab.out
+{
+	cursor: default;
+	font-style: italic;
+}
+
+.tab.out .tree-icon, .tab.out .tab-title
+{
+	opacity: 0.45;
+}
+
+.tab-button:hover
+{
+	background-color: var(--tree-hover);
+	color: var(--text);
+}
+
+.detached-bar
+{
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.35rem 1.25rem;
+	background: var(--panel-bg);
+	border-bottom: 1px solid var(--border);
+	font-size: 0.85rem;
+}
+
+.detached-buttons
+{
+	display: flex;
+	gap: 0.5rem;
+}

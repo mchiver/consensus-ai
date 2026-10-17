@@ -1,0 +1,107 @@
+/* revisions-view: the list of revisions above the text of the one picked. */
+
+revisions-view
+{
+	display: contents;
+}
+
+.revisions
+{
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.revision-list
+{
+	max-height: 35%;
+	overflow-y: auto;
+	border-bottom: 1px solid var(--border);
+	background: var(--panel-bg);
+}
+
+.revision-row
+{
+	display: flex;
+	gap: 1rem;
+	align-items: baseline;
+	padding: 0.4rem 1.25rem;
+	cursor: pointer;
+	font-size: 0.9rem;
+	border-left: 3px solid transparent;
+}
+
+.revision-row:hover
+{
+	background: rgba( 128, 128, 128, 0.12 );
+}
+
+.revision-row.selected
+{
+	background: rgba( 13, 110, 253, 0.12 );
+	border-left-color: var(--accent);
+}
+
+.revision-number
+{
+	font-weight: 600;
+	min-width: 2rem;
+}
+
+.revision-reason
+{
+	text-transform: uppercase;
+	font-size: 0.75rem;
+	letter-spacing: 0.04em;
+	padding: 0.05rem 0.4rem;
+	border-radius: 0.25rem;
+	border: 1px solid var(--border);
+}
+
+.revision-reason.apply { background: var(--applied-bg); border-color: var(--applied-edge); }
+.revision-reason.edit { background: var(--contested-bg); border-color: var(--contested-edge); }
+.revision-reason.context { background: var(--resolved-bg); border-color: var(--resolved-edge); }
+
+.revision-note
+{
+	color: var(--muted);
+	font-style: italic;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 30rem;
+}
+
+.revision-at
+{
+	color: var(--muted);
+}
+
+.revision-thread
+{
+	color: var(--accent);
+	font-style: italic;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 30rem;
+}
+
+.revision-thread.deleted
+{
+	color: var(--muted);
+	cursor: default;
+}
+
+.revision-text
+{
+	flex: 1;
+	overflow-y: auto;
+	padding: 1rem 2rem 4rem;
+}
+
+.revision-text .markdown
+{
+	margin-top: 0.5rem;
+}

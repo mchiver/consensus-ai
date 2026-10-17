@@ -1,0 +1,16 @@
+<section class="edit-view">
+	<div class="edit-bar">
+		<span class="alert alert-warning py-1 px-2 m-0" ng-show="$ctrl.Stale">The text changed on the server since you started editing. Copy what you need, then discard and edit again.</span>
+		<span class="muted" ng-show="!$ctrl.Stale">Editing revision {{ $ctrl.Base }}. Ctrl+S saves; Ctrl+E saves and reads.</span>
+		<span class="edit-buttons">
+			<button class="btn btn-sm" id="preview-toggle" ng-class="$ctrl.State.PreviewHidden ? 'btn-outline-secondary' : 'btn-secondary'" ng-click="$ctrl.TogglePreview()" title="{{ $ctrl.State.PreviewHidden ? 'show' : 'hide' }} the preview"><svg class="icon lead"><use href="#i-eye"></use></svg>Preview</button>
+			<button class="btn btn-sm btn-primary" id="save-button" ng-click="$ctrl.Save()" ng-disabled="!$ctrl.Dirty || $ctrl.Stale || $ctrl.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+			<button class="btn btn-sm btn-outline-secondary" ng-click="$ctrl.Discard()"><svg class="icon lead"><use href="#i-undo"></use></svg>{{ $ctrl.Dirty ? 'Discard' : 'Close' }}</button>
+		</span>
+	</div>
+	<div class="edit-body" ng-class="{ 'no-preview': $ctrl.State.PreviewHidden }">
+		<div class="editor" id="editor"></div>
+		<div class="splitter" data-splitter="preview"></div>
+		<div class="edit-preview"><html-view id="edit-preview" text="$ctrl.PreviewText" anchors="!$ctrl.Dirty && !$ctrl.Stale"></html-view></div>
+	</div>
+</section>

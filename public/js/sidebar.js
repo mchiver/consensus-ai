@@ -452,6 +452,62 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	}
 
 
+	// The ids of the folders and plans above a node, the top one first.
+	function parents_of( items, id, trail )
+	{
+		for ( let node of items || [] )
+		{
+			if ( node.Id === id )
+			{
+				return trail;
+			}
+			if ( node.Items && node.Items.length )
+			{
+				let found = parents_of( node.Items, id, trail.concat( [ node.Id ] ) );
+				if ( found )
+				{
+					return found;
+				}
+			}
+		}
+		return null;
+	}
+
+
+	// A crumb of the header's location line (plan UI Components, Step 2): the node's project opens on its root, the
+	// folders and plans above the node unfold, and its row scrolls into view and flashes.
+	$scope.$on( 'reveal-node', function ( event, what )
+	{
+		let root = what.Root || State.Root;
+		let project = root ? root.Projects.find( function ( candidate ) { return candidate.Id === what.Project; } ) : null;
+		if ( !project )
+		{
+			return;
+		}
+		if ( !$scope.IsOpen( project ) )
+		{
+			set_open_project( root, project.Id );
+		}
+		for ( let id of parents_of( project.Items, what.Id, [] ) || [] )
+		{
+			unfold( id );
+		}
+		$window.setTimeout( function ()
+		{
+			let selector = ( what.Id === project.Id ) ? '.project[data-project="' + project.Id + '"] > .project-head' : '[data-id="' + what.Id + '"]';
+			let row = document.querySelector( selector );
+			if ( !row )
+			{
+				return;
+			}
+			let target = row.classList.contains( 'folder' ) ? row.querySelector( '.folder-head' ) : row;
+			target.scrollIntoView( { block: 'center', behavior: 'smooth' } );
+			target.classList.add( 'flash' );
+			$window.setTimeout( function () { target.classList.remove( 'flash' ); }, 1600 );
+		}, 50 );
+	} );
+
+
 	// A folder's count: its items.
 	$scope.FolderCount = function ( project, node )
 	{

@@ -1,1 +1,60 @@
-[]
+[
+	{
+		"Id": "thr-nwu-d1j-wsa",
+		"Anchor": {
+			"Text": "Decided before the build",
+			"Prefix": "r with the html-view beside it. ",
+			"Suffix": " The components of this step, an"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T05:07:51.842Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T05:08:47.121Z",
+			"Revision": 2,
+			"RevisionId": "rev-ir2-adf-ufw",
+			"Outcome": "All nine decisions taken as recommended and written in under \"Decided before the build\"."
+		},
+		"Created": "2026-10-17T04:30:40.720Z",
+		"Replies": [
+			{
+				"Id": "rep-kx1-19w-i0g",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T04:30:40.720Z",
+				"Text": "Design for Step 2. Each point is a decision with my recommendation; resolve with no reply to take them all, or answer the ones you want otherwise.\n\n1. The components of this step, and where their code comes from:\n   - documents-pane: the main column. Holds the tab-bar, then one of document-editor (a plan or a document is open), llm-session (an LLM connection's tab), waiting-list (Waiting on you) or start-page (no tab). It picks by State.View and State.Open, as the sections do today, so no new State field; the four stay ng-show, not ng-if, so the open document's editor, drafts and scroll positions survive a switch to another tab's kind and back, as they do now.\n   - tab-bar: the tabs row (the tree toggle, the strip, the threads toggle) and the detached bar, from TabsController; the tab-drag directive goes with it into its folder. The Tabs factory stays in public/js/tabs.js as the service, like Threads.\n   - editor-header: from header.js, inside document-editor: the title line with Read / Edit / Revisions, the new location line, the state line with the size, and New Comment and New subplan. llm-session and waiting-list carry a heading of their own (the LLM connection's name and participant; \"Waiting on you\" with the count), in the same header markup, since the header today shows those titles for them.\n   - document-editor: the open item's views, from the three sections: Read (an html-view), Edit (monaco-edit) and Revisions (revisions-view), and the re-anchor hint. State.View stays the switch, so the tabs' RestoreView, the hotkeys and the LLM's links work unchanged.\n   - html-view: the rendered markdown (from read.js and Render.Show): text and anchors bindings. With anchors on it marks each thread's passage as the Highlight picker says, a click on a mark selects the thread, a selection offers Copy, Comment (or Re-anchor here) and Start a new Subplan, and a search hit or a waiting item scrolls and flashes. With anchors off it is the text alone. Read uses it with anchors; the Edit preview with anchors while the editor's text is still the saved text, and without once it is dirty (the server found the positions in the saved text, so they would drift under edits); revisions-view without.\n   - monaco-edit: the Edit view from edit.js (the edit bar, the editor, the splitter, the preview html-view). Not \"monaco-editor\", which is Monaco's own class on every instance and what the hotkeys look for. Step 3's is codemirror-edit.\n   - revisions-view: from revisions.js, the text shown in an html-view.\n   - llm-session: the LLM view's markup and LlmController moved as they are into the folder; the Llms factory stays in public/js/llm.js. waiting-list: from waiting.js, loading when it appears and on changed. start-page: the \"Pick a plan on the left\" text.\n\n2. The location line, under the title: server (only when the page shows several) / project / each folder / each parent plan, from the root's project tree (State.Projects, the way the sidebar walks it), ending at the item. The project and folder crumbs reveal their node in the tree (a reveal-node event the sidebar listens to: it unfolds the way down, scrolls the row into view and flashes it); a parent plan's crumb opens that plan. The Readme reads project / Context.\n\n3. The size, beside the revision: the text's characters and about characters / 4 tokens, both with thousands separators, as \"12,345 chars, about 3,086 tokens\", the title saying how it is counted. Of the open text as saved; the editor's unsaved text is not counted live.\n\n4. Render keeps its character map per container (a WeakMap keyed by the element) instead of one last map, so two html-views (Read and the preview) coexist; SelectionAnchor and ScrollToText take the container as they do and find its map. The html-view listens on its own element for mouseup and click, so the element can carry the id the tests dispatch to (#read-view).\n\n5. Ids and classes stay where the tests and the picture script look for them: #read-view and #edit-preview on the html-view tags, #editor, #save-button, #preview-toggle, #view-read / #view-edit / #view-revisions, #state-line, #revision, #new-comment, #new-subplan, #comment-button, #copy-button, #subplan-button, #document-badge, #archived-badge, .header .title, the tab classes, #tree-toggle, #threads-toggle, #detached-threads, #reattach, #revision-view and the revision rows. The Editor factory keeps its one Edit instance; monaco-edit creates it in $postLink in place of the getElementById at controller start.\n\n6. Styles: the header, read, edit-view, revisions, llm-view, waiting-view and tabs blocks of consensus.css move to the component stylesheets; the grid and the splitters stay.\n\n7. index.html: the main column becomes <documents-pane>; the tabs area, the header, the error line and the five sections go. The main-error line moves into documents-pane under the tab bar.\n\n8. The build runs in checkpoints with a note at each: html-view with Render's per-container map, used by Read and the preview; then tab-bar, editor-header with the location and the size, monaco-edit, revisions-view, start-page and documents-pane; then llm-session and waiting-list; then the styles, the tests and the screenshots.\n\n9. The smoke, at the end: the browser tests (the tabs, Read, Edit and save, the preview toggle, Revisions, the LLM page, Waiting on you, detach and re-attach), the location line on a subplan in a folder with each crumb tried, the size beside the revision, the preview showing the highlights until the text is edited, and a screenshot of each."
+			}
+		]
+	},
+	{
+		"Id": "thr-j69-kyv-lqf",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T05:57:28.001Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T05:58:24.302Z",
+			"Revision": 2,
+			"RevisionId": "rev-ir2-adf-ufw",
+			"Outcome": "The build was accepted as reported; no text change. Committed as \"UI Components: Step 2\"."
+		},
+		"Created": "2026-10-17T05:54:36.180Z",
+		"Replies": [
+			{
+				"Id": "rep-yvi-9po-byo",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T05:54:36.180Z",
+				"Text": "Build log, Step 2: Documents Pane. Built by Claude Fable 5.1 (claude-fable-5-1) through the Claude Code CLI, as the nine decisions say. Not committed yet: resolve to accept, and I commit it as \"UI Components: Step 2\".\n\nWhat was built, and where (ten components, 30 files under public/components; 12 files of the page changed, five of public/js gone):\n- documents-pane: the main column; index.html's main holds `<documents-pane>` and the toast line, nothing else. It shows document-editor, llm-session, waiting-list or start-page by State.View and State.Open, all four kept in the page (ng-show), the error line under the tab bar.\n- tab-bar: the tabs row and the detached bar, with the tab-drag directive in its file; tabs.js is the Tabs factory alone (272 lines gone).\n- editor-header: the three lines. The location line (#location): server when several, project, folders, parent plans, the item, found from State.Projects and cached until the item, its title, the lists or the number of servers change; a project or folder crumb sends reveal-node, which sidebar.js answers by opening the project, unfolding the way down, scrolling the row into view and flashing it (a .tree-row.flash rule in consensus.css); a parent plan's crumb is a link to it. The size (#text-size) beside the revision: \"6,983 chars, about 1,746 tokens\".\n- document-editor: the header, then Read (the re-anchor hint and the main html-view), monaco-edit and revisions-view by State.View.\n- html-view (checkpoint 1): text, anchors and main; Render keeps one character map per container.\n- monaco-edit: the Edit view, the preview an html-view with anchors while the text is the saved one; the Editor factory's one instance is made in $postLink. revisions-view: the list and the text in an html-view without anchors. start-page: the line on where to start.\n- llm-session: the LLM page's markup, controller and styles moved as they were (the controller still works on $scope; the Llms factory stays in llm.js). waiting-list: the waiting view, loading when shown and on every change.\n- consensus.css lost the header, read, edit, revisions, editor-with-preview, tabs, waiting, content-area, detached-bar and LLM page blocks to the component stylesheets (about 900 lines); it keeps the grid, the splitters, .markdown, .view-heading (the help popup shares it) and the sidebar.\n\nDecided during the build:\n1. llm-session and waiting-list carry no second header: the LLM page already heads itself with its item head (name, participant, command), and the waiting list with \"Waiting on you\" and its count, so the old header's title for those views was a repeat and went with it. The start page has no header either.\n2. The splitters are handled by one listener on the document (layout.js), since the preview's splitter now arrives with monaco-edit's template after the page loaded.\n3. The preview's width variable (--preview-width: 45%) lives in monaco-edit.css with the grid that uses it; it was missed on the first cut, and the editor showed five pixels high until the screenshots caught it.\n4. The html-view's floating buttons carry their ids (#copy-button, #comment-button, #subplan-button) only on the main one, so the preview's have no duplicate ids; the preview offers Copy, and Comment and Start a new Subplan while its anchors are on.\n5. The main-error line sits under the tab bar in documents-pane, where it covers every kind of tab.\n6. With the size beside the revision, the state line is longer: at a narrow main column New Comment and New subplan wrap to a line of their own under it, as that row always allowed.\n7. Seen while taking the screenshots, not caused by this step as far as I can tell: once in a while Monaco logs five \"[createInstance] ... depends on UNKNOWN service\" errors to the console as the Edit view opens (its lazily loaded chunks registering their services after the editor is created). The same flow run again, and the committed page run over the same data, logged none; the browser tests, which fail on console errors, pass. I will keep an eye on it; Step 3 may replace the loader anyway.\n\nHow it was tested:\n- npm test: 181 tests pass (the server's untouched; the 28 browser tests cover the tabs, Read, Edit and save with the preview, the preview toggle, Revisions, Waiting on you, detach and re-attach, the LLM page, the hotkeys). One run of the whole suite hung past ten minutes with nothing failed; the next two runs passed in 78 seconds, and each file alone passes, so I put it down to the parallel browser runs on a busy machine.\n- The tests changed in one line: the toast line, which had been in the main column, was put back after the pane replaced it.\n- Over your running server, nothing posted or saved: the location line on Step 2 reads Consensus / Drafts / UI Components / Step 2: Documents Pane, the size beside the revision; the Drafts crumb opened and flashed its row; Edit on Step 1 showed the preview with one highlight, zero after an unsaved line was typed, then Discard; Revisions listed three; Waiting on you and the LLM page show. Screenshots taken of each.\n\nNot in this step: the guide's pictures and text (Step 6); the Editor setting and the CodeMirror view (Step 3)."
+			}
+		]
+	}
+]

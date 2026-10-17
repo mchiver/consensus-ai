@@ -1,0 +1,211 @@
+<section class="item-view llm-view" ng-keydown="Key($event)">
+	<div class="muted" ng-hide="Llm">No such LLM connection; it may have been deleted.</div>
+	<div class="item-form" ng-if="Llm">
+		<div class="item-head">
+			<span class="tree-icon icon-llm"></span>
+			<span class="item-head-name" id="llm-head-name">{{ Llm.Name }}</span>
+			<span class="muted small" id="llm-head-line">{{ Llm.Participant }}{{ Llm.Kind ? ' · ' + Llm.Kind : '' }}{{ Llm.Model ? ' · ' + Llm.Model : '' }}{{ Llm.Command ? ' · ' + Llm.Command : ( Llm.Url ? ' · ' + Llm.Url : '' ) }}</span>
+			<span class="grow"></span>
+			<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-details" ng-show="IsOwner()" ng-click="OpenDetails()"><svg class="icon lead"><use href="#i-pencil"></use></svg>Details…</button>
+			<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-packaging" ng-show="IsOwner()" ng-click="OpenPackaging()"><svg class="icon lead"><use href="#i-threads"></use></svg>Packaging…</button>
+		</div>
+
+		<div class="view-heading">Run <span class="muted small" ng-show="Project">in the folder {{ Project.Path }}</span></div>
+		<div class="settings-row">
+			<label for="llm-project">Project</label>
+			<select class="form-select form-select-sm" id="llm-project" ng-model="Pick.Project" ng-change="PickProject()" ng-options="project.Id as project.Name for project in State.Projects" title="the project the run is on: the model works in its folder, on this server's machine"></select>
+			<label>Plan</label>
+			<div class="picker" id="llm-plan-picker">
+				<button class="btn btn-sm btn-outline-secondary picker-button" type="button" id="llm-plan-button" ng-click="TogglePicker($event)" title="the plan at hand: the one last opened, or another of the project">
+					<span class="tree-icon icon-plan" ng-show="PickedPlan()"></span>
+					<span class="picker-label">{{ PickedPlan() ? PickedPlan().Title + ' (' + PickedPlan().State + ')' : '(no plan)' }}</span>
+					<span class="badge contested" ng-show="PickedPlan().Unresolved" title="unresolved threads">{{ PickedPlan().Unresolved }}</span>
+					<svg class="icon"><use href="#i-caret"></use></svg>
+				</button>
+				<div class="picker-panel" ng-show="PickerOpen">
+					<div class="picker-row picker-plan" ng-class="{ picked: !Pick.Plan }" ng-click="ClearPlan()"><span class="picker-title muted">(no plan)</span></div>
+					<div class="picker-row" ng-repeat="row in PlanRows track by row.Id" ng-class="[ 'picker-' + row.Kind, { picked: row.Id === Pick.Plan } ]" style="--depth: {{ row.Depth }}" ng-click="PickPlan( row )">
+						<span class="tree-icon" ng-class="row.Kind === 'folder' ? 'icon-folder-open' : 'icon-plan'"></span>
+						<span class="picker-title">{{ row.Title }}</span>
+						<span class="item-state" ng-if="row.Kind === 'plan'">{{ row.State }}</span>
+						<span class="badge contested" ng-if="row.Kind === 'plan'" ng-show="row.Unresolved" title="unresolved threads">{{ row.Unresolved }}</span>
+					</div>
+					<div class="picker-row muted" ng-show="!PlanRows.length">the project has no plans</div>
+				</div>
+			</div>
+		</div>
+		<div class="thread-buttons">
+			<button class="btn btn-sm btn-primary" type="button" id="llm-review-run" ng-click="Run( 'review' )" ng-disabled="!CanRun( 'review' )" title="package the review prompt and run it once"><svg class="icon lead"><use href="#i-play"></use></svg>Review</button>
+			<button class="btn btn-sm btn-primary" type="button" id="llm-build-run" ng-click="Run( 'build' )" ng-disabled="!CanRun( 'build' )" title="package the build prompt and run it once in the project's folder"><svg class="icon lead"><use href="#i-play"></use></svg>Build</button>
+			<button class="btn btn-sm btn-primary" type="button" id="llm-session-run" ng-click="Run( 'session' )" ng-disabled="!CanRun( 'session' )" title="package the checked items and the session prompt and run it once"><svg class="icon lead"><use href="#i-play"></use></svg>Session</button>
+			<button class="btn btn-sm btn-outline-danger" type="button" id="llm-stop" ng-show="IsRunning()" ng-click="Stop()"><svg class="icon lead"><use href="#i-x"></use></svg>Stop</button>
+			<span class="muted small" id="llm-reasons" ng-show="Reasons()">{{ Reasons() }}</span>
+		</div>
+		<div class="port-error" id="llm-error" ng-show="Error">{{ Error }}</div>
+
+		<div class="view-heading">Log <span class="muted small">the connection's runs, newest first; click one to open it</span></div>
+		<div class="muted small" ng-show="Runs.length === 0">No runs yet.</div>
+		<div class="run-row" ng-repeat="run in Runs track by run.Id" ng-class="[ run.Status, { selected: RunPopup && RunPopup.Run.Id === run.Id } ]" ng-click="OpenRun( run )" title="open its output and prompt">
+			<span class="run-status">{{ run.Status }}</span>
+			<span class="run-kind">{{ run.Kind }}</span>
+			<span class="run-plan">{{ run.Plan ? run.Plan.Title : '(no plan)' }}</span>
+			<span class="run-workspace muted">{{ run.Project ? run.Project.Name : '' }}{{ run.By ? ' · by ' + run.By : '' }}</span>
+			<span class="run-when muted">{{ run.Started | stamp }}</span>
+			<span class="run-duration muted">{{ Duration( run ) }}</span>
+			<span class="run-error text-danger small" ng-show="run.Error && run.Status !== 'stopped'">{{ run.Error }}</span>
+		</div>
+	</div>
+
+	<!-- The Details popup -->
+	<div class="subplan-popup settings-popup" ng-show="Details">
+		<form class="subplan-form settings-form" ng-if="Details" ng-submit="SaveDetails()">
+			<div class="subplan-head">Details <span class="muted small">kept in the server's consensus.json; it posts as {{ Llm.Participant }}</span></div>
+			<div class="port-error" id="llm-problems" ng-show="Details.Problems.length">
+				<div>Not saved. Fix these first:</div>
+				<ul class="mb-0"><li ng-repeat="problem in Details.Problems track by $index">{{ problem }}</li></ul>
+			</div>
+			<div class="settings-row">
+				<label for="llm-name">Name</label>
+				<input class="form-control form-control-sm" id="llm-name" ng-model="Details.Form.Name" placeholder="claude-cli" title="letters, digits, dot, dash and colon: the participant is <name>@<server>" auto-focus>
+				<label for="llm-kind">Kind</label>
+				<select class="form-select form-select-sm item-kind" id="llm-kind" ng-model="Details.Form.Kind" ng-options="kind for kind in Items.Kinds" title="claude-cli: a command run without a shell on the server's machine, the prompt on its standard input; ollama: an Ollama server, run through the server's tools"></select>
+			</div>
+			<div class="settings-row">
+				<label for="llm-model">Model</label>
+				<input class="form-control form-control-sm" id="llm-model" ng-model="Details.Form.Model" placeholder="{{ Details.Form.Kind === 'ollama' ? 'required' : 'optional: sonnet, opus' }}">
+				<label for="llm-timeout">Timeout</label>
+				<input class="form-control form-control-sm settings-port" id="llm-timeout" type="number" min="1" ng-model="Details.Form.Timeout" title="seconds a one-shot may take">
+			</div>
+			<div class="settings-row" ng-show="Details.Form.Kind === 'claude-cli'">
+				<label for="llm-command">Command</label>
+				<input class="form-control form-control-sm" id="llm-command" ng-model="Details.Form.Command" placeholder="claude" title="run without a shell; a name on the PATH or a full path">
+			</div>
+			<div class="settings-row top" ng-show="Details.Form.Kind === 'claude-cli'">
+				<label for="llm-arguments">Arguments</label>
+				<textarea class="form-control form-control-sm" id="llm-arguments" rows="3" ng-model="Details.Form.ArgumentsText" title="one argument per line, before --model; the default lets a non-interactive claude use its tools"></textarea>
+			</div>
+			<div class="settings-row" ng-show="Details.Form.Kind === 'ollama'">
+				<label for="llm-url">Url</label>
+				<input class="form-control form-control-sm" id="llm-url" ng-model="Details.Form.Url" placeholder="http://127.0.0.1:11434">
+			</div>
+			<div class="settings-row" ng-show="Details.Form.Kind === 'ollama'">
+				<label for="llm-context">Context</label>
+				<input class="form-control form-control-sm settings-port" id="llm-context" type="number" min="1" ng-model="Details.Form.Context" title="the model's context window in tokens (Ollama's num_ctx); Preview shows the package's estimated tokens">
+				<label for="llm-rounds">Rounds</label>
+				<input class="form-control form-control-sm settings-port" id="llm-rounds" type="number" min="1" ng-model="Details.Form.Rounds" title="the most tool rounds a run may take">
+			</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-primary" type="submit" id="llm-save" ng-disabled="Details.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-cancel" ng-click="CloseDetails()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-check" ng-click="CheckDetails()" ng-disabled="Details.Busy" title="does it answer, as entered here? claude-cli: the command's --version; ollama: its models, and whether the Model calls tools"><svg class="icon lead"><use href="#i-check"></use></svg>Check</button>
+				<span class="small" id="llm-checked" ng-show="Details.Checked" ng-class="Details.Checked.Ok ? 'text-success' : 'text-danger'">{{ Details.Checked.Ok ? Details.Checked.Result : Details.Checked.Error }}</span>
+			</div>
+		</form>
+	</div>
+
+	<!-- The Packaging popup -->
+	<div class="subplan-popup settings-popup packaging-popup" ng-show="Packaging">
+		<form class="subplan-form settings-form" ng-if="Packaging" ng-submit="SavePackaging()">
+			<div class="subplan-head">Packaging <span class="muted small">what the one-shot prompt holds, in this order</span></div>
+			<div class="port-error" id="packaging-problems" ng-show="Packaging.Problems.length">
+				<ul class="mb-0"><li ng-repeat="problem in Packaging.Problems track by $index">{{ problem }}</li></ul>
+			</div>
+			<div class="check-row"><label title="the connected server's /instructions page: the guide, with the server's address and token first"><input type="checkbox" ng-model="Packaging.Form.Checks.Instructions" ng-change="Packaging.Preview = null"> Agent Instructions</label></div>
+			<div class="check-row"><label title="the project's Readme, whole"><input type="checkbox" ng-model="Packaging.Form.Checks.Readme" ng-change="Packaging.Preview = null"> Readme</label></div>
+			<div class="check-row"><label title="the other documents of the Context folder, each as a title and id"><input type="checkbox" ng-model="Packaging.Form.Checks.Documents" ng-change="Packaging.Preview = null"> Other Context documents</label> <span class="muted small" ng-show="Packaging.Lists.Documents.length === 0">(none in {{ Project.Name }})</span></div>
+			<div class="check-list" ng-show="Packaging.Form.Checks.Documents">
+				<div class="check-row sub" ng-repeat="document in Packaging.Lists.Documents track by document.Id"><label title="{{ document.Id }}"><input type="checkbox" ng-checked="IsChecked( 'Documents', document.Id )" ng-click="ToggleChecked( 'Documents', document.Id )"> {{ document.Title }}</label></div>
+			</div>
+			<div class="check-row"><label title="the threads of the plan at hand waiting on the llm participant, each whole"><input type="checkbox" ng-model="Packaging.Form.Checks.Threads" ng-change="Packaging.Preview = null"> Threads waiting on {{ Packaging.Lists.Participant || 'llm' }}</label> <span class="muted small" ng-show="!Pick.Plan">(no plan picked)</span><span class="muted small" ng-show="Pick.Plan && Packaging.Lists.Threads.length === 0">(none on {{ PickedPlan().Title }})</span></div>
+			<div class="check-list" ng-show="Packaging.Form.Checks.Threads">
+				<div class="check-row sub" ng-repeat="thread in Packaging.Lists.Threads track by thread.Id"><label title="{{ thread.Id }}"><input type="checkbox" ng-checked="IsChecked( 'Threads', thread.Id )" ng-click="ToggleChecked( 'Threads', thread.Id )"> <span class="thread-anchor-words">{{ thread.Anchor ? '“' + thread.Anchor + '”' : 'the whole document' }}</span> <span class="muted">{{ thread.Last }}</span></label></div>
+			</div>
+			<div class="settings-row top">
+				<label for="llm-review">Review Prompt</label>
+				<textarea class="form-control form-control-sm" id="llm-review" rows="4" ng-model="Packaging.Form.Prompts.Review" ng-change="Packaging.Preview = null" title="the task of the Review button: take the llm's turn on the plan at hand"></textarea>
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ResetPrompt( 'Review' )" title="the default">Reset</button>
+			</div>
+			<div class="settings-row top">
+				<label for="llm-build">Build Prompt</label>
+				<textarea class="form-control form-control-sm" id="llm-build" rows="4" ng-model="Packaging.Form.Prompts.Build" ng-change="Packaging.Preview = null" title="the task of the Build button: build the plan at hand in the project's folder"></textarea>
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ResetPrompt( 'Build' )" title="the default">Reset</button>
+			</div>
+			<div class="settings-row top">
+				<label for="llm-session">Session Prompt</label>
+				<textarea class="form-control form-control-sm" id="llm-session" rows="3" ng-model="Packaging.Form.Prompts.Session" ng-change="Packaging.Preview = null" placeholder="appended at the end of every package, for further context or instructions; alone, the task of the Session button"></textarea>
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ResetPrompt( 'Session' )" title="empty">Reset</button>
+			</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-primary" type="submit" id="packaging-save" ng-disabled="Packaging.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="packaging-cancel" ng-click="ClosePackaging()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+				<span class="muted small">Preview:</span>
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="preview-review" ng-click="Preview( 'review' )" ng-disabled="Packaging.Busy || !Pick.Plan" title="the review package for the project and plan picked in Run, as this form stands"><svg class="icon lead"><use href="#i-eye"></use></svg>Review</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="preview-build" ng-click="Preview( 'build' )" ng-disabled="Packaging.Busy || !Pick.Plan" title="the build package"><svg class="icon lead"><use href="#i-eye"></use></svg>Build</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="preview-session" ng-click="Preview( 'session' )" ng-disabled="Packaging.Busy" title="the session package"><svg class="icon lead"><use href="#i-eye"></use></svg>Session</button>
+			</div>
+			<div class="run-text" ng-if="Packaging.Preview">
+				<div class="run-text-head"><b>The {{ Packaging.Preview.Kind }} package</b> <span class="muted small" id="preview-size">{{ Packaging.Preview.Text | size }}</span>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Copy( Packaging.Preview.Text, Packaging )"><svg class="icon lead"><use href="#i-copy"></use></svg>{{ Packaging.Copied ? 'Copied' : 'Copy' }}</button>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Packaging.Preview = null"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
+				</div>
+				<pre class="run-output" id="llm-prompt">{{ Packaging.Preview.Text }}</pre>
+			</div>
+		</form>
+	</div>
+
+	<!-- A run's popup -->
+	<div class="subplan-popup settings-popup run-popup" ng-show="RunPopup">
+		<div class="subplan-form settings-form" ng-if="RunPopup">
+			<div class="subplan-head">Run <span class="muted small">{{ RunPopup.Run.Id }}</span></div>
+			<div class="run-row static" ng-class="RunPopup.Run.Status">
+				<span class="run-status">{{ RunPopup.Run.Status }}</span>
+				<span class="run-kind">{{ RunPopup.Run.Kind }}</span>
+				<span class="run-plan">{{ RunPopup.Run.Plan ? RunPopup.Run.Plan.Title : '(no plan)' }}</span>
+				<span class="run-workspace muted">{{ RunPopup.Run.Project ? RunPopup.Run.Project.Name : '' }}{{ RunPopup.Run.By ? ' · by ' + RunPopup.Run.By : '' }}</span>
+				<span class="run-when muted">{{ RunPopup.Run.Started | stamp }}</span>
+				<span class="run-duration muted">{{ Duration( RunPopup.Run ) }}</span>
+				<span class="muted small" ng-show="RunPopup.Run.Exit !== null">exit {{ RunPopup.Run.Exit }}</span>
+				<span class="muted small run-spent" id="run-spent" ng-show="Spent( RunPopup.Run )">{{ Spent( RunPopup.Run ) }}</span>
+				<span class="run-error text-danger small" ng-show="RunPopup.Run.Error && RunPopup.Run.Status !== 'stopped'">{{ RunPopup.Run.Error }}</span>
+			</div>
+			<div class="muted small run-command">{{ RunPopup.Run.Command }}{{ RunPopup.Run.Project && RunPopup.Run.Project.Path ? ' in ' + RunPopup.Run.Project.Path : '' }}</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="run-close" ng-click="CloseRun()"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-show="RunPopup.Run.Status === 'running'" ng-click="RefreshRun()"><svg class="icon lead"><use href="#i-refresh"></use></svg>Refresh</button>
+				<button class="btn btn-sm" type="button" id="run-source" ng-class="RunPopup.Source ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="RunPopup.Source = !RunPopup.Source" title="the raw text instead of the rendered markdown"><svg class="icon lead"><use href="#i-eye"></use></svg>Source</button>
+			</div>
+			<div class="run-text">
+				<div class="run-text-head"><b>Output</b> <span class="muted small" id="run-output-size">{{ RunPopup.Run.Output | size }}</span>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Copy( RunPopup.Run.Output, RunPopup ); RunPopup.Copied = 'output'" ng-disabled="!RunPopup.Run.Output"><svg class="icon lead"><use href="#i-copy"></use></svg>{{ RunPopup.Copied === 'output' ? 'Copied' : 'Copy' }}</button>
+				</div>
+				<pre class="run-output" id="run-output" ng-if="RunPopup.Source">{{ RunPopup.Run.Output || '(nothing yet)' }}</pre>
+				<div class="run-output run-rendered markdown" id="run-output-rendered" ng-if="!RunPopup.Source && !RunPopup.Run.Transcript" ng-bind-html="( RunPopup.Run.Output || '*(nothing yet)*' ) | markdown"></div>
+				<!-- A local model's transcript (Step 4): a block per round, each call a row that unfolds to its whole result, the answer rendered. -->
+				<div class="run-output run-transcript" id="run-transcript" ng-if="!RunPopup.Source && RunPopup.Run.Transcript">
+					<div class="muted" ng-if="!RunPopup.Run.Transcript.length">(nothing yet)</div>
+					<div class="transcript-entry" ng-repeat="entry in RunPopup.Run.Transcript track by $index" ng-class="entry.Kind">
+						<div class="transcript-round" ng-if="RoundStarts( RunPopup.Run.Transcript, $index )">Round {{ entry.Round }}</div>
+						<div class="transcript-text markdown" ng-if="entry.Kind === 'text'" ng-bind-html="entry.Text | markdown"></div>
+						<div class="transcript-call" ng-if="entry.Kind === 'call'">
+							<button class="transcript-toggle" type="button" ng-click="RunPopup.Open[ $index ] = !RunPopup.Open[ $index ]" title="the whole result">{{ RunPopup.Open[ $index ] ? '▾' : '▸' }}</button>
+							<code class="transcript-described">{{ entry.Described }}</code>
+							<span class="muted small">{{ entry.Duration }} s · {{ entry.Result | size }}</span>
+							<pre class="transcript-result" ng-if="RunPopup.Open[ $index ]">{{ entry.Result || '(empty)' }}</pre>
+						</div>
+						<div class="transcript-answer" ng-if="entry.Kind === 'answer'">
+							<div class="transcript-round">Answer{{ entry.Nudged ? ' (asked for after ' + entry.Round + ' rounds)' : '' }}</div>
+							<div class="markdown" ng-bind-html="entry.Text | markdown"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="run-text">
+				<div class="run-text-head"><b>Prompt</b> <span class="muted small" id="run-prompt-size">{{ RunPopup.Run.Prompt | size }}</span>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Copy( RunPopup.Run.Prompt, RunPopup ); RunPopup.Copied = 'prompt'"><svg class="icon lead"><use href="#i-copy"></use></svg>{{ RunPopup.Copied === 'prompt' ? 'Copied' : 'Copy' }}</button>
+				</div>
+				<pre class="run-output run-prompt" ng-if="RunPopup.Source">{{ RunPopup.Run.Prompt }}</pre>
+				<div class="run-output run-rendered markdown" ng-if="!RunPopup.Source" ng-bind-html="RunPopup.Run.Prompt | markdown"></div>
+			</div>
+		</div>
+	</div>
+</section>

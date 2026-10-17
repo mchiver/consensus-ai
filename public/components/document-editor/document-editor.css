@@ -1,0 +1,40 @@
+/* document-editor: the header above the content area, whose views are flex children. */
+
+document-editor
+{
+	display: contents;
+}
+
+.content-area
+{
+	position: relative;
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+/* The text can be scrolled past its end: room below it, as the editor leaves (plan UI Tweaks IV). */
+.read
+{
+	position: relative;
+	flex: 1;
+	overflow-y: auto;
+	padding: 1.5rem 2rem 50vh;
+}
+
+.read-error
+{
+	position: sticky;
+	bottom: 0;
+}
+
+.reanchor-hint
+{
+	max-width: 52rem;
+	margin: 0 auto 1rem;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.5rem 0.75rem;
+}

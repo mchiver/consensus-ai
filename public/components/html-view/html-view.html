@@ -1,0 +1,4 @@
+<article class="markdown"></article>
+<button class="comment-button copy-selection btn btn-sm btn-outline-secondary" ng-attr-id="{{ $ctrl.main ? 'copy-button' : undefined }}" ng-click="$ctrl.CopySelection()" title="copy the selected text as it reads"><svg class="icon lead"><use href="#i-copy"></use></svg>Copy</button>
+<button class="comment-button comment-selection btn btn-sm btn-primary" ng-attr-id="{{ $ctrl.main ? 'comment-button' : undefined }}" ng-click="$ctrl.CommentOnSelection()"><svg class="icon lead"><use href="#i-comment"></use></svg>{{ $ctrl.State.Reanchoring ? 'Re-anchor here' : 'Comment' }}</button>
+<button class="comment-button subplan-selection btn btn-sm btn-secondary" ng-attr-id="{{ $ctrl.main ? 'subplan-button' : undefined }}" ng-click="$ctrl.SubplanFromSelection()" title="a new Subplan that starts with the selected text"><svg class="icon lead"><use href="#i-subplan"></use></svg>Start a new Subplan</button>

@@ -1,0 +1,135 @@
+/* editor-header: three lines, the title with Read / Edit / Revisions, the location, then the state with the
+   actions pulled to the right. llm-session and waiting-list share the header markup. */
+
+editor-header
+{
+	display: contents;
+}
+
+.header
+{
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	padding: 0.6rem 1.25rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.header-row
+{
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem 1rem;
+	flex-wrap: wrap;
+	min-width: 0;
+}
+
+.header .title
+{
+	font-weight: 600;
+	font-size: 1.2rem;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.root-mark
+{
+	font-weight: normal;
+}
+
+.header-views
+{
+	display: flex;
+	gap: 0.5rem;
+	margin-left: auto;
+}
+
+/* The location line: the crumbs read as one line, the links in the muted colour until hovered. */
+.header-row.location
+{
+	justify-content: flex-start;
+	gap: 0.3rem;
+	font-size: 0.85rem;
+	color: var(--muted);
+}
+
+.crumb
+{
+	display: inline-flex;
+	gap: 0.3rem;
+	align-items: baseline;
+	min-width: 0;
+}
+
+.crumb-link
+{
+	color: var(--muted);
+	text-decoration: none;
+}
+
+.crumb-link:hover
+{
+	color: var(--accent);
+	text-decoration: underline;
+}
+
+.crumb-text
+{
+	color: var(--text);
+}
+
+.state-line
+{
+	font-size: 0.9rem;
+	color: var(--muted);
+	display: flex;
+	gap: 0.75rem;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.state-line .revision
+{
+	font-size: 0.8rem;
+	white-space: nowrap;
+}
+
+.document-badge
+{
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	padding: 0.1rem 0.4rem;
+	border-radius: 0.25rem;
+	border: 1px solid var(--border);
+	color: var(--muted);
+}
+
+.archived-badge
+{
+	opacity: 0.8;
+}
+
+.state-picker
+{
+	display: inline-block;
+	width: auto;
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	padding-top: 0.05rem;
+	padding-bottom: 0.05rem;
+}
+
+.header-buttons
+{
+	margin-left: auto;
+	display: flex;
+	gap: 0.5rem;
+	white-space: nowrap;
+	align-items: center;
+	flex-wrap: wrap;
+}
