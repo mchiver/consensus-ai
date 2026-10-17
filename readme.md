@@ -4,7 +4,7 @@ Collaborative plan building. The User and the LLM work a plan through in discuss
 thread, until every thread is resolved and applied. Plans live in **projects**, beside the documents of
 the project's **Context** folder that give everyone the background of the work.
 
-A standalone application: Node and Express on the server, AngularJS, Bootstrap, marked and Monaco in the
+A standalone application: Node and Express on the server, AngularJS, Bootstrap, marked, CodeMirror and Monaco in the
 page, plain files in a config folder and a `.consensus` per project folder. The browser is the User. The LLM
 takes part through the API, from wherever it runs: an agent session in the codebase works it through the API
 and the turn ("your turn in Consensus"), and the server runs LLM connections of its own for you (plan Run
@@ -50,7 +50,7 @@ opening an item opens its project. A project holds, in folders of any depth:
 - **Plans**: what is discussed and commented on. Each has a **state**, one of the settings' `States` (by
   default Draft, Plan, Working, Finished). Anyone changes it at any time from the picker in the heading;
   nothing locks, and a state does not depend on the threads.
-- **Documents**: markdown edited in Monaco with revisions, but with no threads and no state. Documents live
+- **Documents**: markdown edited in the same editor as plans, with revisions, but with no threads and no state. Documents live
   only in the project's **Context** folder.
 - **Folders**, to organize plans.
 - **Subplans**: a plan can hold plans, and only plans. A Subplan is a full plan of its own (its own threads,
@@ -88,11 +88,11 @@ confirmed on the row: a plan or document goes to the trash; a project or folder 
 (a project: when it holds only its Context folder and document). Trash is at the bottom of each server's rows.
 
 The button at the right end of the tab strip hides or shows the threads pane (its mirror at the left end the
-tree; Ctrl+Shift+T and Ctrl+Shift+E too), and the editor's **Preview** button its preview; each is remembered in the browser. A selected thread
-stays listed whatever the filter; a click in the text off any highlight, or Escape, deselects it, and after
+tree; Ctrl+Shift+T and Ctrl+Shift+E too); each is remembered in the browser. A selected thread
+stays listed whatever the filter; Escape deselects it (in Monaco mode's Read view a click off any highlight does too), and after
 the owner's own reply or resolve the selection passes to the next thread in the pane (plan UI Tweaks VI).
-Selecting text in Read offers Copy (the text as it reads), Comment and Start
-a new Subplan. The owner deletes a thread with the × on its first line; a
+Selecting text offers Copy (the text as it reads), Comment and Start
+a new Subplan, in the editor as in Monaco mode's Read view. The owner deletes a thread with the × on its first line; a
 revision that applied a deleted thread keeps its text and shows "(deleted thread)".
 
 Every item you open (plan or document), and Waiting on you, opens in a **tab** above the document: one tab
@@ -220,12 +220,16 @@ starts its turn with "your turn in Consensus". `.guides/build-with-consensus.md`
 The project tree on the left with each plan's state, its tallies and a "waiting on you" count; the
 rendered plan or document in the middle, with each anchored passage of a plan highlighted by state
 (yellow contested, orange reopened, blue resolved, green applied); a plan's threads on the right,
-filterable by state and by whose turn it is. Select text in a plan to comment on it. Edit shows Monaco, or
-CodeMirror as the Editor setting says, beside a live preview; Ctrl+S saves and stays in the editor (a toast says so), and Ctrl+E switches between Read
-and Edit (from the editor too, saving first). The hotkeys are one table (`public/js/hotkeys.js`) that Menu >
+filterable by state and by whose turn it is. Select text in a plan to comment on it. The text is in the editor
+(plan Markdown Editor): CodeMirror rendering the markdown in place, the cursor's line showing its source, Source
+for the plain markdown (Ctrl+E), the threads' passages highlighted in it and a thread's words in the pane
+scrolling to its passage; Ctrl+S saves and makes the revision (a toast says so); a newer revision is taken
+silently while the text is clean; a tab with unsaved changes shows a dot and asks before it closes, as the
+desktop window does (Confirm on close behind the gear). The Editor setting can pick Monaco instead, with the
+Read and Edit views as before. The hotkeys are one table (`public/js/hotkeys.js`) that Menu >
 Hotkeys in the title bar lists.
-Revisions shows the record. A document gives the threads pane's room to the text. The theme, the size and the
-editor are behind the gear in the title bar, which also counts the threads waiting on you and the LLM runs in progress. Two browser tabs stay
+Revisions shows the record. A document gives the threads pane's room to the text. The theme, the size, the
+editor and Confirm on close are behind the gear in the title bar, which also counts the threads waiting on you and the LLM runs in progress. Two browser tabs stay
 in step: every change is a Server-Sent Event.
 
 ## Export and import

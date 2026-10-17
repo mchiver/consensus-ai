@@ -29,7 +29,7 @@ Open `http://127.0.0.1:3500/` in a browser. You are the owner, and you see the *
 
 ![The page at first start: the Default project and its Readme.](../images/first-start.png)
 
-Across the top runs the **title bar**: the brand, a **Menu** (About, with the version, the links and a summary of every project's threads; Hotkeys; and, in the desktop, the window's commands), **Waiting on you** with the count of threads that wait on you on every server, **Running** while an LLM run is in progress, and a gear for the look: the theme, the size and the editor.
+Across the top runs the **title bar**: the brand, a **Menu** (About, with the version, the links and a summary of every project's threads; Hotkeys; and, in the desktop, the window's commands), **Waiting on you** with the count of threads that wait on you on every server, **Running** while an LLM run is in progress, and a gear for the look: the theme, the size, the editor and Confirm on close.
 
 ![The title bar, with the look popover open.](../images/title-bar.png)
 

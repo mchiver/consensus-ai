@@ -21,12 +21,16 @@ Nothing of yours is touched: the page part runs a temporary server on a temporar
 threads; the desktop part starts Electron on a temporary config (`--config`, `--port 0`) and its own
 `--user-data-dir`, over its own DevTools port (9337), and quits it at the end. Both folders are removed after.
 
+Run it alone: beside the whole test suite (several browsers at once) its checks that compare a height within a pixel
+or wait on a layout have stopped more than once, and passed on their own.
+
 ## What it prints
 
 One line per check, `ok` or `FAIL`, then `SMOKE OK` or `SMOKE FAILED: n check(s)`; the exit code is 1 when any
 check failed. The pictures land in `~smoke/` in the checkout (a tilde keeps the folder out of source control):
 
-- `page-light.png`, `page-dark-codemirror.png`: the page in a browser, Read in light and Edit with CodeMirror in dark.
+- `page-light.png`, `page-dark-monaco.png`: the page in a browser, the editor (CodeMirror, the default) in light and
+  Monaco mode's Edit view in dark.
 - `desktop-light.png`, `desktop-dark.png`, `desktop-detached.png`, `desktop-connect.png`: the top 90 pixels of the
   desktop window, captured from the screen (Windows only), since the window buttons Electron draws over the title
   bar are not part of the page.
@@ -42,10 +46,13 @@ The page:
   is the body column or `.layout` in `consensus.css`, or a stylesheet that gave the bar a margin.
 - **tree, header**: the plan's row is open in the tree; the header shows the title, the location line and the size.
   A failure is the tree components or editor-header.
-- **threads, read**: both threads are listed with the filter at all; the two passages are marked in Read by state.
-  A failure is thread-list, thread-filters or html-view, or the server's anchors.
-- **edit**: Monaco opens; after the Editor setting is switched in the popover, CodeMirror opens with the two marks.
-  A failure is edit-view, `mirror.js` or the anchor map.
+- **threads, editor**: both threads are listed with the filter at all; the plan opens in the CodeMirror editor with
+  the two passages marked by state; it is the Live Preview with the Source button and no preview pane; the heading
+  has Source, Revisions and Save and no Read, Edit or edit bar (the one view, plan Markdown Editor); the list renders
+  with bullets; a drag along a line offers Copy, Comment and Start a new Subplan. A failure is edit-view,
+  `mirror.js`, `live-preview.js`, the anchor map, selection-buttons or editor-header.
+- **read, edit (Monaco mode)**: after the Editor setting is switched to Monaco in the popover, the Read view shows
+  the two passages marked and Edit opens Monaco. A failure is document-editor, html-view or `editor.js`.
 - **console**: no console errors on the page.
 
 The desktop:
@@ -64,7 +71,9 @@ The desktop:
   options.
 - **connect**: the connect screen has the overlay, its header is the drag region, its controls stop before the
   buttons, and the overlay follows the header's height. A failure is `connect.css` or `connect.js`.
-- **quit**: `Desktop.Quit` ends the app.
+- **close, quit**: with a draft on the open tab, `Desktop.Quit` raises the close prompt naming the plan; Cancel keeps
+  the app and the draft; with Confirm on close off, `Desktop.Quit` ends the app. A failure is `ask_page_to_close`
+  in `main.js`, the preload's `OnCloseRequested` and `CloseDecided`, or `hook_window_close` in `tabs.js`.
 
 If the desktop opens on the connect screen the smoke stops: its own server did not start on the temporary config,
 which the desktop's console says more about (`npm run desktop -- --config <folder> --port 0`).

@@ -408,7 +408,7 @@ async function open_plan( Page, Url, Id )
 {
 	await Page.Evaluate( 'location.hash = ' + JSON.stringify( '#/p/' + Id ) + '; true' );
 	// (the injector is missing while a document is still loading: not yet, rather than an error)
-	await Page.WaitFor( '!!angular.element( document.body ).injector() && angular.element( document.body ).injector().get( "State" ).OpenId === ' + JSON.stringify( Id ) + ' && ' + count_of( '#read-view h1' ) + ' === 1', 20000 );
+	await Page.WaitFor( '!!angular.element( document.body ).injector() && angular.element( document.body ).injector().get( "State" ).OpenId === ' + JSON.stringify( Id ) + ' && ' + count_of( '.header .title' ) + ' === 1 && ' + count_of( '#editor .cm-editor' ) + ' === 1', 20000 );
 	await Page.WaitFor( 'document.querySelector( ".connection" ) && document.querySelector( ".connection" ).classList.contains( "live" )', 20000 );
 	await show_all_threads( Page );
 	await wait( 400 );
@@ -459,9 +459,10 @@ const PAGE_PICTURES = [
 		Name: 'comment',
 		Make: async function ( Page, Url, Demo, Folder, Theme )
 		{
-			await Page.Evaluate( '( function () { let p = document.querySelector( "#read-view p:last-of-type" ); let range = document.createRange(); range.selectNodeContents( p ); let selection = window.getSelection(); selection.removeAllRanges(); selection.addRange( range ); document.getElementById( "read-view" ).dispatchEvent( new MouseEvent( "mouseup", { bubbles: true } ) ); return true; } )()' );
-			await Page.WaitFor( 'document.getElementById( "comment-button" ).classList.contains( "shown" )' );
-			await Page.Click( '#comment-button' );
+			// a selection in the editor (CodeMirror, the default since plan Markdown Editor, Step 5): the last paragraph's words
+			await Page.Evaluate( '( function () { let view = window.CodeMirror6.EditorView.findFromDOM( document.querySelector( "#editor .cm-editor" ) ); let words = "Checked items drop to the bottom."; let from = view.state.doc.toString().indexOf( words ); view.dispatch( { selection: { anchor: from, head: from + words.length } } ); view.focus(); return true; } )()' );
+			await Page.WaitFor( count_of( '.edit-view .comment-selection.shown' ) + ' === 1', 5000 );
+			await Page.Evaluate( 'document.querySelector( ".edit-view .comment-selection" ).click(); true' );
 			await Page.WaitFor( 'document.activeElement && document.activeElement.closest( "#compose-text" ) !== null' );
 			await Page.Type( 'Should checked items stay where they are instead? Dropping them moves the list under your thumb.' );
 			await wait( 300 );
@@ -475,13 +476,29 @@ const PAGE_PICTURES = [
 		Name: 'edit',
 		Make: async function ( Page, Url, Demo, Folder, Theme )
 		{
-			// The threads pane is hidden, so the editor and its preview have the room.
+			// The threads pane is hidden, so the editor has the room; the cursor on the second heading shows its source
+			// (the Live Preview, plan Markdown Editor, Step 5).
 			await Page.Click( '#threads-toggle' );
-			await Page.Click( '#view-edit' );
-			await Page.WaitFor( 'window.monaco && !!monaco.editor.getEditors().find( function ( editor ) { return document.getElementById( "editor" ).contains( editor.getDomNode() ); } )', 30000 );
-			await wait( 800 );
+			await Page.Evaluate( '( function () { let view = window.CodeMirror6.EditorView.findFromDOM( document.querySelector( "#editor .cm-editor" ) ); let at = view.state.doc.toString().indexOf( "## What goes on it" ) + 3; view.dispatch( { selection: { anchor: at } } ); view.focus(); return true; } )()' );
+			await wait( 500 );
 			let file = await capture( Page, Folder, 'edit', Theme );
-			await Page.Click( '#view-read' );
+			await Page.Click( '#threads-toggle' );
+			await wait( 200 );
+			return file;
+		},
+	},
+	{
+		// Source mode (plan Markdown Editor, Step 5): the plain markdown, with the gutters.
+		Name: 'source',
+		Make: async function ( Page, Url, Demo, Folder, Theme )
+		{
+			await Page.Click( '#threads-toggle' );
+			await Page.Click( '#view-source' );
+			await Page.WaitFor( count_of( '#editor .cm-lineNumbers' ) + ' === 1' );
+			await wait( 500 );
+			let file = await capture( Page, Folder, 'source', Theme );
+			await Page.Click( '#view-source' );
+			await Page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 1' );
 			await Page.Click( '#threads-toggle' );
 			await wait( 200 );
 			return file;
@@ -496,7 +513,9 @@ const PAGE_PICTURES = [
 			await Page.WaitFor( visible( '.revisions' ) );
 			await wait( 500 );
 			let file = await capture( Page, Folder, 'revisions', Theme );
-			await Page.Click( '#view-read' );
+			// pressed again, the editor comes back
+			await Page.Click( '#view-revisions' );
+			await Page.WaitFor( visible( '#editor .cm-editor' ) );
 			await Page.Click( '#threads-toggle' );
 			await wait( 200 );
 			return file;
@@ -509,7 +528,27 @@ const PAGE_PICTURES = [
 			await open_plan( Page, Url, Demo.Context );
 			await open_plan( Page, Url, Demo.Plans.Search );
 			await open_plan( Page, Url, Demo.Plans[ 'Shopping list' ] );
+			// one tab with unsaved changes shows its dot (plan Markdown Editor, Step 5); the next picture closes it
+			await Page.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); let state = injector.get( "State" ); let id = ' + JSON.stringify( Demo.Plans.Search ) + '; let plan = state.Plans.find( function ( one ) { return one.Id === id; } ); injector.get( "Tabs" ).SetDraft( id, { Text: "A draft.", Base: plan ? plan.Revision : 1 } ); injector.get( "$rootScope" ).$apply(); return true; } )()' );
+			await Page.WaitFor( count_of( '.tab .dirty-dot' ) + ' === 1' );
 			return capture( Page, Folder, 'tabs', Theme, { Selector: '.tabs-row' } );
+		},
+	},
+	{
+		// The prompt before a tab with unsaved changes closes (plan Markdown Editor, Step 5): the dirty tab's ×, then Cancel
+		// and the draft forgotten, so the next pictures find the plan as it is.
+		Name: 'close-prompt',
+		Make: async function ( Page, Url, Demo, Folder, Theme )
+		{
+			await Page.Evaluate( 'document.querySelector( ".tab.dirty .close-tab" ).click(); true' );
+			await Page.WaitFor( visible( '#close-popup .close-form' ) );
+			await wait( 300 );
+			let file = await capture( Page, Folder, 'close-prompt', Theme, { Selector: '#close-popup .close-form' } );
+			await Page.Evaluate( 'document.getElementById( "close-cancel" ).click(); true' );
+			await Page.WaitFor( count_of( '#close-popup .close-form' ) + ' === 0' );
+			await Page.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); injector.get( "Tabs" ).SetDraft( ' + JSON.stringify( Demo.Plans.Search ) + ', null ); injector.get( "$rootScope" ).$apply(); return true; } )()' );
+			await wait( 200 );
+			return file;
 		},
 	},
 	{

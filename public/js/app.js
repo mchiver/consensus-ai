@@ -87,10 +87,11 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
-	// The editor engine (plan UI Components, Step 3): Monaco unless the look says CodeMirror.
+	// The editor engine (plan UI Components, Step 3): CodeMirror, the one view (plan Markdown Editor, Step 5), unless
+	// the look says Monaco, the backup with its Read and Edit views.
 	function editor_setting()
 	{
-		return ( recall( EDITOR_KEY, 'monaco' ) === 'codemirror' ) ? 'codemirror' : 'monaco';
+		return ( recall( EDITOR_KEY, 'codemirror' ) === 'monaco' ) ? 'monaco' : 'codemirror';
 	}
 
 

@@ -127,7 +127,7 @@ async function smoke_page()
 		let plan = await make_plan( running.Url );
 		browser = await CDP.StartBrowser( { Width: WIDTH, Height: HEIGHT } );
 		let page = await browser.OpenPage( running.Url + '/#/p/' + plan.Id );
-		await page.WaitFor( count_of( '#read-view h1' ) + ' === 1 && document.querySelector( ".connection" ) !== null && document.querySelector( ".connection" ).classList.contains( "live" )', 30000 );
+		await page.WaitFor( count_of( '.header .title' ) + ' === 1 && document.querySelector( ".connection" ) !== null && document.querySelector( ".connection" ).classList.contains( "live" )', 30000 );
 		await wait( 500 );
 
 		// the title bar
@@ -161,24 +161,9 @@ async function smoke_page()
 		await page.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); injector.get( "State" ).SetFilter( "all" ); injector.get( "$rootScope" ).$apply(); return true; } )()' );
 		await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 2' );
 		check( 'threads: both threads listed with the filter at all', await page.Evaluate( count_of( '.thread:not(.compose)' ) ), 2 );
-		check( 'read: the two passages are marked', await page.Evaluate( '[ ...document.querySelectorAll( "#read-view .anchor" ) ].map( function ( mark ) { return mark.className; } ).sort().join( "," )' ), 'anchor contested,anchor resolved' );
-		await screenshot( page, 'page-light' );
-
-		// the Edit view in both engines
-		await page.Click( '#view-edit' );
-		await page.WaitFor( count_of( '#editor .monaco-editor' ) + ' === 1', 30000 );
-		check( 'edit: Monaco opens', await page.Evaluate( count_of( '#editor .monaco-editor' ) ), 1 );
-		await page.Click( '#view-read' );
-		await page.Click( '#look-button' );
-		await page.WaitFor( count_of( '#look-popover #editor-select' ) + ' === 1' );
-		await page.Evaluate( '( function () { let select = document.getElementById( "editor-select" ); select.value = "codemirror"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
-		await page.Evaluate( pick_theme( 'Dark' ) );
-		await page.WaitFor( 'document.documentElement.dataset.theme === "dark"' );
-		await page.Click( '#look-button' );
-		await page.WaitFor( count_of( '#look-popover' ) + ' === 0' );
-		// in CodeMirror mode the editor is the view (plan Markdown Editor, Step 3): it opens at once
+		// the editor is the view (CodeMirror, the default since plan Markdown Editor, Step 5), with the two marks
 		await page.WaitFor( count_of( '#editor .cm-editor' ) + ' === 1 && ' + count_of( '#editor .cm-content .anchor' ) + ' === 2', 30000 );
-		check( 'edit: CodeMirror opens with the two marks', await page.Evaluate( count_of( '#editor .cm-content .anchor' ) ), 2 );
+		check( 'editor: the two passages are marked', await page.Evaluate( '[ ...document.querySelectorAll( "#editor .cm-content .anchor" ) ].map( function ( mark ) { return mark.className.replace( / selected/, "" ); } ).sort().join( "," )' ), 'anchor contested,anchor resolved' );
 		check( 'edit: the Live Preview with the Source button, no preview pane or Preview button (plan Markdown Editor, Step 1)', await page.Evaluate( count_of( '#editor .cm-editor.cm-live' ) + ' + ' + count_of( '#view-source' ) + ' + ' + count_of( '.edit-preview' ) + ' + ' + count_of( '#preview-toggle' ) ), 2 );
 		check( 'one view: no Read or Edit; Source, Revisions and Save in the heading; no edit bar (plan Markdown Editor, Step 3)', await page.Evaluate( count_of( '#view-read' ) + ' + ' + count_of( '#view-edit' ) + ' + ' + count_of( '.edit-bar' ) + ' === 0 && ' + count_of( '#view-source' ) + ' + ' + count_of( '#view-revisions' ) + ' + ' + count_of( '.header #save-button' ) + ' === 3' ), true );
 		check( 'edit: the list renders with bullets', await page.Evaluate( count_of( '#editor .cm-live-bullet' ) ), 2 );
@@ -192,8 +177,25 @@ async function smoke_page()
 		await page.Send( 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: line.x2, y: line.y, button: 'left', clickCount: 1 } );
 		await page.WaitFor( count_of( '.edit-view .comment-button.shown' ) + ' === 3', 5000 );
 		check( 'edit: a selection offers Copy, Comment and Start a new Subplan', await page.Evaluate( count_of( '.edit-view .comment-button.shown' ) ), 3 );
+		await page.Press( 'Escape' );
 		await wait( 300 );
-		await screenshot( page, 'page-dark-codemirror' );
+		await screenshot( page, 'page-light' );
+
+		// Monaco mode, through the Editor setting in the look popover (and the dark theme): the Read view, then Edit
+		await page.Click( '#look-button' );
+		await page.WaitFor( count_of( '#look-popover #editor-select' ) + ' === 1' );
+		await page.Evaluate( '( function () { let select = document.getElementById( "editor-select" ); select.value = "monaco"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+		await page.Evaluate( pick_theme( 'Dark' ) );
+		await page.WaitFor( 'document.documentElement.dataset.theme === "dark"' );
+		await page.Click( '#look-button' );
+		await page.WaitFor( count_of( '#look-popover' ) + ' === 0' );
+		await page.WaitFor( count_of( '#view-edit' ) + ' === 1 && ' + count_of( '#read-view .anchor' ) + ' === 2', 30000 );
+		check( 'read: Monaco mode shows the Read view with the two passages marked', await page.Evaluate( '[ ...document.querySelectorAll( "#read-view .anchor" ) ].map( function ( mark ) { return mark.className.replace( / selected/, "" ); } ).sort().join( "," )' ), 'anchor contested,anchor resolved' );
+		await page.Click( '#view-edit' );
+		await page.WaitFor( count_of( '#editor .monaco-editor' ) + ' === 1', 30000 );
+		check( 'edit: Monaco opens', await page.Evaluate( count_of( '#editor .monaco-editor' ) ), 1 );
+		await wait( 300 );
+		await screenshot( page, 'page-dark-monaco' );
 		check( 'console: no errors', JSON.stringify( page.Errors ), '[]' );
 	}
 	finally
@@ -294,7 +296,7 @@ async function smoke_desktop()
 		let roots = JSON.parse( await page.Evaluate( 'JSON.stringify( window.ConsensusDesktop.Roots )' ) );
 		let plan = await make_plan( roots[ 0 ].Url );
 		await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
-		await page.WaitFor( count_of( '#read-view h1' ) + ' === 1', 30000 );
+		await page.WaitFor( count_of( '.header .title' ) + ' === 1 && ' + count_of( '#editor .cm-editor' ) + ' === 1', 30000 );
 		await wait( 800 );
 
 		// the overlay and the bar
@@ -347,7 +349,7 @@ async function smoke_desktop()
 		await page.Evaluate( 'window.open( window.location.origin + "/?detached=1#/p/' + plan.Id + '", "detached-smoke" ); true' );
 		let detached_target = await wait_target( function ( candidate ) { return /detached=1/.test( candidate.url ); } );
 		let detached = await CDP.Attach( detached_target.webSocketDebuggerUrl );
-		await detached.WaitFor( count_of( 'title-bar .brand' ) + ' === 1 && ' + count_of( '#read-view h1' ) + ' === 1', 30000 );
+		await detached.WaitFor( count_of( 'title-bar .brand' ) + ' === 1 && ' + count_of( '#editor .cm-editor' ) + ' === 1', 30000 );
 		await wait( 500 );
 		check( 'detached: the overlay', await detached.Evaluate( 'navigator.windowControlsOverlay.visible' ), true );
 		check( 'detached: no native title or menu bar', await detached.Evaluate( NO_FRAME ), true );

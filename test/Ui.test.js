@@ -116,6 +116,9 @@ TEST.before( async function ()
 	page = await browser.OpenPage( running.Url + '/#/p/' + plan.Id );
 	// the page's Copy and Paste go through the system clipboard: the headless browser is granted it for this origin
 	await page.Send( 'Browser.grantPermissions', { origin: running.Url, permissions: [ 'clipboardReadWrite', 'clipboardSanitizedWrite' ] } );
+	// the tests were written for Monaco, the default before plan Markdown Editor, Step 5; the CodeMirror tests switch on their own
+	await page.WaitFor( count_of( '#look-button' ) + ' === 1', 30000 );
+	await set_editor( 'monaco' );
 } );
 
 

@@ -32,6 +32,18 @@ The draft above is the owner's (2026-10-16); it was reviewed in eight threads, s
 
 The owner answered the five open questions and commented four points on 2026-10-17; each answer is folded into its point above, marked Decided: Live Preview with a Source toggle; Monaco and the Editor setting stay as the backup, Monaco mode being today's page with its Read and Edit buttons; tables and images in the first cut; the one Save / Discard / Cancel prompt listing the documents on Close, Close others, Close all and the desktop's close, behind a Confirm on close setting; Ctrl+E as the Source toggle.
 
+## What is built
+
+All five steps were built on 2026-10-17, each designed on its subplan, built, logged and accepted before its commit:
+
+- Step 1, "Markdown Editor: Step 1": the Live Preview (`public/js/live-preview.js`: Plan lists the decorations from the Lezer tree, a state field makes them; the line the selection touches shows its source, a code block or a table reveals whole; headings, emphasis, inline code, links with Ctrl+click, bullets, task checkboxes that edit the source, blockquotes, fenced code with a language bar, rules, tables and images as widgets, setext underlines, escapes); Mirror takes Options.Preview and switches it in place; the editor language is GFM; no preview pane in CodeMirror mode.
+- Step 2, "Markdown Editor: Step 2": the threads in the editor: a thread picked elsewhere scrolls the editor to its passage and flashes it; the selection-buttons component (Copy as it reads, Comment or Re-anchor here, Start a new Subplan), shared with the Read view, the anchor through `AnchorMap.PlainRange` and `Render.AnchorOf`; a pending select or scroll settled in the editor; the re-anchor hint above whichever view; New Comment and Ctrl+Shift+C in the editor.
+- Step 3, "Markdown Editor: Step 3": the one view: `State.MirrorShown()` and `State.EditorShown()`; the heading's Source and Revisions toggles with Save and Discard through `State.Editing`; no edit bar in CodeMirror mode, a stale line above the editor; read-only for archived plans and the Revisions view's reader; a newer revision taken silently while clean (one change over the differing middle); the dirty dot on tabs, the draft written on every change; Ctrl+E toggles Source; the Editor setting takes effect at once; Monaco mode unchanged.
+- Step 4, "Markdown Editor: Step 4": closing and shutdown: the `Closing` service and the close-prompt component, one prompt for a tab's ×, Close, Close others, Close to the right and Close all (`Tabs.SaveDraft` saving a draft on its root, a refused one kept with a toast); the desktop's close asking the page over the preload (`close-requested` / `close-decided`, three seconds then the window closes anyway; Quit walks every window; detached windows too); the browser's own leave prompt; Confirm on close behind the gear, on by default.
+- Step 5, "Markdown Editor: Step 5": CodeMirror the default engine, Monaco the backup behind the Editor setting; the guide rewritten around the one view with the pictures retaken (source.png and close-prompt.png new); the smoke starting from the editor and switching to Monaco, its guide rewritten; the README.
+
+Tests at the end: 196 node tests (187 before the plan), the smoke at 43 checks. Not in this plan, as point 10 says: tables edited in their grid, wiki links, backlinks, the outline, the removal of Monaco.
+
 ## The build
 
 Each step a commit, designed on its line (or its subplan) before its build, as plan UI Components was done.
