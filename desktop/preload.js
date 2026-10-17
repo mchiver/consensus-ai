@@ -32,6 +32,10 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	// The title bar's colours and height (theme.js ReportChrome, plan UI Components, Step 5): the window buttons
 	// Electron draws over the bar follow them.
 	SetChrome: function ( Chrome ) { ELECTRON.ipcRenderer.send( 'chrome', { Color: Chrome.Color, Symbol: Chrome.Symbol, Height: Chrome.Height } ); },
+	// The window's close (plan Markdown Editor, Step 4): main.js asks the page, which answers once its prompt about
+	// the unsaved edits is settled; true closes the window, false keeps it.
+	OnCloseRequested: function ( Handler ) { ELECTRON.ipcRenderer.on( 'close-requested', function () { Handler(); } ); },
+	CloseDecided: function ( Ok ) { ELECTRON.ipcRenderer.send( 'close-decided', !!Ok ); },
 } );
 
 

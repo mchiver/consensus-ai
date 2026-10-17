@@ -13,9 +13,13 @@
 	</label>
 	<label class="look-row">
 		<span>Editor</span>
-		<select class="form-select form-select-sm" ng-model="$ctrl.Editor" ng-change="$ctrl.SetEditor()" title="the editor: Monaco, or CodeMirror (plan UI Components, Step 3); the Edit view takes it when it next opens" id="editor-select">
+		<select class="form-select form-select-sm" ng-model="$ctrl.Editor" ng-change="$ctrl.SetEditor()" title="the editor: CodeMirror, the Live Preview as the one view, or Monaco with Read and Edit" id="editor-select">
 			<option value="monaco">Monaco</option>
 			<option value="codemirror">CodeMirror</option>
 		</select>
+	</label>
+	<label class="look-row look-check">
+		<span>Confirm on close</span>
+		<input type="checkbox" class="form-check-input" id="confirm-close" ng-model="$ctrl.ConfirmClose" ng-change="$ctrl.SetConfirmClose()" title="ask before the window closes, or the page is left, with unsaved changes; off, they come back as drafts next time">
 	</label>
 </div>

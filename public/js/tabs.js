@@ -26,8 +26,14 @@
 //
 // A detached tab stays in the main window's strip, ghosted: clicking it does nothing, and its menu offers Re-attach
 // and Close. Each tab's menu (▾ or a right-click) closes it, the others, those to its right, or all, and detaches it.
+//
+// A close that would lose a draft asks first (plan Markdown Editor, Step 4): Close, Close others, Close to the right
+// and Close all go through the Closing prompt with the dirty tabs among those to close; Save saves each draft on its
+// root (SaveDraft; a refused save keeps its tab open with a toast), Discard forgets them, Cancel closes nothing. The
+// desktop window's close asks the same way over the preload, and a browser raises its own leave prompt, both only
+// while Confirm on close is on. A tab of an item that is gone, and a detached window's own close, never ask.
 
-angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$timeout', 'State', 'Menus', 'Client', 'Roots', function ( $window, $rootScope, $timeout, State, Menus, Client, Roots )
+angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$timeout', 'State', 'Menus', 'Client', 'Roots', 'Closing', 'Toast', function ( $window, $rootScope, $timeout, State, Menus, Client, Roots, Closing, Toast )
 {
 	const STORAGE_KEY = 'tabs';		// once per window (stored.js); a detached window keeps its one tab in its session
 	const CHANNEL_NAME = 'consensus-windows';
@@ -142,7 +148,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 			let gone = results.filter( function ( tab ) { return tab && tabs.List.includes( tab ); } );
 			if ( gone.length )
 			{
-				CloseMany( gone );
+				close_many_now( gone );
 				$rootScope.$applyAsync();
 			}
 		} );
@@ -258,7 +264,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 
 	// A ghosted tab's window is told to close too.
-	function Close( Tab )
+	function close_now( Tab )
 	{
 		let index = tabs.List.indexOf( Tab );
 		if ( index < 0 )
@@ -284,7 +290,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 
 	// Several at once: the active one last, so the strip moves on once.
-	function CloseMany( List )
+	function close_many_now( List )
 	{
 		let active = null;
 		for ( let tab of List.slice() )
@@ -294,44 +300,173 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 				active = tab;
 				continue;
 			}
-			Close( tab );
+			close_now( tab );
 		}
 		if ( active )
 		{
-			Close( active );
+			close_now( active );
 		}
 	}
 
 
-	function CloseOthers( Tab )
+	function has_draft( tab )
 	{
-		CloseMany( tabs.List.filter( function ( tab ) { return tab !== Tab; } ) );
+		return !!tab.Draft;
+	}
+
+
+	// The draft of a tab saved on its root as a new revision; the draft is forgotten when the server took it. A refusal
+	// (the plan moved on) keeps the draft, with a toast saying so.
+	async function SaveDraft( Tab )
+	{
+		if ( !Tab.Draft )
+		{
+			return true;
+		}
+		let root = Roots.Of( Tab.Root || '' );
+		let draft = Tab.Draft;
+		try
+		{
+			let answer = await Client.Put( root, '/api/plans/' + encodeURIComponent( Tab.Id ) + '/text', { Text: draft.Text, Revision: draft.Base } );
+			delete Tab.Draft;
+			save();
+			$rootScope.$broadcast( 'draft-saved', { Id: Tab.Id, Root: Tab.Root, Revision: answer.Plan.Revision, Text: draft.Text } );
+			return true;
+		}
+		catch ( error )
+		{
+			Toast.Show( '“' + ( Tab.Title || Tab.Id ) + '” was not saved: ' + ( error.message || 'the server refused it' ) + '; its draft is kept' );
+			return false;
+		}
+	}
+
+
+	// The tabs of List that may close: those without a draft, and the dirty ones as the prompt decides. Cancel: none.
+	// Discard: all, the drafts forgotten. Save: all whose draft the server took; a refused one stays.
+	async function allowed( List )
+	{
+		let dirty = List.filter( has_draft );
+		if ( !dirty.length )
+		{
+			return List;
+		}
+		let what = await Closing.Ask( dirty );
+		if ( what === 'cancel' )
+		{
+			return [];
+		}
+		if ( what === 'discard' )
+		{
+			for ( let tab of dirty )
+			{
+				delete tab.Draft;
+			}
+			save();
+			return List;
+		}
+		let kept = [];
+		for ( let tab of dirty )
+		{
+			if ( !( await SaveDraft( tab ) ) )
+			{
+				kept.push( tab );
+			}
+		}
+		return List.filter( function ( tab ) { return !kept.includes( tab ); } );
+	}
+
+
+	async function Close( Tab )
+	{
+		let list = await allowed( [ Tab ] );
+		if ( list.length )
+		{
+			close_now( Tab );
+		}
+		$rootScope.$applyAsync();
+	}
+
+
+	async function CloseOthers( Tab )
+	{
+		close_many_now( await allowed( tabs.List.filter( function ( tab ) { return tab !== Tab; } ) ) );
 		Open( Tab );
+		$rootScope.$applyAsync();
 	}
 
 
-	function CloseToTheRight( Tab )
+	async function CloseToTheRight( Tab )
 	{
-		CloseMany( tabs.List.slice( tabs.List.indexOf( Tab ) + 1 ) );
+		close_many_now( await allowed( tabs.List.slice( tabs.List.indexOf( Tab ) + 1 ) ) );
+		$rootScope.$applyAsync();
 	}
 
 
-	function CloseAll()
+	async function CloseAll()
 	{
-		CloseMany( tabs.List );
+		close_many_now( await allowed( tabs.List.slice() ) );
+		$rootScope.$applyAsync();
 	}
 
 
-	// Every tab of an item that is gone (trashed here or elsewhere), on the root named (every root when none is).
+	// Every tab of an item that is gone (trashed here or elsewhere), on the root named (every root when none is):
+	// nothing is left to save, so nothing is asked.
 	function CloseItem( Id, RootKey )
 	{
 		for ( let tab of tabs.List.slice() )
 		{
 			if ( tab.Id === Id && ( RootKey === undefined || tab.Root === RootKey ) )
 			{
-				Close( tab );
+				close_now( tab );
 			}
 		}
+	}
+
+
+	//-----------------------------------------------------------------
+	// The window's close (plan Markdown Editor, Step 4), while Confirm on close is on and a tab is dirty. In the
+	// desktop, main.js asks over the preload and the page answers once the prompt is settled: true when every draft was
+	// saved or dropped, false on Cancel or a refused save. In a browser, beforeunload raises the browser's own prompt;
+	// the drafts stay either way.
+
+	async function decide_close()
+	{
+		let dirty = tabs.List.filter( has_draft );
+		if ( !State.ConfirmClose || !dirty.length )
+		{
+			return true;
+		}
+		let list = await allowed( dirty );
+		return list.length === dirty.length;
+	}
+
+
+	function hook_window_close()
+	{
+		let desktop = $window.ConsensusDesktop;
+		if ( desktop && typeof desktop.OnCloseRequested === 'function' )
+		{
+			desktop.OnCloseRequested( function ()
+			{
+				$rootScope.$applyAsync( function ()
+				{
+					decide_close().then( function ( ok ) { desktop.CloseDecided( ok ); }, function () { desktop.CloseDecided( true ); } );
+				} );
+			} );
+			return;
+		}
+		if ( desktop )
+		{
+			return;
+		}
+		$window.addEventListener( 'beforeunload', function ( event )
+		{
+			if ( State.ConfirmClose && tabs.List.some( has_draft ) )
+			{
+				event.preventDefault();
+				event.returnValue = '';
+			}
+		} );
 	}
 
 
@@ -532,6 +667,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 			else if ( message.Type === 'closed' )
 			{
 				// its window is gone, and its item with it
+				// its window asked about its own draft before it went
 				delete tabs.Out[ message.Key ];
 				let gone = find( message.Key );
 				if ( gone )
@@ -571,6 +707,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	function start()
 	{
 		load();
+		hook_window_close();
 		if ( tabs.Detached )
 		{
 			document.body.classList.add( 'detached-window' );
@@ -632,6 +769,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	tabs.CloseOthers = CloseOthers;
 	tabs.CloseToTheRight = CloseToTheRight;
 	tabs.CloseAll = CloseAll;
+	tabs.SaveDraft = SaveDraft;
 	tabs.CallBack = CallBack;
 	tabs.Move = Move;
 	tabs.SetDraft = SetDraft;

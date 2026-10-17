@@ -1,0 +1,14 @@
+<div class="subplan-popup settings-popup close-popup" id="close-popup" ng-show="$ctrl.Closing.Prompt" ng-keydown="$ctrl.Key($event)">
+	<div class="subplan-form close-form" ng-if="$ctrl.Closing.Prompt" tabindex="-1" auto-focus>
+		<div class="subplan-head">{{ $ctrl.Heading() }}</div>
+		<ul class="close-list">
+			<li ng-repeat="entry in $ctrl.Closing.Prompt.Entries track by entry.Tab.Key">{{ entry.Title }} <span class="muted small" ng-if="entry.Stale">stale, cannot be saved: the plan moved on since this edit began</span></li>
+		</ul>
+		<div class="muted small">Save them as new revisions, discard the changes, or cancel and keep working. Enter saves, Escape cancels.</div>
+		<div class="thread-buttons">
+			<button class="btn btn-sm btn-primary" type="button" id="close-save" ng-click="$ctrl.Answer('save')" ng-disabled="!$ctrl.CanSave()"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+			<button class="btn btn-sm btn-outline-danger" type="button" id="close-discard" ng-click="$ctrl.Answer('discard')"><svg class="icon lead"><use href="#i-trash"></use></svg>Discard</button>
+			<button class="btn btn-sm btn-outline-secondary" type="button" id="close-cancel" ng-click="$ctrl.Answer('cancel')"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+		</div>
+	</div>
+</div>

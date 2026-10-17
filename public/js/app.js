@@ -69,6 +69,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	const EDITOR_KEY = 'editor';
 	const PREVIEW_HIDDEN_KEY = 'preview-hidden';
 	const SOURCE_KEY = 'source-mode';
+	const CONFIRM_CLOSE_KEY = 'confirm-close';
 	const TREE_HIDDEN_KEY = 'tree-hidden';
 	const HIGHLIGHT_KEY = 'highlight';
 	const FILTER_KEY = 'filter';
@@ -105,6 +106,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		Editor: editor_setting(),
 		PreviewHidden: preview_hidden(),
 		Source: recall( SOURCE_KEY, false ),	// the CodeMirror editor in Source mode, the plain markdown instead of the Live Preview (plan Markdown Editor, Step 1)
+		ConfirmClose: recall( CONFIRM_CLOSE_KEY, true ),	// ask before the window closes, or the page is left, with unsaved edits (plan Markdown Editor, Step 4)
 		TreeHidden: recall( TREE_HIDDEN_KEY, false ),
 		Highlight: recall( HIGHLIGHT_KEY, 'all' ),
 		Root: null,		// the root of the open item (roots.js); the first root until one is opened
@@ -307,6 +309,14 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
+	// Confirm on close, remembered in this browser; the drafts come back either way, so off loses nothing.
+	function SetConfirmClose( On )
+	{
+		state.ConfirmClose = !!On;
+		remember( CONFIRM_CLOSE_KEY, state.ConfirmClose );
+	}
+
+
 	// Source mode in the CodeMirror editor, remembered in this browser; the open editor switches at once (edit-view).
 	function SetSource( On )
 	{
@@ -456,6 +466,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	state.SetPreviewHidden = SetPreviewHidden;
 	state.SetEditor = SetEditor;
 	state.SetSource = SetSource;
+	state.SetConfirmClose = SetConfirmClose;
 	state.MirrorShown = MirrorShown;
 	state.EditorShown = EditorShown;
 	state.SetTreeHidden = SetTreeHidden;

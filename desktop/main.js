@@ -43,6 +43,7 @@ let page = null;
 let window = null;
 let reason = null;		// why this machine's server could not start, for the connect screen
 let closing = false;
+const CLOSE_ANSWER_WAIT = 3000;		// the page's answer to a close, before the window closes anyway
 let isolated = false;	// a project on the command line: this machine's server, that project alone, Last untouched
 
 
@@ -264,6 +265,12 @@ function create_window()
 	window.webContents.on( 'did-create-window', function ( child )
 	{
 		child.setMenuBarVisibility( false );
+		// a detached window asks its page about its own draft, as the main window does
+		child.on( 'close', function ( event )
+		{
+			event.preventDefault();
+			ask_page_to_close( child, function () { child.destroy(); } );
+		} );
 	} );
 	window.on( 'close', function ( event )
 	{
@@ -272,13 +279,57 @@ function create_window()
 			return;
 		}
 		event.preventDefault();
-		closing = true;
-		window.destroy();
+		ask_page_to_close( window, function ()
+		{
+			closing = true;
+			window.destroy();
+		} );
 	} );
 	window.on( 'closed', function ()
 	{
 		window = null;
 	} );
+}
+
+
+// The page is asked before its window closes (plan Markdown Editor, Step 4): close-requested goes to it, and it
+// answers close-decided once its prompt about the unsaved edits is settled, or at once when nothing is dirty or
+// Confirm on close is off; the connect screen has no page to ask; no answer within CLOSE_ANSWER_WAIT and the window
+// closes anyway. Destroy closes it without another close event.
+function ask_page_to_close( target, destroy )
+{
+	let contents = target.webContents;
+	if ( target.isDestroyed() || contents.isDestroyed() || contents.getURL().indexOf( 'connect.html' ) >= 0 )
+	{
+		destroy();
+		return;
+	}
+	let settled = false;
+	let timer = null;
+	function settle( ok )
+	{
+		if ( settled )
+		{
+			return;
+		}
+		settled = true;
+		clearTimeout( timer );
+		ELECTRON.ipcMain.removeListener( 'close-decided', on_decided );
+		if ( ok && !target.isDestroyed() )
+		{
+			destroy();
+		}
+	}
+	function on_decided( event, ok )
+	{
+		if ( event.sender === contents )
+		{
+			settle( !!ok );
+		}
+	}
+	timer = setTimeout( function () { settle( true ); }, CLOSE_ANSWER_WAIT );
+	ELECTRON.ipcMain.on( 'close-decided', on_decided );
+	contents.send( 'close-requested' );
 }
 
 

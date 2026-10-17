@@ -572,6 +572,18 @@ angular.module( 'Consensus' ).component( 'editView', {
 			}
 		} );
 
+		// The open plan's draft saved from the close prompt (Tabs.SaveDraft): the editor's base moves on with it.
+		$scope.$on( 'draft-saved', function ( event, info )
+		{
+			if ( instance && State.Open && info.Id === State.OpenId )
+			{
+				controller.Base = info.Revision;
+				controller.BaseText = info.Text;
+				controller.Dirty = ( instance.Get() !== info.Text );
+				controller.Stale = false;
+			}
+		} );
+
 		// Source on or off (the heading's button, Ctrl+E): the open editor switches in place.
 		$scope.$on( 'source-changed', function ()
 		{

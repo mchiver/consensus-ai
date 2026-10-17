@@ -27,6 +27,7 @@
 	<link rel="stylesheet" href="/components/waiting-list/waiting-list.css">
 	<link rel="stylesheet" href="/components/html-view/html-view.css">
 	<link rel="stylesheet" href="/components/selection-buttons/selection-buttons.css">
+	<link rel="stylesheet" href="/components/close-prompt/close-prompt.css">
 	<link rel="stylesheet" href="/components/comment-editor/comment-editor.css">
 	<link rel="stylesheet" href="/components/thread-filters/thread-filters.css">
 	<link rel="stylesheet" href="/components/thread-list/thread-list.css">
@@ -303,6 +304,9 @@
 		</div>
 	</div>
 
+	<!-- The prompt before tabs with unsaved edits close (plan Markdown Editor, Step 4). -->
+	<close-prompt></close-prompt>
+
 	<!-- Help (plan UI Tweaks VI): About, and the hotkeys. -->
 	<div class="subplan-popup settings-popup help-popup" id="help-popup" ng-controller="HelpController" ng-show="Panel.Open" ng-keydown="Key($event)">
 		<div class="subplan-form settings-form help-form" ng-if="Panel.Open === 'about'" tabindex="-1" auto-focus>
@@ -379,6 +383,7 @@
 	<script src="/js/tabs.js"></script>
 	<script src="/js/hotkeys.js"></script>
 	<script src="/js/toast.js"></script>
+	<script src="/js/closing.js"></script>
 	<script src="/js/help.js"></script>
 	<script src="/js/subplans.js"></script>
 	<script src="/js/ports.js"></script>
@@ -389,6 +394,7 @@
 	<script src="/js/threads.js"></script>
 	<script src="/components/html-view/html-view.js"></script>
 	<script src="/components/selection-buttons/selection-buttons.js"></script>
+	<script src="/components/close-prompt/close-prompt.js"></script>
 	<script src="/components/title-bar/title-bar.js"></script>
 	<script src="/components/look-controls/look-controls.js"></script>
 	<script src="/components/project-tree/project-tree.js"></script>

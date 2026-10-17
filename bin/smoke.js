@@ -374,6 +374,18 @@ async function smoke_desktop()
 		let back_target = await wait_target( function ( candidate ) { return !/connect\.html/.test( candidate.url ); } );
 		let back = await CDP.Attach( back_target.webSocketDebuggerUrl );
 		await back.WaitFor( count_of( 'title-bar .brand' ) + ' === 1', 30000 );
+		// a dirty tab: Quit asks the page, Cancel keeps the app (plan Markdown Editor, Step 4); Confirm on close off, Quit ends it
+		await back.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+		await back.WaitFor( text_of( '.header .title' ) + ' === ' + JSON.stringify( PLAN_TITLE ), 30000 );
+		await back.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); injector.get( "Tabs" ).SetDraft( ' + JSON.stringify( plan.Id ) + ', { Text: "A draft at closing time.", Base: 1 } ); injector.get( "$rootScope" ).$apply(); return true; } )()' );
+		await back.WaitFor( count_of( '.tab .dirty-dot' ) + ' === 1', 5000 );
+		await back.Evaluate( 'window.Desktop.Quit(); true' ).catch( function () {} );
+		await back.WaitFor( count_of( '#close-popup .close-form' ) + ' === 1', 10000 );
+		check( 'close: Quit asks about the dirty tab', await back.Evaluate( text_of( '#close-popup .subplan-head' ) ), '“' + PLAN_TITLE + '” has unsaved changes' );
+		await back.Evaluate( 'document.getElementById( "close-cancel" ).click(); true' );
+		await wait( 1000 );
+		check( 'close: Cancel keeps the app and the draft', child.exitCode === null && await back.Evaluate( count_of( '.tab .dirty-dot' ) ), 1 );
+		await back.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); injector.get( "State" ).SetConfirmClose( false ); injector.get( "$rootScope" ).$apply(); return true; } )()' );
 		await back.Evaluate( 'window.Desktop.Quit(); true' ).catch( function () {} );
 		let code = await Promise.race( [ exited, wait( 15000 ).then( function () { return 'timeout'; } ) ] );
 		check( 'quit: the app ends', code !== 'timeout' );

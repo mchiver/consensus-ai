@@ -1394,3 +1394,88 @@ TEST( 'One view (plan Markdown Editor, Step 3): in CodeMirror mode a plan opens 
 	await page.WaitFor( count_of( '#view-read' ) + ' === 1 && document.getElementById( "read-view" ).offsetParent !== null' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
+
+
+TEST( 'Closing (plan Markdown Editor, Step 4): a dirty tab\'s close asks; Cancel keeps it, Discard drops the draft, Save makes the revision; Close all lists every dirty tab and keeps a stale one; the Confirm on close setting and the leave prompt', async function ()
+{
+	let first = await created( 'Closing one' );
+	let second = await created( 'Closing two' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + first.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Closing one"' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + second.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Closing two"' );
+	const DRAFT = function ( id, text, base ) { return '( function () { let injector = angular.element( document.body ).injector(); injector.get( "Tabs" ).SetDraft( ' + JSON.stringify( id ) + ', { Text: ' + JSON.stringify( text ) + ', Base: ' + base + ' } ); injector.get( "$rootScope" ).$apply(); return true; } )()'; };
+	const CLOSE_X = function ( id ) { return 'document.querySelector( ' + JSON.stringify( tab_selector( id ) + ' .close-tab' ) + ' ).click(); true'; };
+	const FORM = count_of( '#close-popup .close-form' );
+	// the × of a dirty tab asks, naming it; Cancel keeps the tab and its draft
+	await page.Evaluate( DRAFT( first.Id, 'Draft one.', first.Revision ) );
+	await page.WaitFor( count_of( tab_selector( first.Id ) + ' .dirty-dot' ) + ' === 1' );
+	await page.Evaluate( CLOSE_X( first.Id ) );
+	await page.WaitFor( FORM + ' === 1' );
+	ASSERT.equal( ( await page.Evaluate( text_of( '#close-popup .subplan-head' ) ) ).indexOf( 'Closing one' ) >= 0, true );
+	await page.Click( '#close-cancel' );
+	await page.WaitFor( FORM + ' === 0' );
+	ASSERT.equal( await page.Evaluate( count_of( tab_selector( first.Id ) + ' .dirty-dot' ) ), 1 );
+	// Discard closes it and the draft is gone
+	await page.Evaluate( CLOSE_X( first.Id ) );
+	await page.WaitFor( FORM + ' === 1' );
+	await page.Click( '#close-discard' );
+	await page.WaitFor( count_of( tab_selector( first.Id ) ) + ' === 0' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + first.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Closing one"' );
+	ASSERT.equal( await page.Evaluate( count_of( tab_selector( first.Id ) + ' .dirty-dot' ) ), 0 );
+	ASSERT.equal( ( await api( 'GET', '/api/plans/' + first.Id ) ).Plan.Revision, first.Revision );
+	// Save makes the revision and closes
+	await page.Evaluate( DRAFT( first.Id, 'Draft one, saved.', first.Revision ) );
+	await page.WaitFor( count_of( tab_selector( first.Id ) + ' .dirty-dot' ) + ' === 1' );
+	await page.Evaluate( CLOSE_X( first.Id ) );
+	await page.WaitFor( FORM + ' === 1' );
+	await page.Click( '#close-save' );
+	await page.WaitFor( count_of( tab_selector( first.Id ) ) + ' === 0' );
+	let saved = await api( 'GET', '/api/plans/' + first.Id );
+	ASSERT.equal( saved.Text, 'Draft one, saved.' );
+	ASSERT.equal( saved.Plan.Revision, first.Revision + 1 );
+	// Close all with two dirty tabs, the second one stale: Save saves the first, keeps the second with a toast
+	await page.Evaluate( 'window.location.hash = "#/p/' + first.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Closing one"' );
+	await page.Evaluate( DRAFT( first.Id, 'Draft one, again.', saved.Plan.Revision ) );
+	await page.Evaluate( DRAFT( second.Id, 'Draft two.', second.Revision ) );
+	await api( 'PUT', '/api/plans/' + second.Id + '/text', { Text: '# Closing two\n\nMoved on.\n', Revision: second.Revision } );
+	await page.WaitFor( '( function () { let plan = angular.element( document.body ).injector().get( "State" ).Plans.find( function ( one ) { return one.Id === ' + JSON.stringify( second.Id ) + '; } ); return !!plan && plan.Revision === ' + ( second.Revision + 1 ) + '; } )()', 10000 );
+	await menu_pick( tab_selector( first.Id ), 'Close all', '.tab-menu' );
+	await page.WaitFor( FORM + ' === 1 && ' + count_of( '#close-popup .close-list li' ) + ' === 2' );
+	ASSERT.equal( ( await page.Evaluate( text_of( '#close-popup .close-list' ) ) ).indexOf( 'stale' ) >= 0, true );
+	await page.Click( '#close-save' );
+	await page.WaitFor( count_of( tab_selector( first.Id ) ) + ' === 0 && ' + count_of( tab_selector( second.Id ) + ' .dirty-dot' ) + ' === 1 && ' + text_of( '#toast' ) + '.indexOf( "not saved" ) >= 0', 10000 );
+	ASSERT.equal( ( await api( 'GET', '/api/plans/' + first.Id ) ).Text, 'Draft one, again.' );
+	await page.Evaluate( CLOSE_X( second.Id ) );
+	await page.WaitFor( FORM + ' === 1' );
+	await page.Click( '#close-discard' );
+	await page.WaitFor( count_of( tab_selector( second.Id ) ) + ' === 0' );
+	// the setting, on by default, guards the browser\'s leave prompt; off, the page leaves without asking
+	const LEAVE = '( function () { let event = new Event( "beforeunload", { cancelable: true } ); window.dispatchEvent( event ); return event.defaultPrevented; } )()';
+	ASSERT.equal( await page.Evaluate( LEAVE ), false );
+	await page.Evaluate( 'window.location.hash = "#/p/' + first.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Closing one"' );
+	await page.Evaluate( DRAFT( first.Id, 'Dirty again.', saved.Plan.Revision + 1 ) );
+	await page.WaitFor( count_of( tab_selector( first.Id ) + ' .dirty-dot' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( LEAVE ), true );
+	await page.Click( '#look-button' );
+	await page.WaitFor( count_of( '#look-popover #confirm-close' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "confirm-close" ).checked' ), true );
+	await page.Click( '#confirm-close' );
+	await page.WaitFor( 'window.localStorage.getItem( "consensus.confirm-close" ) === "false"' );
+	ASSERT.equal( await page.Evaluate( LEAVE ), false );
+	await page.Click( '#confirm-close' );
+	await page.WaitFor( 'window.localStorage.getItem( "consensus.confirm-close" ) === "true"' );
+	ASSERT.equal( await page.Evaluate( LEAVE ), true );
+	await page.Press( 'Escape' );
+	await page.WaitFor( count_of( '#look-popover' ) + ' === 0' );
+	// left clean; the one console error is the refused save of the stale draft, which the test asked for
+	await page.Evaluate( CLOSE_X( first.Id ) );
+	await page.WaitFor( FORM + ' === 1' );
+	await page.Click( '#close-discard' );
+	await page.WaitFor( count_of( tab_selector( first.Id ) ) + ' === 0' );
+	ASSERT.deepEqual( page.Errors.filter( function ( error ) { return !/409/.test( error ); } ), [] );
+	page.Errors.length = 0;
+} );
