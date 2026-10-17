@@ -181,6 +181,16 @@ async function smoke_page()
 		check( 'edit: CodeMirror opens with the two marks', await page.Evaluate( count_of( '#editor .cm-content .anchor' ) ), 2 );
 		check( 'edit: the Live Preview with the Source button, no preview pane or Preview button (plan Markdown Editor, Step 1)', await page.Evaluate( count_of( '#editor .cm-editor.cm-live' ) + ' + ' + count_of( '#source-toggle' ) + ' + ' + count_of( '.edit-preview' ) + ' + ' + count_of( '#preview-toggle' ) ), 2 );
 		check( 'edit: the list renders with bullets', await page.Evaluate( count_of( '#editor .cm-live-bullet' ) ), 2 );
+		// a selection in the editor offers the buttons (plan Markdown Editor, Step 2): the line scrolled to through the view, then dragged along
+		await page.Evaluate( '( function () { let view = window.CodeMirror6.EditorView.findFromDOM( document.querySelector( "#editor .cm-editor" ) ); let at = view.state.doc.toString().indexOf( "A closing line." ); view.dispatch( { effects: window.CodeMirror6.EditorView.scrollIntoView( at, { y: "center" } ) } ); return true; } )()' );
+		await wait( 300 );
+		let line = await page.Evaluate( '( function () { let one = [ ...document.querySelectorAll( "#editor .cm-line" ) ].find( function ( l ) { return l.textContent.trim() === "A closing line."; } ); let r = one.getBoundingClientRect(); let range = document.createRange(); range.selectNodeContents( one ); let t = range.getBoundingClientRect(); return { x1: t.x + 1, x2: t.x + t.width + 4, y: r.y + r.height / 2 }; } )()' );
+		await page.Send( 'Input.dispatchMouseEvent', { type: 'mousePressed', x: line.x1, y: line.y, button: 'left', clickCount: 1 } );
+		await page.Send( 'Input.dispatchMouseEvent', { type: 'mouseMoved', x: ( line.x1 + line.x2 ) / 2, y: line.y, button: 'left', buttons: 1 } );
+		await page.Send( 'Input.dispatchMouseEvent', { type: 'mouseMoved', x: line.x2, y: line.y, button: 'left', buttons: 1 } );
+		await page.Send( 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: line.x2, y: line.y, button: 'left', clickCount: 1 } );
+		await page.WaitFor( count_of( '.edit-view .comment-button.shown' ) + ' === 3', 5000 );
+		check( 'edit: a selection offers Copy, Comment and Start a new Subplan', await page.Evaluate( count_of( '.edit-view .comment-button.shown' ) ), 3 );
 		await wait( 300 );
 		await screenshot( page, 'page-dark-codemirror' );
 		await page.Click( '#view-read' );
@@ -309,6 +319,8 @@ async function smoke_desktop()
 		await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( button ) { return button.textContent.trim() === "Hotkeys"; } ).click(); true' );
 		await page.WaitFor( count_of( '.desktop-keys-table tr' ) + ' === 6' );
 		check( 'hotkeys: the desktop table is listed', await page.Evaluate( count_of( '.desktop-keys-table tr' ) ), 6 );
+		// the popup closes on Escape once it has the focus, which it takes a moment after it opens
+		await page.WaitFor( '!!document.activeElement && !!document.activeElement.closest( ".help-form" )', 5000 );
 		await page.Press( 'Escape' );
 		await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
 

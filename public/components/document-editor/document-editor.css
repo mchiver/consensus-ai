@@ -29,10 +29,13 @@ document-editor
 	bottom: 0;
 }
 
-.reanchor-hint
+/* The hint sits above whichever view is shown (plan Markdown Editor, Step 2). */
+.content-area > .reanchor-hint
 {
+	flex: none;
+	width: calc( 100% - 4rem );
 	max-width: 52rem;
-	margin: 0 auto 1rem;
+	margin: 0.75rem auto 0;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;

@@ -11,18 +11,24 @@
 // (hotkeys.js). An unsaved edit is kept with the plan's tab (Tabs.SetDraft), so switching tabs and back brings it back.
 // In the CodeMirror editor the threads' passages are highlighted (Step 3): the server's positions in the plain text,
 // mapped onto the source by the anchor map when its plain text is the server's, set on the saved text and following
-// the text through edits until the next save; a mousedown on a mark selects its thread.
+// the text through edits until the next save; a mousedown on a mark selects its thread. The editor does the rest
+// of what the Read view does with the threads (plan Markdown Editor, Step 2): a thread selected elsewhere scrolls
+// to its passage and flashes it; a selection offers the selection-buttons (Copy always, Comment or Re-anchor here
+// and Start a new Subplan while the text is the saved one); a pending select, scroll or compose is settled here
+// when this is the view shown.
 //
 // Interface:
 //   <edit-view></edit-view>
-//   reads State.Open, State.View, State.Editor, State.PreviewHidden, State.Source, State.Selected, State.Highlight; listens to
-//   view-changed, plan-loaded, thread-selected and highlight-changed; provides the Save and EditToRead hotkeys
+//   reads State.Open, State.View, State.Editor, State.PreviewHidden, State.Source, State.Selected, State.Highlight,
+//   State.Pending, State.Reanchoring; listens to view-changed, plan-loaded, thread-selected and highlight-changed;
+//   provides the Save and EditToRead hotkeys
 
 angular.module( 'Consensus' ).component( 'editView', {
 	templateUrl: '/components/edit-view/edit-view.html',
-	controller: [ '$scope', '$element', '$timeout', 'State', 'Client', 'Editor', 'Mirror', 'Tabs', 'Hotkeys', 'Toast', 'Threads', function ( $scope, $element, $timeout, State, Client, Editor, Mirror, Tabs, Hotkeys, Toast, Threads )
+	controller: [ '$scope', '$element', '$timeout', 'State', 'Client', 'Editor', 'Mirror', 'Tabs', 'Hotkeys', 'Toast', 'Threads', 'Render', function ( $scope, $element, $timeout, State, Client, Editor, Mirror, Tabs, Hotkeys, Toast, Threads, Render )
 	{
 		const PREVIEW_DELAY = 150;
+		const SELECTION_DELAY = 250;
 		let controller = this;
 		controller.State = State;
 		controller.Base = null;
@@ -32,9 +38,15 @@ angular.module( 'Consensus' ).component( 'editView', {
 		controller.Busy = false;
 		controller.PreviewText = '';
 		controller.Engine = null;
+		controller.SelectionAnchor = null;
+		controller.SelectedText = '';
+		controller.ButtonsAt = null;
 		let element = null;
 		let instance = null;
 		let preview_timer = null;
+		let selection_timer = null;
+		let selecting_from_editor = false;
+		let map_cache = { Text: null, Map: null };
 		let opening = false;
 
 
@@ -82,12 +94,35 @@ angular.module( 'Consensus' ).component( 'editView', {
 			else
 			{
 				controller.Engine = wanted;
-				instance = await factory_of( wanted ).Create( element, text, on_change, { OnAnchorClick: on_anchor_click }, { Preview: !State.Source } );
+				instance = await factory_of( wanted ).Create( element, text, on_change, { OnAnchorClick: on_anchor_click, OnSelection: on_selection }, { Preview: !State.Source } );
+				if ( instance.View )
+				{
+					// the buttons sit in the editor's box, not in its scroller: a scroll takes them away
+					instance.View.scrollDOM.addEventListener( 'scroll', hide_selection_buttons );
+				}
 			}
 			instance.Layout();
 			instance.Focus();
 			set_anchors();
+			settle_pending();
 			$scope.$applyAsync();
+		}
+
+
+		function editor_shown()
+		{
+			return State.View === 'edit' && controller.Engine === 'codemirror' && !!instance && !!instance.View;
+		}
+
+
+		// The anchor map of a text, kept while the text is the same.
+		function map_of( text )
+		{
+			if ( map_cache.Text !== text )
+			{
+				map_cache = { Text: text, Map: window.CodeMirror6.AnchorMap.Build( text ) };
+			}
+			return map_cache.Map;
 		}
 
 
@@ -137,7 +172,8 @@ angular.module( 'Consensus' ).component( 'editView', {
 		}
 
 
-		// A mousedown on a mark: its thread is selected (the next one on a passage of several) and its card scrolls into view.
+		// A mousedown on a mark: its thread is selected (the next one on a passage of several) and its card scrolls into
+		// view; the editor does not scroll to what was clicked in it.
 		function on_anchor_click( ids )
 		{
 			let id = ids[ ids.length - 1 ];
@@ -148,13 +184,164 @@ angular.module( 'Consensus' ).component( 'editView', {
 			}
 			$scope.$applyAsync( function ()
 			{
+				selecting_from_editor = true;
 				State.Select( id );
+				selecting_from_editor = false;
 				let card = document.getElementById( 'thread-' + id );
 				if ( card )
 				{
 					card.scrollIntoView( { block: 'nearest', behavior: 'smooth' } );
 				}
 			} );
+		}
+
+
+		// A thread selected elsewhere (its card, a waiting item): the editor scrolls to its passage and flashes it.
+		function reveal_thread( id )
+		{
+			if ( !editor_shown() || !instance.Anchors )
+			{
+				return;
+			}
+			let mark = instance.Anchors().find( function ( anchor ) { return anchor.Id === id; } );
+			if ( !mark )
+			{
+				return;
+			}
+			instance.ScrollTo( mark.From );
+			instance.Flash( mark.From, mark.To );
+		}
+
+
+		//-------------------------------------------------------------
+		// The selection-buttons: on a selection that rests, under its end; Copy always (the text as it reads, through the
+		// anchor map), Comment and Start a new Subplan while the text is the saved one, on a plan that is not archived.
+
+		function on_selection()
+		{
+			if ( selection_timer )
+			{
+				$timeout.cancel( selection_timer );
+			}
+			selection_timer = $timeout( offer_selection_buttons, SELECTION_DELAY, false );
+		}
+
+
+		function hide_selection_buttons()
+		{
+			if ( !controller.ButtonsAt && !controller.SelectionAnchor )
+			{
+				return;
+			}
+			controller.ButtonsAt = null;
+			controller.SelectionAnchor = null;
+			controller.SelectedText = '';
+			$scope.$applyAsync();
+		}
+
+
+		function offer_selection_buttons()
+		{
+			selection_timer = null;
+			if ( !editor_shown() || !State.Open )
+			{
+				hide_selection_buttons();
+				return;
+			}
+			let range = instance.View.state.selection.main;
+			if ( range.empty )
+			{
+				hide_selection_buttons();
+				return;
+			}
+			let CM = window.CodeMirror6;
+			let map = map_of( instance.Get() );
+			let plain = CM.AnchorMap.PlainRange( map, range.from, range.to );
+			let anchor = plain ? Render.AnchorOf( map.Plain, plain.Start, plain.End ) : null;
+			let coords = instance.View.coordsAtPos( range.to );
+			if ( !anchor || !coords )
+			{
+				hide_selection_buttons();
+				return;
+			}
+			let box = element.getBoundingClientRect();
+			let plan = State.Open.Plan;
+			let allowed = !controller.Dirty && !controller.Stale && ( plan.Kind || 'plan' ) !== 'document' && !plan.Archived;
+			controller.SelectionAnchor = allowed ? anchor : null;
+			controller.SelectedText = anchor.Text;
+			controller.ButtonsAt = { Top: coords.bottom - box.top + 6, Left: coords.left - box.left };
+			$scope.$applyAsync();
+		}
+
+
+		// After a button: the selection collapses to its end and the buttons go.
+		controller.SelectionDone = function ()
+		{
+			if ( instance && instance.View )
+			{
+				let main = instance.View.state.selection.main;
+				instance.View.dispatch( { selection: { anchor: main.to } } );
+			}
+			hide_selection_buttons();
+		};
+
+
+		//-------------------------------------------------------------
+		// A search hit or a waiting item asked for a thread or a passage once the plan is loaded; settled here when this
+		// is the view shown (the Read view's html-view does it otherwise).
+
+		function settle_pending()
+		{
+			let pending = State.Pending;
+			if ( !pending || !State.Open || !editor_shown() )
+			{
+				return;
+			}
+			State.Pending = null;
+			if ( pending.Select )
+			{
+				State.Select( pending.Select );
+				let card = document.getElementById( 'thread-' + pending.Select );
+				if ( card )
+				{
+					card.scrollIntoView( { block: 'nearest', behavior: 'smooth' } );
+				}
+			}
+			else if ( pending.Scroll )
+			{
+				scroll_to_text( pending.Scroll );
+			}
+			else if ( pending.Compose )
+			{
+				State.StartCompose( null );
+			}
+			// the load that brought the pending came outside a digest
+			$scope.$applyAsync();
+		}
+
+
+		// A passage by its first words, as Render.ScrollToText finds it in the rendered text: in the map's plain text.
+		function scroll_to_text( text )
+		{
+			let CM = window.CodeMirror6;
+			let map = map_of( instance.Get() );
+			let words = ( text || '' ).replace( /^#+\s*/, '' ).replace( /\s+/g, ' ' ).trim().slice( 0, 60 );
+			let position = map.Plain.indexOf( words );
+			while ( position < 0 && words.length > 12 )
+			{
+				words = words.slice( 0, words.length - 8 );
+				position = map.Plain.indexOf( words );
+			}
+			if ( position < 0 )
+			{
+				return;
+			}
+			let range = CM.AnchorMap.SourceRange( map, position, position + words.length );
+			if ( range )
+			{
+				instance.ScrollTo( range.From );
+				instance.Flash( range.From, range.To );
+			}
 		}
 
 
@@ -174,6 +361,7 @@ angular.module( 'Consensus' ).component( 'editView', {
 
 		function on_change()
 		{
+			hide_selection_buttons();
 			let dirty = ( current_text() !== controller.BaseText );
 			if ( dirty !== controller.Dirty )
 			{
@@ -340,6 +528,7 @@ angular.module( 'Consensus' ).component( 'editView', {
 			if ( State.View === 'edit' )
 			{
 				set_anchors();
+				settle_pending();
 			}
 		} );
 
@@ -348,6 +537,10 @@ angular.module( 'Consensus' ).component( 'editView', {
 			if ( instance && instance.SetSelected )
 			{
 				instance.SetSelected( id );
+			}
+			if ( id && !selecting_from_editor )
+			{
+				reveal_thread( id );
 			}
 		} );
 

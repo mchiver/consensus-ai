@@ -1,5 +1,5 @@
-/* html-view: the rendered text (the shared .markdown rules are consensus.css's), the threads' highlights, and the
-   buttons that float under a selection. The host is the frame the buttons are placed in. */
+/* html-view: the rendered text (the shared .markdown rules are consensus.css's) and the threads' highlights. The
+   host is the frame the selection-buttons are placed in (their rules are selection-buttons.css's). */
 
 html-view
 {
@@ -32,23 +32,4 @@ mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
 {
 	0% { background: var(--resolved-bg); }
 	100% { background: transparent; }
-}
-
-.comment-button
-{
-	position: absolute;
-	display: none;
-	z-index: 10;
-	box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.25 );
-}
-
-.comment-button.shown
-{
-	display: block;
-}
-
-/* Copy is the outline one of the three; it covers the text under it like the others (plan UI Tweaks VII). */
-.comment-button.btn-outline-secondary
-{
-	background: var(--page-bg);
 }

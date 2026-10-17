@@ -1,0 +1,25 @@
+/* selection-buttons: the buttons that float under a selection, placed in the host's box (the host is positioned). */
+
+selection-buttons
+{
+	display: contents;
+}
+
+.comment-button
+{
+	position: absolute;
+	display: none;
+	z-index: 10;
+	box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.25 );
+}
+
+.comment-button.shown
+{
+	display: block;
+}
+
+/* Copy is the outline one of the three; it covers the text under it like the others (plan UI Tweaks VII). */
+.comment-button.btn-outline-secondary
+{
+	background: var(--page-bg);
+}

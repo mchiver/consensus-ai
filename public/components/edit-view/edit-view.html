@@ -10,7 +10,10 @@
 		</span>
 	</div>
 	<div class="edit-body" ng-class="{ 'no-preview': $ctrl.State.PreviewHidden && $ctrl.Engine !== 'codemirror' }">
-		<div class="editor" id="editor"></div>
+		<div class="editor">
+			<div class="editor-host" id="editor"></div>
+			<selection-buttons anchor="$ctrl.SelectionAnchor" text="$ctrl.SelectedText" at="$ctrl.ButtonsAt" done="$ctrl.SelectionDone()"></selection-buttons>
+		</div>
 		<div class="splitter" data-splitter="preview" ng-if="$ctrl.Engine !== 'codemirror'"></div>
 		<div class="edit-preview" ng-if="$ctrl.Engine !== 'codemirror'"><html-view id="edit-preview" text="$ctrl.PreviewText" anchors="!$ctrl.Dirty && !$ctrl.Stale"></html-view></div>
 	</div>

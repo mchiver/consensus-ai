@@ -1,10 +1,10 @@
 <editor-header></editor-header>
 <div class="content-area">
+	<div class="reanchor-hint alert alert-info" ng-show="$ctrl.State.Reanchoring">
+		Select the passage this thread belongs to, then press Re-anchor.
+		<button class="btn btn-sm btn-outline-secondary" ng-click="$ctrl.CancelReanchor()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+	</div>
 	<section class="read" ng-show="$ctrl.State.View === 'read'">
-		<div class="reanchor-hint alert alert-info" ng-show="$ctrl.State.Reanchoring">
-			Select the passage this thread belongs to, then press Re-anchor.
-			<button class="btn btn-sm btn-outline-secondary" ng-click="$ctrl.CancelReanchor()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
-		</div>
 		<html-view id="read-view" text="$ctrl.State.Open.Text" anchors="true" main="true"></html-view>
 	</section>
 	<edit-view ng-show="$ctrl.State.View === 'edit'"></edit-view>

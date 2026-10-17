@@ -225,18 +225,26 @@ angular.module( 'Consensus.Render', [] ).factory( 'Render', [ function ()
 		{
 			return null;
 		}
-		let plain = last_map.Plain;
-		let text = plain.slice( start, end ).trim();
+		return AnchorOf( last_map.Plain, start, end );
+	}
+
+
+	// AnchorOf: a range of a plain text as an anchor, { Text, Prefix, Suffix }, the text trimmed and the context around
+	// it; null when nothing but whitespace is in the range. The Read view's selection and the editor's (plan Markdown
+	// Editor, Step 2) both come here.
+	function AnchorOf( Plain, Start, End )
+	{
+		let text = Plain.slice( Start, End ).trim();
 		if ( !text )
 		{
 			return null;
 		}
-		start = plain.indexOf( text, start );
-		end = start + text.length;
+		let start = Plain.indexOf( text, Start );
+		let end = start + text.length;
 		return {
 			Text: text,
-			Prefix: plain.slice( Math.max( 0, start - CONTEXT_LENGTH ), start ),
-			Suffix: plain.slice( end, Math.min( plain.length, end + CONTEXT_LENGTH ) ),
+			Prefix: Plain.slice( Math.max( 0, start - CONTEXT_LENGTH ), start ),
+			Suffix: Plain.slice( end, Math.min( Plain.length, end + CONTEXT_LENGTH ) ),
 		};
 	}
 
@@ -353,6 +361,7 @@ angular.module( 'Consensus.Render', [] ).factory( 'Render', [ function ()
 		Html: Html,
 		Show: Show,
 		SelectionAnchor: SelectionAnchor,
+		AnchorOf: AnchorOf,
 		ScrollToThread: ScrollToThread,
 		ScrollToText: ScrollToText,
 	};

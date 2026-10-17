@@ -1,8 +1,8 @@
 'use strict';
 
-// document-editor - the open plan or document (plan UI Components, Step 2): its editor-header, then the view
-// State.View names: Read (an html-view with the anchors, under the re-anchor hint while a thread is being
-// re-anchored), Edit (edit-view) or Revisions (revisions-view). State.View stays the switch, so the tabs'
+// document-editor - the open plan or document (plan UI Components, Step 2): its editor-header, the re-anchor hint
+// while a thread is being re-anchored (above whichever view is shown; plan Markdown Editor, Step 2), then the view
+// State.View names: Read (an html-view with the anchors), Edit (edit-view) or Revisions (revisions-view). State.View stays the switch, so the tabs'
 // RestoreView, the hotkeys and the links in the texts work as they did.
 //
 // Interface:

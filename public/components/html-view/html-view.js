@@ -2,10 +2,11 @@
 
 // html-view - the rendered markdown (plan UI Components, Step 2): the text through marked, and with anchors on,
 // each thread's anchored passage highlighted (every thread's, or only the open ones' and the selected one's, as the
-// Highlight picker says), a click on a highlight selecting its thread, and a selection offering Copy (the text as
-// it reads), Comment (or Re-anchor here while a thread is being re-anchored) and, on a plan, Start a new Subplan.
-// The main one (the Read view's) also settles what a search hit or a waiting item asked for once the plan is
-// loaded, scrolls to the selected thread's passage, and deselects the thread on a click off any highlight.
+// Highlight picker says), a click on a highlight selecting its thread, and a selection offering the
+// selection-buttons (Copy, Comment or Re-anchor here, Start a new Subplan; plan Markdown Editor, Step 2). The main
+// one (the Read view's) also settles what a search hit or a waiting item asked for once the plan is loaded (unless
+// the CodeMirror editor is the view shown, which settles it itself), scrolls to the selected thread's passage, and
+// deselects the thread on a click off any highlight.
 //
 // Interface:
 //   <html-view text="..." anchors="..." main="true"></html-view>
@@ -13,22 +14,21 @@
 //   anchors  true: the threads' highlights and the selection buttons (Copy is offered either way)
 //   main     present: the Read view's one (the pending select or scroll, the scroll to a selected thread, the
 //            deselecting click), and the buttons carry the ids #copy-button, #comment-button, #subplan-button
-//   reads State.Open, State.Selected, State.Highlight, State.Reanchoring; listens to plan-loaded, thread-selected,
-//   compose-started, highlight-changed, filter-changed
+//   reads State.Open, State.Selected, State.Highlight, State.Reanchoring, State.View, State.Editor; listens to
+//   plan-loaded, thread-selected, compose-started, highlight-changed, filter-changed
 
 angular.module( 'Consensus' ).component( 'htmlView', {
 	templateUrl: '/components/html-view/html-view.html',
 	bindings: { text: '<', anchors: '<', main: '@' },
-	controller: [ '$scope', '$element', '$timeout', 'State', 'Render', 'Client', 'Subplans', 'Threads', function ( $scope, $element, $timeout, State, Render, Client, Subplans, Threads )
+	controller: [ '$scope', '$element', '$timeout', 'State', 'Render', 'Threads', function ( $scope, $element, $timeout, State, Render, Threads )
 	{
 		let controller = this;
 		controller.State = State;
+		controller.SelectionAnchor = null;
+		controller.SelectedText = '';
+		controller.ButtonsAt = null;
 		let host = $element[ 0 ];
 		let article = null;
-		let copy_button = null;
-		let comment_button = null;
-		let subplan_button = null;
-		let pending_anchor = null;
 
 
 		function is_main()
@@ -56,14 +56,14 @@ angular.module( 'Consensus' ).component( 'htmlView', {
 
 		function hide_buttons()
 		{
-			if ( !copy_button )
+			if ( !controller.ButtonsAt && !controller.SelectionAnchor )
 			{
 				return;
 			}
-			copy_button.classList.remove( 'shown' );
-			comment_button.classList.remove( 'shown' );
-			subplan_button.classList.remove( 'shown' );
-			pending_anchor = null;
+			controller.ButtonsAt = null;
+			controller.SelectionAnchor = null;
+			controller.SelectedText = '';
+			$scope.$applyAsync();
 		}
 
 
@@ -84,8 +84,8 @@ angular.module( 'Consensus' ).component( 'htmlView', {
 		}
 
 
-		// The buttons under a selection: Copy always; Comment (or Re-anchor here) when the selection anchors, on a
-		// plan with anchors on; Start a new Subplan on a plan that is not being re-anchored.
+		// The buttons under a selection (selection-buttons): Copy always; Comment (or Re-anchor here) when the selection
+		// anchors, on a plan with anchors on; Start a new Subplan on a plan that is not being re-anchored.
 		function offer_buttons()
 		{
 			let selection = view_selection();
@@ -95,99 +95,20 @@ angular.module( 'Consensus' ).component( 'htmlView', {
 				return;
 			}
 			let is_document = State.Open.Plan.Kind === 'document';
-			let anchor = ( is_document || !controller.anchors ) ? null : Render.SelectionAnchor( article );
 			let rect = selection.getRangeAt( 0 ).getBoundingClientRect();
 			let host_rect = host.getBoundingClientRect();
-			let top = rect.bottom - host_rect.top + 6;
-			let left = rect.left - host_rect.left;
-			left = Math.max( 8, Math.min( left, host.clientWidth - copy_button.offsetWidth - 16 ) );
-			let shown = [ copy_button ];
-			pending_anchor = anchor;
-			if ( anchor )
-			{
-				shown.push( comment_button );
-				let is_plan = ( State.Open.Plan.Kind || 'plan' ) === 'plan';
-				if ( is_plan && !State.Reanchoring )
-				{
-					shown.push( subplan_button );
-				}
-			}
-			else
-			{
-				comment_button.classList.remove( 'shown' );
-				subplan_button.classList.remove( 'shown' );
-			}
-			for ( let one of shown )
-			{
-				one.style.top = top + 'px';
-				one.style.left = left + 'px';
-				one.classList.add( 'shown' );
-				left += one.offsetWidth + 6;
-			}
+			controller.SelectionAnchor = ( is_document || !controller.anchors ) ? null : Render.SelectionAnchor( article );
+			controller.SelectedText = selection.toString();
+			controller.ButtonsAt = { Top: rect.bottom - host_rect.top + 6, Left: rect.left - host_rect.left };
+			$scope.$applyAsync();
 		}
 
 
-		// Copy: the selected text as it reads, to the clipboard; the selection is cleared, as after Comment.
-		controller.CopySelection = async function ()
+		// After Copy, Comment or Start a new Subplan: the selection is cleared and the buttons go.
+		controller.SelectionDone = function ()
 		{
-			let selection = view_selection();
-			if ( !selection )
-			{
-				return;
-			}
-			let text = selection.toString();
-			try
-			{
-				await navigator.clipboard.writeText( text );
-			}
-			catch ( error )
-			{
-				document.execCommand( 'copy' );
-			}
 			window.getSelection().removeAllRanges();
 			hide_buttons();
-		};
-
-
-		controller.SubplanFromSelection = function ()
-		{
-			if ( !pending_anchor )
-			{
-				return;
-			}
-			let anchor = pending_anchor;
-			window.getSelection().removeAllRanges();
-			hide_buttons();
-			Subplans.FromSelection( anchor );
-		};
-
-
-		controller.CommentOnSelection = async function ()
-		{
-			if ( !pending_anchor )
-			{
-				return;
-			}
-			let anchor = pending_anchor;
-			window.getSelection().removeAllRanges();
-			hide_buttons();
-			if ( State.Reanchoring )
-			{
-				let thread_id = State.Reanchoring;
-				let answer = await State.Act( function ()
-				{
-					return Client.Post( '/api/plans/' + encodeURIComponent( State.OpenId ) + '/threads/' + thread_id + '/anchor', { Anchor: anchor } );
-				} );
-				if ( answer )
-				{
-					State.CancelReanchor();
-					await State.Reload();
-					State.Select( thread_id );
-				}
-				$scope.$applyAsync();
-				return;
-			}
-			State.StartCompose( anchor );
 		};
 
 
@@ -247,12 +168,17 @@ angular.module( 'Consensus' ).component( 'htmlView', {
 		}
 
 
-		// A search hit or a waiting item asked for a thread or a passage once the plan is loaded.
+		// A search hit or a waiting item asked for a thread or a passage once the plan is loaded; when the CodeMirror
+		// editor is the view shown, it settles it (edit-view, plan Markdown Editor, Step 2).
 		function settle_pending()
 		{
 			show();
 			let pending = State.Pending;
 			if ( !pending || !State.Open || !is_main() )
+			{
+				return;
+			}
+			if ( State.View === 'edit' && State.Editor === 'codemirror' )
 			{
 				return;
 			}
@@ -280,9 +206,6 @@ angular.module( 'Consensus' ).component( 'htmlView', {
 		controller.$postLink = function ()
 		{
 			article = host.querySelector( 'article' );
-			copy_button = host.querySelector( '.copy-selection' );
-			comment_button = host.querySelector( '.comment-selection' );
-			subplan_button = host.querySelector( '.subplan-selection' );
 			host.addEventListener( 'mouseup', function ()
 			{
 				$timeout( offer_buttons, 0 );

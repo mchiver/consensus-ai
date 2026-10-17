@@ -36,6 +36,13 @@ angular.module( 'Consensus' ).component( 'editorHeader', {
 		};
 
 
+		// The CodeMirror editor does what the Read view does with the threads (plan Markdown Editor, Step 2).
+		controller.EditorShown = function ()
+		{
+			return State.View === 'edit' && State.Editor === 'codemirror';
+		};
+
+
 		// A plan has threads; a document has none.
 		controller.HasThreads = function ()
 		{

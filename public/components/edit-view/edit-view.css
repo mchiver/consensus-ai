@@ -36,7 +36,19 @@ edit-view
 	gap: 0.5rem;
 }
 
+/* The frame: the engine's host (emptied and filled by the engine) beside the selection-buttons, placed in the
+   frame's box (plan Markdown Editor, Step 2). */
 .editor
+{
+	position: relative;
+	flex: 1;
+	min-height: 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.editor-host
 {
 	flex: 1;
 	min-height: 0;
@@ -98,6 +110,18 @@ edit-view
 .cm-content .anchor.resolved { background: var(--resolved-bg); border-bottom-color: var(--resolved-edge); }
 .cm-content .anchor.applied { background: var(--applied-bg); border-bottom-color: var(--applied-edge); }
 .cm-content .anchor.selected { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* A passage flashed when its thread is selected elsewhere or a waiting item asked for it (plan Markdown Editor, Step 2). */
+.cm-content .flash-mark
+{
+	animation: cm-flash 1.2s ease-out;
+}
+
+@keyframes cm-flash
+{
+	0% { box-shadow: 0 0 0 4px var(--accent); }
+	100% { box-shadow: 0 0 0 4px transparent; }
+}
 
 /* --------------------------------------------------------------------- the Live Preview (plan Markdown Editor, Step 1) */
 

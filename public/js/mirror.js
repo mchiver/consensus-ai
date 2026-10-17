@@ -3,7 +3,7 @@
 // Mirror - CodeMirror 6 behind the same small interface as Editor (Monaco), plan UI Components, Step 3. The modules
 // come from codemirror-bundle.js (window.CodeMirror6, announced by codemirror-ready); Load waits for them.
 //   Create( Element, Text, OnChange, Handlers, Options ) -> { Get, Set, Focus, Layout, LineHeight, Dispose, SetAnchors,
-//                                                    SetSelected, SetPreview, View }   the Edit view's editor
+//                                                    SetSelected, SetPreview, ScrollTo, Flash, View }   the Edit view's editor
 //       Options.Preview   true opens it as the Live Preview (live-preview.js, plan Markdown Editor, Step 1): the
 //                         markdown rendered in place, the prose font, no gutters; SetPreview( On ) switches in place
 //   Plain( Element, Text, OnChange, OnSubmit ) -> { Get, Set, Focus, Layout, LineHeight, Dispose }  a comment box
@@ -14,7 +14,9 @@
 // strikethrough, as the server renders them). Its anchors: SetAnchors
 // takes [ { From, To, Id, State } ] in source offsets and marks them (class anchor, the state, selected), the marks
 // following the text through edits; SetSelected restyles for the selected thread; a mousedown on a mark calls
-// Handlers.OnAnchorClick( ids ) with the threads under the pointer.
+// Handlers.OnAnchorClick( ids ) with the threads under the pointer; Handlers.OnSelection() is called when the
+// selection changes. ScrollTo( From ) brings a position to the middle; Flash( From, To ) marks a range for a second
+// (plan Markdown Editor, Step 2).
 
 angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $q )
 {
@@ -113,6 +115,7 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 		}
 		let set_anchors = CM.StateEffect.define();
 		let set_selected = CM.StateEffect.define();
+		let set_flash = CM.StateEffect.define();
 
 		function mark_of( anchor, selected_id )
 		{
@@ -120,15 +123,22 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 			return CM.Decoration.mark( { class: classes, attributes: { 'data-threads': anchor.Id }, Anchor: anchor } );
 		}
 
-		function build( anchors, selected_id )
+		// The marks: the anchors, and the flashed range while there is one (a mark of its own, over whatever is there).
+		function build( anchors, selected_id, flash )
 		{
-			let sorted = anchors.filter( function ( anchor ) { return anchor.To > anchor.From; } ).sort( function ( a, b ) { return a.From - b.From || a.To - b.To; } );
-			let builder = new CM.RangeSetBuilder();
-			for ( let anchor of sorted )
+			let ranges = [];
+			for ( let anchor of anchors )
 			{
-				builder.add( anchor.From, anchor.To, mark_of( anchor, selected_id ) );
+				if ( anchor.To > anchor.From )
+				{
+					ranges.push( mark_of( anchor, selected_id ).range( anchor.From, anchor.To ) );
+				}
 			}
-			return builder.finish();
+			if ( flash && flash.To > flash.From )
+			{
+				ranges.push( CM.Decoration.mark( { class: 'flash-mark', Flash: true } ).range( flash.From, flash.To ) );
+			}
+			return CM.Decoration.set( ranges, true );
 		}
 
 		// The anchors as the field keeps them: their current ranges and the thread each marks.
@@ -137,9 +147,26 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 			let anchors = [];
 			decorations.between( 0, Number.MAX_SAFE_INTEGER, function ( from, to, decoration )
 			{
-				anchors.push( Object.assign( {}, decoration.spec.Anchor, { From: from, To: to } ) );
+				if ( decoration.spec.Anchor )
+				{
+					anchors.push( Object.assign( {}, decoration.spec.Anchor, { From: from, To: to } ) );
+				}
 			} );
 			return anchors;
+		}
+
+		// The flashed range as the field keeps it, or null.
+		function flash_of( decorations )
+		{
+			let flash = null;
+			decorations.between( 0, Number.MAX_SAFE_INTEGER, function ( from, to, decoration )
+			{
+				if ( decoration.spec.Flash )
+				{
+					flash = { From: from, To: to };
+				}
+			} );
+			return flash;
 		}
 
 		let field = CM.StateField.define( {
@@ -152,12 +179,16 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 				{
 					if ( effect.is( set_anchors ) )
 					{
-						decorations = build( effect.value, selected );
+						decorations = build( effect.value, selected, flash_of( decorations ) );
 					}
 					else if ( effect.is( set_selected ) )
 					{
 						selected = effect.value;
-						decorations = build( anchors_of( decorations ), selected );
+						decorations = build( anchors_of( decorations ), selected, flash_of( decorations ) );
+					}
+					else if ( effect.is( set_flash ) )
+					{
+						decorations = build( anchors_of( decorations ), selected, effect.value );
 					}
 				}
 				return { Decorations: decorations, Selected: selected };
@@ -167,7 +198,7 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 				return CM.EditorView.decorations.from( self, function ( value ) { return value.Decorations; } );
 			},
 		} );
-		effects = { SetAnchors: set_anchors, SetSelected: set_selected, Field: field, AnchorsOf: anchors_of };
+		effects = { SetAnchors: set_anchors, SetSelected: set_selected, SetFlash: set_flash, Field: field, AnchorsOf: anchors_of };
 		return effects;
 	}
 
@@ -178,7 +209,7 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 		let ids = [];
 		view.state.field( anchor_effects( CM ).Field ).Decorations.between( position, position, function ( from, to, decoration )
 		{
-			if ( from <= position && position <= to )
+			if ( decoration.spec.Anchor && from <= position && position <= to )
 			{
 				ids.push( decoration.spec.Anchor.Id );
 			}
@@ -289,6 +320,13 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 						return false;
 					},
 				} ),
+				CM.EditorView.updateListener.of( function ( update )
+				{
+					if ( update.selectionSet && Handlers && Handlers.OnSelection )
+					{
+						Handlers.OnSelection();
+					}
+				} ),
 				CM.keymap.of( [
 					{ key: 'Mod-s', run: function () { if ( save_handler ) { save_handler(); } return true; } },
 					CM.indentWithTab,
@@ -318,6 +356,29 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 		instance.Anchors = function ()
 		{
 			return anchors.AnchorsOf( view.state.field( anchors.Field ).Decorations );
+		};
+		// A position brought to the middle of the view.
+		instance.ScrollTo = function ( From )
+		{
+			view.dispatch( { effects: CM.EditorView.scrollIntoView( From, { y: 'center' } ) } );
+		};
+		// A range marked for a second (the class flash-mark, animated by edit-view.css).
+		let flash_timer = null;
+		instance.Flash = function ( From, To )
+		{
+			if ( flash_timer )
+			{
+				clearTimeout( flash_timer );
+			}
+			view.dispatch( { effects: anchors.SetFlash.of( { From: From, To: To } ) } );
+			flash_timer = setTimeout( function ()
+			{
+				flash_timer = null;
+				if ( instances.has( instance ) )
+				{
+					view.dispatch( { effects: anchors.SetFlash.of( null ) } );
+				}
+			}, 1200 );
 		};
 		return instance;
 	}

@@ -364,6 +364,14 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
+	// The CodeMirror editor does what the Read view does with the threads (plan Markdown Editor, Step 2): a comment or
+	// a re-anchor started while it is shown stays in it.
+	function editor_shown()
+	{
+		return state.View === 'edit' && state.Editor === 'codemirror';
+	}
+
+
 	function StartCompose( Anchor )
 	{
 		if ( state.ThreadsHidden )
@@ -373,7 +381,10 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		state.Compose = { Anchor: Anchor || null, Text: '' };
 		state.Reanchoring = null;
 		state.Selected = null;
-		SetView( 'read' );
+		if ( !editor_shown() )
+		{
+			SetView( 'read' );
+		}
 		$rootScope.$broadcast( 'compose-started' );
 	}
 
@@ -388,7 +399,10 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	{
 		state.Reanchoring = ThreadId;
 		state.Compose = null;
-		SetView( 'read' );
+		if ( !editor_shown() )
+		{
+			SetView( 'read' );
+		}
 		Select( ThreadId );
 	}
 

@@ -127,6 +127,43 @@ TEST( 'a plain-text range maps to the source range holding it', async function (
 } );
 
 
+TEST( 'a source range maps to the plain range of the characters inside it, the reverse of SourceRange (plan Markdown Editor, Step 2)', async function ()
+{
+	let MAP = await load_map();
+	let source = '# Title\n\nSome **bold words** here, and a [link text](http://x.y).\n';
+	let map = MAP.Build( source );
+	// a plain word: its own source span comes back as itself
+	let bold = map.Plain.indexOf( 'bold words' );
+	let span = MAP.SourceRange( map, bold, bold + 'bold words'.length );
+	ASSERT.deepEqual( MAP.PlainRange( map, span.From, span.To ), { Start: bold, End: bold + 'bold words'.length } );
+	// the whole source: the whole plain text
+	ASSERT.deepEqual( MAP.PlainRange( map, 0, source.length ), { Start: 0, End: map.Plain.length } );
+	// a span over the syntax only (the ** marks) holds no character
+	ASSERT.equal( MAP.PlainRange( map, source.indexOf( '**' ), source.indexOf( '**' ) + 2 ), null );
+	// a span that cuts into a word holds the whole characters inside it
+	let here = source.indexOf( 'here' );
+	ASSERT.equal( map.Plain.slice( MAP.PlainRange( map, here + 1, here + 4 ).Start, MAP.PlainRange( map, here + 1, here + 4 ).End ), 'ere' );
+	// the link's text, not its URL
+	let url = source.indexOf( 'http://x.y' );
+	ASSERT.equal( MAP.PlainRange( map, url, url + 10 ), null );
+	ASSERT.equal( MAP.PlainRange( map, 5, 5 ), null );
+	// every character of the corpus round-trips through its own span
+	for ( let name of Object.keys( CASES ) )
+	{
+		let one = MAP.Build( CASES[ name ] );
+		for ( let index = 0; index < one.Plain.length; index += 7 )
+		{
+			if ( one.Plain[ index ] === ' ' || one.Ends[ index ] - one.Starts[ index ] !== 1 )
+			{
+				continue;
+			}
+			let back = MAP.PlainRange( one, one.Starts[ index ], one.Ends[ index ] );
+			ASSERT.deepEqual( back, { Start: index, End: index + 1 }, name + ' at ' + index );
+		}
+	}
+} );
+
+
 TEST( 'PlainTextOfHtml is the server\'s PlainText', async function ()
 {
 	let MAP = await load_map();

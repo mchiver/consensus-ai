@@ -198,7 +198,8 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 
 	function comment_on_whole()
 	{
-		if ( !is_plan() || State.View !== 'read' || archived() )
+		let editor_shown = State.View === 'edit' && State.Editor === 'codemirror';
+		if ( !is_plan() || !( State.View === 'read' || editor_shown ) || archived() )
 		{
 			return false;
 		}
@@ -255,7 +256,7 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 		{ Keys: [ 'Escape' ], Label: 'Close the menu or the popup; deselect the thread', When: '', Act: escape },
 		{ Keys: [ 'Ctrl+Shift+E' ], Label: 'Show or hide the project tree', When: 'the main window', Act: toggle_tree },
 		{ Keys: [ 'Ctrl+Shift+T', 'Ctrl+Shift+H' ], Label: 'Show or hide the threads', When: 'a plan open', Act: toggle_threads },
-		{ Keys: [ 'Ctrl+Shift+C' ], Label: 'Comment on the whole document', When: 'a plan\'s Read view', Act: comment_on_whole },
+		{ Keys: [ 'Ctrl+Shift+C' ], Label: 'Comment on the whole document', When: 'a plan\'s Read view, or its CodeMirror editor', Act: comment_on_whole },
 		{ Keys: [ 'Ctrl+PgUp', 'Alt+PgUp' ], Label: 'Previous tab, wrapping to the last', When: 'outside the editor', Act: function () { return go_tab( 'previous' ); } },
 		{ Keys: [ 'Ctrl+PgDn', 'Alt+PgDn' ], Label: 'Next tab, wrapping to the first', When: 'outside the editor', Act: function () { return go_tab( 'next' ); } },
 		{ Keys: [ 'Ctrl+Home', 'Alt+Home' ], Label: 'First tab', When: 'outside the editor', Act: function () { return go_tab( 'first' ); } },

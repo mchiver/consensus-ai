@@ -8,6 +8,7 @@
 //
 //   Build( Source ) -> { Plain, Starts, Ends }       Starts[ i ] .. Ends[ i ] the source span of Plain[ i ]
 //   SourceRange( Map, Start, End ) -> { From, To }   the source span of Plain.slice( Start, End ), or null
+//   PlainRange( Map, From, To ) -> { Start, End }    the plain range of the characters inside a source span, or null
 //   PlainTextOfHtml( Html ) -> the server's plain text of marked's HTML
 //   Parser() -> the Lezer markdown parser used (CommonMark with GFM, as marked's default)
 
@@ -302,4 +303,49 @@ export function SourceRange( Map, Start, End )
 		return null;
 	}
 	return { From: Map.Starts[ Start ], To: Map.Ends[ End - 1 ] };
+}
+
+
+//---------------------------------------------------------------------
+// PlainRange: the plain-text range of the characters whose spans lie inside a source span (plan Markdown Editor,
+// Step 2: the editor's selection as an anchor), as { Start, End }, or null when none lies inside.
+
+export function PlainRange( Map, From, To )
+{
+	if ( !Map || To <= From )
+	{
+		return null;
+	}
+	let start = first_at_or_after( Map.Starts, From );
+	let end = start;
+	while ( end < Map.Plain.length && Map.Ends[ end ] <= To )
+	{
+		end++;
+	}
+	if ( end <= start )
+	{
+		return null;
+	}
+	return { Start: start, End: end };
+}
+
+
+// The first index whose start is at or after Position; the starts never go backwards.
+function first_at_or_after( starts, position )
+{
+	let low = 0;
+	let high = starts.length;
+	while ( low < high )
+	{
+		let middle = ( low + high ) >> 1;
+		if ( starts[ middle ] < position )
+		{
+			low = middle + 1;
+		}
+		else
+		{
+			high = middle;
+		}
+	}
+	return low;
 }
