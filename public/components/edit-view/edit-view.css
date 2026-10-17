@@ -1,6 +1,6 @@
-/* monaco-edit: the edit bar, the editor beside its preview, the splitter between them. */
+/* edit-view: the edit bar, the editor (Monaco or CodeMirror) beside its preview, the splitter between them. */
 
-monaco-edit
+edit-view
 {
 	display: contents;
 }
@@ -43,6 +43,17 @@ monaco-edit
 	min-width: 0;
 }
 
+/* CodeMirror fills the editor's box and scrolls inside it (plan UI Components, Step 3). */
+.editor .cm-editor
+{
+	height: 100%;
+}
+
+.editor .cm-scroller
+{
+	overflow: auto;
+}
+
 .edit-body
 {
 	flex: 1;
@@ -73,3 +84,17 @@ monaco-edit
 {
 	display: none;
 }
+
+/* The threads' highlights in the CodeMirror editor (plan UI Components, Step 3), in html-view's colours. */
+.cm-content .anchor
+{
+	padding: 0.05em 0;
+	cursor: pointer;
+	border-bottom: 2px solid var(--contested-edge);
+	background: var(--contested-bg);
+}
+
+.cm-content .anchor.reopened { background: var(--reopened-bg); border-bottom-color: var(--reopened-edge); }
+.cm-content .anchor.resolved { background: var(--resolved-bg); border-bottom-color: var(--resolved-edge); }
+.cm-content .anchor.applied { background: var(--applied-bg); border-bottom-color: var(--applied-edge); }
+.cm-content .anchor.selected { outline: 2px solid var(--accent); outline-offset: 1px; }

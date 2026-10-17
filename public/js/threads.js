@@ -7,7 +7,7 @@
 // thread requests. After your own Reply, Reply and Contest, Reply and resolve or Resolve, thread-done goes out
 // with the thread's id, and thread-list passes the selection on (plan UI Tweaks VI).
 //
-//   Threads = { Busy, Listed(), Matches( thread ), IsOwner(), CanResolve( thread ), CanDelete(), IsPlan(),
+//   Threads = { Busy, Listed(), Matches( thread ), Highlighted(), IsOwner(), CanResolve( thread ), CanDelete(), IsPlan(),
 //               Post( Resolve ), Reply( thread ), ReplyAndResolve( thread ), Resolve( thread ), Delete( thread ),
 //               Reanchor( thread ), SubplanFromCompose(), SubplanFromThread( thread ) }
 
@@ -75,6 +75,25 @@ angular.module( 'Consensus' ).factory( 'Threads', [ '$rootScope', 'State', 'Clie
 			return [];
 		}
 		return State.Open.Threads.filter( listed ).sort( by_position );
+	}
+
+
+	// The threads whose passages are highlighted in the text: every one, or only the open ones and the selected one, as
+	// the Highlight picker says (plan UI Tweaks V); none without an open plan.
+	function Highlighted()
+	{
+		if ( !State.Open )
+		{
+			return [];
+		}
+		if ( State.Highlight !== 'open' )
+		{
+			return State.Open.Threads;
+		}
+		return State.Open.Threads.filter( function ( thread )
+		{
+			return thread.Status === 'contested' || thread.Id === State.Selected;
+		} );
 	}
 
 
@@ -253,6 +272,7 @@ angular.module( 'Consensus' ).factory( 'Threads', [ '$rootScope', 'State', 'Clie
 
 
 	threads.Listed = Listed;
+	threads.Highlighted = Highlighted;
 	threads.Matches = Matches;
 	threads.IsOwner = IsOwner;
 	threads.CanResolve = CanResolve;

@@ -232,6 +232,15 @@ angular.module( 'Consensus' ).controller( 'SidebarController', [ '$scope', '$roo
 	};
 
 
+	// The editor engine (plan UI Components, Step 3), beside the theme and the size.
+	$scope.Editor = State.Editor;
+
+	$scope.SetEditor = function ()
+	{
+		State.SetEditor( $scope.Editor );
+	};
+
+
 	$scope.SetScale = function ()
 	{
 		window.ConsensusTheme.SetScale( $scope.Scale );

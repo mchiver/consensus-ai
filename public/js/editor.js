@@ -1,16 +1,17 @@
 'use strict';
 
-// Editor - Monaco over the markdown, loaded once through its AMD loader from /vendor/monaco.
-// One editor instance lives in the edit view; Create replaces its text. Plain makes an independent instance for a
-// comment box (plan UI Components, Step 1), disposed by its owner.
-// The editor's colours follow the page's palette (plan UI Tweaks IV): a Monaco theme is defined from the page's
-// CSS variables each time the theme changes, and the editor scrolls past the end of the text.
+// Editor - Monaco behind the engine interface the Edit view and the comment boxes use (plan UI Components, Step 3;
+// Mirror is CodeMirror behind the same one), loaded once through its AMD loader from /vendor/monaco.
+//   Create( Element, Text, OnChange ) -> { Get, Set, Focus, Layout, LineHeight, Dispose, Raw }   the Edit view's editor
+//   Plain( Element, Text, OnChange, OnSubmit ) -> the same shape, a comment box: wrapped markdown, no gutter
+//   OnSave( Handler )   Ctrl+S in the Edit view's editor
+//   Theme()             every instance takes the page's palette as it stands (also on consensus-theme; plan UI Tweaks IV)
+// Each Create makes an instance of its own; the owner disposes it.
 
 angular.module( 'Consensus.Editor', [] ).factory( 'Editor', [ '$q', function ( $q )
 {
 	const THEME_NAME = 'consensus';
 	let loading = null;
-	let editor = null;
 	let save_handler = null;
 
 
@@ -74,59 +75,81 @@ angular.module( 'Consensus.Editor', [] ).factory( 'Editor', [ '$q', function ( $
 	}
 
 
-	// Create: an editor in Element holding Text; OnChange fires on every edit.
-	async function Create( Element, Text, OnChange )
+	// An instance behind the interface; Dispose frees Monaco and empties the element.
+	function wrap( monaco, instance, Element )
 	{
-		let monaco = await Load();
-		if ( !editor )
-		{
-			editor = monaco.editor.create( Element, {
-				value: Text,
-				language: 'markdown',
-				theme: define_theme( monaco ),
-				wordWrap: 'on',
-				minimap: { enabled: false },
-				lineNumbers: 'on',
-				fontSize: 14,
-				scrollBeyondLastLine: true,
-				automaticLayout: true,
-				renderWhitespace: 'none',
-				quickSuggestions: false,
-			} );
-			editor.addCommand( monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function ()
+		return {
+			Raw: instance,
+			Get: function () { return instance.getValue(); },
+			Set: function ( Text ) { instance.setValue( Text || '' ); },
+			Focus: function () { instance.focus(); },
+			Layout: function () { instance.layout(); },
+			LineHeight: function () { return instance.getOption( monaco.editor.EditorOption.lineHeight ); },
+			Dispose: function ()
 			{
-				if ( save_handler )
-				{
-					save_handler();
-				}
-			} );
-			editor.onDidChangeModelContent( function ()
-			{
-				if ( editor.OnChange )
-				{
-					editor.OnChange();
-				}
-			} );
-		}
-		else
-		{
-			editor.setValue( Text );
-		}
-		editor.OnChange = OnChange;
-		Theme();
-		editor.layout();
-		editor.focus();
-		return editor;
+				instance.dispose();
+				Element.innerHTML = '';
+			},
+		};
 	}
 
 
-	// Plain: an independent editor for a comment box: markdown, wrapped, no gutter, no minimap, the page's theme, and
-	// the wheel left to the pane when the box cannot scroll. OnChange fires on every edit, OnSubmit on Ctrl+Enter.
+	// A key chord on an instance, handled by the instance alone (addCommand's bindings are Monaco-wide and pile up).
+	function on_chord( monaco, instance, key_code, handler )
+	{
+		instance.onKeyDown( function ( event )
+		{
+			if ( ( event.ctrlKey || event.metaKey ) && event.keyCode === key_code )
+			{
+				event.preventDefault();
+				event.stopPropagation();
+				handler();
+			}
+		} );
+	}
+
+
+	// Create: the Edit view's editor in Element holding Text; OnChange fires on every edit; Ctrl+S is OnSave's handler.
+	async function Create( Element, Text, OnChange )
+	{
+		let monaco = await Load();
+		let instance = monaco.editor.create( Element, {
+			value: Text || '',
+			language: 'markdown',
+			theme: define_theme( monaco ),
+			wordWrap: 'on',
+			minimap: { enabled: false },
+			lineNumbers: 'on',
+			fontSize: 14,
+			scrollBeyondLastLine: true,
+			automaticLayout: true,
+			renderWhitespace: 'none',
+			quickSuggestions: false,
+		} );
+		on_chord( monaco, instance, monaco.KeyCode.KeyS, function ()
+		{
+			if ( save_handler )
+			{
+				save_handler();
+			}
+		} );
+		instance.onDidChangeModelContent( function ()
+		{
+			OnChange();
+		} );
+		Theme();
+		instance.layout();
+		return wrap( monaco, instance, Element );
+	}
+
+
+	// Plain: a comment box: markdown, wrapped, no gutter, no minimap, the page's theme, and the wheel left to the
+	// pane when the box cannot scroll. OnChange fires on every edit, OnSubmit on Ctrl+Enter.
 	async function Plain( Element, Text, OnChange, OnSubmit )
 	{
 		let monaco = await Load();
 		let instance = monaco.editor.create( Element, {
-			value: Text,
+			value: Text || '',
 			language: 'markdown',
 			theme: define_theme( monaco ),
 			wordWrap: 'on',
@@ -153,43 +176,14 @@ angular.module( 'Consensus.Editor', [] ).factory( 'Editor', [ '$q', function ( $
 		{
 			OnChange();
 		} );
-		instance.onKeyDown( function ( event )
+		on_chord( monaco, instance, monaco.KeyCode.Enter, function ()
 		{
-			if ( ( event.ctrlKey || event.metaKey ) && event.keyCode === monaco.KeyCode.Enter )
+			if ( OnSubmit )
 			{
-				event.preventDefault();
-				event.stopPropagation();
-				if ( OnSubmit )
-				{
-					OnSubmit();
-				}
+				OnSubmit();
 			}
 		} );
-		return instance;
-	}
-
-
-	function Get()
-	{
-		return editor ? editor.getValue() : '';
-	}
-
-
-	function Set( Text )
-	{
-		if ( editor )
-		{
-			editor.setValue( Text );
-		}
-	}
-
-
-	function Layout()
-	{
-		if ( editor )
-		{
-			editor.layout();
-		}
+		return wrap( monaco, instance, Element );
 	}
 
 
@@ -199,7 +193,7 @@ angular.module( 'Consensus.Editor', [] ).factory( 'Editor', [ '$q', function ( $
 	}
 
 
-	// Theme: every editor takes the page's palette as it stands (the theme is one for all instances).
+	// Theme: every instance takes the page's palette as it stands (the theme is one for all instances).
 	function Theme()
 	{
 		if ( window.monaco )
@@ -209,7 +203,7 @@ angular.module( 'Consensus.Editor', [] ).factory( 'Editor', [ '$q', function ( $
 	}
 
 
-	// The page's theme changed: the editor follows.
+	// The page's theme changed: the editors follow.
 	document.addEventListener( 'consensus-theme', function ()
 	{
 		Theme();
@@ -220,9 +214,6 @@ angular.module( 'Consensus.Editor', [] ).factory( 'Editor', [ '$q', function ( $
 		Load: Load,
 		Create: Create,
 		Plain: Plain,
-		Get: Get,
-		Set: Set,
-		Layout: Layout,
 		OnSave: OnSave,
 		Theme: Theme,
 	};

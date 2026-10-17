@@ -1,4 +1,4 @@
-<section class="edit-view">
+<section class="edit-view" ng-class="'engine-' + $ctrl.Engine">
 	<div class="edit-bar">
 		<span class="alert alert-warning py-1 px-2 m-0" ng-show="$ctrl.Stale">The text changed on the server since you started editing. Copy what you need, then discard and edit again.</span>
 		<span class="muted" ng-show="!$ctrl.Stale">Editing revision {{ $ctrl.Base }}. Ctrl+S saves; Ctrl+E saves and reads.</span>

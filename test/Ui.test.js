@@ -1068,3 +1068,64 @@ TEST( 'folds: a folder another server remembers folded still folds and unfolds h
 	await page.WaitFor( count_of( '.root' ) + ' === 1' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
+
+
+// A click at the centre of an element's first line box: a mark that wraps onto two lines has its bounding box's centre
+// between them, where no text is.
+async function click_first_line( selector )
+{
+	let box = await page.Evaluate( '( function () { let e = document.querySelector( ' + JSON.stringify( selector ) + ' ); if ( !e ) { return null; } e.scrollIntoView( { block: "center" } ); let r = e.getClientRects()[ 0 ]; return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; } )()' );
+	ASSERT.ok( box, 'nothing matches ' + selector );
+	await page.Send( 'Input.dispatchMouseEvent', { type: 'mousePressed', x: box.x, y: box.y, button: 'left', clickCount: 1 } );
+	await page.Send( 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: box.x, y: box.y, button: 'left', clickCount: 1 } );
+}
+
+
+TEST( 'CodeMirror (plan UI Components, Step 3): the Editor setting switches the Edit view and the reply box; the threads\' passages are marked, a mark\'s click selects, the marks follow the text and are found again on save; back to Monaco', async function ()
+{
+	let plan = await created( 'Mirror plan' );
+	await api( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: '# Mirror plan\n\nThe first paragraph makes a **bold claim** here.\n\n- one list item\n- another one\n\nA closing line.\n', Revision: plan.Revision } );
+	let claim = ( await api( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Why this claim?', Anchor: { Text: 'bold claim' } } ) ).Thread;
+	await api( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Keep it.', Anchor: { Text: 'another one' }, Resolve: true } );
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Mirror plan"' );
+	await show_all_threads();
+	// the setting, as the sidebar's select sets it
+	await page.Evaluate( '( function () { let select = document.getElementById( "editor-select" ); select.value = "codemirror"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.editor" )' ), '"codemirror"' );
+	await page.Click( '#view-edit' );
+	await page.WaitFor( count_of( '#editor .cm-editor' ) + ' === 1 && ' + count_of( '#editor .monaco-editor' ) + ' === 0', 30000 );
+	// the preview starts hidden with CodeMirror, and shows on the button
+	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".edit-body" ).classList.contains( "no-preview" )' ), true );
+	await page.Click( '#preview-toggle' );
+	await page.WaitFor( '!document.querySelector( ".edit-body" ).classList.contains( "no-preview" )' );
+	// the two threads' passages are marked, by state; a click on one selects its thread, in the pane and in the text
+	const MARKS = '[ ...document.querySelectorAll( "#editor .cm-content .anchor" ) ].map( function ( mark ) { return mark.textContent + ":" + mark.className.replace( "anchor ", "" ); } ).join( " " )';
+	await page.WaitFor( MARKS + ' === "bold claim:contested another one:resolved"', 10000 );
+	await click_first_line( '#editor .cm-content .anchor[data-threads="' + claim.Id + '"]' );
+	await page.WaitFor( count_of( '.thread.selected' ) + ' === 1 && document.querySelector( ".thread.selected" ).id === "thread-' + claim.Id + '"' );
+	await page.WaitFor( MARKS + ' === "bold claim:contested selected another one:resolved"' );
+	// typing at the top: the marks follow their words; Ctrl+S saves, and the server finds them again
+	await page.Evaluate( 'document.querySelector( "#editor .cm-content" ).focus(); true' );
+	await page.Press( 'Home', [ 'Control' ] );
+	await page.Type( 'Typed first. ' );
+	await page.WaitFor( '!document.getElementById( "save-button" ).disabled' );
+	ASSERT.equal( await page.Evaluate( MARKS ), 'bold claim:contested selected another one:resolved' );
+	await page.Press( 's', [ 'Control' ] );
+	await page.WaitFor( text_of( '#revision' ) + ' === "revision 3"' );
+	await page.WaitFor( MARKS + ' === "bold claim:contested selected another one:resolved"' );
+	ASSERT.equal( ( await api( 'GET', '/api/plans/' + plan.Id ) ).Text.startsWith( 'Typed first. # Mirror plan' ), true );
+	// the reply box is a CodeMirror box; Ctrl+Enter posts
+	await page.Click( '#view-read' );
+	await page.WaitFor( count_of( '.thread.selected .reply-box .cm-editor' ) + ' === 1', 10000 );
+	await page.Evaluate( 'document.querySelector( ".thread.selected .reply-box .cm-content" ).focus(); true' );
+	await page.Type( 'From the CodeMirror box.' );
+	await page.WaitFor( '!document.querySelector( ".thread.selected .reply-button" ).disabled' );
+	await page.Press( 'Enter', [ 'Control' ] );
+	await page.WaitFor( 'Array.from( document.querySelectorAll( "#thread-' + claim.Id + ' .reply-text" ) ).pop().textContent.trim() === "From the CodeMirror box."' );
+	// back to Monaco: the next Edit opens it
+	await page.Evaluate( '( function () { let select = document.getElementById( "editor-select" ); select.value = "monaco"; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	await page.Click( '#view-edit' );
+	await page.WaitFor( count_of( '#editor .monaco-editor' ) + ' === 1 && ' + count_of( '#editor .cm-editor' ) + ' === 0', 30000 );
+	ASSERT.deepEqual( page.Errors, [] );
+} );

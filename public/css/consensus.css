@@ -737,7 +737,7 @@ html, body
 
 /* --------------------------------------------------------------------- edit view */
 
-/* The Edit view is monaco-edit's, the Revisions view revisions-view's (plan UI Components, Step 2). */
+/* The Edit view is edit-view's, the Revisions view revisions-view's (plan UI Components, Steps 2 and 3). */
 
 /* --------------------------------------------------------------------- sidebar: search, waiting, theme */
 
@@ -806,11 +806,20 @@ html, body
 	gap: 0.5rem;
 }
 
+/* The theme, the size and the editor (plan UI Components, Step 3): each as wide as its words, wrapping when the
+   sidebar is narrow. */
 .theme-controls
 {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 0.5rem;
 	width: 100%;
+}
+
+.theme-controls .form-select
+{
+	width: auto;
+	flex: 1 1 auto;
 }
 
 /* --------------------------------------------------------------------- sidebar: the roots (plan Run Shapes, Step 5) */

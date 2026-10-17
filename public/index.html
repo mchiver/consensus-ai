@@ -12,7 +12,7 @@
 	<link rel="stylesheet" href="/components/tab-bar/tab-bar.css">
 	<link rel="stylesheet" href="/components/document-editor/document-editor.css">
 	<link rel="stylesheet" href="/components/editor-header/editor-header.css">
-	<link rel="stylesheet" href="/components/monaco-edit/monaco-edit.css">
+	<link rel="stylesheet" href="/components/edit-view/edit-view.css">
 	<link rel="stylesheet" href="/components/revisions-view/revisions-view.css">
 	<link rel="stylesheet" href="/components/start-page/start-page.css">
 	<link rel="stylesheet" href="/components/llm-session/llm-session.css">
@@ -27,6 +27,38 @@
 	<link rel="stylesheet" href="/components/thread-actions/thread-actions.css">
 	<link rel="stylesheet" href="/components/thread-compose/thread-compose.css">
 	<script src="/js/theme.js"></script>
+	<!-- CodeMirror 6 (plan UI Components, Step 3): its packages are ES modules served under /vendor/codemirror; this map
+	     names them for the imports between them. test/AnchorMap.test.js checks it against the server's list. -->
+	<script type="importmap">
+	{
+		"imports": {
+			"@codemirror/autocomplete": "/vendor/codemirror/@codemirror/autocomplete/dist/index.js",
+			"@codemirror/commands": "/vendor/codemirror/@codemirror/commands/dist/index.js",
+			"@codemirror/lang-css": "/vendor/codemirror/@codemirror/lang-css/dist/index.js",
+			"@codemirror/lang-html": "/vendor/codemirror/@codemirror/lang-html/dist/index.js",
+			"@codemirror/lang-javascript": "/vendor/codemirror/@codemirror/lang-javascript/dist/index.js",
+			"@codemirror/lang-markdown": "/vendor/codemirror/@codemirror/lang-markdown/dist/index.js",
+			"@codemirror/language": "/vendor/codemirror/@codemirror/language/dist/index.js",
+			"@codemirror/lint": "/vendor/codemirror/@codemirror/lint/dist/index.js",
+			"@codemirror/search": "/vendor/codemirror/@codemirror/search/dist/index.js",
+			"@codemirror/state": "/vendor/codemirror/@codemirror/state/dist/index.js",
+			"@codemirror/streamparser": "/vendor/codemirror/@codemirror/streamparser/dist/index.js",
+			"@codemirror/view": "/vendor/codemirror/@codemirror/view/dist/index.js",
+			"@lezer/common": "/vendor/codemirror/@lezer/common/dist/index.js",
+			"@lezer/css": "/vendor/codemirror/@lezer/css/dist/index.js",
+			"@lezer/highlight": "/vendor/codemirror/@lezer/highlight/dist/index.js",
+			"@lezer/html": "/vendor/codemirror/@lezer/html/dist/index.js",
+			"@lezer/javascript": "/vendor/codemirror/@lezer/javascript/dist/index.js",
+			"@lezer/lr": "/vendor/codemirror/@lezer/lr/dist/index.js",
+			"@lezer/markdown": "/vendor/codemirror/@lezer/markdown/dist/index.js",
+			"@marijn/find-cluster-break": "/vendor/codemirror/@marijn/find-cluster-break/src/index.js",
+			"crelt": "/vendor/codemirror/crelt/index.js",
+			"style-mod": "/vendor/codemirror/style-mod/src/style-mod.js",
+			"w3c-keyname": "/vendor/codemirror/w3c-keyname/index.js"
+		}
+	}
+	</script>
+	<script type="module" src="/js/codemirror-bundle.js"></script>
 </head>
 <body ng-controller="AppController" ng-cloak>
 
@@ -294,6 +326,10 @@
 						<option value="normal">Normal</option>
 						<option value="large">Large</option>
 					</select>
+					<select class="form-select form-select-sm" ng-model="Editor" ng-change="SetEditor()" title="the editor: Monaco, or CodeMirror (plan UI Components, Step 3); the Edit view takes it when it next opens" id="editor-select">
+						<option value="monaco">Monaco</option>
+						<option value="codemirror">CodeMirror</option>
+					</select>
 				</div>
 			</div>
 		</aside>
@@ -534,6 +570,7 @@
 	<script src="/js/client.js"></script>
 	<script src="/js/render.js"></script>
 	<script src="/js/editor.js"></script>
+	<script src="/js/mirror.js"></script>
 	<script src="/js/app.js"></script>
 	<script src="/js/roots.js"></script>
 	<script src="/js/llm.js"></script>
@@ -554,7 +591,7 @@
 	<script src="/components/tab-bar/tab-bar.js"></script>
 	<script src="/components/document-editor/document-editor.js"></script>
 	<script src="/components/editor-header/editor-header.js"></script>
-	<script src="/components/monaco-edit/monaco-edit.js"></script>
+	<script src="/components/edit-view/edit-view.js"></script>
 	<script src="/components/revisions-view/revisions-view.js"></script>
 	<script src="/components/start-page/start-page.js"></script>
 	<script src="/components/llm-session/llm-session.js"></script>

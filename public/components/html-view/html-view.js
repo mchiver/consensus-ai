@@ -19,7 +19,7 @@
 angular.module( 'Consensus' ).component( 'htmlView', {
 	templateUrl: '/components/html-view/html-view.html',
 	bindings: { text: '<', anchors: '<', main: '@' },
-	controller: [ '$scope', '$element', '$timeout', 'State', 'Render', 'Client', 'Subplans', function ( $scope, $element, $timeout, State, Render, Client, Subplans )
+	controller: [ '$scope', '$element', '$timeout', 'State', 'Render', 'Client', 'Subplans', 'Threads', function ( $scope, $element, $timeout, State, Render, Client, Subplans, Threads )
 	{
 		let controller = this;
 		controller.State = State;
@@ -39,18 +39,7 @@ angular.module( 'Consensus' ).component( 'htmlView', {
 
 		function highlighted()
 		{
-			if ( !controller.anchors || !State.Open )
-			{
-				return [];
-			}
-			if ( State.Highlight !== 'open' )
-			{
-				return State.Open.Threads;
-			}
-			return State.Open.Threads.filter( function ( thread )
-			{
-				return thread.Status === 'contested' || thread.Id === State.Selected;
-			} );
+			return controller.anchors ? Threads.Highlighted() : [];
 		}
 
 

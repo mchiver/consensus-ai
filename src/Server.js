@@ -194,6 +194,74 @@ function attach_vendor( app )
 		throw new Error( 'monaco-editor AMD build missing at ' + monaco_folder );
 	}
 	app.use( '/vendor/monaco', EXPRESS.static( monaco_folder ) );
+	// CodeMirror 6 (plan UI Components, Step 3): the six packages the page imports and every package under them,
+	// each served at /vendor/codemirror/<name>/ from where require resolves it; index.html's import map names them.
+	for ( let one of codemirror_packages() )
+	{
+		app.use( '/vendor/codemirror/' + one.Name, EXPRESS.static( one.Folder ) );
+	}
+}
+
+
+const CODEMIRROR_TOP = [ '@codemirror/state', '@codemirror/view', '@codemirror/language', '@codemirror/commands', '@codemirror/search', '@codemirror/lang-markdown' ];
+
+
+// The folder of a package: up from the file require resolves to the nearest package.json carrying its name (these
+// packages restrict their exports, so their package.json cannot be resolved by name).
+function package_folder( name )
+{
+	let folder = PATH.dirname( require.resolve( name ) );
+	while ( true )
+	{
+		let manifest = PATH.join( folder, 'package.json' );
+		if ( FS.existsSync( manifest ) && JSON.parse( FS.readFileSync( manifest, 'utf8' ) ).name === name )
+		{
+			return folder;
+		}
+		let up = PATH.dirname( folder );
+		if ( up === folder )
+		{
+			throw new Error( 'package folder not found: ' + name );
+		}
+		folder = up;
+	}
+}
+
+
+// The CodeMirror packages, the six and everything under them, sorted by name: [ { Name, Folder, Entry } ], Entry the
+// ES module file inside the folder that the import map points at.
+function codemirror_packages()
+{
+	let found = new Map();
+	function walk( name )
+	{
+		if ( found.has( name ) )
+		{
+			return;
+		}
+		let folder = package_folder( name );
+		let manifest = JSON.parse( FS.readFileSync( PATH.join( folder, 'package.json' ), 'utf8' ) );
+		let exported = manifest.exports ? ( manifest.exports[ '.' ] || manifest.exports ) : null;
+		let entry = exported ? ( exported.import || exported.default ) : manifest.module;
+		if ( entry && typeof entry === 'object' )
+		{
+			entry = entry.default;
+		}
+		if ( !entry )
+		{
+			throw new Error( 'no module entry for ' + name );
+		}
+		found.set( name, { Name: name, Folder: folder, Entry: entry.replace( /^\.\//, '' ) } );
+		for ( let dependency of Object.keys( manifest.dependencies || {} ) )
+		{
+			walk( dependency );
+		}
+	}
+	for ( let name of CODEMIRROR_TOP )
+	{
+		walk( name );
+	}
+	return Array.from( found.values() ).sort( function ( a, b ) { return a.Name < b.Name ? -1 : 1; } );
 }
 
 
@@ -328,6 +396,7 @@ function listen( app, host, port )
 module.exports = {
 	Start: Start,
 	AttachVendor: attach_vendor,
+	CodeMirrorPackages: codemirror_packages,
 	MigrateWorkspaces: migrate_workspaces,
 	DEFAULT_PORT: DEFAULT_PORT,
 	DEFAULT_CONFIG: DEFAULT_CONFIG,

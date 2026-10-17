@@ -1,0 +1,341 @@
+'use strict';
+
+// Mirror - CodeMirror 6 behind the same small interface as Editor (Monaco), plan UI Components, Step 3. The modules
+// come from codemirror-bundle.js (window.CodeMirror6, announced by codemirror-ready); Load waits for them.
+//   Create( Element, Text, OnChange, Handlers ) -> { Get, Set, Focus, Layout, LineHeight, Dispose, SetAnchors,
+//                                                    SetSelected, View }   the Edit view's editor
+//   Plain( Element, Text, OnChange, OnSubmit ) -> { Get, Set, Focus, Layout, LineHeight, Dispose }  a comment box
+//   OnSave( Handler )   Ctrl+S in the Edit view's editor
+//   Theme()             every instance takes the page's palette as it stands (also on consensus-theme)
+// The editor has line numbers, the fold gutter, wrapping, history, the default and search keymaps, Tab indents,
+// multiple selections, the active line and markdown highlighting from the default style. Its anchors: SetAnchors
+// takes [ { From, To, Id, State } ] in source offsets and marks them (class anchor, the state, selected), the marks
+// following the text through edits; SetSelected restyles for the selected thread; a mousedown on a mark calls
+// Handlers.OnAnchorClick( ids ) with the threads under the pointer.
+
+angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $q )
+{
+	let loading = null;
+	let save_handler = null;
+	let instances = new Set();
+	let effects = null;		// the anchor effects and field, made once the modules are in
+
+
+	function Load()
+	{
+		if ( !loading )
+		{
+			loading = $q( function ( resolve )
+			{
+				if ( window.CodeMirror6 )
+				{
+					resolve( window.CodeMirror6 );
+					return;
+				}
+				document.addEventListener( 'codemirror-ready', function () { resolve( window.CodeMirror6 ); }, { once: true } );
+			} );
+		}
+		return loading;
+	}
+
+
+	function is_dark()
+	{
+		return document.documentElement.dataset.bsTheme === 'dark';
+	}
+
+
+	function variable( name, fallback )
+	{
+		let value = getComputedStyle( document.documentElement ).getPropertyValue( name ).trim();
+		return value || fallback;
+	}
+
+
+	// The theme in the page's colours: the background, the text, the gutter, the active line, the selection, and the
+	// markdown's highlighting (headings bold, emphasis italic, the syntax marks and URLs muted, links in the accent), so
+	// both palettes read; CodeMirror's default style is made for a light page.
+	function theme_extension( CM )
+	{
+		let background = variable( '--page-bg', '#ffffff' );
+		let text = variable( '--text', '#212529' );
+		let muted = variable( '--muted', '#6c757d' );
+		let panel = variable( '--panel-bg', '#f8f9fa' );
+		let border = variable( '--border', '#dee2e6' );
+		let accent = variable( '--accent', '#0d6efd' );
+		let selection = is_dark() ? 'rgba( 110, 168, 254, 0.35 )' : 'rgba( 13, 110, 253, 0.22 )';
+		let tags = CM.tags;
+		let highlighting = CM.HighlightStyle.define( [
+			{ tag: tags.heading, fontWeight: 'bold' },
+			{ tag: tags.emphasis, fontStyle: 'italic' },
+			{ tag: tags.strong, fontWeight: 'bold' },
+			{ tag: tags.strikethrough, textDecoration: 'line-through' },
+			{ tag: tags.link, color: accent, textDecoration: 'underline' },
+			{ tag: tags.url, color: muted },
+			{ tag: tags.processingInstruction, color: muted },
+			{ tag: tags.list, color: muted },
+			{ tag: tags.quote, color: muted },
+			{ tag: tags.escape, color: muted },
+			{ tag: tags.labelName, color: muted },
+			{ tag: tags.contentSeparator, color: muted },
+			{ tag: tags.monospace, color: text },
+		] );
+		return [ CM.syntaxHighlighting( highlighting ), CM.EditorView.theme( {
+			'&': { backgroundColor: background, color: text, height: '100%' },
+			'.cm-scroller': { fontFamily: 'Consolas, "Cascadia Mono", Menlo, monospace', fontSize: '14px', lineHeight: '1.5' },
+			'.cm-content': { caretColor: text },
+			'.cm-cursor, .cm-dropCursor': { borderLeftColor: text },
+			'&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': { backgroundColor: selection },
+			'.cm-gutters': { backgroundColor: background, color: muted, borderRight: '1px solid ' + border },
+			'.cm-activeLine': { backgroundColor: panel },
+			'.cm-activeLineGutter': { backgroundColor: panel },
+			'.cm-foldPlaceholder': { backgroundColor: panel, border: '1px solid ' + border, color: muted },
+			'.cm-panels': { backgroundColor: panel, color: text },
+			'.cm-searchMatch': { backgroundColor: selection },
+		}, { dark: is_dark() } ) ];
+	}
+
+
+	//-----------------------------------------------------------------
+	// The anchors: a field of mark decorations set by an effect and mapped through the document's changes; a second
+	// effect restyles them for the selected thread.
+
+	function anchor_effects( CM )
+	{
+		if ( effects )
+		{
+			return effects;
+		}
+		let set_anchors = CM.StateEffect.define();
+		let set_selected = CM.StateEffect.define();
+
+		function mark_of( anchor, selected_id )
+		{
+			let classes = 'anchor ' + anchor.State + ( anchor.Id === selected_id ? ' selected' : '' );
+			return CM.Decoration.mark( { class: classes, attributes: { 'data-threads': anchor.Id }, Anchor: anchor } );
+		}
+
+		function build( anchors, selected_id )
+		{
+			let sorted = anchors.filter( function ( anchor ) { return anchor.To > anchor.From; } ).sort( function ( a, b ) { return a.From - b.From || a.To - b.To; } );
+			let builder = new CM.RangeSetBuilder();
+			for ( let anchor of sorted )
+			{
+				builder.add( anchor.From, anchor.To, mark_of( anchor, selected_id ) );
+			}
+			return builder.finish();
+		}
+
+		// The anchors as the field keeps them: their current ranges and the thread each marks.
+		function anchors_of( decorations )
+		{
+			let anchors = [];
+			decorations.between( 0, Number.MAX_SAFE_INTEGER, function ( from, to, decoration )
+			{
+				anchors.push( Object.assign( {}, decoration.spec.Anchor, { From: from, To: to } ) );
+			} );
+			return anchors;
+		}
+
+		let field = CM.StateField.define( {
+			create: function () { return { Decorations: CM.Decoration.none, Selected: null }; },
+			update: function ( value, transaction )
+			{
+				let decorations = value.Decorations.map( transaction.changes );
+				let selected = value.Selected;
+				for ( let effect of transaction.effects )
+				{
+					if ( effect.is( set_anchors ) )
+					{
+						decorations = build( effect.value, selected );
+					}
+					else if ( effect.is( set_selected ) )
+					{
+						selected = effect.value;
+						decorations = build( anchors_of( decorations ), selected );
+					}
+				}
+				return { Decorations: decorations, Selected: selected };
+			},
+			provide: function ( self )
+			{
+				return CM.EditorView.decorations.from( self, function ( value ) { return value.Decorations; } );
+			},
+		} );
+		effects = { SetAnchors: set_anchors, SetSelected: set_selected, Field: field, AnchorsOf: anchors_of };
+		return effects;
+	}
+
+
+	// The threads marked at a document position, in the order of their marks.
+	function threads_at( CM, view, position )
+	{
+		let ids = [];
+		view.state.field( anchor_effects( CM ).Field ).Decorations.between( position, position, function ( from, to, decoration )
+		{
+			if ( from <= position && position <= to )
+			{
+				ids.push( decoration.spec.Anchor.Id );
+			}
+		} );
+		return ids;
+	}
+
+
+	function common_extensions( CM, theme, OnChange )
+	{
+		return [
+			theme.of( theme_extension( CM ) ),
+			CM.history(),
+			CM.drawSelection(),
+			CM.markdown(),
+			CM.EditorView.lineWrapping,
+			CM.EditorView.updateListener.of( function ( update )
+			{
+				if ( update.docChanged )
+				{
+					OnChange();
+				}
+			} ),
+		];
+	}
+
+
+	function make_instance( CM, view, theme )
+	{
+		let instance = {
+			View: view,
+			Get: function () { return view.state.doc.toString(); },
+			Set: function ( Text )
+			{
+				view.dispatch( { changes: { from: 0, to: view.state.doc.length, insert: Text || '' } } );
+			},
+			Focus: function () { view.focus(); },
+			Layout: function () {},
+			// the line height from the theme's styles, which apply at once; CodeMirror's own measure comes a frame later
+			LineHeight: function ()
+			{
+				let measured = parseFloat( getComputedStyle( view.contentDOM ).lineHeight );
+				return isNaN( measured ) ? view.defaultLineHeight : measured;
+			},
+			Dispose: function ()
+			{
+				instances.delete( instance );
+				view.destroy();
+			},
+			Retheme: function ()
+			{
+				view.dispatch( { effects: theme.reconfigure( theme_extension( CM ) ) } );
+			},
+		};
+		instances.add( instance );
+		return instance;
+	}
+
+
+	// Create: the Edit view's editor in Element, holding Text; OnChange fires on every edit; Handlers.OnAnchorClick
+	// gets the threads under a mousedown on a mark.
+	async function Create( Element, Text, OnChange, Handlers )
+	{
+		let CM = await Load();
+		let anchors = anchor_effects( CM );
+		let theme = new CM.Compartment();
+		let state = CM.EditorState.create( {
+			doc: Text || '',
+			extensions: [
+				CM.lineNumbers(),
+				CM.highlightActiveLineGutter(),
+				CM.foldGutter(),
+				CM.EditorState.allowMultipleSelections.of( true ),
+				CM.rectangularSelection(),
+				CM.crosshairCursor(),
+				CM.highlightActiveLine(),
+				CM.highlightSelectionMatches(),
+				anchors.Field,
+				CM.EditorView.domEventHandlers( {
+					mousedown: function ( event, view )
+					{
+						if ( !Handlers || !Handlers.OnAnchorClick || !event.target.closest( '.anchor' ) )
+						{
+							return false;
+						}
+						let position = view.posAtCoords( { x: event.clientX, y: event.clientY } );
+						let ids = ( position === null ) ? [] : threads_at( CM, view, position );
+						if ( ids.length )
+						{
+							Handlers.OnAnchorClick( ids );
+						}
+						return false;
+					},
+				} ),
+				CM.keymap.of( [
+					{ key: 'Mod-s', run: function () { if ( save_handler ) { save_handler(); } return true; } },
+					CM.indentWithTab,
+				].concat( CM.defaultKeymap, CM.historyKeymap, CM.searchKeymap, CM.foldKeymap ) ),
+			].concat( common_extensions( CM, theme, OnChange ) ),
+		} );
+		let view = new CM.EditorView( { state: state, parent: Element } );
+		let instance = make_instance( CM, view, theme );
+		instance.SetAnchors = function ( Anchors )
+		{
+			view.dispatch( { effects: anchors.SetAnchors.of( Anchors || [] ) } );
+		};
+		instance.SetSelected = function ( Id )
+		{
+			view.dispatch( { effects: anchors.SetSelected.of( Id || null ) } );
+		};
+		instance.Anchors = function ()
+		{
+			return anchors.AnchorsOf( view.state.field( anchors.Field ).Decorations );
+		};
+		return instance;
+	}
+
+
+	// Plain: a comment box: wrapped markdown, no gutters; Ctrl+Enter is OnSubmit.
+	async function Plain( Element, Text, OnChange, OnSubmit )
+	{
+		let CM = await Load();
+		let theme = new CM.Compartment();
+		let state = CM.EditorState.create( {
+			doc: Text || '',
+			extensions: [
+				CM.keymap.of( [
+					{ key: 'Mod-Enter', run: function () { if ( OnSubmit ) { OnSubmit(); } return true; } },
+				].concat( CM.defaultKeymap, CM.historyKeymap ) ),
+			].concat( common_extensions( CM, theme, OnChange ) ),
+		} );
+		let view = new CM.EditorView( { state: state, parent: Element } );
+		return make_instance( CM, view, theme );
+	}
+
+
+	function OnSave( Handler )
+	{
+		save_handler = Handler;
+	}
+
+
+	function Theme()
+	{
+		for ( let instance of instances )
+		{
+			instance.Retheme();
+		}
+	}
+
+
+	document.addEventListener( 'consensus-theme', function ()
+	{
+		Theme();
+	} );
+
+
+	return {
+		Load: Load,
+		Create: Create,
+		Plain: Plain,
+		OnSave: OnSave,
+		Theme: Theme,
+	};
+} ] );

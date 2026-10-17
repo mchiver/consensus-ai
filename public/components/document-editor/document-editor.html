@@ -7,6 +7,6 @@
 		</div>
 		<html-view id="read-view" text="$ctrl.State.Open.Text" anchors="true" main="true"></html-view>
 	</section>
-	<monaco-edit ng-show="$ctrl.State.View === 'edit'"></monaco-edit>
+	<edit-view ng-show="$ctrl.State.View === 'edit'"></edit-view>
 	<revisions-view ng-show="$ctrl.State.View === 'revisions'"></revisions-view>
 </div>

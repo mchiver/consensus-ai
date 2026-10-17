@@ -1,9 +1,10 @@
 'use strict';
 
 // comment-editor - the plain-mode editor box of a reply or a new comment (plan UI Components, Step 1): markdown,
-// word wrap, no line numbers, no anchors, no preview, no save. One Monaco instance per box, made when the box
-// appears and disposed with it (Editor.Plain). Five lines high to start; the grip under it drags the height, which
-// is remembered in the browser under one key for every box.
+// word wrap, no line numbers, no anchors, no preview, no save. One instance per box, of the engine the Editor
+// setting names (Step 3: Editor is Monaco, Mirror is CodeMirror, behind one shape), made when the box appears and
+// disposed with it. Five lines high to start; the grip under it drags the height, which is remembered in the
+// browser under one key for every box.
 //
 // Interface:
 //   <comment-editor text="..." placeholder="..." autofocus="true" submit="..."></comment-editor>
@@ -11,11 +12,12 @@
 //   placeholder shown over the empty box
 //   autofocus   present: the box takes the focus when it appears
 //   submit      called on Ctrl+Enter in the box (the card's primary button)
+//   reads State.Editor when the box appears
 
 angular.module( 'Consensus' ).component( 'commentEditor', {
 	templateUrl: '/components/comment-editor/comment-editor.html',
 	bindings: { text: '=', placeholder: '@', autofocus: '@', submit: '&' },
-	controller: [ '$scope', '$element', 'Editor', function ( $scope, $element, Editor )
+	controller: [ '$scope', '$element', 'State', 'Editor', 'Mirror', function ( $scope, $element, State, Editor, Mirror )
 	{
 		const HEIGHT_KEY = 'comment-height';
 		const START_LINES = 5;
@@ -45,10 +47,6 @@ angular.module( 'Consensus' ).component( 'commentEditor', {
 			let minimum = line_height * MINIMUM_LINES + PADDING;
 			height = Math.max( minimum, Math.round( height ) );
 			box.style.height = height + 'px';
-			if ( instance )
-			{
-				instance.layout();
-			}
 			return height;
 		}
 
@@ -57,7 +55,7 @@ angular.module( 'Consensus' ).component( 'commentEditor', {
 		// running (as ng-model does), so a button bound to the draft is enabled by the time the key is up.
 		function on_change()
 		{
-			let value = instance.getValue();
+			let value = instance.Get();
 			if ( value === controller.text )
 			{
 				return;
@@ -120,19 +118,20 @@ angular.module( 'Consensus' ).component( 'commentEditor', {
 			box = $element[ 0 ].querySelector( '.comment-editor-box' );
 			let grip = $element[ 0 ].querySelector( '.comment-editor-grip' );
 			attach_grip( grip );
-			instance = await Editor.Plain( box, controller.text || '', on_change, on_submit );
+			let factory = ( State.Editor === 'codemirror' ) ? Mirror : Editor;
+			instance = await factory.Plain( box, controller.text || '', on_change, on_submit );
 			if ( !box.isConnected )
 			{
-				// the box went away while Monaco loaded
-				instance.dispose();
+				// the box went away while the editor loaded
+				instance.Dispose();
 				instance = null;
 				return;
 			}
-			line_height = instance.getOption( window.monaco.editor.EditorOption.lineHeight ) || line_height;
+			line_height = instance.LineHeight() || line_height;
 			set_height( recall_height() || ( line_height * START_LINES + PADDING ) );
 			if ( controller.autofocus !== undefined )
 			{
-				instance.focus();
+				instance.Focus();
 			}
 		};
 
@@ -140,9 +139,9 @@ angular.module( 'Consensus' ).component( 'commentEditor', {
 		// The draft changed from outside (cleared after a post, or set by a test): the box follows.
 		$scope.$watch( function () { return controller.text; }, function ( value )
 		{
-			if ( instance && ( value || '' ) !== instance.getValue() )
+			if ( instance && ( value || '' ) !== instance.Get() )
 			{
-				instance.setValue( value || '' );
+				instance.Set( value || '' );
 			}
 		} );
 
@@ -151,7 +150,7 @@ angular.module( 'Consensus' ).component( 'commentEditor', {
 		{
 			if ( instance )
 			{
-				instance.dispose();
+				instance.Dispose();
 				instance = null;
 			}
 		};

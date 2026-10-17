@@ -63,7 +63,7 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	function in_editor()
 	{
 		let active = active_element();
-		return !!active && !!active.closest( '.monaco-editor' );
+		return !!active && !!active.closest( '.monaco-editor, .cm-editor' );
 	}
 
 

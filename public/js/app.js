@@ -5,7 +5,7 @@
 // projects. AppController wires the hash routes (#/p/<id>, #/llm/<id>, #/waiting, under #/s/<key> for a named
 // root) and each root's live stream. Every rule is on the server.
 
-angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensus.Editor' ] )
+angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensus.Editor', 'Consensus.Mirror' ] )
 
 
 //---------------------------------------------------------------------
@@ -66,7 +66,8 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	// are hidden to itself (plan UI Tweaks VI): it starts from the shared value and never writes it.
 	const DETACHED = /[?&]detached=1(&|$)/.test( window.location.search );
 	const THREADS_HIDDEN_KEY = 'threads-hidden';
-	const PREVIEW_HIDDEN_KEY = 'preview-hidden';
+	const EDITOR_KEY = 'editor';
+	const PREVIEW_HIDDEN_KEYS = { monaco: 'preview-hidden', codemirror: 'preview-hidden-codemirror' };
 	const TREE_HIDDEN_KEY = 'tree-hidden';
 	const HIGHLIGHT_KEY = 'highlight';
 	const FILTER_KEY = 'filter';
@@ -84,9 +85,24 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
+	// The editor engine (plan UI Components, Step 3): Monaco unless the look says CodeMirror.
+	function editor_setting()
+	{
+		return ( recall( EDITOR_KEY, 'monaco' ) === 'codemirror' ) ? 'codemirror' : 'monaco';
+	}
+
+
+	// The preview's hidden flag is remembered per engine; CodeMirror's starts hidden.
+	function preview_hidden_of( engine )
+	{
+		return recall( PREVIEW_HIDDEN_KEYS[ engine ], engine === 'codemirror' );
+	}
+
+
 	let state = {
 		ThreadsHidden: recall( THREADS_HIDDEN_KEY, false ),
-		PreviewHidden: recall( PREVIEW_HIDDEN_KEY, false ),
+		Editor: editor_setting(),
+		PreviewHidden: preview_hidden_of( editor_setting() ),
 		TreeHidden: recall( TREE_HIDDEN_KEY, false ),
 		Highlight: recall( HIGHLIGHT_KEY, 'all' ),
 		Root: null,		// the root of the open item (roots.js); the first root until one is opened
@@ -284,7 +300,18 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	function SetPreviewHidden( Hidden )
 	{
 		state.PreviewHidden = !!Hidden;
-		remember( PREVIEW_HIDDEN_KEY, state.PreviewHidden );
+		remember( PREVIEW_HIDDEN_KEYS[ state.Editor ], state.PreviewHidden );
+	}
+
+
+	// The editor engine, remembered in this browser; the Edit view takes it when it next opens, the comment boxes as
+	// they appear; the preview flag follows it.
+	function SetEditor( Name )
+	{
+		state.Editor = ( Name === 'codemirror' ) ? 'codemirror' : 'monaco';
+		remember( EDITOR_KEY, state.Editor );
+		state.PreviewHidden = preview_hidden_of( state.Editor );
+		$rootScope.$broadcast( 'editor-changed', state.Editor );
 	}
 
 
@@ -395,6 +422,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	state.SetView = SetView;
 	state.SetThreadsHidden = SetThreadsHidden;
 	state.SetPreviewHidden = SetPreviewHidden;
+	state.SetEditor = SetEditor;
 	state.SetTreeHidden = SetTreeHidden;
 	state.SetHighlight = SetHighlight;
 	state.SetFilter = SetFilter;
