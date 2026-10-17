@@ -1,0 +1,33 @@
+/* name-form: the inline form naming a new thing, and the rename form beside it. */
+
+.new-plan
+{
+	padding: 0.75rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.new-plan-buttons
+{
+	display: flex;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+}
+
+.rename-form
+{
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.new-project-folder
+{
+	display: flex;
+	gap: 0.3rem;
+	margin-top: 0.3rem;
+}
+
+.new-project-folder .form-control
+{
+	flex: 1 1 auto;
+	min-width: 0;
+}

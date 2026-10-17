@@ -1,1 +1,60 @@
-[]
+[
+	{
+		"Id": "thr-d8t-7o2-m53",
+		"Anchor": {
+			"Text": "Decided before the build",
+			"Prefix": "els they are, opened by events. ",
+			"Suffix": " A Tree service under the compon"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T07:25:16.035Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T07:26:08.060Z",
+			"Revision": 2,
+			"RevisionId": "rev-mce-joa-myw",
+			"Outcome": "All ten decisions taken as recommended and written in under \"Decided before the build\"."
+		},
+		"Created": "2026-10-17T07:18:42.954Z",
+		"Replies": [
+			{
+				"Id": "rep-wu7-t8f-596",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T07:18:42.954Z",
+				"Text": "Design for Step 4. Each point is a decision with my recommendation; resolve with no reply to take them all, or answer the ones you want otherwise.\n\n1. A Tree service under the components. sidebar.js is 1,640 lines, and nearly all of it is state and actions that every row shares: what is remembered per root (the open project, the folds, the LLMs and Trash folds, a closed root), the sort and the stamps, creating, renaming and deleting with their inline forms, the menus' action lists, Move and the drops, Copy, Paste and Export with the notice, Archive and Restore, the Trash, the Copy and Paste hotkeys, reveal-node. I recommend it becomes the Tree service, public/js/tree.js (the Tabs and Threads pattern): the controller's functions as they are, its $scope watches on $rootScope, and the three drag directives (drag-item, drag-project, tree-drop) in the same file. The components are then thin views over it: each template reads $ctrl.Tree.Creating, calls $ctrl.Tree.OpenMenu( ... ) and so on, with no logic of its own beyond what binds its row.\n\n2. Five components, one more than the plan named: the project row is neither a server row nor a node, so it gets its own.\n   - project-tree: the sort select and the Show updated button, then a server-row per root. No bindings.\n   - server-row: root. The root head (chevron, icon, the live dot, the name, who you are, offline, the menu), and the root body: the new-project form, a project-row per project, the llm-fold, the Trash fold with its list.\n   - project-row: project, root. The project head (chevron, rename form or name, the stamp, the menu, the inline delete), and the body: the new-plan form, the clipboard notice, the empty line, the tree of tree-nodes, the Archive fold with archived tree-nodes.\n   - tree-node: node, project, root, depth, archived. One component for both ng-include templates: a folder (its head, its rename form, count, menu and delete, its new-plan form, its children), or a plan or document (the row with its chevron, icon, date, title, badges, stamp, delete and menu, and its Subplans). With archived on, the row is the read-only archived one with the Restore menu and no drag. It includes itself for its children, with depth + 1.\n   - llm-fold: root. The LLMs heading with its menu, the new-LLM form, the list of connections with their badges, rename, delete and menu.\n\n3. The structural classes go on the component tags. The styles and the tests reach the tree by its shape (.project.open .project-body > .tree > .tree-node > .tree-item, [data-project], [data-id], [data-root]), and a component tag in between would break them. So the parent template writes <tree-node class=\"tree-node\" ...>, <project-row class=\"project\" data-project=\"...\" ...>, <server-row class=\"root\" data-root=\"...\" ...>, and each template holds the row and the body directly, with no wrapper. The ids (#tree-sort, #show-updated, #root-menu, #llms-heading, #llm-list, #create-name, #create-submit, #clipboard) stay on the same elements.\n\n4. The inline forms: the new-plan form appears four times (a project, a folder, a new project with its folder picker, a new LLM) and the rename form three times, with the same input and buttons. I recommend a name-form component: bindings for the placeholder, the model (two-way, as comment-editor's text), submit and cancel, and a flag for the project's folder picker; the rename forms stay inline, being one input each. Say so if you would rather keep every form inline this step.\n\n5. What stays in index.html's aside for now: the sidebar-top with the brand and the Help menu, the Waiting on you link and the bottom controls (theme, size, editor). They are the Application Title's (Step 5), which takes them out of the sidebar. The SidebarController keeps only those few functions until then.\n\n6. Recursion: a component may hold its own tag in its template; Angular compiles each level as its ng-repeat renders it, so tree-node inside tree-node is fine, and the template is fetched once.\n\n7. Styles: the project tree's blocks of consensus.css (the rows, chevrons, icons, badges, folders, drag zones, the forms, the roots, the LLM list, the trash) move to the component stylesheets; the aside's own rules (the sidebar, its top, the waiting link, the bottom controls) stay until Step 5.\n\n8. Behaviour unchanged, including the reveal-node answer, the hotkeys, the drop zones and the remembered state under the same keys; the browser tests, which cover the tree closely (the create forms, drag onto a project and onto a row's edges, copy and paste, the menus, rename, delete, sort and the stamps, folds, the LLM list, the Context folder's rules), pass as they are, except where a selector names a scope the components no longer have.\n\n9. Checkpoints: (1) the Tree service with the drag directives, and tree-node and project-row over it, the rest of the markup still bound to the shrunken controller; (2) server-row, llm-fold, name-form and project-tree, the aside reduced to the shell and one tag; (3) the styles, the tests and the screenshots.\n\n10. The smoke: the browser tests, and over a temporary server with the Consensus project imported: the tree opened and folded, a plan renamed and moved by drag, a Subplan made from a plan's menu, the LLM list, the archive fold, a crumb of the location line revealing its row; a screenshot of the tree in both palettes."
+			}
+		]
+	},
+	{
+		"Id": "thr-nhi-fsz-ys7",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T07:51:12.973Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T07:52:22.247Z",
+			"Revision": 2,
+			"RevisionId": "rev-mce-joa-myw",
+			"Outcome": "The build was accepted as reported; no text change. Committed as \"UI Components: Step 4\"."
+		},
+		"Created": "2026-10-17T07:50:08.383Z",
+		"Replies": [
+			{
+				"Id": "rep-uej-rix-0di",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T07:50:08.383Z",
+				"Text": "Build log, Step 4: Project Tree. Built by Claude Fable 5.1 (claude-fable-5-1) through the Claude Code CLI, as the ten decisions say. Not committed yet: resolve to accept, and I commit it as \"UI Components: Step 4\".\n\nWhat was built, and where:\n- public/js/tree.js, the Tree service: the SidebarController's state and actions as they were, $scope become the service and its watches and events on $rootScope (the remembered state per root under the same keys, the sort and the stamps, creating, renaming and deleting, the menus, Move and the drops, Copy, Paste and Export with the notice, Archive and Restore, the Trash, the Copy and Paste hotkeys, reveal-node); the three drag directives follow it in the file. sidebar.js is the shell's controller alone, 50 lines: the Waiting on you count and the look controls, until Step 5 takes them.\n- Six components under public/components: project-tree (the controls and a server-row per root), server-row (the root head and menu, the new-project form, the projects, the llm-fold, the Trash fold), project-row (the project head and body, the clipboard notice, the tree, the Archive fold), tree-node (one component for the folder, the item and the archived rows, including itself for its children a level deeper), llm-fold (the LLMs heading, the new-LLM form, the connections) and name-form (the inline form naming a new thing, with the project's folder picker when the desktop can pick one).\n- index.html: the two ng-templates and the inline tree are gone; the aside holds the sidebar-top, the waiting link, <project-tree> and the bottom controls.\n- Styles: the tree's rules moved from consensus.css to the six stylesheets by selector (tree-node.css holds the rows, chevrons, icons, badges, menus and drop zones that project-row, server-row and llm-fold reuse); consensus.css is at 956 lines from 2,694 at the start of the plan. The duplicate .archived-badge rule went (editor-header.css has it).\n\nDecided during the build:\n1. Two bindings are not named for what they hold: Angular strips data- from an attribute's name, so the data-root and data-project attributes the tests and the styles reach the rows by would have taken the place of bindings named root and project. server-row's binding is server, project-row's is entry; the attributes stay as they were.\n2. The two drag type constants, module-level in sidebar.js above the controller, went with the directives into tree.js (the first run of the tests found them missing).\n3. The new-project form sits under its server's head, outside the folded body, so a project can be made on a closed root as it could from the top of the sidebar.\n4. The Archive's rows keep the project's own order, as before; the tree's rows are sorted as the sort says. tree-node's Children() tells the two apart.\n5. One browser test reached the SidebarController's scope for Of; it reaches the Tree service now. Nothing else in the tests changed: the tree tests (the create forms, drag onto a project and onto a row's edges, copy and paste, the menus, rename, delete, sort and stamps, folds, the LLM list, the Context folder's rules) pass on the components as they are, the structural classes and ids being where they were.\n\nHow it was tested:\n- npm test: 186 tests pass, the 29 browser tests among them, in one run.\n- Over a temporary server holding a copy of the Consensus project (49 plans, 257 threads): the tree renders with 54 tree-node tags and the shape the tests expect (.project.open .project-body > .tree > .tree-node > .tree-item), the open item's row marked; the LLMs fold toggles; the sort by name and the stamps; a new-plan form opened the way the menu opens it, its input focused; a crumb of the location line reveals and flashes its row; no console errors. Screenshots of the tree in both palettes.\n\nNot in this step: the brand, the Help menu, the waiting link and the look controls (Step 5); the guide (Step 6)."
+			}
+		]
+	}
+]

@@ -228,89 +228,16 @@ html, body
 	font-size: 1.1rem;
 }
 
-.new-plan
-{
-	padding: 0.75rem;
-	border-bottom: 1px solid var(--border);
-}
-
-.new-plan-buttons
-{
-	display: flex;
-	gap: 0.5rem;
-	margin-top: 0.5rem;
-}
-
-.list-heading
-{
-	padding: 0.75rem 0.75rem 0.25rem;
-	font-size: 0.8rem;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	color: var(--muted);
-}
-
 .list-heading .count, .threads-top .count
 {
 	float: right;
 	font-weight: normal;
 }
 
-.list-empty
-{
-	padding: 0.25rem 0.75rem 0.5rem;
-	color: var(--muted);
-	font-size: 0.9rem;
-}
-
-.plan-item
-{
-	display: block;
-	padding: 0.5rem 0.75rem;
-	color: inherit;
-	text-decoration: none;
-	border-left: 3px solid transparent;
-}
-
-.plan-item:hover
-{
-	background-color: rgba( 128, 128, 128, 0.12 );
-}
-
-.plan-title
-{
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.badges
-{
-	display: flex;
-	gap: 0.3rem;
-	flex-wrap: wrap;
-	margin-top: 0.2rem;
-}
-
-.badge
-{
-	color: var(--text);
-	font-weight: 500;
-	border: 1px solid transparent;
-}
-
-.badge.contested { background: var(--contested-bg); border-color: var(--contested-edge); }
-.badge.mine { background: transparent; border-color: var(--mine-edge); color: var(--mine-edge); }
-.badge.resolved { background: var(--resolved-bg); border-color: var(--resolved-edge); }
-.badge.applied { background: var(--applied-bg); border-color: var(--applied-edge); }
-
 /* --------------------------------------------------------------------- sidebar: the project tree */
 
-/* A row the header's location line pointed at (plan UI Components, Step 2) flashes as a found passage does. */
-.tree-row.flash
-{
-	animation: flash 1.6s ease-out;
-}
+/* The tree's rows, forms, roots and LLM list are their components' (public/components/project-tree, server-row,
+   project-row, tree-node, llm-fold, name-form; plan UI Components, Step 4). What follows is the shell's. */
 
 /* The VS Code explorer look: one-line rows as wide as the sidebar, an indent per level with a guide line
    under each folder's chevron, chevrons on folders, and an icon per kind. --depth is the row's level. */
@@ -319,332 +246,6 @@ html, body
 {
 	--indent: calc( 16px * var(--scale) );
 	--row-start: 8px;
-}
-
-.project-head, .tree-row
-{
-	display: flex;
-	align-items: center;
-	gap: 0.3rem;
-	min-height: calc( 1.9rem );
-	padding: 0.1rem 0.5rem 0.1rem var(--row-start);
-	cursor: pointer;
-	user-select: none;
-	white-space: nowrap;
-}
-
-/* An open project's buttons go to a second line rather than squeeze its name away. */
-.project-head
-{
-	font-weight: 600;
-	border-top: 1px solid var(--border);
-	flex-wrap: wrap;
-}
-
-.tree-row
-{
-	padding-left: calc( var(--row-start) + var(--depth) * var(--indent) );
-	background-image: repeating-linear-gradient( to right, transparent 0, transparent calc( var(--indent) / 2 - 0.5px ), var(--tree-guide) calc( var(--indent) / 2 - 0.5px ), var(--tree-guide) calc( var(--indent) / 2 + 0.5px ), transparent calc( var(--indent) / 2 + 0.5px ), transparent var(--indent) );
-	background-position: calc( var(--row-start) + var(--indent) ) 0;
-	background-size: max( 0px, calc( ( var(--depth) - 1 ) * var(--indent) ) ) 100%;
-	background-repeat: no-repeat;
-}
-
-.project-head:hover, .tree-row:hover
-{
-	background-color: var(--tree-hover);
-}
-
-.project.open > .project-head
-{
-	background-color: rgba( 128, 128, 128, 0.08 );
-}
-
-.chevron, .chevron-space
-{
-	flex: none;
-	width: var(--indent);
-	height: var(--indent);
-}
-
-.chevron
-{
-	background-color: var(--muted);
-	-webkit-mask: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 3.5l4.5 4.5L6 12.5' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" ) center / 100% no-repeat;
-	mask: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 3.5l4.5 4.5L6 12.5' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" ) center / 100% no-repeat;
-	transform: rotate( 90deg );
-	transition: transform 0.1s;
-}
-
-.chevron.folded
-{
-	transform: none;
-}
-
-.tree-icon
-{
-	flex: none;
-	width: var(--indent);
-	height: var(--indent);
-	background-color: var(--icon-document);
-	-webkit-mask-position: center;
-	mask-position: center;
-	-webkit-mask-size: 100%;
-	mask-size: 100%;
-	-webkit-mask-repeat: no-repeat;
-	mask-repeat: no-repeat;
-}
-
-.tree-icon.icon-folder
-{
-	background-color: var(--icon-folder);
-	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5h4.3l1.5 1.5h7.2v8h-13z' fill='black'/%3E%3C/svg%3E" );
-	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5h4.3l1.5 1.5h7.2v8h-13z' fill='black'/%3E%3C/svg%3E" );
-}
-
-.tree-icon.icon-folder-open
-{
-	background-color: var(--icon-folder);
-	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 12.5v-9h4.3l1.5 1.5h5.2v1.5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M1.5 13l2.3-6h11l-2.3 6z' fill='black'/%3E%3C/svg%3E" );
-	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 12.5v-9h4.3l1.5 1.5h5.2v1.5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M1.5 13l2.3-6h11l-2.3 6z' fill='black'/%3E%3C/svg%3E" );
-}
-
-.tree-icon.icon-plan
-{
-	background-color: var(--icon-plan);
-	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2.5' y='1.5' width='11' height='13' rx='1.5' fill='none' stroke='black' stroke-width='1.2'/%3E%3Cpath d='M4.8 5.2l1 1 1.8-2M4.8 10.2l1 1 1.8-2M9 5.5h2.5M9 10.5h2.5' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
-	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2.5' y='1.5' width='11' height='13' rx='1.5' fill='none' stroke='black' stroke-width='1.2'/%3E%3Cpath d='M4.8 5.2l1 1 1.8-2M4.8 10.2l1 1 1.8-2M9 5.5h2.5M9 10.5h2.5' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
-}
-
-.tree-icon.icon-document
-{
-	background-color: var(--icon-document);
-	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3 M5.5 8h5 M5.5 10.5h5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
-	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3 M5.5 8h5 M5.5 10.5h5' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
-}
-
-
-/* The project's Context folder and Context document: a folded map. */
-.tree-icon.icon-context
-{
-	background-color: var(--applied-edge);
-	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5l4-1.5 5 1.5 4-1.5v10.5l-4 1.5-5-1.5-4 1.5z M5.5 2v10.5 M10.5 3.5V14' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
-	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5l4-1.5 5 1.5 4-1.5v10.5l-4 1.5-5-1.5-4 1.5z M5.5 2v10.5 M10.5 3.5V14' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E" );
-}
-
-.context-item .plan-title
-{
-	font-weight: 600;
-}
-
-.project-name, .folder-name, .tree-row .plan-title
-{
-	overflow: hidden;
-	text-overflow: ellipsis;
-	flex: 0 1 auto;
-	min-width: 0;
-}
-
-.tree-row .plan-title
-{
-	flex: 1 1 auto;
-}
-
-.project-head .count, .folder-head .count
-{
-	font-size: 0.75rem;
-	font-weight: normal;
-	color: var(--muted);
-}
-
-.caret
-{
-	display: inline-block;
-	width: 0.8rem;
-	color: var(--muted);
-	font-weight: normal;
-}
-
-/* A row's actions: one ⋯ at its right end, shown on hover, on the current row, and while its menu is open. */
-.row-menu
-{
-	flex: none;
-	margin-left: auto;
-	display: inline-flex;
-	align-items: center;
-	padding: 0.1rem 0.3rem;
-	border: 0;
-	border-radius: 0.25rem;
-	background: none;
-	color: var(--muted);
-	font-size: 0.95rem;
-	line-height: 1;
-	cursor: pointer;
-	visibility: hidden;
-}
-
-.tree-row .badges + .row-menu, .tree-row .tree-stamp + .row-menu
-{
-	margin-left: 0.2rem;
-}
-
-.project-head:hover .row-menu, .tree-row:hover .row-menu, .tree-row.open .row-menu, .row-menu.current, .row-menu.shown
-{
-	visibility: visible;
-}
-
-.row-menu:hover, .row-menu.shown
-{
-	background: var(--tree-hover);
-	color: var(--accent);
-}
-
-/* A project (plan UI Tweaks VI): a folder with a tab, outlined when closed and filled when open, in its own colour so
-   it is told from the plain folders under it. */
-.tree-icon.icon-project
-{
-	background-color: var(--icon-project);
-	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 4.5v-1a1 1 0 0 1 1-1h3.5l1.5 1.5h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z' fill='none' stroke='black' stroke-width='1.3' stroke-linejoin='round'/%3E%3Cpath d='M1.5 6.5h13' fill='none' stroke='black' stroke-width='1.3'/%3E%3C/svg%3E" );
-	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 4.5v-1a1 1 0 0 1 1-1h3.5l1.5 1.5h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z' fill='none' stroke='black' stroke-width='1.3' stroke-linejoin='round'/%3E%3Cpath d='M1.5 6.5h13' fill='none' stroke='black' stroke-width='1.3'/%3E%3C/svg%3E" );
-}
-
-.tree-icon.icon-project.open
-{
-	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 4.5v-1a1 1 0 0 1 1-1h3.5l1.5 1.5h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z' fill='black'/%3E%3Cpath d='M1.5 6.5h13' fill='none' stroke='white' stroke-width='1.3'/%3E%3C/svg%3E" );
-	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 4.5v-1a1 1 0 0 1 1-1h3.5l1.5 1.5h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z' fill='black'/%3E%3Cpath d='M1.5 6.5h13' fill='none' stroke='white' stroke-width='1.3'/%3E%3C/svg%3E" );
-}
-
-/* A server (plan UI Tweaks VI): two rack units, a light on each. */
-.tree-icon.icon-server
-{
-	background-color: var(--icon-server);
-	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1.5' y='2.5' width='13' height='4.5' rx='1' fill='none' stroke='black' stroke-width='1.3'/%3E%3Crect x='1.5' y='9' width='13' height='4.5' rx='1' fill='none' stroke='black' stroke-width='1.3'/%3E%3Ccircle cx='4.2' cy='4.75' r='0.9' fill='black'/%3E%3Ccircle cx='4.2' cy='11.25' r='0.9' fill='black'/%3E%3Cpath d='M7 4.75h5M7 11.25h5' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E" );
-	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1.5' y='2.5' width='13' height='4.5' rx='1' fill='none' stroke='black' stroke-width='1.3'/%3E%3Crect x='1.5' y='9' width='13' height='4.5' rx='1' fill='none' stroke='black' stroke-width='1.3'/%3E%3Ccircle cx='4.2' cy='4.75' r='0.9' fill='black'/%3E%3Ccircle cx='4.2' cy='11.25' r='0.9' fill='black'/%3E%3Cpath d='M7 4.75h5M7 11.25h5' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E" );
-}
-
-.project-head .confirm, .folder-head .confirm, .tree-item .confirm
-{
-	margin-left: auto;
-	font-weight: normal;
-	font-size: 0.8rem;
-}
-
-.rename-form
-{
-	flex: 1 1 auto;
-	min-width: 0;
-}
-
-.folder-head.target
-{
-	background-color: var(--tree-selected);
-	box-shadow: inset 2px 0 0 var(--accent);
-}
-
-.item-state
-{
-	font-size: 0.7rem;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	color: var(--muted);
-	align-self: center;
-}
-
-/* Where a drop lands: a line above or below the row, or an outline for into a folder or a project's root. */
-.sidebar .tree-row.drop-before, .sidebar .project-head.drop-before
-{
-	box-shadow: inset 0 2px 0 var(--accent);
-}
-
-.sidebar .tree-row.drop-after, .sidebar .project-head.drop-after
-{
-	box-shadow: inset 0 -2px 0 var(--accent);
-}
-
-.sidebar .tree-row.drop-into, .sidebar .project-head.drop-into
-{
-	outline: 2px dashed var(--accent);
-	outline-offset: -2px;
-	background-color: var(--tree-selected);
-}
-
-/* A plan or document: a link as wide as the sidebar, selected with a full-width highlight. */
-.tree-item
-{
-	color: inherit;
-	text-decoration: none;
-	border-left: 0;
-}
-
-.tree-item.open
-{
-	background-color: var(--tree-selected);
-	box-shadow: inset 2px 0 0 var(--accent);
-}
-
-.tree-row .badges
-{
-	flex: none;
-	flex-wrap: nowrap;
-	margin: 0 0 0 auto;
-	align-items: center;
-}
-
-.tree-row .badge
-{
-	font-size: 0.65rem;
-	padding: 0.2em 0.45em;
-}
-
-.clipboard
-{
-	padding: 0.25rem 0.75rem;
-	font-size: 0.8rem;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	background: rgba( 13, 110, 253, 0.08 );
-}
-
-.clipboard.error
-{
-	background: rgba( 220, 53, 69, 0.1 );
-}
-
-.clipboard .btn
-{
-	padding: 0 0.25rem;
-	text-decoration: none;
-}
-
-/* The project's Archive (plan Run Shapes, Step 2) and its plans: read-only, so muted. */
-.archive-folder .folder-name, .tree-item.archived .plan-title
-{
-	color: var(--muted);
-}
-
-.archived-badge
-{
-	opacity: 0.8;
-}
-
-.new-project-folder
-{
-	display: flex;
-	gap: 0.3rem;
-	margin-top: 0.3rem;
-}
-
-.new-project-folder .form-control
-{
-	flex: 1 1 auto;
-	min-width: 0;
-}
-
-.tree-item.missing
-{
-	color: var(--muted);
-	font-style: italic;
 }
 
 .sidebar-bottom
@@ -741,7 +342,6 @@ html, body
 
 /* --------------------------------------------------------------------- sidebar: search, waiting, theme */
 
-
 .waiting-link
 {
 	display: block;
@@ -752,46 +352,6 @@ html, body
 	color: var(--mine-edge);
 	text-decoration: none;
 	font-size: 0.9rem;
-}
-
-/* Sort and Show updated, above the projects. */
-.tree-controls
-{
-	display: flex;
-	gap: 0.4rem;
-	margin: 0.5rem 0.75rem 0;
-}
-
-.tree-controls .form-select
-{
-	flex: 1 1 auto;
-	min-width: 0;
-	width: auto;
-}
-
-.tree-controls .btn
-{
-	flex: none;
-	white-space: nowrap;
-}
-
-/* The date before an item's name when the tree is sorted by a date, and its last update at the row's end. */
-.tree-date
-{
-	flex: none;
-	color: var(--muted);
-	font-size: 0.8rem;
-	font-variant-numeric: tabular-nums;
-}
-
-.tree-stamp
-{
-	flex: none;
-	margin-left: auto;
-	padding-left: 0.4rem;
-	color: var(--muted);
-	font-size: 0.72rem;
-	font-weight: normal;
 }
 
 .waiting-link.open, .waiting-link:hover
@@ -824,92 +384,6 @@ html, body
 
 /* --------------------------------------------------------------------- sidebar: the roots (plan Run Shapes, Step 5) */
 
-.root-head
-{
-	display: flex;
-	align-items: center;
-	gap: 0.3rem;
-	min-height: 2rem;
-	padding: 0.15rem 0.5rem 0.15rem var(--row-start);
-	cursor: pointer;
-	user-select: none;
-	white-space: nowrap;
-	font-weight: 700;
-	border-top: 1px solid var(--border);
-}
-
-.root:first-child > .root-head
-{
-	border-top: none;
-}
-
-.root-head:hover
-{
-	background-color: var(--tree-hover);
-}
-
-.root-name
-{
-	flex: 0 1 auto;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-/* One line: the name, then who you are; the latter gives way first, then the name, and the menu never wraps. */
-.root-head .me, .root-head .root-offline
-{
-	flex: 0 100 auto;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	font-size: 0.8rem;
-	font-weight: normal;
-}
-
-/* The server row's one menu (plan UI Tweaks VI: in place of its Settings button), shown always. */
-.root-head .row-menu
-{
-	visibility: visible;
-}
-
-.root-dot
-{
-	display: inline-block;
-	width: 0.55rem;
-	height: 0.55rem;
-	border-radius: 50%;
-	background: var(--muted);
-	flex: none;
-}
-
-.root-dot.live
-{
-	background: #2a9d4b;
-}
-
-.root-dot::before
-{
-	content: none;
-}
-
-.root.offline > .root-head .root-name
-{
-	color: var(--muted);
-}
-
-.root-body > .projects > .project:first-child > .project-head
-{
-	border-top: none;
-}
-
-/* Under a server's row everything starts one indent in (plan UI Tweaks VI): the projects, and their trees with them. */
-.root-body
-{
-	--row-start: calc( 8px + var(--indent) );
-}
-
-
 .theme-controls select
 {
 	font-size: 0.8rem;
@@ -938,13 +412,11 @@ html, body
 /* Placed by the floating-panel directive: centered at first, then where it was moved; the grip sizes it. The
    heading stays put and the body scrolls. */
 
-
 .size-part
 {
 	font-size: 0.8rem;
 	color: var(--muted);
 }
-
 
 .step-at, .step-meta
 {
@@ -1158,7 +630,6 @@ html, body
 	margin: 0.15rem 0 0.35rem;
 	padding-left: 1.25rem;
 }
-
 
 /* --------------------------------------------------------------------- buttons */
 
@@ -1386,27 +857,13 @@ html, body
 .settings-participant .settings-role { flex: 0 0 6.5rem; }
 .settings-participant .settings-token { flex: 2 1 12rem; font-family: var(--bs-font-monospace); font-size: 0.8rem; }
 
-
 /* --------------------------------------------------------------------- the desktop's items (Step 3) */
-
-/* An LLM connection: a chip. A workspace: a folder with a prompt. */
-.tree-icon.icon-llm
-{
-	background-color: var(--icon-llm);
-	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3.5' y='3.5' width='9' height='9' rx='1.5' fill='none' stroke='black' stroke-width='1.2'/%3E%3Crect x='6.5' y='6.5' width='3' height='3' fill='black'/%3E%3Cpath d='M6 1.5v2M10 1.5v2M6 12.5v2M10 12.5v2M1.5 6h2M1.5 10h2M12.5 6h2M12.5 10h2' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E" );
-	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3.5' y='3.5' width='9' height='9' rx='1.5' fill='none' stroke='black' stroke-width='1.2'/%3E%3Crect x='6.5' y='6.5' width='3' height='3' fill='black'/%3E%3Cpath d='M6 1.5v2M10 1.5v2M6 12.5v2M10 12.5v2M1.5 6h2M1.5 10h2M12.5 6h2M12.5 10h2' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E" );
-}
 
 .tree-icon.icon-workspace
 {
 	background-color: var(--icon-workspace);
 	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5h4.3l1.5 1.5h7.2v8h-13z' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M5 7.5l2 1.5-2 1.5M8 10.5h3' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
 	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5h4.3l1.5 1.5h7.2v8h-13z' fill='none' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M5 7.5l2 1.5-2 1.5M8 10.5h3' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" );
-}
-
-.llm-row.running .plan-title
-{
-	font-style: italic;
 }
 
 /* The LLM and workspace pages: a form down the page, like the settings popup's rows. */

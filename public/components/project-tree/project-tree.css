@@ -1,0 +1,37 @@
+/* project-tree: the tree's controls and the empty line of a list; the hosts that stand for no row take no room of
+   their own, while those that do (server-row as .root, project-row as .project, tree-node as .tree-node) carry the
+   row's own class. */
+
+project-tree, llm-fold, name-form
+{
+	display: contents;
+}
+
+.list-empty
+{
+	padding: 0.25rem 0.75rem 0.5rem;
+	color: var(--muted);
+	font-size: 0.9rem;
+}
+
+/* Sort and Show updated, above the projects. */
+
+.tree-controls
+{
+	display: flex;
+	gap: 0.4rem;
+	margin: 0.5rem 0.75rem 0;
+}
+
+.tree-controls .form-select
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	width: auto;
+}
+
+.tree-controls .btn
+{
+	flex: none;
+	white-space: nowrap;
+}

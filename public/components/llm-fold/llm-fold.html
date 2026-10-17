@@ -1,0 +1,25 @@
+<div class="list-heading llms-heading" ng-attr-id="{{ $ctrl.first ? 'llms-heading' : undefined }}" ng-click="$ctrl.Tree.ToggleLlms( $ctrl.root )" title="the LLM connections of this server, each a participant it runs for you" on-context-menu="$ctrl.Tree.OpenMenu('llms', $ctrl.root, null, $event)">LLMs <span class="count">{{ $ctrl.Tree.Of( $ctrl.root ).ShowingLlms ? '▾' : '▸' }}</span>
+	<span class="row-menu" role="button" ng-if="$ctrl.root.Me.Role === 'owner'" ng-class="{ shown: $ctrl.Tree.MenuOpenFor( { Id: 'llms:' + $ctrl.root.Key } ) }" title="actions" ng-click="$ctrl.Tree.OpenMenu('llms', $ctrl.root, null, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
+</div>
+<div class="llm-list" ng-attr-id="{{ $ctrl.first ? 'llm-list' : undefined }}" ng-show="$ctrl.Tree.Of( $ctrl.root ).ShowingLlms">
+	<name-form ng-if="$ctrl.CreatingHere()" model="$ctrl.Tree.Creating.Name" placeholder="{{ $ctrl.Tree.CreatePlaceholder() }}" ids="create-llm" submit="$ctrl.Tree.Create()" cancel="$ctrl.Tree.CancelCreate()"></name-form>
+	<div class="list-empty" ng-show="$ctrl.Llms.For( $ctrl.root ).Loaded && $ctrl.Llms.For( $ctrl.root ).Llms.length === 0">none</div>
+	<a class="tree-item tree-row llm-row" ng-repeat="llm in $ctrl.Llms.For( $ctrl.root ).Llms track by llm.Id" style="--depth: 0" ng-class="{ open: $ctrl.Tree.IsOpenItem( 'llm', llm.Id, $ctrl.root ), running: $ctrl.Tree.IsRunning( $ctrl.root, llm ) }" ng-href="{{ $ctrl.Tree.HashFor( $ctrl.root, '/llm/' + llm.Id ) }}" data-id="{{ llm.Id }}" on-context-menu="$ctrl.Tree.OpenMenu('llm', $ctrl.root, llm, $event)" title="an LLM connection of this server; it posts as {{ llm.Participant }}">
+		<span class="chevron-space"></span>
+		<span class="tree-icon icon-llm"></span>
+		<form class="rename-form" ng-if="$ctrl.Tree.IsRenaming(llm)" ng-submit="$ctrl.Tree.Rename()" ng-click="$event.preventDefault(); $event.stopPropagation()">
+			<input class="form-control form-control-sm" type="text" ng-model="$ctrl.Tree.Renaming.Name" ng-keydown="$ctrl.Tree.RenameKey($event)" auto-focus>
+		</form>
+		<span class="plan-title" ng-if="!$ctrl.Tree.IsRenaming(llm)">{{ llm.Name }}</span>
+		<span class="badges" ng-if="!$ctrl.Tree.IsRenaming(llm)">
+			<span class="item-state" title="the connection's kind">{{ llm.Kind }}</span>
+			<span class="badge mine" ng-show="$ctrl.Tree.IsRunning( $ctrl.root, llm )" title="a one-shot is running">running</span>
+		</span>
+		<span class="confirm" ng-if="$ctrl.Tree.Deleting === llm.Id">
+			delete?
+			<button class="btn btn-sm btn-danger" ng-click="$ctrl.Tree.DeleteLlm($ctrl.root, llm, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+			<button class="btn btn-sm btn-outline-secondary" ng-click="$ctrl.Tree.CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+		</span>
+		<span class="row-menu" role="button" ng-class="{ shown: $ctrl.Tree.MenuOpenFor(llm) }" ng-if="!$ctrl.Tree.IsRenaming(llm) && $ctrl.Tree.Deleting !== llm.Id" title="actions" ng-click="$ctrl.Tree.OpenMenu('llm', $ctrl.root, llm, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
+	</a>
+</div>

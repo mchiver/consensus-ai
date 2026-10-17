@@ -1,0 +1,16 @@
+<div class="tree-controls">
+	<select class="form-select form-select-sm" id="tree-sort" ng-model="$ctrl.Tree.Sort" ng-change="$ctrl.Tree.SetSort()" title="sort the tree; the project's own order is kept">
+		<option value="none">Sort: none</option>
+		<option value="name">Sort: name</option>
+		<option value="created">Sort: created</option>
+		<option value="updated">Sort: updated</option>
+	</select>
+	<button class="btn btn-sm" id="show-updated" ng-class="$ctrl.Tree.ShowUpdated ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="$ctrl.Tree.ToggleUpdated()" title="{{ $ctrl.Tree.ShowUpdated ? 'hide' : 'show' }} when each item was last updated"><svg class="icon lead"><use href="#i-clock"></use></svg>Updated</button>
+</div>
+
+<!-- The roots (plan Run Shapes, Step 5): a row per server, this machine's first, with its projects, its LLM
+     connections and its Trash beneath; folded like a project; its menu has New Project, Import, Settings, the
+     servers and Reload. -->
+<div class="roots">
+	<server-row class="root" ng-repeat="root in $ctrl.Roots.List track by root.Key" ng-class="{ closed: $ctrl.Tree.IsRootClosed( root ), offline: !root.Live, several: $ctrl.Roots.Several() }" data-root="{{ root.Key }}" server="root" first="$first"></server-row>
+</div>

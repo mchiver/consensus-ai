@@ -1,0 +1,26 @@
+<div class="root-head" ng-click="$ctrl.Tree.ToggleRoot( $ctrl.server )" title="{{ $ctrl.Tree.RootTitle( $ctrl.server ) }}" on-context-menu="$ctrl.Tree.OpenMenu('root', $ctrl.server, null, $event)">
+	<span class="chevron" ng-class="{ folded: $ctrl.Tree.IsRootClosed( $ctrl.server ) }"></span>
+	<span class="tree-icon icon-server"></span>
+	<span class="connection root-dot" ng-class="{ live: $ctrl.server.Live }"></span>
+	<span class="root-name">{{ $ctrl.server.Name }}</span>
+	<span class="me muted" ng-show="$ctrl.server.Me">you are {{ $ctrl.server.Me.Display }} ({{ $ctrl.server.Me.Role }})</span>
+	<span class="root-offline muted" ng-show="!$ctrl.server.Live">offline</span>
+	<button class="row-menu" ng-attr-id="{{ $ctrl.first ? 'root-menu' : undefined }}" ng-class="{ shown: $ctrl.Tree.MenuOpenFor( { Id: 'root:' + $ctrl.server.Key } ) }" title="the server's menu: New Project, Import, Settings, Reload" ng-click="$ctrl.Tree.OpenMenu('root', $ctrl.server, null, $event)"><svg class="icon"><use href="#i-more"></use></svg></button>
+</div>
+<name-form ng-if="$ctrl.CreatingProject()" model="$ctrl.Tree.Creating.Name" placeholder="{{ $ctrl.Tree.CreatePlaceholder() }}" note="{{ $ctrl.CreatingNote() }}" folder="$ctrl.Tree.HasDesktop && $ctrl.Tree.CreatingIsLocal()" submit="$ctrl.Tree.Create()" cancel="$ctrl.Tree.CancelCreate()"></name-form>
+<div class="root-body" ng-if="!$ctrl.Tree.IsRootClosed( $ctrl.server )">
+	<div class="projects">
+		<project-row class="project" ng-repeat="project in $ctrl.server.Projects track by project.Id" ng-class="{ open: $ctrl.Tree.IsOpen(project) }" data-project="{{ project.Id }}" entry="project" root="$ctrl.server"></project-row>
+	</div>
+
+	<llm-fold root="$ctrl.server" first="$ctrl.first"></llm-fold>
+
+	<div class="list-heading trash-heading" ng-click="$ctrl.Tree.ToggleTrash( $ctrl.server )">Trash <span class="count">{{ $ctrl.Tree.Of( $ctrl.server ).ShowingTrash ? '▾' : '▸' }}</span></div>
+	<div ng-show="$ctrl.Tree.Of( $ctrl.server ).ShowingTrash">
+		<div class="list-empty" ng-show="$ctrl.Tree.Of( $ctrl.server ).Trash.length === 0">empty</div>
+		<div class="plan-item trashed" ng-repeat="plan in $ctrl.Tree.Of( $ctrl.server ).Trash">
+			<div class="plan-title">{{ plan.Title }}</div>
+			<div class="muted small">{{ plan.Updated | when }}</div>
+		</div>
+	</div>
+</div>

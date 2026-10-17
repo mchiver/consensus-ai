@@ -1056,7 +1056,7 @@ TEST( 'folds: a folder another server remembers folded still folds and unfolds h
 	await page.WaitFor( count_of( chevron ) + ' >= 1' );
 	let before = await page.Evaluate( folded );
 	// another root, offline, whose remembered list has that folder
-	await page.Evaluate( '( function () { localStorage.setItem( "consensus.other:1.folded", JSON.stringify( [ ' + JSON.stringify( context ) + ' ] ) ); let injector = angular.element( document.body ).injector(); let roots = injector.get( "Roots" ); roots.List.push( { Key: "other", Name: "Other", Url: "http://other:1", Kind: "server", Version: null, Base: "/servers/other", Me: null, Participants: [], States: [], Plans: [], Projects: [], Live: false, Error: "not reached", Loaded: true } ); angular.element( document.querySelector( "[ng-controller=SidebarController]" ) ).scope().Of( roots.List[ roots.List.length - 1 ] ); injector.get( "$rootScope" ).$apply(); return true; } )()' );
+	await page.Evaluate( '( function () { localStorage.setItem( "consensus.other:1.folded", JSON.stringify( [ ' + JSON.stringify( context ) + ' ] ) ); let injector = angular.element( document.body ).injector(); let roots = injector.get( "Roots" ); roots.List.push( { Key: "other", Name: "Other", Url: "http://other:1", Kind: "server", Version: null, Base: "/servers/other", Me: null, Participants: [], States: [], Plans: [], Projects: [], Live: false, Error: "not reached", Loaded: true } ); injector.get( "Tree" ).Of( roots.List[ roots.List.length - 1 ] ); injector.get( "$rootScope" ).$apply(); return true; } )()' );
 	await page.WaitFor( count_of( '.root' ) + ' === 2' );
 	ASSERT.equal( await page.Evaluate( folded ), before );
 	await page.Click( chevron );

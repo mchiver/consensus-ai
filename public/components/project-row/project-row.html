@@ -1,0 +1,36 @@
+<div class="project-head" ng-click="$ctrl.Tree.ToggleProject($ctrl.entry)" title="{{ $ctrl.Tree.IsOpen($ctrl.entry) ? 'close' : 'open' }} this project; drag to reorder the projects; drop an item here to move it to the root" drag-project="$ctrl.entry.Id" tree-drop="{ Kind: 'project', Project: $ctrl.entry.Id, Id: $ctrl.entry.Id }" on-tree-drop="$ctrl.Tree.TreeDrop( Drag, Target, Zone )" on-context-menu="$ctrl.Tree.OpenMenu('project', $ctrl.entry, $ctrl.entry, $event)">
+	<span class="chevron" ng-class="{ folded: !$ctrl.Tree.IsOpen($ctrl.entry) }"></span>
+	<span class="tree-icon icon-project" ng-class="{ open: $ctrl.Tree.IsOpen($ctrl.entry) }"></span>
+	<form class="rename-form" ng-if="$ctrl.Tree.IsRenaming($ctrl.entry)" ng-submit="$ctrl.Tree.Rename()" ng-click="$event.stopPropagation()">
+		<input class="form-control form-control-sm" type="text" ng-model="$ctrl.Tree.Renaming.Name" ng-keydown="$ctrl.Tree.RenameKey($event)" auto-focus>
+	</form>
+	<span class="project-name" ng-if="!$ctrl.Tree.IsRenaming($ctrl.entry)">{{ $ctrl.entry.Name }}</span>
+	<span class="count">{{ $ctrl.Tree.ItemCount($ctrl.entry.Items) }}</span>
+	<span class="tree-stamp" ng-if="$ctrl.Tree.ShowUpdated && $ctrl.entry.Updated" title="updated {{ $ctrl.entry.Updated | fullstamp }}">{{ $ctrl.entry.Updated | stamp }}</span>
+	<button class="row-menu" ng-class="{ shown: $ctrl.Tree.MenuOpenFor($ctrl.entry), current: $ctrl.Tree.IsOpen($ctrl.entry) }" ng-hide="$ctrl.Tree.Deleting === $ctrl.entry.Id" title="actions" ng-click="$ctrl.Tree.OpenMenu('project', $ctrl.entry, $ctrl.entry, $event)"><svg class="icon"><use href="#i-more"></use></svg></button>
+	<span class="confirm" ng-show="$ctrl.Tree.Deleting === $ctrl.entry.Id">
+		delete?
+		<button class="btn btn-sm btn-danger" ng-click="$ctrl.Tree.Delete('project', $ctrl.entry, $ctrl.entry, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+		<button class="btn btn-sm btn-outline-secondary" ng-click="$ctrl.Tree.CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+	</span>
+</div>
+<div class="project-body" ng-if="$ctrl.Tree.IsOpen($ctrl.entry)">
+	<name-form ng-if="$ctrl.CreatingHere()" model="$ctrl.Tree.Creating.Name" placeholder="{{ $ctrl.Tree.CreatePlaceholder() }}" submit="$ctrl.Tree.Create()" cancel="$ctrl.Tree.CancelCreate()"></name-form>
+	<div class="clipboard" ng-show="$ctrl.Tree.Notice" ng-class="{ error: $ctrl.Tree.Notice.Error }" id="clipboard">{{ $ctrl.Tree.Notice.Text }} <button class="btn btn-link btn-sm" title="dismiss" ng-click="$ctrl.Tree.ClearNotice()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
+	<div class="list-empty" ng-show="$ctrl.entry.Items.length === 0">empty</div>
+	<div class="tree">
+		<tree-node class="tree-node" ng-repeat="node in $ctrl.Tree.Sorted( $ctrl.entry.Items ) track by node.Id" node="node" project="$ctrl.entry" root="$ctrl.root" depth="1"></tree-node>
+	</div>
+	<!-- The project's Archive (plan Run Shapes, Step 2): archived plans, read-only, folded by default. -->
+	<div class="folder archive-folder" ng-if="$ctrl.entry.Archive.length" data-archive="{{ $ctrl.entry.Id }}">
+		<div class="folder-head tree-row" style="--depth: 1" ng-click="$ctrl.Tree.ToggleArchive( $ctrl.entry, $event )" title="archived plans: read-only until Restore in their menu">
+			<span class="chevron" ng-class="{ folded: !$ctrl.Tree.ShowingArchive[ $ctrl.entry.Id ] }"></span>
+			<span class="tree-icon" ng-class="$ctrl.Tree.ShowingArchive[ $ctrl.entry.Id ] ? 'icon-folder-open' : 'icon-folder'"></span>
+			<span class="folder-name">Archive</span>
+			<span class="count">{{ $ctrl.Tree.ItemCount( $ctrl.entry.Archive ) }}</span>
+		</div>
+		<div class="folder-body" ng-if="$ctrl.Tree.ShowingArchive[ $ctrl.entry.Id ]">
+			<tree-node class="tree-node" ng-repeat="node in $ctrl.entry.Archive track by node.Id" node="node" project="$ctrl.entry" root="$ctrl.root" depth="2" archived="true"></tree-node>
+		</div>
+	</div>
+</div>

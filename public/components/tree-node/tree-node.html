@@ -1,0 +1,56 @@
+<div ng-if="!$ctrl.archived && $ctrl.node.Kind === 'folder'" class="folder" ng-class="{ 'context-folder': $ctrl.IsContextFolder() }" data-id="{{ $ctrl.node.Id }}">
+	<div class="folder-head tree-row" style="--depth: {{ $ctrl.depth }}" ng-click="$ctrl.Tree.ToggleFold($ctrl.node, $ctrl.project, $event)" title="{{ $ctrl.IsContextFolder() ? 'the project\'s Context folder: its Readme and other documents' : 'click to fold or unfold; drag to move or reorder; New plan and New folder are in its menu' }}" drag-item="$ctrl.IsContextFolder() ? null : $ctrl.node.Id" tree-drop="{ Kind: 'folder', Project: $ctrl.project.Id, Id: $ctrl.node.Id, Sorted: $ctrl.Tree.IsSorted() }" on-tree-drop="$ctrl.Tree.TreeDrop( Drag, Target, Zone )" on-context-menu="$ctrl.Tree.OpenMenu('folder', $ctrl.project, $ctrl.node, $event)">
+		<span class="chevron" ng-class="{ folded: $ctrl.Tree.IsFolded($ctrl.node, $ctrl.project) }" ng-click="$ctrl.Tree.ToggleFold($ctrl.node, $ctrl.project, $event)"></span>
+		<span class="tree-icon" ng-class="$ctrl.IsContextFolder() ? 'icon-context' : ( $ctrl.Tree.IsFolded($ctrl.node, $ctrl.project) ? 'icon-folder' : 'icon-folder-open' )"></span>
+		<form class="rename-form" ng-if="$ctrl.Tree.IsRenaming($ctrl.node)" ng-submit="$ctrl.Tree.Rename()" ng-click="$event.stopPropagation()">
+			<input class="form-control form-control-sm" type="text" ng-model="$ctrl.Tree.Renaming.Name" ng-keydown="$ctrl.Tree.RenameKey($event)" auto-focus>
+		</form>
+		<span class="folder-name" ng-if="!$ctrl.Tree.IsRenaming($ctrl.node)">{{ $ctrl.node.Name }}</span>
+		<span class="count">{{ $ctrl.Tree.FolderCount( $ctrl.project, $ctrl.node ) }}</span>
+		<button class="row-menu" ng-class="{ shown: $ctrl.Tree.MenuOpenFor($ctrl.node) }" ng-hide="$ctrl.Tree.Deleting === $ctrl.node.Id" title="actions" ng-click="$ctrl.Tree.OpenMenu('folder', $ctrl.project, $ctrl.node, $event)"><svg class="icon"><use href="#i-more"></use></svg></button>
+		<span class="confirm" ng-show="$ctrl.Tree.Deleting === $ctrl.node.Id">
+			delete?
+			<button class="btn btn-sm btn-danger" ng-click="$ctrl.Tree.Delete('folder', $ctrl.project, $ctrl.node, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+			<button class="btn btn-sm btn-outline-secondary" ng-click="$ctrl.Tree.CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+		</span>
+	</div>
+	<name-form ng-if="$ctrl.CreatingHere()" model="$ctrl.Tree.Creating.Name" placeholder="{{ $ctrl.Tree.CreatePlaceholder() }}" depth="$ctrl.depth + 1" submit="$ctrl.Tree.Create()" cancel="$ctrl.Tree.CancelCreate()"></name-form>
+	<div class="folder-body" ng-if="!$ctrl.Tree.IsFolded($ctrl.node, $ctrl.project)">
+		<tree-node class="tree-node" ng-repeat="child in $ctrl.Children() track by child.Id" node="child" project="$ctrl.project" root="$ctrl.root" depth="$ctrl.depth + 1"></tree-node>
+	</div>
+</div>
+<a ng-if="!$ctrl.archived && $ctrl.node.Kind !== 'folder'" class="plan-item tree-item tree-row" style="--depth: {{ $ctrl.depth }}" ng-class="{ open: $ctrl.node.Id === $ctrl.State.OpenId, missing: $ctrl.node.Missing, document: $ctrl.node.Kind === 'document', 'context-item': $ctrl.IsContextDocument(), parent: $ctrl.node.Items.length }" ng-href="{{ $ctrl.Tree.HashFor( $ctrl.root, '/p/' + $ctrl.node.Id ) }}" data-id="{{ $ctrl.node.Id }}" drag-item="$ctrl.IsContextDocument() ? null : $ctrl.node.Id" tree-drop="{ Kind: $ctrl.node.Kind === 'plan' ? 'plan' : 'item', Project: $ctrl.project.Id, Id: $ctrl.node.Id, Sorted: $ctrl.Tree.IsSorted() }" on-tree-drop="$ctrl.Tree.TreeDrop( Drag, Target, Zone )" on-context-menu="$ctrl.Tree.OpenMenu('item', $ctrl.project, $ctrl.node, $event)" title="{{ $ctrl.IsContextDocument() ? 'the project\'s Readme: its background, read by everyone who works on the project' : '' }}">
+	<span class="chevron" ng-if="$ctrl.node.Items.length" ng-class="{ folded: $ctrl.Tree.IsFolded($ctrl.node, $ctrl.project) }" ng-click="$ctrl.Tree.ToggleFold($ctrl.node, $ctrl.project, $event)" title="{{ $ctrl.Tree.IsFolded($ctrl.node, $ctrl.project) ? 'show' : 'hide' }} its Subplans"></span>
+	<span class="chevron-space" ng-if="!$ctrl.node.Items.length"></span>
+	<span class="tree-icon" ng-class="$ctrl.IsContextDocument() ? 'icon-context' : ( $ctrl.node.Kind === 'document' ? 'icon-document' : 'icon-plan' )"></span>
+	<form class="rename-form" ng-if="$ctrl.Tree.IsRenaming($ctrl.node)" ng-submit="$ctrl.Tree.Rename()" ng-click="$event.preventDefault(); $event.stopPropagation()">
+		<input class="form-control form-control-sm" type="text" ng-model="$ctrl.Tree.Renaming.Name" ng-keydown="$ctrl.Tree.RenameKey($event)" auto-focus>
+	</form>
+	<span class="tree-date" ng-if="$ctrl.Tree.DateOf($ctrl.node) && !$ctrl.Tree.IsRenaming($ctrl.node)">{{ $ctrl.Tree.DateOf($ctrl.node) | day }}</span>
+	<span class="plan-title" ng-if="!$ctrl.Tree.IsRenaming($ctrl.node)">{{ $ctrl.node.Missing ? $ctrl.node.Id + ' (missing)' : $ctrl.node.Title }}</span>
+	<span class="badges" ng-if="!$ctrl.Tree.IsRenaming($ctrl.node)">
+		<span class="item-state" ng-if="$ctrl.IsContextDocument()" ng-show="$ctrl.project.Context.Empty" title="the Readme has no text yet">empty</span>
+		<span class="item-state" ng-if="!$ctrl.IsContextDocument()" title="{{ $ctrl.node.Kind === 'document' ? 'a document: no threads, no state' : 'state' }}">{{ $ctrl.node.Kind === 'document' ? 'document' : $ctrl.node.State }}</span>
+		<span class="badge contested" ng-show="$ctrl.node.Tally.Contested" title="contested">{{ $ctrl.node.Tally.Contested }}</span>
+		<span class="badge mine" ng-show="$ctrl.node.Tally.WaitingOn[$ctrl.root.Me.Name]" title="waiting on you">you {{ $ctrl.node.Tally.WaitingOn[$ctrl.root.Me.Name] }}</span>
+		<span class="badge resolved" ng-show="$ctrl.node.Tally.Resolved" title="resolved, waiting to be applied">{{ $ctrl.node.Tally.Resolved }}</span>
+		<span class="badge applied" ng-show="$ctrl.node.Tally.Applied" title="applied">{{ $ctrl.node.Tally.Applied }}</span>
+	</span>
+	<span class="tree-stamp" ng-if="$ctrl.Tree.ShowUpdated && $ctrl.node.Updated && !$ctrl.Tree.IsRenaming($ctrl.node)" title="updated {{ $ctrl.node.Updated | fullstamp }}">{{ $ctrl.node.Updated | stamp }}</span>
+	<span class="confirm" ng-if="$ctrl.Tree.Deleting === $ctrl.node.Id">
+		to the trash?
+		<button class="btn btn-sm btn-danger confirm-delete-item" ng-click="$ctrl.Tree.Delete('plan', $ctrl.project, $ctrl.node, $event)"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+		<button class="btn btn-sm btn-outline-secondary" ng-click="$ctrl.Tree.CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+	</span>
+	<span class="row-menu" role="button" ng-class="{ shown: $ctrl.Tree.MenuOpenFor($ctrl.node) }" ng-if="!$ctrl.Tree.IsRenaming($ctrl.node) && !$ctrl.node.Missing && $ctrl.Tree.Deleting !== $ctrl.node.Id && !$ctrl.IsContextDocument()" title="actions" ng-click="$ctrl.Tree.OpenMenu('item', $ctrl.project, $ctrl.node, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
+</a>
+<a ng-if="$ctrl.archived" class="plan-item tree-item tree-row archived" style="--depth: {{ $ctrl.depth }}" ng-class="{ open: $ctrl.node.Id === $ctrl.State.OpenId, missing: $ctrl.node.Missing, parent: $ctrl.node.Items.length }" ng-href="{{ $ctrl.Tree.HashFor( $ctrl.root, '/p/' + $ctrl.node.Id ) }}" data-id="{{ $ctrl.node.Id }}" on-context-menu="$ctrl.Tree.OpenMenu('archived', $ctrl.project, $ctrl.node, $event)" title="archived: read-only until restored">
+	<span class="chevron-space"></span>
+	<span class="tree-icon icon-plan"></span>
+	<span class="plan-title">{{ $ctrl.node.Missing ? $ctrl.node.Id + ' (missing)' : $ctrl.node.Title }}</span>
+	<span class="badges"><span class="item-state" title="state">{{ $ctrl.node.State }}</span></span>
+	<span class="row-menu" role="button" ng-class="{ shown: $ctrl.Tree.MenuOpenFor($ctrl.node) }" ng-if="!$ctrl.node.Missing" title="actions" ng-click="$ctrl.Tree.OpenMenu('archived', $ctrl.project, $ctrl.node, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
+</a>
+<div class="folder-body subplans" ng-if="$ctrl.node.Kind !== 'folder' && $ctrl.node.Items.length && ( $ctrl.archived || !$ctrl.Tree.IsFolded($ctrl.node, $ctrl.project) )">
+	<tree-node class="tree-node" ng-repeat="child in $ctrl.Children() track by child.Id" node="child" project="$ctrl.project" root="$ctrl.root" depth="$ctrl.depth + 1" archived="$ctrl.archived"></tree-node>
+</div>

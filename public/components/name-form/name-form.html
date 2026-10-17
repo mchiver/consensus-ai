@@ -1,0 +1,12 @@
+<form class="new-plan" ng-class="{ 'in-folder': $ctrl.depth }" style="--depth: {{ $ctrl.depth || 0 }}" ng-submit="$ctrl.submit()" ng-click="$event.stopPropagation()">
+	<input class="form-control form-control-sm" type="text" ng-attr-id="{{ $ctrl.Prefix() }}-name" placeholder="{{ $ctrl.placeholder }}" ng-model="$ctrl.model" auto-focus>
+	<div class="muted small" ng-if="$ctrl.note">{{ $ctrl.note }}</div>
+	<div class="new-project-folder" ng-if="$ctrl.folder" title="the project's folder: a repository, as a rule; its .consensus holds the project. Empty: a folder under the config folder. One that holds a project already is opened as it is.">
+		<input class="form-control form-control-sm" type="text" id="create-path" placeholder="folder (optional)" ng-model="$ctrl.Tree.Creating.Path">
+		<button class="btn btn-sm btn-outline-secondary" type="button" id="create-browse" ng-click="$ctrl.Tree.PickProjectFolder()">Browse</button>
+	</div>
+	<div class="new-plan-buttons">
+		<button class="btn btn-sm btn-primary" type="submit" ng-attr-id="{{ $ctrl.Prefix() }}-submit" ng-disabled="!$ctrl.model"><svg class="icon lead"><use href="#i-check"></use></svg>Create</button>
+		<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="$ctrl.cancel()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+	</div>
+</form>
