@@ -141,10 +141,19 @@
 		"Id": "thr-5zf-4k9-ypw",
 		"Anchor": null,
 		"Detached": false,
-		"Status": "contested",
+		"Status": "resolved",
 		"Reopened": false,
-		"Resolved": null,
-		"Applied": null,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T09:01:35.793Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T09:07:01.994Z",
+			"Revision": 9,
+			"RevisionId": "rev-b7f-zys-w7j",
+			"Outcome": "Built as recommended and checked on the build machine (install, the two keys, the app on a folder, uninstall). Committed as \"Installer: Open with Consensus\". The plan's \"What is built\" has the record."
+		},
 		"Created": "2026-10-17T01:08:47.405Z",
 		"Replies": [
 			{
@@ -152,6 +161,12 @@
 				"By": "user",
 				"At": "2026-10-17T01:08:47.405Z",
 				"Text": "The installer should set up a context menu for the system's file explorer to \"Open with Consensus\" on any folder."
+			},
+			{
+				"Id": "rep-ccn-zrp-7at",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T09:00:20.245Z",
+				"Text": "Agreed, and the app side already exists: `Consensus.exe <folder>` opens that folder's project alone in a window of its own (plan Run Shapes, Step 4), making the `.consensus` when the folder has none, with its own server on a free port when 3500 is taken. So the context menu is installer work only, about twenty lines. My recommendation, in four parts; resolve to take it, and I build it on your word as one commit, \"Installer: Open with Consensus\".\n\n1. Where it is written. An NSIS include, `build/installer.nsh`, named by `nsis.include` in package.json's build block; electron-builder runs its `customInstall` macro at the end of the install and `customUnInstall` at the uninstall. Two keys, both under the `Directory` class: `shell\\Consensus` (a right-click on a folder) with the command `\"$INSTDIR\\Consensus.exe\" \"%1\"`, and `Background\\shell\\Consensus` (a right-click on the empty space inside a folder) with `\"$INSTDIR\\Consensus.exe\" \"%V\"`. Each key's default value is the label, \"Open with Consensus\", and its `Icon` value is the executable, so the mark shows beside the words. The uninstall deletes the two keys.\n\n2. Which hive. Written through SHCTX, which NSIS points at HKEY_CURRENT_USER\\Software\\Classes for the per-user install the installer makes today, and would point at HKEY_LOCAL_MACHINE if a per-machine install were ever offered; the entry then follows the install mode with no second code path, and no elevation is asked for.\n\n3. Windows 11. The entry appears in the classic menu, under \"Show more options\" (Shift+F10, or a right-click with Shift), as every registry-made entry does; Windows 11's top-level menu takes only entries packaged as MSIX with a COM handler, which is a different build and out of this plan. The text says so in the guide's installer section; on Windows 10 the entry is in the menu as it is.\n\n4. The check. `npm run dist`, the installer run on this machine (per-user, no admin), the two keys read back with reg query, a right-click on a folder and on a folder's background each opening the app on that project, then the uninstaller run and the keys found gone. Also `signtool` is not involved: the entry is plain registry, and the signing decided above is unchanged. No new dependency.\n\nNot recommended: a checkbox in the installer to opt out (electron-builder's NSIS has no page for it without a larger script; the uninstaller removes the entry, and the plan can add the option if someone asks), and an entry on files (a project is a folder)."
 			}
 		]
 	}
