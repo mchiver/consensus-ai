@@ -1,3 +1,9 @@
-# Printing and Preview
+# Printing and Reporting
 
-There will be times when we want to "flatten" a plan, its subplans, and all threads into a single coherent document. This can be used as a record of everything that was done on both sides (User and LLM).
+There will be times when we want to "flatten" a plan, its subplans, and all its threads into a single coherent document, suitable for reporting, review, and printing.
+- This can be used as a record of everything that was done on both sides (User and LLM).
+- This rendering includes only the final revisions of plans/documents.
+- Rendering should be into a PDF file.
+- The output should detail all owners and timestamps.
+
+

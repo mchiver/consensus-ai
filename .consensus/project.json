@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-17T17:02:15.912Z",
-	"Version": 33,
+	"Updated": "2026-10-17T18:53:31.908Z",
+	"Version": 34,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -54,32 +54,6 @@
 				{
 					"Kind": "plan",
 					"Id": "pln-j27-bzi-j77"
-				},
-				{
-					"Kind": "plan",
-					"Id": "pln-koi-o90-0rd",
-					"Items": [
-						{
-							"Kind": "plan",
-							"Id": "pln-zgn-zt6-99s"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-96w-283-rfc"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-igc-ags-a5q"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-4ec-scg-xrz"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-5ij-dez-od0"
-						}
-					]
 				}
 			]
 		},
@@ -269,6 +243,32 @@
 						{
 							"Kind": "plan",
 							"Id": "pln-epq-dru-w21"
+						}
+					]
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-koi-o90-0rd",
+					"Items": [
+						{
+							"Kind": "plan",
+							"Id": "pln-zgn-zt6-99s"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-96w-283-rfc"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-igc-ags-a5q"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-4ec-scg-xrz"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-5ij-dez-od0"
 						}
 					]
 				}

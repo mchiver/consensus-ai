@@ -2,7 +2,5 @@
 
 - The default view state of a thread should be "collapse earlier".
 - When anchoring text (initially or on re-anchor), if the selection extends to the end of a line, Consensus anchors ALL of the text from the beginning of the selection to the end of the document. It should only anchor on the selected text.
-- Selected text in CodeMirror source mode does not display the selection background in the text.
-
-
+- Selected text in CodeMirror does not display the selection background in the text. The selection background does appear when the selection is across lines. Selection is not visible within the same line. It seems that the "current line" background overwrites the selection background.
 

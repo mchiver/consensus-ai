@@ -259,7 +259,16 @@ const SHOPPING_LIST = '# Shopping list\n\n'
 	+ '- Pantry staples are left off unless the pantry says they are out.\n'
 	+ '- An item added by hand stays on the list until it is checked off.\n\n'
 	+ '## On the phone\n\n'
-	+ 'The list is one screen. A tap checks an item off; a swipe removes it. Checked items drop to the bottom.\n';
+	+ 'The list is one screen. A tap checks an item off; a swipe removes it. Checked items drop to the bottom.\n\n'
+	// a table, a link and an image, so the pictures show them rendered in place (plan Markdown Editor)
+	+ '## Aisles\n\n'
+	+ '| Aisle | What is there |\n'
+	+ '| --- | --- |\n'
+	+ '| Produce | fruit, vegetables, herbs |\n'
+	+ '| Dairy | milk, butter, cheese |\n'
+	+ '| Dry goods | flour, rice, pasta |\n\n'
+	+ 'The aisles come from the store\'s own map, [published on its site](https://example.com/store/map); until the app knows one, the recipe\'s sections stand in.\n\n'
+	+ '![The Consensus mark](/img/mark.svg)\n';
 
 const SHOPPING_LIST_APPLIED = SHOPPING_LIST.replace(
 	'- Pantry staples are left off unless the pantry says they are out.',
@@ -479,7 +488,8 @@ const PAGE_PICTURES = [
 			// The threads pane is hidden, so the editor has the room; the cursor on the second heading shows its source
 			// (the Live Preview, plan Markdown Editor, Step 5).
 			await Page.Click( '#threads-toggle' );
-			await Page.Evaluate( '( function () { let view = window.CodeMirror6.EditorView.findFromDOM( document.querySelector( "#editor .cm-editor" ) ); let at = view.state.doc.toString().indexOf( "## What goes on it" ) + 3; view.dispatch( { selection: { anchor: at } } ); view.focus(); return true; } )()' );
+			await Page.Evaluate( '( function () { let view = window.CodeMirror6.EditorView.findFromDOM( document.querySelector( "#editor .cm-editor" ) ); let at = view.state.doc.toString().indexOf( "## What goes on it" ) + 3; view.dispatch( { selection: { anchor: at }, effects: window.CodeMirror6.EditorView.scrollIntoView( at, { y: "start" } ) } ); view.focus(); return true; } )()' );
+			// scrolled so the heading leads and the table, the link and the image below are in the picture
 			await wait( 500 );
 			let file = await capture( Page, Folder, 'edit', Theme );
 			await Page.Click( '#threads-toggle' );
