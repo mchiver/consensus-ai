@@ -9,6 +9,7 @@
 		"start": "node bin/consensus.js",
 		"test": "node --test",
 		"desktop": "electron desktop",
+		"smoke": "node bin/smoke.js",
 		"dist": "electron-builder --win nsis"
 	},
 	"engines": {

@@ -41,17 +41,17 @@
 		<main class="guide-main">
 			<article class="guide-article">
 <h1 id="editing-and-revisions">Editing and revisions</h1>
-<p>A plan or document opens in <strong>Read</strong>, the rendered text. <strong>Edit</strong> opens the editor beside a live preview; <strong>Revisions</strong> shows the record. The three are in the heading, and Ctrl+E switches between Read and Edit, from the editor too: from Edit it saves first, when there is something to save.</p>
+<p>A plan or document opens in <strong>Read</strong>, the rendered text. <strong>Edit</strong> opens the editor beside a live preview; <strong>Revisions</strong> shows the record. The three are in the heading, and Ctrl+E switches between Read and Edit, from the editor too: from Edit it saves first, when there is something to save. The heading also has the location line (server / project / folder / parent plan, each a link that shows its row in the tree), the state, the revision and the text&#39;s size: the characters, and about a quarter as many tokens.</p>
 <figure class="shot"><img class="light-only" src="../images/edit.png" alt="Edit: the editor beside the live preview."><img class="dark-only" src="../images/edit-dark.png" alt="Edit: the editor beside the live preview."><figcaption>Edit: the editor beside the live preview.</figcaption></figure>
 <h2 id="editing">Editing</h2>
-<p>The editor is Monaco, the editor of VS Code, so the keys you know work: multiple cursors, find and replace, folding. Ctrl+S saves and stays in the editor, now editing the new revision; a line at the bottom says &quot;Saved, revision N&quot; for a moment. Ctrl+E saves and goes to Read; the Read button goes without saving, keeping the edit as a draft. <strong>Preview</strong> in the editor&#39;s heading hides or shows the preview, and the choice is remembered in the browser.</p>
+<p>The editor is Monaco, the editor of VS Code, or CodeMirror, as the <strong>Editor</strong> setting behind the title bar&#39;s gear says; the Edit view takes the setting when it next opens. In both the keys you know work: multiple cursors, find and replace, folding. CodeMirror also marks the threads&#39; passages in the text, by state as Read does, a click on one selects its thread, and its preview starts hidden, since the marks say where the threads are; the comment and reply boxes are a box of the same kind. Ctrl+S saves and stays in the editor, now editing the new revision; a line at the bottom says &quot;Saved, revision N&quot; for a moment. Ctrl+E saves and goes to Read; the Read button goes without saving, keeping the edit as a draft. <strong>Preview</strong> in the editor&#39;s heading hides or shows the preview, and the choice is remembered in the browser.</p>
 <p>Editing is allowed at any time and makes a new revision. A manual edit changes no thread&#39;s status, and the anchors follow the text, so you can tidy a plan while its threads are open.</p>
 <p>Two people cannot overwrite each other: a save carries the revision it was made from, and a stale one is refused. The page reloads the newer text rather than losing it.</p>
 <h2 id="revisions">Revisions</h2>
 <p>Every save, and every applied thread, is a revision. <strong>Revisions</strong> lists them, newest first: who, when, which thread was applied and its outcome, and the text as it stood. The document keeps no change log of its own; the revisions and the applied records are the record.</p>
 <figure class="shot"><img class="light-only" src="../images/revisions.png" alt="Revisions: the record, with the text at each one."><img class="dark-only" src="../images/revisions-dark.png" alt="Revisions: the record, with the text at each one."><figcaption>Revisions: the record, with the text at each one.</figcaption></figure>
 <h2 id="tabs">Tabs</h2>
-<p>Every item you open, and Waiting on you, opens in a <strong>tab</strong> above the document: one tab per item, dragged to reorder, closed with ×. Each tab comes back as you left it, Read, Edit or Revisions, an unsaved edit included. Open tabs come back after a restart, per server; a tab whose item is gone from the server is dropped. With none open, the start page shows.</p>
+<p>Every item you open, and Waiting on you, opens in a <strong>tab</strong> above the document: one tab per item, dragged to reorder, closed with ×. Each tab comes back as you left it, Read, Edit or Revisions, an unsaved edit included. The thread filter and the highlight are not the tab&#39;s: they are the page&#39;s, the same in every item, and remembered in the browser. Open tabs come back after a restart, per server; a tab whose item is gone from the server is dropped. With none open, the start page shows.</p>
 <figure class="shot"><img class="light-only" src="../images/tabs.png" alt="The tab strip."><img class="dark-only" src="../images/tabs-dark.png" alt="The tab strip."><figcaption>The tab strip.</figcaption></figure>
 <p>A tab&#39;s menu (the ▾ beside its ×, or a right-click) has Close, Close others, Close to the right, Close all, and <strong>Detach</strong>, which opens the item in its own browser window, without the sidebar; allow pop-ups for the page. Its tab stays in the strip, ghosted, and its menu has <strong>Re-attach</strong> and Close. Re-attach in the window does the same, and <strong>Hide threads</strong> / <strong>Show threads</strong> beside it hides or shows the window&#39;s threads pane, a choice the window keeps to itself. Two windows, and two browser tabs, stay in step: every change is pushed live.</p>
 <h2 id="the-threads-pane-and-the-tree">The threads pane and the tree</h2>
@@ -59,7 +59,7 @@
 <p>The project tree&#39;s state per server, the open project, the folded folders and the LLMs fold, is remembered under the server; the sort order, the open tabs, the look of the page, the hidden panes and the pane widths, are the window&#39;s, whatever the servers it shows.</p>
 <p>Selecting text in Read offers <strong>Copy</strong>, which copies the text as it reads, beside Comment and Start a new Subplan.</p>
 <h2 id="hotkeys">Hotkeys</h2>
-<p><strong>Help &gt; Hotkeys</strong> above the project tree lists them. Ctrl reads as Cmd on a Mac.</p>
+<p><strong>Menu &gt; Hotkeys</strong> in the title bar lists them. Ctrl reads as Cmd on a Mac.</p>
 <table>
 <thead>
 <tr>
@@ -117,6 +117,39 @@
 </tr>
 </tbody></table>
 <p>In a browser, Ctrl+PgUp, Ctrl+PgDn and Ctrl+Shift+T are the browser&#39;s own and never reach the page; the second key of each does. In the desktop both work. The tab keys yield to the editor, whose own Ctrl+Home and Ctrl+End are; Ctrl+E and Ctrl+S work in the editor.</p>
+<p>The desktop window has keys of its own, listed under the page&#39;s in Menu &gt; Hotkeys:</p>
+<table>
+<thead>
+<tr>
+<th>Keys</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Ctrl+R</td>
+<td>Reload the page</td>
+</tr>
+<tr>
+<td>Ctrl+N</td>
+<td>New window: a second instance of the app</td>
+</tr>
+<tr>
+<td>Ctrl+Shift+O</td>
+<td>Open folder in new window: that folder&#39;s project alone</td>
+</tr>
+<tr>
+<td>F12, or Ctrl+Shift+I</td>
+<td>The developer tools</td>
+</tr>
+<tr>
+<td>Ctrl+0, Ctrl+=, Ctrl+-</td>
+<td>Zoom: reset, in, out</td>
+</tr>
+<tr>
+<td>F11</td>
+<td>Full screen</td>
+</tr>
+</tbody></table>
 
 			</article>
 			<nav class="guide-pager">

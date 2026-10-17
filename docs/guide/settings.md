@@ -1,6 +1,6 @@
 # Settings and themes
 
-**Settings** in a server row's menu (the ⋯ at the row's end) opens that server's settings in a popup, for the owner. Theme and size are at the bottom of the sidebar, for everyone.
+**Settings** in a server row's menu (the ⋯ at the row's end) opens that server's settings in a popup, for the owner. The theme, the size and the editor are behind the gear at the right end of the title bar, for everyone.
 
 ![The settings popup: name, scope and port, the states, the participants.](../images/settings.png)
 
@@ -45,7 +45,9 @@ The server's LLM connections are in the same file (`Llms`, kept through the page
 
 ## Theme and size
 
-Light, dark or the system's theme, and three sizes, are at the bottom of the sidebar. They are kept in the browser, not in the settings; the desktop keeps one theme for its window, whatever the servers it shows. The desktop offers a wider choice of palettes, from Sepia and Paper to Nord and Midnight, and its title bar follows.
+The gear at the right end of the title bar opens the look: the theme (light, dark, the system's, or a palette from Sepia and Paper to Nord and Midnight), three sizes, and the editor, Monaco or CodeMirror (see [Editing](editing.html)). They are kept in the browser, not in the settings; the desktop keeps one theme for its window, whatever the servers it shows, and its window buttons follow the palette.
+
+![The title bar, with the look popover open.](../images/title-bar.png)
 
 ## The config folder and the project folders
 

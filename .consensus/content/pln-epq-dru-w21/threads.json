@@ -1,1 +1,56 @@
-[]
+[
+	{
+		"Id": "thr-ni4-jwa-z6d",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T08:37:33.725Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T08:37:57.543Z",
+			"Revision": 2,
+			"RevisionId": "rev-0vi-mat-3u9",
+			"Outcome": "Resolved with no reply: all ten recommendations taken. Written into the plan under \"Decided before the build\"."
+		},
+		"Created": "2026-10-17T08:35:26.724Z",
+		"Replies": [
+			{
+				"Id": "rep-75l-c7e-jt1",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T08:35:26.724Z",
+				"Text": "Design, Step 6: Guide and Smokes. Ten decisions, each with my recommendation first. Resolve with no reply to take them all; reply with the numbers you want otherwise, and I apply the result under \"Decided before the build\".\n\n1. The guide's text, page by page, for what Steps 1 to 5 changed. Getting started: the Server menu paragraph becomes the title bar's Menu (About, Hotkeys; in the desktop Servers…, New window, Open folder in new window, Reload, Quit), the window without a frame and Electron's buttons over the bar, the gear for the look; the server row's menu text stays. Editing: the editor paragraph says the Editor setting picks Monaco or CodeMirror and what differs (CodeMirror marks the threads' passages, a click selects, the preview starts hidden); a sentence on the header under the tab strip (the title, the location line of links, the state, the revision and the size); Tabs says the view and the draft are the tab's while the thread filter and the highlight are the page's; Hotkeys says Menu > Hotkeys and gains the desktop's keys. Threads: Waiting on you is in the title bar; the filters are global and remembered; the Running link. Settings: the theme, size and editor are behind the gear, the window buttons follow the palette. Export and import: Import is in a server row's menu (stale since Run Shapes). Projects: unchanged but checked. The landing page needs nothing.\n\n2. The repository's README.md too: Help above the tree, Settings at the bottom of the sidebar and the hotkeys sentence are stale there; the same facts in its words.\n\n3. The pictures: all retaken in both themes with `node bin/docs.js screenshots`, since every picture shows the page (the title bar on top, the header's location line and size). One new picture, title-bar (the bar with the look popover open; both themes), for Getting started and Settings. The desktop's pictures stay captures of the page, which show no window buttons: a capture of the whole window needs the screen, which the docs tool does not have; the text says what the window looks like. The tool's theme picker step goes through the theme module now that the select sits in the popover.\n\n4. Help > Hotkeys gains the desktop's keys: a second table, shown when the desktop is the host, under the heading \"In the desktop\": Ctrl+R Reload, Ctrl+N New window, Ctrl+Shift+O Open folder in new window, F12 or Ctrl+Shift+I the developer tools, Ctrl+0, Ctrl+= and Ctrl+- the zoom, F11 full screen. The rows are data in hotkeys.js (DesktopRows), the popup and the guide's table list them; the page's own table keeps its class and its twelve rows, the new one has its own class.\n\n5. The smoke, committed: `bin/smoke.js`, run by hand with `npm run smoke`, never by npm test (node --test runs everything under test/). It starts a temporary server with a plan, drives a headless browser over test/support/Cdp.js through the page (the title bar, the menu, the popover, the layout, the tree, the header, the threads pane, the Edit view in both engines; no console errors), then the desktop on a temporary config and user data dir with its own DevTools port (the Step 5 checks: the overlay, the drag region, the menu's desktop items, the overlay following the theme and the size, a detached window, the connect screen, Quit). `--no-desktop` skips the desktop. Its screenshots and screen captures go to `~smoke/` in the checkout, which a tilde keeps out of source control. The step runs it and says what it found.\n\n6. A guide for it: `.guides/run-the-smoke.md`, a page in the project's guides folder: when to run it, the command, the flags, where the pictures land, what each check means when it fails.\n\n7. The guide's html is rebuilt with `node bin/docs.js build` and committed beside the markdown, as the pages are kept. Nothing is published: the S3 publish is its own word of yours after the step, as before.\n\n8. Tests: Docs.test.js keeps running the build and the screenshots over a copy; the Help test counts the page's hotkeys rows by their table's class; a new browser test checks the desktop table is absent in a browser. The server's tests are untouched. npm test at the end, and the smoke.\n\n9. Nothing of the page's behaviour changes in this step: the components are as Steps 1 to 5 left them. Anything the smoke or the retaken pictures show wrong is reported in the build log, fixed only when it is a Step 1 to 5 regression.\n\n10. The parent plan: with Step 6 accepted the parent UI Components is finished; I set its state to Finished (and the six subplans stay Plan) and note it in the Readme. The Markdown Editor returns as its own plan after, on your word."
+			}
+		]
+	},
+	{
+		"Id": "thr-8ci-m9h-bjt",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T08:51:17.972Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T08:52:20.423Z",
+			"Revision": 2,
+			"RevisionId": "rev-0vi-mat-3u9",
+			"Outcome": "The build was accepted as reported; no text change. Committed as \"UI Components: Step 6\"; the parent UI Components is Finished."
+		},
+		"Created": "2026-10-17T08:49:43.522Z",
+		"Replies": [
+			{
+				"Id": "rep-aal-yru-cb0",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T08:49:43.522Z",
+				"Text": "Build log, Step 6: Guide and Smokes. Built by Claude Fable 5.1 (claude-fable-5-1) through the Claude Code CLI, as the ten decisions say. Not committed yet: resolve to accept, and I commit it as \"UI Components: Step 6\", and the parent UI Components goes to Finished.\n\nWhat was built, and where:\n- docs/guide: Getting started has the title bar and its Menu in place of the Server menu, the window without a frame and the buttons over the bar, the look behind the gear, and the new title-bar picture; Editing has the Editor setting and what CodeMirror does differently, the header's location line and size, the global filter and highlight under Tabs, Menu > Hotkeys, and a second table of the desktop's keys; Threads has Waiting on you and Running in the title bar and the two global pickers; Settings sends the look to the gear, says the window buttons follow the palette, and shows the title-bar picture; Export and import puts Import in a server row's menu. Projects and the landing page needed nothing. The html is rebuilt beside each page.\n- readme.md: the same facts in six places (the Menu in the title bar, the Trash under each server, Settings in a server row's menu, Monaco or CodeMirror, Menu > Hotkeys, the look behind the gear).\n- public/js/hotkeys.js: DesktopRows, the window's six keys as data, and Desktop, whether the desktop is the host; index.html's Hotkeys popup lists them in a second table, \"In the desktop\", only there.\n- docs/images: all 32 pictures retaken in both themes with `node bin/docs.js screenshots`, and title-bar.png / title-bar-dark.png new (the bar with the look popover open, 1440 by about 185). bin/docs.js: the theme is set through the theme module (the picker sits in the popover), the clip takes an Extend below the element, the title-bar picture is in the list; test/Docs.test.js lists it.\n- bin/smoke.js, `npm run smoke` (`-- --no-desktop` for the page alone): a temporary server with a plan and two threads and a headless browser through the page (18 checks: the title bar, the menu, the popover, the layout, the tree, the header, the threads pane, the Read view's anchors, Monaco and CodeMirror, no console errors), then the desktop on a temporary config and user data dir over its own DevTools port (22 checks: the overlay and its area, the drag region, no frame, the menu's desktop items, the bridge calls, the desktop hotkeys table, the overlay following the theme and the size, a detached window, the connect screen, Quit). Pictures in ~smoke/, out of source control. Exit code 1 on a failed check.\n- .guides/run-the-smoke.md: when to run it, the command, what it prints, where the pictures land, and what each failing check points at.\n\nDecided during the build:\n1. The desktop's keys are listed, not handled: the Hotkeys service keeps acting on the page's rows alone; the window's accelerators belong to the hidden native menu (Step 5).\n2. The title-bar picture is a full-width strip of the page (1440 wide) rather than a crop around the bar's right end, so the Menu at the left and the popover at the right are both in it.\n3. The smoke's screen captures are Windows-only (PowerShell and System.Drawing, DPI-aware); on another platform the capture is skipped and the checks still run.\n4. The smoke makes its own plan on whichever server it is looking at (the temporary one, then the desktop's own local server), so it never needs the real server on 3500 or an export of the Consensus project.\n\nHow it was tested:\n- npm test: 187 tests pass; the Docs test runs the build and the screenshots over a copy with the new picture in its list; the Help test checks the desktop table is absent in a browser.\n- npm run smoke: 40 checks ok, no console errors, SMOKE OK; the window captures show the buttons in the palette's colours in light and dark.\n- The retaken pictures looked at against the ones from before the plan: the page is the same but for the title bar on top, the header's location line and size, and the sidebar without its top and bottom.\n\nNoted, not fixed (not a regression of this plan; the picture from before Step 4 shows the same): in the tree at the 340px sidebar width the open plan's row shows its badges but no title, and the sidebar has a horizontal scrollbar.\n\nNot in this step: publishing the site (`node bin/docs.js publish`, on your word); the Markdown Editor, as its own plan after this one."
+			}
+		]
+	}
+]

@@ -366,7 +366,7 @@ async function capture( Page, Folder, Name, Theme, Clip )
 		{
 			throw new Error( 'nothing matches ' + Clip.Selector + ' for ' + Name );
 		}
-		options.clip = { x: box.x, y: box.y, width: box.width + ( Clip.Widen || 0 ), height: Math.min( box.height, Clip.Height || box.height ), scale: 1 };
+		options.clip = { x: box.x, y: box.y, width: box.width + ( Clip.Widen || 0 ), height: Math.min( box.height, Clip.Height || box.height ) + ( Clip.Extend || 0 ), scale: 1 };
 	}
 	let result = await Page.Send( 'Page.captureScreenshot', options );
 	FS.writeFileSync( file, Buffer.from( result.data, 'base64' ) );
@@ -374,11 +374,11 @@ async function capture( Page, Folder, Name, Theme, Clip )
 }
 
 
-// Through the sidebar's theme picker when the page has one, so the picker shows it; else the theme module.
+// Through the theme module: the picker sits in the title bar's look popover (plan UI Components, Step 5), closed
+// while the pictures are made; the popover reads the theme when it opens, so the title-bar picture shows it.
 async function set_theme( Page, Theme )
 {
-	let theme = JSON.stringify( Theme );
-	await Page.Evaluate( '( function () { let select = document.getElementById( "theme-select" ); if ( select ) { let option = Array.from( select.options ).find( function ( candidate ) { return candidate.label.toLowerCase() === ' + theme + '; } ); if ( option ) { select.value = option.value; select.dispatchEvent( new Event( "change" ) ); return true; } } window.ConsensusTheme.SetTheme( ' + theme + ' ); return true; } )()' );
+	await Page.Evaluate( 'window.ConsensusTheme.SetTheme( ' + JSON.stringify( Theme ) + ' ); true' );
 	await wait( 400 );
 }
 
@@ -542,6 +542,21 @@ const PAGE_PICTURES = [
 			await wait( 400 );
 			let file = await capture( Page, Folder, 'settings', Theme );
 			await Page.Click( '#settings-close' );
+			await wait( 200 );
+			return file;
+		},
+	},
+	{
+		// The title bar with its look popover open (plan UI Components, Steps 5 and 6): the bar's own height, and the
+		// popover below it.
+		Name: 'title-bar',
+		Make: async function ( Page, Url, Demo, Folder, Theme )
+		{
+			await Page.Evaluate( 'document.getElementById( "look-button" ).click(); true' );
+			await Page.WaitFor( visible( '#look-popover' ) );
+			await wait( 300 );
+			let file = await capture( Page, Folder, 'title-bar', Theme, { Selector: 'title-bar', Extend: 150 } );
+			await Page.Press( 'Escape' );
 			await wait( 200 );
 			return file;
 		},

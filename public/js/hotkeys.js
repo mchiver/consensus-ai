@@ -348,8 +348,22 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	}
 
 
+	// The desktop window's own keys (plan UI Components, Step 6): the accelerators of its menu, which is set but not
+	// shown (desktop/main.js). Listed by Help > Hotkeys when the desktop is the host; nothing here acts on them.
+	const DESKTOP_ROWS = [
+		{ Keys: [ 'Ctrl+R' ], Label: 'Reload the page', When: '' },
+		{ Keys: [ 'Ctrl+N' ], Label: 'New window', When: 'a second instance of the app' },
+		{ Keys: [ 'Ctrl+Shift+O' ], Label: 'Open folder in new window', When: 'that folder\'s project alone' },
+		{ Keys: [ 'F12', 'Ctrl+Shift+I' ], Label: 'The developer tools', When: '' },
+		{ Keys: [ 'Ctrl+0', 'Ctrl+=', 'Ctrl+-' ], Label: 'Zoom: reset, in, out', When: '' },
+		{ Keys: [ 'F11' ], Label: 'Full screen', When: '' },
+	];
+
+
 	return {
 		Rows: rows,
+		DesktopRows: DESKTOP_ROWS,
+		Desktop: !!( $window.Desktop && typeof $window.Desktop.Servers === 'function' ),
 		Provide: Provide,
 		Display: Display,
 	};

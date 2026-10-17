@@ -73,8 +73,9 @@ The **Default** project is created at first start and never deleted; ad-hoc item
 belongs to exactly one project. A server's row carries a server icon and its live dot, a project's a folder
 with a tab, filled when the project is open (plan UI Tweaks VI). Each
 row's actions are in its menu: **⋯** at the row's end (on hover, and on the current row) or a right-click. New
-Project, Import and the owner's Settings are in a server row's menu; above the tree, **Help** has About (the
-version, the links, and a summary of every project's threads) and Hotkeys. Click a folder to make it where new items go. Everything reorders by drag
+Project, Import and the owner's Settings are in a server row's menu; the title bar's **Menu** has About (the
+version, the links, and a summary of every project's threads), Hotkeys and, in the desktop, the window's commands
+(Servers…, New window, Open folder in new window, Reload, Quit). Click a folder to make it where new items go. Everything reorders by drag
 and drop: drop an item on the top or bottom edge of a row to put it just before or after that row, on the
 middle of a folder to move it inside, or on a project's heading to move it to that project's root (the
 Context folder stays first); drop a project's heading on another's to reorder the projects. Rename an item
@@ -84,7 +85,7 @@ Ctrl+V into the open project), which imports what the clipboard holds there, eve
 threads, revisions and Subplans, a folder's whole contents, a project as a folder named after it (plan UI
 Tweaks V; Export in the menu shows the same json for any item). Delete is in the menu only,
 confirmed on the row: a plan or document goes to the trash; a project or folder is deleted only when empty
-(a project: when it holds only its Context folder and document). Trash is at the bottom of the sidebar.
+(a project: when it holds only its Context folder and document). Trash is at the bottom of each server's rows.
 
 The button at the right end of the tab strip hides or shows the threads pane (its mirror at the left end the
 tree; Ctrl+Shift+T and Ctrl+Shift+E too), and the editor's **Preview** button its preview; each is remembered in the browser. A selected thread
@@ -175,7 +176,7 @@ participant holding that token; give a participant a `Token` to let it use the A
 `owner` resolves threads and edits the settings; `llm` is a full participant that is asked to apply resolved
 threads; `member` takes part in discussion.
 
-**Settings** at the bottom of the sidebar (owner) edits the file in a popup: Name, Scope and Port, the States
+**Settings** in a server row's menu (owner) edits the file in a popup: Name, Scope and Port, the States
 one per line, and the participants with their display names, roles and tokens (New makes a token, Copy copies
 it). Saving writes these fields, the desktop's untouched, and applies them at once, Scope and Port excepted,
 which take effect at the next start (the popup says so). The server's own checks apply: no owner, a name used twice, a state still
@@ -219,12 +220,12 @@ starts its turn with "your turn in Consensus". `.guides/build-with-consensus.md`
 The project tree on the left with each plan's state, its tallies and a "waiting on you" count; the
 rendered plan or document in the middle, with each anchored passage of a plan highlighted by state
 (yellow contested, orange reopened, blue resolved, green applied); a plan's threads on the right,
-filterable by state and by whose turn it is. Select text in a plan to comment on it. Edit shows Monaco
-beside a live preview; Ctrl+S saves and stays in the editor (a toast says so), and Ctrl+E switches between Read
-and Edit (from the editor too, saving first). The hotkeys are one table (`public/js/hotkeys.js`) that Help >
-Hotkeys lists.
-Revisions shows the record. A document gives the threads pane's room to the text. Light, dark or system
-theme and three sizes are at the bottom of the sidebar, with Settings for the owner. Two browser tabs stay
+filterable by state and by whose turn it is. Select text in a plan to comment on it. Edit shows Monaco, or
+CodeMirror as the Editor setting says, beside a live preview; Ctrl+S saves and stays in the editor (a toast says so), and Ctrl+E switches between Read
+and Edit (from the editor too, saving first). The hotkeys are one table (`public/js/hotkeys.js`) that Menu >
+Hotkeys in the title bar lists.
+Revisions shows the record. A document gives the threads pane's room to the text. The theme, the size and the
+editor are behind the gear in the title bar, which also counts the threads waiting on you and the LLM runs in progress. Two browser tabs stay
 in step: every change is a Server-Sent Event.
 
 ## Export and import

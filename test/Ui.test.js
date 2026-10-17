@@ -964,6 +964,8 @@ TEST( 'Help: About shows the version, the links and the project summary; Hotkeys
 	await menu_pick( '', 'Hotkeys', '#app-menu' );
 	await page.WaitFor( count_of( '.hotkeys-table tr' ) + ' === 12' );
 	ASSERT.equal( await page.Evaluate( text_of( '.hotkeys-table tr:first-child kbd' ) ), 'Ctrl+E' );
+	// the desktop window's keys are listed in the desktop only (plan UI Components, Step 6)
+	ASSERT.equal( await page.Evaluate( count_of( '.desktop-keys-table' ) ), 0 );
 	await page.Click( '#hotkeys-close' );
 	await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
 	ASSERT.deepEqual( page.Errors, [] );

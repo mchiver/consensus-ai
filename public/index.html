@@ -336,6 +336,19 @@
 				</tbody>
 			</table>
 			<div class="muted small">In a browser, Ctrl+PgUp, Ctrl+PgDn and Ctrl+Shift+T are the browser's own and never reach the page; the second key of each does. In the desktop both work.</div>
+			<!-- The desktop window's own keys (plan UI Components, Step 6), when the desktop is the host. -->
+			<div ng-if="Hotkeys.Desktop">
+				<div class="view-heading">In the desktop</div>
+				<table class="help-table desktop-keys-table">
+					<tbody>
+						<tr ng-repeat="row in Hotkeys.DesktopRows track by $index">
+							<td class="help-keys"><span ng-repeat="keys in KeysOf( row ) track by $index"><kbd>{{ keys }}</kbd><span class="muted small" ng-if="!$last"> or </span></span></td>
+							<td>{{ row.Label }}</td>
+							<td class="muted small">{{ row.When }}</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
 			<div class="thread-buttons">
 				<button class="btn btn-sm btn-outline-secondary" type="button" id="hotkeys-close" ng-click="Close()"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
 			</div>

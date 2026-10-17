@@ -29,6 +29,10 @@ Open `http://127.0.0.1:3500/` in a browser. You are the owner, and you see the *
 
 ![The page at first start: the Default project and its Readme.](../images/first-start.png)
 
+Across the top runs the **title bar**: the brand, a **Menu** (About, with the version, the links and a summary of every project's threads; Hotkeys; and, in the desktop, the window's commands), **Waiting on you** with the count of threads that wait on you on every server, **Running** while an LLM run is in progress, and a gear for the look: the theme, the size and the editor.
+
+![The title bar, with the look popover open.](../images/title-bar.png)
+
 The config folder holds the settings, and the projects that were made with no folder of their own; a project is a folder with a `.consensus` in it (the page [Settings](settings.html) has the layout). A path and four options change where and how it runs:
 
 | Option | What it does |
@@ -62,14 +66,14 @@ npm run desktop -- W:\projects\tic-tac-toe
 npm run desktop -- --config W:\consensus --headless
 ```
 
-It opens on the page with every server it has, each a **root** of the tree: its own server first, when it runs, then every saved server; with a path it shows its own server with that project alone. The **servers screen** (Servers… in the Server menu) keeps the list, and is where the app opens when it has no server to show.
+It opens on the page with every server it has, each a **root** of the tree: its own server first, when it runs, then every saved server; with a path it shows its own server with that project alone. The **servers screen** (Servers… in the title bar's Menu) keeps the list, and is where the app opens when it has no server to show.
 
 ![The servers screen: saved servers, Add server, and this machine.](../images/desktop-connect.png)
 
 - **Servers** lists the servers you saved. **Add server** asks for a name and a URL, tries the address before saving it, and says which Consensus version answers.
 - **This machine** is the app's own server: it starts with the app, from the settings' Scope and Port, and stops with it; the page shows it first. With Scope None there is none, and the page shows the saved servers only; the configured port in use gives way to a free one, and a port asked for on the command line that is in use shows the reason here. With a path on the command line the line says which project the server is on alone. **Open the page** goes back to the page.
 
-The page shows the servers at once: a row per server at the top of the tree, with its name, a dot that is green while its updates are live, who you are there, and a menu with New Project, Import, Settings, Servers… and Reload; beneath it that server's projects, LLM connections and Trash. A server that does not answer stays in the tree, offline, with the reason in its tooltip, and is read again when it answers. Every action goes to the server its row belongs to; an item moves within its server, and Copy and Paste carry a plan to another server, with new ids. The **Server** menu has Servers…, The page, Reload, New window for a second instance, and Open folder in new window, which starts one on a folder alone, as `consensus <path>` does: that window shows the folder's project and nothing else. `--headless` runs the server with no window at all, printing what the command line prints. A desktop.json from before is moved into the settings file at the first start, its LLM connections becoming the server's and its workspaces going into their projects. The LLM connections are the server's, run by it; the page [Working with an LLM](llm.html) covers them.
+The page shows the servers at once: a row per server at the top of the tree, with its name, a dot that is green while its updates are live, who you are there, and a menu with New Project, Import, Settings, Servers… and Reload; beneath it that server's projects, LLM connections and Trash. A server that does not answer stays in the tree, offline, with the reason in its tooltip, and is read again when it answers. Every action goes to the server its row belongs to; an item moves within its server, and Copy and Paste carry a plan to another server, with new ids. The window has no frame of its own: the page's title bar is the window's, the minimize, maximize and close buttons sit over its right end in the palette's colours, and the bar drags the window. In the desktop its **Menu** also has Servers…, New window for a second instance, Open folder in new window, which starts one on a folder alone, as `consensus <path>` does (that window shows the folder's project and nothing else), Reload and Quit; Ctrl+N, Ctrl+Shift+O and Ctrl+R do the same, and F11 goes full screen. `--headless` runs the server with no window at all, printing what the command line prints. A desktop.json from before is moved into the settings file at the first start, its LLM connections becoming the server's and its workspaces going into their projects. The LLM connections are the server's, run by it; the page [Working with an LLM](llm.html) covers them.
 
 ## The installer
 

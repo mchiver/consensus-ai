@@ -14,7 +14,7 @@ An export says `Version: 2` since the plan Plan Nomenclature, its plans under `P
 
 ## Import
 
-**Import** at the top of the sidebar asks for an exported file. What happens depends on whether the project is already here:
+**Import** in a server row's menu asks for an exported file, for that server. What happens depends on whether the project is already here:
 
 - A project not here comes in as it is, every id intact.
 - A project already here is imported as a **copy** ("Copy of <name> (imported <date>)", every id new) or **merged**: revisions are matched by id, a conflict gets a merge revision with the newer text, and nothing here is removed. Import asks which.
