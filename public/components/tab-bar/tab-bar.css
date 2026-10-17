@@ -155,3 +155,14 @@ tab-bar
 	display: flex;
 	gap: 0.5rem;
 }
+
+/* A tab holding an unsaved edit: a dot before its buttons (plan Markdown Editor, Step 3). */
+.dirty-dot
+{
+	flex: none;
+	width: 0.5rem;
+	height: 0.5rem;
+	border-radius: 50%;
+	background: var(--accent);
+	margin: 0 0.15rem;
+}

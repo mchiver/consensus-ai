@@ -178,7 +178,7 @@ angular.module( 'Consensus' ).component( 'htmlView', {
 			{
 				return;
 			}
-			if ( State.View === 'edit' && State.Editor === 'codemirror' )
+			if ( State.MirrorShown() )
 			{
 				return;
 			}

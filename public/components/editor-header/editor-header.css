@@ -1,5 +1,6 @@
-/* editor-header: three lines, the title with Read / Edit / Revisions, the location, then the state with the
-   actions pulled to the right. llm-session and waiting-list share the header markup. */
+/* editor-header: three lines, the title with the views (Read / Edit / Revisions, or Source / Revisions with Save and
+   Discard in CodeMirror mode), the location, then the state with the actions pulled to the right. llm-session and
+   waiting-list share the header markup. */
 
 editor-header
 {

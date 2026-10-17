@@ -1,7 +1,8 @@
 'use strict';
 
 // editor-header - the open item's heading (plan UI Components, Step 2), three lines. The first: the title (with
-// its server when the page shows several) and Read / Edit / Revisions. The second: the location, server / project
+// its server when the page shows several) and the views: Read / Edit / Revisions in Monaco mode; in CodeMirror mode
+// (plan Markdown Editor, Step 3) Source and Revisions, with Save and Discard, since the editor is the one view there. The second: the location, server / project
 // / folders / parent plans / the item, the project and folder crumbs revealing their node in the tree, a parent
 // plan's opening it. The third: the state picker and the one-line state, the revision and the text's size, then
 // New Comment and New subplan. Delete is in the item's menu in the tree. Ctrl+E (hotkeys.js) switches between
@@ -9,7 +10,8 @@
 //
 // Interface:
 //   <editor-header></editor-header>
-//   reads State.Open, State.View, State.Root, State.Projects; sets the view and the state through State; sends
+//   reads State.Open, State.View, State.Root, State.Projects, State.Editor, State.Source, State.Editing; sets the
+//   view, the Source mode and the state through State, saves and discards through State.Editing; sends
 //   reveal-node { Root, Project, Id } for the tree
 
 angular.module( 'Consensus' ).component( 'editorHeader', {
@@ -36,10 +38,44 @@ angular.module( 'Consensus' ).component( 'editorHeader', {
 		};
 
 
-		// The CodeMirror editor does what the Read view does with the threads (plan Markdown Editor, Step 2).
-		controller.EditorShown = function ()
+		// CodeMirror mode: the editor is the one view; Source and Revisions, Save and Discard in the heading.
+		controller.CodeMirror = function ()
 		{
-			return State.View === 'edit' && State.Editor === 'codemirror';
+			return State.Editor === 'codemirror';
+		};
+
+
+		// Source on or off; from Revisions it also brings the editor back.
+		controller.ToggleSource = function ()
+		{
+			State.SetSource( !State.Source );
+			if ( State.View === 'revisions' )
+			{
+				State.SetView( 'read' );
+			}
+		};
+
+
+		// Revisions beside the editor: pressed again, the editor comes back.
+		controller.ToggleRevisions = function ()
+		{
+			State.SetView( State.View === 'revisions' ? 'read' : 'revisions' );
+		};
+
+
+		controller.CanSave = function ()
+		{
+			let editing = State.Editing;
+			return !!editing && editing.Dirty && !editing.Stale && !editing.Busy && !controller.IsArchived() && State.MirrorShown();
+		};
+
+
+		controller.Save = function ()
+		{
+			if ( controller.CanSave() )
+			{
+				State.Editing.Save();
+			}
 		};
 
 

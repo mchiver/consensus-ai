@@ -114,10 +114,24 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	//-----------------------------------------------------------------
 	// The acts
 
-	// Ctrl+E: Edit from Read or Revisions; from Edit, save (when there is something to save) and read.
+	// Ctrl+E. In CodeMirror mode (plan Markdown Editor, Step 3): Source on or off, and from Revisions back to the
+	// editor. In Monaco mode: Edit from Read or Revisions; from Edit, save (when there is something to save) and read.
 	function edit_or_read()
 	{
-		if ( !open_plan() || VIEWS_WITH_EDIT.indexOf( State.View ) < 0 || archived() )
+		if ( !open_plan() || VIEWS_WITH_EDIT.indexOf( State.View ) < 0 )
+		{
+			return false;
+		}
+		if ( State.Editor === 'codemirror' )
+		{
+			State.SetSource( !State.Source );
+			if ( State.View === 'revisions' )
+			{
+				State.SetView( 'read' );
+			}
+			return true;
+		}
+		if ( archived() )
 		{
 			return false;
 		}
@@ -130,10 +144,10 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	}
 
 
-	// Ctrl+S: Save, staying in Edit. Taken in Edit even with nothing to save, so the browser's own save never opens.
+	// Ctrl+S: Save, staying in the editor. Taken there even with nothing to save, so the browser's own save never opens.
 	function save()
 	{
-		if ( State.View !== 'edit' )
+		if ( !State.EditorShown() )
 		{
 			return false;
 		}
@@ -198,7 +212,7 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 
 	function comment_on_whole()
 	{
-		let editor_shown = State.View === 'edit' && State.Editor === 'codemirror';
+		let editor_shown = State.MirrorShown();
 		if ( !is_plan() || !( State.View === 'read' || editor_shown ) || archived() )
 		{
 			return false;
@@ -249,8 +263,8 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	// The table
 
 	let rows = [
-		{ Keys: [ 'Ctrl+E' ], Label: 'Edit; from Edit, save and read', When: 'an item open, not archived', Act: edit_or_read },
-		{ Keys: [ 'Ctrl+S' ], Label: 'Save, staying in Edit', When: 'in Edit', Act: save },
+		{ Keys: [ 'Ctrl+E' ], Label: 'Source on or off; in Monaco mode Edit, and from Edit save and read', When: 'an item open', Act: edit_or_read },
+		{ Keys: [ 'Ctrl+S' ], Label: 'Save, staying in the editor', When: 'in the editor', Act: save },
 		{ Keys: [ 'Ctrl+C' ], Label: 'Copy the open item\'s export', When: 'not typing, no text selected', Act: copy },
 		{ Keys: [ 'Ctrl+V' ], Label: 'Paste into the open project', When: 'not typing', Act: paste },
 		{ Keys: [ 'Escape' ], Label: 'Close the menu or the popup; deselect the thread', When: '', Act: escape },

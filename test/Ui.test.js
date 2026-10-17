@@ -1131,11 +1131,11 @@ TEST( 'CodeMirror (plan UI Components, Step 3): the Editor setting switches the 
 	// the setting, as the look popover's select sets it
 	await set_editor( 'codemirror' );
 	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.editor" )' ), '"codemirror"' );
-	await page.Click( '#view-edit' );
+	// in CodeMirror mode the editor is the view (plan Markdown Editor, Step 3): it opens at once
 	await page.WaitFor( count_of( '#editor .cm-editor' ) + ' === 1 && ' + count_of( '#editor .monaco-editor' ) + ' === 0', 30000 );
 	// the CodeMirror editor has no preview pane or Preview button: it opens as the Live Preview, with the Source button (plan Markdown Editor, Step 1)
 	ASSERT.equal( await page.Evaluate( count_of( '.edit-preview' ) + ' + ' + count_of( '#preview-toggle' ) ), 0 );
-	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-editor.cm-live' ) + ' + ' + count_of( '#source-toggle' ) ), 2 );
+	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-editor.cm-live' ) + ' + ' + count_of( '#view-source' ) ), 2 );
 	// the two threads' passages are marked, by state; a click on one selects its thread, in the pane and in the text
 	const MARKS = '[ ...document.querySelectorAll( "#editor .cm-content .anchor" ) ].map( function ( mark ) { return mark.textContent + ":" + mark.className.replace( "anchor ", "" ); } ).join( " " )';
 	await page.WaitFor( MARKS + ' === "bold claim:contested another one:resolved"', 10000 );
@@ -1153,7 +1153,6 @@ TEST( 'CodeMirror (plan UI Components, Step 3): the Editor setting switches the 
 	await page.WaitFor( MARKS + ' === "bold claim:contested selected another one:resolved"' );
 	ASSERT.equal( ( await api( 'GET', '/api/plans/' + plan.Id ) ).Text.startsWith( 'Typed first. # Mirror plan' ), true );
 	// the reply box is a CodeMirror box; Ctrl+Enter posts
-	await page.Click( '#view-read' );
 	await page.WaitFor( count_of( '.thread.selected .reply-box .cm-editor' ) + ' === 1', 10000 );
 	await page.Evaluate( 'document.querySelector( ".thread.selected .reply-box .cm-content" ).focus(); true' );
 	await page.Type( 'From the CodeMirror box.' );
@@ -1189,7 +1188,6 @@ TEST( 'Live Preview (plan Markdown Editor, Step 1): off the cursor\'s line the m
 	await page.WaitFor( text_of( '.header .title' ) + ' === "Live plan"' );
 	await show_all_threads();
 	await set_editor( 'codemirror' );
-	await page.Click( '#view-edit' );
 	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 1 && ' + count_of( '#editor .cm-content .anchor' ) + ' === 2', 30000 );
 	const LINE = function ( text ) { return '[ ...document.querySelectorAll( "#editor .cm-line" ) ].find( function ( line ) { return line.textContent.trim() === ' + JSON.stringify( text ) + '; } )'; };
 	// the cursor is on the first line, so its marks show; the second heading\'s are hidden and its line is sized as a heading
@@ -1203,12 +1201,12 @@ TEST( 'Live Preview (plan Markdown Editor, Step 1): off the cursor\'s line the m
 	await click_line( 'Second heading' );
 	await page.WaitFor( '!!' + LINE( '## Second heading' ) );
 	// Source shows every mark, with the gutters, and is remembered; off again
-	await page.Click( '#source-toggle' );
+	await page.Click( '#view-source' );
 	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 0' );
 	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-live-bullet' ) + ' + ' + count_of( '#editor .cm-live-table' ) ), 0 );
 	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-lineNumbers' ) ), 1 );
 	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.source-mode" )' ), 'true' );
-	await page.Click( '#source-toggle' );
+	await page.Click( '#view-source' );
 	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 1 && ' + count_of( '#editor .cm-live-bullet' ) + ' === 2' );
 	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.source-mode" )' ), 'false' );
 	// the checkbox edits the source and lights Save
@@ -1239,13 +1237,36 @@ async function drag_line( text )
 	ASSERT.equal( found, true, 'the text is not in the editor: ' + text );
 	await page.WaitFor( '!!' + LINE, 5000 );
 	// the scroll settles before the line is measured
-	await new Promise( function ( resolve ) { setTimeout( resolve, 150 ); } );
+	await new Promise( function ( resolve ) { setTimeout( resolve, 300 ); } );
 	let box = await page.Evaluate( '( function () { let line = ' + LINE + '; let r = line.getBoundingClientRect(); let range = document.createRange(); range.selectNodeContents( line ); let t = range.getBoundingClientRect(); return { x1: t.x + 1, x2: t.x + t.width + 4, y: r.y + r.height / 2 }; } )()' );
 	await page.Send( 'Input.dispatchMouseEvent', { type: 'mousePressed', x: box.x1, y: box.y, button: 'left', clickCount: 1 } );
 	await page.Send( 'Input.dispatchMouseEvent', { type: 'mouseMoved', x: ( box.x1 + box.x2 ) / 2, y: box.y, button: 'left', buttons: 1 } );
 	await page.Send( 'Input.dispatchMouseEvent', { type: 'mouseMoved', x: box.x2, y: box.y, button: 'left', buttons: 1 } );
 	await page.Send( 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: box.x2, y: box.y, button: 'left', clickCount: 1 } );
 }
+
+// A drag tried again when the page did not answer it: under the whole suite the layout may still be moving when the
+// line is measured, and the drag lands beside it.
+async function drag_until( text, condition )
+{
+	for ( let attempt = 1; ; attempt++ )
+	{
+		await drag_line( text );
+		try
+		{
+			await page.WaitFor( condition, 4000 );
+			return;
+		}
+		catch ( error )
+		{
+			if ( attempt >= 3 )
+			{
+				throw error;
+			}
+		}
+	}
+}
+
 
 TEST( 'The threads in the editor (plan Markdown Editor, Step 2): a thread picked in the pane scrolls the editor to its passage and flashes it; a selection offers Copy, Comment and Start a new Subplan, Re-anchor here while re-anchoring, Copy alone while dirty; a pending select is settled in the editor; New Comment is there', async function ()
 {
@@ -1265,7 +1286,6 @@ TEST( 'The threads in the editor (plan Markdown Editor, Step 2): a thread picked
 	await page.Send( 'Page.bringToFront' );
 	await show_all_threads();
 	await set_editor( 'codemirror' );
-	await page.Click( '#view-edit' );
 	// the editor renders the lines in view and around them, so only the first passage's mark is in the DOM yet
 	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 1 && ' + count_of( '#editor .cm-content .anchor[data-threads="' + claim.Id + '"]' ) + ' === 1', 30000 );
 	// New Comment is offered in the editor
@@ -1278,18 +1298,16 @@ TEST( 'The threads in the editor (plan Markdown Editor, Step 2): a thread picked
 	await page.WaitFor( IN_VIEW, 5000 );
 	await page.WaitFor( count_of( '#editor .cm-content .flash-mark' ) + ' === 0', 5000 );
 	// a selection offers the three buttons; Comment starts a comment on the words, the view staying the editor
-	await drag_line( 'A closing line.' );
-	await page.WaitFor( count_of( '.edit-view .comment-button.shown' ) + ' === 3', 5000 );
+	await drag_until( 'A closing line.', count_of( '.edit-view .comment-button.shown' ) + ' === 3' );
 	ASSERT.equal( await page.Evaluate( text_of( '.edit-view .comment-selection' ) ), 'Comment' );
 	await page.Evaluate( 'document.querySelector( ".edit-view .comment-selection" ).click(); true' );
-	await page.WaitFor( '( function () { let state = angular.element( document.body ).injector().get( "State" ); return !!state.Compose && !!state.Compose.Anchor && state.Compose.Anchor.Text.indexOf( "closing line" ) >= 0 && state.View === "edit"; } )()' );
+	await page.WaitFor( '( function () { let state = angular.element( document.body ).injector().get( "State" ); return !!state.Compose && !!state.Compose.Anchor && state.Compose.Anchor.Text.indexOf( "closing line" ) >= 0 && state.MirrorShown(); } )()' );
 	await page.WaitFor( count_of( '.edit-view .comment-button.shown' ) + ' === 0' );
 	await page.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); injector.get( "State" ).CancelCompose(); injector.get( "$rootScope" ).$apply(); return true; } )()' );
 	// re-anchoring: the hint above the editor, the button reads Re-anchor here, and the thread moves
 	await page.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); injector.get( "State" ).StartReanchor( ' + JSON.stringify( claim.Id ) + ' ); injector.get( "$rootScope" ).$apply(); return true; } )()' );
-	await page.WaitFor( 'document.querySelector( ".reanchor-hint" ).offsetParent !== null && angular.element( document.body ).injector().get( "State" ).View === "edit"' );
-	await drag_line( 'A closing line.' );
-	await page.WaitFor( count_of( '.edit-view .comment-button.shown' ) + ' === 2 && ' + text_of( '.edit-view .comment-selection' ) + ' === "Re-anchor here"', 5000 );
+	await page.WaitFor( 'document.querySelector( ".reanchor-hint" ).offsetParent !== null && angular.element( document.body ).injector().get( "State" ).MirrorShown()' );
+	await drag_until( 'A closing line.', count_of( '.edit-view .comment-button.shown' ) + ' === 2 && ' + text_of( '.edit-view .comment-selection' ) + ' === "Re-anchor here"' );
 	await page.Evaluate( 'document.querySelector( ".edit-view .comment-selection" ).click(); true' );
 	await page.WaitFor( 'document.querySelector( ".reanchor-hint" ).offsetParent === null' );
 	let moved = ( await api( 'GET', '/api/plans/' + plan.Id + '/threads' ) ).Threads.find( function ( thread ) { return thread.Id === claim.Id; } );
@@ -1298,8 +1316,7 @@ TEST( 'The threads in the editor (plan Markdown Editor, Step 2): a thread picked
 	await page.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); let state = injector.get( "State" ); state.Select( null ); state.Pend( { Select: ' + JSON.stringify( closing.Id ) + ' } ); state.Reload(); return true; } )()' );
 	await page.WaitFor( count_of( '.thread.selected' ) + ' === 1 && document.querySelector( ".thread.selected" ).id === "thread-' + closing.Id + '" && ' + count_of( '#editor .cm-content .flash-mark' ) + ' === 1', 5000 );
 	// Start a new Subplan from a selection opens the form
-	await drag_line( 'Paragraph 3 fills the page with a few words of its own.' );
-	await page.WaitFor( count_of( '.edit-view .comment-button.shown' ) + ' === 3', 5000 );
+	await drag_until( 'Paragraph 3 fills the page with a few words of its own.', count_of( '.edit-view .comment-button.shown' ) + ' === 3' );
 	await page.Evaluate( 'document.querySelector( ".edit-view .subplan-selection" ).click(); true' );
 	await page.WaitFor( count_of( '.subplan-form' ) + ' === 1' );
 	await page.Evaluate( '( function () { let injector = angular.element( document.body ).injector(); injector.get( "Subplans" ).Cancel(); injector.get( "$rootScope" ).$apply(); return true; } )()' );
@@ -1308,11 +1325,72 @@ TEST( 'The threads in the editor (plan Markdown Editor, Step 2): a thread picked
 	await page.Press( 'End', [ 'Control' ] );
 	await page.Type( 'x' );
 	await page.WaitFor( '!document.getElementById( "save-button" ).disabled' );
-	await drag_line( 'Paragraph 2 fills the page with a few words of its own.' );
-	await page.WaitFor( count_of( '.edit-view .comment-button.shown' ) + ' === 1 && ' + count_of( '.edit-view .copy-selection.shown' ) + ' === 1', 5000 );
+	await drag_until( 'Paragraph 2 fills the page with a few words of its own.', count_of( '.edit-view .comment-button.shown' ) + ' === 1 && ' + count_of( '.edit-view .copy-selection.shown' ) + ' === 1' );
 	await page.Press( 'z', [ 'Control' ] );
 	await page.WaitFor( 'document.getElementById( "save-button" ).disabled' );
 	await set_editor( 'monaco' );
 	await page.Click( '#view-read' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'One view (plan Markdown Editor, Step 3): in CodeMirror mode a plan opens in the editor, with Source and Revisions and Save in the heading; Source by button and Ctrl+E; the dirty dot; a newer revision taken silently while clean, Stale while dirty, Discard; Revisions read-only; an archived plan read-only; back to Monaco', async function ()
+{
+	let plan = await created( 'One view' );
+	const SOURCE = '# One view\n\nFirst paragraph here.\n\nSecond paragraph here.\n\nA closing line.\n';
+	await api( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: SOURCE, Revision: plan.Revision } );
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "One view"' );
+	await page.Send( 'Page.bringToFront' );
+	const VIEW = 'window.CodeMirror6.EditorView.findFromDOM( document.querySelector( "#editor .cm-editor" ) )';
+	// the setting switched: the editor shows at once, no Read or Edit; Source and Revisions; Save in the heading, disabled while clean; no edit bar
+	await set_editor( 'codemirror' );
+	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 1 && ' + count_of( '#view-read' ) + ' + ' + count_of( '#view-edit' ) + ' === 0 && ' + count_of( '#view-source' ) + ' + ' + count_of( '#view-revisions' ) + ' === 2', 30000 );
+	ASSERT.equal( await page.Evaluate( count_of( '.header #save-button' ) + ' + ' + count_of( '.edit-bar' ) ), 1 );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "save-button" ).disabled' ), true );
+	ASSERT.equal( await page.Evaluate( 'document.querySelector( "#editor .cm-editor" ).offsetParent !== null && document.getElementById( "read-view" ).offsetParent === null' ), true );
+	// Source by the button, back by Ctrl+E
+	await page.Click( '#view-source' );
+	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 0 && ' + count_of( '#editor .cm-lineNumbers' ) + ' === 1' );
+	await page.Press( 'e', [ 'Control' ] );
+	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 1' );
+	// an edit lights Save and dots the tab; Save from the heading makes the revision and clears both
+	await page.Evaluate( 'document.querySelector( "#editor .cm-content" ).focus(); true' );
+	await page.Press( 'End', [ 'Control' ] );
+	await page.Type( 'Typed at the end.' );
+	await page.WaitFor( '!document.getElementById( "save-button" ).disabled && ' + count_of( tab_selector( plan.Id ) + ' .dirty-dot' ) + ' === 1' );
+	await page.Click( '#save-button' );
+	await page.WaitFor( text_of( '#revision' ) + ' === "revision 3" && ' + count_of( tab_selector( plan.Id ) + ' .dirty-dot' ) + ' === 0 && document.getElementById( "save-button" ).disabled' );
+	// a newer revision from elsewhere while the text is clean: taken silently, the cursor still at the end
+	let saved = await api( 'GET', '/api/plans/' + plan.Id );
+	ASSERT.equal( saved.Text.indexOf( 'Typed at the end.' ) > 0, true );
+	await api( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: saved.Text.replace( 'Second paragraph here.', 'Second paragraph, changed on the server, here.' ), Revision: saved.Plan.Revision } );
+	await page.WaitFor( text_of( '#revision' ) + ' === "revision 4" && ' + VIEW + '.state.doc.toString().indexOf( "changed on the server" ) > 0', 10000 );
+	ASSERT.equal( await page.Evaluate( '( function () { let view = ' + VIEW + '; return view.state.selection.main.head === view.state.doc.length; } )()' ), true );
+	ASSERT.equal( await page.Evaluate( count_of( '.edit-stale' ) + ' + ' + count_of( '#discard-button' ) ), 0 );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "save-button" ).disabled' ), true );
+	// a newer revision while dirty: Stale, Save off, Discard brings the server\'s text back
+	await page.Evaluate( 'document.querySelector( "#editor .cm-content" ).focus(); true' );
+	await page.Press( 'End', [ 'Control' ] );
+	await page.Type( ' More.' );
+	await page.WaitFor( '!document.getElementById( "save-button" ).disabled' );
+	let fresh = await api( 'GET', '/api/plans/' + plan.Id );
+	await api( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: fresh.Text + '\nA line added on the server.\n', Revision: fresh.Plan.Revision } );
+	await page.WaitFor( count_of( '.edit-stale' ) + ' === 1 && ' + count_of( '#discard-button' ) + ' === 1 && document.getElementById( "save-button" ).disabled', 10000 );
+	await page.Click( '#discard-button' );
+	await page.WaitFor( count_of( '.edit-stale' ) + ' === 0 && ' + VIEW + '.state.doc.toString().indexOf( "added on the server" ) > 0 && ' + VIEW + '.state.doc.toString().indexOf( "More." ) < 0 && document.getElementById( "save-button" ).disabled' );
+	// Revisions: the text in a read-only editor; pressed again, the editor comes back
+	await page.Click( '#view-revisions' );
+	await page.WaitFor( count_of( '#revision-editor .cm-editor.cm-live .cm-content[contenteditable="false"]' ) + ' === 1 && ' + count_of( '#revision-view' ) + ' === 0', 10000 );
+	await page.Click( '#view-revisions' );
+	await page.WaitFor( 'document.querySelector( "#editor .cm-editor" ).offsetParent !== null && ' + count_of( '#editor .cm-content[contenteditable="true"]' ) + ' === 1' );
+	// archived: read-only in the editor, Save off; restored: editable again
+	await api( 'POST', '/api/items/' + plan.Id + '/archive' );
+	await page.WaitFor( 'document.getElementById( "archived-badge" ).offsetParent !== null && ' + count_of( '#editor .cm-content[contenteditable="false"]' ) + ' === 1 && document.getElementById( "save-button" ).disabled', 10000 );
+	await api( 'POST', '/api/items/' + plan.Id + '/restore' );
+	await page.WaitFor( 'document.getElementById( "archived-badge" ).offsetParent === null && ' + count_of( '#editor .cm-content[contenteditable="true"]' ) + ' === 1', 10000 );
+	// back to Monaco: Read and Edit are back and the Read view shows
+	await set_editor( 'monaco' );
+	await page.WaitFor( count_of( '#view-read' ) + ' === 1 && document.getElementById( "read-view" ).offsetParent !== null' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );

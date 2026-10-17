@@ -4,9 +4,9 @@
 		Select the passage this thread belongs to, then press Re-anchor.
 		<button class="btn btn-sm btn-outline-secondary" ng-click="$ctrl.CancelReanchor()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 	</div>
-	<section class="read" ng-show="$ctrl.State.View === 'read'">
+	<section class="read" ng-show="$ctrl.State.View === 'read' && !$ctrl.State.MirrorShown()">
 		<html-view id="read-view" text="$ctrl.State.Open.Text" anchors="true" main="true"></html-view>
 	</section>
-	<edit-view ng-show="$ctrl.State.View === 'edit'"></edit-view>
+	<edit-view ng-show="$ctrl.State.EditorShown()"></edit-view>
 	<revisions-view ng-show="$ctrl.State.View === 'revisions'"></revisions-view>
 </div>

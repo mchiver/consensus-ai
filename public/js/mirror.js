@@ -6,6 +6,8 @@
 //                                                    SetSelected, SetPreview, ScrollTo, Flash, View }   the Edit view's editor
 //       Options.Preview   true opens it as the Live Preview (live-preview.js, plan Markdown Editor, Step 1): the
 //                         markdown rendered in place, the prose font, no gutters; SetPreview( On ) switches in place
+//       Options.ReadOnly  true opens it read-only (an archived plan, a revision; plan Markdown Editor, Step 3);
+//                         SetReadOnly( On ) switches in place
 //   Plain( Element, Text, OnChange, OnSubmit ) -> { Get, Set, Focus, Layout, LineHeight, Dispose }  a comment box
 //   OnSave( Handler )   Ctrl+S in the Edit view's editor
 //   Theme()             every instance takes the page's palette as it stands (also on consensus-theme)
@@ -276,6 +278,13 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 	}
 
 
+	// Read-only: no edits by hand (a programmatic change still goes through), the content not editable.
+	function editing_extensions( CM, read_only )
+	{
+		return [ CM.EditorState.readOnly.of( read_only ), CM.EditorView.editable.of( !read_only ) ];
+	}
+
+
 	// The Live Preview, with the class the theme and the styles key on (an editor attribute: CodeMirror owns the
 	// editor element's class list and would drop a class set from outside).
 	function live_extensions( CM )
@@ -293,11 +302,14 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 		let theme = new CM.Compartment();
 		let gutters = new CM.Compartment();
 		let preview = new CM.Compartment();
+		let editing = new CM.Compartment();
 		let live = !!( Options && Options.Preview );
+		let read_only = !!( Options && Options.ReadOnly );
 		let state = CM.EditorState.create( {
 			doc: Text || '',
 			extensions: [
 				gutters.of( live ? [] : gutter_extensions( CM ) ),
+				editing.of( editing_extensions( CM, read_only ) ),
 				CM.EditorState.allowMultipleSelections.of( true ),
 				CM.rectangularSelection(),
 				CM.crosshairCursor(),
@@ -345,6 +357,15 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 			view.dispatch( { effects: [ preview.reconfigure( live ? live_extensions( CM ) : [] ), gutters.reconfigure( live ? [] : gutter_extensions( CM ) ) ] } );
 		};
 		instance.IsPreview = function () { return live; };
+		instance.SetReadOnly = function ( On )
+		{
+			if ( read_only === !!On )
+			{
+				return;
+			}
+			read_only = !!On;
+			view.dispatch( { effects: editing.reconfigure( editing_extensions( CM, read_only ) ) } );
+		};
 		instance.SetAnchors = function ( Anchors )
 		{
 			view.dispatch( { effects: anchors.SetAnchors.of( Anchors || [] ) } );

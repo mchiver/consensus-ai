@@ -11,6 +11,7 @@
 	</div>
 	<div class="revision-text">
 		<div class="muted small" ng-show="$ctrl.Shown">revision {{ $ctrl.Shown.Revision }}{{ $ctrl.Shown.Revision === $ctrl.State.Open.Plan.Revision ? ' (current)' : '' }}</div>
-		<html-view id="revision-view" text="$ctrl.ShownText" anchors="false"></html-view>
+		<html-view id="revision-view" text="$ctrl.ShownText" anchors="false" ng-if="!$ctrl.CodeMirror()"></html-view>
+		<div class="revision-editor" id="revision-editor" ng-if="$ctrl.CodeMirror()"></div>
 	</div>
 </section>

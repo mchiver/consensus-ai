@@ -105,3 +105,34 @@ revisions-view
 {
 	margin-top: 0.5rem;
 }
+
+/* CodeMirror mode: the revision's text in a read-only Live Preview editor of its own (plan Markdown Editor, Step 3). */
+.revisions .revision-text
+{
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.revision-editor
+{
+	flex: 1;
+	min-height: 0;
+}
+
+.revision-editor .cm-editor
+{
+	height: 100%;
+}
+
+.revision-editor .cm-scroller
+{
+	overflow: auto;
+}
+
+.revision-editor .cm-editor.cm-live .cm-content
+{
+	max-width: 52rem;
+	margin: 0 auto;
+	padding: 1rem 1.5rem 50vh;
+}

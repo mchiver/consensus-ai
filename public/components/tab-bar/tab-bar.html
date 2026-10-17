@@ -1,9 +1,10 @@
 <div class="tabs-row" ng-show="!$ctrl.Tabs.Detached">
 	<button class="tree-toggle" id="tree-toggle" ng-class="{ off: $ctrl.State.TreeHidden }" ng-click="$ctrl.ToggleTree()" title="{{ $ctrl.State.TreeHidden ? 'show' : 'hide' }} the project tree"><svg class="icon"><use href="#i-sidebar"></use></svg></button>
 	<nav class="tab-strip" ng-show="$ctrl.Tabs.List.length">
-		<div class="tab" ng-repeat="tab in $ctrl.Tabs.List track by tab.Key" ng-class="{ active: tab.Key === $ctrl.Tabs.ActiveKey, out: $ctrl.Tabs.IsOut(tab.Key) }" data-key="{{ tab.Key }}" ng-click="$ctrl.Open(tab)" tab-drag="tab.Key" on-tab-drop="$ctrl.MoveTab( Key, Before )" on-context-menu="$ctrl.OpenTabMenu(tab, $event)" title="{{ $ctrl.Tooltip(tab) }}">
+		<div class="tab" ng-repeat="tab in $ctrl.Tabs.List track by tab.Key" ng-class="{ active: tab.Key === $ctrl.Tabs.ActiveKey, out: $ctrl.Tabs.IsOut(tab.Key), dirty: !!tab.Draft }" data-key="{{ tab.Key }}" ng-click="$ctrl.Open(tab)" tab-drag="tab.Key" on-tab-drop="$ctrl.MoveTab( Key, Before )" on-context-menu="$ctrl.OpenTabMenu(tab, $event)" title="{{ $ctrl.Tooltip(tab) }}">
 			<span class="tree-icon" ng-class="$ctrl.Icon(tab)"></span>
 			<span class="tab-title">{{ $ctrl.Title(tab) }}</span>
+			<span class="dirty-dot" ng-if="tab.Draft" title="unsaved changes"></span>
 			<button class="tab-button tab-menu" ng-class="{ shown: $ctrl.MenuOpenFor(tab) }" title="close, detach, re-attach" ng-click="$ctrl.OpenTabMenu(tab, $event)"><svg class="icon"><use href="#i-caret"></use></svg></button>
 			<button class="tab-button close-tab" title="close" ng-click="$ctrl.Close(tab, $event)"><svg class="icon"><use href="#i-x"></use></svg></button>
 		</div>

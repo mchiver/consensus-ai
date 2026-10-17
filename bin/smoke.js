@@ -176,10 +176,11 @@ async function smoke_page()
 		await page.WaitFor( 'document.documentElement.dataset.theme === "dark"' );
 		await page.Click( '#look-button' );
 		await page.WaitFor( count_of( '#look-popover' ) + ' === 0' );
-		await page.Click( '#view-edit' );
+		// in CodeMirror mode the editor is the view (plan Markdown Editor, Step 3): it opens at once
 		await page.WaitFor( count_of( '#editor .cm-editor' ) + ' === 1 && ' + count_of( '#editor .cm-content .anchor' ) + ' === 2', 30000 );
 		check( 'edit: CodeMirror opens with the two marks', await page.Evaluate( count_of( '#editor .cm-content .anchor' ) ), 2 );
-		check( 'edit: the Live Preview with the Source button, no preview pane or Preview button (plan Markdown Editor, Step 1)', await page.Evaluate( count_of( '#editor .cm-editor.cm-live' ) + ' + ' + count_of( '#source-toggle' ) + ' + ' + count_of( '.edit-preview' ) + ' + ' + count_of( '#preview-toggle' ) ), 2 );
+		check( 'edit: the Live Preview with the Source button, no preview pane or Preview button (plan Markdown Editor, Step 1)', await page.Evaluate( count_of( '#editor .cm-editor.cm-live' ) + ' + ' + count_of( '#view-source' ) + ' + ' + count_of( '.edit-preview' ) + ' + ' + count_of( '#preview-toggle' ) ), 2 );
+		check( 'one view: no Read or Edit; Source, Revisions and Save in the heading; no edit bar (plan Markdown Editor, Step 3)', await page.Evaluate( count_of( '#view-read' ) + ' + ' + count_of( '#view-edit' ) + ' + ' + count_of( '.edit-bar' ) + ' === 0 && ' + count_of( '#view-source' ) + ' + ' + count_of( '#view-revisions' ) + ' + ' + count_of( '.header #save-button' ) + ' === 3' ), true );
 		check( 'edit: the list renders with bullets', await page.Evaluate( count_of( '#editor .cm-live-bullet' ) ), 2 );
 		// a selection in the editor offers the buttons (plan Markdown Editor, Step 2): the line scrolled to through the view, then dragged along
 		await page.Evaluate( '( function () { let view = window.CodeMirror6.EditorView.findFromDOM( document.querySelector( "#editor .cm-editor" ) ); let at = view.state.doc.toString().indexOf( "A closing line." ); view.dispatch( { effects: window.CodeMirror6.EditorView.scrollIntoView( at, { y: "center" } ) } ); return true; } )()' );
@@ -193,7 +194,6 @@ async function smoke_page()
 		check( 'edit: a selection offers Copy, Comment and Start a new Subplan', await page.Evaluate( count_of( '.edit-view .comment-button.shown' ) ), 3 );
 		await wait( 300 );
 		await screenshot( page, 'page-dark-codemirror' );
-		await page.Click( '#view-read' );
 		check( 'console: no errors', JSON.stringify( page.Errors ), '[]' );
 	}
 	finally

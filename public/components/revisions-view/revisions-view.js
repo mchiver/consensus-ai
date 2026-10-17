@@ -1,21 +1,72 @@
 'use strict';
 
 // revisions-view - the record (plan UI Components, Step 2): each revision's reason, who, when, the thread it
-// applied, and its text in an html-view without anchors.
+// applied, and its text: in an html-view without anchors in Monaco mode, in a read-only Live Preview editor of its
+// own in CodeMirror mode (plan Markdown Editor, Step 3).
 //
 // Interface:
 //   <revisions-view></revisions-view>
-//   reads State.Open, State.View; listens to view-changed and plan-loaded
+//   reads State.Open, State.View, State.Editor; listens to view-changed, plan-loaded and editor-changed
 
 angular.module( 'Consensus' ).component( 'revisionsView', {
 	templateUrl: '/components/revisions-view/revisions-view.html',
-	controller: [ '$scope', 'State', 'Client', function ( $scope, State, Client )
+	controller: [ '$scope', '$element', '$timeout', 'State', 'Client', 'Mirror', function ( $scope, $element, $timeout, State, Client, Mirror )
 	{
 		let controller = this;
 		controller.State = State;
 		controller.Revisions = [];
 		controller.Shown = null;
 		controller.ShownText = '';
+		let reader = null;		// the read-only editor of CodeMirror mode
+		let making = null;
+
+
+		controller.CodeMirror = function ()
+		{
+			return State.Editor === 'codemirror';
+		};
+
+
+		// The shown text into the read-only editor, made in its element once that is in the page (ng-if).
+		async function render_text()
+		{
+			if ( !controller.CodeMirror() )
+			{
+				drop_reader();
+				return;
+			}
+			let element = $element[ 0 ].querySelector( '#revision-editor' );
+			if ( !element )
+			{
+				$timeout( render_text, 50, false );
+				return;
+			}
+			if ( making )
+			{
+				await making;
+			}
+			if ( !reader )
+			{
+				making = Mirror.Create( element, controller.ShownText, function () {}, {}, { Preview: true, ReadOnly: true } );
+				reader = await making;
+				making = null;
+				return;
+			}
+			if ( reader.Get() !== controller.ShownText )
+			{
+				reader.Set( controller.ShownText );
+			}
+		}
+
+
+		function drop_reader()
+		{
+			if ( reader )
+			{
+				reader.Dispose();
+				reader = null;
+			}
+		}
 
 
 		async function load()
@@ -53,7 +104,24 @@ angular.module( 'Consensus' ).component( 'revisionsView', {
 				controller.ShownText = answer.Revision.Text;
 			}
 			$scope.$applyAsync();
+			$timeout( render_text, 0, false );
 		};
+
+
+		controller.$onDestroy = function ()
+		{
+			drop_reader();
+		};
+
+
+		// Back to Monaco: the html-view takes over, the editor goes.
+		$scope.$on( 'editor-changed', function ()
+		{
+			if ( !controller.CodeMirror() )
+			{
+				drop_reader();
+			}
+		} );
 
 
 		function thread_of( thread_id )
@@ -116,6 +184,10 @@ angular.module( 'Consensus' ).component( 'revisionsView', {
 				controller.Shown = null;
 				controller.ShownText = '';
 				controller.Revisions = [];
+				if ( reader )
+				{
+					reader.Set( '' );
+				}
 			}
 		} );
 	} ],

@@ -119,6 +119,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		Reanchoring: null,
 		Pending: null,
 		Drafts: {},
+		Editing: null,	// the edit-view's controller (Dirty, Stale, Busy, Save, Discard), read by the heading (plan Markdown Editor, Step 3)
 		Collapsed: {},
 		Error: null,
 	};
@@ -364,11 +365,18 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
-	// The CodeMirror editor does what the Read view does with the threads (plan Markdown Editor, Step 2): a comment or
-	// a re-anchor started while it is shown stays in it.
-	function editor_shown()
+	// The CodeMirror editor is the view shown (plan Markdown Editor, Step 3): in CodeMirror mode Read and Edit are
+	// both the one editor, which also does what the Read view does with the threads (Step 2), so a comment or a
+	// re-anchor started while it is shown stays in it. EditorShown is that, or Monaco's Edit view.
+	function MirrorShown()
 	{
-		return state.View === 'edit' && state.Editor === 'codemirror';
+		return state.Editor === 'codemirror' && ( state.View === 'read' || state.View === 'edit' );
+	}
+
+
+	function EditorShown()
+	{
+		return MirrorShown() || state.View === 'edit';
 	}
 
 
@@ -381,7 +389,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		state.Compose = { Anchor: Anchor || null, Text: '' };
 		state.Reanchoring = null;
 		state.Selected = null;
-		if ( !editor_shown() )
+		if ( !MirrorShown() )
 		{
 			SetView( 'read' );
 		}
@@ -399,7 +407,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	{
 		state.Reanchoring = ThreadId;
 		state.Compose = null;
-		if ( !editor_shown() )
+		if ( !MirrorShown() )
 		{
 			SetView( 'read' );
 		}
@@ -448,6 +456,8 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	state.SetPreviewHidden = SetPreviewHidden;
 	state.SetEditor = SetEditor;
 	state.SetSource = SetSource;
+	state.MirrorShown = MirrorShown;
+	state.EditorShown = EditorShown;
 	state.SetTreeHidden = SetTreeHidden;
 	state.SetHighlight = SetHighlight;
 	state.SetFilter = SetFilter;

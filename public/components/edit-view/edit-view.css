@@ -1,4 +1,5 @@
-/* edit-view: the edit bar, the editor (Monaco beside its preview, with the splitter between them; CodeMirror alone, as the Live Preview). */
+/* edit-view: the edit bar (Monaco mode), the editor (Monaco beside its preview, with the splitter between them;
+   CodeMirror alone, as the Live Preview, the one view in CodeMirror mode with the stale line above it). */
 
 edit-view
 {
@@ -34,6 +35,14 @@ edit-view
 	margin-left: auto;
 	display: flex;
 	gap: 0.5rem;
+}
+
+/* CodeMirror mode has no edit bar; a stale edit is said above the editor (plan Markdown Editor, Step 3). */
+.edit-stale
+{
+	margin: 0.5rem 1.25rem 0;
+	padding: 0.4rem 0.75rem;
+	font-size: 0.9rem;
 }
 
 /* The frame: the engine's host (emptied and filled by the engine) beside the selection-buttons, placed in the

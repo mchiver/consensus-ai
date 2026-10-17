@@ -1,11 +1,12 @@
 'use strict';
 
-// edit-view - the Edit view (plan UI Components, Steps 2 and 3): the editor over the markdown. The editor is one of
-// two engines behind one interface, picked by the Editor setting when the view opens: Editor (Monaco), with a live
-// preview beside it (an html-view over PreviewText, with the threads' highlights while the text is still the saved
-// one), or Mirror (CodeMirror), which is the Live Preview itself (plan Markdown Editor, Step 1: the markdown
-// rendered in place, the Source button switching to the plain markdown, remembered as State.Source) and has no
-// preview pane; a change of setting takes effect at the next open. Save (or Ctrl+S) sends the text
+// edit-view - the editor over the markdown (plan UI Components, Steps 2 and 3). The editor is one of two engines
+// behind one interface, picked by the Editor setting: Editor (Monaco), the Edit view with a live preview beside it
+// (an html-view over PreviewText, with the threads' highlights while the text is still the saved one), or Mirror
+// (CodeMirror), which is the Live Preview itself (plan Markdown Editor, Step 1: the markdown rendered in place,
+// Source mode the plain markdown, State.Source) and, in CodeMirror mode, the one view of a plan or document (Step 3:
+// shown for Read and Edit alike, read-only for an archived plan, Save and Discard in the heading through
+// State.Editing, a newer revision taken silently while the text is clean). A change of setting takes effect at once. Save (or Ctrl+S) sends the text
 // with the revision it was made from and stays in Edit, the toast saying so (plan UI Tweaks VI); a stale revision is
 // refused by the server and the editor keeps the text. Ctrl+E saves, when there is something to save, and reads
 // (hotkeys.js). An unsaved edit is kept with the plan's tab (Tabs.SetDraft), so switching tabs and back brings it back.
@@ -20,8 +21,8 @@
 // Interface:
 //   <edit-view></edit-view>
 //   reads State.Open, State.View, State.Editor, State.PreviewHidden, State.Source, State.Selected, State.Highlight,
-//   State.Pending, State.Reanchoring; listens to view-changed, plan-loaded, thread-selected and highlight-changed;
-//   provides the Save and EditToRead hotkeys
+//   State.Pending, State.Reanchoring; sets State.Editing to itself; listens to view-changed, plan-loaded,
+//   thread-selected, highlight-changed, source-changed and editor-changed; provides the Save and EditToRead hotkeys
 
 angular.module( 'Consensus' ).component( 'editView', {
 	templateUrl: '/components/edit-view/edit-view.html',
@@ -38,6 +39,8 @@ angular.module( 'Consensus' ).component( 'editView', {
 		controller.Busy = false;
 		controller.PreviewText = '';
 		controller.Engine = null;
+		controller.ReadOnly = false;
+		State.Editing = controller;
 		controller.SelectionAnchor = null;
 		controller.SelectedText = '';
 		controller.ButtonsAt = null;
@@ -48,6 +51,8 @@ angular.module( 'Consensus' ).component( 'editView', {
 		let selecting_from_editor = false;
 		let map_cache = { Text: null, Map: null };
 		let opening = false;
+		let opened_id = null;	// the plan the instance holds
+		let creating = null;	// the engine being created, so a second open waits for it
 
 
 		function wanted_engine()
@@ -69,6 +74,14 @@ angular.module( 'Consensus' ).component( 'editView', {
 				opening = !element;
 				return;
 			}
+			if ( creating )
+			{
+				await creating;
+			}
+			if ( !State.Open )
+			{
+				return;
+			}
 			// a draft left in this plan's tab comes back; made from an older revision, it is stale
 			let draft = Tabs.DraftOf( State.OpenId );
 			let text = draft ? draft.Text : State.Open.Text;
@@ -87,20 +100,33 @@ angular.module( 'Consensus' ).component( 'editView', {
 				instance.Dispose();
 				instance = null;
 			}
+			// an archived plan is read in the editor, never written (plan Markdown Editor, Step 3)
+			let read_only = !!State.Open.Plan.Archived;
 			if ( instance )
 			{
-				instance.Set( text );
+				if ( instance.Get() !== text )
+				{
+					instance.Set( text );
+				}
+				if ( instance.SetReadOnly )
+				{
+					instance.SetReadOnly( read_only );
+				}
 			}
 			else
 			{
 				controller.Engine = wanted;
-				instance = await factory_of( wanted ).Create( element, text, on_change, { OnAnchorClick: on_anchor_click, OnSelection: on_selection }, { Preview: !State.Source } );
+				creating = factory_of( wanted ).Create( element, text, on_change, { OnAnchorClick: on_anchor_click, OnSelection: on_selection }, { Preview: !State.Source, ReadOnly: read_only } );
+				instance = await creating;
+				creating = null;
 				if ( instance.View )
 				{
 					// the buttons sit in the editor's box, not in its scroller: a scroll takes them away
 					instance.View.scrollDOM.addEventListener( 'scroll', hide_selection_buttons );
 				}
 			}
+			opened_id = State.OpenId;
+			controller.ReadOnly = read_only;
 			instance.Layout();
 			instance.Focus();
 			set_anchors();
@@ -111,7 +137,39 @@ angular.module( 'Consensus' ).component( 'editView', {
 
 		function editor_shown()
 		{
-			return State.View === 'edit' && controller.Engine === 'codemirror' && !!instance && !!instance.View;
+			return State.MirrorShown() && !!instance && !!instance.View;
+		}
+
+
+		// A newer revision while the text is clean: taken as one change over the middle that differs, so the cursor
+		// and the scroll stay where the text did not move (CodeMirror); Monaco takes the whole text.
+		function take_live_text()
+		{
+			let fresh = State.Open.Text;
+			let current = instance.Get();
+			controller.Base = State.Open.Plan.Revision;
+			controller.BaseText = fresh;
+			controller.Stale = false;
+			if ( instance.View )
+			{
+				let prefix = 0;
+				while ( prefix < current.length && prefix < fresh.length && current[ prefix ] === fresh[ prefix ] )
+				{
+					prefix++;
+				}
+				let suffix = 0;
+				while ( suffix < current.length - prefix && suffix < fresh.length - prefix && current[ current.length - 1 - suffix ] === fresh[ fresh.length - 1 - suffix ] )
+				{
+					suffix++;
+				}
+				instance.View.dispatch( { changes: { from: prefix, to: current.length - suffix, insert: fresh.slice( prefix, fresh.length - suffix ) } } );
+			}
+			else
+			{
+				instance.Set( fresh );
+			}
+			controller.Dirty = false;
+			Tabs.SetDraft( State.OpenId, null );
 		}
 
 
@@ -368,24 +426,21 @@ angular.module( 'Consensus' ).component( 'editView', {
 				controller.Dirty = dirty;
 				$scope.$applyAsync();
 			}
+			// the draft is written at once: the tab's dot and the close prompts read it (plan Markdown Editor, Step 3)
+			let current = current_text();
+			Tabs.SetDraft( State.OpenId, ( current !== controller.BaseText || controller.Stale ) ? { Text: current, Base: controller.Base } : null );
+			if ( controller.Engine === 'codemirror' )
+			{
+				return;
+			}
 			if ( preview_timer )
 			{
 				$timeout.cancel( preview_timer );
 			}
-			// the draft belongs to the plan being edited now, even if another tab is shown before the timer fires
-			let id = State.OpenId;
-			let base = controller.Base;
-			let base_text = controller.BaseText;
-			let stale = controller.Stale;
-			let current = current_text();
 			preview_timer = $timeout( function ()
 			{
 				preview_timer = null;
-				if ( controller.Engine !== 'codemirror' )
-				{
-					render_preview( current );
-				}
-				Tabs.SetDraft( id, ( current !== base_text || stale ) ? { Text: current, Base: base } : null );
+				render_preview( current );
 			}, PREVIEW_DELAY, false );
 		}
 
@@ -393,7 +448,7 @@ angular.module( 'Consensus' ).component( 'editView', {
 		// Save: the text goes up as a new revision and the editor stays, now editing that revision. True when saved.
 		controller.Save = async function ()
 		{
-			if ( !controller.Dirty || controller.Stale || controller.Busy || State.View !== 'edit' || !instance )
+			if ( !controller.Dirty || controller.Stale || controller.Busy || !State.EditorShown() || !instance )
 			{
 				return false;
 			}
@@ -447,11 +502,23 @@ angular.module( 'Consensus' ).component( 'editView', {
 		Hotkeys.Provide( 'EditToRead', edit_to_read );
 
 
+		// Discard: the draft is forgotten. In CodeMirror mode the saved text comes back into the editor, which stays
+		// (plan Markdown Editor, Step 3); in Monaco mode the view goes back to Read.
 		controller.Discard = function ()
 		{
+			Tabs.SetDraft( State.OpenId, null );
+			if ( controller.Engine === 'codemirror' && instance && State.Open )
+			{
+				controller.Base = State.Open.Plan.Revision;
+				controller.BaseText = State.Open.Text;
+				controller.Dirty = false;
+				controller.Stale = false;
+				instance.Set( State.Open.Text );
+				set_anchors();
+				return;
+			}
 			controller.Dirty = false;
 			controller.Stale = false;
-			Tabs.SetDraft( State.OpenId, null );
 			State.SetView( 'read' );
 		};
 
@@ -463,18 +530,6 @@ angular.module( 'Consensus' ).component( 'editView', {
 			if ( !State.PreviewHidden )
 			{
 				render_preview( current_text() );
-			}
-		};
-
-
-		// Source in the CodeMirror editor: the plain markdown in place of the Live Preview, switched in place and remembered.
-		controller.ToggleSource = function ()
-		{
-			State.SetSource( !State.Source );
-			if ( instance && instance.SetPreview )
-			{
-				instance.SetPreview( !State.Source );
-				instance.Focus();
 			}
 		};
 
@@ -491,7 +546,7 @@ angular.module( 'Consensus' ).component( 'editView', {
 		controller.$postLink = function ()
 		{
 			element = $element[ 0 ].querySelector( '#editor' );
-			if ( opening || State.View === 'edit' )
+			if ( opening || State.EditorShown() )
 			{
 				opening = false;
 				open();
@@ -509,27 +564,64 @@ angular.module( 'Consensus' ).component( 'editView', {
 		};
 
 
-		$scope.$on( 'view-changed', function ( event, view )
+		$scope.$on( 'view-changed', function ()
 		{
-			if ( view === 'edit' )
+			if ( State.EditorShown() )
 			{
 				open();
 			}
 		} );
 
-		// While editing, a reload from a live event does not touch the editor; a newer revision makes it stale. After a
-		// save the texts agree again, and the anchors are set from the server's new positions.
+		// Source on or off (the heading's button, Ctrl+E): the open editor switches in place.
+		$scope.$on( 'source-changed', function ()
+		{
+			if ( instance && instance.SetPreview )
+			{
+				instance.SetPreview( !State.Source );
+				if ( editor_shown() )
+				{
+					instance.Focus();
+				}
+			}
+		} );
+
+		// The Editor setting changed: the open item re-opens the way the new mode shows it, a draft staying in its tab.
+		$scope.$on( 'editor-changed', function ()
+		{
+			if ( State.EditorShown() )
+			{
+				open();
+			}
+		} );
+
+		// A load while the editor is shown: another plan opens in it, or its archived state changed; the same plan at a
+		// newer revision is taken silently while the text is clean and makes the edit stale when it is not (after a save
+		// the base moved on already); then the anchors from the server's new positions, and the pending.
 		$scope.$on( 'plan-loaded', function ()
 		{
-			if ( State.View === 'edit' && State.Open && controller.Base !== null && State.Open.Plan.Revision !== controller.Base )
+			if ( !State.EditorShown() || !State.Open )
 			{
-				controller.Stale = true;
+				return;
 			}
-			if ( State.View === 'edit' )
+			if ( !instance || opened_id !== State.OpenId || controller.ReadOnly !== !!State.Open.Plan.Archived )
 			{
-				set_anchors();
-				settle_pending();
+				open();
+				return;
 			}
+			if ( controller.Base !== null && State.Open.Plan.Revision !== controller.Base )
+			{
+				if ( controller.Dirty )
+				{
+					controller.Stale = true;
+				}
+				else
+				{
+					take_live_text();
+				}
+			}
+			set_anchors();
+			settle_pending();
+			$scope.$applyAsync();
 		} );
 
 		$scope.$on( 'thread-selected', function ( event, id )
