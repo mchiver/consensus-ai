@@ -1,6 +1,6 @@
 {
 	"name": "consensus",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Collaborative plan building and approval: the User and the LLM work a draft through, thread by thread, until it is approved as an actionable Plan.",
 	"private": true,
 	"license": "MIT",
