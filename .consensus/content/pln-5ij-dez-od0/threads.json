@@ -1,0 +1,29 @@
+[
+	{
+		"Id": "thr-etx-dih-p7b",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:58:11.247Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T17:02:44.366Z",
+			"Revision": 2,
+			"RevisionId": "rev-sfp-fwy-6mg",
+			"Outcome": "Resolved with no reply: all seven recommendations taken. Written into the plan under \"Decided before the build\"."
+		},
+		"Created": "2026-10-17T16:30:37.052Z",
+		"Replies": [
+			{
+				"Id": "rep-acv-jgq-u5a",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:30:37.052Z",
+				"Text": "Design, Step 5: Guide, Pictures, Help and Smoke. Seven decisions, each with my recommendation first. Resolve with no reply to take them all; reply with the numbers you want otherwise, and I apply the result under \"Decided before the build\".\n\n1. The default. A fresh install, and a browser with no remembered Editor, opens in CodeMirror: the Live Preview is the editor the guide describes, Monaco the backup behind the Editor setting. The tests that drive Monaco set it first (set_editor), so nothing else moves. Alternative: Monaco stays the default until you have used the preview for a while, and this step only documents; your call, since the backup was your condition.\n\n2. The guide. editing.md rewritten around the one view: Live Preview and Source, what renders in place and what stays as source, the threads in the editor and the selection buttons, Save and the dirty dot, the live revision and Stale, closing and the prompt, Confirm on close, and a Monaco mode section for the backup; its Hotkeys table's rows as Step 3 changed them. threads.md: the passages in the editor. getting-started.md: the look popover's fourth control. settings.md: the gear. The html rebuilt; readme.md's passages on the editor.\n\n3. The pictures. edit.png retaken as the Live Preview (a heading, a list, a code block, a thread's mark, the cursor's line showing its source); a new source.png of Source mode; tabs.png with a dirty dot; title-bar.png with the fourth control; a new close-prompt.png. docs.js's PAGE_PICTURES and Docs.test.js's list follow. The desktop pictures stay.\n\n4. The help. The Hotkeys popup already carries the rows (Step 3); About stays.\n\n5. The smoke. The page part gains its checks step by step (Steps 1 to 4 each add theirs); this step runs the whole (npm run smoke) with the desktop part, fixes what drifted and updates .guides/run-the-smoke.md.\n\n6. The records. The repository's README and the project's Readme; the parent plan's \"What is built\" record; the parent set Finished and the steps set Plan, as plan UI Components was closed.\n\n7. Out of this plan, restated for the record: tables edited in their grid, wiki links, backlinks, the outline, the removal of Monaco."
+			}
+		]
+	}
+]

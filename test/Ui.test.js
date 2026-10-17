@@ -1133,10 +1133,9 @@ TEST( 'CodeMirror (plan UI Components, Step 3): the Editor setting switches the 
 	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.editor" )' ), '"codemirror"' );
 	await page.Click( '#view-edit' );
 	await page.WaitFor( count_of( '#editor .cm-editor' ) + ' === 1 && ' + count_of( '#editor .monaco-editor' ) + ' === 0', 30000 );
-	// the preview starts hidden with CodeMirror, and shows on the button
-	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".edit-body" ).classList.contains( "no-preview" )' ), true );
-	await page.Click( '#preview-toggle' );
-	await page.WaitFor( '!document.querySelector( ".edit-body" ).classList.contains( "no-preview" )' );
+	// the CodeMirror editor has no preview pane or Preview button: it opens as the Live Preview, with the Source button (plan Markdown Editor, Step 1)
+	ASSERT.equal( await page.Evaluate( count_of( '.edit-preview' ) + ' + ' + count_of( '#preview-toggle' ) ), 0 );
+	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-editor.cm-live' ) + ' + ' + count_of( '#source-toggle' ) ), 2 );
 	// the two threads' passages are marked, by state; a click on one selects its thread, in the pane and in the text
 	const MARKS = '[ ...document.querySelectorAll( "#editor .cm-content .anchor" ) ].map( function ( mark ) { return mark.textContent + ":" + mark.className.replace( "anchor ", "" ); } ).join( " " )';
 	await page.WaitFor( MARKS + ' === "bold claim:contested another one:resolved"', 10000 );
@@ -1165,5 +1164,66 @@ TEST( 'CodeMirror (plan UI Components, Step 3): the Editor setting switches the 
 	await set_editor( 'monaco' );
 	await page.Click( '#view-edit' );
 	await page.WaitFor( count_of( '#editor .monaco-editor' ) + ' === 1 && ' + count_of( '#editor .cm-editor' ) + ' === 0', 30000 );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+// A click near the left end of the editor line whose text is Text, as a person clicks into a rendered line.
+async function click_line( text )
+{
+	let box = await page.Evaluate( '( function () { let line = [ ...document.querySelectorAll( "#editor .cm-line" ) ].find( function ( one ) { return one.textContent.trim() === ' + JSON.stringify( text ) + '; } ); if ( !line ) { return null; } line.scrollIntoView( { block: "center" } ); let r = line.getBoundingClientRect(); return { x: r.x + 12, y: r.y + r.height / 2 }; } )()' );
+	ASSERT.ok( box, 'no editor line reads ' + text );
+	await page.Send( 'Input.dispatchMouseEvent', { type: 'mousePressed', x: box.x, y: box.y, button: 'left', clickCount: 1 } );
+	await page.Send( 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: box.x, y: box.y, button: 'left', clickCount: 1 } );
+}
+
+
+TEST( 'Live Preview (plan Markdown Editor, Step 1): off the cursor\'s line the markdown renders in place, on it the source shows; Source shows it all and is remembered; a checkbox edits the text; the table widget gives way to its source; the thread marks stay and Save works; back to Monaco', async function ()
+{
+	let plan = await created( 'Live plan' );
+	const SOURCE = '# Live plan\n\nThe first paragraph makes a **bold claim** with a [link](http://example.com/) here.\n\n## Second heading\n\n- one list item\n- [ ] a task\n\n```js\nlet x = 1;\n```\n\n| Head | Other |\n| --- | --- |\n| a | b |\n\n![a picture](/img/mark.svg)\n\nA closing line.\n';
+	await api( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: SOURCE, Revision: plan.Revision } );
+	await api( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Why?', Anchor: { Text: 'bold claim' } } );
+	await api( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Fine.', Anchor: { Text: 'closing line' }, Resolve: true } );
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Live plan"' );
+	await show_all_threads();
+	await set_editor( 'codemirror' );
+	await page.Click( '#view-edit' );
+	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 1 && ' + count_of( '#editor .cm-content .anchor' ) + ' === 2', 30000 );
+	const LINE = function ( text ) { return '[ ...document.querySelectorAll( "#editor .cm-line" ) ].find( function ( line ) { return line.textContent.trim() === ' + JSON.stringify( text ) + '; } )'; };
+	// the cursor is on the first line, so its marks show; the second heading\'s are hidden and its line is sized as a heading
+	await page.WaitFor( '!!' + LINE( 'Second heading' ) + ' && !!' + LINE( '# Live plan' ) );
+	ASSERT.equal( await page.Evaluate( LINE( 'Second heading' ) + '.classList.contains( "cm-live-h2" )' ), true );
+	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-live-bullet' ) ), 2 );
+	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-live-check input' ) + ' + ' + count_of( '#editor .cm-live-fence.start' ) + ' + ' + count_of( '#editor .cm-live-table table' ) + ' + ' + count_of( '#editor img.cm-live-image, #editor .cm-live-image-missing' ) ), 4 );
+	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( "#editor .cm-live-link" ) ].map( function ( link ) { return link.textContent + ">" + link.dataset.url; } ).join()' ), 'link>http://example.com/' );
+	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-lineNumbers' ) ), 0 );
+	// a click into the second heading reveals its marks
+	await click_line( 'Second heading' );
+	await page.WaitFor( '!!' + LINE( '## Second heading' ) );
+	// Source shows every mark, with the gutters, and is remembered; off again
+	await page.Click( '#source-toggle' );
+	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 0' );
+	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-live-bullet' ) + ' + ' + count_of( '#editor .cm-live-table' ) ), 0 );
+	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-lineNumbers' ) ), 1 );
+	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.source-mode" )' ), 'true' );
+	await page.Click( '#source-toggle' );
+	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 1 && ' + count_of( '#editor .cm-live-bullet' ) + ' === 2' );
+	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.source-mode" )' ), 'false' );
+	// the checkbox edits the source and lights Save
+	await page.Evaluate( 'document.querySelector( "#editor .cm-live-check input" ).click(); true' );
+	await page.WaitFor( '!document.getElementById( "save-button" ).disabled' );
+	await page.WaitFor( 'document.querySelector( "#editor .cm-live-check input" ).checked === true' );
+	// the table widget gives way to its source on a click
+	await page.Evaluate( 'document.querySelector( "#editor .cm-live-table" ).dispatchEvent( new MouseEvent( "mousedown", { bubbles: true, cancelable: true } ) ); true' );
+	await page.WaitFor( count_of( '#editor .cm-live-table' ) + ' === 0 && !!' + LINE( '| Head | Other |' ) );
+	// Ctrl+S saves the checkbox\'s edit; the marks are found again
+	await page.Press( 's', [ 'Control' ] );
+	await page.WaitFor( text_of( '#revision' ) + ' === "revision 3"' );
+	ASSERT.equal( ( await api( 'GET', '/api/plans/' + plan.Id ) ).Text.indexOf( '- [x] a task' ) > 0, true );
+	await page.WaitFor( count_of( '#editor .cm-content .anchor' ) + ' === 2' );
+	await set_editor( 'monaco' );
+	await page.Click( '#view-read' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );

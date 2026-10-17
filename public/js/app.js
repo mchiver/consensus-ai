@@ -67,7 +67,8 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	const DETACHED = /[?&]detached=1(&|$)/.test( window.location.search );
 	const THREADS_HIDDEN_KEY = 'threads-hidden';
 	const EDITOR_KEY = 'editor';
-	const PREVIEW_HIDDEN_KEYS = { monaco: 'preview-hidden', codemirror: 'preview-hidden-codemirror' };
+	const PREVIEW_HIDDEN_KEY = 'preview-hidden';
+	const SOURCE_KEY = 'source-mode';
 	const TREE_HIDDEN_KEY = 'tree-hidden';
 	const HIGHLIGHT_KEY = 'highlight';
 	const FILTER_KEY = 'filter';
@@ -92,17 +93,18 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
-	// The preview's hidden flag is remembered per engine; CodeMirror's starts hidden.
-	function preview_hidden_of( engine )
+	// The Monaco preview's hidden flag; the CodeMirror editor has no preview pane since plan Markdown Editor, Step 1.
+	function preview_hidden()
 	{
-		return recall( PREVIEW_HIDDEN_KEYS[ engine ], engine === 'codemirror' );
+		return recall( PREVIEW_HIDDEN_KEY, false );
 	}
 
 
 	let state = {
 		ThreadsHidden: recall( THREADS_HIDDEN_KEY, false ),
 		Editor: editor_setting(),
-		PreviewHidden: preview_hidden_of( editor_setting() ),
+		PreviewHidden: preview_hidden(),
+		Source: recall( SOURCE_KEY, false ),	// the CodeMirror editor in Source mode, the plain markdown instead of the Live Preview (plan Markdown Editor, Step 1)
 		TreeHidden: recall( TREE_HIDDEN_KEY, false ),
 		Highlight: recall( HIGHLIGHT_KEY, 'all' ),
 		Root: null,		// the root of the open item (roots.js); the first root until one is opened
@@ -300,17 +302,25 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	function SetPreviewHidden( Hidden )
 	{
 		state.PreviewHidden = !!Hidden;
-		remember( PREVIEW_HIDDEN_KEYS[ state.Editor ], state.PreviewHidden );
+		remember( PREVIEW_HIDDEN_KEY, state.PreviewHidden );
+	}
+
+
+	// Source mode in the CodeMirror editor, remembered in this browser; the open editor switches at once (edit-view).
+	function SetSource( On )
+	{
+		state.Source = !!On;
+		remember( SOURCE_KEY, state.Source );
+		$rootScope.$broadcast( 'source-changed', state.Source );
 	}
 
 
 	// The editor engine, remembered in this browser; the Edit view takes it when it next opens, the comment boxes as
-	// they appear; the preview flag follows it.
+	// they appear.
 	function SetEditor( Name )
 	{
 		state.Editor = ( Name === 'codemirror' ) ? 'codemirror' : 'monaco';
 		remember( EDITOR_KEY, state.Editor );
-		state.PreviewHidden = preview_hidden_of( state.Editor );
 		$rootScope.$broadcast( 'editor-changed', state.Editor );
 	}
 
@@ -423,6 +433,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	state.SetThreadsHidden = SetThreadsHidden;
 	state.SetPreviewHidden = SetPreviewHidden;
 	state.SetEditor = SetEditor;
+	state.SetSource = SetSource;
 	state.SetTreeHidden = SetTreeHidden;
 	state.SetHighlight = SetHighlight;
 	state.SetFilter = SetFilter;

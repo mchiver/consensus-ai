@@ -1,0 +1,29 @@
+[
+	{
+		"Id": "thr-fle-kk0-y4i",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:44:51.771Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T17:02:44.321Z",
+			"Revision": 2,
+			"RevisionId": "rev-lo3-jbs-qmh",
+			"Outcome": "Resolved with no reply: all eleven recommendations taken. Written into the plan under \"Decided before the build\"."
+		},
+		"Created": "2026-10-17T16:30:36.989Z",
+		"Replies": [
+			{
+				"Id": "rep-afx-fv5-b4i",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:30:36.989Z",
+				"Text": "Design, Step 2: The Threads in the Editor. Eleven decisions, each with my recommendation first. Resolve with no reply to take them all; reply with the numbers you want otherwise, and I apply the result under \"Decided before the build\".\n\n1. A selection to an anchor. AnchorMap gains PlainRange( Map, From, To ), the plain characters inside a source span as { Start, End } (null when the span holds none), the reverse of SourceRange; and the making of { Text, Prefix, Suffix } from a plain range, which Render.SelectionAnchor does for the rendered DOM, moves into Render.AnchorOf( Plain, Start, End ) (the trim and the context as today), so both views build the same anchor. PlainRange is tested in node with the map's fixtures.\n\n2. The buttons. A selection-buttons component (bindings: anchor, text, at) holding Copy, Comment or Re-anchor here, and Start a new Subplan, with the actions that html-view has today moved into it; html-view and edit-view compute the anchor, the text and the position and show it. One markup, one behaviour; the ids (#copy-button, #comment-button, #subplan-button) stay on the Read view's. Alternative: a second copy of the buttons in edit-view; two copies drift.\n\n3. When the editor offers them. On a non-empty main selection, once the mouse is up or a keyboard selection rests; placed under the selection's end (coordsAtPos); hidden on any edit or a collapsed selection. Copy always, copying the text as it reads (the plain text from the map; Ctrl+C in the editor copies the source, marks and all). Comment and Start a new Subplan only while the text is the saved one (not dirty, not stale), as the edit preview did; in Source mode too.\n\n4. The scroll to a passage. A thread-selected that did not come from a mousedown in the editor (the thread header's anchor words, a card, a search hit) scrolls the editor to the thread's mark, centred (EditorView.scrollIntoView), and flashes it. The flash: a flash effect on the anchor field adding a class to the mark for a second, the keyframes in edit-view.css. The Read view keeps its scroll.\n\n5. The pending. html-view's main one settles State.Pending only when Read is the view shown; edit-view settles it when Edit is: Select selects, scrolls and flashes; Scroll { text } finds the text in the map's plain, scrolls to it and flashes a temporary mark; Compose starts a comment on the whole document.\n\n6. Re-anchor. The hint moves from the read section into document-editor, above whichever view is shown; Re-anchor here among the editor's buttons posts the anchor as the Read view does and selects the thread.\n\n7. New Comment and Ctrl+Shift+C are offered in the CodeMirror Edit view too (the button's ng-show and the key's When become \"a plan open, not archived\").\n\n8. A click off a mark in the editor does not deselect the thread: a click there places the cursor. Escape deselects, as it does now.\n\n9. A document (the Readme, the instructions): no marks, Copy alone, in both views.\n\n10. Tests. Node: PlainRange against SourceRange over the fixtures, both ways. Browser, CodeMirror mode: a selection in the editor shows the three buttons; Comment opens the compose card with the anchor's words; Start a new Subplan opens the subplan form; Re-anchor here moves a thread; the header's anchor words scroll the editor until the mark's box is inside the scroller, and the flash class comes and goes; a waiting item's link flashes the passage; a dirty text offers Copy alone. The smoke: the buttons on a selection in the editor.\n\n11. Out of this step: the Read view's removal in CodeMirror mode (Step 3)."
+			}
+		]
+	}
+]

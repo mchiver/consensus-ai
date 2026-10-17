@@ -1,0 +1,29 @@
+[
+	{
+		"Id": "thr-sej-xmf-ww7",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:54:47.556Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T17:02:44.350Z",
+			"Revision": 2,
+			"RevisionId": "rev-nej-qqi-c6m",
+			"Outcome": "Resolved with no reply: all nine recommendations taken. Written into the plan under \"Decided before the build\"."
+		},
+		"Created": "2026-10-17T16:30:37.030Z",
+		"Replies": [
+			{
+				"Id": "rep-b6u-7g1-pwy",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:30:37.030Z",
+				"Text": "Design, Step 4: Closing and Shutdown. Nine decisions, each with my recommendation first. Resolve with no reply to take them all; reply with the numbers you want otherwise, and I apply the result under \"Decided before the build\".\n\n1. The prompt. A close-prompt component, one in the page beside the popups, opened by a Closing service: Closing.Ask( Tabs ) returns a promise of save, discard or cancel. It says \"N documents have unsaved changes\" (or the one's title), lists them by title one per line (a stale one marked \"stale, cannot be saved\"), and has Save, Discard and Cancel; Enter is Save, Escape Cancel; the backdrop and the styles the Help popup's.\n\n2. Which closes ask. Tabs.Close, CloseOthers, CloseToTheRight and CloseAll (the ×, the menu) go through Closing with the dirty tabs among those to close: none dirty, they close at once; Cancel, nothing closes; Discard, the drafts are dropped and all close; Save, each dirty tab's draft is saved on its root (Tabs.SaveDraft( Tab ): PUT /text with the draft's text and base, the way the editor saves), then all close; a refused save (stale) keeps that tab open with a toast and the rest close. The prune of items that are gone and a detached window's \"closed\" message do not ask: nothing is left to save for the one, the other's window asked already.\n\n3. The draft is current: Step 3 made the editor write the tab's draft on every change, so a close from the menu finds the text as typed; the active tab needs no flush.\n\n4. The setting. Confirm on close, a checkbox under the Editor select in the look popover (State.ConfirmClose, key confirm-close, on by default, remembered where the Editor setting is). It guards the window's close and the browser's leave prompt. A tab's close asks regardless: it is the one moment the draft can still be saved before its tab is gone, and the owner's thread was about shutdown.\n\n5. The desktop's close. main.js's close handler, instead of destroying the window at once, sends close-requested to its page and waits; the preload exposes ConsensusDesktop.OnCloseRequested( Handler ) and ConsensusDesktop.CloseDecided( Ok ). The page: with the setting off or no dirty tab it answers true at once; otherwise it opens the prompt over its dirty tabs (the main window's; a detached window's one), Save saving them all before answering true, Discard dropping them and answering true, Cancel answering false, the window staying. No answer within three seconds (the servers screen, a page that is broken) and the window closes anyway. Quit closes each window in turn, so each asks. Detached windows get the same handler in did-create-window.\n\n6. The browser. With the setting on and a dirty tab, a beforeunload handler sets returnValue, so the browser shows its own prompt (it cannot list the documents); with the setting off, no handler. The drafts stay in localStorage either way, so Leave loses nothing and the tabs come back dirty.\n\n7. Discard at the desktop's close drops the drafts before the window goes, so they do not come back; a browser's Leave keeps them, since that prompt is the browser's. A close that was not asked about (the setting off, a crash) keeps them, as the parent says.\n\n8. Tests. Browser: a dirty tab's × opens the prompt with its title; Cancel keeps it dirty; Discard closes it and a reopen is clean; Save closes it with the revision bumped; Close all with two dirty tabs lists both, one stale: Save saves one and keeps the stale one with the toast; the setting toggles in the popover and is remembered; the beforeunload handler (called directly) sets a value only while dirty with the setting on. The desktop smoke: a dirty tab, then window.close() from the page: the prompt shows; Cancel leaves the window; the setting off and close again: the app ends, which is the smoke's last check today.\n\n9. Out of this step: the guide (Step 5)."
+			}
+		]
+	}
+]

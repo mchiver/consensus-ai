@@ -1,9 +1,11 @@
 'use strict';
 
-// edit-view - the Edit view (plan UI Components, Steps 2 and 3): the editor over the markdown with a live preview
-// beside it (an html-view over PreviewText, with the threads' highlights while the text is still the saved one).
-// The editor is one of two engines behind one interface, picked by the Editor setting when the view opens: Editor
-// (Monaco) or Mirror (CodeMirror); a change of setting takes effect at the next open. Save (or Ctrl+S) sends the text
+// edit-view - the Edit view (plan UI Components, Steps 2 and 3): the editor over the markdown. The editor is one of
+// two engines behind one interface, picked by the Editor setting when the view opens: Editor (Monaco), with a live
+// preview beside it (an html-view over PreviewText, with the threads' highlights while the text is still the saved
+// one), or Mirror (CodeMirror), which is the Live Preview itself (plan Markdown Editor, Step 1: the markdown
+// rendered in place, the Source button switching to the plain markdown, remembered as State.Source) and has no
+// preview pane; a change of setting takes effect at the next open. Save (or Ctrl+S) sends the text
 // with the revision it was made from and stays in Edit, the toast saying so (plan UI Tweaks VI); a stale revision is
 // refused by the server and the editor keeps the text. Ctrl+E saves, when there is something to save, and reads
 // (hotkeys.js). An unsaved edit is kept with the plan's tab (Tabs.SetDraft), so switching tabs and back brings it back.
@@ -13,7 +15,7 @@
 //
 // Interface:
 //   <edit-view></edit-view>
-//   reads State.Open, State.View, State.Editor, State.PreviewHidden, State.Selected, State.Highlight; listens to
+//   reads State.Open, State.View, State.Editor, State.PreviewHidden, State.Source, State.Selected, State.Highlight; listens to
 //   view-changed, plan-loaded, thread-selected and highlight-changed; provides the Save and EditToRead hotkeys
 
 angular.module( 'Consensus' ).component( 'editView', {
@@ -62,9 +64,12 @@ angular.module( 'Consensus' ).component( 'editView', {
 			controller.BaseText = State.Open.Text;
 			controller.Dirty = ( text !== State.Open.Text );
 			controller.Stale = ( controller.Base !== State.Open.Plan.Revision );
-			render_preview( text );
 			// the engine the setting names; another one open is let go
 			let wanted = wanted_engine();
+			if ( wanted !== 'codemirror' )
+			{
+				render_preview( text );
+			}
 			if ( instance && controller.Engine !== wanted )
 			{
 				instance.Dispose();
@@ -77,7 +82,7 @@ angular.module( 'Consensus' ).component( 'editView', {
 			else
 			{
 				controller.Engine = wanted;
-				instance = await factory_of( wanted ).Create( element, text, on_change, { OnAnchorClick: on_anchor_click } );
+				instance = await factory_of( wanted ).Create( element, text, on_change, { OnAnchorClick: on_anchor_click }, { Preview: !State.Source } );
 			}
 			instance.Layout();
 			instance.Focus();
@@ -188,7 +193,10 @@ angular.module( 'Consensus' ).component( 'editView', {
 			preview_timer = $timeout( function ()
 			{
 				preview_timer = null;
-				render_preview( current );
+				if ( controller.Engine !== 'codemirror' )
+				{
+					render_preview( current );
+				}
 				Tabs.SetDraft( id, ( current !== base_text || stale ) ? { Text: current, Base: base } : null );
 			}, PREVIEW_DELAY, false );
 		}
@@ -267,6 +275,18 @@ angular.module( 'Consensus' ).component( 'editView', {
 			if ( !State.PreviewHidden )
 			{
 				render_preview( current_text() );
+			}
+		};
+
+
+		// Source in the CodeMirror editor: the plain markdown in place of the Live Preview, switched in place and remembered.
+		controller.ToggleSource = function ()
+		{
+			State.SetSource( !State.Source );
+			if ( instance && instance.SetPreview )
+			{
+				instance.SetPreview( !State.Source );
+				instance.Focus();
 			}
 		};
 

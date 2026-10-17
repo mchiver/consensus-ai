@@ -179,6 +179,8 @@ async function smoke_page()
 		await page.Click( '#view-edit' );
 		await page.WaitFor( count_of( '#editor .cm-editor' ) + ' === 1 && ' + count_of( '#editor .cm-content .anchor' ) + ' === 2', 30000 );
 		check( 'edit: CodeMirror opens with the two marks', await page.Evaluate( count_of( '#editor .cm-content .anchor' ) ), 2 );
+		check( 'edit: the Live Preview with the Source button, no preview pane or Preview button (plan Markdown Editor, Step 1)', await page.Evaluate( count_of( '#editor .cm-editor.cm-live' ) + ' + ' + count_of( '#source-toggle' ) + ' + ' + count_of( '.edit-preview' ) + ' + ' + count_of( '#preview-toggle' ) ), 2 );
+		check( 'edit: the list renders with bullets', await page.Evaluate( count_of( '#editor .cm-live-bullet' ) ), 2 );
 		await wait( 300 );
 		await screenshot( page, 'page-dark-codemirror' );
 		await page.Click( '#view-read' );

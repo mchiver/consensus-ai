@@ -2,13 +2,16 @@
 
 // Mirror - CodeMirror 6 behind the same small interface as Editor (Monaco), plan UI Components, Step 3. The modules
 // come from codemirror-bundle.js (window.CodeMirror6, announced by codemirror-ready); Load waits for them.
-//   Create( Element, Text, OnChange, Handlers ) -> { Get, Set, Focus, Layout, LineHeight, Dispose, SetAnchors,
-//                                                    SetSelected, View }   the Edit view's editor
+//   Create( Element, Text, OnChange, Handlers, Options ) -> { Get, Set, Focus, Layout, LineHeight, Dispose, SetAnchors,
+//                                                    SetSelected, SetPreview, View }   the Edit view's editor
+//       Options.Preview   true opens it as the Live Preview (live-preview.js, plan Markdown Editor, Step 1): the
+//                         markdown rendered in place, the prose font, no gutters; SetPreview( On ) switches in place
 //   Plain( Element, Text, OnChange, OnSubmit ) -> { Get, Set, Focus, Layout, LineHeight, Dispose }  a comment box
 //   OnSave( Handler )   Ctrl+S in the Edit view's editor
 //   Theme()             every instance takes the page's palette as it stands (also on consensus-theme)
-// The editor has line numbers, the fold gutter, wrapping, history, the default and search keymaps, Tab indents,
-// multiple selections, the active line and markdown highlighting from the default style. Its anchors: SetAnchors
+// The editor has line numbers and the fold gutter (in Source mode), wrapping, history, the default and search
+// keymaps, Tab indents, multiple selections, the active line and markdown highlighting (GFM: tables, tasks,
+// strikethrough, as the server renders them). Its anchors: SetAnchors
 // takes [ { From, To, Id, State } ] in source offsets and marks them (class anchor, the state, selected), the marks
 // following the text through edits; SetSelected restyles for the selected thread; a mousedown on a mark calls
 // Handlers.OnAnchorClick( ids ) with the threads under the pointer.
@@ -83,6 +86,8 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 		return [ CM.syntaxHighlighting( highlighting ), CM.EditorView.theme( {
 			'&': { backgroundColor: background, color: text, height: '100%' },
 			'.cm-scroller': { fontFamily: 'Consolas, "Cascadia Mono", Menlo, monospace', fontSize: '14px', lineHeight: '1.5' },
+			// the Live Preview reads as the Read view does: the page's font and size
+			'&.cm-live .cm-scroller': { fontFamily: 'inherit', fontSize: '1rem', lineHeight: '1.6' },
 			'.cm-content': { caretColor: text },
 			'.cm-cursor, .cm-dropCursor': { borderLeftColor: text },
 			'&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': { backgroundColor: selection },
@@ -188,7 +193,7 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 			theme.of( theme_extension( CM ) ),
 			CM.history(),
 			CM.drawSelection(),
-			CM.markdown(),
+			CM.markdown( { base: CM.markdownLanguage } ),
 			CM.EditorView.lineWrapping,
 			CM.EditorView.updateListener.of( function ( update )
 			{
@@ -233,19 +238,35 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 	}
 
 
+	// The gutters of Source mode; the Live Preview has none.
+	function gutter_extensions( CM )
+	{
+		return [ CM.lineNumbers(), CM.highlightActiveLineGutter(), CM.foldGutter() ];
+	}
+
+
+	// The Live Preview, with the class the theme and the styles key on (an editor attribute: CodeMirror owns the
+	// editor element's class list and would drop a class set from outside).
+	function live_extensions( CM )
+	{
+		return [ CM.LivePreview.Extension(), CM.EditorView.editorAttributes.of( { class: 'cm-live' } ) ];
+	}
+
+
 	// Create: the Edit view's editor in Element, holding Text; OnChange fires on every edit; Handlers.OnAnchorClick
-	// gets the threads under a mousedown on a mark.
-	async function Create( Element, Text, OnChange, Handlers )
+	// gets the threads under a mousedown on a mark; Options.Preview opens it as the Live Preview.
+	async function Create( Element, Text, OnChange, Handlers, Options )
 	{
 		let CM = await Load();
 		let anchors = anchor_effects( CM );
 		let theme = new CM.Compartment();
+		let gutters = new CM.Compartment();
+		let preview = new CM.Compartment();
+		let live = !!( Options && Options.Preview );
 		let state = CM.EditorState.create( {
 			doc: Text || '',
 			extensions: [
-				CM.lineNumbers(),
-				CM.highlightActiveLineGutter(),
-				CM.foldGutter(),
+				gutters.of( live ? [] : gutter_extensions( CM ) ),
 				CM.EditorState.allowMultipleSelections.of( true ),
 				CM.rectangularSelection(),
 				CM.crosshairCursor(),
@@ -272,10 +293,20 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 					{ key: 'Mod-s', run: function () { if ( save_handler ) { save_handler(); } return true; } },
 					CM.indentWithTab,
 				].concat( CM.defaultKeymap, CM.historyKeymap, CM.searchKeymap, CM.foldKeymap ) ),
-			].concat( common_extensions( CM, theme, OnChange ) ),
+			].concat( common_extensions( CM, theme, OnChange ) ).concat( [
+				// after the language, whose tree the preview reads
+				preview.of( live ? live_extensions( CM ) : [] ),
+			] ),
 		} );
 		let view = new CM.EditorView( { state: state, parent: Element } );
 		let instance = make_instance( CM, view, theme );
+		// The Live Preview on or off, in place: the text, the cursor, the scroll and the history stay.
+		instance.SetPreview = function ( On )
+		{
+			live = !!On;
+			view.dispatch( { effects: [ preview.reconfigure( live ? live_extensions( CM ) : [] ), gutters.reconfigure( live ? [] : gutter_extensions( CM ) ) ] } );
+		};
+		instance.IsPreview = function () { return live; };
 		instance.SetAnchors = function ( Anchors )
 		{
 			view.dispatch( { effects: anchors.SetAnchors.of( Anchors || [] ) } );

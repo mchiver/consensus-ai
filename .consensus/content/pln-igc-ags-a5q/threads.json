@@ -1,0 +1,29 @@
+[
+	{
+		"Id": "thr-aun-7z3-k90",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:51:12.961Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T17:02:44.336Z",
+			"Revision": 2,
+			"RevisionId": "rev-qjl-gmo-ycj",
+			"Outcome": "Resolved with no reply: all ten recommendations taken. Written into the plan under \"Decided before the build\"."
+		},
+		"Created": "2026-10-17T16:30:37.010Z",
+		"Replies": [
+			{
+				"Id": "rep-22g-z4x-5cb",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:30:37.010Z",
+				"Text": "Design, Step 3: One View. Ten decisions, each with my recommendation first. Resolve with no reply to take them all; reply with the numbers you want otherwise, and I apply the result under \"Decided before the build\".\n\n1. The views. State.View keeps read, edit and revisions: the tabs remember them, the links and the hotkeys know them. In CodeMirror mode read and edit are the one editor: document-editor shows edit-view for both and the html-view section in Monaco mode only; a tab left in Read stays Read in its memory, so a switch back to Monaco finds it there. Alternative: normalize read to edit in CodeMirror mode; then every tab would remember Edit. The checks that read \"State.View === 'edit'\" (Save, the hotkeys) become \"the editor is shown\".\n\n2. The heading. In Monaco mode the group is Read, Edit, Revisions as today. In CodeMirror mode it is Source (a toggle, id view-source, pressed when on) and Revisions, and Save (id save-button, disabled when clean) with Discard (shown while dirty) move from the edit bar into the heading's first row, right of the group. The edit bar goes in CodeMirror mode; the Stale banner stays, a line above the editor; the \"Editing revision N\" line goes, the revision being in the heading already. Monaco mode keeps its edit bar.\n\n3. Read-only. An archived plan opens in the editor with editing off (EditorView.editable false and readOnly, a Mirror option), no Save, Source still toggling. The Revisions view in CodeMirror mode shows the revision's text in a second, read-only Live Preview editor in place of its html-view; Monaco mode keeps the html-view. A document opens in the same editor, without marks or buttons but Copy.\n\n4. The live revision. On plan-loaded with a newer revision: clean, the editor takes the new text as one change that leaves the common prefix and suffix alone and replaces the middle, so the cursor and the scroll stay where the text did not move, and the anchors are set afresh from the server's positions; no toast, the revision in the heading changes. Dirty, the Stale banner as today, with Discard. Discard puts the saved text back into the editor and stays there (there is no Read to go to); the draft is forgotten.\n\n5. The dirty dot. The tab-bar shows a dot (class dirty, before the ×, tooltip \"unsaved changes\") on a tab holding a Draft. The draft is written on every change, the 150 ms delay staying for the Monaco preview alone, so the dot, the memory and Step 4's prompts never lag behind the text.\n\n6. The hotkeys. Ctrl+E in CodeMirror mode toggles Source (the row reads \"Source on or off; in Monaco mode Edit, and from Edit save and read\"); Ctrl+S saves whenever the editor is shown and dirty; Ctrl+Shift+C when a plan is open. The popup's rows stay twelve.\n\n7. The Editor setting changed while an item is open takes effect at once: the open item re-opens the way the new mode shows it, a draft staying in its tab. Today it waits for the next open.\n\n8. Styles. The heading's new buttons in editor-header.css; the edit bar's rules kept for Monaco mode.\n\n9. Tests. Browser, CodeMirror mode: a plan opens in the editor with Source and Revisions and no Read or Edit; the Source toggle by button and by Ctrl+E; Save from the heading; the dirty dot comes and goes; a newer revision put through the API while clean replaces the text and keeps the cursor; dirty and a newer revision shows Stale; an archived plan is read-only; Revisions shows a read-only editor; the Monaco tests unchanged (they set the editor first). The smoke: the one view.\n\n10. Out of this step: the close prompts (Step 4), the guide (Step 5)."
+			}
+		]
+	}
+]

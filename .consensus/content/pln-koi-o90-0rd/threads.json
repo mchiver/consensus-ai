@@ -1,0 +1,335 @@
+[
+	{
+		"Id": "thr-47g-ruc-una",
+		"Anchor": {
+			"Text": "The engine",
+			"Prefix": "dian's does; Reading view goes. ",
+			"Suffix": ". A Live Preview is CodeMirror d"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:14:03.816Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T16:19:45.793Z",
+			"Revision": 2,
+			"RevisionId": "rev-m2u-uu4-kt3",
+			"Outcome": "Decided as the owner says: Monaco and the Editor setting stay as the backup, Monaco mode being today's page; point 2 rewritten, points 4, 6 and 10 and build step 3 adjusted to say which mode they speak of."
+		},
+		"Created": "2026-10-17T15:41:09.508Z",
+		"Replies": [
+			{
+				"Id": "rep-rex-tmc-q7v",
+				"By": "user",
+				"At": "2026-10-17T15:41:09.508Z",
+				"Text": "Keep Monaco and the setting available as a backup. I dont want to remove it until I am sure the CodeMirror implementation is going to work."
+			},
+			{
+				"Id": "rep-d8n-1ia-pzi",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:12:46.702Z",
+				"Text": "Agreed. Point 2 will read: CodeMirror is the Live Preview's engine; Monaco stays, with the Editor setting, as the backup until the CodeMirror editor has proven itself. With the setting on Monaco the page works as it does today (the Read view, the Edit view with Monaco beside its preview, Save as now), and nothing of Monaco or of those views is removed in this plan; their removal, with the setting's, is a plan of its own once you are sure. Points 4, 6 and 10 and build step 3 get a phrase each saying which mode they speak of (the threads move into the CodeMirror editor and the Read view keeps them for Monaco mode; the live revision is taken silently where the editor is always open, that is CodeMirror mode; the removal of Monaco is out of scope). Resolve and I apply it."
+			}
+		]
+	},
+	{
+		"Id": "thr-phf-mhq-215",
+		"Anchor": {
+			"Text": "The heading",
+			"Prefix": "ed without a highlight, as now. ",
+			"Suffix": ". Read and Edit go; Revisions st"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:14:36.543Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T16:19:45.849Z",
+			"Revision": 5,
+			"RevisionId": "rev-gll-g1g-wle",
+			"Outcome": "Decided as the owner says: the Read and Edit buttons stay, visible in Monaco mode only; the Source toggle takes their place in CodeMirror mode. Point 5 rewritten."
+		},
+		"Created": "2026-10-17T15:47:07.926Z",
+		"Replies": [
+			{
+				"Id": "rep-rl5-4ka-ks6",
+				"By": "user",
+				"At": "2026-10-17T15:47:07.926Z",
+				"Text": "Keep the Read and Edit buttons but visible only when in Monaco mode."
+			},
+			{
+				"Id": "rep-tmv-5rb-p2y",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:12:46.752Z",
+				"Text": "Agreed. Point 5 will read: Read and Edit stay, shown only while the Editor setting is Monaco; in CodeMirror mode the Source toggle stands in their place. The rest of the point (Revisions as it is, read-only for archived plans and old revisions, documents in the same editor, Save disabled when clean, the dirty dot on the tab) is unchanged."
+			}
+		]
+	},
+	{
+		"Id": "thr-yc6-jvy-qkj",
+		"Anchor": {
+			"Text": "Close others and Close all",
+			"Prefix": ") asks Save / Discard / Cancel; ",
+			"Suffix": " skip the dirty tabs with a toas"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:15:14.679Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T16:19:45.887Z",
+			"Revision": 7,
+			"RevisionId": "rev-28z-8u0-2t6",
+			"Outcome": "Decided as the owner says: Close others and Close all prompt as Close does, listing the documents that would lose changes; no silent skipping. Point 7 rewritten."
+		},
+		"Created": "2026-10-17T15:51:12.640Z",
+		"Replies": [
+			{
+				"Id": "rep-04b-hyw-i2t",
+				"By": "user",
+				"At": "2026-10-17T15:51:12.640Z",
+				"Text": "These actions should also check if the closing documents are dirty and also provide the same prompt, indicating which documents will lose changes."
+			},
+			{
+				"Id": "rep-q80-uhl-5al",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:12:46.773Z",
+				"Text": "Agreed, and better than the toast. Point 7 will read: Close others and Close all ask the same Save / Discard / Cancel when any tab they would close is dirty, the one prompt listing the documents that would lose their changes, one per line; Save saves them all and closes, Discard closes them unsaved, Cancel closes nothing. Close and the tab's × ask as before; a detached window's close counts as the tab's."
+			}
+		]
+	},
+	{
+		"Id": "thr-mqn-1d8-bt4",
+		"Anchor": {
+			"Text": "Save all / Don't save / Cancel",
+			"Prefix": "ny tab is dirty, and then shows ",
+			"Suffix": "; a browser raises its own leave"
+		},
+		"Detached": true,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:16:06.854Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T16:19:45.908Z",
+			"Revision": 8,
+			"RevisionId": "rev-knd-nnh-sjc",
+			"Outcome": "Decided as the owner says: the desktop's close shows the same prompt as Close others and Close all, the dirty documents listed one per line. Point 8 and build step 4 rewritten."
+		},
+		"Created": "2026-10-17T15:54:34.996Z",
+		"Replies": [
+			{
+				"Id": "rep-hzt-8tg-ewx",
+				"By": "user",
+				"At": "2026-10-17T15:54:34.996Z",
+				"Text": "This should be the same confirmation message as Close others and Close all. It should list the dirty Documents, one per line."
+			},
+			{
+				"Id": "rep-a01-c4h-hec",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:12:46.787Z",
+				"Text": "Agreed. Point 8 will read: the desktop's window close asks the page, over the preload, for the dirty tabs, and shows the same prompt as Close all: the documents listed one per line, Save / Discard / Cancel (the same three buttons everywhere, so there is one prompt component), Cancel keeping the window open. A browser raises its own leave-page prompt from beforeunload when a dirty tab exists; a browser's prompt cannot list them. A headless server cannot prompt anyone. Build step 4 names the one prompt on a tab's close, on Close others and Close all, and on the desktop's close."
+			}
+		]
+	},
+	{
+		"Id": "thr-k0i-tsz-08i",
+		"Anchor": {
+			"Text": "Live Preview with a Source toggle, or Live Preview alone",
+			"Prefix": "r. Open questions for the owner ",
+			"Suffix": "? Does Monaco go, with the Edito"
+		},
+		"Detached": true,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:16:43.446Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T16:19:45.831Z",
+			"Revision": 4,
+			"RevisionId": "rev-nol-ir7-qi6",
+			"Outcome": "Answered: Live Preview with a Source toggle; point 1 says so, scoped to CodeMirror mode. The question is struck."
+		},
+		"Created": "2026-10-17T15:57:07.365Z",
+		"Replies": [
+			{
+				"Id": "rep-2y0-ie0-d0m",
+				"By": "user",
+				"At": "2026-10-17T15:57:07.365Z",
+				"Text": "Live Preview with a Source toggle"
+			},
+			{
+				"Id": "rep-99j-58t-sqz",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:12:46.742Z",
+				"Text": "Point 1 will read: with the Editor setting on CodeMirror, Live Preview is the one view of a plan or document, and a Source toggle in the heading switches it to plain markdown, as Obsidian's does; Reading view goes from that mode. With the setting on Monaco the page keeps today's shape (point 2). The question is struck when applied."
+			}
+		]
+	},
+	{
+		"Id": "thr-hdy-cs0-yb2",
+		"Anchor": {
+			"Text": "Does Monaco go, with the Editor setting, or stay as a second engine in Source mode only",
+			"Prefix": " toggle, or Live Preview alone? ",
+			"Suffix": "? Is the first-cut list of rende"
+		},
+		"Detached": true,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:17:02.997Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T16:19:45.812Z",
+			"Revision": 3,
+			"RevisionId": "rev-mx4-v1w-oss",
+			"Outcome": "Answered: Monaco stays as the second engine, behind the Editor setting, with today's views; folded into point 2 with the thread on the engine. The question is struck."
+		},
+		"Created": "2026-10-17T15:59:24.393Z",
+		"Replies": [
+			{
+				"Id": "rep-ozx-l60-22z",
+				"By": "user",
+				"At": "2026-10-17T15:59:24.393Z",
+				"Text": "Monaco stays as a second engine in Source mode"
+			},
+			{
+				"Id": "rep-u6u-rnb-gez",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:12:46.732Z",
+				"Text": "Taken with the thread on point 2 (The engine): Monaco stays as the second engine behind the Editor setting, and Monaco mode is today's page, Read and Edit included, rather than a Source mode inside the new editor; that keeps the backup a known quantity. The question is struck when applied."
+			}
+		]
+	},
+	{
+		"Id": "thr-bpl-t7r-myn",
+		"Anchor": {
+			"Text": "Is the first-cut list of rendered constructs (point 3) right, or do tables and images belong in it?",
+			"Prefix": "ond engine in Source mode only? ",
+			"Suffix": " The shutdown prompt (point 8), "
+		},
+		"Detached": true,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:18:02.470Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T16:19:45.867Z",
+			"Revision": 6,
+			"RevisionId": "rev-yrk-g4u-79t",
+			"Outcome": "Answered: tables and images go into the first cut, as widgets that give way to the source under the cursor, the mechanism the code blocks already need; the rendered-grid table editing stays out. Point 3 and point 10 rewritten; the question is struck."
+		},
+		"Created": "2026-10-17T16:04:58.385Z",
+		"Replies": [
+			{
+				"Id": "rep-0lb-tjk-7ge",
+				"By": "user",
+				"At": "2026-10-17T16:04:58.385Z",
+				"Text": "Add tables and images if it represents little risk. We will be adding them anyway, either now or later."
+			},
+			{
+				"Id": "rep-wmu-c34-fma",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:12:46.764Z",
+				"Text": "Little risk, so in they go. Both ride on the mechanism the first cut needs anyway for fenced code blocks: a block widget shown while the cursor is outside the block, the source while it is inside. An image shows under its line as a widget, the line's source coming back when the cursor is on it; a table is rendered as a block widget while the cursor is outside it and shown as source while the cursor is inside it. What stays out is editing a table in its rendered grid, as Obsidian allows: that is a feature of its own. Point 3 will say so, point 10 drops tables and images from the out-of-scope list and names the grid editing instead, and the question is struck."
+			}
+		]
+	},
+	{
+		"Id": "thr-4xd-rnh-f5f",
+		"Anchor": {
+			"Text": "The shutdown prompt (point 8), or Save-on-quit without a prompt",
+			"Prefix": "tables and images belong in it? ",
+			"Suffix": "? Does Ctrl+E become the Source "
+		},
+		"Detached": true,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:19:02.110Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T16:19:45.926Z",
+			"Revision": 9,
+			"RevisionId": "rev-lax-q9g-hrq",
+			"Outcome": "Answered: confirming on close is an application setting, Confirm on close, on by default, kept with the Editor setting behind the gear, because the drafts are stored and restored anyway. Point 8 and build step 4 say so; the question is struck."
+		},
+		"Created": "2026-10-17T16:07:36.441Z",
+		"Replies": [
+			{
+				"Id": "rep-d0z-zaj-ry1",
+				"By": "user",
+				"At": "2026-10-17T16:07:36.441Z",
+				"Text": "Since the entire state, including in-process edits, are stored and then restored, make it an application setting to confirm on close."
+			},
+			{
+				"Id": "rep-hy2-ddj-8lh",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:12:46.798Z",
+				"Text": "Agreed: a setting, on by default. Point 8 will open with it: whether the close is confirmed is an application setting, Confirm on close, kept with the Editor setting behind the title bar's gear (the one place the page already keeps a per-installation setting of this kind), on by default; your reason recorded, that the whole state, the unsaved edits included, is stored and restored, so a close without a prompt loses nothing. With it on, the desktop's close and the browser's beforeunload prompt as point 8 says; with it off, the window closes and the browser leaves without asking, and the dirty tabs come back dirty. The question is struck when applied."
+			}
+		]
+	},
+	{
+		"Id": "thr-jq5-9zo-idb",
+		"Anchor": {
+			"Text": "Does Ctrl+E become the Source toggle",
+			"Prefix": " Save-on-quit without a prompt? ",
+			"Suffix": "? The build Each step a commit, "
+		},
+		"Detached": true,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-17T16:19:24.941Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-17T16:19:45.943Z",
+			"Revision": 10,
+			"RevisionId": "rev-08t-51p-68a",
+			"Outcome": "Answered: yes, Ctrl+E is the Source toggle in CodeMirror mode and keeps its meaning in Monaco mode. Point 9 says so; the last open question is struck and the section becomes the Decided note."
+		},
+		"Created": "2026-10-17T16:08:13.903Z",
+		"Replies": [
+			{
+				"Id": "rep-082-u32-ns3",
+				"By": "user",
+				"At": "2026-10-17T16:08:13.903Z",
+				"Text": "Sure."
+			},
+			{
+				"Id": "rep-9nk-0g2-z6b",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-17T16:12:46.810Z",
+				"Text": "Point 9 will read: Ctrl+E becomes the Source toggle in CodeMirror mode, as in Obsidian, and keeps its meaning (Edit; from Edit, save and read) in Monaco mode; Ctrl+S stays Save, Ctrl+Shift+C stays. With this the last open question is struck, and the \"Open questions for the owner\" section becomes a Decided note of 2026-10-17 pointing at the points."
+			}
+		]
+	}
+]
