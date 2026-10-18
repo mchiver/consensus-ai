@@ -22,6 +22,7 @@ const PORT = require( './ProjectPort.js' );
 const IDS = require( './Ids.js' );
 const LLMS = require( './Llms.js' );
 const LLM = require( './Llm.js' );
+const REPORT = require( './Report.js' );
 const VERSION = require( '../package.json' ).version;
 
 const BODY_LIMIT = '64mb';	// a project import is one json body, every revision of every plan in it
@@ -417,6 +418,36 @@ function Attach( App, Context )
 			Threads: present_threads( read.Threads, read.Text, name ),
 		} );
 	} );
+
+
+	// The report (plan Printing and Reporting): the plan, its Subplans and all their threads as one page made for
+	// printing, or the same as markdown; any participant reads it, as they read the plan.
+	router.get( '/plans/:id/report', async function ( request, response )
+	{
+		await send_report( request, response, 'html' );
+	} );
+
+
+	router.get( '/plans/:id/report.md', async function ( request, response )
+	{
+		await send_report( request, response, 'markdown' );
+	} );
+
+
+	async function send_report( request, response, form )
+	{
+		let composed = await REPORT.Compose( store, settings, request.params.id );
+		if ( composed.Error )
+		{
+			return fail( response, composed.Status, composed.Error );
+		}
+		if ( form === 'markdown' )
+		{
+			response.type( 'text/markdown; charset=utf-8' ).send( REPORT.Markdown( composed.Report ) );
+			return;
+		}
+		response.type( 'html' ).send( REPORT.Html( composed.Report ) );
+	}
 
 
 	router.put( '/plans/:id', async function ( request, response )

@@ -865,7 +865,7 @@ TEST( 'tree menus: a right-click or the ⋯ opens a row\'s actions; Delete is th
 	// a right-click opens the same menu; Escape closes it
 	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( ROW ) + ' ).dispatchEvent( new MouseEvent( "contextmenu", { bubbles: true, cancelable: true, clientX: 60, clientY: 200 } ) ); true' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display !== "none"' );
-	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].map( function ( entry ) { return entry.textContent.trim(); } )' ), [ 'New Subplan', 'New Comment', 'Copy', 'Rename', 'Export', 'Archive', 'Delete' ] );
+	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].map( function ( entry ) { return entry.textContent.trim(); } )' ), [ 'New Subplan', 'New Comment', 'Copy', 'Rename', 'Export', 'Report', 'Archive', 'Delete' ] );
 	await page.Press( 'Escape' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display === "none"' );
 
@@ -965,7 +965,7 @@ TEST( 'Help: About shows the version, the links and the project summary; Hotkeys
 	await page.Press( 'Escape' );
 	await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
 	await menu_pick( '', 'Hotkeys', '#app-menu' );
-	await page.WaitFor( count_of( '.hotkeys-table tr' ) + ' === 12' );
+	await page.WaitFor( count_of( '.hotkeys-table tr' ) + ' === 13' );
 	ASSERT.equal( await page.Evaluate( text_of( '.hotkeys-table tr:first-child kbd' ) ), 'Ctrl+E' );
 	// the desktop window's keys are listed in the desktop only (plan UI Components, Step 6)
 	ASSERT.equal( await page.Evaluate( count_of( '.desktop-keys-table' ) ), 0 );
@@ -1539,5 +1539,40 @@ TEST( 'UI Tweaks VIII: the mark in the title bar; replies collapse earlier by de
 	// back to Monaco: Read and Edit are back and the Read view shows
 	await set_editor( 'monaco' );
 	await page.WaitFor( count_of( '#view-read' ) + ' === 1 && document.getElementById( "read-view" ).offsetParent !== null' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'Printing and Reporting: Report in a plan\'s row menu, the heading\'s button and Ctrl+P open the report page; it is the plan, its Subplans and threads as one page', async function ()
+{
+	let plan = await created( 'Reported plan' );
+	let subplan = ( await api( 'POST', '/api/plans', { Title: 'Reported step', Text: '# Reported step\n\nA step.\n', Parent: plan.Id } ) ).Plan;
+	await api( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'On the line.', Anchor: { Text: 'A line.' } } );
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Reported plan"' );
+	// window.open is caught, so the page stays here and the URL is read
+	await page.Evaluate( 'window.__opened = []; window.open = function ( url ) { window.__opened.push( url ); return null; }; true' );
+	const OPENED = 'JSON.stringify( window.__opened )';
+	// the heading's button
+	await page.Click( '#report-button' );
+	await page.WaitFor( OPENED + ' === ' + JSON.stringify( JSON.stringify( [ '/api/plans/' + plan.Id + '/report' ] ) ) );
+	// Ctrl+P
+	await page.Press( 'p', [ 'Control' ] );
+	await page.WaitFor( 'window.__opened.length === 2' );
+	// the row's menu
+	await menu_pick( '.tree-item[data-id="' + plan.Id + '"]', 'Report' );
+	await page.WaitFor( 'window.__opened.length === 3' );
+	ASSERT.equal( await page.Evaluate( 'window.__opened[ 2 ]' ), '/api/plans/' + plan.Id + '/report' );
+	// a document has no Report button
+	let readme = ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === home; } ).Context.Id;
+	await page.Evaluate( 'window.location.hash = "#/p/' + readme + '"; true' );
+	await page.WaitFor( 'document.getElementById( "report-button" ) === null || document.getElementById( "report-button" ).offsetParent === null' );
+	// the page itself
+	let response = await fetch( running.Url + '/api/plans/' + plan.Id + '/report' );
+	ASSERT.equal( response.status, 200 );
+	let html = await response.text();
+	ASSERT.ok( html.includes( '<title>Reported plan - Consensus report</title>' ) );
+	ASSERT.ok( html.includes( '<mark class="anchor contested" data-numbers="1">A line.</mark>' ) );
+	ASSERT.ok( html.includes( 'id="plan-' + subplan.Id + '"' ) );
 	ASSERT.deepEqual( page.Errors, [] );
 } );

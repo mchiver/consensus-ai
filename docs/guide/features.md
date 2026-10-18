@@ -30,6 +30,7 @@
 - **Drag and drop.** Reorder, move into folders, make a plan a Subplan, and reorder projects, all by dragging in the tree.
 - **Copy and paste.** Copy a plan, a folder or a project to the clipboard as JSON and paste it into any project, on any server; every id is new.
 - **Archive and trash.** Finished plans go to the archive, out of the tree but kept; deleted items go to the trash.
+- **Reports.** A plan, its Subplans and all their threads flattened into one page for review and printing: every reply with who and when, the passages marked and numbered, Subplans as chapters; Print saves it as a PDF, and the same report is served as markdown. See [Export and import](export-import.html#report).
 - **Export and import.** A project, folder, plan or document goes out as one JSON file with its threads and every revision, and comes back in as it was, as a copy, or merged. See [Export and import](export-import.html).
 - **Plain files you own.** A project is a `.consensus` folder beside your source, meant for source control, with no secrets in it. Back it up by copying it.
 

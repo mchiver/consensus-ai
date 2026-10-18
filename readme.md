@@ -398,6 +398,8 @@ and the runs; `test/Tools.test.js` the tools and the Ollama loop; `test/Api.test
 	PUT    /api/plans/:id/text                   { Text, Revision }  a manual edit
 	DELETE /api/plans/:id                        to the trash; not the Readme
 	GET    /api/plans/:id/revisions[/:n]         the record; a revision's text
+	GET    /api/plans/:id/report                 the plan, its Subplans and all their threads as one page made for printing (plan Printing and Reporting)
+	GET    /api/plans/:id/report.md              the same report as markdown
 	GET    /api/plans/:id/threads[?status=]      all | contested | resolved | applied | reopened | detached | mine
 	POST   /api/plans/:id/threads                { Anchor: { Text, Prefix?, Suffix? } | null, Text, Resolve? }  not for a document
 	POST   /api/plans/:id/threads/:tid/replies   { Text, Resolve? }  reopens a resolved thread
@@ -453,6 +455,7 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 	src/Anchors.js        visible-text anchors
 	src/Store.js          the config folder and the project folders, the archive, and the migrations (before Step 1, before Step 2)
 	src/ProjectPort.js    export and import
+	src/Report.js         the report of a plan: Compose, Markdown, Html (plan Printing and Reporting)
 	src/Participants.js   who is calling, the States, and the settings' checks
 	src/Ids.js            global ids
 	src/Events.js         Server-Sent Events

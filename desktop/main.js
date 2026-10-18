@@ -22,6 +22,7 @@
 //
 //   npm run desktop          (electron desktop, from the checkout)
 
+const FS = require( 'fs' );
 const PATH = require( 'path' );
 const CHILD_PROCESS = require( 'child_process' );
 const ELECTRON = require( 'electron' );
@@ -229,6 +230,65 @@ function web_preferences()
 }
 
 
+// A report page of a root's server, opened from the page (plan Printing and Reporting): /api/plans/<id>/report, on
+// the app's own origin through the forwarder.
+function is_report_url( Url )
+{
+	return !!page && String( Url ).startsWith( page.Url + '/' ) && /\/api\/plans\/[^/?#]+\/report(\.md)?(\?|#|$)/.test( Url );
+}
+
+
+// The report window's Print to PDF (plan Printing and Reporting): the save dialog in the folder last used, then the
+// page printed to that file. Answers { Path } or { Cancelled } or { Error }.
+async function print_to_pdf( sender, Name )
+{
+	let owner = ELECTRON.BrowserWindow.fromWebContents( sender );
+	let remembered = settings.Remembered && settings.Remembered[ 'report-folder' ];
+	let folder = ( typeof remembered === 'string' && remembered ) ? remembered : ELECTRON.app.getPath( 'documents' );
+	let name = String( Name || 'report' ).replace( /[\\/:*?"<>|\u0000-\u001f]+/g, ' ' ).trim() || 'report';
+	let picked = await ELECTRON.dialog.showSaveDialog( owner, { defaultPath: PATH.join( folder, name + '.pdf' ), filters: [ { name: 'PDF', extensions: [ 'pdf' ] } ] } );
+	if ( picked.canceled || !picked.filePath )
+	{
+		return { Cancelled: true };
+	}
+	try
+	{
+		let data = await sender.printToPDF( { printBackground: true, pageSize: 'A4' } );
+		await FS.promises.writeFile( picked.filePath, data );
+	}
+	catch ( error )
+	{
+		return { Error: 'not written: ' + ( error && error.message || error ) };
+	}
+	if ( SETTINGS.Remember( settings, 'report-folder', PATH.dirname( picked.filePath ) ) )
+	{
+		save_settings_soon();
+	}
+	return { Path: picked.filePath };
+}
+
+
+// The report window's View in Browser (plan Printing and Reporting): the window's URL is the forwarder's,
+// /servers/<key>/api/plans/<id>/report on the app's origin; the same path on the root's own address is what a
+// browser can open. Answers { Url } or { Error }.
+function view_in_browser( Url )
+{
+	let match = /^\/servers\/([^/]+)(\/.*)$/.exec( new URL( String( Url ) ).pathname );
+	if ( !match )
+	{
+		return { Error: 'this page is not a server\'s' };
+	}
+	let root = roots_now().find( function ( one ) { return one.Key === decodeURIComponent( match[ 1 ] ); } );
+	if ( !root || !root.Url )
+	{
+		return { Error: 'no server "' + match[ 1 ] + '" in this window' };
+	}
+	let target = root.Url.replace( /\/+$/, '' ) + match[ 2 ];
+	ELECTRON.shell.openExternal( target );
+	return { Url: target };
+}
+
+
 // A window of the app (plan UI Components, Step 5): no frame, Electron's window buttons over the page's title bar.
 function window_options( Width, Height )
 {
@@ -255,6 +315,11 @@ function create_window()
 	// A tab's Detach: the page opens "?detached=1#/p/<id>" on its own origin; it becomes a window of the app.
 	window.webContents.setWindowOpenHandler( function ( details )
 	{
+		if ( is_report_url( details.url ) )
+		{
+			// a report (plan Printing and Reporting): a plain framed window, its Print button printing to PDF
+			return { action: 'allow', overrideBrowserWindowOptions: { width: 1000, height: 800, title: 'Consensus report', icon: ICON, titleBarStyle: 'default', titleBarOverlay: false, webPreferences: web_preferences() } };
+		}
 		if ( details.url.startsWith( page.Url + '/' ) )
 		{
 			return { action: 'allow', overrideBrowserWindowOptions: window_options( 1000, 800 ) };
@@ -262,9 +327,13 @@ function create_window()
 		ELECTRON.shell.openExternal( details.url );
 		return { action: 'deny' };
 	} );
-	window.webContents.on( 'did-create-window', function ( child )
+	window.webContents.on( 'did-create-window', function ( child, details )
 	{
 		child.setMenuBarVisibility( false );
+		if ( details && is_report_url( details.url ) )
+		{
+			return;
+		}
 		// a detached window asks its page about its own draft, as the main window does
 		child.on( 'close', function ( event )
 		{
@@ -541,6 +610,18 @@ function attach_handlers()
 	ELECTRON.ipcMain.handle( 'open-folder-window', function ( event )
 	{
 		return open_folder_window( ELECTRON.BrowserWindow.fromWebContents( event.sender ) ).then( function () { return {}; } );
+	} );
+
+	// The report window's Print (plan Printing and Reporting).
+	ELECTRON.ipcMain.handle( 'print-pdf', function ( event, name )
+	{
+		return print_to_pdf( event.sender, name );
+	} );
+
+	// The report window's View in Browser: the same report at its root's own address, in the system browser.
+	ELECTRON.ipcMain.handle( 'view-in-browser', function ( event )
+	{
+		return view_in_browser( event.sender.getURL() );
 	} );
 
 	ELECTRON.ipcMain.handle( 'quit', function ()

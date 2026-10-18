@@ -5,7 +5,7 @@
 // (plan Markdown Editor, Step 3) Source and Revisions, with Save and Discard, since the editor is the one view there. The second: the location, server / project
 // / folders / parent plans / the item, the project and folder crumbs revealing their node in the tree, a parent
 // plan's opening it. The third: the state picker and the one-line state, the revision and the text's size, then
-// New Comment and New subplan. Delete is in the item's menu in the tree. Ctrl+E (hotkeys.js) switches between
+// Report (plan Printing and Reporting: the report page in a new tab, Ctrl+P), New Comment and New subplan. Delete is in the item's menu in the tree. Ctrl+E (hotkeys.js) switches between
 // Edit and Read.
 //
 // Interface:
@@ -16,7 +16,7 @@
 
 angular.module( 'Consensus' ).component( 'editorHeader', {
 	templateUrl: '/components/editor-header/editor-header.html',
-	controller: [ '$scope', '$rootScope', 'State', 'Client', 'Subplans', 'Roots', function ( $scope, $rootScope, State, Client, Subplans, Roots )
+	controller: [ '$scope', '$rootScope', 'State', 'Client', 'Subplans', 'Roots', 'Reports', function ( $scope, $rootScope, State, Client, Subplans, Roots, Reports )
 	{
 		let controller = this;
 		controller.State = State;
@@ -96,6 +96,13 @@ angular.module( 'Consensus' ).component( 'editorHeader', {
 		controller.NewSubplan = function ()
 		{
 			Subplans.Start();
+		};
+
+
+		// The report of the open plan (plan Printing and Reporting), in a new tab or window.
+		controller.OpenReport = function ()
+		{
+			Reports.Open( State.Root, State.OpenId );
 		};
 
 

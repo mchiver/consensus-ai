@@ -14,7 +14,7 @@
 // editor, whose own they are there; no hotkey but Escape fires while a popup is open, and Escape is the popups' and
 // the menu's own, each closing itself. Ctrl reads as Cmd on a Mac.
 
-angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'State', 'Tabs', 'Menus', function ( $rootScope, $window, State, Tabs, Menus )
+angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'State', 'Tabs', 'Menus', 'Reports', function ( $rootScope, $window, State, Tabs, Menus, Reports )
 {
 	const MAC = /Mac|iPhone|iPad/.test( $window.navigator.platform || '' );
 	const NAMED = { PgUp: 'PageUp', PgDn: 'PageDown', Home: 'Home', End: 'End', Escape: 'Escape' };
@@ -259,6 +259,18 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	}
 
 
+	// Ctrl+P (plan Printing and Reporting): the open plan's report in a new tab; a document has none.
+	function report()
+	{
+		if ( !open_plan() || ( State.Open.Plan.Kind || 'plan' ) !== 'plan' )
+		{
+			return false;
+		}
+		Reports.Open( State.Root, State.OpenId );
+		return true;
+	}
+
+
 	//-----------------------------------------------------------------
 	// The table
 
@@ -270,6 +282,7 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 		{ Keys: [ 'Escape' ], Label: 'Close the menu or the popup; deselect the thread', When: '', Act: escape },
 		{ Keys: [ 'Ctrl+Shift+E' ], Label: 'Show or hide the project tree', When: 'the main window', Act: toggle_tree },
 		{ Keys: [ 'Ctrl+Shift+T', 'Ctrl+Shift+H' ], Label: 'Show or hide the threads', When: 'a plan open', Act: toggle_threads },
+		{ Keys: [ 'Ctrl+P' ], Label: 'Report: the open plan, its Subplans and all their threads as one page to print', When: 'a plan open', Act: report },
 		{ Keys: [ 'Ctrl+Shift+C' ], Label: 'Comment on the whole document', When: 'a plan\'s Read view, or its CodeMirror editor', Act: comment_on_whole },
 		{ Keys: [ 'Ctrl+PgUp', 'Alt+PgUp' ], Label: 'Previous tab, wrapping to the last', When: 'outside the editor', Act: function () { return go_tab( 'previous' ); } },
 		{ Keys: [ 'Ctrl+PgDn', 'Alt+PgDn' ], Label: 'Next tab, wrapping to the first', When: 'outside the editor', Act: function () { return go_tab( 'next' ); } },

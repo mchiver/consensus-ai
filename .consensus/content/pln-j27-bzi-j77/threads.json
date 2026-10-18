@@ -1,1 +1,80 @@
-[]
+[
+	{
+		"Id": "thr-tvh-axw-rdy",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-18T08:12:17.575Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-18T08:12:50.354Z",
+			"Revision": 7,
+			"RevisionId": "rev-dvw-upd-5eu",
+			"Outcome": "All five taken as recommended: no server-side PDF; every thread whatever its status; Subplans nested as chapters; the markdown form served beside the HTML; one build in three checkpoints rather than three subplans, the introduction changed to say so."
+		},
+		"Created": "2026-10-18T08:09:27.408Z",
+		"Replies": [
+			{
+				"Id": "rep-cf5-uwn-bek",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-18T08:09:27.408Z",
+				"Text": "Formalized from the four notes (Claude Fable 5.1): an introduction, what the report holds, three build steps and the decided defaults. These are the decisions I am least sure are yours, each with my recommendation. Resolve with no reply to take them all.\n\n1. **No server-side PDF.** The PDF is the browser's Save as PDF from the print dialog, or Electron's printToPDF in the desktop. The alternative is a `report.pdf` route driven by a headless Chrome on the server, which the Docker image does not have. Recommendation: as written; a server PDF is its own later plan if a run ever needs to file one.\n2. **Every thread, whatever its status.** Contested threads go in, marked contested, so a report of work in progress is a record too. The alternative is applied threads only, a report of what was settled. Recommendation: as written, with the status counts on the title page saying how settled the plan is.\n3. **Subplans nested in one report.** A plan with Subplans reports as chapters, in the tree's order and depth. The alternative is one report per plan, Subplans linked. Recommendation: as written; that is what \"flatten\" asks for.\n4. **The markdown form served too.** `report.md` beside the HTML, for an agent or for keeping with the source. Recommendation: as written; it is the HTML's source anyway.\n5. **Three steps as subplans.** The report page, the way to it from the app, and the PDF, each designed on its subplan before its build, as UI Components and Markdown Editor were. The alternative is one build, since the whole is small. Recommendation: one build with three checkpoints, no subplans; I will change the introduction to say so if you agree."
+			}
+		]
+	},
+	{
+		"Id": "thr-p1u-r58-gt1",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-18T09:00:39.243Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-18T09:02:34.364Z",
+			"Revision": 7,
+			"RevisionId": "rev-dvw-upd-5eu",
+			"Outcome": "Accepted by the owner after the fs fix and the View in Browser button; committed as Printing and Reporting and the plan set Finished."
+		},
+		"Created": "2026-10-18T08:37:31.189Z",
+		"Replies": [
+			{
+				"Id": "rep-w5o-n3k-xs0",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-18T08:37:31.189Z",
+				"Text": "**Build log** (Claude Fable 5.1, 2026-10-18). One build in the three checkpoints the plan names; nothing committed yet.\n\n**Checkpoint 1, the report page.** `src/Report.js`: `Compose( Store, Settings, PlanId )` reads the plan, its tree node and each Subplan under it (the tree's order and depth, the archive searched when the plan is archived), places every thread's anchor with `Anchors.Find` and orders the threads as the plan says (whole document first, then by passage, detached last, each numbered), and gathers the title page (project and path by titles, state, dates, participants who took part, counts, the server's zone). `Markdown( Report )` is the one markdown document; `Html( Report )` the complete page, the stylesheet `public/css/report.css` inlined so a saved page stands alone. `MarkHtml` wraps each passage in `<mark class=\"anchor <state>\">` piece by piece across tags, overlapping passages carrying every number, and puts the thread's number after the passage's last piece. The routes in `src/Api.js`: `GET /api/plans/:id/report` (HTML) and `/report.md` (markdown), for every participant; a document answers 400, a missing plan 404. Deleted threads are gone with their text, as decided.\n\n**Checkpoint 2, in the app.** `public/js/reports.js` (`Reports.Url`, `Reports.Open`: a new tab, through the root's base so the desktop's forwarder serves it); **Report** in a plan's row menu after Export (`tree.js`), the **Report** button in the heading beside New subplan (`editor-header`), and **Ctrl+P** (`hotkeys.js`, listed in Help > Hotkeys; a document has none).\n\n**Checkpoint 3, the PDF.** The page's **Print** calls the browser's print, whose dialog has Save as PDF; the print stylesheet drops the controls, puts the title page and each plan on a page of its own, and keeps the colours. In the desktop, `main.js` opens a report URL in a plain framed window (no close prompt for it) and answers `print-pdf`: the save dialog in the folder last used (`Remembered[\"report-folder\"]`), `webContents.printToPDF` with backgrounds on A4, the file written, the page told the path; `preload.js` exposes `ConsensusDesktop.PrintToPdf`, which the page's Print uses when it is there.\n\n**Docs.** The API guide and `.guides/build-with-consensus.md` list the two routes; `export-import.md` has a **Report** section; `editing.md`'s hotkeys table has Ctrl+P; the Features page has a Reports line; the readme's API table has the routes. The docs are rebuilt, not published.\n\n**Tests.** `npm test`: 202 pass. New `test/Report.test.js` (4 tests): a plan with a Subplan and threads of every kind (applied, whole document, reopened, detached by an edit, deleted) reports as HTML with the title page's facts, the passages marked and numbered in text order, the threads' authors, times and records, the Subplan as a chapter and the deleted thread absent; the same as markdown, and the Subplan on its own with its path; a document 400, a missing plan 404, the llm reading it too; and `MarkHtml` across tags, over an entity, with an overlap and across blocks. `test/Ui.test.js`: the heading's button, Ctrl+P and the row menu each open the report URL (window.open caught), a document has no button, and the page itself renders; the existing menu and hotkeys-count assertions updated. Looked at by eye: the page in a headless browser (the screen) and its print to PDF (3 pages: title, plan, Subplan).\n\n**Not exercised.** The desktop's print to PDF ran through no Electron here: the handler, the window options and the preload entry are written and syntax-checked, and the page falls back to the browser's print when the bridge is absent. Worth one look in the desktop.\n\n**Decided during the build.** The thread's number is a superscript after the passage, not a margin number (a margin float breaks across lines and in print); the markdown form embeds each plan's text verbatim, its own headings included, under the report's rule lines; timestamps are the server's local time with the zone named once on the title page; the participants listed are those who wrote, resolved or applied something."
+			},
+			{
+				"Id": "rep-i1n-46d-bw3",
+				"By": "user",
+				"At": "2026-10-18T08:47:18.759Z",
+				"Text": "I get this message after clicking Print and selecting a filename: `not written: FS is not defined`"
+			},
+			{
+				"Id": "rep-32l-6yi-rhb",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-18T08:47:48.107Z",
+				"Text": "Fixed: `desktop/main.js` never required the fs module, and nothing in it had used it before the PDF was written; `const FS = require( 'fs' )` is in with the other requires, and the write runs through `FS.promises.writeFile` as written. That is exactly the path the build log said was not exercised under Electron. The desktop must be restarted to pick it up (the main process does not reload); then Print, pick the file, and the note under the controls should read \"written to <path>\". Resolve when it does, and I commit; a reply if it does not."
+			},
+			{
+				"Id": "rep-pg1-kxi-ohv",
+				"By": "user",
+				"At": "2026-10-18T08:50:24.045Z",
+				"Text": "Add a \"View in Browser\" button so that we can also use the borwser's preview and print manually."
+			},
+			{
+				"Id": "rep-ugk-c6l-ee0",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-18T08:52:05.436Z",
+				"Text": "Added: **View in Browser** on the report page, shown only in the desktop (hidden in a browser, where the page already is one). It asks the main process over the bridge (`ConsensusDesktop.ViewInBrowser`, the `view-in-browser` handler in `desktop/main.js`), which takes the window's own URL (`/servers/<key>/api/plans/<id>/report` on the app's origin), looks the key up in the roots it shows, and opens the same path on that server's own address in the system browser with `shell.openExternal`; a server the window no longer shows answers an error in the note under the controls. The guide's Report section says so, and the report test checks the button is in the page. Restart the desktop to get it, with the fs fix. Resolve when both work, and I commit."
+			}
+		]
+	}
+]

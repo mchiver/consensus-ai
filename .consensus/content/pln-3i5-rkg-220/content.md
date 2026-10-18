@@ -1,6 +1,10 @@
-# Workspace Git
+# Workspace Files
 
-The Workspace page will include git features.
+This page allows the user to manage the workspace files regardless of where the Consensus server is located.
+The Workspace page will include features allowing the user to sync with a git repository..
+We can use the Monaco editor to display workspace file content.
+
+We will need another branch on the api: `/api/projects/:pid/workspace/ ...`
 
 - If there are no folders or files in the root path, prior to any filtering, then a `Checkout` button will be available to perform a git checkout into the root folder.
 - If the root contains a `.git` folder, then it will have buttons to do `Commit` and `Push`. There will also be a browsable list of recent commits (pending and pushed). A pending commit will show the affected files and an accumulation of all resolved un-commited build logs.

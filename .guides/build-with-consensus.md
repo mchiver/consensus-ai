@@ -56,6 +56,9 @@ Consensus ones included, and gives it this page's rules in its own words.
   - `POST /api/plans/<id>/threads/<tid>/anchor` `{ Anchor: { Text } }`: re-anchor a thread.
   - `PUT /api/plans/<id>/state` `{ State }`
   - `PUT /api/plans/<id>/text` `{ Text, Revision }`: an edit, for example to a project's Readme.
+  - `GET /api/plans/<id>/report.md`: the plan, its Subplans and all their threads flattened into one markdown
+    document (every reply with who and when, the resolve and apply records); `/report` is the same as a page for
+    printing.
 - An anchor's `Text` is matched against the text as it reads, without markdown marks: no backticks or asterisks.
 
 ## Finding your project

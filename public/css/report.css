@@ -1,0 +1,268 @@
+/* report.css - the report page (plan Printing and Reporting), inlined into the page src/Report.js serves. The
+   Read view's markdown rules and the threads' colours as consensus.css and html-view.css have them, a light and a
+   dark palette for the screen, and the print: black on white, the controls gone, a page per plan. */
+
+:root
+{
+	--page-bg: #ffffff;
+	--panel-bg: #f6f7f9;
+	--border: #dfe3e8;
+	--text: #1f2328;
+	--muted: #6b7380;
+	--accent: #0d6efd;
+	--contested-bg: #fff3bf;
+	--contested-edge: #e0b400;
+	--reopened-bg: #ffe0c2;
+	--reopened-edge: #e07a00;
+	--resolved-bg: #d8ecff;
+	--resolved-edge: #2b8de0;
+	--applied-bg: #d9f5e0;
+	--applied-edge: #2fa45a;
+	--detached-edge: #c0392b;
+}
+
+:root[data-theme="dark"]
+{
+	--page-bg: #1b1f24;
+	--panel-bg: #22272e;
+	--border: #373e47;
+	--text: #e6edf3;
+	--muted: #9aa4b2;
+	--contested-bg: #5a4a00;
+	--contested-edge: #ffd43b;
+	--reopened-bg: #5c3300;
+	--reopened-edge: #ff922b;
+	--resolved-bg: #123a5e;
+	--resolved-edge: #74c0fc;
+	--applied-bg: #0f4a2a;
+	--applied-edge: #51cf66;
+}
+
+html, body
+{
+	margin: 0;
+	padding: 0;
+	background: var(--page-bg);
+	color: var(--text);
+	font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	font-size: 16px;
+	line-height: 1.6;
+}
+
+a { color: var(--accent); }
+.muted { color: var(--muted); }
+.who { font-weight: 600; }
+
+/* --------------------------------------------------------------------- the controls, screen only */
+
+.controls
+{
+	position: sticky;
+	top: 0;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.5rem 1rem;
+	background: var(--panel-bg);
+	border-bottom: 1px solid var(--border);
+	font-size: 0.9rem;
+}
+
+.controls-title
+{
+	font-weight: 600;
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.controls button
+{
+	font: inherit;
+	padding: 0.2rem 0.7rem;
+	border: 1px solid var(--border);
+	border-radius: 0.3rem;
+	background: var(--page-bg);
+	color: var(--text);
+	cursor: pointer;
+}
+
+.controls-note
+{
+	color: var(--muted);
+}
+
+/* --------------------------------------------------------------------- the report */
+
+.report
+{
+	max-width: 52rem;
+	margin: 0 auto;
+	padding: 1.5rem 1.5rem 4rem;
+}
+
+.kicker
+{
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	font-size: 0.75rem;
+	color: var(--muted);
+}
+
+.title-page h1
+{
+	font-size: 2.2rem;
+	margin: 0.25rem 0 1rem;
+}
+
+.facts
+{
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 0.3rem 1rem;
+	margin: 0 0 1.5rem;
+}
+
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; }
+.path { color: var(--muted); }
+
+.contents-title { font-size: 1.1rem; margin: 1rem 0 0.25rem; }
+.contents { margin: 0; padding-left: 1.5rem; }
+.contents .depth-2 { margin-left: 1rem; }
+.contents .depth-3 { margin-left: 2rem; }
+
+.plan
+{
+	margin-top: 2.5rem;
+	padding-top: 1.5rem;
+	border-top: 2px solid var(--border);
+}
+
+.plan-head h2, .plan-head h3, .plan-head h4 { margin: 0.25rem 0 0.25rem; }
+.plan-facts { color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+
+/* the Read view's markdown rules */
+.markdown h1 { font-size: 1.8rem; margin-top: 1.5rem; }
+.markdown h2 { font-size: 1.4rem; margin-top: 1.5rem; }
+.markdown h3 { font-size: 1.15rem; margin-top: 1.25rem; }
+.markdown pre { background: var(--panel-bg); padding: 0.75rem; border-radius: 0.3rem; overflow-x: auto; }
+.markdown code { font-size: 0.9em; }
+.markdown blockquote { border-left: 3px solid var(--border); margin-left: 0; padding-left: 1rem; color: var(--muted); }
+.markdown table { border-collapse: collapse; }
+.markdown th, .markdown td { border: 1px solid var(--border); padding: 0.25rem 0.5rem; }
+.markdown img { max-width: 100%; }
+
+/* the passages, as html-view marks them, with their numbers */
+mark.anchor
+{
+	padding: 0.05em 0;
+	color: inherit;
+	background: var(--contested-bg);
+	border-bottom: 2px solid var(--contested-edge);
+}
+
+mark.anchor.reopened { background: var(--reopened-bg); border-bottom-color: var(--reopened-edge); }
+mark.anchor.resolved { background: var(--resolved-bg); border-bottom-color: var(--resolved-edge); }
+mark.anchor.applied { background: var(--applied-bg); border-bottom-color: var(--applied-edge); }
+mark.anchor.several { border-bottom-style: double; border-bottom-width: 3px; }
+
+.passage-number
+{
+	font-size: 0.7em;
+	font-weight: 700;
+	margin-left: 0.15em;
+	color: var(--contested-edge);
+}
+
+.passage-number.reopened { color: var(--reopened-edge); }
+.passage-number.resolved { color: var(--resolved-edge); }
+.passage-number.applied { color: var(--applied-edge); }
+
+/* --------------------------------------------------------------------- the threads */
+
+.threads-title { margin-top: 2rem; font-size: 1.3rem; }
+
+.thread
+{
+	margin: 1rem 0;
+	padding: 0.6rem 0.9rem;
+	border: 1px solid var(--border);
+	border-left: 4px solid var(--contested-edge);
+	border-radius: 0.3rem;
+	break-inside: avoid;
+}
+
+.thread.reopened { border-left-color: var(--reopened-edge); }
+.thread.resolved { border-left-color: var(--resolved-edge); }
+.thread.applied { border-left-color: var(--applied-edge); }
+.thread.detached { border-left-style: dashed; border-left-color: var(--detached-edge); }
+
+.thread-head
+{
+	display: flex;
+	align-items: baseline;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+	margin-bottom: 0.4rem;
+}
+
+.thread-head .number { font-weight: 700; }
+.thread-head .anchor-words { flex: 1; font-style: italic; }
+
+.badge
+{
+	font-size: 0.75rem;
+	padding: 0.05rem 0.45rem;
+	border-radius: 0.6rem;
+	border: 1px solid var(--contested-edge);
+	background: var(--contested-bg);
+}
+
+.badge.reopened { border-color: var(--reopened-edge); background: var(--reopened-bg); }
+.badge.resolved { border-color: var(--resolved-edge); background: var(--resolved-bg); }
+.badge.applied { border-color: var(--applied-edge); background: var(--applied-bg); }
+
+.reply { margin: 0.5rem 0 0.5rem 0.25rem; padding-left: 0.75rem; border-left: 2px solid var(--border); }
+.reply-head { font-size: 0.9rem; }
+.reply-head time { color: var(--muted); margin-left: 0.4rem; }
+.reply-text > :first-child { margin-top: 0.2rem; }
+.reply-text > :last-child { margin-bottom: 0.2rem; }
+
+.record { font-size: 0.9rem; color: var(--muted); margin-top: 0.4rem; }
+.record time { margin-left: 0.2rem; }
+.record .outcome { color: var(--text); }
+
+/* --------------------------------------------------------------------- print */
+
+@media print
+{
+	:root, :root[data-theme="dark"]
+	{
+		--page-bg: #ffffff;
+		--panel-bg: #f2f2f2;
+		--border: #bbbbbb;
+		--text: #000000;
+		--muted: #555555;
+		--contested-bg: #fff3bf;
+		--reopened-bg: #ffe0c2;
+		--resolved-bg: #d8ecff;
+		--applied-bg: #d9f5e0;
+	}
+
+	.controls { display: none; }
+	.report { max-width: none; padding: 0; }
+	.title-page { break-after: page; }
+	.plan { break-before: page; border-top: none; margin-top: 0; padding-top: 0; }
+	.plan.depth-0 { break-before: auto; }
+	.contents a { color: inherit; text-decoration: none; }
+	mark.anchor { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+	.badge, .thread { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+	a { color: inherit; }
+}
+
+@page
+{
+	margin: 18mm 16mm;
+}

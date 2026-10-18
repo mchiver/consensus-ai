@@ -34,6 +34,7 @@
 		</div>
 		<div class="header-buttons">
 			<button class="btn btn-sm btn-outline-secondary" id="new-comment" ng-click="$ctrl.CommentOnWhole()" ng-show="($ctrl.State.View === 'read' || $ctrl.State.MirrorShown()) && $ctrl.HasThreads() && !$ctrl.IsArchived()" title="a comment on the whole document; Re-anchor puts it on a passage"><svg class="icon lead"><use href="#i-comment"></use></svg>New Comment</button>
+			<button class="btn btn-sm btn-outline-secondary" id="report-button" ng-click="$ctrl.OpenReport()" ng-show="$ctrl.IsPlan()" title="the plan, its Subplans and all their threads as one page to review or print (Ctrl+P)"><svg class="icon lead"><use href="#i-eye"></use></svg>Report</button>
 			<button class="btn btn-sm btn-outline-secondary" id="new-subplan" ng-click="$ctrl.NewSubplan()" ng-show="$ctrl.IsPlan() && !$ctrl.IsArchived()" title="a new plan under this one"><svg class="icon lead"><use href="#i-subplan"></use></svg>New subplan</button>
 		</div>
 	</div>

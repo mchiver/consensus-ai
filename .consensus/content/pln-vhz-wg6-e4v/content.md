@@ -20,9 +20,9 @@ Consensus sends task specific tool usage instructions to the LLM.
 
 All LLM interaction is triggered manually by the user who can initiate a specific task via button press.
 
-- **Plan**: Enhance a specific plan with additional detail. User supplied custom instructions steer the enhancements.  Used to fill in the gaps and take a rough idea into a formalized plan.
-- **Respond**: LLM respond to threads waiting on it and may update plans.
-- **Build**: LLM interacts with the Project's workspace which do exist locally.
+- **Enhance**: Enhance a plan's content with additional detail. User supplied custom instructions steer the enhancements.  Used to fill in the gaps and take a rough idea into a formalized plan.
+- **Respond**: LLM responds to threads waiting on it.
+- **Build**: LLM interacts with the Project's workspace. Results in a build log. Checkboxes for git sync and auto-commit.
 
 ## Planbuilding
 

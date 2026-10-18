@@ -64,6 +64,7 @@ The project tree's state per server, the open project, the folded folders and th
 | Ctrl+Shift+E | Show or hide the project tree |
 | Ctrl+Shift+T, or Ctrl+Shift+H | Show or hide the threads |
 | Ctrl+Shift+C | Comment on the whole document |
+| Ctrl+P | Report: the open plan, its Subplans and all their threads as one page to print |
 | Ctrl+PgUp, or Alt+PgUp | Previous tab, wrapping to the last |
 | Ctrl+PgDn, or Alt+PgDn | Next tab, wrapping to the first |
 | Ctrl+Home, or Alt+Home | First tab |

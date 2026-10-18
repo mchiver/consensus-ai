@@ -36,6 +36,11 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	// the unsaved edits is settled; true closes the window, false keeps it.
 	OnCloseRequested: function ( Handler ) { ELECTRON.ipcRenderer.on( 'close-requested', function () { Handler(); } ); },
 	CloseDecided: function ( Ok ) { ELECTRON.ipcRenderer.send( 'close-decided', !!Ok ); },
+	// A report page's Print (plan Printing and Reporting): the save dialog, then the page as a PDF file; answers
+	// { Path } or { Cancelled } or { Error }.
+	PrintToPdf: function ( Name ) { return invoke( 'print-pdf', Name ); },
+	// A report page's View in Browser: the same page at its server's own address, in the system browser.
+	ViewInBrowser: function () { return invoke( 'view-in-browser' ); },
 } );
 
 

@@ -65,6 +65,8 @@ PUT    /api/plans/:id/state                  { State }
 PUT    /api/plans/:id/text                   { Text, Revision }  a manual edit
 DELETE /api/plans/:id                        to the trash
 GET    /api/plans/:id/revisions[/:n]         the record; a revision's text
+GET    /api/plans/:id/report                 the plan, its Subplans and all their threads as one page made for printing
+GET    /api/plans/:id/report.md              the same report as markdown
 GET    /api/plans/:id/threads[?status=]      all | contested | resolved | applied | reopened | detached | mine
 POST   /api/plans/:id/threads                { Anchor: { Text, Prefix?, Suffix? } | null, Text, Resolve? }
 POST   /api/plans/:id/threads/:tid/replies   { Text, Resolve? }  reopens a resolved thread

@@ -11,7 +11,7 @@
 const DRAG_TYPE = 'application/x-consensus-item';
 const DRAG_PROJECT_TYPE = 'application/x-consensus-project';
 
-angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', 'Llms', 'Roots', 'Hotkeys', 'Toast', 'Instructions', function ( $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports, Llms, Roots, Hotkeys, Toast, Instructions )
+angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', 'Llms', 'Roots', 'Hotkeys', 'Toast', 'Instructions', 'Reports', function ( $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports, Llms, Roots, Hotkeys, Toast, Instructions, Reports )
 {
 	let tree = {};
 	// Remembered per root (stored.js, plan UI Tweaks V; per root since plan Run Shapes, Step 5), and the sort and the
@@ -661,7 +661,7 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	}
 
 
-	// Plan: New Subplan, New Comment, ---, Copy, Rename, Export, ---, Delete.
+	// Plan: New Subplan, New Comment, ---, Copy, Rename, Export, Report, Archive, ---, Delete.
 	// Document: Copy, Rename, Export, ---, Delete.
 	function item_actions( project, node )
 	{
@@ -678,6 +678,7 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 		actions.push( export_action( node.Kind, project, node ) );
 		if ( node.Kind === 'plan' )
 		{
+			actions.push( action( 'Report', 'eye', function () { Reports.Open( root_of( project ), node.Id ); } ) );
 			actions.push( action( 'Archive', 'archive', function () { tree.Archive( project, node ); } ) );
 		}
 		actions.push( { Separator: true } );
