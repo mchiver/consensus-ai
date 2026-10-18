@@ -96,7 +96,8 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 			'.cm-cursor, .cm-dropCursor': { borderLeftColor: text },
 			'&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': { backgroundColor: selection },
 			'.cm-gutters': { backgroundColor: background, color: muted, borderRight: '1px solid ' + border },
-			'.cm-activeLine': { backgroundColor: panel },
+			// translucent: drawSelection paints the selection behind the content, and an opaque line would hide it (plan UI Tweaks VIII)
+			'.cm-activeLine': { backgroundColor: 'color-mix( in srgb, ' + panel + ' 55%, transparent )' },
 			'.cm-activeLineGutter': { backgroundColor: panel },
 			'.cm-foldPlaceholder': { backgroundColor: panel, border: '1px solid ' + border, color: muted },
 			'.cm-panels': { backgroundColor: panel, color: text },

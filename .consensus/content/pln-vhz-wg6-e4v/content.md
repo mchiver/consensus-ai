@@ -1,7 +1,6 @@
 # Usage Scenarios
 
-
-## LLM Sidecar Mode
+## Local LLM (Sidecar Mode)
 
 When running both an LLM session and a Consensus session on the same machine, You can use the LLM to control Consensus by directly accessing the Consensus MCP Server.
 
@@ -13,6 +12,17 @@ When running both an LLM session and a Consensus session on the same machine, Yo
 Changes made by the LLM instantly appear in your Consensus view.
 All of your comments and replies are unread by the LLM until you say "your turn".
 
+## Remote LLM
+
+Consensus is running on a different machine from the LLM.
+The LLM does not have direct access to Workspace files.
+Consensus sends task specific tool usage instructions to the LLM. 
+
+All LLM interaction is triggered manually by the user who can initiate a specific task via button press.
+
+- **Plan**: Enhance a specific plan with additional detail. User supplied custom instructions steer the enhancements.  Used to fill in the gaps and take a rough idea into a formalized plan.
+- **Respond**: LLM respond to threads waiting on it and may update plans.
+- **Build**: LLM interacts with the Project's workspace which do exist locally.
 
 ## Planbuilding
 

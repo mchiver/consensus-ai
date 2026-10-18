@@ -1,1 +1,56 @@
-[]
+[
+	{
+		"Id": "thr-7ak-y9f-axp",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-18T07:03:36.276Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-18T07:07:29.776Z",
+			"Revision": 9,
+			"RevisionId": "rev-o1c-g7c-zk6",
+			"Outcome": "Formalized (Claude Fable 5.1): an introduction and one section per item, each with what happens, what was found in the code, and the change decided. Item 2: the cause is in the Read view, position_of answering the document end for an end point at offset 0 of an element; the editor path is believed sound and is checked in the build. Item 3: the opaque active-line background covers drawSelection layer; it becomes translucent. Item 5: cause not yet confirmed; cursor: text on .cm-content is the change, confirmed in the build."
+		},
+		"Created": "2026-10-18T07:03:36.276Z",
+		"Replies": [
+			{
+				"Id": "rep-z4c-jjr-nq0",
+				"By": "user",
+				"At": "2026-10-18T07:03:36.276Z",
+				"Text": "Formalize this plan."
+			}
+		]
+	},
+	{
+		"Id": "thr-5cb-1wq-w0t",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-18T07:45:04.096Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-18T07:46:55.162Z",
+			"Revision": 9,
+			"RevisionId": "rev-o1c-g7c-zk6",
+			"Outcome": "Accepted by the owner; committed as UI Tweaks VIII and the plan set Finished."
+		},
+		"Created": "2026-10-18T07:40:47.173Z",
+		"Replies": [
+			{
+				"Id": "rep-d81-hzw-2oe",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-18T07:40:47.173Z",
+				"Text": "**Build log** (Claude Fable 5.1, 2026-10-18). The five items, built as the plan reads; nothing committed yet.\n\n**1. Collapse earlier by default.** `thread-transcript.js`: `IsCollapsed` takes a recorded `true` or `false` from `State.Collapsed`, and with none falls back to the default: collapsed when the thread has several replies and this is not the last. The caret records the opposite of what shows; **collapse earlier** deletes the thread's entries (the default again); **expand all** records `false` for each. A reply arriving collapses the one that was last, unless it was opened by hand.\n\n**2. The selection to the end of a line.** `render.js`: `position_of` is now one rule for a start and an end: the number of the plain text's characters whose DOM point lies before the selection's point, found with `Range.comparePoint` over the map's nodes in document order. An element point with no child on its side therefore lands on the nearest text in that direction, not the document's edge; a stale map (nodes no longer in the document) answers null, as before. The editor's own path was checked as the plan asked: `PlainRange` over a selection dragged one or two characters past a line's end gives the line's words and the separator space, which `AnchorOf` trims; a case for it is in `AnchorMap.test.js`. No change there.\n\n**3. The selection within a line.** `mirror.js`: `.cm-activeLine` gets `color-mix( in srgb, <panel> 55%, transparent )`, so drawSelection's layer behind the content shows through; the gutter's active line stays the opaque panel colour. Checked by eye in Light and Dark.\n\n**4. The mark in the title bar.** `title-bar.html` puts `img/mark.svg` before the brand's text; `title-bar.css` makes the brand a flex row with a 0.4rem gap and the mark 1.1em square. The desktop window's own icon is unchanged.\n\n**5. The cursor over the editor.** Confirmed as the plan guessed: the Live Preview's rendered lines are widgets, which the browser gives the arrow; the plain source already showed the caret. `edit-view.css` gives `.cm-editor .cm-content` `cursor: text`, which the widgets, the empty room below the text and the comment editor's box inherit; the anchored passages, links and images keep their pointer.\n\n**Tests.** `npm test`: 197 pass. New in `Ui.test.js`, one smoke for the plan: the mark in the brand; a thread of three replies shows `110` (collapsed, collapsed, open), the caret opens the first and keeps it, expand all, collapse earlier, and a fourth reply arriving makes `1110`; the Read view's selection at four points (dragged past the line's end to offset 0 of the next block, a triple-click's element points, a start after a block's last child, and within a text node) anchors the right words; in CodeMirror the active line's computed background has an alpha below 1 and the content's cursor is `text`. New in `AnchorMap.test.js`: the past-the-line-end case for the editor's path.\n\n**Decided during the build.** The mirror case (a start point after a block's last child) is fixed by the same rule, not a second one. The comment editor needed no rule of its own. The docs' disambiguation paragraph, added earlier today, is separate from this plan and still uncommitted beside it."
+			}
+		]
+	}
+]

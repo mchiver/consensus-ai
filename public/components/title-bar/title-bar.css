@@ -28,9 +28,19 @@ title-bar
 
 .brand
 {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
 	font-weight: 600;
 	font-size: 1.1rem;
 	white-space: nowrap;
+}
+
+/* The mark before the name (plan UI Tweaks VIII): the favicon's, sized to the text. */
+.brand-mark
+{
+	width: 1.1em;
+	height: 1.1em;
 }
 
 /* The menu button and the look button. */

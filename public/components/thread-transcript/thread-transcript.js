@@ -1,8 +1,9 @@
 'use strict';
 
 // thread-transcript - a thread's replies (plan UI Components, Step 1): each with who and when, its markdown
-// rendered, collapsed or expanded (the choice kept in State.Collapsed, so a reload keeps it), the collapse
-// controls when there are several, and the resolved and applied records.
+// rendered, collapsed or expanded (every reply but the most recent collapsed by default, plan UI Tweaks VIII; a
+// choice made by hand is kept in State.Collapsed), the collapse controls when there are several, and the resolved
+// and applied records.
 //
 // Interface:
 //   <thread-transcript thread="..."></thread-transcript>
@@ -17,37 +18,39 @@ angular.module( 'Consensus' ).component( 'threadTranscript', {
 		let controller = this;
 
 
+		// A reply with no recorded choice follows the default, "collapse earlier" (plan UI Tweaks VIII): in a thread
+		// with several replies every reply but the most recent is collapsed; a recorded true or false is the choice.
 		controller.IsCollapsed = function ( reply )
 		{
-			return State.Collapsed[ reply.Id ] === true;
+			let choice = State.Collapsed[ reply.Id ];
+			if ( choice === true || choice === false )
+			{
+				return choice;
+			}
+			let replies = controller.thread.Replies;
+			if ( replies.length < 2 )
+			{
+				return false;
+			}
+			return replies[ replies.length - 1 ].Id !== reply.Id;
 		};
 
 
 		controller.ToggleReply = function ( reply, event )
 		{
 			event.stopPropagation();
-			if ( State.Collapsed[ reply.Id ] )
-			{
-				delete State.Collapsed[ reply.Id ];
-			}
-			else
-			{
-				State.Collapsed[ reply.Id ] = true;
-			}
+			State.Collapsed[ reply.Id ] = !controller.IsCollapsed( reply );
 		};
 
 
-		// Collapse every reply but the most recent one.
+		// Back to the default: every reply but the most recent one collapsed.
 		controller.CollapseEarlier = function ( event )
 		{
 			event.stopPropagation();
-			let replies = controller.thread.Replies;
-			let last_index = replies.length - 1;
-			for ( let index = 0; index < last_index; index++ )
+			for ( let reply of controller.thread.Replies )
 			{
-				State.Collapsed[ replies[ index ].Id ] = true;
+				delete State.Collapsed[ reply.Id ];
 			}
-			delete State.Collapsed[ replies[ last_index ].Id ];
 		};
 
 
@@ -56,7 +59,7 @@ angular.module( 'Consensus' ).component( 'threadTranscript', {
 			event.stopPropagation();
 			for ( let reply of controller.thread.Replies )
 			{
-				delete State.Collapsed[ reply.Id ];
+				State.Collapsed[ reply.Id ] = false;
 			}
 		};
 	} ],

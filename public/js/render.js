@@ -219,8 +219,8 @@ angular.module( 'Consensus.Render', [] ).factory( 'Render', [ function ()
 		{
 			return null;
 		}
-		let start = position_of( last_map, range.startContainer, range.startOffset, false );
-		let end = position_of( last_map, range.endContainer, range.endOffset, true );
+		let start = position_of( last_map, range.startContainer, range.startOffset );
+		let end = position_of( last_map, range.endContainer, range.endOffset );
 		if ( start === null || end === null || end <= start )
 		{
 			return null;
@@ -249,63 +249,31 @@ angular.module( 'Consensus.Render', [] ).factory( 'Render', [ function ()
 	}
 
 
-	// The normalized position of a DOM point. An element point becomes the first text character inside it.
-	function position_of( map, node, offset, is_end )
+	// The normalized position of a DOM point: how many of the plain text's characters lie before it, which is the
+	// index of the first character at or after it. The same rule serves a start and an end, and an element point
+	// (after a drag past a line's end, or a triple-click, the selection ends at offset 0 of the next block) lands on the
+	// nearest text in its direction instead of the document's edge (plan UI Tweaks VIII). Null when the map's nodes
+	// are no longer in the document.
+	function position_of( map, node, offset )
 	{
-		if ( node.nodeType !== Node.TEXT_NODE )
+		let point = document.createRange();
+		try
 		{
-			let child = node.childNodes[ is_end ? offset - 1 : offset ];
-			if ( !child )
+			point.setStart( node, offset );
+			point.setEnd( node, offset );
+			for ( let position = 0; position < map.Nodes.length; position++ )
 			{
-				return is_end ? map.Plain.length : 0;
-			}
-			if ( child.nodeType === Node.TEXT_NODE )
-			{
-				return position_of( map, child, is_end ? child.nodeValue.length : 0, is_end );
-			}
-			let walker = document.createTreeWalker( child, NodeFilter.SHOW_TEXT, null );
-			let first = walker.nextNode();
-			if ( !first )
-			{
-				return is_end ? map.Plain.length : 0;
-			}
-			if ( is_end )
-			{
-				let last = first;
-				let next = walker.nextNode();
-				while ( next )
+				if ( point.comparePoint( map.Nodes[ position ], map.Offsets[ position ] ) >= 0 )
 				{
-					last = next;
-					next = walker.nextNode();
-				}
-				return position_of( map, last, last.nodeValue.length, true );
-			}
-			return position_of( map, first, 0, false );
-		}
-		let best = null;
-		for ( let position = 0; position < map.Nodes.length; position++ )
-		{
-			if ( map.Nodes[ position ] !== node )
-			{
-				continue;
-			}
-			if ( is_end )
-			{
-				if ( map.Offsets[ position ] < offset )
-				{
-					best = position + 1;
+					return position;
 				}
 			}
-			else if ( map.Offsets[ position ] >= offset )
-			{
-				return position;
-			}
-			else
-			{
-				best = position + 1;
-			}
+			return map.Nodes.length;
 		}
-		return best;
+		catch ( error )
+		{
+			return null;
+		}
 	}
 
 

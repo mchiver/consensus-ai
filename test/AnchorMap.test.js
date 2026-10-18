@@ -147,6 +147,15 @@ TEST( 'a source range maps to the plain range of the characters inside it, the r
 	let url = source.indexOf( 'http://x.y' );
 	ASSERT.equal( MAP.PlainRange( map, url, url + 10 ), null );
 	ASSERT.equal( MAP.PlainRange( map, 5, 5 ), null );
+	// a selection dragged past a line's end, to the start of the next line or block (plan UI Tweaks VIII): the line's words
+	// and at most the separator space after them, never the lines beyond
+	let lines = MAP.Build( '# Title\n\nThe first paragraph.\n\n- one list item\n' );
+	let first = '# Title\n\n'.length;
+	let newline = '# Title\n\nThe first paragraph.'.length;
+	let past = MAP.PlainRange( lines, first, newline + 1 );
+	ASSERT.equal( lines.Plain.slice( past.Start, past.End ).trim(), 'The first paragraph.' );
+	let next = MAP.PlainRange( lines, first, newline + 2 );
+	ASSERT.equal( lines.Plain.slice( next.Start, next.End ).trim(), 'The first paragraph.' );
 	// every character of the corpus round-trips through its own span
 	for ( let name of Object.keys( CASES ) )
 	{

@@ -106,6 +106,13 @@ edit-view
 	display: none;
 }
 
+/* The whole editing surface shows the text caret (plan UI Tweaks VIII): the Live Preview's rendered lines are widgets
+   outside the editable text, which the browser would give the arrow; they inherit this. */
+.cm-editor .cm-content
+{
+	cursor: text;
+}
+
 /* The threads' highlights in the CodeMirror editor (plan UI Components, Step 3), in html-view's colours. */
 .cm-content .anchor
 {

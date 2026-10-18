@@ -1,0 +1,35 @@
+[
+	{
+		"Id": "thr-a84-xgd-d2g",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-18T06:59:56.969Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-18T07:01:14.344Z",
+			"Revision": 2,
+			"RevisionId": "rev-zao-is0-tnk",
+			"Outcome": "Taken as recommended on 1, 2, 4 and 5; 3 as the owner said. The Name: a disambiguation paragraph on the landing page and in Getting started that names and links consensus.app, as a defensive measure, whatever the trademark check says. Step 4: managed runs start as a monthly quota carried in the Pro key, counted from the run records, with no cloud piece; metering by tokens becomes a step of its own when the quota is being hit. Measures: the managed-run margin line dropped with the metering. The order of the money, the Sublime-style reminder and the six-month numbers stand as written."
+		},
+		"Created": "2026-10-18T01:24:52.378Z",
+		"Replies": [
+			{
+				"Id": "rep-e75-2qx-0z4",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-18T01:24:52.378Z",
+				"Text": "Drafted from the ideas in chat (Claude Fable 5.1). The defaults are written into the text as decisions; these are the ones I am least sure are yours, each with my recommendation. Resolve with no reply to take them all.\n\n1. **The order of the money.** The plan sells the desktop license and run credits first (Step 4), the team image second, hosting last. The alternative is hosting first, which earns more per customer but needs User Management, billing and on-call before the first dollar. Recommendation: as written.\n2. **The commercial reminder.** Pro is enforced Sublime style: never locked, a weekly reminder when unlicensed after thirty days. The alternative is a hard trial. Recommendation: as written; a hard trial on an MIT codebase is a fork waiting to happen.\n3. **The name.** The plan keeps Consensus-AI publicly and makes a rename conditional on the trademark and handle check before the launch. The alternative is to pick a new name now, while nothing links here. Recommendation: do the check this week and decide then; if it fails, rename now.\n4. **Managed runs at cost plus 30 percent.** The alternative is runs included in Pro up to a quota and nothing metered, which is simpler and has no cloud piece at all. Recommendation: start with the quota only, and add metering when the quota is being hit; I will change Step 4 to say so if you agree.\n5. **The measures.** A thousand stars, a hundred public `.consensus` folders, a hundred Pro keys, five team licenses in six months. These are guesses to be argued with; say your own if you have them."
+			},
+			{
+				"Id": "rep-xpt-5xn-2k6",
+				"By": "user",
+				"At": "2026-10-18T06:59:56.969Z",
+				"Text": "3. The Name. Add a disambiguation paragraph to the docs which clearly identifies and links to the other consensus as a defensive measure."
+			}
+		]
+	}
+]

@@ -1482,3 +1482,62 @@ TEST( 'Closing (plan Markdown Editor, Step 4): a dirty tab\'s close asks; Cancel
 	ASSERT.deepEqual( page.Errors.filter( function ( error ) { return !/409/.test( error ); } ), [] );
 	page.Errors.length = 0;
 } );
+
+
+TEST( 'UI Tweaks VIII: the mark in the title bar; replies collapse earlier by default and a choice is kept; a selection to a line\'s end anchors that line; the active line is translucent and the editor shows the caret', async function ()
+{
+	// the mark before the brand
+	ASSERT.equal( await page.Evaluate( count_of( 'title-bar .brand img.brand-mark' ) ), 1 );
+	ASSERT.equal( await page.Evaluate( text_of( 'title-bar .brand' ) ), 'Consensus' );
+	// a plan with a thread of three replies
+	await set_editor( 'monaco' );
+	let plan = await created( 'Tweaks eight' );
+	await api( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: '# Tweaks eight\n\nThe first paragraph of this plan.\n\n- one list item\n- another one\n\nA closing line.\n', Revision: plan.Revision } );
+	let thread = ( await api( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'First.', Anchor: { Text: 'closing line' } } ) ).Thread;
+	await api( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/replies', { Text: 'Second.' }, true );
+	await api( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/replies', { Text: 'Third.' } );
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tweaks eight"' );
+	await show_all_threads();
+	await page.WaitFor( count_of( '.thread:not(.compose) .reply' ) + ' === 3' );
+	// by default the earlier replies are collapsed and the last one is open
+	const COLLAPSED = '[ ...document.querySelectorAll( ".thread:not(.compose) .reply" ) ].map( function ( reply ) { return reply.classList.contains( "collapsed" ) ? 1 : 0; } ).join( "" )';
+	const CONTROL = function ( label ) { return '[ ...document.querySelectorAll( ".thread:not(.compose) .reply-controls button" ) ].find( function ( button ) { return button.textContent.trim() === ' + JSON.stringify( label ) + '; } ).click(); true'; };
+	await page.WaitFor( COLLAPSED + ' === "110"' );
+	// the caret opens one and the choice stays; expand all opens every one; collapse earlier is the default again
+	await page.Evaluate( 'document.querySelectorAll( ".thread:not(.compose) .reply-badge" )[ 0 ].click(); true' );
+	await page.WaitFor( COLLAPSED + ' === "010"' );
+	await page.Evaluate( CONTROL( 'expand all' ) );
+	await page.WaitFor( COLLAPSED + ' === "000"' );
+	await page.Evaluate( CONTROL( 'collapse earlier' ) );
+	await page.WaitFor( COLLAPSED + ' === "110"' );
+	// a reply arriving collapses the one that was last
+	await api( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/replies', { Text: 'Fourth.' }, true );
+	await page.WaitFor( COLLAPSED + ' === "1110"' );
+	// the Read view's selection as an anchor, at the points a drag or a triple-click leaves
+	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Tweaks eight"' );
+	const ANCHOR = function ( setup )
+	{
+		return '( function () { let article = document.querySelector( "#read-view article" ); let p = article.querySelector( "p" ); let range = document.createRange(); ' + setup + ' let selection = window.getSelection(); selection.removeAllRanges(); selection.addRange( range ); let anchor = angular.element( document.body ).injector().get( "Render" ).SelectionAnchor( article ); selection.removeAllRanges(); return anchor ? anchor.Text : null; } )()';
+	};
+	// dragged past the line's end: the selection ends at offset 0 of the next block
+	ASSERT.equal( await page.Evaluate( ANCHOR( 'range.setStart( p.firstChild, 0 ); range.setEnd( article.querySelector( "ul" ), 0 );' ) ), 'The first paragraph of this plan.' );
+	// a triple-click: the block's own element points
+	ASSERT.equal( await page.Evaluate( ANCHOR( 'let at = [ ...article.childNodes ].indexOf( p ); range.setStart( article, at ); range.setEnd( article, at + 1 );' ) ), 'The first paragraph of this plan.' );
+	// the mirror case: a selection that starts after a block's last child
+	ASSERT.equal( await page.Evaluate( ANCHOR( 'let li = article.querySelector( "li" ); range.setStart( p, p.childNodes.length ); range.setEnd( li.firstChild, li.firstChild.length );' ) ), 'one list item' );
+	// within one text node, as before
+	ASSERT.equal( await page.Evaluate( ANCHOR( 'range.setStart( p.firstChild, 4 ); range.setEnd( p.firstChild, 9 );' ) ), 'first' );
+	// CodeMirror: the active line lets the selection show through, and the content shows the caret
+	await set_editor( 'codemirror' );
+	await page.WaitFor( count_of( '#editor .cm-editor' ) + ' === 1', 30000 );
+	await page.Evaluate( 'document.querySelector( "#editor .cm-content" ).focus(); true' );
+	await page.WaitFor( count_of( '#editor .cm-activeLine' ) + ' >= 1' );
+	let active = await page.Evaluate( 'getComputedStyle( document.querySelector( "#editor .cm-activeLine" ) ).backgroundColor' );
+	ASSERT.match( active, /\/\s*0\.\d+\s*\)|rgba\([^)]*,\s*0\.\d+\s*\)/, 'the active line is translucent: ' + active );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.querySelector( "#editor .cm-content" ) ).cursor' ), 'text' );
+	// back to Monaco: Read and Edit are back and the Read view shows
+	await set_editor( 'monaco' );
+	await page.WaitFor( count_of( '#view-read' ) + ' === 1 && document.getElementById( "read-view" ).offsetParent !== null' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
