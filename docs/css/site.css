@@ -421,6 +421,14 @@ figure.shot figcaption
 	margin-bottom: 2rem;
 }
 
+.disambiguation
+{
+	color: var(--site-muted);
+	font-size: 0.95rem;
+	max-width: 42em;
+	margin-top: 2rem;
+}
+
 .cards
 {
 	display: grid;

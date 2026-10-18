@@ -4,6 +4,8 @@ Consensus-AI is a web application you run yourself. It keeps your plans as plain
 
 The code is public at [github.com/mchiver/consensus-ai](https://github.com/mchiver/consensus-ai). The Windows installer is on the [releases page](https://github.com/mchiver/consensus-ai/releases/latest); the other ways start from the checkout.
 
+Consensus-AI is not [Consensus](https://consensus.app), the research search engine at consensus.app, and has no connection to it. Consensus-AI is a tool for settling a plan with your LLM, thread by thread.
+
 ## From the checkout
 
 You need Node 22 or later and git.
