@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Features - Consensus-AI guide</title>
+	<meta name="description" content="The Consensus-AI user guide: Features.">
+	<link rel="icon" href="../images/mark.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="../css/bootstrap.min.css">
+	<link rel="stylesheet" href="../css/site.css">
+	<script src="../js/site.js"></script>
+</head>
+<body class="guide-page">
+
+	<header class="site-header">
+		<div class="container site-header-row">
+			<a class="brand" href="../index.html"><img class="brand-mark" src="../images/mark.svg" alt="">Consensus-AI</a>
+			<nav class="site-nav">
+				<a href="getting-started.html" class="active">Guide</a>
+				<a href="features.html">Features</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">GitHub</a>
+				<button class="theme-toggle" type="button" data-theme-toggle title="light or dark"><span class="theme-sun" aria-hidden="true">&#9728;</span><span class="theme-moon" aria-hidden="true">&#9790;</span><span class="visually-hidden">Toggle the theme</span></button>
+			</nav>
+		</div>
+	</header>
+
+	<div class="container guide-layout">
+		<aside class="guide-side">
+			<div class="guide-side-title">The guide</div>
+			<nav class="guide-nav">
+				<a class="guide-link" href="getting-started.html">Getting started</a>
+				<a class="guide-link active" href="features.html">Features</a>
+				<a class="guide-link" href="projects.html">Projects, plans and documents</a>
+				<a class="guide-link" href="threads.html">Threads</a>
+				<a class="guide-link" href="editing.html">Editing and revisions</a>
+				<a class="guide-link" href="llm.html">Working with an LLM</a>
+				<a class="guide-link" href="settings.html">Settings and themes</a>
+				<a class="guide-link" href="export-import.html">Export and import</a>
+				<a class="guide-link" href="api.html">The API</a>
+			</nav>
+		</aside>
+		<main class="guide-main">
+			<article class="guide-article">
+<h1 id="features">Features</h1>
+<h2 id="plans-and-threads">Plans and threads</h2>
+<ul>
+<li><strong>Plans with threads.</strong> A plan is a markdown document with a conversation beside it. Each thread is one question, settled in one place. See <a href="threads.html">Threads</a>.</li>
+<li><strong>Anchored comments.</strong> Select a passage and comment on it; the thread is tied to those words, highlighted in the text, and follows them as the text changes.</li>
+<li><strong>Three thread states.</strong> Contested while it is discussed, resolved when the owner settles it, applied when the LLM has changed the text. The colour of the passage says which.</li>
+<li><strong>Reply and resolve.</strong> The owner settles a thread with a reply that becomes the outcome, or resolves it with no reply to accept the last recommendation.</li>
+<li><strong>Reopening.</strong> Any reply to a settled thread reopens it, marked as such, without undoing what was applied.</li>
+<li><strong>Whose turn.</strong> Every thread knows who it waits on. The tree, the title bar and the threads pane count what waits on you; <strong>Waiting on you</strong> lists it across every project.</li>
+<li><strong>Plan states.</strong> Draft, Plan, Working and Finished by default, picked from the heading at any time; the list is yours to change per project.</li>
+<li><strong>Subplans.</strong> A plan can hold plans. Start one from a thread, from selected text or from the menu, and it carries the passage and the discussion with it.</li>
+<li><strong>Whole-document threads.</strong> A comment with nothing selected is on the plan as a whole, the place for a review or a build log.</li>
+</ul>
+<h2 id="writing-and-revisions">Writing and revisions</h2>
+<ul>
+<li><strong>A markdown editor with a live preview.</strong> CodeMirror renders the markdown in place, with the cursor&#39;s line showing its source; Source view shows the plain text. See <a href="editing.html">Editing and revisions</a>.</li>
+<li><strong>Threads in the editor.</strong> The anchored passages are highlighted while you edit, and a thread in the pane scrolls the editor to its words.</li>
+<li><strong>Monaco mode.</strong> A setting swaps the editor for Monaco, with separate Read and Edit views.</li>
+<li><strong>Revisions.</strong> Every save and every applied thread is a revision, with who, when and why. The plan keeps its own history, so there is no change log to maintain.</li>
+<li><strong>Safe concurrent edits.</strong> A save carries the revision it was made from; a stale one is refused instead of overwriting someone else&#39;s work.</li>
+<li><strong>Tabs.</strong> Every open item is a tab, reordered by drag, restored as you left it after a reload, and detachable into a window of its own.</li>
+<li><strong>Hotkeys.</strong> One table of keys, listed under Menu, for saving, switching views, commenting and moving between panes.</li>
+</ul>
+<h2 id="projects-and-documents">Projects and documents</h2>
+<ul>
+<li><strong>Projects.</strong> Everything lives in a project: plans, documents and folders of any depth, shown as a tree in the sidebar. See <a href="projects.html">Projects, plans and documents</a>.</li>
+<li><strong>The Context folder.</strong> Every project has one, holding its Readme, a short account of what the project is and what has been decided, and any other background document an LLM should read.</li>
+<li><strong>Documents.</strong> Markdown with revisions but no threads, for the background material of a project.</li>
+<li><strong>Drag and drop.</strong> Reorder, move into folders, make a plan a Subplan, and reorder projects, all by dragging in the tree.</li>
+<li><strong>Copy and paste.</strong> Copy a plan, a folder or a project to the clipboard as JSON and paste it into any project, on any server; every id is new.</li>
+<li><strong>Archive and trash.</strong> Finished plans go to the archive, out of the tree but kept; deleted items go to the trash.</li>
+<li><strong>Export and import.</strong> A project, folder, plan or document goes out as one JSON file with its threads and every revision, and comes back in as it was, as a copy, or merged. See <a href="export-import.html">Export and import</a>.</li>
+<li><strong>Plain files you own.</strong> A project is a <code>.consensus</code> folder beside your source, meant for source control, with no secrets in it. Back it up by copying it.</li>
+</ul>
+<h2 id="working-with-llms">Working with LLMs</h2>
+<ul>
+<li><strong>The LLM as a participant.</strong> Every LLM takes part through the API as a participant of its own, so every reply and every applied change says who made it. See <a href="llm.html">Working with an LLM</a>.</li>
+<li><strong>Agent sessions.</strong> Point Claude Code or any agent at one address, <code>/instructions</code>, and it learns the rules, finds what waits on it, replies, applies and drafts plans.</li>
+<li><strong>Your turn in Consensus.</strong> The working loop: the owner comments and resolves, the agent replies and applies, in the plan, not in a chat scroll.</li>
+<li><strong>The build loop.</strong> When every thread is applied, the agent builds exactly that plan and posts its build log as a thread, accepted the same way.</li>
+<li><strong>LLM connections.</strong> The server runs LLMs for you: Claude Code as a one-shot command, or a local model through Ollama, each a named participant with its own token.</li>
+<li><strong>Review, Build and Session runs.</strong> One button packages the project&#39;s Readme, its context documents and the plan&#39;s waiting threads into a prompt, runs it in the project&#39;s folder, and keeps the log.</li>
+<li><strong>Tools for local models.</strong> A local model gets file tools over the project&#39;s folder, held to its Include and Exclude lists, and Consensus tools for reading plans, replying and applying.</li>
+<li><strong>Packaging you control.</strong> Choose which documents and threads go into a run&#39;s prompt, edit the prompts, and preview the package with its token estimate before it runs.</li>
+<li><strong>Nothing committed on its own.</strong> No run branches, commits or pushes; Git stays the owner&#39;s.</li>
+</ul>
+<h2 id="running-it">Running it</h2>
+<ul>
+<li><strong>The browser.</strong> A small Node and Express server and one page; start it and open it. See <a href="getting-started.html">Getting started</a>.</li>
+<li><strong>The desktop.</strong> The same page in its own window, with a server of its own inside, every saved server beside it, each a root of the tree.</li>
+<li><strong>Open a folder.</strong> Start Consensus on one project folder from the command line, the way an editor opens a folder, and its <code>.consensus</code> is made for you.</li>
+<li><strong>Docker.</strong> One image, one volume, port 3500, for a box on your network.</li>
+<li><strong>Scope.</strong> The server listens for this machine only, for the network, or not at all, as the settings say.</li>
+<li><strong>Live updates.</strong> Every change is a Server-Sent Event, so every open page, window and server row stays in step.</li>
+<li><strong>Settings in the app.</strong> Name, scope, port, states, participants and their tokens, edited in a popup by the owner. See <a href="settings.html">Settings and themes</a>.</li>
+<li><strong>Themes and scale.</strong> System, light, dark and seven more palettes, and three text sizes, remembered per server.</li>
+</ul>
+<h2 id="the-api">The API</h2>
+<ul>
+<li><strong>Everything over one REST API.</strong> Projects, plans, threads, revisions, runs and settings, the same routes the page uses. See <a href="api.html">The API</a>.</li>
+<li><strong>Roles.</strong> Owner, member and llm, each with what it may do; a token names a participant from outside.</li>
+<li><strong>Events.</strong> A stream of what changed, for anything that wants to follow along.</li>
+<li><strong>MIT licensed.</strong> The code is public and free to use, change and run anywhere.</li>
+</ul>
+
+			</article>
+			<nav class="guide-pager">
+				<a class="guide-previous" href="getting-started.html">&larr; Getting started</a>
+				<a class="guide-next" href="projects.html">Next: Projects, plans and documents &rarr;</a>
+			</nav>
+		</main>
+	</div>
+
+	<footer class="site-footer">
+		<div class="container site-footer-row">
+			<span>Consensus-AI is free software under the MIT license.</span>
+			<nav>
+				<a href="getting-started.html">Guide</a>
+				<a href="features.html">Features</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">Repository</a>
+			</nav>
+		</div>
+	</footer>
+
+	<div class="lightbox" id="lightbox" hidden><img alt=""><button type="button" class="lightbox-close" title="close">&times;</button></div>
+</body>
+</html>
