@@ -15,8 +15,15 @@
 
 	<llm-fold root="$ctrl.server" first="$ctrl.first"></llm-fold>
 
-	<div class="list-heading trash-heading" ng-click="$ctrl.Tree.ToggleTrash( $ctrl.server )">Trash <span class="count">{{ $ctrl.Tree.Of( $ctrl.server ).ShowingTrash ? '▾' : '▸' }}</span></div>
+	<div class="list-heading trash-heading" ng-click="$ctrl.Tree.ToggleTrash( $ctrl.server )" title="the deleted items of this server's projects" on-context-menu="$ctrl.Tree.OpenMenu('trash', $ctrl.server, null, $event)">Trash <span class="tally" title="the items in the trash">{{ $ctrl.Tree.Of( $ctrl.server ).Trash.length }}</span>
+		<span class="row-menu" role="button" ng-if="$ctrl.server.Me.Role === 'owner'" ng-class="{ shown: $ctrl.Tree.MenuOpenFor( { Id: 'trash:' + $ctrl.server.Key } ) }" title="actions" ng-click="$ctrl.Tree.OpenMenu('trash', $ctrl.server, null, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
+	</div>
 	<div ng-show="$ctrl.Tree.Of( $ctrl.server ).ShowingTrash">
+		<div class="confirm trash-confirm" ng-if="$ctrl.Tree.IsEmptyingTrash( $ctrl.server )">
+			empty the trash for good?
+			<button class="btn btn-sm btn-danger confirm-empty-trash" ng-click="$ctrl.Tree.EmptyTrash( $ctrl.server, $event )"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+			<button class="btn btn-sm btn-outline-secondary" ng-click="$ctrl.Tree.CancelDelete($event)"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+		</div>
 		<div class="list-empty" ng-show="$ctrl.Tree.Of( $ctrl.server ).Trash.length === 0">empty</div>
 		<div class="plan-item trashed" ng-repeat="plan in $ctrl.Tree.Of( $ctrl.server ).Trash">
 			<div class="plan-title">{{ plan.Title }}</div>

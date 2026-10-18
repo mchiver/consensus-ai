@@ -876,6 +876,13 @@ TEST( 'tree menus: a right-click or the ⋯ opens a row\'s actions; Delete is th
 	await page.WaitFor( count_of( ROW ) + ' === 0' );
 	await page.WaitFor( count_of( tab_selector( doomed.Id ) ) + ' === 0' );
 	ASSERT.equal( ( await fetch( running.Url + '/api/plans/' + doomed.Id ) ).status, 404 );
+	// the Trash heading counts it; Empty Trash in the heading's menu asks under it, and Yes empties it
+	await page.WaitFor( text_of( '.trash-heading .tally' ) + ' === "1"' );
+	await menu_pick( '.trash-heading', 'Empty Trash' );
+	await page.WaitFor( count_of( '.trash-confirm .confirm-empty-trash' ) + ' === 1' );
+	await page.Click( '.trash-confirm .confirm-empty-trash' );
+	await page.WaitFor( text_of( '.trash-heading .tally' ) + ' === "0" && ' + count_of( '.trash-confirm' ) + ' === 0' );
+	ASSERT.deepEqual( ( await api( 'GET', '/api/trash' ) ).Plans, [] );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 

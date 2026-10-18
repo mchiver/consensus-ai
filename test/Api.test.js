@@ -572,6 +572,13 @@ TEST( 'a deleted plan goes to the trash', async function ()
 	ASSERT.equal( ( await call( 'DELETE', '/api/plans/' + plan.Id ) ).Status, 404 );
 	let trash = await call( 'GET', '/api/trash' );
 	ASSERT.ok( trash.Body.Plans.some( function ( candidate ) { return candidate.Id === plan.Id; } ) );
+	// Empty Trash: the owner's; every trashed item gone for good
+	ASSERT.equal( ( await call( 'DELETE', '/api/trash', undefined, true ) ).Status, 403 );
+	let emptied = await call( 'DELETE', '/api/trash' );
+	ASSERT.equal( emptied.Status, 200 );
+	ASSERT.ok( emptied.Body.Emptied >= 1 );
+	ASSERT.deepEqual( ( await call( 'GET', '/api/trash' ) ).Body.Plans, [] );
+	ASSERT.equal( ( await call( 'DELETE', '/api/trash' ) ).Body.Emptied, 0 );
 } );
 
 

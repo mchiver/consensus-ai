@@ -290,6 +290,37 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	}
 
 
+	// The Trash heading's menu: Empty Trash (the owner's, when there is something in it), confirmed inline under the
+	// heading, which opens for it.
+	function trash_actions( root )
+	{
+		return [ action( 'Empty Trash', 'trash', function ()
+		{
+			of_root( root ).ShowingTrash = true;
+			tree.Creating = null;
+			tree.Renaming = null;
+			tree.Deleting = 'trash:' + root.Key;
+			load_trash( root );
+		}, { Danger: true, Disabled: !is_owner( root ) || of_root( root ).Trash.length === 0 } ) ];
+	}
+
+
+	tree.IsEmptyingTrash = function ( root )
+	{
+		return tree.Deleting === 'trash:' + root.Key;
+	};
+
+
+	tree.EmptyTrash = async function ( root, event )
+	{
+		event.preventDefault();
+		event.stopPropagation();
+		await State.Act( function () { return Client.Delete( root, '/api/trash' ); } );
+		tree.Deleting = null;
+		load_trash( root );
+	};
+
+
 	// Delete a connection, confirmed inline like the others; its tabs close; its participant goes with it.
 	tree.DeleteLlm = async function ( root, llm, event )
 	{
@@ -695,16 +726,17 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	}
 
 
-	// Kind: 'project' | 'folder' | 'item' | 'archived' | 'llm' | 'llms' (the list itself) | 'root' (a server's row);
-	// for root, llms and llm the second argument is the root. A missing item (its record gone) has nothing to do, and
+	// Kind: 'project' | 'folder' | 'item' | 'archived' | 'llm' | 'llms' (the list itself) | 'trash' (its heading) | 'root'
+	// (a server's row); for root, llms, trash and llm the second argument is the root. A missing item (its record gone) has nothing to do, and
 	// nor has the Readme.
 	tree.OpenMenu = function ( kind, project, node, event )
 	{
-		if ( kind === 'root' || kind === 'llms' )
+		if ( kind === 'root' || kind === 'llms' || kind === 'trash' )
 		{
 			event.preventDefault();
 			event.stopPropagation();
-			Menus.Show( ( kind === 'root' ) ? root_actions( project ) : llms_actions( project ), event, kind + ':' + project.Key );
+			let heading_actions = ( kind === 'root' ) ? root_actions( project ) : ( ( kind === 'llms' ) ? llms_actions( project ) : trash_actions( project ) );
+			Menus.Show( heading_actions, event, kind + ':' + project.Key );
 			return;
 		}
 		if ( node.Missing || ( kind === 'item' && tree.IsContextDocument( project, node ) ) )
@@ -1404,11 +1436,12 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	};
 
 
+	// The trash is read for every root whenever its plans change, shown or not: the heading counts it.
 	$rootScope.$watchCollection( function () { return Roots.List.map( function ( root ) { return root.Plans; } ); }, function ()
 	{
 		for ( let root of Roots.List )
 		{
-			if ( of_root( root ).ShowingTrash )
+			if ( root.Loaded && !root.Error )
 			{
 				load_trash( root );
 			}

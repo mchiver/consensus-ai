@@ -216,7 +216,7 @@
 	margin-left: 0.2rem;
 }
 
-.project-head:hover .row-menu, .tree-row:hover .row-menu, .tree-row.open .row-menu, .row-menu.current, .row-menu.shown
+.project-head:hover .row-menu, .tree-row:hover .row-menu, .list-heading:hover .row-menu, .tree-row.open .row-menu, .row-menu.current, .row-menu.shown
 {
 	visibility: visible;
 }

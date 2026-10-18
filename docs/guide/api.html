@@ -101,6 +101,7 @@ POST   /api/plans/:id/threads/:tid/resolve   owner only
 DELETE /api/plans/:id/threads/:tid           owner only
 POST   /api/plans/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
 GET    /api/trash                                what is there
+DELETE /api/trash                                owner; empties it for good, { Emptied: n }
 GET    /api/waiting                              everything waiting on the caller, in every project
 GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Participant, Running; the owner sees the whole records
 POST   /api/llms                                 owner; a connection from its fields, with a new id and token

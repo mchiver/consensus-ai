@@ -85,7 +85,8 @@ Ctrl+V into the open project), which imports what the clipboard holds there, eve
 threads, revisions and Subplans, a folder's whole contents, a project as a folder named after it (plan UI
 Tweaks V; Export in the menu shows the same json for any item). Delete is in the menu only,
 confirmed on the row: a plan or document goes to the trash; a project or folder is deleted only when empty
-(a project: when it holds only its Context folder and document). Trash is at the bottom of each server's rows.
+(a project: when it holds only its Context folder and document). Trash is at the bottom of each server's rows, its
+heading counting what is there; Empty Trash in its menu (the owner's) removes it all for good, confirmed under the heading.
 
 The button at the right end of the tab strip hides or shows the threads pane (its mirror at the left end the
 tree; Ctrl+Shift+T and Ctrl+Shift+E too); each is remembered in the browser. A selected thread
@@ -408,6 +409,7 @@ and the runs; `test/Tools.test.js` the tools and the Ollama loop; `test/Api.test
 	DELETE /api/plans/:id/threads/:tid           owner only
 	POST   /api/plans/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
 	GET    /api/trash                                what is there
+	DELETE /api/trash                                owner; empties it for good, { Emptied: n }; the pages hear { Kind: "trash" }
 	GET    /api/waiting                              everything waiting on the caller, in every project
 	GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Participant, Running; the owner sees the whole records
 	POST   /api/llms                                 owner; a connection from its fields, with a new id and token

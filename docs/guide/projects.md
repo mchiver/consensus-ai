@@ -51,6 +51,6 @@ Everything reorders by drag and drop. Drop an item on the top or bottom edge of 
 
 A row's menu reads, for a project: New Folder, New Draft, Copy, Paste, Rename, Export, Settings, LLM Instructions, Delete; for a folder the same, creating in it; for the Context folder: New Document, Paste; for a plan: New Subplan, New Comment, Copy, Rename, Export, Delete; for a document: Copy, Rename, Export, Delete. "New Draft" is named after the first of the project's states. Under the projects, the **LLMs** list has the server's LLM connections, with Open, Rename and Delete in a row's menu and New LLM in the list's (the owner's); see [Working with an LLM](llm.html).
 
-**Delete** is in the menu only, confirmed on the row. A plan or document goes to the **Trash** at the bottom of the sidebar; a project or folder is deleted only when it is empty.
+**Delete** is in the menu only, confirmed on the row. A plan or document goes to the **Trash** at the bottom of the sidebar, whose heading counts what is there; **Empty Trash** in its menu removes it all for good, after a confirmation under the heading. A project or folder is deleted only when it is empty.
 
 Every item belongs to exactly one project. To reuse one elsewhere, copy it and paste it there.

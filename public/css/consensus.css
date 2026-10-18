@@ -225,10 +225,19 @@ body
    title-bar's and look-controls' (public/components, plan UI Components, Step 5). */
 
 
-.list-heading .count, .threads-top .count
+.threads-top .count
 {
 	float: right;
 	font-weight: normal;
+}
+
+/* The number after the LLMs and Trash headings, how many each holds, as a project's or folder's count follows its name. */
+.list-heading .tally
+{
+	font-size: 0.75rem;
+	font-weight: normal;
+	color: var(--muted);
+	margin-left: 0.3rem;
 }
 
 /* --------------------------------------------------------------------- sidebar: the project tree */

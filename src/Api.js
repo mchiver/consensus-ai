@@ -563,6 +563,19 @@ function Attach( App, Context )
 	} );
 
 
+	// Empty Trash (the owner's): every trashed item of every project removed for good; the pages hear { Kind: "trash" }.
+	router.delete( '/trash', async function ( request, response )
+	{
+		if ( request.Participant.Role !== 'owner' )
+		{
+			return fail( response, 403, 'only the owner empties the trash' );
+		}
+		let emptied = await store.EmptyTrash();
+		events.Send( { Kind: 'trash' } );
+		response.json( { Emptied: emptied } );
+	} );
+
+
 	// A plan's state: one of its project's States, set by anyone at any time. { State }
 	router.put( '/plans/:id/state', async function ( request, response )
 	{

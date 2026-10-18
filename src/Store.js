@@ -369,6 +369,23 @@ function Open( Folder )
 	}
 
 
+	// Empty the trash of every project: each item's folder removed for good. Returns how many went.
+	async function EmptyTrash()
+	{
+		let count = 0;
+		for ( let project_id of Object.keys( roots ) )
+		{
+			let trash = PATH.join( roots[ project_id ].Home, TRASH_FOLDER );
+			for ( let id of await folder_names( trash ) )
+			{
+				await FS.promises.rm( PATH.join( trash, id ), { recursive: true, force: true } );
+				count++;
+			}
+		}
+		return count;
+	}
+
+
 	function by_updated_descending( a, b )
 	{
 		if ( a.Updated === b.Updated )
@@ -1374,6 +1391,7 @@ function Open( Folder )
 		Isolated: Isolated,
 		TrashPlan: TrashPlan,
 		ListTrash: ListTrash,
+		EmptyTrash: EmptyTrash,
 		Prepare: Prepare,
 	};
 }
