@@ -29,7 +29,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 	const CLERK_FIELDS = [ 'PublishableKey', 'SecretKey', 'WebhookSecret', 'AdminEmail' ];
 	$scope.Panel = SettingsPanel;
 	$scope.Scopes = SCOPES;
-	$scope.TaskItems = { Writes: [ 'none', 'consensus', 'files' ], Package: [ 'Instructions', 'Readme', 'Documents', 'Plan', 'Threads', 'Files', 'Box' ], Defaults: [] };
+	$scope.TaskItems = { Writes: [ 'none', 'consensus', 'files' ], Package: [ 'Instructions', 'Readme', 'Documents', 'Plan', 'Threads', 'Files', 'Project', 'Box' ], Off: [ 'Project', 'Box' ], Defaults: [] };
 
 
 	// The Clerk section as the form holds it: the four fields as strings, empty for none.
@@ -89,7 +89,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		let package_ = {};
 		for ( let item of $scope.TaskItems.Package )
 		{
-			package_[ item ] = ( item !== 'Box' );
+			package_[ item ] = !( $scope.TaskItems.Off || [ 'Box' ] ).includes( item );
 		}
 		SettingsPanel.Form.Tasks.push( { Id: '', Name: '', Writes: 'consensus', Package: package_, Prompt: '' } );
 	};
@@ -188,7 +188,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		try
 		{
 			let tasks = await Client.Get( root, '/api/tasks' );
-			$scope.TaskItems = { Writes: tasks.Writes || $scope.TaskItems.Writes, Package: tasks.Package || $scope.TaskItems.Package, Defaults: tasks.Defaults || [] };
+			$scope.TaskItems = { Writes: tasks.Writes || $scope.TaskItems.Writes, Package: tasks.Package || $scope.TaskItems.Package, Off: tasks.Off || $scope.TaskItems.Off, Defaults: tasks.Defaults || [] };
 		}
 		catch ( error )
 		{

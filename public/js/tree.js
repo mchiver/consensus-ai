@@ -648,7 +648,8 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	}
 
 
-	// Project: New Folder, New Draft, ---, Copy, Paste, Rename, Export, Settings, LLM Instructions, ---, Delete.
+	// Project: New Folder, New Draft, ---, Copy, Paste, Rename, Export, Settings, LLM Instructions, Explain (plan LLM
+	// Tasks, Step 4: the project's conversation tab), ---, Delete.
 	function project_actions( project )
 	{
 		return [
@@ -661,6 +662,7 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 			export_action( 'project', project, project ),
 			action( 'Settings', 'settings', function () { tree.OpenProjectSettings( project ); } ),
 			action( 'LLM Instructions', 'info', function () { tree.OpenInstructions( project ); } ),
+			action( 'Explain', 'eye', function () { $window.location.hash = Roots.HashFor( root_of( project ), '/x/' + encodeURIComponent( project.Id ) ); } ),
 			{ Separator: true },
 			action( 'Delete', 'trash', function () { tree.StartDelete( project, QUIET ); }, { Danger: true, Disabled: root_of( project ).Projects.length <= 1 || !only_context( project ) || ( project.Archive || [] ).length > 0 } ),
 		];

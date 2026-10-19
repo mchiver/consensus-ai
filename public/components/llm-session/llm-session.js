@@ -9,7 +9,8 @@
 //   reads State.OpenItem (the connection), State.View; the runs, the connections and the tasks through Llms (plan LLM
 //   Tasks, Step 1: one Run button per task the picked project enables, in the server's order; Step 2: a text box for
 //   the tasks with a Box, its text kept per project in the browser and sent as the run's Text; Step 3: the Git row,
-//   the project's GitSync and AutoCommit as two checkboxes when an enabled task writes files, saved on change)
+//   the project's GitSync and AutoCommit as two checkboxes when an enabled task writes files, saved on change; Step 4:
+//   the Explain button opens the project's Explain tab, where the conversation is, instead of running)
 
 angular.module( 'Consensus' ).component( 'llmSession', {
 	templateUrl: '/components/llm-session/llm-session.html',
@@ -717,6 +718,11 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		{
 			if ( !$scope.CanRun( task ) )
 			{
+				return;
+			}
+			if ( task.Id === 'explain' )
+			{
+				$window.location.hash = Roots.HashFor( current_root(), '/x/' + encodeURIComponent( $scope.Pick.Project ) );
 				return;
 			}
 			$scope.Busy = true;

@@ -2,8 +2,9 @@
 
 // Tabs - the open items above the document view, and the windows they can be detached into.
 //
-//   tab = { Key, Kind: 'p' | 'waiting' | 'llm', Id?, Root, Hash, Title?, View?, Draft? }
+//   tab = { Key, Kind: 'p' | 'waiting' | 'llm' | 'x', Id?, Root, Hash, Title?, View?, Draft? }
 //     Key    'p:<id>' or 'waiting': one tab per item; 'llm:<id>' for an LLM connection (plan Run Shapes, Step 3);
+//            'x:<project id>' for a project's Explain tab (plan LLM Tasks, Step 4);
 //            '<root>|p:<id>' on a named root (plan Run Shapes, Step 5: Root is the root's key, '' in a browser)
 //     Hash   the route that shows it (#/p/<id>, #/waiting, #/s/<root>/p/<id>)
 //     View   read | edit | revisions, for a plan: each tab comes back as it was left
@@ -544,7 +545,7 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 
 	function CanDetach( Tab )
 	{
-		return !tabs.Detached && ( Tab.Kind === 'p' || Tab.Kind === 'c' || Tab.Kind === 'llm' );
+		return !tabs.Detached && ( Tab.Kind === 'p' || Tab.Kind === 'c' || Tab.Kind === 'llm' || Tab.Kind === 'x' );
 	}
 
 

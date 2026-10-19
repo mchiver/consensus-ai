@@ -4,26 +4,29 @@
 // the Tasks list), edited in the Settings popup: defined per server, enabled per project (project.json's Tasks, the
 // enabled ids; absent means all, so a task added later is on everywhere).
 //
-//   { Id, Name, Package: { Instructions, Readme, Documents, Plan, Threads, Files, Box }, Writes, Prompt }
+//   { Id, Name, Package: { Instructions, Readme, Documents, Plan, Threads, Files, Project, Box }, Writes, Prompt }
 //   Name     what the button says and the run record carries
 //   Package  what the one-shot is given, six switches: the server's instructions, the project's Readme, the other
 //            Context documents, the plan at hand (its title, id and state), the threads waiting on the presser, the
-//            project's folder as the run's working folder, and Box (Step 2): a text box for the person's instructions,
-//            sent as Text with the run and put under "Your instructions" after the prompt
+//            project's folder as the run's working folder, Project (Step 4, off unless set): the project's shape, every
+//            plan and document as a title, id, state and tally and the last runs, and Box (Step 2, off unless set): a
+//            text box for the person's instructions, sent as Text with the run and put under "Your instructions"
+//            after the prompt
 //   Writes   the permission: none, consensus or files, each including the ones before; the run token carries it
 //            (Participants.js), the API refuses every write of a none run, and Tools.js gives a local model the tools
 //            of the level
 //   Prompt   the task's instructions, under "Your task: <Name>" in the package (Package.js)
-// Consensus ships Answer, Enhance (Step 2), Work and Session, the Review, Build and Session of before; at the first
-// start the connections' Review and Build prompts become Answer's and Work's when they differ from the old defaults,
-// and the connections' Checks are dropped (Migrate). TasksVersion in the settings says which shipped tasks a file
-// has been given: a file below the version gets the shipped tasks it lacks, once, so one removed stays removed.
+// Consensus ships Answer, Enhance (Step 2), Work, Explain (Step 4) and Session, the Review, Build and Session of
+// before; at the first start the connections' Review and Build prompts become Answer's and Work's when they differ
+// from the old defaults, and the connections' Checks are dropped (Migrate). TasksVersion in the settings says which
+// shipped tasks a file has been given: a file below the version gets the shipped tasks that came after its version
+// (Since), once, each after the nearest shipped one before it, so one removed stays removed.
 
 const IDS = require( './Ids.js' );
 
-const PACKAGE_ITEMS = [ 'Instructions', 'Readme', 'Documents', 'Plan', 'Threads', 'Files', 'Box' ];
-const OFF_BY_DEFAULT = [ 'Box' ];
-const TASKS_VERSION = 2;		// 1: Answer, Work, Session (Step 1); 2: Enhance (Step 2)
+const PACKAGE_ITEMS = [ 'Instructions', 'Readme', 'Documents', 'Plan', 'Threads', 'Files', 'Project', 'Box' ];
+const OFF_BY_DEFAULT = [ 'Project', 'Box' ];
+const TASKS_VERSION = 3;		// 1: Answer, Work, Session (Step 1); 2: Enhance (Step 2); 3: Explain (Step 4)
 const WRITES = [ 'none', 'consensus', 'files' ];
 const DEFAULT_WRITES = 'consensus';
 
@@ -52,6 +55,12 @@ const PROMPTS = {
 		'build log as one contested whole-document thread on the plan, naming your model. Do not commit, branch or push:',
 		'git is the owner\'s. When you are done, print a short summary of what you built.',
 	].join( '\n' ),
+	Explain: [
+		'Answer the question under "Your instructions" about this project, for the person who asked it. Use what is',
+		'packaged here and read what the question needs: a plan\'s text, threads and revisions, the run records, the files,',
+		'through the API or the tools you have. Answer in plain markdown, naming plans and threads by their titles and',
+		'people by their names, and say when you could not find something. Post nothing: your answer is your output.',
+	].join( '\n' ),
 	Session: '',
 };
 
@@ -67,11 +76,13 @@ const OLD_PROMPTS = {
 	Build: PROMPTS.Work,
 };
 
+// Since: the TasksVersion that shipped the task; a file below it lacks the task because it never had it.
 const DEFAULT_TASKS = [
-	{ Id: 'answer', Name: 'Answer', Package: { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: true, Files: true, Box: false }, Writes: 'consensus', Prompt: PROMPTS.Answer },
-	{ Id: 'enhance', Name: 'Enhance', Package: { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: false, Files: false, Box: true }, Writes: 'consensus', Prompt: PROMPTS.Enhance },
-	{ Id: 'work', Name: 'Work', Package: { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: false, Files: true, Box: false }, Writes: 'files', Prompt: PROMPTS.Work },
-	{ Id: 'session', Name: 'Session', Package: { Instructions: true, Readme: true, Documents: true, Plan: false, Threads: false, Files: true, Box: false }, Writes: 'files', Prompt: PROMPTS.Session },
+	{ Id: 'answer', Name: 'Answer', Since: 1, Package: { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: true, Files: true, Project: false, Box: false }, Writes: 'consensus', Prompt: PROMPTS.Answer },
+	{ Id: 'enhance', Name: 'Enhance', Since: 2, Package: { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: false, Files: false, Project: false, Box: true }, Writes: 'consensus', Prompt: PROMPTS.Enhance },
+	{ Id: 'work', Name: 'Work', Since: 1, Package: { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: false, Files: true, Project: false, Box: false }, Writes: 'files', Prompt: PROMPTS.Work },
+	{ Id: 'explain', Name: 'Explain', Since: 3, Package: { Instructions: true, Readme: true, Documents: true, Plan: false, Threads: false, Files: true, Project: true, Box: true }, Writes: 'none', Prompt: PROMPTS.Explain },
+	{ Id: 'session', Name: 'Session', Since: 1, Package: { Instructions: true, Readme: true, Documents: true, Plan: false, Threads: false, Files: true, Project: false, Box: false }, Writes: 'files', Prompt: PROMPTS.Session },
 ];
 
 
@@ -119,8 +130,9 @@ function DefaultOf( Id )
 //---------------------------------------------------------------------
 // Migrate( Settings ): the Tasks list made at the first start, the connections' own Review and Build prompts moved
 // onto Answer and Work (the first connection whose prompt differs from the old default wins), and the connections'
-// Checks, Review and Build prompts dropped; a list below TasksVersion gets the shipped tasks it lacks, each after the
-// shipped one before it (or first). Returns the lines to log; none when nothing changed.
+// Checks, Review and Build prompts dropped; a list below TasksVersion gets the shipped tasks that came after its
+// version and it lacks, each after the nearest shipped one before it (or first). Returns the lines to log; none when
+// nothing changed.
 
 function Migrate( Settings )
 {
@@ -152,13 +164,18 @@ function Migrate( Settings )
 			let before = null;
 			for ( let shipped of DEFAULT_TASKS )
 			{
-				if ( !Settings.Tasks.some( function ( task ) { return task.Id === shipped.Id; } ) )
+				let present = Settings.Tasks.some( function ( task ) { return task.Id === shipped.Id; } );
+				if ( !present && ( shipped.Since || 1 ) > version )
 				{
 					let at = before ? Settings.Tasks.findIndex( function ( task ) { return task.Id === before; } ) + 1 : 0;
 					Settings.Tasks.splice( at, 0, Fill( shipped ) );
-					lines.push( 'the shipped task ' + shipped.Name + ' added (Tasks version ' + TASKS_VERSION + ')' );
+					lines.push( 'the shipped task ' + shipped.Name + ' added (Tasks version ' + shipped.Since + ')' );
+					present = true;
 				}
-				before = shipped.Id;
+				if ( present )
+				{
+					before = shipped.Id;
+				}
 			}
 			Settings.TasksVersion = TASKS_VERSION;
 		}
@@ -291,6 +308,7 @@ function WritesLine( Writes )
 
 module.exports = {
 	PACKAGE_ITEMS: PACKAGE_ITEMS,
+	OFF_BY_DEFAULT: OFF_BY_DEFAULT,
 	TASKS_VERSION: TASKS_VERSION,
 	WRITES: WRITES,
 	DEFAULT_WRITES: DEFAULT_WRITES,

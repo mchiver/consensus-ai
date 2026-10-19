@@ -77,7 +77,7 @@ POST   /api/plans/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor
 GET    /api/trash                                what is there
 DELETE /api/trash                                owner; empties it for good, { Emptied: n }
 GET    /api/waiting                              everything waiting on the caller, in every project
-GET    /api/tasks[?Project=]                     the tasks, in the buttons' order, or those a project enables; the Writes levels, the Package switches and the shipped Defaults
+GET    /api/tasks[?Project=]                     the tasks, in the buttons' order, or those a project enables; the Writes levels, the Package switches (and which are Off unless set) and the shipped Defaults
 GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Speaker, Running, the whole records
 POST   /api/llms                                 owner; a connection from its fields, with a new id
 POST   /api/llms/check                           owner; the connection as typed, tried: { Ok, Result | Error }
@@ -87,9 +87,10 @@ DELETE /api/llms/:id                             owner; not while it runs; its s
 GET    /api/runs/lists?Project=&Plan=&Llm=       the other Context documents, the plan's threads waiting on the connection
 POST   /api/runs/package                         { Llm, Task, Project, Plan?, Text?, Overrides? }  the prompt a run would get; Task the task's id, Text the box's text
 POST   /api/runs                                 { Llm, Task, Project, Plan?, Text? }  a run started as the presser through the connection, on a token named after the task that carries its Writes (a none run is refused every write); one per connection at a time; a run that writes files pulls first when the project's GitSync is on, and is refused when the pull fails
-GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
+GET    /api/runs[?Llm=&Project=&Task=&By=]       the runs, newest first, without their prompts and outputs; a person's Explain runs of a project are its conversation
 GET    /api/runs/:id                             the whole record, the output as it stands
 POST   /api/runs/:id/stop                        a running one stopped
+DELETE /api/runs/:id                             the record removed (Clear in the Explain tab); not a running one
 GET    /api/events                               Server-Sent Events: { Plan | Project, Kind, Thread? }; { Kind: llms } and { Kind: run, Run, Llm, Status }
 ```
 

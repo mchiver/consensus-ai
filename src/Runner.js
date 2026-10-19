@@ -14,7 +14,8 @@
 //   Url(): this server's address, what a run's tools and prompt reach it at; null when it does not listen.
 //   Lists( { Project, Plan?, Llm? } ) -> { Documents, Threads, Speaker } | { Error }
 //   Package( { Llm, Task, Project, Plan?, Text?, Overrides? }, Token? ) -> { Prompt, Llm, Task, Writes, Text, Project, Plan, Folder, Speaker } | { Error }
-//     Task: the task's id; Text: the person's instructions, read when the task has a Box (Step 2);
+//     Task: the task's id; Text: the person's instructions, read when the task has a Box (Step 2); a task with the
+//     Project switch (Step 4) packages the project's shape, every plan and document with its state and tally, and the last runs;
 //     Token: the run's token value; none for a preview, whose prompt says a token is made at the start.
 //   Start( Request, By ) -> { Run } | { Error, Status }
 
@@ -26,6 +27,9 @@ const TOOLS = require( './Tools.js' );
 const RULES = require( './Rules.js' );
 const PARTICIPANTS = require( './Participants.js' );
 const INSTRUCTIONS = require( './Instructions.js' );
+const TREE = require( './Tree.js' );
+
+const SHAPE_RUNS = 20;		// the runs the Project switch packages (Step 4)
 
 
 function Runner( Options )
@@ -102,6 +106,53 @@ function Runner( Options )
 			return null;
 		}
 		return { Path: project.Path, Include: project.Include || [], Exclude: project.Exclude || [], Commands: project.Commands || [] };
+	}
+
+
+	// The project's shape for the Project switch (Step 4): every plan and document of the tree and the Archive but the
+	// Readme, each with its state and the count of its threads by status, and the project's last runs.
+	async function shape_of( project )
+	{
+		let items = [];
+		let places = [ { Ids: TREE.ItemIds( project.Items || [] ), Archived: false }, { Ids: TREE.ItemIds( project.Archive || [] ), Archived: true } ];
+		for ( let place of places )
+		{
+			for ( let id of place.Ids )
+			{
+				if ( id === project.Context )
+				{
+					continue;
+				}
+				let read = await store.ReadPlan( id );
+				if ( !read )
+				{
+					continue;
+				}
+				let tally = { Contested: 0, Resolved: 0, Applied: 0 };
+				for ( let thread of read.Threads || [] )
+				{
+					if ( thread.Status === 'contested' )
+					{
+						tally.Contested += 1;
+					}
+					else if ( RULES.IsWaiting( thread ) )
+					{
+						tally.Resolved += 1;
+					}
+					else
+					{
+						tally.Applied += 1;
+					}
+				}
+				items.push( { Id: id, Title: read.Plan.Title, Kind: ( read.Plan.Kind === 'plan' ) ? 'plan' : 'document', State: read.Plan.State || null, Tally: tally, Archived: place.Archived } );
+			}
+		}
+		let listed = runs ? runs.List( { Project: project.Id } ).slice( 0, SHAPE_RUNS ) : [];
+		let records = listed.map( function ( run )
+		{
+			return { Task: run.Task ? run.Task.Name : ( run.Kind || '?' ), By: run.By || '?', Started: run.Started, Status: run.Status, Plan: run.Plan ? run.Plan.Title : null };
+		} );
+		return { Items: items, Runs: records };
 	}
 
 
@@ -225,6 +276,7 @@ function Runner( Options )
 			return { Error: 'a ' + task.Name + ' needs a plan: select one in the tree' };
 		}
 		let text = ( task.Package.Box && typeof request.Text === 'string' ) ? request.Text.trim() : '';
+		let shape = task.Package.Project ? await shape_of( project ) : null;
 		let prompt = PACKAGE.Build( {
 			Task: task,
 			Text: text,
@@ -242,6 +294,8 @@ function Runner( Options )
 			Readme: readme,
 			Documents: documents_of( project ).filter( function ( document ) { return !llm.Unchecked.Documents.includes( document.Id ); } ),
 			Threads: threads,
+			Shape: shape,
+			ShapeHint: is_ollama ? 'Read one with the read_plan tool.' : undefined,
 		} );
 		return {
 			Prompt: prompt,

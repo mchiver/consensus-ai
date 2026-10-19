@@ -1932,7 +1932,7 @@ function Attach( App, Context )
 		{
 			return fail( response, 404, 'no project with the id ' + request.query.Project );
 		}
-		response.json( { Tasks: project ? TASKS.Enabled( settings, project ) : ( settings.Tasks || [] ), Writes: TASKS.WRITES, Package: TASKS.PACKAGE_ITEMS, Defaults: TASKS.Defaults() } );
+		response.json( { Tasks: project ? TASKS.Enabled( settings, project ) : ( settings.Tasks || [] ), Writes: TASKS.WRITES, Package: TASKS.PACKAGE_ITEMS, Off: TASKS.OFF_BY_DEFAULT, Defaults: TASKS.Defaults() } );
 	} );
 
 
@@ -2080,7 +2080,8 @@ function Attach( App, Context )
 	} );
 
 
-	// The summaries, newest first; of one connection with ?Llm=, with its running one.
+	// The summaries, newest first; of one connection with ?Llm=, with its running one; of a project, a task or an asker
+	// with ?Project=, ?Task= and ?By= (plan LLM Tasks, Step 4: a person's Explain runs of a project are the conversation).
 	router.get( '/runs', function ( request, response )
 	{
 		if ( !runs )
@@ -2088,7 +2089,8 @@ function Attach( App, Context )
 			return fail( response, 503, 'this server runs no LLMs' );
 		}
 		let llm_id = request.query.Llm || undefined;
-		response.json( { Runs: runs.List( llm_id ), Running: llm_id ? runs.Running( llm_id ) : null } );
+		let filter = { Llm: llm_id, Project: request.query.Project || undefined, Task: request.query.Task || undefined, By: request.query.By || undefined };
+		response.json( { Runs: runs.List( filter ), Running: llm_id ? runs.Running( llm_id ) : null } );
 	} );
 
 
@@ -2114,6 +2116,32 @@ function Attach( App, Context )
 			return fail( response, 404, 'no running run with the id ' + request.params.id );
 		}
 		response.json( { Stopped: true } );
+	} );
+
+
+	// A record removed (plan LLM Tasks, Step 4: Clear in the Explain tab); not a running one.
+	router.delete( '/runs/:id', function ( request, response )
+	{
+		if ( !may_run( request, response ) )
+		{
+			return;
+		}
+		if ( !/^[a-z0-9-]+$/.test( request.params.id ) )
+		{
+			return fail( response, 404, 'no run with the id ' + request.params.id );
+		}
+		try
+		{
+			if ( !runs.Delete( request.params.id ) )
+			{
+				return fail( response, 404, 'no run with the id ' + request.params.id );
+			}
+		}
+		catch ( error )
+		{
+			return fail( response, 409, error.message );
+		}
+		response.json( { Deleted: request.params.id } );
 	} );
 
 

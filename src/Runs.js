@@ -10,7 +10,9 @@
 // entries) is kept whole and the Output is its markdown, both growing with every call, and every listener hears
 // each call; Rounds and Usage are kept; Stop aborts the request in flight.
 //
-//   Runs( { Folder, Spawn?, Tokens? } ) -> { Start( Request ), Stop( Id ), List( LlmId? ), Read( Id ), Running( LlmId ), OnChange( Handler ), Close() }
+//   Runs( { Folder, Spawn?, Tokens? } ) -> { Start( Request ), Stop( Id ), List( Filter? ), Read( Id ), Delete( Id ), Running( LlmId ), OnChange( Handler ), Close() }
+//   Filter: a connection's id, or { Llm?, Project?, Task?, By? } (plan LLM Tasks, Step 4: a person's Explain runs of a project);
+//   Delete removes a record that is not running (its file), true when there was one; a running one throws.
 //   Tokens: the server's RunTokens (Participants.js); a run's token (Request.Token, minted by the Runner) is dropped when it ends.
 //   Request = { Llm, Task: { Id, Name }, Writes, Text, By, Token: { Value, Name } | null, Project: { Id, Name, Path }, Plan: { Id, Title } | null,
 //               Folder: { Path, Include, Exclude, Commands } | null (the project's folder, the run's working folder),
@@ -344,10 +346,11 @@ function Runs( Options )
 
 
 	//-----------------------------------------------------------------
-	// List( LlmId? ): the summaries, newest first; of one connection when LlmId is given.
+	// List( Filter? ): the summaries, newest first; of one connection, project, task or asker when the filter says.
 
-	function List( LlmId )
+	function List( Filter )
 	{
+		let filter = ( typeof Filter === 'string' ) ? { Llm: Filter } : ( Filter || {} );
 		let summaries = [];
 		if ( !FS.existsSync( folder ) )
 		{
@@ -360,7 +363,7 @@ function Runs( Options )
 				continue;
 			}
 			let record = read_file( PATH.join( folder, name ) );
-			if ( !record || ( LlmId && ( !record.Llm || record.Llm.Id !== LlmId ) ) )
+			if ( !record || !matches( record, filter ) )
 			{
 				continue;
 			}
@@ -373,6 +376,28 @@ function Runs( Options )
 		}
 		summaries.sort( function ( a, b ) { return ( a.Started < b.Started ) ? 1 : ( ( a.Started > b.Started ) ? -1 : 0 ); } );
 		return summaries;
+	}
+
+
+	function matches( record, filter )
+	{
+		if ( filter.Llm && ( !record.Llm || record.Llm.Id !== filter.Llm ) )
+		{
+			return false;
+		}
+		if ( filter.Project && ( !record.Project || record.Project.Id !== filter.Project ) )
+		{
+			return false;
+		}
+		if ( filter.Task && ( !record.Task || record.Task.Id !== filter.Task ) )
+		{
+			return false;
+		}
+		if ( filter.By && record.By !== filter.By )
+		{
+			return false;
+		}
+		return true;
 	}
 
 
@@ -403,6 +428,25 @@ function Runs( Options )
 	}
 
 
+	// Delete( Id ): the record's file removed; a running one is refused.
+	function Delete( Id )
+	{
+		for ( let llm_id of Object.keys( running ) )
+		{
+			if ( running[ llm_id ].Record.Id === Id )
+			{
+				throw new Error( 'the run ' + Id + ' is still running; stop it first' );
+			}
+		}
+		if ( !FS.existsSync( path_of( Id ) ) )
+		{
+			return false;
+		}
+		FS.unlinkSync( path_of( Id ) );
+		return true;
+	}
+
+
 	// OnChange( Handler ): Handler( summary ) when a run starts or ends.
 	function OnChange( Handler )
 	{
@@ -426,6 +470,7 @@ function Runs( Options )
 		Running: Running,
 		List: List,
 		Read: Read,
+		Delete: Delete,
 		OnChange: OnChange,
 		Close: Close,
 	};

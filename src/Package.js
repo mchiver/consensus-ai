@@ -6,7 +6,7 @@
 // (Step 2), and the connection's Session Prompt at the end. Pure: the pieces are fetched by the caller (Runner.js).
 //
 //   Build( {
-//     Task: { Name, Package: { Instructions, Readme, Documents, Plan, Threads, Files, Box }, Writes, Prompt },
+//     Task: { Name, Package: { Instructions, Readme, Documents, Plan, Threads, Files, Project, Box }, Writes, Prompt },
 //     Text?: the person's instructions from the box,
 //     Llm: { Name, Prompts: { Session } },
 //     Server: { Url, Name },  Project: { Id, Name },  Plan: { Id, Title, State } | null,  Folder: path | null,
@@ -15,6 +15,8 @@
 //     Instructions: text | null,  InstructionsTitle?: 'Agent instructions',  DocumentsHint?: how to read one,
 //     Readme: { Id, Title, Text } | null,  Documents: [ { Id, Title } ],
 //     Threads: [ { Id, Status, Anchor, Replies: [ { By, At, Text } ] } ],
+//     Shape?: { Items: [ { Id, Title, Kind, State, Tally: { Contested, Resolved, Applied }, Archived } ], Runs: [ { Task, By, Started, Status, Plan } ] }
+//             the project's shape (Step 4, the Project switch),  ShapeHint?: how to read a plan,
 //   } ) -> text
 
 const TASKS = require( './Tasks.js' );
@@ -68,6 +70,44 @@ function push_thread( lines, thread )
 		lines.push( String( reply.Text || '' ).replace( /\s+$/, '' ) );
 		lines.push( '' );
 	}
+}
+
+
+// The project's shape (Step 4): every plan and document as a line, then the last runs.
+function push_shape( lines, request )
+{
+	let shape = request.Shape;
+	let name = request.Project ? request.Project.Name : 'the project';
+	heading( lines, 'The project' );
+	lines.push( 'Every plan and document of ' + name + ', as a title, id, state and tally. ' + ( request.ShapeHint || 'Read one through the API: GET /api/plans/<id> (its text and threads), /api/plans/<id>/revisions, /api/plans/<id>/report.md.' ) );
+	lines.push( '' );
+	for ( let item of shape.Items || [] )
+	{
+		let words = ( item.Kind === 'plan' ) ? ( item.State || 'no state' ) + ', ' + tally_words( item.Tally ) : 'a document';
+		lines.push( '- ' + item.Title + ' (' + item.Id + '): ' + words + ( item.Archived ? ', archived' : '' ) );
+	}
+	if ( !( shape.Items || [] ).length )
+	{
+		lines.push( 'None.' );
+	}
+	heading( lines, 'Runs' );
+	lines.push( 'The last runs on ' + name + ', newest first: the task, who asked, when, the status and the plan.' );
+	lines.push( '' );
+	for ( let run of shape.Runs || [] )
+	{
+		lines.push( '- ' + run.Task + ' by ' + run.By + ' at ' + run.Started + ': ' + run.Status + ( run.Plan ? ', on ' + run.Plan : '' ) );
+	}
+	if ( !( shape.Runs || [] ).length )
+	{
+		lines.push( 'None.' );
+	}
+}
+
+
+function tally_words( tally )
+{
+	let counts = tally || {};
+	return 'contested ' + ( counts.Contested || 0 ) + ', resolved ' + ( counts.Resolved || 0 ) + ', applied ' + ( counts.Applied || 0 );
 }
 
 
@@ -158,6 +198,10 @@ function Build( Request )
 		{
 			push_thread( lines, thread );
 		}
+	}
+	if ( switches.Project && request.Shape )
+	{
+		push_shape( lines, request );
 	}
 	let prompt = String( task.Prompt || '' ).trim();
 	if ( prompt )

@@ -1,0 +1,32 @@
+<section class="explain-view" id="explain-view" ng-show="$ctrl.Project">
+	<div class="view-heading">Explain <span class="muted">{{ $ctrl.Project.Name }}</span> <span class="muted small explain-lead">a conversation with the project: each answer is a run that reads only and posts nothing</span></div>
+	<div class="port-error" id="explain-error" ng-show="$ctrl.Error">{{ $ctrl.Error }}</div>
+
+	<!-- The exchange: the person's Explain runs of the project, oldest first. -->
+	<div class="explain-exchange" id="explain-exchange">
+		<div class="muted" id="explain-empty" ng-show="$ctrl.Loaded && $ctrl.Items.length === 0">Nothing asked yet.</div>
+		<div class="explain-item" ng-repeat="item in $ctrl.Items track by item.Id" ng-class="item.Status">
+			<div class="explain-question">
+				<div class="explain-head"><span class="by">{{ item.By }}</span> <span class="muted small">{{ item.Started | when }}</span></div>
+				<div class="explain-text">{{ item.Question }}</div>
+			</div>
+			<div class="explain-answer">
+				<div class="explain-head"><span class="by">{{ item.Llm.Name }}</span> <span class="muted small" ng-show="item.Status === 'running'">answering…</span><span class="muted small" ng-show="item.Status === 'failed' || item.Status === 'stopped'">{{ item.Status }}{{ item.Error ? ': ' + item.Error : '' }}</span></div>
+				<div class="run-rendered" ng-bind-html="item.Answer | markdown"></div>
+			</div>
+		</div>
+	</div>
+
+	<!-- The question, the connection it goes to, and Clear. -->
+	<form class="explain-ask" ng-submit="$ctrl.Ask()">
+		<textarea class="form-control form-control-sm" id="explain-question" rows="3" ng-model="$ctrl.Question" ng-keydown="$ctrl.Key( $event )" placeholder="a question about {{ $ctrl.Project.Name }}: what it is, who did what and when, what is planned, why a thread was resolved as it was (Ctrl+Enter asks)"></textarea>
+		<div class="settings-row">
+			<button class="btn btn-sm btn-primary" type="submit" id="explain-ask" ng-disabled="!$ctrl.CanAsk()"><svg class="icon lead"><use href="#i-play"></use></svg>Ask</button>
+			<select class="form-select form-select-sm explain-llm" id="explain-llm" ng-model="$ctrl.Llm" ng-change="$ctrl.LlmChanged()" ng-options="llm.Id as llm.Name for llm in $ctrl.Llms()" title="the LLM connection that answers; remembered per project in this browser"></select>
+			<span class="muted small" ng-show="$ctrl.Llms().length === 0">no LLM connection on this server</span>
+			<span class="muted small" id="explain-disabled" ng-show="$ctrl.Llms().length && !$ctrl.Enabled()">Explain is not enabled in this project</span>
+			<button class="btn btn-sm btn-outline-secondary" type="button" id="explain-clear" ng-click="$ctrl.StartClear()" ng-show="$ctrl.Items.length && !$ctrl.Clearing" title="delete the conversation's runs"><svg class="icon lead"><use href="#i-x"></use></svg>Clear</button>
+			<span class="confirm" ng-show="$ctrl.Clearing">clear the conversation? <button class="btn btn-sm btn-danger" type="button" id="explain-clear-yes" ng-click="$ctrl.ConfirmClear()">Yes</button> <button class="btn btn-sm btn-outline-secondary" type="button" ng-click="$ctrl.Clearing = false">No</button></span>
+		</div>
+	</form>
+</section>

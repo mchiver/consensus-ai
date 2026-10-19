@@ -336,6 +336,15 @@ and the checkout's own git user) and the thread keeps the record as `Git: { Comm
 shown as a line in its transcript; a clean tree is "nothing to commit" and a failure leaves the resolve standing.
 `src/Git.js` runs git without a shell in the project's folder, never prompts and gives up after 60 seconds.
 
+**Explain** (plan LLM Tasks, Step 4) is the conversation with a project: a tab per project (`#/x/<project id>`;
+Explain in the project's menu, or the Explain button on the LLM page, which opens the tab instead of running;
+`public/components/explain-pane/`) with the exchange above and a question box below. Ask starts an Explain run
+of the picked connection (remembered per project in the browser) with the question as its Text, and the answer
+is the run's output, rendered when the run ends. The conversation is the person's Explain runs of the project,
+read from the run records (`GET /api/runs?Project=&Task=explain&By=`), so nothing is kept in the project; Clear
+deletes them (`DELETE /api/runs/:id`, never a running one). An Explain run has Writes none: it reads the project
+through the API or the read tools and is refused every write, so it posts nothing whatever the model tries.
+
 An `ollama` one-shot (plan Consensus Desktop, Step 4: Local Models) runs in the server: a local model has no
 tools of its own, so `Ollama.js` runs the tool loop over Ollama's chat endpoint, one request per round with
 the connection's Context as `num_ctx`, and `Tools.js` carries out each call the model makes and sends the
@@ -365,9 +374,10 @@ own, the others are dropped with a line, and the `Workspaces` list is gone from 
 
 **LLM tasks** (plan LLM Tasks, Step 1) are what the buttons ask: a task is a record of the settings (`Tasks`),
 edited in the Settings popup, one row per task in the buttons' order (Add, Remove, up and down): a **Name**
-(what the button says and the run record carries), a **Package** of seven switches (the server's instructions,
+(what the button says and the run record carries), a **Package** of eight switches (the server's instructions,
 the project's Readme, the other Context documents, the plan at hand, the threads waiting on the connection,
-the project's folder as the run's working folder, and Box, Step 2: a text box on the LLM page for the person's
+the project's folder as the run's working folder, Project, Step 4: the project's shape, every plan and document
+as a title, id, state and tally and the last twenty run records, off unless set, and Box, Step 2: a text box on the LLM page for the person's
 instructions, kept per project in the browser, sent as `Text` with the run, kept on its record and put under
 "Your instructions" after the prompt), a **Writes** level (**none**, **consensus** or
 **files**, each including the ones before) and a **Prompt** (the task's instructions, under "Your task:
@@ -375,8 +385,9 @@ instructions, kept per project in the browser, sent as `Text` with the run, kept
 item but the box, writes consensus: the Review of before), **Enhance** (Step 2: the plan, the Readme, the
 documents and the box, no threads and no folder, writes consensus; its prompt has the model replace a sketch
 with a detailed plan as one revision and open a thread for each open question), **Work** (no threads, writes
-files: the Build of before) and **Session** (the instructions, the Readme and the documents, writes files; its
-prompt is the connection's).
+files: the Build of before), **Explain** (Step 4: the instructions, the Readme, the documents, the project's
+shape, the files and the box, writes none: the conversation with a project, below) and **Session** (the
+instructions, the Readme and the documents, writes files; its prompt is the connection's).
 Writes is the permission: the run token carries it, so a none run is refused every writing route (403, "this
 run reads only") and a local model gets the read tools only; a task that packages the plan or the threads
 needs a plan picked, one that writes or packages files the project's folder on the server's machine. Tasks
@@ -384,9 +395,10 @@ are defined per server and enabled per project: a project's Settings lists them 
 in project.json, the enabled ids; absent means all, so a task added later is on everywhere). At the first
 start after the step a file from before gets the shipped set, a connection's own Review and Build prompts
 become Answer's and Work's (the first that differs from the old default wins) and the connections' Checks are
-dropped; a run record from before keeps its Kind and shows it as the name. `TasksVersion` in the settings (2
-since Step 2) says which shipped tasks a file has been given: a file below it gets the shipped tasks it lacks,
-each after the shipped one before it, once, so a task the owner removes stays removed. A local model gets
+dropped; a run record from before keeps its Kind and shows it as the name. `TasksVersion` in the settings (3
+since Step 4) says which shipped tasks a file has been given: a file below it gets the shipped tasks that came
+after its version (each shipped task carries a Since), each after the nearest shipped one before it, once, so a
+task the owner removes stays removed. A local model gets
 `write_text` (the plan's whole new text as a revision, the current revision supplied) beside the other
 Consensus tools, so an Enhance through Ollama can post the text.
 

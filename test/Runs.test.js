@@ -182,6 +182,15 @@ TEST( 'the package is one prompt from the items the task switches on, in order, 
 	ASSERT.match( enhance, /- No folder/ );
 	ASSERT.match( enhance, /- The plan at hand: Step 3/ );
 	ASSERT.equal( PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'enhance' ), Text: '  ' } ) ).includes( 'Your instructions' ), false );
+	// Explain (Step 4): the project's shape and the last runs under the Project switch, after the threads and before the task
+	let shape = { Items: [ { Id: 'pln-1', Title: 'Step 3', Kind: 'plan', State: 'Plan', Tally: { Contested: 1, Resolved: 0, Applied: 2 }, Archived: false }, { Id: 'doc-1', Title: 'Notes', Kind: 'document', State: null, Tally: null, Archived: true } ], Runs: [ { Task: 'Work', By: 'user', Started: '2026-10-19T10:00:00.000Z', Status: 'done', Plan: 'Step 3' } ] };
+	let explain = PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'explain' ), Text: 'Who resolved Step 3?', Shape: shape } ) );
+	ASSERT.match( explain, /## The project\n\nEvery plan and document of Consensus[^]*\n- Step 3 \(pln-1\): Plan, contested 1, resolved 0, applied 2\n- Notes \(doc-1\): a document, archived\n\n\n## Runs\n\n[^]*\n- Work by user at 2026-10-19T10:00:00.000Z: done, on Step 3\n\n\n## Your task: Explain\n\nAnswer the question[^]*## Your instructions\n\nWho resolved Step 3\?/ );
+	ASSERT.match( explain, /- Writes: none\. This run reads only/ );
+	ASSERT.equal( explain.includes( 'The plan at hand' ), false );
+	ASSERT.equal( explain.includes( '## Threads' ), false );
+	ASSERT.equal( PACKAGE.Build( Object.assign( {}, request, { Shape: shape } ) ).includes( '## The project' ), false );
+	ASSERT.match( PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'explain' ), Shape: { Items: [], Runs: [] } } ) ), /## The project\n\n[^\n]*\n\nNone\.\n\n\n## Runs\n\n[^\n]*\n\nNone\./ );
 	// a session: no plan line, no threads, the session prompt as the task; no token for a local model
 	let session = PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'session' ), Plan: null, Folder: null, Token: null } ) );
 	ASSERT.equal( session.includes( 'No plan is selected' ), false );

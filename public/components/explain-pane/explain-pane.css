@@ -1,0 +1,86 @@
+/* explain-pane - the conversation with a project (plan LLM Tasks, Step 4): the exchange above, the question below. */
+
+.explain-view
+{
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 0.75rem 1rem;
+	gap: 0.5rem;
+}
+
+.explain-view .view-heading
+{
+	font-size: 1.1em;
+	font-weight: 600;
+}
+
+.explain-lead
+{
+	font-weight: normal;
+}
+
+.explain-exchange
+{
+	flex: 1 1 auto;
+	overflow-y: auto;
+	min-height: 6rem;
+}
+
+.explain-item
+{
+	margin: 0.5rem 0 1rem;
+}
+
+.explain-question,
+.explain-answer
+{
+	border-left: 3px solid var(--mine-edge);
+	padding: 0.25rem 0.75rem;
+	margin: 0.25rem 0;
+}
+
+.explain-answer
+{
+	border-left-color: var(--applied-edge);
+}
+
+.explain-item.running .explain-answer
+{
+	border-left-style: dashed;
+}
+
+.explain-item.failed .explain-answer,
+.explain-item.stopped .explain-answer
+{
+	border-left-color: var(--contested-edge);
+}
+
+.explain-head
+{
+	font-size: 0.9em;
+	margin-bottom: 0.15rem;
+}
+
+.explain-head .by
+{
+	font-weight: 600;
+}
+
+.explain-text
+{
+	white-space: pre-wrap;
+}
+
+.explain-ask
+{
+	flex: 0 0 auto;
+	border-top: 1px solid var(--border);
+	padding-top: 0.5rem;
+}
+
+.explain-ask .explain-llm
+{
+	flex: 0 1 14rem;
+	width: auto;
+}

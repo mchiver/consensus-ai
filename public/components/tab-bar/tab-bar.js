@@ -92,6 +92,16 @@ angular.module( 'Consensus' ).component( 'tabBar', {
 					title = llm.Name;
 				}
 			}
+			else if ( tab.Kind === 'x' )
+			{
+				// the Explain tab of a project (plan LLM Tasks, Step 4)
+				let root = root_of( tab );
+				let project = root ? root.Projects.find( function ( candidate ) { return candidate.Id === tab.Id; } ) : null;
+				if ( project )
+				{
+					title = 'Explain · ' + project.Name;
+				}
+			}
 			else
 			{
 				let plan = plan_of( tab );
@@ -127,7 +137,7 @@ angular.module( 'Consensus' ).component( 'tabBar', {
 			{
 				return 'icon-waiting';
 			}
-			if ( tab.Kind === 'llm' )
+			if ( tab.Kind === 'llm' || tab.Kind === 'x' )
 			{
 				return 'icon-llm';
 			}

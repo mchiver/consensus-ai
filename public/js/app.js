@@ -2,7 +2,8 @@
 
 // Consensus - the one AngularJS module. State holds what is one at a time (the open item, the view, the selection)
 // and names its root; the roots (roots.js, plan Run Shapes, Step 5) hold each server's participants, plans and
-// projects. AppController wires the hash routes (#/p/<id>, #/llm/<id>, #/waiting, under #/s/<key> for a named
+// projects. AppController wires the hash routes (#/p/<id>, #/llm/<id>, #/x/<project id> (plan LLM Tasks, Step 4: the
+// Explain tab), #/waiting, under #/s/<key> for a named
 // root) and each root's live stream. Every rule is on the server.
 
 angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensus.Editor', 'Consensus.Mirror' ] )
@@ -248,7 +249,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			state.Reanchoring = null;
 			SetView( 'read' );
 		}
-		else if ( state.View === 'waiting' )
+		else if ( state.View === 'waiting' || state.View === 'x' )
 		{
 			SetView( 'read' );
 		}
@@ -661,6 +662,11 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		{
 			return { Kind: 'llm', Id: decodeURIComponent( llm[ 1 ] ), Root: root };
 		}
+		let explain = /^#\/x\/([^/]+)$/.exec( rest );
+		if ( explain )
+		{
+			return { Kind: 'x', Id: decodeURIComponent( explain[ 1 ] ), Root: root };
+		}
 		if ( rest === '#/waiting' )
 		{
 			return { Kind: 'waiting', Root: root };
@@ -711,6 +717,13 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			State.SetRoot( where.Root );
 			State.OpenItem = { Kind: 'llm', Id: where.Id, Root: where.Root.Key };
 			State.OpenPlan( null, 'llm' );
+			return;
+		}
+		if ( where.Kind === 'x' )
+		{
+			State.SetRoot( where.Root );
+			State.OpenItem = { Kind: 'x', Id: where.Id, Root: where.Root.Key };
+			State.OpenPlan( null, 'x' );
 			return;
 		}
 		State.OpenPlan( null, 'waiting' );

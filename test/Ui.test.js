@@ -1067,7 +1067,7 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-owner-display" ).value' ), 'User' );
 	ASSERT.equal( await page.Evaluate( count_of( '.settings-participant' ) ), 0 );
 	// plan LLM Tasks, Step 1: the three shipped tasks, one row each
-	await page.WaitFor( count_of( '.settings-task' ) + ' === 4' );
+	await page.WaitFor( count_of( '.settings-task' ) + ' === 5' );
 	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".settings-task-name" ).value' ), 'Answer' );
 	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".settings-task-writes" ).selectedOptions[ 0 ].textContent.trim()' ), 'consensus' );
 	// an owner with no name: refused, the problem shown, nothing written
@@ -1089,7 +1089,7 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	// States, edited in its Settings popup
 	await menu_pick( '.project[data-project="' + home + '"] .project-head', 'Settings' );
 	await page.WaitFor( '( document.getElementById( "project-states" ) || { value: "" } ).value.startsWith( "Draft" )' );
-	await page.WaitFor( count_of( '.project-task' ) + ' === 4' );
+	await page.WaitFor( count_of( '.project-task' ) + ' === 5' );
 	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".project-task input" ) ].every( function ( box ) { return box.checked; } )' ), true );
 	await page.Evaluate( '( function () { let box = document.getElementById( "project-states" ); box.value = box.value + "\\nShelved"; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
 	await page.Click( '#project-settings-save' );
@@ -1611,6 +1611,30 @@ TEST( 'the Work options (plan LLM Tasks, Step 3): the LLM page shows Git sync an
 	await page.WaitFor( '!document.getElementById( "llm-auto-commit" ).checked && !document.getElementById( "llm-auto-commit" ).disabled' );
 	project = ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === home; } );
 	ASSERT.equal( project.AutoCommit, undefined );
+	await api( 'DELETE', '/api/llms/' + llm.Id );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'Explain (plan LLM Tasks, Step 4): the project\'s menu opens its Explain tab with the question box, the connection picker and Ask; the Explain button on the LLM page opens it too', async function ()
+{
+	let llm = ( await api( 'POST', '/api/llms', { Name: 'explainer', Kind: 'claude-cli', Command: process.execPath, Arguments: [ '-e', '' ], Timeout: 60 } ) ).Llm;
+	await menu_pick( '.project[data-project="' + home + '"] .project-head', 'Explain' );
+	await page.WaitFor( 'window.location.hash === "#/x/' + home + '"' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "explain-view" ) ).display !== "none"' );
+	await page.WaitFor( 'document.getElementById( "explain-empty" ) !== null && getComputedStyle( document.getElementById( "explain-empty" ) ).display !== "none"' );
+	ASSERT.match( await page.Evaluate( 'document.querySelector( ".tab[data-key=\\"x:' + home + '\\"]" ).textContent' ), /Explain · / );
+	await page.WaitFor( 'document.getElementById( "explain-llm" ).options.length === 1' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "explain-ask" ).disabled' ), true );
+	await page.Evaluate( '( function () { let box = document.getElementById( "explain-question" ); box.value = "What is this project?"; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.WaitFor( '!document.getElementById( "explain-ask" ).disabled' );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "explain-disabled" ) ).display' ), 'none' );
+	// the LLM page's Explain button opens the tab instead of running
+	await page.Evaluate( 'window.location.hash = "#/llm/' + llm.Id + '"; true' );
+	await page.WaitFor( 'document.getElementById( "llm-run-explain" ) !== null && !document.getElementById( "llm-run-explain" ).disabled' );
+	await page.Click( '#llm-run-explain' );
+	await page.WaitFor( 'window.location.hash === "#/x/' + home + '"' );
+	ASSERT.equal( ( await api( 'GET', '/api/runs?Task=explain' ) ).Runs.length, 0 );
 	await api( 'DELETE', '/api/llms/' + llm.Id );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
