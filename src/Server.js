@@ -25,6 +25,8 @@ const LLMS = require( './Llms.js' );
 const RUNS = require( './Runs.js' );
 const RUNNER = require( './Runner.js' );
 const GIT = require( './Git.js' );
+const USERS = require( './Users.js' );
+const ROLES = require( './Roles.js' );
 
 const DEFAULT_PORT = 3500;
 const DEFAULT_CONFIG = PATH.join( OS.homedir(), '.consensus' );
@@ -79,6 +81,16 @@ async function Start( Options )
 	{
 		console.log( renamed );
 	}
+	// The users and the role folders (plan User Management, Step 3): the owner's record, and empty Roles in each project.
+	let users = USERS.Users( { Folder: store.Folder } );
+	for ( let line of users.Migrate( settings ) )
+	{
+		console.log( 'users brought up to date: ' + line );
+	}
+	for ( let line of await migrate_roles( store ) )
+	{
+		console.log( line );
+	}
 	let port = ( options.Port !== undefined ) ? options.Port : ( settings.Port || DEFAULT_PORT );
 	let scope = PARTICIPANTS.SCOPES.includes( options.Scope ) ? options.Scope : PARTICIPANTS.Scope( settings );
 	let scope_forced = false;
@@ -102,7 +114,7 @@ async function Start( Options )
 	} );
 	let git = GIT.Git();
 	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Url: function () { return url; }, Tokens: tokens, Git: git } );
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git, Users: users } );
 	INSTRUCTIONS.Attach( app, { Settings: settings } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
@@ -155,6 +167,7 @@ async function Start( Options )
 		ScopeForced: scope_forced,
 		Settings: settings,
 		Tokens: tokens,
+		Users: users,
 		SettingsWritten: settings_written,
 		Store: store,
 		Events: events,
@@ -162,6 +175,24 @@ async function Start( Options )
 		Runner: runner,
 		Close: Close,
 	};
+}
+
+
+// Each project without role folders gets the four, empty (plan User Management, Step 3).
+async function migrate_roles( store )
+{
+	let lines = [];
+	for ( let project of await store.ListProjects() )
+	{
+		if ( project.Roles && typeof project.Roles === 'object' )
+		{
+			continue;
+		}
+		project.Roles = ROLES.Empty();
+		await store.WriteProject( project );
+		lines.push( 'project ' + project.Name + ': the role folders Owners, Members, Service and Watchers made, empty' );
+	}
+	return lines;
 }
 
 

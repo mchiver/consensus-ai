@@ -12,7 +12,7 @@
 
 angular.module( 'Consensus' ).component( 'tabBar', {
 	templateUrl: '/components/tab-bar/tab-bar.html',
-	controller: [ 'State', 'Tabs', 'Menus', 'Llms', 'Roots', function ( State, Tabs, Menus, Llms, Roots )
+	controller: [ 'State', 'Tabs', 'Menus', 'Llms', 'Users', 'Roots', function ( State, Tabs, Menus, Llms, Users, Roots )
 	{
 		let controller = this;
 		controller.State = State;
@@ -92,6 +92,15 @@ angular.module( 'Consensus' ).component( 'tabBar', {
 					title = llm.Name;
 				}
 			}
+			else if ( tab.Kind === 'u' )
+			{
+				// an account's page (plan User Management, Step 3)
+				let user = Users.UserById( tab.Id );
+				if ( user )
+				{
+					title = user.Display;
+				}
+			}
 			else if ( tab.Kind === 'x' )
 			{
 				// the Explain tab of a project (plan LLM Tasks, Step 4)
@@ -140,6 +149,10 @@ angular.module( 'Consensus' ).component( 'tabBar', {
 			if ( tab.Kind === 'llm' || tab.Kind === 'x' )
 			{
 				return 'icon-llm';
+			}
+			if ( tab.Kind === 'u' )
+			{
+				return 'icon-user';
 			}
 			if ( context_project( tab ) )
 			{

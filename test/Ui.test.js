@@ -1638,3 +1638,49 @@ TEST( 'Explain (plan LLM Tasks, Step 4): the project\'s menu opens its Explain t
 	await api( 'DELETE', '/api/llms/' + llm.Id );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
+
+
+
+TEST( 'users and roles (plan User Management, Step 3): the Users fold holds the owner, the owner\'s page mints a token shown once and revokes it, a project shows the four role folders and an account placed in Watchers, taken out with the ×', async function ()
+{
+	// the fold: the owner alone on a Local server; its row opens the owner's page
+	await page.WaitFor( count_of( '#users-list .user-row' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( 'document.querySelector( "#users-list .user-row .plan-title" ).textContent.trim()' ), 'User' );
+	await page.Evaluate( 'document.querySelector( "#users-list .user-row" ).click(); true' );
+	await page.WaitFor( 'window.location.hash.startsWith( "#/u/" )' );
+	await page.WaitFor( 'document.getElementById( "user-token-name" ) !== null && getComputedStyle( document.getElementById( "user-view" ) ).display !== "none"' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "user-login" ).value' ), 'user' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "user-login" ).readOnly' ), true );
+	ASSERT.match( await page.Evaluate( 'document.querySelector( ".tab[data-key^=\\"u:\\"]" ).textContent' ), /User/ );
+	// a token: made with a name, shown once, listed; the value is the owner
+	await page.Evaluate( '( function () { let box = document.getElementById( "user-token-name" ); box.value = "laptop"; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.Click( '#user-token-create' );
+	await page.WaitFor( 'document.getElementById( "user-token-shown" ) !== null' );
+	let value = await page.Evaluate( 'document.querySelector( "#user-token-shown .user-token-value" ).textContent.trim()' );
+	ASSERT.match( value, /^[0-9a-f]{48}$/ );
+	await page.WaitFor( count_of( '.user-token' ) + ' === 1' );
+	let as_token = await ( await fetch( running.Url + '/api/me', { headers: { Authorization: 'Bearer ' + value } } ) ).json();
+	ASSERT.deepEqual( [ as_token.Me.Name, as_token.Me.Token, as_token.Admin ], [ 'user', 'laptop', true ] );
+	await page.Click( '.user-token-revoke' );
+	await page.Click( '.user-token-revoke-yes' );
+	await page.WaitFor( count_of( '.user-token' ) + ' === 0' );
+	ASSERT.equal( ( await fetch( running.Url + '/api/me', { headers: { Authorization: 'Bearer ' + value } } ) ).status, 401 );
+	// an account made through the API appears in the fold; placed in Watchers through the API, the project's Users folder shows it
+	let ann = ( await api( 'POST', '/api/users', { Type: 'user', Login: 'ann', Display: 'Ann', Email: 'ann@example.com' } ) ).User;
+	await page.WaitFor( count_of( '#users-list .user-row' ) + ' === 2' );
+	await api( 'PUT', '/api/projects/' + home + '/roles', { Watchers: [ ann.Id ] } );
+	let roles = '.roles-folder[data-roles="' + home + '"]';
+	await page.WaitFor( 'document.querySelector( ' + JSON.stringify( roles + ' > .folder-head .count' ) + ' ) !== null' );
+	await page.WaitFor( 'document.querySelector( ' + JSON.stringify( roles + ' > .folder-head .count' ) + ' ).textContent.trim() === "1"' );
+	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( roles + ' > .folder-head' ) + ' ).click(); true' );
+	await page.WaitFor( count_of( roles + ' .role-folder' ) + ' === 4' );
+	await page.Evaluate( 'document.querySelector( ' + JSON.stringify( roles + ' .role-folder[data-role="Watchers"] > .folder-head' ) + ' ).click(); true' );
+	await page.WaitFor( count_of( roles + ' .role-folder[data-role="Watchers"] .role-account' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( 'document.querySelector( ' + JSON.stringify( roles + ' .role-folder[data-role="Watchers"] .role-account .plan-title' ) + ' ).textContent.trim()' ), 'Ann' );
+	await page.Click( roles + ' .role-folder[data-role="Watchers"] .role-remove' );
+	await page.WaitFor( count_of( roles + ' .role-folder[data-role="Watchers"] .role-account' ) + ' === 0' );
+	ASSERT.deepEqual( ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === home; } ).Roles.Watchers, [] );
+	await api( 'DELETE', '/api/users/' + ann.Id );
+	await page.WaitFor( count_of( '#users-list .user-row' ) + ' === 1' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );

@@ -217,6 +217,16 @@ angular.module( 'Consensus' ).component( 'explainPane', {
 				load();
 			}
 		} );
+		// The connections arrive after the tab at times: the first one is picked once there is one and none is.
+		$scope.$watch( function () { return controller.Llms().length; }, function ()
+		{
+			let llms = controller.Llms();
+			if ( llms.length && !llms.some( function ( llm ) { return llm.Id === controller.Llm; } ) )
+			{
+				let remembered = controller.Project ? window.ConsensusStored.Read( LLM_KEY + ':' + controller.Project.Id, null, controller.Root ) : null;
+				controller.Llm = llms.some( function ( llm ) { return llm.Id === remembered; } ) ? remembered : llms[ 0 ].Id;
+			}
+		} );
 		$scope.$on( 'runs-changed', function ( event, summary )
 		{
 			if ( controller.Root && summary.Root === controller.Root.Key && State.View === 'x' )

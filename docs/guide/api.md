@@ -1,6 +1,6 @@
 # The API
 
-Everything the Consensus-AI page does goes through the API, and so does everything an LLM does. It is plain HTTP with JSON bodies. On a local or trusted-network server every request is the owner (plan User Management; roles and sign-in come with Clerk). A request says who it is with the header `X-Consensus-Service: <name>`, and what it posts is then recorded as the owner through that service, shown as the byline `<name> by <owner>`; a run the server started carries `Authorization: Bearer <run token>`, a token the server made for it and forgets when it ends; any other token is refused. Errors are `{ "Error": "..." }` with the status: 400 a bad body, 401 an unknown token, 403 not allowed, 404 not found, 409 not allowed in this state or a stale revision.
+Everything the Consensus-AI page does goes through the API, and so does everything an LLM does. It is plain HTTP with JSON bodies. On a local or trusted-network server every request is the owner (plan User Management; roles and sign-in come with Clerk). A request says who it is with the header `X-Consensus-Service: <name>`, and what it posts is then recorded as the owner through that service, shown as the byline `<name> by <owner>`; a run the server started carries `Authorization: Bearer <run token>`, a token the server made for it and forgets when it ends; a token minted on an account's page (plan User Management, Step 3) makes the request that account, allowed in each project what its role folder there allows (Owners, Members, Service, Watchers), refused with 403 and the reason otherwise; any other token is refused. Errors are `{ "Error": "..." }` with the status: 400 a bad body, 401 an unknown token, 403 not allowed, 404 not found, 409 not allowed in this state or a stale revision.
 
 ## Four calls
 
@@ -91,7 +91,16 @@ GET    /api/runs[?Llm=&Project=&Task=&By=]       the runs, newest first, without
 GET    /api/runs/:id                             the whole record, the output as it stands
 POST   /api/runs/:id/stop                        a running one stopped
 DELETE /api/runs/:id                             the record removed (Clear in the Explain tab); not a running one
-GET    /api/events                               Server-Sent Events: { Plan | Project, Kind, Thread? }; { Kind: llms } and { Kind: run, Run, Llm, Status }
+GET    /api/events                               Server-Sent Events: { Plan | Project, Kind, Thread? }; { Kind: llms }, { Kind: users } and { Kind: run, Run, Llm, Status }
+GET    /api/users                                the accounts of the server (Users.json): Id, Type, Login, Display, Email; Admin: whether you are the Administrator
+POST   /api/users                                Administrator; { Type: user | service, Login, Display?, Email? }  a user needs an email
+GET    /api/users/:id                            the account's own page or the Administrator's: the record with its tokens' names, created and last use
+PUT    /api/users/:id                            { Login?, Display?, Email? }  the Administrator; an account its own Display
+DELETE /api/users/:id                            Administrator; out of every role folder, its tokens gone; never the owner
+POST   /api/users/:id/tokens                     { Name } -> { Token, Name }  the value, shown once; an account's own, a Service account's by the Administrator
+DELETE /api/users/:id/tokens/:name               revoked
+GET    /api/users/:id/activity                   the threads, replies, resolves, applies and revisions by the account, newest first
+PUT    /api/projects/:pid/roles                  { Owners?, Members?, Service?, Watchers? }  account ids, one folder each; an Owner of the project or the Administrator
 ```
 
 ## The rules, in plain words

@@ -1,0 +1,29 @@
+<!-- The project's Users folder (plan User Management, Step 3): the four role folders, fixed. -->
+<div class="folder roles-folder" data-roles="{{ $ctrl.project.Id }}">
+	<div class="folder-head tree-row" style="--depth: 1" ng-click="$ctrl.Toggle( $event )" title="who may do what in this project: drag an account from the server's Users into a role folder">
+		<span class="chevron" ng-class="{ folded: !$ctrl.Showing }"></span>
+		<span class="tree-icon" ng-class="$ctrl.Showing ? 'icon-folder-open' : 'icon-folder'"></span>
+		<span class="folder-name">Users</span>
+		<span class="count">{{ $ctrl.Count() }}</span>
+	</div>
+	<div class="folder-body" ng-if="$ctrl.Showing">
+		<div class="port-error roles-error" ng-show="$ctrl.Error">{{ $ctrl.Error }}</div>
+		<div class="folder role-folder" ng-repeat="role in $ctrl.Roles" data-role="{{ role }}">
+			<div class="folder-head tree-row" style="--depth: 2" ng-click="$ctrl.ToggleRole( role, $event )" title="{{ $ctrl.Title( role ) }}" role-drop="role" on-role-drop="$ctrl.Place( Id, Role )">
+				<span class="chevron" ng-class="{ folded: !$ctrl.Open[ role ] }"></span>
+				<span class="tree-icon" ng-class="$ctrl.Open[ role ] ? 'icon-folder-open' : 'icon-folder'"></span>
+				<span class="folder-name">{{ role }}</span>
+				<span class="count">{{ $ctrl.Ids( role ).length }}</span>
+			</div>
+			<div class="folder-body" ng-if="$ctrl.Open[ role ]">
+				<div class="list-empty" ng-show="$ctrl.Ids( role ).length === 0">empty</div>
+				<a class="tree-row role-account" ng-repeat="id in $ctrl.Ids( role ) track by id" style="--depth: 3" ng-href="{{ $ctrl.AccountHash( id ) }}" data-id="{{ id }}" drag-account="id" title="{{ $ctrl.Display( id ) }}: {{ role }}; drag to another role folder">
+					<span class="chevron-space"></span>
+					<span class="tree-icon icon-user"></span>
+					<span class="plan-title">{{ $ctrl.Display( id ) }}</span>
+					<button class="btn btn-link btn-sm role-remove" type="button" ng-if="$ctrl.MayPlace()" title="out of the project" ng-click="$event.preventDefault(); $event.stopPropagation(); $ctrl.Place( id, null )"><svg class="icon"><use href="#i-x"></use></svg></button>
+				</a>
+			</div>
+		</div>
+	</div>
+</div>

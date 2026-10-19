@@ -82,6 +82,8 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 		{
 			let answer = await Client.Get( Root, '/api/me' );
 			Root.Me = answer.Me;
+			Root.Admin = !!answer.Admin;			// plan User Management, Step 3: the Administrator, and the account's roles by project
+			Root.Roles = answer.Roles || {};
 			Root.Participants = answer.Participants;
 			Root.States = answer.States || [];
 			Root.Version = answer.Version || Root.Version;

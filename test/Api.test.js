@@ -182,12 +182,13 @@ TEST( 'identity: no header is the owner, the service header names the service ac
 {
 	let owner = await call( 'GET', '/api/me' );
 	ASSERT.equal( owner.Status, 200 );
-	ASSERT.deepEqual( owner.Body.Me, { Name: 'user', Display: 'User', Role: 'owner', Speaker: 'user' } );
+	ASSERT.match( owner.Body.Me.Id, /^usr-/ );
+	ASSERT.deepEqual( owner.Body.Me, { Id: owner.Body.Me.Id, Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Speaker: 'user' } );
 	ASSERT.deepEqual( owner.Body.Participants, [ { Name: 'user', Display: 'User', Role: 'owner' } ] );
 	ASSERT.equal( owner.Body.Participants.some( function ( participant ) { return 'Token' in participant; } ), false );
 	ASSERT.equal( owner.Body.Version, require( '../package.json' ).version );
 	let llm = await call( 'GET', '/api/me', undefined, true );
-	ASSERT.deepEqual( llm.Body.Me, { Name: 'user', Display: 'User', Role: 'owner', Speaker: 'llm by user', Service: 'llm' } );
+	ASSERT.deepEqual( llm.Body.Me, { Id: owner.Body.Me.Id, Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Speaker: 'llm by user', Service: 'llm' } );
 	ASSERT.deepEqual( llm.Body.Participants, [ { Name: 'user', Display: 'User', Role: 'owner' }, { Name: 'llm by user', Display: 'llm by User', Role: 'llm' } ] );
 	let wrong = await call( 'GET', '/api/me', undefined, 'Bearer nope' );
 	ASSERT.equal( wrong.Status, 401 );
@@ -263,7 +264,8 @@ TEST( 'settings: the owner reads and writes consensus.json; problems are refused
 	ASSERT.deepEqual( written.Body.Settings.Servers, [ { Name: 'cube4', Url: 'http://cube4:3500' } ] );
 	ASSERT.equal( ( await call( 'GET', '/api/me' ) ).Body.Server, 'renamed' );
 	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.States, fresh.States );
-	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.Me, { Name: 'user', Display: 'Owner', Role: 'owner', Speaker: 'user' } );
+	let renamed_me = ( await call( 'GET', '/api/me' ) ).Body.Me;
+	ASSERT.deepEqual( renamed_me, { Id: renamed_me.Id, Name: 'user', Display: 'Owner', Role: 'owner', Type: 'owner', Admin: true, Speaker: 'user' } );
 	ASSERT.equal( ( await call( 'GET', '/api/me', undefined, 'Bearer ' + member_token ) ).Status, 401 );
 	let on_disk = JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) );
 	ASSERT.deepEqual( on_disk.States, fresh.States );
@@ -1522,4 +1524,120 @@ TEST( 'Explain (plan LLM Tasks, Step 4) runs end to end: the project\'s shape is
 	ASSERT.equal( ( await call( 'DELETE', '/api/runs/' + done.Id ) ).Status, 404 );
 	ASSERT.equal( ( await call( 'GET', '/api/runs?Task=explain' ) ).Body.Runs.length, 0 );
 	ASSERT.deepEqual( ( await call( 'DELETE', '/api/llms/' + explainer.Id ) ).Body, { Deleted: explainer.Id } );
+} );
+
+
+TEST( 'users and roles (plan User Management, Step 3): accounts made by the Administrator, tokens minted once and matched, a Watcher reads and presses Explain only, a Member writes and resolves their own threads, a Service account writes and presses nothing, a revoked token is nobody, a deleted account leaves the role folders', async function ()
+{
+	// the registry: the owner's record alone, the owner the Administrator with no role folder needed
+	let listed = await call( 'GET', '/api/users' );
+	ASSERT.equal( listed.Status, 200 );
+	ASSERT.deepEqual( listed.Body.Users.map( function ( one ) { return [ one.Type, one.Login ]; } ), [ [ 'owner', 'user' ] ] );
+	ASSERT.equal( listed.Body.Admin, true );
+	let owner = listed.Body.Users[ 0 ];
+	let me = await call( 'GET', '/api/me' );
+	ASSERT.deepEqual( [ me.Body.Admin, me.Body.Roles, me.Body.Account.Type, me.Body.Me.Id ], [ true, {}, 'owner', owner.Id ] );
+	ASSERT.equal( JSON.parse( FS.readFileSync( running.Users.Path(), 'utf8' ) ).Users[ 0 ].Login, 'user' );
+	// accounts made by the Administrator: a user with an email, a Service account with a login
+	let ann = ( await call( 'POST', '/api/users', { Type: 'user', Login: 'ann', Display: 'Ann', Email: 'ann@example.com' } ) ).Body.User;
+	ASSERT.match( ann.Id, /^usr-/ );
+	ASSERT.deepEqual( [ ann.Type, ann.Login, ann.Display, ann.Email, ann.Tokens ], [ 'user', 'ann', 'Ann', 'ann@example.com', [] ] );
+	let bob = ( await call( 'POST', '/api/users', { Type: 'user', Login: 'bob', Email: 'bob@example.com' } ) ).Body.User;
+	let bot = ( await call( 'POST', '/api/users', { Type: 'service', Login: 'nightly' } ) ).Body.User;
+	ASSERT.deepEqual( [ bob.Display, bot.Type, bot.Email ], [ 'bob', 'service', null ] );
+	ASSERT.match( ( await call( 'POST', '/api/users', { Type: 'user', Login: 'Ann', Email: 'x@example.com' } ) ).Body.Error, /the login "Ann" is taken/ );
+	ASSERT.match( ( await call( 'POST', '/api/users', { Type: 'user', Login: 'carl' } ) ).Body.Error, /needs an email/ );
+	// tokens: minted with a name, the value shown once, listed by name with no hash and the last use
+	let minted = await call( 'POST', '/api/users/' + ann.Id + '/tokens', { Name: 'laptop' } );
+	ASSERT.equal( minted.Status, 201 );
+	ASSERT.match( minted.Body.Token, /^[0-9a-f]{48}$/ );
+	let ann_token = 'Bearer ' + minted.Body.Token;
+	ASSERT.equal( ( await call( 'POST', '/api/users/' + ann.Id + '/tokens', { Name: 'laptop' } ) ).Status, 400 );
+	let page = await call( 'GET', '/api/users/' + ann.Id );
+	ASSERT.deepEqual( page.Body.User.Tokens, [ { Name: 'laptop', Created: page.Body.User.Tokens[ 0 ].Created, LastUsed: null } ] );
+	// as ann: her own account, no role anywhere: the Users list, no project, no plan, nobody else's page, nothing of the Administrator's
+	let as_ann = await call( 'GET', '/api/me', undefined, ann_token );
+	ASSERT.equal( as_ann.Status, 200 );
+	ASSERT.deepEqual( [ as_ann.Body.Me.Id, as_ann.Body.Me.Name, as_ann.Body.Me.Display, as_ann.Body.Me.Role, as_ann.Body.Me.Type, as_ann.Body.Me.Admin, as_ann.Body.Me.Token, as_ann.Body.Admin, as_ann.Body.Roles ], [ ann.Id, 'ann', 'Ann', 'user', 'user', false, 'laptop', false, {} ] );
+	ASSERT.equal( ( await call( 'GET', '/api/projects', undefined, ann_token ) ).Body.Projects.length, 0 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans', undefined, ann_token ) ).Body.Plans.length, 0 );
+	ASSERT.equal( ( await call( 'GET', '/api/waiting', undefined, ann_token ) ).Body.Waiting.length, 0 );
+	ASSERT.equal( ( await call( 'GET', '/api/users', undefined, ann_token ) ).Body.Users.length, 4 );
+	ASSERT.equal( ( await call( 'GET', '/api/users/' + ann.Id, undefined, ann_token ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'GET', '/api/users/' + bob.Id, undefined, ann_token ) ).Status, 403 );
+	ASSERT.equal( ( await call( 'GET', '/api/settings', undefined, ann_token ) ).Status, 403 );
+	ASSERT.equal( ( await call( 'POST', '/api/users', { Type: 'service', Login: 'x' }, ann_token ) ).Body.Error, 'the Administrator\'s' );
+	ASSERT.equal( ( await call( 'POST', '/api/projects', { Name: 'Mine' }, ann_token ) ).Status, 403 );
+	ASSERT.equal( ( await call( 'PUT', '/api/users/' + ann.Id, { Display: 'Ann A.', Login: 'other' }, ann_token ) ).Body.User.Display, 'Ann A.' );
+	ASSERT.equal( ( await call( 'GET', '/api/users/' + ann.Id ) ).Body.User.Login, 'ann' );
+	ASSERT.notEqual( ( await call( 'GET', '/api/users/' + ann.Id ) ).Body.User.Tokens[ 0 ].LastUsed, null );
+	// a project with role folders: ann a Watcher, bob a Member, the bot in Service; a Service account goes nowhere else
+	let project = ( await call( 'POST', '/api/projects', { Name: 'Shared' } ) ).Body.Project;
+	ASSERT.deepEqual( project.Roles, { Owners: [], Members: [], Service: [], Watchers: [] } );
+	let plan = ( await call( 'POST', '/api/plans', { Title: 'Shared plan', Text: '# Shared plan\n\nA line to discuss.\n', Project: project.Id } ) ).Body.Plan;
+	let asked = ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: { Text: 'A line' }, Text: 'The owner asks.' } ) ).Body.Thread;
+	let outside = await call( 'GET', '/api/plans/' + plan.Id, undefined, ann_token );
+	ASSERT.deepEqual( [ outside.Status, outside.Body.Error ], [ 403, 'no role in this project' ] );
+	let placed = await call( 'PUT', '/api/projects/' + project.Id + '/roles', { Watchers: [ ann.Id ], Members: [ bob.Id ], Service: [ bot.Id ] } );
+	ASSERT.equal( placed.Status, 200 );
+	ASSERT.deepEqual( placed.Body.Project.Roles, { Owners: [], Members: [ bob.Id ], Service: [ bot.Id ], Watchers: [ ann.Id ] } );
+	ASSERT.match( ( await call( 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ bot.Id ] } ) ).Body.Error, /Service folder only/ );
+	ASSERT.match( ( await call( 'PUT', '/api/projects/' + project.Id + '/roles', { Owners: [ owner.Id ] } ) ).Body.Error, /needs no role folder/ );
+	ASSERT.match( ( await call( 'PUT', '/api/projects/' + project.Id + '/roles', { Owners: [ 'usr-none' ] } ) ).Body.Error, /no account with the id/ );
+	// ann the Watcher: reads the project and its plan, is refused every write with the reason, assigns no role
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id, undefined, ann_token ) ).Status, 200 );
+	ASSERT.deepEqual( ( await call( 'GET', '/api/projects', undefined, ann_token ) ).Body.Projects.map( function ( one ) { return one.Id; } ), [ project.Id ] );
+	ASSERT.deepEqual( ( await call( 'GET', '/api/plans', undefined, ann_token ) ).Body.Plans.filter( function ( one ) { return one.Kind === 'plan'; } ).map( function ( one ) { return one.Id; } ), [ plan.Id ] );
+	let roles = {};
+	roles[ project.Id ] = 'Watchers';
+	ASSERT.deepEqual( ( await call( 'GET', '/api/me', undefined, ann_token ) ).Body.Roles, roles );
+	let refused = await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'May I?' }, ann_token );
+	ASSERT.deepEqual( [ refused.Status, refused.Body.Error ], [ 403, 'a Watcher reads only' ] );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Plan' }, ann_token ) ).Body.Error, 'a Watcher reads only' );
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/roles', { Watchers: [] }, ann_token ) ).Body.Error, 'a Watcher reads only' );
+	// the tasks a Watcher presses: Explain (Writes none) runs as ann through the connection; Work is refused
+	let echo = ( await call( 'POST', '/api/llms', { Name: 'echo3', Kind: 'claude-cli', Command: process.execPath, Arguments: ECHO_ARGUMENTS, Timeout: 30 } ) ).Body.Llm;
+	ASSERT.equal( ( await call( 'POST', '/api/runs', { Llm: echo.Id, Task: 'work', Project: project.Id, Plan: plan.Id }, ann_token ) ).Body.Error, 'a Watcher presses the tasks that write nothing' );
+	let started = await call( 'POST', '/api/runs', { Llm: echo.Id, Task: 'explain', Project: project.Id, Text: 'What is this?' }, ann_token );
+	ASSERT.equal( started.Status, 201, JSON.stringify( started.Body ) );
+	ASSERT.deepEqual( [ started.Body.Run.By, started.Body.Run.Service, started.Body.Run.Token, started.Body.Run.Writes ], [ 'ann', 'echo3', 'Explain run', 'none' ] );
+	let done = await run_settled( started.Body.Run.Id );
+	ASSERT.equal( done.Status, 'done', done.Output );
+	ASSERT.match( done.Prompt, /You act for Ann A\./ );
+	ASSERT.equal( ( await call( 'DELETE', '/api/runs/' + done.Id, undefined, 'Bearer ' + ( await call( 'POST', '/api/users/' + bob.Id + '/tokens', { Name: 'bob-cli' } ) ).Body.Token ) ).Body.Error, 'another account\'s run' );
+	// bob the Member: writes as himself with his token's name, resolves the thread he started and not the owner's, sets no state, manages nothing
+	let bob_token = 'Bearer ' + ( await call( 'POST', '/api/users/' + bob.Id + '/tokens', { Name: 'bob-laptop' } ) ).Body.Token;
+	let bobs = await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: { Text: 'discuss' }, Text: 'Bob asks.' }, bob_token );
+	ASSERT.equal( bobs.Status, 201 );
+	ASSERT.deepEqual( [ bobs.Body.Thread.Replies[ 0 ].By, bobs.Body.Thread.Replies[ 0 ].Token, bobs.Body.Thread.Replies[ 0 ].Service ], [ 'bob', 'bob-laptop', undefined ] );
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + asked.Id + '/resolve', undefined, bob_token ) ).Body.Error, 'a Member resolves the threads they started' );
+	await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + bobs.Body.Thread.Id + '/replies', { Text: 'Answered.' } );
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + bobs.Body.Thread.Id + '/resolve', undefined, bob_token ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Plan' }, bob_token ) ).Body.Error, 'a Member never sets a plan\'s state' );
+	ASSERT.equal( ( await call( 'DELETE', '/api/plans/' + plan.Id, undefined, bob_token ) ).Body.Error, 'a Member never manages the project' );
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id, { Name: 'Renamed' }, bob_token ) ).Body.Error, 'a Member never manages the project' );
+	ASSERT.equal( ( await call( 'DELETE', '/api/plans/' + plan.Id + '/threads/' + asked.Id, undefined, bob_token ) ).Body.Error, 'a Member never manages the project' );
+	// the bot: writes as a Member does, presses no task, mints no token of its own
+	let bot_token = 'Bearer ' + ( await call( 'POST', '/api/users/' + bot.Id + '/tokens', { Name: 'cron' } ) ).Body.Token;
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'The bot reports.' }, bot_token ) ).Status, 201 );
+	ASSERT.equal( ( await call( 'POST', '/api/runs', { Llm: echo.Id, Task: 'explain', Project: project.Id, Text: '?' }, bot_token ) ).Body.Error, 'a Service account presses no task' );
+	ASSERT.equal( ( await call( 'POST', '/api/users/' + bot.Id + '/tokens', { Name: 'own' }, bot_token ) ).Status, 403 );
+	// the activity: what the records hold, newest first
+	let activity = ( await call( 'GET', '/api/users/' + bob.Id + '/activity' ) ).Body.Activity;
+	ASSERT.deepEqual( activity.map( function ( entry ) { return [ entry.Kind, entry.Plan.Title, entry.Project.Name ]; } ), [ [ 'resolved', 'Shared plan', 'Shared' ], [ 'thread', 'Shared plan', 'Shared' ] ] );
+	ASSERT.equal( activity[ 1 ].Text, 'Bob asks.' );
+	ASSERT.equal( ( await call( 'GET', '/api/users/' + bob.Id + '/activity', undefined, ann_token ) ).Status, 403 );
+	// a revoked token is nobody; a deleted account leaves the role folders; the owner is never deleted
+	ASSERT.deepEqual( ( await call( 'DELETE', '/api/users/' + ann.Id + '/tokens/laptop' ) ).Body, { Revoked: 'laptop' } );
+	ASSERT.equal( ( await call( 'GET', '/api/me', undefined, ann_token ) ).Status, 401 );
+	ASSERT.deepEqual( ( await call( 'DELETE', '/api/users/' + ann.Id ) ).Body, { Deleted: ann.Id } );
+	ASSERT.deepEqual( ( await project_named( project.Id ) ).Roles.Watchers, [] );
+	ASSERT.equal( ( await call( 'DELETE', '/api/users/' + owner.Id ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'DELETE', '/api/users/' + bob.Id, undefined, bob_token ) ).Body.Error, 'the Administrator\'s' );
+	ASSERT.equal( running.Tokens.Count(), 0 );
+	// the owner's bare requests are as they were
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Plan' } ) ).Status, 200 );
+	await call( 'DELETE', '/api/users/' + bob.Id );
+	await call( 'DELETE', '/api/users/' + bot.Id );
+	ASSERT.deepEqual( ( await call( 'DELETE', '/api/llms/' + echo.Id ) ).Body, { Deleted: echo.Id } );
 } );

@@ -1,0 +1,75 @@
+<section class="user-view" id="user-view" ng-show="$ctrl.Id">
+	<div class="port-error" id="user-refused" ng-show="$ctrl.Refused">{{ $ctrl.Refused }}</div>
+	<div class="port-error" id="user-error" ng-show="$ctrl.Error">{{ $ctrl.Error }}</div>
+
+	<div ng-if="$ctrl.User">
+		<div class="view-heading">{{ $ctrl.User.Display }} <span class="muted">{{ $ctrl.User.Login }}</span> <span class="item-state">{{ $ctrl.User.Type }}</span><span class="item-state" ng-show="$ctrl.IsAdmin" title="the server's Administrator">Administrator</span></div>
+
+		<!-- The details: the Administrator edits them, an account its own display. -->
+		<form class="user-details" ng-submit="$ctrl.Save()">
+			<div class="settings-row">
+				<label for="user-login">Login</label>
+				<input class="form-control form-control-sm" type="text" id="user-login" ng-model="$ctrl.Form.Login" ng-change="$ctrl.Changed()" ng-readonly="!$ctrl.MayEditDetails() || $ctrl.User.Type === 'owner'" title="what threads and revisions record; the owner's is the settings' Owner name">
+			</div>
+			<div class="settings-row">
+				<label for="user-display">Shown as</label>
+				<input class="form-control form-control-sm" type="text" id="user-display" ng-model="$ctrl.Form.Display" ng-change="$ctrl.Changed()" ng-readonly="!$ctrl.MayEditDisplay()">
+			</div>
+			<div class="settings-row" ng-show="$ctrl.User.Type === 'user'">
+				<label for="user-email">Email</label>
+				<input class="form-control form-control-sm" type="email" id="user-email" ng-model="$ctrl.Form.Email" ng-change="$ctrl.Changed()" ng-readonly="!$ctrl.MayEditDetails()" title="the address Clerk matches at the first sign-in">
+				<span class="muted small" ng-show="$ctrl.User.Clerk">signed in through Clerk</span>
+			</div>
+			<div class="port-error" ng-show="$ctrl.Form.Problem">{{ $ctrl.Form.Problem }}</div>
+			<div class="thread-buttons" ng-show="$ctrl.MayEditDisplay()">
+				<button class="btn btn-sm btn-primary" type="submit" id="user-save" ng-disabled="$ctrl.Form.Busy || !$ctrl.Form.Dirty"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+				<span class="muted small" ng-show="$ctrl.Form.Saved">saved</span>
+			</div>
+		</form>
+
+		<!-- The projects and the role in each. -->
+		<div class="user-section">
+			<div class="user-section-head">Projects</div>
+			<div class="muted" ng-show="$ctrl.Roles().length === 0">{{ $ctrl.User.Type === 'owner' ? 'the owner: every project, no role folder needed' : 'no role in any project yet: drag the account into a project\'s Users folder' }}</div>
+			<div class="user-role" ng-repeat="entry in $ctrl.Roles() track by entry.Project.Id"><a ng-href="{{ $ctrl.HashFor( $ctrl.Root, '/p/' + entry.Project.Context.Id ) }}">{{ entry.Project.Name }}</a> <span class="item-state">{{ entry.Role }}</span></div>
+		</div>
+
+		<!-- The tokens: made here, shown once, revoked here. -->
+		<div class="user-section" id="user-tokens">
+			<div class="user-section-head">Tokens <span class="muted small">a request carrying one is this account; whatever runs on it posts as "&lt;service&gt; by {{ $ctrl.User.Display }}"</span></div>
+			<form class="settings-row" ng-submit="$ctrl.Mint()" ng-show="$ctrl.MayMint()">
+				<input class="form-control form-control-sm user-token-name" type="text" id="user-token-name" ng-model="$ctrl.Token.Name" placeholder="a name for the token: laptop-agent, nightly-script…">
+				<button class="btn btn-sm btn-primary" type="submit" id="user-token-create" ng-disabled="$ctrl.Token.Busy || !$ctrl.Token.Name"><svg class="icon lead"><use href="#i-plus"></use></svg>Create token</button>
+			</form>
+			<div class="port-error" ng-show="$ctrl.Token.Problem">{{ $ctrl.Token.Problem }}</div>
+			<div class="user-token-shown" id="user-token-shown" ng-if="$ctrl.Token.Shown">
+				<div class="muted small">The token "{{ $ctrl.Token.Shown.Name }}", shown once; copy it now.</div>
+				<code class="user-token-value">{{ $ctrl.Token.Shown.Token }}</code>
+				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="$ctrl.Copy()"><svg class="icon lead"><use href="#i-copy"></use></svg>{{ $ctrl.Token.Copied ? 'Copied' : 'Copy' }}</button>
+			</div>
+			<div class="muted" ng-show="$ctrl.User.Tokens.length === 0">no token</div>
+			<div class="user-token" ng-repeat="token in $ctrl.User.Tokens track by token.Name">
+				<span class="user-token-label">{{ token.Name }}</span>
+				<span class="muted small">made {{ token.Created | when }}{{ token.LastUsed ? ', last used ' + ( token.LastUsed | when ) : ', never used' }}</span>
+				<button class="btn btn-sm btn-outline-danger user-token-revoke" type="button" ng-show="$ctrl.MayMint() && $ctrl.Revoking !== token.Name" ng-click="$ctrl.StartRevoke( token.Name )">Revoke</button>
+				<span class="confirm" ng-show="$ctrl.Revoking === token.Name">revoke? <button class="btn btn-sm btn-danger user-token-revoke-yes" type="button" ng-click="$ctrl.Revoke( token.Name )">Yes</button> <button class="btn btn-sm btn-outline-secondary" type="button" ng-click="$ctrl.Revoking = null">No</button></span>
+			</div>
+		</div>
+
+		<!-- The activity on the server, newest first. -->
+		<div class="user-section" id="user-activity">
+			<div class="user-section-head">Activity <span class="muted small">what the threads and revisions record; a state change leaves no record</span></div>
+			<div class="muted" ng-show="$ctrl.ActivityLoaded && $ctrl.Activity.length === 0">nothing yet</div>
+			<div class="user-activity" ng-repeat="entry in $ctrl.Activity track by $index">
+				<span class="muted small">{{ entry.At | when }}</span> {{ $ctrl.ActivityWords( entry ) }} on <a ng-href="{{ $ctrl.HashFor( $ctrl.Root, '/p/' + entry.Plan.Id ) }}">{{ entry.Plan.Title }}</a> <span class="muted small">in {{ entry.Project.Name }}</span>
+				<div class="muted small user-activity-text" ng-show="entry.Text">{{ entry.Text }}</div>
+			</div>
+		</div>
+
+		<!-- Delete: the Administrator's, never the owner. -->
+		<div class="user-section" ng-show="$ctrl.MayDelete()">
+			<button class="btn btn-sm btn-outline-danger" type="button" id="user-delete" ng-show="!$ctrl.Deleting" ng-click="$ctrl.Deleting = true"><svg class="icon lead"><use href="#i-trash"></use></svg>Delete account</button>
+			<span class="confirm" ng-show="$ctrl.Deleting">delete the account, its tokens and its roles? <button class="btn btn-sm btn-danger" type="button" id="user-delete-yes" ng-click="$ctrl.Delete()">Yes</button> <button class="btn btn-sm btn-outline-secondary" type="button" ng-click="$ctrl.Deleting = false">No</button></span>
+		</div>
+	</div>
+</section>

@@ -345,6 +345,34 @@ read from the run records (`GET /api/runs?Project=&Task=explain&By=`), so nothin
 deletes them (`DELETE /api/runs/:id`, never a running one). An Explain run has Writes none: it reads the project
 through the API or the read tools and is refused every write, so it posts nothing whatever the model tries.
 
+**Users and roles** (plan User Management, Step 3; the model is Accounts and Roles') put people besides the owner
+on a server, each allowed per project what their role there allows. The registry is `<config>/Users.json`
+(`src/Users.js`): one record per account ({ Id usr-…, Type owner | user | service, Login, Display, Email, Clerk,
+Tokens, Created }), the owner's record made at the first start from the settings' Owner and kept up to it; a
+Local or trusted-network server holds the owner's alone. A token is minted on an account's page with a name, its
+value shown once and kept as a sha256; a request carrying it (`Authorization: Bearer`) is that account, the
+token's name recorded as Token beside the service header's name, the byline reading "<service> by <login>";
+a revoked token is nobody. A bare request is still the owner everywhere until plan Clerk brings the session. The
+Administrator (the owner; on a Public server with Clerk the account whose email is the Clerk section's AdminEmail)
+makes accounts on the server-level **Users** fold in the sidebar (New user with a login, a display and an email, the
+record Clerk completes at the person's first sign-in; New Service account with a name) and mints a Service
+account's tokens; an account edits its own display and mints and revokes its own. A project's **Users** folder,
+fixed after the Context folder, holds exactly **Owners**, **Members**, **Service** and **Watchers** (project.json's
+`Roles`, account ids, an account in one at most): an account is dragged in from the Users fold, between them to
+change role, and out with the × on its row, by an Owner of the project or the Administrator
+(`PUT /api/projects/:pid/roles`). `src/Roles.js` names the actions (read, write, resolve, state, manage, roles,
+press; admin for the server's own routes) and what each role allows: Owners everything in the project; Members
+read, write, resolve the threads they started and press by the task's Writes; Service accounts read and write and
+press nothing; Watchers read and press the tasks that write nothing; the Administrator the server's routes and
+roles anywhere, plus a role folder like anyone's. A middleware after identify (`authorize` in `src/Api.js`) finds
+the route's project and the account's role and refuses with 403 and a plain reason ("a Watcher reads only", "no
+role in this project", "the Administrator's") before the route runs; the list routes show a non-owner only the
+projects with a role; a run's token carries the presser's account and role, so a run is allowed what the presser
+is, and its package says who it acts for. The owner account passes every check, so nothing a bare request does
+changes. An account's page (`#/u/<id>`, `public/components/user-page/`) holds the details, the projects and the
+role in each, the tokens and the activity the threads and revisions record (`GET /api/users/:id/activity`); the
+Users fold is `public/components/users-fold/`, the role folders `public/components/roles-folder/`.
+
 An `ollama` one-shot (plan Consensus Desktop, Step 4: Local Models) runs in the server: a local model has no
 tools of its own, so `Ollama.js` runs the tool loop over Ollama's chat endpoint, one request per round with
 the connection's Context as `num_ctx`, and `Tools.js` carries out each call the model makes and sends the

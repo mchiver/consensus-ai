@@ -15,6 +15,8 @@
 
 	<llm-fold root="$ctrl.server" first="$ctrl.first"></llm-fold>
 
+	<users-fold root="$ctrl.server" first="$ctrl.first"></users-fold>
+
 	<div class="list-heading trash-heading" ng-click="$ctrl.Tree.ToggleTrash( $ctrl.server )" title="the deleted items of this server's projects" on-context-menu="$ctrl.Tree.OpenMenu('trash', $ctrl.server, null, $event)">Trash <span class="tally" title="the items in the trash">{{ $ctrl.Tree.Of( $ctrl.server ).Trash.length }}</span>
 		<span class="row-menu" role="button" ng-if="$ctrl.server.Me.Role === 'owner'" ng-class="{ shown: $ctrl.Tree.MenuOpenFor( { Id: 'trash:' + $ctrl.server.Key } ) }" title="actions" ng-click="$ctrl.Tree.OpenMenu('trash', $ctrl.server, null, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>
 	</div>

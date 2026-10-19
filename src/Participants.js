@@ -1,11 +1,13 @@
 'use strict';
 
 // Participants - who is calling, from the settings and the request (plan User Management, Step 2).
-// An account is the principal. Until Step 3 brings users and roles, every request on a Local or trusted-network
-// server is the owner account: the browser, an agent session, a script, each saying who it is with the header
-// "X-Consensus-Service: <name>" (letters, digits, dot, dash and colon), or saying nothing. A run started by the
-// server carries "Authorization: Bearer <run token>", a token the server made for that run and keeps in memory
-// (RunTokens): the request is the owner with the connection's name as its Service. Any other token is refused.
+// An account is the principal. A bare request is the owner account (until plan Clerk brings the session): the
+// browser, an agent session, a script, each saying who it is with the header "X-Consensus-Service: <name>" (letters,
+// digits, dot, dash and colon), or saying nothing. A run started by the server carries "Authorization: Bearer <run
+// token>", a token the server made for that run and keeps in memory (RunTokens): the request is the presser (Step 3:
+// the account on the token, the owner before) with the connection's name as its Service. A user token (Step 3), one
+// minted on an account's page and kept hashed in Users.json, is that account, the token's name as its Token. Any
+// other token is refused.
 // A record of what a request did carries three fields: By (the account), Service and Token (the token's name); the
 // speaker the rules run over is the byline, "<Service> by <By>", or By alone (Speaker, SpeakerOf); the page shows
 // "<Service> by <Display>" (Byline). A plan's speakers are the owner, one per LLM connection, and everyone seen in
@@ -81,7 +83,8 @@ function ServiceOf( Header )
 
 //---------------------------------------------------------------------
 // RunTokens: the tokens the server makes for its runs, in memory, each { Service, Name, Project, Run }.
-//   Mint( { Service, Name, Project, Run?, Writes? } ) -> the token's value;  Find( value ) -> the record or null;  Drop( value )
+//   Mint( { Service, Name, Project, Run?, Writes?, Account?, Role? } ) -> the token's value;  Find( value ) -> the record or null;  Drop( value )
+//   Account (Step 3): the presser's account fields { Id, Name, Display, Role, Type, Admin }; Role the presser's role in the project.
 
 function RunTokens()
 {
@@ -90,7 +93,7 @@ function RunTokens()
 	function Mint( Fields )
 	{
 		let value = NewToken();
-		tokens[ value ] = { Service: Fields.Service || null, Name: Fields.Name || 'run', Project: Fields.Project || null, Run: Fields.Run || null, Writes: Fields.Writes || null };
+		tokens[ value ] = { Service: Fields.Service || null, Name: Fields.Name || 'run', Project: Fields.Project || null, Run: Fields.Run || null, Writes: Fields.Writes || null, Account: Fields.Account || null, Role: Fields.Role || null };
 		return value;
 	}
 
@@ -116,36 +119,69 @@ function RunTokens()
 //---------------------------------------------------------------------
 // Identify: the account behind a request, or null when its token is unknown.
 //   Headers = { Authorization, Service }: the two headers' values.  Tokens: the server's RunTokens, or null.
-//   account = { Name, Display, Role: 'owner', Service, Token, Writes, Speaker }: Service the header's name or the
-//   run's connection, Token the run token's name ("Answer run"), Writes the run's level (none, consensus or files;
-//   null for a request on no run token), Speaker the key the rules run over.
+//   Users (Step 3): the registry (Users.js), or null.
+//   account = { Id, Name, Display, Role, Type, Admin, Service, Token, Writes, Speaker, ProjectRole? }: Role and Type
+//   owner, user or service (Role 'owner' passes every check); Admin whether the account is the Administrator; Service
+//   the header's name or the run's connection; Token the run token's name ("Answer run") or the user token's; Writes
+//   the run's level (none, consensus or files; null off a run); Speaker the key the rules run over; ProjectRole the
+//   presser's role carried by a run token.
 
-function Identify( Settings, Headers, Tokens )
+function Identify( Settings, Headers, Tokens, Users )
 {
 	let headers = ( Headers && typeof Headers === 'object' ) ? Headers : { Authorization: Headers };
 	let authorization = ( headers.Authorization || '' ).trim();
 	let owner = Owner( Settings );
 	if ( !authorization )
 	{
-		return account_of( owner, ServiceOf( headers.Service ), null );
+		return account_of( owner, ServiceOf( headers.Service ), null, null, Users );
 	}
 	let match = /^Bearer\s+(.+)$/i.exec( authorization );
 	if ( !match )
 	{
 		return null;
 	}
-	let run = Tokens ? Tokens.Find( match[ 1 ].trim() ) : null;
-	if ( !run )
+	let value = match[ 1 ].trim();
+	let run = Tokens ? Tokens.Find( value ) : null;
+	if ( run )
+	{
+		if ( run.Account )
+		{
+			return from_run( run );
+		}
+		return account_of( owner, run.Service, run.Name, run.Writes, Users );
+	}
+	let found = Users ? Users.ByToken( value ) : null;
+	if ( !found )
 	{
 		return null;
 	}
-	return account_of( owner, run.Service, run.Name, run.Writes );
+	Users.Touch( found.Record.Id, found.Token.Name );
+	return user_account( Settings, Users, found.Record, ServiceOf( headers.Service ), found.Token.Name );
 }
 
 
-function account_of( owner, service, token, writes )
+function account_of( owner, service, token, writes, users )
 {
-	let account = { Name: owner.Name, Display: owner.Display, Role: 'owner', Service: service || null, Token: token || null, Writes: writes || null };
+	let record = users ? users.List().find( function ( one ) { return one.Type === 'owner'; } ) : null;
+	let account = { Id: record ? record.Id : null, Name: owner.Name, Display: owner.Display, Role: 'owner', Type: 'owner', Admin: true, Service: service || null, Token: token || null, Writes: writes || null };
+	account.Speaker = Speaker( account.Name, account.Service );
+	return account;
+}
+
+
+// A user or Service account on its own token (Step 3).
+function user_account( settings, users, record, service, token )
+{
+	let account = { Id: record.Id, Name: record.Login, Display: record.Display, Role: record.Type, Type: record.Type, Admin: users.IsAdmin( settings, record ), Service: service || null, Token: token || null, Writes: null };
+	account.Speaker = Speaker( account.Name, account.Service );
+	return account;
+}
+
+
+// The presser behind a run token that carries the account (Step 3).
+function from_run( run )
+{
+	let account = Object.assign( {}, run.Account, { Service: run.Service || null, Token: run.Name || null, Writes: run.Writes || null, ProjectRole: run.Role || null } );
 	account.Speaker = Speaker( account.Name, account.Service );
 	return account;
 }
@@ -158,7 +194,11 @@ function Public( Account )
 	{
 		return null;
 	}
-	let shown = { Name: Account.Name, Display: Account.Display || Account.Name, Role: Account.Role, Speaker: Account.Speaker || Speaker( Account.Name, Account.Service ) };
+	let shown = { Name: Account.Name, Display: Account.Display || Account.Name, Role: Account.Role, Type: Account.Type || 'owner', Admin: !!Account.Admin, Speaker: Account.Speaker || Speaker( Account.Name, Account.Service ) };
+	if ( Account.Id )
+	{
+		shown.Id = Account.Id;
+	}
 	if ( Account.Service )
 	{
 		shown.Service = Account.Service;

@@ -10,7 +10,8 @@
 //     Text?: the person's instructions from the box,
 //     Llm: { Name, Prompts: { Session } },
 //     Server: { Url, Name },  Project: { Id, Name },  Plan: { Id, Title, State } | null,  Folder: path | null,
-//     Owner: { Name, Display },  Service: the connection's name (the byline is "<Service> by <Owner Display>"),
+//     Owner: { Name, Display, Role? }: the presser (plan User Management, Step 3: the owner, or an account with its
+//            role in the project, Owners | Members | Watchers),  Service: the connection's name (the byline is "<Service> by <Owner Display>"),
 //     Token?: the run's token; null for a run that needs none (ollama), undefined for a preview,
 //     Instructions: text | null,  InstructionsTitle?: 'Agent instructions',  DocumentsHint?: how to read one,
 //     Readme: { Id, Title, Text } | null,  Documents: [ { Id, Title } ],
@@ -111,6 +112,14 @@ function tally_words( tally )
 }
 
 
+// Who the presser is to the project: the owner of the server, or an Owner, Member or Watcher of the project on it.
+function presser_words( role )
+{
+	let words = { Owners: 'an Owner of the project on', Members: 'a Member of the project on', Watchers: 'a Watcher of the project on' };
+	return words[ role ] || 'the owner of';
+}
+
+
 //---------------------------------------------------------------------
 // Build: the whole prompt.
 
@@ -129,7 +138,7 @@ function Build( Request )
 	let server_name = ( request.Server && request.Server.Name ) ? ' "' + request.Server.Name + '"' : '';
 	lines.push( '# ' + task.Name + ': a one-shot from Consensus' );
 	lines.push( '' );
-	lines.push( 'You act for ' + ( owner.Display || owner.Name ) + ', the owner of the Consensus server below, run once by that server' + server_name + ' through its LLM connection "' + service + '": what you post reads "' + byline + '".' );
+	lines.push( 'You act for ' + ( owner.Display || owner.Name ) + ', ' + presser_words( owner.Role ) + ' the Consensus server below, run once by that server' + server_name + ' through its LLM connection "' + service + '": what you post reads "' + byline + '".' );
 	heading( lines, 'This run' );
 	lines.push( '- Task: ' + task.Name );
 	lines.push( '- Writes: ' + TASKS.WritesLine( task.Writes ) );

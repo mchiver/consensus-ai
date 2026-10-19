@@ -20,7 +20,7 @@ The sign-in of a Public server (plan Clerk, not active yet): the publishable key
 
 ## Owner
 
-The owner is the one account of a local or trusted-network server: every request is the owner (plan User Management; roles and sign-in for a team come with Clerk). Its **name** is what threads and revisions record, kept as it is so the records of before still match; **Shown as** is how the page shows it, and anything done through a service or an LLM connection carries a byline, `<service> by <shown as>`, such as `Claude-CLI by User`. There are no participants and no tokens to manage: an agent session names itself with a header, and a run gets a token the server makes and forgets.
+The owner is the one account of a local or trusted-network server: a bare request is the owner (plan User Management; sign-in for a team comes with Clerk). Since User Management Step 3 the server keeps a registry beside the settings, `Users.json`, with the owner's record and, on a shared server, the accounts the Administrator makes on the sidebar's Users fold; each account's page holds its tokens (a request carrying one is that account) and a project's Users folder holds its role folders, Owners, Members, Service and Watchers. Its **name** is what threads and revisions record, kept as it is so the records of before still match; **Shown as** is how the page shows it, and anything done through a service or an LLM connection carries a byline, `<service> by <shown as>`, such as `Claude-CLI by User`. There are no participants and no tokens to manage: an agent session names itself with a header, and a run gets a token the server makes and forgets.
 
 ## Tasks
 
@@ -55,7 +55,8 @@ The gear at the right end of the title bar opens the look: the theme (light, dar
 The config folder, `.consensus` in your user folder by default or the one `--config` names, holds the settings, `consensus.json`, whose `Projects` list the project folders in display order (a folder opened from the command line goes to the top). Each project is a folder of its own, a repository as a rule, with a `.consensus` sub-folder that is the project; a project made with no folder named goes under `projects/` in the config folder. Everything is plain files:
 
 ```
-<project>/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands, its Tasks, and its Work options GitSync and AutoCommit
+<config>/Users.json                        the accounts of the server (User Management Step 3): the owner, the users and the Service accounts, each with its hashed tokens
+<project>/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands, its Tasks, its Work options GitSync and AutoCommit, and its Roles (the four role folders, account ids)
 <project>/.consensus/content/<id>/content.md    a plan's or document's text
 <project>/.consensus/content/<id>/content.json  its record
 <project>/.consensus/content/<id>/threads.json  its threads

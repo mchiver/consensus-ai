@@ -22,17 +22,21 @@ const PORT = require( './ProjectPort.js' );
 const IDS = require( './Ids.js' );
 const LLMS = require( './Llms.js' );
 const TASKS = require( './Tasks.js' );
+const ROLES = require( './Roles.js' );
 const LLM = require( './Llm.js' );
 const REPORT = require( './Report.js' );
 const VERSION = require( '../package.json' ).version;
 
+const ACTIVITY_LIMIT = 200;	// the entries an account's activity page lists
 const BODY_LIMIT = '64mb';	// a project import is one json body, every revision of every plan in it
 const PARENT_REFUSED = 'Parent is not a folder of the project, or a plan (which holds plans only); a document goes in the Context folder, which holds documents only';
 const CONTEXT_KEPT = 'the Context folder and its Readme stay as they are: never renamed, moved, copied or deleted';
 
 
 //---------------------------------------------------------------------
-// Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Runs?, Runner?, Git? }
+// Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Runs?, Runner?, Git?, Users? }
+// Users (plan User Management, Step 3): the registry; a user token is its account, every route is checked against
+// the account's role in the project (authorize), and the users routes serve the Users folder and the user pages.
 // Git (plan LLM Tasks, Step 3: the Work options): the commit and push when the owner resolves a build log of a
 // project whose AutoCommit is on, the thread keeping the record.
 
@@ -45,9 +49,11 @@ function Attach( App, Context )
 	let runner = Context.Runner || null;
 	let git = Context.Git || null;
 	let tokens = Context.Tokens || null;
+	let users = Context.Users || null;
 	let router = EXPRESS.Router();
 	router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
 	router.use( identify );
+	router.use( authorize );
 
 
 	//-----------------------------------------------------------------
@@ -58,7 +64,7 @@ function Attach( App, Context )
 
 	function identify( request, response, next )
 	{
-		let participant = PARTICIPANTS.Identify( settings, { Authorization: request.get( 'Authorization' ), Service: request.get( PARTICIPANTS.SERVICE_HEADER ) }, tokens );
+		let participant = PARTICIPANTS.Identify( settings, { Authorization: request.get( 'Authorization' ), Service: request.get( PARTICIPANTS.SERVICE_HEADER ) }, tokens, users );
 		if ( !participant )
 		{
 			return fail( response, 401, 'unknown token' );
@@ -69,6 +75,134 @@ function Attach( App, Context )
 		}
 		request.Participant = participant;
 		next();
+	}
+
+
+	// Authorization (plan User Management, Step 3): the owner account passes; anyone else is checked against the
+	// route's action (Roles.js) and their role in the route's project, found before the route runs; the server's own
+	// routes are the Administrator's; the list routes narrow themselves; an account's own page checks itself.
+	// request.Role is the role found, and the account carries it as ProjectRole for the rules.
+	async function authorize( request, response, next )
+	{
+		let account = request.Participant;
+		request.Role = null;
+		if ( account.Role === 'owner' )
+		{
+			request.Role = 'Owners';
+			account.ProjectRole = 'Owners';
+			return next();
+		}
+		let rule = ROLES.Rule( request.method, request.path );
+		if ( rule.Action === 'open' || rule.Action === 'list' || rule.Action === 'self' )
+		{
+			return next();
+		}
+		if ( rule.Action === 'admin' )
+		{
+			if ( account.Admin )
+			{
+				return next();
+			}
+			return fail( response, 403, 'the Administrator\'s' );
+		}
+		let project = null;
+		try
+		{
+			project = await project_for( rule, request );
+		}
+		catch ( error )
+		{
+			return fail( response, 500, 'internal error: ' + error.message );
+		}
+		if ( !project )
+		{
+			return fail( response, 404, ( rule.Source === 'body' || rule.Source === 'query' ) ? 'a Project is needed' : 'no such project' );
+		}
+		let role = ROLES.RoleOf( project, account.Id );
+		if ( rule.Action === 'roles' && account.Admin )
+		{
+			request.Role = role;
+			return next();
+		}
+		if ( !role || !ROLES.Allows( role, rule.Action ) )
+		{
+			return fail( response, 403, ROLES.Reason( role, rule.Action ) );
+		}
+		request.Role = role;
+		request.ProjectId = project.Id;
+		account.ProjectRole = role;
+		next();
+	}
+
+
+	// The project a route is about: by its id, the plan's or the item's project, or the Project field of the body or the query.
+	async function project_for( rule, request )
+	{
+		if ( rule.Source === 'param' )
+		{
+			return await store.ReadProject( rule.Id );
+		}
+		if ( rule.Source === 'plan' || rule.Source === 'item' )
+		{
+			return await store.ProjectOf( rule.Id );
+		}
+		let id = ( rule.Source === 'body' ) ? ( request.body || {} ).Project : request.query.Project;
+		return id ? await store.ReadProject( String( id ) ) : null;
+	}
+
+
+	// The projects an account sees: every one for the owner and the Administrator, else those with a role; and the
+	// ids of the plans in them (null when every plan).
+	async function visible_projects( account )
+	{
+		let projects = await store.ListProjects();
+		if ( is_admin( account ) )
+		{
+			return projects;
+		}
+		return projects.filter( function ( project ) { return !!ROLES.RoleOf( project, account.Id ); } );
+	}
+
+
+	async function visible_plan_ids( account )
+	{
+		if ( is_admin( account ) )
+		{
+			return null;
+		}
+		let ids = new Set();
+		for ( let project of await visible_projects( account ) )
+		{
+			for ( let id of TREE.ItemIds( project.Items || [] ).concat( TREE.ItemIds( project.Archive || [] ) ) )
+			{
+				ids.add( id );
+			}
+			if ( project.Context )
+			{
+				ids.add( project.Context );
+			}
+		}
+		return ids;
+	}
+
+
+	// An account's roles by project id, for /api/me; empty for the owner, who needs none.
+	async function roles_of( account )
+	{
+		let roles = {};
+		if ( account.Role === 'owner' )
+		{
+			return roles;
+		}
+		for ( let project of await store.ListProjects() )
+		{
+			let role = ROLES.RoleOf( project, account.Id );
+			if ( role )
+			{
+				roles[ project.Id ] = role;
+			}
+		}
+		return roles;
 	}
 
 
@@ -261,9 +395,10 @@ function Attach( App, Context )
 	//-----------------------------------------------------------------
 	// Me
 
-	router.get( '/me', function ( request, response )
+	router.get( '/me', async function ( request, response )
 	{
-		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Participants: speakers( [], request.Participant ), States: states(), Version: VERSION, Server: settings.Name || null } );
+		let account = ( users && request.Participant.Id ) ? users.Public( users.Get( request.Participant.Id ), false ) : null;
+		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Account: account, Admin: is_admin( request.Participant ), Roles: await roles_of( request.Participant ), Participants: speakers( [], request.Participant ), States: states(), Version: VERSION, Server: settings.Name || null } );
 	} );
 
 
@@ -317,10 +452,15 @@ function Attach( App, Context )
 	{
 		let plans = await store.ListPlans();
 		let state = request.query.state;
+		let visible = await visible_plan_ids( request.Participant );
 		let list = [];
 		for ( let plan of plans )
 		{
 			if ( state && plan.State !== state )
+			{
+				continue;
+			}
+			if ( visible && !visible.has( plan.Id ) )
 			{
 				continue;
 			}
@@ -754,7 +894,7 @@ function Attach( App, Context )
 
 	router.get( '/projects', async function ( request, response )
 	{
-		let projects = await store.ListProjects();
+		let projects = await visible_projects( request.Participant );
 		response.json( { Projects: await present_projects( projects, request.Participant ) } );
 	} );
 
@@ -1838,8 +1978,13 @@ function Attach( App, Context )
 	{
 		let name = request.Participant;
 		let waiting = [];
+		let visible = await visible_plan_ids( request.Participant );
 		for ( let plan of await store.ListPlans() )
 		{
+			if ( visible && !visible.has( plan.Id ) )
+			{
+				continue;
+			}
 			let read = await store.ReadPlan( plan.Id );
 			if ( !read )
 			{
@@ -2055,7 +2200,7 @@ function Attach( App, Context )
 		{
 			return;
 		}
-		let made = await runner.Package( body_of( request ) );
+		let made = await runner.Package( body_of( request ), undefined, request.Participant );
 		if ( made.Error )
 		{
 			return fail( response, 400, made.Error );
@@ -2071,7 +2216,15 @@ function Attach( App, Context )
 		{
 			return;
 		}
-		let started = await runner.Start( body_of( request ), request.Participant.Name );
+		if ( request.Participant.Role !== 'owner' )
+		{
+			let task = TASKS.ById( settings, ( request.body || {} ).Task );
+			if ( task && !ROLES.MayPress( request.Role, task.Writes ) )
+			{
+				return fail( response, 403, ROLES.Reason( request.Role, 'press' ) );
+			}
+		}
+		let started = await runner.Start( body_of( request ), request.Participant );
 		if ( started.Error )
 		{
 			return fail( response, started.Status || 400, started.Error );
@@ -2111,6 +2264,10 @@ function Attach( App, Context )
 		{
 			return;
 		}
+		if ( !own_run( request, response ) )
+		{
+			return;
+		}
 		if ( !runs.Stop( request.params.id ) )
 		{
 			return fail( response, 404, 'no running run with the id ' + request.params.id );
@@ -2130,6 +2287,10 @@ function Attach( App, Context )
 		{
 			return fail( response, 404, 'no run with the id ' + request.params.id );
 		}
+		if ( !own_run( request, response ) )
+		{
+			return;
+		}
 		try
 		{
 			if ( !runs.Delete( request.params.id ) )
@@ -2142,6 +2303,321 @@ function Attach( App, Context )
 			return fail( response, 409, error.message );
 		}
 		response.json( { Deleted: request.params.id } );
+	} );
+
+
+	// A run is stopped or deleted by the one who asked for it, or the Administrator (plan User Management, Step 3).
+	function own_run( request, response )
+	{
+		if ( is_admin( request.Participant ) )
+		{
+			return true;
+		}
+		let run = /^[a-z0-9-]+$/.test( request.params.id ) ? runs.Read( request.params.id ) : null;
+		if ( run && run.By === request.Participant.Name )
+		{
+			return true;
+		}
+		fail( response, 403, 'another account\'s run' );
+		return false;
+	}
+
+
+	//-----------------------------------------------------------------
+	// Users and roles (plan User Management, Step 3): the registry (Users.js), every account seeing the list, an
+	// account's own page or the Administrator's seeing a page; the tokens minted and revoked there, the value shown
+	// once; the activity read from what the threads and revisions record; and a project's role folders (Roles.js).
+
+	function is_admin( account )
+	{
+		return !!account && ( account.Role === 'owner' || account.Admin === true );
+	}
+
+
+	function may_see( account, id )
+	{
+		return is_admin( account ) || ( !!account && account.Id === id );
+	}
+
+
+	function needs_users( response )
+	{
+		if ( !users )
+		{
+			fail( response, 503, 'this server keeps no users' );
+			return false;
+		}
+		return true;
+	}
+
+
+	router.get( '/users', function ( request, response )
+	{
+		if ( !needs_users( response ) )
+		{
+			return;
+		}
+		response.json( { Users: users.List().map( function ( record ) { return users.Public( record, false ); } ), Admin: is_admin( request.Participant ) } );
+	} );
+
+
+	// A user (Type user, with an email: the record Clerk completes at the first sign-in) or a Service account (Type service).
+	router.post( '/users', function ( request, response )
+	{
+		if ( !needs_users( response ) )
+		{
+			return;
+		}
+		let body = request.body || {};
+		try
+		{
+			let record = users.Create( { Type: body.Type, Login: body.Login, Display: body.Display, Email: body.Email } );
+			events.Send( { Kind: 'users' } );
+			response.status( 201 ).json( { User: users.Public( record, true ) } );
+		}
+		catch ( error )
+		{
+			fail( response, 400, error.message );
+		}
+	} );
+
+
+	router.get( '/users/:id', function ( request, response )
+	{
+		if ( !needs_users( response ) )
+		{
+			return;
+		}
+		let record = users.Get( request.params.id );
+		if ( !record )
+		{
+			return fail( response, 404, 'no account with the id ' + request.params.id );
+		}
+		if ( !may_see( request.Participant, record.Id ) )
+		{
+			return fail( response, 403, 'another account\'s page' );
+		}
+		response.json( { User: users.Public( record, true ), Admin: users.IsAdmin( settings, record ) } );
+	} );
+
+
+	// The Administrator changes a login, a display and an email; an account its own display.
+	router.put( '/users/:id', function ( request, response )
+	{
+		if ( !needs_users( response ) )
+		{
+			return;
+		}
+		let record = users.Get( request.params.id );
+		if ( !record )
+		{
+			return fail( response, 404, 'no account with the id ' + request.params.id );
+		}
+		if ( !may_see( request.Participant, record.Id ) )
+		{
+			return fail( response, 403, 'another account\'s page' );
+		}
+		let body = request.body || {};
+		let fields = is_admin( request.Participant ) ? { Login: body.Login, Display: body.Display, Email: body.Email } : { Display: body.Display };
+		try
+		{
+			let changed_record = users.Update( record.Id, fields );
+			events.Send( { Kind: 'users' } );
+			response.json( { User: users.Public( changed_record, true ) } );
+		}
+		catch ( error )
+		{
+			fail( response, 400, error.message );
+		}
+	} );
+
+
+	// An account deleted: out of every project's role folders, its tokens gone with it; never the owner.
+	router.delete( '/users/:id', async function ( request, response )
+	{
+		if ( !needs_users( response ) )
+		{
+			return;
+		}
+		let record = users.Get( request.params.id );
+		if ( !record )
+		{
+			return fail( response, 404, 'no account with the id ' + request.params.id );
+		}
+		if ( record.Type === 'owner' )
+		{
+			return fail( response, 409, 'the owner is not deleted' );
+		}
+		for ( let project of await store.ListProjects() )
+		{
+			if ( ROLES.RoleOf( project, record.Id ) )
+			{
+				await change_project( project.Id, undefined, async function ( held )
+				{
+					let roles = ROLES.Clean( held.Roles );
+					for ( let role of ROLES.ROLES )
+					{
+						roles[ role ] = roles[ role ].filter( function ( id ) { return id !== record.Id; } );
+					}
+					held.Roles = roles;
+				} );
+			}
+		}
+		users.Delete( record.Id );
+		events.Send( { Kind: 'users' } );
+		response.json( { Deleted: record.Id } );
+	} );
+
+
+	// A token minted: its value answered once. An account mints its own; the Administrator a Service account's.
+	router.post( '/users/:id/tokens', function ( request, response )
+	{
+		if ( !needs_users( response ) )
+		{
+			return;
+		}
+		let record = users.Get( request.params.id );
+		if ( !record )
+		{
+			return fail( response, 404, 'no account with the id ' + request.params.id );
+		}
+		if ( !may_see( request.Participant, record.Id ) || ( record.Type === 'service' && !is_admin( request.Participant ) ) )
+		{
+			return fail( response, 403, 'another account\'s tokens' );
+		}
+		let name = text_of( ( request.body || {} ).Name ).trim();
+		try
+		{
+			let value = users.MintToken( record.Id, name );
+			response.status( 201 ).json( { Token: value, Name: name } );
+		}
+		catch ( error )
+		{
+			fail( response, 400, error.message );
+		}
+	} );
+
+
+	router.delete( '/users/:id/tokens/:name', function ( request, response )
+	{
+		if ( !needs_users( response ) )
+		{
+			return;
+		}
+		let record = users.Get( request.params.id );
+		if ( !record )
+		{
+			return fail( response, 404, 'no account with the id ' + request.params.id );
+		}
+		if ( !may_see( request.Participant, record.Id ) )
+		{
+			return fail( response, 403, 'another account\'s tokens' );
+		}
+		if ( !users.RevokeToken( record.Id, request.params.name ) )
+		{
+			return fail( response, 404, 'no token named ' + request.params.name );
+		}
+		response.json( { Revoked: request.params.name } );
+	} );
+
+
+	// The activity of an account on the server: the threads it opened, its replies, resolves, applies and revisions,
+	// newest first, as the plans record them (a state change leaves no record today).
+	router.get( '/users/:id/activity', async function ( request, response )
+	{
+		if ( !needs_users( response ) )
+		{
+			return;
+		}
+		let record = users.Get( request.params.id );
+		if ( !record )
+		{
+			return fail( response, 404, 'no account with the id ' + request.params.id );
+		}
+		if ( !may_see( request.Participant, record.Id ) )
+		{
+			return fail( response, 403, 'another account\'s page' );
+		}
+		let entries = [];
+		function note( kind, at, project, plan, more )
+		{
+			entries.push( Object.assign( { Kind: kind, At: at, Project: { Id: project.Id, Name: project.Name }, Plan: { Id: plan.Id, Title: plan.Title } }, more || {} ) );
+		}
+		for ( let project of await store.ListProjects() )
+		{
+			let ids = TREE.ItemIds( project.Items || [] ).concat( TREE.ItemIds( project.Archive || [] ) );
+			for ( let id of ids )
+			{
+				let read = await store.ReadPlan( id );
+				if ( !read )
+				{
+					continue;
+				}
+				for ( let thread of read.Threads || [] )
+				{
+					( thread.Replies || [] ).forEach( function ( reply, index )
+					{
+						if ( reply.By === record.Login )
+						{
+							note( index ? 'reply' : 'thread', reply.At, project, read.Plan, { Thread: thread.Id, Text: String( reply.Text || '' ).slice( 0, 160 ) } );
+						}
+					} );
+					if ( thread.Resolved && thread.Resolved.By === record.Login )
+					{
+						note( 'resolved', thread.Resolved.At, project, read.Plan, { Thread: thread.Id } );
+					}
+					if ( thread.Applied && thread.Applied.By === record.Login )
+					{
+						note( 'applied', thread.Applied.At, project, read.Plan, { Thread: thread.Id, Text: String( thread.Applied.Outcome || '' ).slice( 0, 160 ) } );
+					}
+				}
+				for ( let revision of await store.ListRevisions( id ) )
+				{
+					if ( revision.By === record.Login )
+					{
+						note( 'revision', revision.At, project, read.Plan, { Revision: revision.Revision, Reason: revision.Reason || null } );
+					}
+				}
+			}
+		}
+		entries.sort( function ( a, b ) { return ( a.At < b.At ) ? 1 : ( ( a.At > b.At ) ? -1 : 0 ); } );
+		response.json( { User: users.Public( record, false ), Activity: entries.slice( 0, ACTIVITY_LIMIT ) } );
+	} );
+
+
+	// A project's role folders: { Owners, Members, Service, Watchers }, each a list of account ids, an account in one
+	// at most; an id that is no account is refused; the owner's record is never in a folder.
+	router.put( '/projects/:pid/roles', async function ( request, response )
+	{
+		if ( !needs_users( response ) )
+		{
+			return;
+		}
+		let roles = ROLES.Clean( request.body || {} );
+		for ( let role of ROLES.ROLES )
+		{
+			for ( let id of roles[ role ] )
+			{
+				let record = users.Get( id );
+				if ( !record )
+				{
+					return fail( response, 400, 'no account with the id ' + id );
+				}
+				if ( record.Type === 'owner' )
+				{
+					return fail( response, 400, 'the owner needs no role folder' );
+				}
+				if ( ( record.Type === 'service' ) !== ( role === 'Service' ) )
+				{
+					return fail( response, 400, ( record.Type === 'service' ) ? 'a Service account goes in the Service folder only' : 'the Service folder takes Service accounts only' );
+				}
+			}
+		}
+		let result = await change_project( request.params.pid, ( request.body || {} ).Version, async function ( project )
+		{
+			project.Roles = roles;
+		} );
+		send_result( response, result, 200, { Project: result.Project } );
 	} );
 
 

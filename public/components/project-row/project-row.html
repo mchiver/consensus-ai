@@ -21,6 +21,8 @@
 	<div class="tree">
 		<tree-node class="tree-node" ng-repeat="node in $ctrl.Tree.Sorted( $ctrl.entry.Items ) track by node.Id" node="node" project="$ctrl.entry" root="$ctrl.root" depth="1"></tree-node>
 	</div>
+	<!-- The project's Users folder (plan User Management, Step 3): the four role folders, fixed. -->
+	<roles-folder project="$ctrl.entry" root="$ctrl.root"></roles-folder>
 	<!-- The project's Archive (plan Run Shapes, Step 2): archived plans, read-only, folded by default. -->
 	<div class="folder archive-folder" ng-if="$ctrl.entry.Archive.length" data-archive="{{ $ctrl.entry.Id }}">
 		<div class="folder-head tree-row" style="--depth: 1" ng-click="$ctrl.Tree.ToggleArchive( $ctrl.entry, $event )" title="archived plans: read-only until Restore in their menu">

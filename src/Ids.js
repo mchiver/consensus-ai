@@ -28,7 +28,8 @@ const RUN = 'run';
 const JOB = 'job';
 const LLM = 'llm';
 const TASK = 'tsk';
-const KINDS = [ PROJECT, PLAN, DOCUMENT, CONTEXT, FOLDER, CORPUS, THREAD, REPLY, REVISION, RUN, JOB, LLM, TASK ];
+const USER = 'usr';
+const KINDS = [ PROJECT, PLAN, DOCUMENT, CONTEXT, FOLDER, CORPUS, THREAD, REPLY, REVISION, RUN, JOB, LLM, TASK, USER ];
 
 // A plan's Kind, as its id's kind.
 const PLAN_KINDS = { plan: PLAN, document: DOCUMENT, context: CONTEXT };
@@ -92,6 +93,7 @@ module.exports = {
 	JOB: JOB,
 	LLM: LLM,
 	TASK: TASK,
+	USER: USER,
 	KINDS: KINDS,
 	New: New,
 	Is: Is,

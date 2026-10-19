@@ -1,0 +1,31 @@
+/* roles-folder: a project's Users folder and its four role folders (plan User Management, Step 3). */
+
+.roles-folder .folder-head.drop-into
+{
+	outline: 2px solid var(--mine-edge);
+	outline-offset: -2px;
+	border-radius: 0.25rem;
+}
+
+.roles-folder .role-account
+{
+	position: relative;
+}
+
+.roles-folder .role-remove
+{
+	padding: 0 0.3rem;
+	margin-left: auto;
+	line-height: 1;
+	color: var(--muted);
+}
+
+.roles-folder .role-remove:hover
+{
+	color: var(--contested-edge);
+}
+
+.roles-error
+{
+	margin: 0.2rem 0.6rem;
+}

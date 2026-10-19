@@ -3,7 +3,7 @@
 // Consensus - the one AngularJS module. State holds what is one at a time (the open item, the view, the selection)
 // and names its root; the roots (roots.js, plan Run Shapes, Step 5) hold each server's participants, plans and
 // projects. AppController wires the hash routes (#/p/<id>, #/llm/<id>, #/x/<project id> (plan LLM Tasks, Step 4: the
-// Explain tab), #/waiting, under #/s/<key> for a named
+// Explain tab), #/u/<account id> (plan User Management, Step 3: an account's page), #/waiting, under #/s/<key> for a named
 // root) and each root's live stream. Every rule is on the server.
 
 angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensus.Editor', 'Consensus.Mirror' ] )
@@ -249,7 +249,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			state.Reanchoring = null;
 			SetView( 'read' );
 		}
-		else if ( state.View === 'waiting' || state.View === 'x' )
+		else if ( state.View === 'waiting' || state.View === 'x' || state.View === 'u' )
 		{
 			SetView( 'read' );
 		}
@@ -630,7 +630,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 //---------------------------------------------------------------------
 // AppController: the routes and the live stream.
 
-.controller( 'AppController', [ '$scope', '$window', 'State', 'Client', 'Tabs', 'Llms', 'Roots', function ( $scope, $window, State, Client, Tabs, Llms, Roots )
+.controller( 'AppController', [ '$scope', '$window', 'State', 'Client', 'Tabs', 'Llms', 'Users', 'Roots', function ( $scope, $window, State, Client, Tabs, Llms, Users, Roots )
 {
 	$scope.State = State;
 	$scope.Roots = Roots;
@@ -666,6 +666,11 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		if ( explain )
 		{
 			return { Kind: 'x', Id: decodeURIComponent( explain[ 1 ] ), Root: root };
+		}
+		let user = /^#\/u\/([^/]+)$/.exec( rest );
+		if ( user )
+		{
+			return { Kind: 'u', Id: decodeURIComponent( user[ 1 ] ), Root: root };
 		}
 		if ( rest === '#/waiting' )
 		{
@@ -719,11 +724,11 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			State.OpenPlan( null, 'llm' );
 			return;
 		}
-		if ( where.Kind === 'x' )
+		if ( where.Kind === 'x' || where.Kind === 'u' )
 		{
 			State.SetRoot( where.Root );
-			State.OpenItem = { Kind: 'x', Id: where.Id, Root: where.Root.Key };
-			State.OpenPlan( null, 'x' );
+			State.OpenItem = { Kind: where.Kind, Id: where.Id, Root: where.Root.Key };
+			State.OpenPlan( null, where.Kind );
 			return;
 		}
 		State.OpenPlan( null, 'waiting' );
@@ -750,6 +755,14 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			Llms.RunChanged( root, event );
 			return;
 		}
+		// the server's accounts (plan User Management, Step 3)
+		if ( event.Kind === 'users' )
+		{
+			Users.For( root ).Reload();
+			Roots.LoadList( root );
+			$scope.$broadcast( 'changed', event, root );
+			return;
+		}
 		Roots.LoadList( root );
 		if ( event.Kind === 'trashed' )
 		{
@@ -772,6 +785,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 			{
 				Roots.LoadList( root );
 				Llms.For( root ).Reload();
+				Users.For( root ).Reload();
 				if ( root === State.Root )
 				{
 					State.Reload();

@@ -26,6 +26,9 @@
 	<link rel="stylesheet" href="/components/llm-session/llm-session.css">
 	<link rel="stylesheet" href="/components/waiting-list/waiting-list.css">
 	<link rel="stylesheet" href="/components/explain-pane/explain-pane.css">
+	<link rel="stylesheet" href="/components/users-fold/users-fold.css">
+	<link rel="stylesheet" href="/components/user-page/user-page.css">
+	<link rel="stylesheet" href="/components/roles-folder/roles-folder.css">
 	<link rel="stylesheet" href="/components/html-view/html-view.css">
 	<link rel="stylesheet" href="/components/selection-buttons/selection-buttons.css">
 	<link rel="stylesheet" href="/components/close-prompt/close-prompt.css">
@@ -115,7 +118,7 @@
 	     desktop the window's title bar, with Electron's window buttons over its right end. -->
 	<title-bar></title-bar>
 
-	<div class="layout" ng-class="{ 'no-threads': State.Open.Plan.Kind === 'document' || State.ThreadsHidden || State.View === 'llm' || State.View === 'x', 'no-tree': State.TreeHidden }">
+	<div class="layout" ng-class="{ 'no-threads': State.Open.Plan.Kind === 'document' || State.ThreadsHidden || State.View === 'llm' || State.View === 'x' || State.View === 'u', 'no-tree': State.TreeHidden }">
 
 		<!-- ============================================================= -->
 		<aside class="sidebar">
@@ -421,6 +424,7 @@
 	<script src="/js/app.js"></script>
 	<script src="/js/roots.js"></script>
 	<script src="/js/llm.js"></script>
+	<script src="/js/users.js"></script>
 	<script src="/js/menus.js"></script>
 	<script src="/js/tabs.js"></script>
 	<script src="/js/hotkeys.js"></script>
@@ -456,6 +460,9 @@
 	<script src="/components/llm-session/llm-session.js"></script>
 	<script src="/components/waiting-list/waiting-list.js"></script>
 	<script src="/components/explain-pane/explain-pane.js"></script>
+	<script src="/components/users-fold/users-fold.js"></script>
+	<script src="/components/user-page/user-page.js"></script>
+	<script src="/components/roles-folder/roles-folder.js"></script>
 	<script src="/components/comment-editor/comment-editor.js"></script>
 	<script src="/components/thread-filters/thread-filters.js"></script>
 	<script src="/components/thread-list/thread-list.js"></script>

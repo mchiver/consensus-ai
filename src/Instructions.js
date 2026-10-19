@@ -26,7 +26,9 @@ function Make( Settings, Base, Guide, Run )
 	if ( Run && Run.Token )
 	{
 		lines.push( '- Your token, sent as "Authorization: Bearer <token>": ' + Run.Token );
-		lines.push( '- What you post reads "' + Run.Service + ' by ' + owner.Display + '": you act for ' + owner.Display + ', the owner, through the LLM connection "' + Run.Service + '".' );
+		let presser = ( Run.By && Run.By.Name ) ? Run.By : { Name: owner.Name, Display: owner.Display, Role: 'owner' };
+		let standing = { Owners: 'an Owner of the project', Members: 'a Member of the project', Watchers: 'a Watcher of the project' }[ presser.Role ] || 'the owner';
+		lines.push( '- What you post reads "' + Run.Service + ' by ' + ( presser.Display || presser.Name ) + '": you act for ' + ( presser.Display || presser.Name ) + ', ' + standing + ', through the LLM connection "' + Run.Service + '".' );
 		if ( Run.Writes )
 		{
 			lines.push( '- Writes: ' + TASKS.WritesLine( Run.Writes ) );
@@ -36,6 +38,7 @@ function Make( Settings, Base, Guide, Run )
 	{
 		lines.push( '- No token: a request with none is the owner, ' + owner.Display + ', on this server.' );
 		lines.push( '- Say who you are: send the header "' + PARTICIPANTS.SERVICE_HEADER + ': <your name>" (letters, digits, dot, dash and colon) with every request; what you post then reads "<your name> by ' + owner.Display + '".' );
+		lines.push( '- A token minted on an account\'s page (Users in the sidebar), sent as "Authorization: Bearer <token>", makes the request that account instead, allowed what its role in the project allows.' );
 	}
 	lines.push( '- These instructions: ' + Base + '/instructions', '', '' );
 	return lines.join( '\n' ) + Guide;

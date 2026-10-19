@@ -185,11 +185,30 @@ function StateLine( Tally_, Name )
 //---------------------------------------------------------------------
 // Who may do what. Each answers { Ok, Reason }.
 
+// The project role an account acts with (plan User Management, Step 3): the one the API found, or Owners for the
+// server's owner. An Owner resolves any thread; a Member the threads they started (Accounts and Roles).
+function project_role( Who )
+{
+	return Who.ProjectRole || ( ( Who.Role === 'owner' ) ? 'Owners' : null );
+}
+
+
+function may_resolve( Who, Thread )
+{
+	let role = project_role( Who );
+	if ( Who.Role === 'owner' || role === 'Owners' )
+	{
+		return true;
+	}
+	return role === 'Members' && Thread.Replies.length > 0 && Thread.Replies[ 0 ].By === Who.Name;
+}
+
+
 function CanResolve( Who, Thread )
 {
-	if ( !Who || Who.Role !== 'owner' )
+	if ( !Who || !may_resolve( Who, Thread ) )
 	{
-		return { Ok: false, Reason: 'only the owner resolves a thread' };
+		return { Ok: false, Reason: ( Who && project_role( Who ) === 'Members' ) ? 'a Member resolves the threads they started' : 'only the owner resolves a thread' };
 	}
 	if ( Thread.Status !== 'contested' )
 	{
@@ -221,10 +240,11 @@ function CanApply( Who, Thread )
 }
 
 
-// Only the owner deletes a thread, whatever its status; the revisions that applied it keep their text.
+// Only the owner, or an Owner of the project, deletes a thread, whatever its status; the revisions that applied it
+// keep their text.
 function CanDeleteThread( Who )
 {
-	if ( !Who || Who.Role !== 'owner' )
+	if ( !Who || ( Who.Role !== 'owner' && project_role( Who ) !== 'Owners' ) )
 	{
 		return { Ok: false, Reason: 'only the owner deletes a thread' };
 	}

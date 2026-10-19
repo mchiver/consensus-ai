@@ -13,11 +13,13 @@
 //   Runner( { Store, Settings, Runs, Url, Tokens, Git? } ) -> { Lists( Request ), Package( Request, Token? ), Start( Request, By ) }
 //   Url(): this server's address, what a run's tools and prompt reach it at; null when it does not listen.
 //   Lists( { Project, Plan?, Llm? } ) -> { Documents, Threads, Speaker } | { Error }
-//   Package( { Llm, Task, Project, Plan?, Text?, Overrides? }, Token? ) -> { Prompt, Llm, Task, Writes, Text, Project, Plan, Folder, Speaker } | { Error }
+//   Package( { Llm, Task, Project, Plan?, Text?, Overrides? }, Token?, By? ) -> { Prompt, Llm, Task, Writes, Text, Project, Plan, Folder, Speaker } | { Error }
+//     By (plan User Management, Step 3): the presser's account, named in the package in place of the owner;
 //     Task: the task's id; Text: the person's instructions, read when the task has a Box (Step 2); a task with the
 //     Project switch (Step 4) packages the project's shape, every plan and document with its state and tally, and the last runs;
 //     Token: the run's token value; none for a preview, whose prompt says a token is made at the start.
 //   Start( Request, By ) -> { Run } | { Error, Status }
+//     By: the presser's account (Participants.js), or a name; the run token carries the account and its role (Step 3).
 
 const FS = require( 'fs' );
 const PACKAGE = require( './Package.js' );
@@ -197,9 +199,11 @@ function Runner( Options )
 	// Package: the prompt of a run, from the task's switches; Overrides are the popup's unsaved fields of the
 	// connection (its Session Prompt and its unchecked ids).
 
-	async function Package( Request, Token )
+	async function Package( Request, Token, By )
 	{
 		let request = Request || {};
+		let owner = PARTICIPANTS.Owner( settings );
+		let presser = ( By && typeof By === 'object' && By.Name && By.Role !== 'owner' ) ? { Name: By.Name, Display: By.Display || By.Name, Role: By.ProjectRole || null } : { Name: owner.Name, Display: owner.Display, Role: 'owner' };
 		let llm = LLMS.ById( settings, request.Llm );
 		if ( !llm )
 		{
@@ -253,7 +257,7 @@ function Runner( Options )
 			}
 			else
 			{
-				instructions = INSTRUCTIONS.Make( settings, url, await INSTRUCTIONS.Guide(), { Service: llm.Name, Token: Token || null, Writes: task.Writes } );
+				instructions = INSTRUCTIONS.Make( settings, url, await INSTRUCTIONS.Guide(), { Service: llm.Name, Token: Token || null, Writes: task.Writes, By: presser } );
 			}
 		}
 		let plan = null;
@@ -285,7 +289,7 @@ function Runner( Options )
 			Project: { Id: project.Id, Name: project.Name },
 			Plan: plan,
 			Folder: folder ? folder.Path : null,
-			Owner: PARTICIPANTS.Owner( settings ),
+			Owner: presser,
 			Service: llm.Name,
 			Token: is_ollama ? null : Token,
 			Instructions: instructions,
@@ -319,15 +323,17 @@ function Runner( Options )
 	async function Start( Request, By )
 	{
 		let request = Request || {};
+		let by = ( By && typeof By === 'object' ) ? By : { Name: By || null, Role: 'owner' };
 		let llm = LLMS.ById( settings, request.Llm );
 		let task = TASKS.ById( settings, request.Task );
 		let token = null;
 		if ( llm && task && tokens )
 		{
 			let name = task.Name + ' run';
-			token = { Value: tokens.Mint( { Service: llm.Name, Name: name, Project: request.Project || null, Writes: task.Writes } ), Name: name };
+			let account = by.Name ? { Id: by.Id || null, Name: by.Name, Display: by.Display || by.Name, Role: by.Role || 'owner', Type: by.Type || 'owner', Admin: ( by.Admin === undefined ) ? true : !!by.Admin } : null;
+			token = { Value: tokens.Mint( { Service: llm.Name, Name: name, Project: request.Project || null, Writes: task.Writes, Account: account, Role: by.ProjectRole || null } ), Name: name };
 		}
-		let made = await Package( request, token ? token.Value : null );
+		let made = await Package( request, token ? token.Value : null, by );
 		if ( made.Error )
 		{
 			drop( token );
@@ -355,7 +361,7 @@ function Runner( Options )
 		}
 		try
 		{
-			let run = runs.Start( { Llm: made.Llm, Task: made.Task, Writes: made.Writes, Text: made.Text, By: By || null, Token: token, Project: made.Project, Plan: made.Plan, Folder: made.Folder, Prompt: made.Prompt, Server: server, Git: pulled } );
+			let run = runs.Start( { Llm: made.Llm, Task: made.Task, Writes: made.Writes, Text: made.Text, By: by.Name || null, Token: token, Project: made.Project, Plan: made.Plan, Folder: made.Folder, Prompt: made.Prompt, Server: server, Git: pulled } );
 			return { Run: run };
 		}
 		catch ( error )

@@ -1,0 +1,88 @@
+/* user-page: an account's page (plan User Management, Step 3): details, roles, tokens, activity. */
+
+.user-view
+{
+	padding: 0.75rem 1rem;
+	overflow-y: auto;
+	height: 100%;
+}
+
+.user-view .view-heading
+{
+	font-size: 1.1em;
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+}
+
+.user-view .view-heading .item-state
+{
+	margin-left: 0.4rem;
+}
+
+.user-details
+{
+	max-width: 36rem;
+}
+
+.user-section
+{
+	margin-top: 1rem;
+	border-top: 1px solid var(--border);
+	padding-top: 0.5rem;
+}
+
+.user-section-head
+{
+	font-weight: 600;
+	margin-bottom: 0.3rem;
+}
+
+.user-role,
+.user-token,
+.user-activity
+{
+	padding: 0.2rem 0;
+}
+
+.user-token
+{
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.user-token-label
+{
+	font-family: var(--bs-font-monospace);
+}
+
+.user-token-shown
+{
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+	margin: 0.4rem 0;
+	padding: 0.4rem 0.6rem;
+	border: 1px dashed var(--border);
+	border-radius: 0.3rem;
+}
+
+.user-token-value
+{
+	font-size: 0.9em;
+	word-break: break-all;
+}
+
+.user-view .user-token-name
+{
+	flex: 1 1 16rem;
+	width: auto;
+}
+
+.user-activity-text
+{
+	white-space: pre-wrap;
+	margin-left: 1rem;
+}

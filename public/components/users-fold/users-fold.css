@@ -1,0 +1,36 @@
+/* users-fold: the accounts' rows and the new-account form (plan User Management, Step 3). */
+
+.tree-icon.icon-user
+{
+	background-color: var(--icon-llm);
+	-webkit-mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='5' r='3' fill='none' stroke='black' stroke-width='1.3'/%3E%3Cpath d='M2.5 14.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5' fill='none' stroke='black' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E" );
+	mask-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='5' r='3' fill='none' stroke='black' stroke-width='1.3'/%3E%3Cpath d='M2.5 14.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5' fill='none' stroke='black' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E" );
+}
+
+.tree-icon.icon-user.service
+{
+	background-color: var(--muted);
+}
+
+.new-user-form
+{
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	padding: 0.4rem 0.6rem;
+}
+
+/* The rows are links like the tree items, but no tree item: the tests count those. */
+.user-row,
+.role-account
+{
+	color: inherit;
+	text-decoration: none;
+	border-left: 0;
+}
+
+.user-row.open
+{
+	background-color: var(--tree-selected);
+	box-shadow: inset 2px 0 0 var(--accent);
+}

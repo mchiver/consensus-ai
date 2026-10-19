@@ -27,7 +27,7 @@ angular.module( 'Consensus' ).component( 'documentsPane', {
 
 		controller.ShowsStart = function ()
 		{
-			return !State.Open && State.View !== 'llm' && State.View !== 'waiting' && State.View !== 'x';
+			return !State.Open && State.View !== 'llm' && State.View !== 'waiting' && State.View !== 'x' && State.View !== 'u';
 		};
 	} ],
 } );

@@ -1,0 +1,26 @@
+<div class="list-heading users-heading" ng-attr-id="{{ $ctrl.first ? 'users-heading' : undefined }}" ng-click="$ctrl.Toggle()" title="the accounts of this server: each one's page holds its roles, tokens and activity" on-context-menu="$ctrl.OpenMenu( $event )">Users <span class="tally" ng-if="$ctrl.Items().Loaded" title="the accounts">{{ $ctrl.Items().Users.length }}</span>
+	<span class="row-menu" role="button" ng-if="$ctrl.IsAdmin()" ng-class="{ shown: $ctrl.Tree.MenuOpenFor( $ctrl.MenuKey() ) }" title="actions" ng-click="$ctrl.OpenMenu( $event )"><svg class="icon"><use href="#i-more"></use></svg></span>
+</div>
+<div class="users-list" ng-attr-id="{{ $ctrl.first ? 'users-list' : undefined }}" ng-show="$ctrl.Showing">
+	<!-- A new account: a user (login, display, email) or a Service account (a login). -->
+	<form class="new-user-form" ng-if="$ctrl.Creating" ng-submit="$ctrl.Create()" ng-keydown="$ctrl.Key( $event )">
+		<div class="muted small">{{ $ctrl.Creating.Kind === 'user' ? 'New user: a record Clerk completes at the first sign-in' : 'New Service account: a system that is nobody\'s' }}</div>
+		<input class="form-control form-control-sm" type="text" id="new-user-login" ng-model="$ctrl.Creating.Login" placeholder="{{ $ctrl.Creating.Kind === 'user' ? 'login (letters, digits, dot, dash, underscore)' : 'name (letters, digits, dot, dash, underscore)' }}" auto-focus>
+		<input class="form-control form-control-sm" type="text" id="new-user-display" ng-model="$ctrl.Creating.Display" placeholder="shown as (the login when empty)">
+		<input class="form-control form-control-sm" type="email" id="new-user-email" ng-if="$ctrl.Creating.Kind === 'user'" ng-model="$ctrl.Creating.Email" placeholder="email">
+		<div class="port-error" ng-show="$ctrl.Creating.Problem">{{ $ctrl.Creating.Problem }}</div>
+		<div class="thread-buttons">
+			<button class="btn btn-sm btn-primary" type="submit" id="new-user-create" ng-disabled="$ctrl.Creating.Busy || !$ctrl.Creating.Login"><svg class="icon lead"><use href="#i-check"></use></svg>Create</button>
+			<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="$ctrl.Cancel()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+		</div>
+	</form>
+	<div class="list-empty" ng-show="$ctrl.Items().Loaded && $ctrl.Items().Users.length === 0">none</div>
+	<a class="tree-row user-row" ng-repeat="user in $ctrl.Items().Users track by user.Id" style="--depth: 0" ng-class="{ open: $ctrl.Tree.IsOpenItem( 'u', user.Id, $ctrl.root ) }" ng-href="{{ $ctrl.HashFor( $ctrl.root, '/u/' + user.Id ) }}" data-id="{{ user.Id }}" drag-account="user.Id" title="{{ user.Login }}: {{ user.Type === 'owner' ? 'the owner of this server' : ( user.Type === 'service' ? 'a Service account' : 'a user' ) }}; drag into a project's role folder">
+		<span class="chevron-space"></span>
+		<span class="tree-icon icon-user" ng-class="{ service: user.Type === 'service' }"></span>
+		<span class="plan-title">{{ user.Display }}</span>
+		<span class="badges">
+			<span class="item-state" title="the account's type">{{ user.Type }}</span>
+		</span>
+	</a>
+</div>
