@@ -1224,31 +1224,32 @@ TEST( 'the tasks (plan LLM Tasks, Step 1): listed, edited in the settings, enabl
 {
 	let listed = await call( 'GET', '/api/tasks', undefined, true );
 	ASSERT.equal( listed.Status, 200 );
-	ASSERT.deepEqual( listed.Body.Tasks.map( function ( one ) { return one.Id; } ), [ 'answer', 'work', 'session' ] );
+	ASSERT.deepEqual( listed.Body.Tasks.map( function ( one ) { return one.Id; } ), [ 'answer', 'enhance', 'work', 'session' ] );
 	ASSERT.deepEqual( listed.Body.Writes, [ 'none', 'consensus', 'files' ] );
-	ASSERT.deepEqual( listed.Body.Package, [ 'Instructions', 'Readme', 'Documents', 'Plan', 'Threads', 'Files' ] );
-	ASSERT.equal( listed.Body.Defaults[ 1 ].Name, 'Work' );
+	ASSERT.deepEqual( listed.Body.Package, [ 'Instructions', 'Readme', 'Documents', 'Plan', 'Threads', 'Files', 'Box' ] );
+	ASSERT.equal( listed.Body.Defaults[ 2 ].Name, 'Work' );
 	// a task added through the settings, its id made by the server; a bad list is refused and nothing written
 	let settings = ( await call( 'GET', '/api/settings' ) ).Body.Settings;
 	let tasks = settings.Tasks.concat( [ { Name: 'Explain', Writes: 'none', Package: { Instructions: true, Readme: true, Documents: true, Plan: false, Threads: false, Files: false }, Prompt: 'Explain the project.' } ] );
 	let saved = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, settings, { Tasks: tasks } ) } );
 	ASSERT.equal( saved.Status, 200 );
-	ASSERT.equal( saved.Body.Settings.Tasks.length, 4 );
-	let explain = saved.Body.Settings.Tasks[ 3 ];
+	ASSERT.equal( saved.Body.Settings.Tasks.length, 5 );
+	let explain = saved.Body.Settings.Tasks[ 4 ];
 	ASSERT.match( explain.Id, /^tsk-/ );
-	ASSERT.deepEqual( [ explain.Name, explain.Writes, explain.Package.Plan ], [ 'Explain', 'none', false ] );
-	ASSERT.equal( JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).Tasks.length, 4 );
+	ASSERT.deepEqual( [ explain.Name, explain.Writes, explain.Package.Plan, explain.Package.Box ], [ 'Explain', 'none', false, false ] );
+	ASSERT.equal( JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).Tasks.length, 5 );
+	ASSERT.equal( JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).TasksVersion, 2 );
 	let refused = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, settings, { Tasks: tasks.concat( [ { Name: 'Explain' } ] ) } ) } );
 	ASSERT.equal( refused.Status, 400 );
 	ASSERT.deepEqual( refused.Body.Problems, [ 'task "Explain" is named twice' ] );
-	ASSERT.equal( ( await call( 'GET', '/api/tasks' ) ).Body.Tasks.length, 4 );
+	ASSERT.equal( ( await call( 'GET', '/api/tasks' ) ).Body.Tasks.length, 5 );
 	// enabled per project: the list of ids (trimmed, once each), or null for all
 	ASSERT.deepEqual( ( await call( 'PUT', '/api/projects/' + home, { Tasks: [ 'work', explain.Id, 'work', ' ' ] } ) ).Body.Project.Tasks, [ 'work', explain.Id ] );
 	ASSERT.deepEqual( ( await call( 'GET', '/api/tasks?Project=' + home ) ).Body.Tasks.map( function ( one ) { return one.Id; } ), [ 'work', explain.Id ] );
 	let echo = ( await call( 'POST', '/api/llms', { Name: 'echo2', Kind: 'claude-cli', Command: process.execPath, Arguments: ECHO_ARGUMENTS, Timeout: 30 } ) ).Body.Llm;
 	let plan = await create( 'A plan to explain' );
 	ASSERT.match( ( await call( 'POST', '/api/runs/package', { Llm: echo.Id, Task: 'answer', Project: home, Plan: plan.Id } ) ).Body.Error, /"Answer" is not enabled in the project/ );
-	ASSERT.match( ( await call( 'POST', '/api/runs/package', { Llm: echo.Id, Project: home, Plan: plan.Id } ) ).Body.Error, /a Task is needed: one of answer, work, session/ );
+	ASSERT.match( ( await call( 'POST', '/api/runs/package', { Llm: echo.Id, Project: home, Plan: plan.Id } ) ).Body.Error, /a Task is needed: one of answer, enhance, work, session/ );
 	// Explain packages no plan and no folder, and says it reads only
 	let packaged = await call( 'POST', '/api/runs/package', { Llm: echo.Id, Task: explain.Id, Project: home } );
 	ASSERT.equal( packaged.Status, 200 );
@@ -1259,7 +1260,7 @@ TEST( 'the tasks (plan LLM Tasks, Step 1): listed, edited in the settings, enabl
 	ASSERT.equal( packaged.Body.Folder, null );
 	ASSERT.equal( ( await call( 'GET', '/api/tasks?Project=prj-nothing' ) ).Status, 404 );
 	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + home, { Tasks: null } ) ).Body.Project.Tasks, undefined );
-	ASSERT.equal( ( await call( 'GET', '/api/tasks?Project=' + home ) ).Body.Tasks.length, 4 );
+	ASSERT.equal( ( await call( 'GET', '/api/tasks?Project=' + home ) ).Body.Tasks.length, 5 );
 	// a run token with Writes none reads, and is refused every write; a consensus one replies
 	let read_only = running.Tokens.Mint( { Service: 'echo2', Name: 'Explain run', Project: home, Writes: 'none' } );
 	let me = await call( 'GET', '/api/me', undefined, 'Bearer ' + read_only );
@@ -1281,8 +1282,63 @@ TEST( 'the tasks (plan LLM Tasks, Step 1): listed, edited in the settings, enabl
 	ASSERT.match( done.Output, /^got: # Work: a one-shot from Consensus/ );
 	ASSERT.match( done.Prompt, /- Writes: files\./ );
 	ASSERT.equal( running.Tokens.Count(), 0 );
-	// back to the shipped three
-	ASSERT.equal( ( await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, settings, { Tasks: settings.Tasks } ) } ) ).Body.Settings.Tasks.length, 3 );
+	// back to the shipped four
+	ASSERT.equal( ( await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, settings, { Tasks: settings.Tasks } ) } ) ).Body.Settings.Tasks.length, 4 );
+	ASSERT.deepEqual( ( await call( 'DELETE', '/api/llms/' + echo.Id ) ).Body, { Deleted: echo.Id } );
+} );
+
+
+// A stand-in for an Enhance run (plan LLM Tasks, Step 2): it reads the package from its standard input, takes the API
+// address, the token, the plan id and the person's instructions from it, and posts a new text and one thread as the run.
+const ENHANCE_STAND_IN = [
+	"let t = '';",
+	"process.stdin.on( 'data', function ( c ) { t += c; } );",
+	"process.stdin.on( 'end', async function ()",
+	"{",
+	"\tlet api = /- Consensus API: (\\S+)/.exec( t )[ 1 ];",
+	"\tlet token = /Bearer <token>\": ([0-9a-f]{48})/.exec( t )[ 1 ];",
+	"\tlet plan = /The plan at hand: .* \\((pln-[^)]+)\\)/.exec( t )[ 1 ];",
+	"\tlet asked = /## Your instructions\\n\\n([^\\n]+)/.exec( t )[ 1 ];",
+	"\tlet headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };",
+	"\tlet current = await ( await fetch( api + '/plans/' + plan, { headers: headers } ) ).json();",
+	"\tlet text = '# A sketch\\n\\n## Enhanced\\n\\nAs asked: ' + asked + '\\n';",
+	"\tlet written = await ( await fetch( api + '/plans/' + plan + '/text', { method: 'PUT', headers: headers, body: JSON.stringify( { Text: text, Revision: current.Plan.Revision } ) } ) ).json();",
+	"\tlet thread = await ( await fetch( api + '/plans/' + plan + '/threads', { method: 'POST', headers: headers, body: JSON.stringify( { Anchor: { Text: 'As asked' }, Text: 'How many sections exactly?' } ) } ) ).json();",
+	"\tprocess.stdout.write( 'wrote revision ' + written.Plan.Revision + ' and asked in ' + thread.Thread.Id + ( t.includes( '## Threads' ) ? ' (threads were packaged)' : '' ) );",
+	"} );",
+].join( '\n' );
+
+
+TEST( 'Enhance (plan LLM Tasks, Step 2) runs end to end: the box\'s text is packaged under Your instructions, no threads are, and the run posts a revision and a thread on its token as the connection by the owner', async function ()
+{
+	let stand_in = PATH.join( temporary_folder(), 'enhance.js' );
+	FS.writeFileSync( stand_in, ENHANCE_STAND_IN );
+	let echo = ( await call( 'POST', '/api/llms', { Name: 'enhancer', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Timeout: 60 } ) ).Body.Llm;
+	let plan = await create( 'A sketch', '# A sketch\n\nA few words.\n' );
+	let waiting = ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: { Text: 'A few words' }, Text: 'Is this enough?' } ) ).Body.Thread;
+	// the preview carries the text and names the task
+	let packaged = await call( 'POST', '/api/runs/package', { Llm: echo.Id, Task: 'enhance', Project: home, Plan: plan.Id, Text: 'Three sections, please.' } );
+	ASSERT.equal( packaged.Status, 200 );
+	ASSERT.deepEqual( [ packaged.Body.Task, packaged.Body.Text, packaged.Body.Folder ], [ { Id: 'enhance', Name: 'Enhance' }, 'Three sections, please.', null ] );
+	ASSERT.match( packaged.Body.Prompt, /## Your task: Enhance\n\nReplace the plan's text/ );
+	ASSERT.match( packaged.Body.Prompt, /## Your instructions\n\nThree sections, please\./ );
+	ASSERT.equal( packaged.Body.Prompt.includes( '## Threads' ), false );
+	// the run
+	let started = await call( 'POST', '/api/runs', { Llm: echo.Id, Task: 'enhance', Project: home, Plan: plan.Id, Text: 'Three sections, please.' } );
+	ASSERT.equal( started.Status, 201 );
+	ASSERT.deepEqual( [ started.Body.Run.Task, started.Body.Run.Text, started.Body.Run.Token ], [ { Id: 'enhance', Name: 'Enhance' }, 'Three sections, please.', 'Enhance run' ] );
+	let done = await run_settled( started.Body.Run.Id );
+	ASSERT.equal( done.Status, 'done', done.Output );
+	ASSERT.match( done.Output, /^wrote revision 2 and asked in thr-/ );
+	ASSERT.equal( done.Output.includes( 'threads were packaged' ), false );
+	let read = ( await call( 'GET', '/api/plans/' + plan.Id ) ).Body;
+	ASSERT.equal( read.Plan.Revision, 2 );
+	ASSERT.match( read.Text, /## Enhanced\n\nAs asked: Three sections, please\./ );
+	let revisions = ( await call( 'GET', '/api/plans/' + plan.Id + '/revisions' ) ).Body.Revisions;
+	ASSERT.deepEqual( [ revisions[ 1 ].By, revisions[ 1 ].Service, revisions[ 1 ].Token, revisions[ 1 ].Reason ], [ 'user', 'enhancer', 'Enhance run', 'edit' ] );
+	let asked = read.Threads.find( function ( one ) { return one.Id !== waiting.Id; } );
+	ASSERT.deepEqual( [ asked.Status, asked.Replies[ 0 ].By, asked.Replies[ 0 ].Service, asked.Replies[ 0 ].Token, asked.Anchor.Text ], [ 'contested', 'user', 'enhancer', 'Enhance run', 'As asked' ] );
+	ASSERT.equal( running.Tokens.Count(), 0 );
 	ASSERT.deepEqual( ( await call( 'DELETE', '/api/llms/' + echo.Id ) ).Body, { Deleted: echo.Id } );
 } );
 

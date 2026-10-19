@@ -337,7 +337,7 @@ folder, `glob`, `grep` and `read` within its Include and Exclude, and when the t
 Settings, none by default; a command exactly or with arguments after it; nothing that chains, pipes,
 redirects or substitutes, on the list or in a call); over the server itself, as the connection's participant
 with its Token, `list_project`, `read_plan`, `read_document`, `waiting`, `reply`, `apply` (the current
-revision supplied), `thread` and `set_state`, each held to the project the run is on, a server's refusal
+revision supplied), `write_text` (the whole text as a revision), `thread` and `set_state`, each held to the project the run is on, a server's refusal
 going back to the model as the tool's result. The package is the same, except that the agent instructions
 (which say how to call the API with the token) are replaced by the server's tool instructions, so the token
 never enters a local model's prompt. The run keeps its `Transcript` as entries (a round's text, a call with
@@ -356,13 +356,18 @@ own, the others are dropped with a line, and the `Workspaces` list is gone from 
 
 **LLM tasks** (plan LLM Tasks, Step 1) are what the buttons ask: a task is a record of the settings (`Tasks`),
 edited in the Settings popup, one row per task in the buttons' order (Add, Remove, up and down): a **Name**
-(what the button says and the run record carries), a **Package** of six switches (the server's instructions,
+(what the button says and the run record carries), a **Package** of seven switches (the server's instructions,
 the project's Readme, the other Context documents, the plan at hand, the threads waiting on the connection,
-and the project's folder as the run's working folder), a **Writes** level (**none**, **consensus** or
+the project's folder as the run's working folder, and Box, Step 2: a text box on the LLM page for the person's
+instructions, kept per project in the browser, sent as `Text` with the run, kept on its record and put under
+"Your instructions" after the prompt), a **Writes** level (**none**, **consensus** or
 **files**, each including the ones before) and a **Prompt** (the task's instructions, under "Your task:
 <name>" in the package; empty, the connection's Session Prompt is the task). Consensus ships **Answer** (every
-item, writes consensus: the Review of before), **Work** (no threads, writes files: the Build of before) and
-**Session** (the instructions, the Readme and the documents, writes files; its prompt is the connection's).
+item but the box, writes consensus: the Review of before), **Enhance** (Step 2: the plan, the Readme, the
+documents and the box, no threads and no folder, writes consensus; its prompt has the model replace a sketch
+with a detailed plan as one revision and open a thread for each open question), **Work** (no threads, writes
+files: the Build of before) and **Session** (the instructions, the Readme and the documents, writes files; its
+prompt is the connection's).
 Writes is the permission: the run token carries it, so a none run is refused every writing route (403, "this
 run reads only") and a local model gets the read tools only; a task that packages the plan or the threads
 needs a plan picked, one that writes or packages files the project's folder on the server's machine. Tasks
@@ -370,7 +375,11 @@ are defined per server and enabled per project: a project's Settings lists them 
 in project.json, the enabled ids; absent means all, so a task added later is on everywhere). At the first
 start after the step a file from before gets the shipped set, a connection's own Review and Build prompts
 become Answer's and Work's (the first that differs from the old default wins) and the connections' Checks are
-dropped; a run record from before keeps its Kind and shows it as the name.
+dropped; a run record from before keeps its Kind and shows it as the name. `TasksVersion` in the settings (2
+since Step 2) says which shipped tasks a file has been given: a file below it gets the shipped tasks it lacks,
+each after the shipped one before it, once, so a task the owner removes stays removed. A local model gets
+`write_text` (the plan's whole new text as a revision, the current revision supplied) beside the other
+Consensus tools, so an Enhance through Ollama can post the text.
 
 The page's **theme** is a palette: System, Light, Sepia, Paper, Solarized Light, Dark, Slate, Solarized Dark,
 Nord or Midnight (`data-theme` on the page; `data-bs-theme` light or dark for Bootstrap), and the editor takes
@@ -437,8 +446,8 @@ and the runs; `test/Tools.test.js` the tools and the Ollama loop; `test/Api.test
 	POST   /api/llms/:id/check                       owner; tried as saved, the body's fields over it
 	DELETE /api/llms/:id                             owner; not while it runs; its participant goes with it
 	GET    /api/runs/lists?Project=&Plan=&Llm=       the other Context documents, the plan's threads waiting on the connection
-	POST   /api/runs/package                         { Llm, Task, Project, Plan?, Overrides? }  the prompt a run would get; Task the task's id
-	POST   /api/runs                                 { Llm, Task, Project, Plan? }  a run started as the presser through the connection, on a token named after the task that carries its Writes; one per connection at a time
+	POST   /api/runs/package                         { Llm, Task, Project, Plan?, Text?, Overrides? }  the prompt a run would get; Task the task's id, Text the box's text
+	POST   /api/runs                                 { Llm, Task, Project, Plan?, Text? }  a run started as the presser through the connection, on a token named after the task that carries its Writes; one per connection at a time
 	GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
 	GET    /api/runs/:id                             the whole record, the output as it stands
 	POST   /api/runs/:id/stop                        a running one stopped

@@ -2,11 +2,12 @@
 
 // Package - the one-shot prompt (plan Consensus Desktop, Step 3; in the server since plan Run Shapes, Step 3; from a
 // task's record since plan LLM Tasks, Step 1): one text built from the items the task's Package switches on, in a
-// fixed order, each under a heading, then the task's Prompt and the connection's Session Prompt at the end. Pure:
-// the pieces are fetched by the caller (Runner.js).
+// fixed order, each under a heading, then the task's Prompt, the person's instructions when the task has a Box
+// (Step 2), and the connection's Session Prompt at the end. Pure: the pieces are fetched by the caller (Runner.js).
 //
 //   Build( {
-//     Task: { Name, Package: { Instructions, Readme, Documents, Plan, Threads, Files }, Writes, Prompt },
+//     Task: { Name, Package: { Instructions, Readme, Documents, Plan, Threads, Files, Box }, Writes, Prompt },
+//     Text?: the person's instructions from the box,
 //     Llm: { Name, Prompts: { Session } },
 //     Server: { Url, Name },  Project: { Id, Name },  Plan: { Id, Title, State } | null,  Folder: path | null,
 //     Owner: { Name, Display },  Service: the connection's name (the byline is "<Service> by <Owner Display>"),
@@ -164,9 +165,15 @@ function Build( Request )
 		heading( lines, 'Your task: ' + task.Name );
 		lines.push( task.Prompt.replace( /\s+$/, '' ) );
 	}
+	let instructions = switches.Box ? String( request.Text || '' ).trim() : '';
+	if ( instructions )
+	{
+		heading( lines, 'Your instructions' );
+		lines.push( instructions );
+	}
 	if ( session_prompt.trim() )
 	{
-		heading( lines, prompt ? 'Further instructions' : 'Your task' );
+		heading( lines, ( prompt || instructions ) ? 'Further instructions' : 'Your task' );
 		lines.push( session_prompt.replace( /\s+$/, '' ) );
 	}
 	return lines.join( '\n' ) + '\n';

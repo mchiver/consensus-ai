@@ -10,18 +10,20 @@ const PARTICIPANTS = require( '../src/Participants.js' );
 const LLMS = require( '../src/Llms.js' );
 
 
-TEST( 'a task is filled with an id, every switch and a level; the shipped set is Answer, Work and Session', function ()
+TEST( 'a task is filled with an id, every switch (Box off) and a level; the shipped set is Answer, Enhance, Work and Session', function ()
 {
 	let filled = TASKS.Fill( { Name: ' Explain ', Package: { Threads: false }, Writes: 'none', Prompt: 'Explain it.' } );
 	ASSERT.match( filled.Id, /^tsk-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
-	ASSERT.deepEqual( filled, { Id: filled.Id, Name: 'Explain', Package: { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: false, Files: true }, Writes: 'none', Prompt: 'Explain it.' } );
+	ASSERT.deepEqual( filled, { Id: filled.Id, Name: 'Explain', Package: { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: false, Files: true, Box: false }, Writes: 'none', Prompt: 'Explain it.' } );
 	ASSERT.equal( TASKS.Fill( { Id: 'x', Writes: 'everything' } ).Writes, 'consensus' );
 	ASSERT.equal( TASKS.Fill( null ).Name, '' );
 	let defaults = TASKS.Defaults();
-	ASSERT.deepEqual( defaults.map( function ( task ) { return [ task.Id, task.Name, task.Writes ]; } ), [ [ 'answer', 'Answer', 'consensus' ], [ 'work', 'Work', 'files' ], [ 'session', 'Session', 'files' ] ] );
-	ASSERT.deepEqual( defaults[ 0 ].Package, { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: true, Files: true } );
-	ASSERT.equal( defaults[ 1 ].Package.Threads, false );
-	ASSERT.deepEqual( [ defaults[ 2 ].Package.Plan, defaults[ 2 ].Package.Threads, defaults[ 2 ].Prompt ], [ false, false, '' ] );
+	ASSERT.deepEqual( defaults.map( function ( task ) { return [ task.Id, task.Name, task.Writes ]; } ), [ [ 'answer', 'Answer', 'consensus' ], [ 'enhance', 'Enhance', 'consensus' ], [ 'work', 'Work', 'files' ], [ 'session', 'Session', 'files' ] ] );
+	ASSERT.deepEqual( defaults[ 0 ].Package, { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: true, Files: true, Box: false } );
+	ASSERT.deepEqual( defaults[ 1 ].Package, { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: false, Files: false, Box: true } );
+	ASSERT.match( defaults[ 1 ].Prompt, /Replace the plan's text with a detailed plan/ );
+	ASSERT.equal( defaults[ 2 ].Package.Threads, false );
+	ASSERT.deepEqual( [ defaults[ 3 ].Package.Plan, defaults[ 3 ].Package.Threads, defaults[ 3 ].Prompt ], [ false, false, '' ] );
 	ASSERT.match( defaults[ 0 ].Prompt, /the threads waiting on you/ );
 	ASSERT.equal( TASKS.DefaultOf( 'work' ).Prompt, TASKS.PROMPTS.Work );
 	ASSERT.equal( TASKS.DefaultOf( 'nope' ), null );
@@ -41,7 +43,7 @@ TEST( 'a settings file from before: the Tasks list made, a connection\'s own Rev
 		{ Id: 'llm-2', Name: 'b', Kind: 'claude-cli', Prompts: { Review: 'Review it my way.', Build: 'Another build.' } },
 	] };
 	ASSERT.deepEqual( PARTICIPANTS.Migrate( settings ), [
-		'Tasks set to the default set: Answer, Work, Session',
+		'Tasks set to the default set: Answer, Enhance, Work, Session',
 		'the Review prompt of the LLM connection "b" became the Answer task\'s',
 		'the Build prompt of the LLM connection "a" became the Work task\'s',
 		'the Checks and the Review and Build prompts of the LLM connections a, b dropped: the package and the prompt are the task\'s',
@@ -49,6 +51,7 @@ TEST( 'a settings file from before: the Tasks list made, a connection\'s own Rev
 	ASSERT.equal( TASKS.ById( settings, 'answer' ).Prompt, 'Review it my way.' );
 	ASSERT.equal( TASKS.ById( settings, 'work' ).Prompt, 'Build it my way.' );
 	ASSERT.equal( TASKS.ById( settings, 'session' ).Prompt, '' );
+	ASSERT.equal( settings.TasksVersion, TASKS.TASKS_VERSION );
 	ASSERT.deepEqual( settings.Llms[ 0 ].Prompts, { Session: 'Be brief.' } );
 	ASSERT.equal( 'Checks' in settings.Llms[ 0 ], false );
 	ASSERT.deepEqual( settings.Llms[ 1 ].Prompts, {} );
@@ -56,15 +59,27 @@ TEST( 'a settings file from before: the Tasks list made, a connection\'s own Rev
 	let filled = LLMS.Fill( settings.Llms[ 1 ] );
 	ASSERT.deepEqual( filled.Prompts, { Session: '' } );
 	ASSERT.equal( 'Checks' in filled, false );
-	// a second start changes nothing; a list present is kept, each filled
+	// a second start changes nothing; a list present at the version is kept, each filled
 	ASSERT.deepEqual( PARTICIPANTS.Migrate( settings ), [] );
-	let kept = { Name: 's', Scope: 'Local', Owner: { Name: 'user' }, Tasks: [ { Id: 'mine', Name: 'Mine', Writes: 'none' } ] };
+	let kept = { Name: 's', Scope: 'Local', Owner: { Name: 'user' }, TasksVersion: TASKS.TASKS_VERSION, Tasks: [ { Id: 'mine', Name: 'Mine', Writes: 'none' } ] };
 	ASSERT.deepEqual( PARTICIPANTS.Migrate( kept ), [] );
-	ASSERT.deepEqual( kept.Tasks[ 0 ].Package, { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: true, Files: true } );
+	ASSERT.deepEqual( kept.Tasks[ 0 ].Package, { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: true, Files: true, Box: false } );
+	// a Step 1 file (no version): Enhance is added after Answer, once; a shipped task removed at the version stays removed
+	let older = { Name: 's', Scope: 'Local', Owner: { Name: 'user' }, Tasks: [ { Id: 'answer', Name: 'Answer' }, { Id: 'work', Name: 'Work' }, { Id: 'mine', Name: 'Mine' } ] };
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( older ), [ 'the shipped task Enhance added (Tasks version 2)', 'the shipped task Session added (Tasks version 2)' ] );
+	ASSERT.deepEqual( older.Tasks.map( function ( task ) { return task.Id; } ), [ 'answer', 'enhance', 'work', 'session', 'mine' ] );
+	ASSERT.equal( older.TasksVersion, 2 );
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( older ), [] );
+	let trimmed = { Name: 's', Scope: 'Local', Owner: { Name: 'user' }, TasksVersion: 2, Tasks: [ { Id: 'answer', Name: 'Answer' } ] };
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( trimmed ), [] );
+	ASSERT.equal( trimmed.Tasks.length, 1 );
+	let empty = { Name: 's', Scope: 'Local', Owner: { Name: 'user' }, Tasks: [] };
+	ASSERT.equal( PARTICIPANTS.Migrate( empty ).length, 4 );
+	ASSERT.deepEqual( empty.Tasks.map( function ( task ) { return task.Id; } ), [ 'answer', 'enhance', 'work', 'session' ] );
 	// the defaults with no connections
 	let bare = { Name: 's', Scope: 'Local', Owner: { Name: 'user' } };
 	PARTICIPANTS.Migrate( bare );
-	ASSERT.equal( bare.Tasks.length, 3 );
+	ASSERT.equal( bare.Tasks.length, 4 );
 	ASSERT.equal( bare.Tasks[ 0 ].Prompt, TASKS.PROMPTS.Answer );
 } );
 
@@ -78,7 +93,7 @@ TEST( 'the problems are named, and the settings\' Clean and Validate carry the T
 	ASSERT.deepEqual( TASKS.Problems( { Tasks: [ { Id: 'a', Name: '', Writes: 'all', Package: {}, Prompt: 1 } ] } ), [
 		'a task has no Name',
 		'task "?": Writes is "all", not one of none, consensus, files',
-		'task "?": the Package must switch each of Instructions, Readme, Documents, Plan, Threads, Files',
+		'task "?": the Package must switch each of Instructions, Readme, Documents, Plan, Threads, Files, Box',
 		'task "?": the Prompt must be text',
 	] );
 	let settings = PARTICIPANTS.DefaultSettings( 0 );
@@ -95,7 +110,7 @@ TEST( 'the problems are named, and the settings\' Clean and Validate carry the T
 TEST( 'a project enables the tasks it lists; no list enables them all', function ()
 {
 	let settings = { Tasks: TASKS.Defaults() };
-	ASSERT.deepEqual( TASKS.Enabled( settings, { Id: 'p' } ).map( function ( task ) { return task.Id; } ), [ 'answer', 'work', 'session' ] );
+	ASSERT.deepEqual( TASKS.Enabled( settings, { Id: 'p' } ).map( function ( task ) { return task.Id; } ), [ 'answer', 'enhance', 'work', 'session' ] );
 	ASSERT.deepEqual( TASKS.Enabled( settings, { Id: 'p', Tasks: [ 'session', 'answer', 'gone' ] } ).map( function ( task ) { return task.Id; } ), [ 'answer', 'session' ] );
 	ASSERT.deepEqual( TASKS.Enabled( settings, { Id: 'p', Tasks: [] } ), [] );
 	ASSERT.equal( TASKS.IsEnabled( settings, { Tasks: [ 'work' ] }, 'answer' ), false );

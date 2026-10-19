@@ -103,6 +103,12 @@ const CONSENSUS_TOOLS = [
 		parameters: { type: 'object', properties: { Plan: { type: 'string' }, Thread: { type: 'string' }, Outcome: { type: 'string' }, Text: { type: 'string' }, Anchor: { type: 'string' } }, required: [ 'Plan', 'Thread', 'Outcome' ] },
 	},
 	{
+		name: 'write_text',
+		Writes: true,
+		description: 'The plan\'s whole new text as a revision (the current revision is supplied for you), for a text of your own making, such as a detailed plan written from a sketch; the threads stay where they were, so re-anchor a detached one with apply.',
+		parameters: { type: 'object', properties: { Plan: { type: 'string' }, Text: { type: 'string' } }, required: [ 'Plan', 'Text' ] },
+	},
+	{
 		name: 'thread',
 		Writes: true,
 		description: 'A new thread of yours on a plan: on the passage Anchor (plain words of the text, no markdown marks), or on the whole document without it.',
@@ -619,6 +625,19 @@ function Tools( Options )
 		let applied = await api( 'POST', '/api/plans/' + encodeURIComponent( input.Plan ) + '/threads/' + encodeURIComponent( String( input.Thread || '' ) ) + '/apply', body );
 		let revision = ( applied.Plan && applied.Plan.Revision ) ? ', the plan is at revision ' + applied.Plan.Revision : '';
 		return 'applied ' + input.Thread + revision;
+	};
+
+
+	handlers.write_text = async function ( input )
+	{
+		let answer = await plan_of( input.Plan );
+		if ( answer.Error )
+		{
+			return answer.Error;
+		}
+		let written = await api( 'PUT', '/api/plans/' + encodeURIComponent( input.Plan ) + '/text', { Text: String( input.Text || '' ), Revision: answer.Plan.Revision } );
+		let revision = ( written.Plan && written.Plan.Revision ) ? ', the plan is at revision ' + written.Plan.Revision : '';
+		return 'wrote ' + input.Plan + revision;
 	};
 
 

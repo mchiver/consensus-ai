@@ -8,7 +8,7 @@ const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
 const PARTICIPANTS = require( '../src/Participants.js' );
 
-const TASKS_LINE = 'Tasks set to the default set: Answer, Work, Session';	// plan LLM Tasks, Step 1: a file with no Tasks gets the shipped set
+const TASKS_LINE = 'Tasks set to the default set: Answer, Enhance, Work, Session';	// plan LLM Tasks, Step 1: a file with no Tasks gets the shipped set
 
 
 TEST( 'default settings hold the owner, "user" shown as "User", and no participants list', function ()

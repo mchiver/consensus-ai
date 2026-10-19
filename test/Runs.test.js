@@ -171,9 +171,17 @@ TEST( 'the package is one prompt from the items the task switches on, in order, 
 	ASSERT.match( built, /- Writes: files\. You may change Consensus and the project's files/ );
 	ASSERT.match( built, /- No folder: this run has no files to work in\./ );
 	ASSERT.match( built, /## Your task: Bare\n\nDo the thing\./ );
-	let work = PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'work' ) } ) );
+	let work = PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'work' ), Text: 'Not read: Work has no box.' } ) );
 	ASSERT.match( work, /## Your task: Work\n\nBuild the plan at hand/ );
 	ASSERT.equal( work.includes( '## Threads' ), false );
+	ASSERT.equal( work.includes( 'Not read' ), false );
+	// Enhance (Step 2): the person's instructions after the prompt, before the session prompt; no threads, no folder
+	let enhance = PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'enhance' ), Text: ' Three sections, please. ' } ) );
+	ASSERT.match( enhance, /## Your task: Enhance\n\nReplace the plan's text[^]*## Your instructions\n\nThree sections, please\.\n\n\n## Further instructions\n\nAnswer in English\./ );
+	ASSERT.equal( enhance.includes( '## Threads' ), false );
+	ASSERT.match( enhance, /- No folder/ );
+	ASSERT.match( enhance, /- The plan at hand: Step 3/ );
+	ASSERT.equal( PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'enhance' ), Text: '  ' } ) ).includes( 'Your instructions' ), false );
 	// a session: no plan line, no threads, the session prompt as the task; no token for a local model
 	let session = PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'session' ), Plan: null, Folder: null, Token: null } ) );
 	ASSERT.equal( session.includes( 'No plan is selected' ), false );

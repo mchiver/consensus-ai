@@ -12,8 +12,9 @@
 //   Runner( { Store, Settings, Runs, Url, Tokens } ) -> { Lists( Request ), Package( Request, Token? ), Start( Request, By ) }
 //   Url(): this server's address, what a run's tools and prompt reach it at; null when it does not listen.
 //   Lists( { Project, Plan?, Llm? } ) -> { Documents, Threads, Speaker } | { Error }
-//   Package( { Llm, Task, Project, Plan?, Overrides? }, Token? ) -> { Prompt, Llm, Task, Writes, Project, Plan, Folder, Speaker } | { Error }
-//     Task: the task's id; Token: the run's token value; none for a preview, whose prompt says a token is made at the start.
+//   Package( { Llm, Task, Project, Plan?, Text?, Overrides? }, Token? ) -> { Prompt, Llm, Task, Writes, Text, Project, Plan, Folder, Speaker } | { Error }
+//     Task: the task's id; Text: the person's instructions, read when the task has a Box (Step 2);
+//     Token: the run's token value; none for a preview, whose prompt says a token is made at the start.
 //   Start( Request, By ) -> { Run } | { Error, Status }
 
 const FS = require( 'fs' );
@@ -221,8 +222,10 @@ function Runner( Options )
 		{
 			return { Error: 'a ' + task.Name + ' needs a plan: select one in the tree' };
 		}
+		let text = ( task.Package.Box && typeof request.Text === 'string' ) ? request.Text.trim() : '';
 		let prompt = PACKAGE.Build( {
 			Task: task,
+			Text: text,
 			Llm: llm,
 			Server: { Url: url, Name: settings.Name },
 			Project: { Id: project.Id, Name: project.Name },
@@ -243,6 +246,7 @@ function Runner( Options )
 			Llm: llm,
 			Task: { Id: task.Id, Name: task.Name },
 			Writes: task.Writes,
+			Text: text,
 			Project: { Id: project.Id, Name: project.Name, Path: project.Path || null },
 			Plan: plan,
 			Folder: folder,
@@ -279,7 +283,7 @@ function Runner( Options )
 		}
 		try
 		{
-			let run = runs.Start( { Llm: made.Llm, Task: made.Task, Writes: made.Writes, By: By || null, Token: token, Project: made.Project, Plan: made.Plan, Folder: made.Folder, Prompt: made.Prompt, Server: server } );
+			let run = runs.Start( { Llm: made.Llm, Task: made.Task, Writes: made.Writes, Text: made.Text, By: By || null, Token: token, Project: made.Project, Plan: made.Plan, Folder: made.Folder, Prompt: made.Prompt, Server: server } );
 			return { Run: run };
 		}
 		catch ( error )

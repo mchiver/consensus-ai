@@ -4,7 +4,7 @@
 // Name, the Scope and Port (applied at the next start; plan Run Shapes, Step 1), the States one per line, the Owner
 // (its Name read-only, its Display; plan User Management, Step 2: the participants and their tokens are gone), and the Clerk section (plan User Management, Step 1: the keys of a Public
 // server's sign-in, empty for a trusted network; a line beside the Scope says what the two come to), and the Tasks
-// (plan LLM Tasks, Step 1: one row per task, its Name, Writes, the six Package switches and its Prompt; Add, Remove,
+// (plan LLM Tasks, Step 1: one row per task, its Name, Writes, the Package switches (Box, Step 2, off for a new one) and its Prompt; Add, Remove,
 // up and down, Reset for a shipped one; the levels, the switches and the defaults come from GET /api/tasks). Saved
 // through PUT /api/settings; the server's problems are shown and nothing is saved while there are any.
 
@@ -29,7 +29,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 	const CLERK_FIELDS = [ 'PublishableKey', 'SecretKey', 'WebhookSecret', 'AdminEmail' ];
 	$scope.Panel = SettingsPanel;
 	$scope.Scopes = SCOPES;
-	$scope.TaskItems = { Writes: [ 'none', 'consensus', 'files' ], Package: [ 'Instructions', 'Readme', 'Documents', 'Plan', 'Threads', 'Files' ], Defaults: [] };
+	$scope.TaskItems = { Writes: [ 'none', 'consensus', 'files' ], Package: [ 'Instructions', 'Readme', 'Documents', 'Plan', 'Threads', 'Files', 'Box' ], Defaults: [] };
 
 
 	// The Clerk section as the form holds it: the four fields as strings, empty for none.
@@ -89,7 +89,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		let package_ = {};
 		for ( let item of $scope.TaskItems.Package )
 		{
-			package_[ item ] = true;
+			package_[ item ] = ( item !== 'Box' );
 		}
 		SettingsPanel.Form.Tasks.push( { Id: '', Name: '', Writes: 'consensus', Package: package_, Prompt: '' } );
 	};

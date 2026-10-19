@@ -1951,7 +1951,8 @@ function Attach( App, Context )
 	} );
 
 
-	// The prompt a run would get: { Llm, Task, Project, Plan?, Overrides? } (the popup's unsaved fields of the connection).
+	// The prompt a run would get: { Llm, Task, Project, Plan?, Text?, Overrides? } (Text the person's instructions for a
+	// task with a Box; Overrides the popup's unsaved fields of the connection).
 	router.post( '/runs/package', async function ( request, response )
 	{
 		if ( !may_run( request, response ) )
@@ -1963,11 +1964,11 @@ function Attach( App, Context )
 		{
 			return fail( response, 400, made.Error );
 		}
-		response.json( { Prompt: made.Prompt, Speaker: made.Speaker, Project: made.Project, Plan: made.Plan, Folder: made.Folder ? made.Folder.Path : null } );
+		response.json( { Prompt: made.Prompt, Speaker: made.Speaker, Task: made.Task, Text: made.Text, Project: made.Project, Plan: made.Plan, Folder: made.Folder ? made.Folder.Path : null } );
 	} );
 
 
-	// A run started: { Llm, Task, Project, Plan? }; its record, with Status running, comes back at once.
+	// A run started: { Llm, Task, Project, Plan?, Text? }; its record, with Status running, comes back at once.
 	router.post( '/runs', async function ( request, response )
 	{
 		if ( !may_run( request, response ) )

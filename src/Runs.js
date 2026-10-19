@@ -12,12 +12,13 @@
 //
 //   Runs( { Folder, Spawn?, Tokens? } ) -> { Start( Request ), Stop( Id ), List( LlmId? ), Read( Id ), Running( LlmId ), OnChange( Handler ), Close() }
 //   Tokens: the server's RunTokens (Participants.js); a run's token (Request.Token, minted by the Runner) is dropped when it ends.
-//   Request = { Llm, Task: { Id, Name }, Writes, By, Token: { Value, Name } | null, Project: { Id, Name, Path }, Plan: { Id, Title } | null,
+//   Request = { Llm, Task: { Id, Name }, Writes, Text, By, Token: { Value, Name } | null, Project: { Id, Name, Path }, Plan: { Id, Title } | null,
 //               Folder: { Path, Include, Exclude, Commands } | null (the project's folder, the run's working folder),
 //               Prompt, Server?: { Url, Token, Project } (an ollama run's Consensus tools) }
-//   record  = { Id, Llm: { Id, Name }, Task, Writes, By, Service, Token, Project, Plan, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
+//   record  = { Id, Llm: { Id, Name }, Task, Writes, Text, By, Service, Token, Project, Plan, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
 //             By the presser's account, Service the connection's name, Token the run token's name: the three fields of the plan.
-//             Task the button's task (plan LLM Tasks, Step 1; a record from before has Kind instead), Writes its level.
+//             Task the button's task (plan LLM Tasks, Step 1; a record from before has Kind instead), Writes its level,
+//             Text the person's instructions from the task's box (Step 2), null without.
 //   Status  = 'running' | 'done' | 'failed' | 'stopped'
 
 const FS = require( 'fs' );
@@ -121,6 +122,7 @@ function Runs( Options )
 			Llm: { Id: llm.Id, Name: llm.Name },
 			Task: Request.Task ? { Id: Request.Task.Id, Name: Request.Task.Name } : null,
 			Writes: Request.Writes || null,
+			Text: Request.Text || null,
 			By: Request.By || null,
 			Service: llm.Name,
 			Token: Request.Token ? Request.Token.Name : null,

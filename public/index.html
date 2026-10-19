@@ -220,7 +220,7 @@
 				<input class="form-control form-control-sm" id="settings-owner-display" ng-model="Panel.Form.Owner.Display" placeholder="User" title="how the page shows the owner; the byline of a run or a service reads <service> by <this>">
 			</div>
 			<!-- The tasks (plan LLM Tasks, Step 1): one row per task, in the order of the LLM page's buttons. -->
-			<div class="settings-label">Tasks <span class="muted small fw-normal">what a button asks of an LLM, in this order; the Package is what the run is given, Writes what it may change; a project enables the ones it uses in its own settings</span></div>
+			<div class="settings-label">Tasks <span class="muted small fw-normal">what a button asks of an LLM, in this order; the Package is what the run is given (Box: a text box for the person's instructions), Writes what it may change; a project enables the ones it uses in its own settings</span></div>
 			<div class="settings-task" ng-repeat="task in Panel.Form.Tasks track by $index">
 				<div class="settings-row">
 					<label>Name</label>

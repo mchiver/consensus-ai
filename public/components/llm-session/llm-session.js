@@ -7,13 +7,15 @@
 // Interface:
 //   <llm-session></llm-session>
 //   reads State.OpenItem (the connection), State.View; the runs, the connections and the tasks through Llms (plan LLM
-//   Tasks, Step 1: one Run button per task the picked project enables, in the server's order)
+//   Tasks, Step 1: one Run button per task the picked project enables, in the server's order; Step 2: a text box for
+//   the tasks with a Box, its text kept per project in the browser and sent as the run's Text)
 
 angular.module( 'Consensus' ).component( 'llmSession', {
 	templateUrl: '/components/llm-session/llm-session.html',
 	controller: [ '$scope', '$window', 'State', 'Client', 'Llms', 'Roots', function ( $scope, $window, State, Client, Llms, Roots )
 	{
 		const OPEN_PROJECT_KEY = 'project';		// the sidebar's open project (stored.js, per server)
+		const BOX_KEY = 'llm-box';				// the box's text, per project (stored.js, per server)
 
 		$scope.State = State;
 		$scope.Items = Llms;
@@ -36,6 +38,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		$scope.Project = null;		// the project picked for the run
 		$scope.PlanRows = [];		// the project's folders and plans, in the tree's order, with their depth and unresolved (contested) threads
 		$scope.Pick = { Project: null, Plan: null };
+		$scope.Box = { Text: '' };	// the person's instructions for the tasks with a Box
 		$scope.PickerOpen = false;
 		$scope.Runs = [];
 		$scope.Error = null;
@@ -114,8 +117,13 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 				$scope.Pick.Project = project_by_id( remembered ) ? remembered : ( root.Projects.length ? root.Projects[ 0 ].Id : null );
 				$scope.Pick.Plan = null;
 			}
+			let project_changed = !$scope.Project || !project_by_id( $scope.Pick.Project ) || $scope.Project.Id !== $scope.Pick.Project;
 			$scope.Project = project_by_id( $scope.Pick.Project );
 			$scope.PlanRows = $scope.Project ? rows_of( $scope.Project.Items, 0, [] ) : [];
+			if ( project_changed )
+			{
+				$scope.Box.Text = $scope.Project ? String( window.ConsensusStored.Read( BOX_KEY + ':' + $scope.Project.Id, '', root ) || '' ) : '';
+			}
 			// the plan at hand: the one picked, else the plan last opened in this project
 			let plans = plan_rows();
 			if ( !plans.some( function ( plan ) { return plan.Id === $scope.Pick.Plan; } ) )
@@ -200,6 +208,28 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 				return tasks;
 			}
 			return tasks.filter( function ( task ) { return enabled.includes( task.Id ); } );
+		};
+
+
+		// The tasks with a box, and their names for the box's label; the text is kept per project.
+		$scope.BoxTasks = function ()
+		{
+			return $scope.Tasks().filter( function ( task ) { return task.Package && task.Package.Box; } );
+		};
+
+
+		$scope.BoxNames = function ()
+		{
+			return $scope.BoxTasks().map( function ( task ) { return task.Name; } ).join( ' and ' );
+		};
+
+
+		$scope.BoxChanged = function ()
+		{
+			if ( $scope.Project )
+			{
+				window.ConsensusStored.Write( BOX_KEY + ':' + $scope.Project.Id, $scope.Box.Text || '', current_root() );
+			}
 		};
 
 
@@ -442,6 +472,10 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		function request( task, overrides )
 		{
 			let made = { Llm: $scope.Llm.Id, Task: task.Id, Project: $scope.Pick.Project || null, Plan: $scope.Pick.Plan || null };
+			if ( task.Package && task.Package.Box )
+			{
+				made.Text = $scope.Box.Text || '';
+			}
 			if ( overrides )
 			{
 				made.Overrides = overrides;

@@ -233,7 +233,7 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 
 		// the tools call the API on a run token the server made (plan User Management, Step 2)
 		let tools = TOOLS.Tools( { Writes: 'consensus', Folder: null, Server: { Url: url, Token: target.Tokens.Mint( { Service: 'llm', Name: 'Review run', Project: project.Id } ), Project: project.Id } } );
-		ASSERT.deepEqual( tools.Definitions.map( function ( d ) { return d.function.name; } ), [ 'list_project', 'read_plan', 'read_document', 'waiting', 'reply', 'apply', 'thread', 'set_state' ] );
+		ASSERT.deepEqual( tools.Definitions.map( function ( d ) { return d.function.name; } ), [ 'list_project', 'read_plan', 'read_document', 'waiting', 'reply', 'apply', 'write_text', 'thread', 'set_state' ] );
 
 		let listed = await tools.Call( 'list_project', {} );
 		ASSERT.match( listed, new RegExp( '^Project ' + project.Name + ' \\(' + project.Id + '\\), its Readme is ' ) );
@@ -283,6 +283,15 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		ASSERT.match( await tools.Call( 'thread', { Plan: plan.Id, Text: 'x', Anchor: 'nowhere at all' } ), /anchor text was not found/ );
 		ASSERT.equal( ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body.Threads.length, 4 );
 
+		// write_text (plan LLM Tasks, Step 2): the whole text as a revision, the current revision supplied; the threads stay
+		ASSERT.equal( await tools.Call( 'write_text', { Plan: plan.Id, Text: '# The plan\n\nA first line.\n\nA third line.\n\nA fourth line.\n' } ), 'wrote ' + plan.Id + ', the plan is at revision 3' );
+		let after_write = ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body;
+		ASSERT.equal( after_write.Plan.Revision, 3 );
+		ASSERT.match( after_write.Text, /A fourth line\./ );
+		ASSERT.equal( after_write.Threads.length, 4 );
+		let revisions = ( await owner( url, 'GET', '/api/plans/' + plan.Id + '/revisions' ) ).Body.Revisions;
+		ASSERT.deepEqual( [ revisions[ 2 ].By, revisions[ 2 ].Service, revisions[ 2 ].Token, revisions[ 2 ].Reason ], [ 'user', 'llm', 'Review run', 'edit' ] );
+		ASSERT.match( await tools.Call( 'write_text', { Plan: elsewhere.Id, Text: 'x' } ), /not in this project/ );
 		ASSERT.equal( await tools.Call( 'set_state', { Plan: plan.Id, State: 'Working' } ), plan.Id + ' is now Working' );
 		ASSERT.equal( ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body.Plan.State, 'Working' );
 		ASSERT.match( await tools.Call( 'set_state', { Plan: plan.Id, State: 'Done' } ), /State must be one of/ );

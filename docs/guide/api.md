@@ -85,8 +85,8 @@ PUT    /api/llms/:id                             owner; the fields given over th
 POST   /api/llms/:id/check                       owner; tried as saved, the body's fields over it
 DELETE /api/llms/:id                             owner; not while it runs; its speaker goes with it
 GET    /api/runs/lists?Project=&Plan=&Llm=       the other Context documents, the plan's threads waiting on the connection
-POST   /api/runs/package                         { Llm, Task, Project, Plan?, Overrides? }  the prompt a run would get; Task the task's id
-POST   /api/runs                                 { Llm, Task, Project, Plan? }  a run started as the presser through the connection, on a token named after the task that carries its Writes (a none run is refused every write); one per connection at a time
+POST   /api/runs/package                         { Llm, Task, Project, Plan?, Text?, Overrides? }  the prompt a run would get; Task the task's id, Text the box's text
+POST   /api/runs                                 { Llm, Task, Project, Plan?, Text? }  a run started as the presser through the connection, on a token named after the task that carries its Writes (a none run is refused every write); one per connection at a time
 GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
 GET    /api/runs/:id                             the whole record, the output as it stands
 POST   /api/runs/:id/stop                        a running one stopped

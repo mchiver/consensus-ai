@@ -34,6 +34,11 @@
 				</div>
 			</div>
 		</div>
+		<!-- The box (plan LLM Tasks, Step 2): the person's instructions for the tasks that take them, remembered per project. -->
+		<div class="settings-row top" id="llm-box-row" ng-show="BoxTasks().length">
+			<label for="llm-box">Instructions</label>
+			<textarea class="form-control form-control-sm" id="llm-box" rows="2" ng-model="Box.Text" ng-change="BoxChanged()" placeholder="your instructions for {{ BoxNames() }}, put under 'Your instructions' in the package" title="the text {{ BoxNames() }} packages after the task's prompt; kept per project in this browser"></textarea>
+		</div>
 		<div class="thread-buttons">
 			<!-- One button per task the project enables (plan LLM Tasks, Step 1), in the server's order. -->
 			<button class="btn btn-sm btn-primary llm-task-run" type="button" id="llm-run-{{ task.Id }}" ng-repeat="task in Tasks() track by task.Id" ng-click="Run( task )" ng-disabled="!CanRun( task )" title="{{ TaskTitle( task ) }}"><svg class="icon lead"><use href="#i-play"></use></svg>{{ task.Name }}</button>
@@ -155,6 +160,7 @@
 				<span class="run-error text-danger small" ng-show="RunPopup.Run.Error && RunPopup.Run.Status !== 'stopped'">{{ RunPopup.Run.Error }}</span>
 			</div>
 			<div class="muted small run-command">{{ RunPopup.Run.Command }}{{ RunPopup.Run.Project && RunPopup.Run.Project.Path ? ' in ' + RunPopup.Run.Project.Path : '' }}</div>
+			<div class="small run-instructions" id="run-instructions" ng-show="RunPopup.Run.Text"><span class="muted">Instructions:</span> {{ RunPopup.Run.Text }}</div>
 			<div class="thread-buttons">
 				<button class="btn btn-sm btn-outline-secondary" type="button" id="run-close" ng-click="CloseRun()"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
 				<button class="btn btn-sm btn-outline-secondary" type="button" ng-show="RunPopup.Run.Status === 'running'" ng-click="RefreshRun()"><svg class="icon lead"><use href="#i-refresh"></use></svg>Refresh</button>
