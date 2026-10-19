@@ -109,16 +109,24 @@ TEST( 'a path a tool names is within the folder, or refused with the reason', fu
 //---------------------------------------------------------------------
 // The file tools
 
-TEST( 'the file tools: glob, grep and read over the folder; write, edit and run for a build; a review gets read-only ones', async function ()
+TEST( 'the file tools: glob, grep and read over the folder; write, edit and run when the task writes files; a consensus run gets read-only ones, a none run no Consensus writer', async function ()
 {
 	let place = make_place();
-	let review = TOOLS.Tools( { Kind: 'review', Folder: place } );
+	let review = TOOLS.Tools( { Writes: 'consensus', Folder: place } );
 	ASSERT.deepEqual( review.Definitions.map( function ( d ) { return d.function.name; } ), [ 'glob', 'grep', 'read' ] );
 	ASSERT.match( await review.Call( 'write', { Path: 'x', Text: 'y' } ), /no tool named write; the tools are glob, grep, read/ );
 	ASSERT.equal( FS.existsSync( PATH.join( place.Path, 'x' ) ), false );
-	ASSERT.deepEqual( TOOLS.Tools( { Kind: 'review', Folder: null } ).Definitions, [] );
+	ASSERT.deepEqual( TOOLS.Tools( { Writes: 'consensus', Folder: null } ).Definitions, [] );
+	let read_only = TOOLS.Tools( { Writes: 'none', Folder: place, Server: { Url: 'http://127.0.0.1:1', Token: 't', Project: 'p' } } );
+	ASSERT.deepEqual( read_only.Definitions.map( function ( d ) { return d.function.name; } ), [ 'glob', 'grep', 'read', 'list_project', 'read_plan', 'read_document', 'waiting' ] );
+	ASSERT.match( read_only.Instructions(), /This run reads only/ );
+	ASSERT.equal( read_only.Instructions().includes( 'Your turn in Consensus' ), false );
+	ASSERT.match( await read_only.Call( 'reply', { Plan: 'p', Thread: 't', Text: 'x' } ), /no tool named reply/ );
+	let consensus = TOOLS.Tools( { Writes: 'consensus', Folder: place, Server: { Url: 'http://127.0.0.1:1', Token: 't', Project: 'p' } } ).Instructions();
+	ASSERT.match( consensus, /Your turn in Consensus/ );
+	ASSERT.equal( consensus.includes( 'The build loop' ), false );
 
-	let build = TOOLS.Tools( { Kind: 'build', Folder: place } );
+	let build = TOOLS.Tools( { Writes: 'files', Folder: place } );
 	ASSERT.deepEqual( build.Definitions.map( function ( d ) { return d.function.name; } ), [ 'glob', 'grep', 'read', 'write', 'edit', 'run' ] );
 	ASSERT.equal( build.Definitions[ 0 ].type, 'function' );
 	ASSERT.equal( build.Definitions[ 0 ].function.parameters.required[ 0 ], 'Pattern' );
@@ -163,7 +171,7 @@ TEST( 'the file tools: glob, grep and read over the folder; write, edit and run 
 	ASSERT.equal( failing, 'exit 2\n' + PATH.resolve( place.Path ) + '\n--- stderr ---\nbad' );
 	ASSERT.match( await build.Call( 'run', { Command: 'npm test' } ), /not allowed: the folder allows/ );
 	ASSERT.match( await build.Call( 'run', { Command: 'node tool.js && dir' } ), /not allowed/ );
-	let none = TOOLS.Tools( { Kind: 'build', Folder: { Path: place.Path, Include: [], Exclude: [], Commands: [] } } );
+	let none = TOOLS.Tools( { Writes: 'files', Folder: { Path: place.Path, Include: [], Exclude: [], Commands: [] } } );
 	ASSERT.match( await none.Call( 'run', { Command: 'node tool.js' } ), /allows no command/ );
 
 	// described for the transcript, and the instructions name the tools and the commands
@@ -224,7 +232,7 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		let contested = ( await owner( url, 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Why a first line?' } ) ).Body.Thread;
 
 		// the tools call the API on a run token the server made (plan User Management, Step 2)
-		let tools = TOOLS.Tools( { Kind: 'review', Folder: null, Server: { Url: url, Token: target.Tokens.Mint( { Service: 'llm', Name: 'Review run', Project: project.Id } ), Project: project.Id } } );
+		let tools = TOOLS.Tools( { Writes: 'consensus', Folder: null, Server: { Url: url, Token: target.Tokens.Mint( { Service: 'llm', Name: 'Review run', Project: project.Id } ), Project: project.Id } } );
 		ASSERT.deepEqual( tools.Definitions.map( function ( d ) { return d.function.name; } ), [ 'list_project', 'read_plan', 'read_document', 'waiting', 'reply', 'apply', 'thread', 'set_state' ] );
 
 		let listed = await tools.Call( 'list_project', {} );
@@ -357,7 +365,7 @@ TEST( 'the tool loop: each call the model makes is run and sent back, the text w
 	try
 	{
 		let llm = LLMS.Fill( { Name: 'fake', Kind: 'ollama', Url: fake.Url, Model: 'fake:latest', Timeout: 30, Context: 4096, Rounds: 10 } );
-		let tools = TOOLS.Tools( { Kind: 'review', Folder: place } );
+		let tools = TOOLS.Tools( { Writes: 'consensus', Folder: place } );
 		let transcript = [];
 		let result = await OLLAMA.Run( { Llm: llm, Prompt: 'What is here?', Tools: tools, OnProgress: function ( entry ) { transcript.push( entry ); } } );
 		ASSERT.equal( result.Answer, 'Two files, a and b.' );
@@ -412,7 +420,7 @@ TEST( 'the tool loop: each call the model makes is run and sent back, the text w
 	try
 	{
 		let llm = LLMS.Fill( { Name: 'fake', Kind: 'ollama', Url: looping.Url, Model: 'fake:latest', Rounds: 2 } );
-		let result = await OLLAMA.Run( { Llm: llm, Prompt: 'p', Tools: TOOLS.Tools( { Kind: 'review', Folder: place } ) } );
+		let result = await OLLAMA.Run( { Llm: llm, Prompt: 'p', Tools: TOOLS.Tools( { Writes: 'consensus', Folder: place } ) } );
 		ASSERT.equal( result.Answer, 'Fine, here is my answer.' );
 		ASSERT.equal( result.Rounds, 2 );
 		ASSERT.equal( looping.Requests.length, 3 );
@@ -457,7 +465,7 @@ TEST( 'the tool loop: each call the model makes is run and sent back, the text w
 	try
 	{
 		let llm = LLMS.Fill( { Name: 'fake', Kind: 'ollama', Url: inventing.Url, Model: 'fake:latest' } );
-		let result = await OLLAMA.Run( { Llm: llm, Prompt: 'p', Tools: TOOLS.Tools( { Kind: 'review', Folder: place } ) } );
+		let result = await OLLAMA.Run( { Llm: llm, Prompt: 'p', Tools: TOOLS.Tools( { Writes: 'consensus', Folder: place } ) } );
 		ASSERT.equal( result.Answer, 'ok' );
 		ASSERT.match( inventing.Requests[ 1 ].messages[ 2 ].content, /no tool named delete_everything/ );
 	}
@@ -519,10 +527,10 @@ TEST( 'an ollama run keeps the transcript, the answer, the rounds and the usage;
 		let llm = LLMS.Fill( { Name: 'fake', Kind: 'ollama', Url: fake.Url, Model: 'fake:latest', Timeout: 30 } );
 		let heard = [];
 		runs.OnChange( function ( summary ) { heard.push( summary.Status ); } );
-		let started = runs.Start( { Llm: llm, Kind: 'review', Project: { Id: 'default', Name: 'Consensus' }, Plan: { Id: 'pln-1', Title: 'Step 4' }, Folder: place, Prompt: 'What is here?' } );
+		let started = runs.Start( { Llm: llm, Writes: 'consensus', Project: { Id: 'default', Name: 'Consensus' }, Plan: { Id: 'pln-1', Title: 'Step 4' }, Folder: place, Prompt: 'What is here?' } );
 		ASSERT.equal( started.Status, 'running' );
 		ASSERT.equal( started.Command, 'ollama fake:latest at ' + fake.Url );
-		ASSERT.throws( function () { runs.Start( { Llm: llm, Kind: 'review', Prompt: 'again' } ); }, /already running/ );
+		ASSERT.throws( function () { runs.Start( { Llm: llm, Writes: 'consensus', Prompt: 'again' } ); }, /already running/ );
 		let record = await settled( runs, started.Id );
 		ASSERT.equal( record.Status, 'done' );
 		ASSERT.equal( record.Exit, 0 );
@@ -549,13 +557,13 @@ TEST( 'an ollama run keeps the transcript, the answer, the rounds and the usage;
 	try
 	{
 		let llm = LLMS.Fill( { Name: 'slow', Kind: 'ollama', Url: slow.Url, Model: 'fake:latest', Timeout: 30 } );
-		let stopping = runs.Start( { Llm: llm, Kind: 'session', Prompt: 'p' } );
+		let stopping = runs.Start( { Llm: llm, Writes: 'files', Prompt: 'p' } );
 		ASSERT.equal( runs.Stop( stopping.Id ), true );
 		let stopped = await settled( runs, stopping.Id );
 		ASSERT.equal( stopped.Status, 'stopped' );
 		ASSERT.equal( stopped.Error, 'stopped' );
 		let timing = LLMS.Fill( { Name: 'timing', Kind: 'ollama', Url: slow.Url, Model: 'fake:latest', Timeout: 1 } );
-		let timed = await settled( runs, runs.Start( { Llm: timing, Kind: 'session', Prompt: 'p' } ).Id );
+		let timed = await settled( runs, runs.Start( { Llm: timing, Writes: 'files', Prompt: 'p' } ).Id );
 		ASSERT.equal( timed.Status, 'failed' );
 		ASSERT.equal( timed.Error, 'Ollama took longer than 1 seconds' );
 	}

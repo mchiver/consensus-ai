@@ -719,6 +719,8 @@ body
 .settings-form
 {
 	width: min( 56rem, calc( 100vw - 2rem ) );
+	max-height: 84vh;
+	overflow-y: auto;	/* the Tasks make it tall (plan LLM Tasks, Step 1) */
 }
 
 .settings-row
@@ -777,6 +779,37 @@ body
 {
 	flex: 0 1 10rem;
 	color: var(--muted);
+}
+
+/* The Tasks of the Settings popup (plan LLM Tasks, Step 1): a bordered row per task. */
+.settings-task
+{
+	border: 1px solid var(--border);
+	border-radius: 0.3rem;
+	padding: 0.2rem 0.5rem;
+	margin: 0.3rem 0;
+}
+
+.settings-row .settings-task-writes
+{
+	flex: 0 0 8rem;
+	width: auto;
+}
+
+.settings-task-package
+{
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3rem 0.9rem;
+	margin: 0.2rem 0;
+}
+
+.project-tasks
+{
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3rem 0.9rem;
+	padding-top: 0.3rem;
 }
 
 /* --------------------------------------------------------------------- the desktop's items (Step 3) */

@@ -3,12 +3,12 @@
 // Llm - the LLM connections and the runs of the server (plan Run Shapes, Step 3; the desktop's items before, plan
 // Consensus Desktop, Step 3): the connections from /api/llms, each a participant of the server, listed once under
 // the projects in the sidebar; the LLM page (a head with Details… and Packaging… popups for the owner, the Run
-// with its project and plan pickers and the Review, Build and Session buttons, and the log of runs, a run opened
-// in a popup; plan UI Tweaks IV), over /api/runs. The same in a browser and in the desktop: the server runs the LLM,
+// with its project and plan pickers and one button per task the project enables (plan LLM Tasks, Step 1: the
+// server's tasks from /api/tasks), and the log of runs, a run opened in a popup; plan UI Tweaks IV), over /api/runs. The same in a browser and in the desktop: the server runs the LLM,
 // in the project's folder on its own machine.
 //
-//   Llms      { For( root ) -> { Loaded, Available, Llms, Running, Kinds, DefaultPrompts, Reload() }, LlmById( id ),
-//               RunChanged( root, event ); and the current root's Loaded, Available, Llms, Running, Kinds, DefaultPrompts }
+//   Llms      { For( root ) -> { Loaded, Available, Llms, Tasks, Running, Kinds, DefaultPrompts, Reload() }, LlmById( id ),
+//               RunChanged( root, event ); and the current root's Loaded, Available, Llms, Tasks, Running, Kinds, DefaultPrompts }
 //   route     #/llm/<llm id>, under #/s/<root> for a named root (plan Run Shapes, Step 5)
 
 angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State', 'Roots', function ( $rootScope, Client, State, Roots )
@@ -23,6 +23,7 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State'
 			Loaded: false,
 			Available: false,		// whether the server runs LLMs at all
 			Llms: [],
+			Tasks: [],				// the server's tasks, in the buttons' order
 			Running: {},			// llm id -> the running run's summary
 			Kinds: [],
 			DefaultPrompts: {},
@@ -46,6 +47,14 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State'
 			items.Kinds = answer.Kinds || [];
 			items.DefaultPrompts = answer.DefaultPrompts || {};
 			items.Available = !!answer.Runs;
+			try
+			{
+				items.Tasks = ( await Client.Get( root, '/api/tasks' ) ).Tasks || [];
+			}
+			catch ( error )
+			{
+				items.Tasks = [];
+			}
 			items.Running = {};
 			for ( let llm of items.Llms )
 			{
@@ -121,6 +130,7 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State'
 	Object.defineProperty( llms, 'Loaded', { get: of_current( 'Loaded' ) } );
 	Object.defineProperty( llms, 'Available', { get: of_current( 'Available' ) } );
 	Object.defineProperty( llms, 'Llms', { get: of_current( 'Llms' ) } );
+	Object.defineProperty( llms, 'Tasks', { get: of_current( 'Tasks' ) } );
 	Object.defineProperty( llms, 'Running', { get: of_current( 'Running' ) } );
 	Object.defineProperty( llms, 'Kinds', { get: of_current( 'Kinds' ) } );
 	Object.defineProperty( llms, 'DefaultPrompts', { get: of_current( 'DefaultPrompts' ) } );

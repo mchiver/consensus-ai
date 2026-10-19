@@ -1,7 +1,8 @@
 'use strict';
 
 // Project settings - a project's own States, Include, Exclude and Commands in a popup (plan Run Shapes, Step 2), one
-// per line each, saved through PUT /api/projects/:pid; the server's problems are shown and nothing is saved while
+// per line each, and the tasks it enables (plan LLM Tasks, Step 1: the server's tasks with a checkbox each; all
+// checked, the project keeps no list, so a task added later is on), saved through PUT /api/projects/:pid; the server's problems are shown and nothing is saved while
 // there are any. Opened from the project's menu (sidebar.js) with the 'project-settings' event.
 
 angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
@@ -18,14 +19,26 @@ angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
 } ] )
 
 
-.controller( 'ProjectSettingsController', [ '$scope', 'State', 'Client', 'ProjectSettings', 'Roots', function ( $scope, State, Client, ProjectSettings, Roots )
+.controller( 'ProjectSettingsController', [ '$scope', 'State', 'Client', 'ProjectSettings', 'Roots', 'Llms', function ( $scope, State, Client, ProjectSettings, Roots, Llms )
 {
 	$scope.Panel = ProjectSettings;
+
+
+	// The server's tasks, each with whether the project enables it (no list: all).
+	function tasks_form( project )
+	{
+		let root = Roots.Of( project.Root ) || State.Root;
+		return ( Llms.For( root ).Tasks || [] ).map( function ( task )
+		{
+			return { Id: task.Id, Name: task.Name, Writes: task.Writes, Enabled: !Array.isArray( project.Tasks ) || project.Tasks.includes( task.Id ) };
+		} );
+	}
 
 
 	function to_form( project )
 	{
 		return {
+			Tasks: tasks_form( project ),
 			StatesText: ( project.States || [] ).join( '\n' ),
 			IncludeText: ( project.Include || [] ).join( '\n' ),
 			ExcludeText: ( project.Exclude || [] ).join( '\n' ),
@@ -78,7 +91,8 @@ angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
 		ProjectSettings.Problems = [];
 		ProjectSettings.Saved = false;
 		let form = ProjectSettings.Form;
-		let body = { States: lines_of( form.StatesText ), Include: lines_of( form.IncludeText ), Exclude: lines_of( form.ExcludeText ), Commands: lines_of( form.CommandsText ) };
+		let enabled = form.Tasks.filter( function ( task ) { return task.Enabled; } ).map( function ( task ) { return task.Id; } );
+		let body = { States: lines_of( form.StatesText ), Include: lines_of( form.IncludeText ), Exclude: lines_of( form.ExcludeText ), Commands: lines_of( form.CommandsText ), Tasks: ( enabled.length === form.Tasks.length ) ? null : enabled };
 		try
 		{
 			let root = Roots.Of( ProjectSettings.Project.Root ) || State.Root;

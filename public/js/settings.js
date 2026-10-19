@@ -3,8 +3,10 @@
 // Settings - the server's settings (consensus.json) in a popup, for the owner (plan Consensus Desktop, Step 1): the
 // Name, the Scope and Port (applied at the next start; plan Run Shapes, Step 1), the States one per line, the Owner
 // (its Name read-only, its Display; plan User Management, Step 2: the participants and their tokens are gone), and the Clerk section (plan User Management, Step 1: the keys of a Public
-// server's sign-in, empty for a trusted network; a line beside the Scope says what the two come to). Saved through
-// PUT /api/settings; the server's problems are shown and nothing is saved while there are any.
+// server's sign-in, empty for a trusted network; a line beside the Scope says what the two come to), and the Tasks
+// (plan LLM Tasks, Step 1: one row per task, its Name, Writes, the six Package switches and its Prompt; Add, Remove,
+// up and down, Reset for a shipped one; the levels, the switches and the defaults come from GET /api/tasks). Saved
+// through PUT /api/settings; the server's problems are shown and nothing is saved while there are any.
 
 angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 {
@@ -27,6 +29,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 	const CLERK_FIELDS = [ 'PublishableKey', 'SecretKey', 'WebhookSecret', 'AdminEmail' ];
 	$scope.Panel = SettingsPanel;
 	$scope.Scopes = SCOPES;
+	$scope.TaskItems = { Writes: [ 'none', 'consensus', 'files' ], Package: [ 'Instructions', 'Readme', 'Documents', 'Plan', 'Threads', 'Files' ], Defaults: [] };
 
 
 	// The Clerk section as the form holds it: the four fields as strings, empty for none.
@@ -52,7 +55,15 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 			StatesText: ( settings.States || [] ).join( '\n' ),
 			Owner: { Name: ( settings.Owner && settings.Owner.Name ) || 'user', Display: ( settings.Owner && settings.Owner.Display ) || '' },
 			Clerk: clerk_form( settings.Clerk ),
+			Tasks: ( settings.Tasks || [] ).map( task_form ),
 		};
+	}
+
+
+	// A task as the form holds it: a copy, its Package a copy too.
+	function task_form( task )
+	{
+		return { Id: task.Id || '', Name: task.Name || '', Writes: task.Writes || 'consensus', Package: Object.assign( {}, task.Package || {} ), Prompt: task.Prompt || '' };
 	}
 
 
@@ -65,8 +76,64 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 			States: String( form.StatesText || '' ).split( /\r?\n/ ).map( function ( line ) { return line.trim(); } ).filter( function ( line ) { return line; } ),
 			Owner: { Name: form.Owner.Name, Display: form.Owner.Display },
 			Clerk: form.Clerk,
+			Tasks: ( form.Tasks || [] ).map( task_form ),
 		};
 	}
+
+
+	//-----------------------------------------------------------------
+	// The Tasks: added at the end (the server gives the id), removed, moved, a shipped one's prompt reset.
+
+	$scope.AddTask = function ()
+	{
+		let package_ = {};
+		for ( let item of $scope.TaskItems.Package )
+		{
+			package_[ item ] = true;
+		}
+		SettingsPanel.Form.Tasks.push( { Id: '', Name: '', Writes: 'consensus', Package: package_, Prompt: '' } );
+	};
+
+
+	$scope.RemoveTask = function ( index )
+	{
+		SettingsPanel.Form.Tasks.splice( index, 1 );
+	};
+
+
+	$scope.MoveTask = function ( index, by )
+	{
+		let tasks = SettingsPanel.Form.Tasks;
+		let to = index + by;
+		if ( to < 0 || to >= tasks.length )
+		{
+			return;
+		}
+		let moved = tasks.splice( index, 1 )[ 0 ];
+		tasks.splice( to, 0, moved );
+	};
+
+
+	function default_of( task )
+	{
+		return $scope.TaskItems.Defaults.find( function ( one ) { return one.Id === task.Id; } ) || null;
+	}
+
+
+	$scope.HasDefault = function ( task )
+	{
+		return !!default_of( task );
+	};
+
+
+	$scope.ResetTask = function ( task )
+	{
+		let shipped = default_of( task );
+		if ( shipped )
+		{
+			task.Prompt = shipped.Prompt;
+		}
+	};
 
 
 	// What the form's Scope and Clerk keys come to (plan User Management, Step 1), said beneath the Scope.
@@ -118,6 +185,15 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		}
 		SettingsPanel.Path = answer.Path;
 		SettingsPanel.Form = to_form( answer.Settings );
+		try
+		{
+			let tasks = await Client.Get( root, '/api/tasks' );
+			$scope.TaskItems = { Writes: tasks.Writes || $scope.TaskItems.Writes, Package: tasks.Package || $scope.TaskItems.Package, Defaults: tasks.Defaults || [] };
+		}
+		catch ( error )
+		{
+			// the popup keeps its own lists; Reset is not offered
+		}
 		$scope.$applyAsync();
 	}
 

@@ -306,19 +306,18 @@ in a tab of its own. The **LLM page** (plan UI Tweaks IV) has a head with **Deta
 Name; Kind `claude-cli`, a command run without a shell on the server's machine, or `ollama`; Command and
 Arguments, one per line, before `--model`; Model; Timeout; for `ollama` Context, the model's window in tokens,
 and Rounds, the most tool rounds a run takes; Check, which tries the form as entered and, for `ollama`, says
-whether the Model calls tools) and **Packaging…** (a popup, the owner's: the items that go into the one-shot
-prompt, in this order: the server's `/instructions` made for the connection's own participant and token, the
-project's Readme, the other Context documents listed by title and each checkable, the threads of the plan at
-hand waiting on the connection listed by anchor and each checkable; the unchecked ids are remembered per
-connection, so a new document or thread is in by default; then the Review, Build and Session Prompts with
-Reset; Preview packages the prompt as the form stands, with its character count and an estimated token count
-at four characters each, and Copy), then **Run** (the **project**, the sidebar's open one first, whose folder
+whether the Model calls tools) and **Packaging…** (a popup, the owner's: what the connection leaves out of a
+package, the other Context documents listed by title and each checkable, the threads of the plan at hand
+waiting on the connection listed by anchor and each checkable, the unchecked ids remembered per connection so
+a new document or thread is in by default; its Session Prompt, appended to every package of the connection;
+and Preview, one button per task, which packages the task as the form stands, with its character count and
+an estimated token count at four characters each, and Copy), then **Run** (the **project**, the sidebar's open one first, whose folder
 the run works in with the Include, Exclude and Commands of the project's Settings; the plan at hand in the
 page's own picker, in the tree's order with its folders and indentation and each plan's unresolved threads,
-defaulting to the plan last opened; **Review**, **Build** and **Session** each package their prompt and run it
-once, for every participant but an llm one, disabled only while a run is going or for what they lack, with the
-reason shown beside them; Stop while it runs) and the **log** (one record per run in the config folder's
-`runs/<id>.json`: when, which button, who asked, the project with its folder, the plan, the prompt, the output,
+defaulting to the plan last opened; one button per **task** the project enables (plan LLM Tasks, Step 1: Answer,
+Work and Session shipped, below), in the server's order, each packaging its task and running it once, disabled
+only while a run is going or for what it lacks, with the reason shown beside it; Stop while it runs) and the **log** (one record per run in the config folder's
+`runs/<id>.json`: when, which task, who asked, the project with its folder, the plan, the prompt, the output,
 the exit and the duration, and for a local model the rounds and the tokens; the page shows the connection's
 runs, newest first; a run opens in a popup, its output and prompt rendered as markdown or shown as source,
 each with its size and Copy; a run's start, progress and end go out over `/api/events` as `{ Kind: "run" }`,
@@ -333,7 +332,7 @@ tools of its own, so `Ollama.js` runs the tool loop over Ollama's chat endpoint,
 the connection's Context as `num_ctx`, and `Tools.js` carries out each call the model makes and sends the
 result back, until the model answers without a call, the Rounds run out (one last request without tools asks
 for the answer), the Timeout passes, or Stop aborts the request in flight. The tools: over the project's
-folder, `glob`, `grep` and `read` within its Include and Exclude, and for Build and Session `write`, `edit`
+folder, `glob`, `grep` and `read` within its Include and Exclude, and when the task writes files `write`, `edit`
 (one occurrence, or refused) and `run`, which executes one of the project's **Commands** (one per line in its
 Settings, none by default; a command exactly or with arguments after it; nothing that chains, pipes,
 redirects or substitutes, on the list or in a call); over the server itself, as the connection's participant
@@ -346,13 +345,32 @@ its arguments, its whole result and how long it took, the answer) and its Output
 from them (a heading per round, each call in bold with its result fenced and clipped at 2,000 characters, the
 answer under its own heading), both growing with every call; every page hears each call, so the run popup
 follows a run as it goes. The popup shows the transcript as blocks per round, each call a row that unfolds to
-its whole result, and the answer rendered; Source shows the markdown. A Review gets the read-only file tools,
-a Build and a Session every tool the project allows; without a folder, the Consensus tools only.
+its whole result, and the answer rendered; Source shows the markdown. The tools follow the task's Writes: none
+gets the read tools only (no reply, apply, thread or set_state), consensus the read-only file tools and the
+Consensus writers, files every tool the project allows; without a folder, the Consensus tools only.
 
 At the first start after Step 3 a `desktop.json` from before hands its LLM connections to the server (its
 `Llms`, when it had none), and its workspaces to the server's migration (`Server.MigrateWorkspaces`): a
 workspace on a project's folder gives that project its Include, Exclude and Commands when it has none of its
 own, the others are dropped with a line, and the `Workspaces` list is gone from the settings.
+
+**LLM tasks** (plan LLM Tasks, Step 1) are what the buttons ask: a task is a record of the settings (`Tasks`),
+edited in the Settings popup, one row per task in the buttons' order (Add, Remove, up and down): a **Name**
+(what the button says and the run record carries), a **Package** of six switches (the server's instructions,
+the project's Readme, the other Context documents, the plan at hand, the threads waiting on the connection,
+and the project's folder as the run's working folder), a **Writes** level (**none**, **consensus** or
+**files**, each including the ones before) and a **Prompt** (the task's instructions, under "Your task:
+<name>" in the package; empty, the connection's Session Prompt is the task). Consensus ships **Answer** (every
+item, writes consensus: the Review of before), **Work** (no threads, writes files: the Build of before) and
+**Session** (the instructions, the Readme and the documents, writes files; its prompt is the connection's).
+Writes is the permission: the run token carries it, so a none run is refused every writing route (403, "this
+run reads only") and a local model gets the read tools only; a task that packages the plan or the threads
+needs a plan picked, one that writes or packages files the project's folder on the server's machine. Tasks
+are defined per server and enabled per project: a project's Settings lists them with a checkbox each (`Tasks`
+in project.json, the enabled ids; absent means all, so a task added later is on everywhere). At the first
+start after the step a file from before gets the shipped set, a connection's own Review and Build prompts
+become Answer's and Work's (the first that differs from the old default wins) and the connections' Checks are
+dropped; a run record from before keeps its Kind and shows it as the name.
 
 The page's **theme** is a palette: System, Light, Sepia, Paper, Solarized Light, Dark, Slate, Solarized Dark,
 Nord or Midnight (`data-theme` on the page; `data-bs-theme` light or dark for Bootstrap), and the editor takes
@@ -378,7 +396,7 @@ and the runs; `test/Tools.test.js` the tools and the Ollama loop; `test/Api.test
 	PUT    /api/settings                             owner; { Settings }  the server's fields, checked, the rest kept; Restart says when Scope or Port changed
 	GET    /api/projects                             every project with its tree, each item with title, state, tally; its Archive, States, Path; Context and ContextFolder
 	POST   /api/projects                             { Name, Path? }  Path: the project's folder; one that holds a project already is opened (200, Opened)
-	PUT    /api/projects/:pid                        { Name?, States?, Include?, Exclude?, Commands?, Version? }  lists, or lines; a state in use stays
+	PUT    /api/projects/:pid                        { Name?, States?, Include?, Exclude?, Commands?, Version? }  lists, or lines; a state in use stays; Tasks: the enabled task ids, null for all
 	DELETE /api/projects/:pid                        an empty project (only its Context folder and document, nothing archived); never the last one
 	POST   /api/projects/:pid/folders                { Name, Parent?, Version? }  not inside the Context folder
 	PUT    /api/projects/:pid/folders/:fid           { Name, Version? }  not the Context folder
@@ -411,15 +429,16 @@ and the runs; `test/Tools.test.js` the tools and the Ollama loop; `test/Api.test
 	GET    /api/trash                                what is there
 	DELETE /api/trash                                owner; empties it for good, { Emptied: n }; the pages hear { Kind: "trash" }
 	GET    /api/waiting                              everything waiting on the caller, in every project
-	GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Participant, Running; the owner sees the whole records
+	GET    /api/tasks[?Project=]                     the tasks, in the buttons' order, or those a project enables; the Writes levels, the Package switches and the shipped Defaults
+	GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Speaker, Running, the whole records
 	POST   /api/llms                                 owner; a connection from its fields, with a new id and token
 	POST   /api/llms/check                           owner; the connection as typed, tried: { Ok, Result | Error }
 	PUT    /api/llms/:id                             owner; the fields given over the record
 	POST   /api/llms/:id/check                       owner; tried as saved, the body's fields over it
 	DELETE /api/llms/:id                             owner; not while it runs; its participant goes with it
 	GET    /api/runs/lists?Project=&Plan=&Llm=       the other Context documents, the plan's threads waiting on the connection
-	POST   /api/runs/package                         { Llm, Kind, Project, Plan?, Overrides? }  the prompt a run would get
-	POST   /api/runs                                 { Llm, Kind, Project, Plan? }  a run started; not by an llm participant; one per connection at a time
+	POST   /api/runs/package                         { Llm, Task, Project, Plan?, Overrides? }  the prompt a run would get; Task the task's id
+	POST   /api/runs                                 { Llm, Task, Project, Plan? }  a run started as the presser through the connection, on a token named after the task that carries its Writes; one per connection at a time
 	GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
 	GET    /api/runs/:id                             the whole record, the output as it stands
 	POST   /api/runs/:id/stop                        a running one stopped

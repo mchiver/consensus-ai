@@ -22,6 +22,10 @@ The sign-in of a Public server (plan Clerk, not active yet): the publishable key
 
 The owner is the one account of a local or trusted-network server: every request is the owner (plan User Management; roles and sign-in for a team come with Clerk). Its **name** is what threads and revisions record, kept as it is so the records of before still match; **Shown as** is how the page shows it, and anything done through a service or an LLM connection carries a byline, `<service> by <shown as>`, such as `Claude-CLI by User`. There are no participants and no tokens to manage: an agent session names itself with a header, and a run gets a token the server makes and forgets.
 
+## Tasks
+
+What the LLM page's buttons ask (plan LLM Tasks): one row per task, in the order of the buttons (Add, Remove, up and down). A task has a **Name** (what the button says and the run record carries), a **Package** of six switches (what the run's prompt holds: the server's instructions, the project's Readme, the other Context documents, the plan at hand, the threads waiting on the connection, and the project's folder as the run's working folder), a **Writes** level (**none**: the run reads only and the server refuses every write; **consensus**: replies, applies, threads and states, no files; **files**: the project's files and its commands too) and a **Prompt** (the task's instructions; empty, the connection's Session Prompt is the task; Reset gives a shipped task its prompt back). Consensus ships Answer, Work and Session. A project enables the tasks it uses in its own Settings, all by default; see [Working with an LLM](llm.html).
+
 Saving writes these fields and applies them at once, Scope and Port excepted. The server's own checks apply, and nothing is saved while there are problems; the popup lists them.
 
 ## The settings file
@@ -38,7 +42,7 @@ The settings are `consensus.json` in the config folder, written at first start:
 }
 ```
 
-An optional `Clerk` section holds the four fields above. The server's LLM connections are in the same file (`Llms`, kept through the page's LLM list; see [Working with an LLM](llm.html)), and so are the desktop's own fields (`Servers`, `Theme`, `Scale`, `Remembered`); the popup touches neither. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before is brought up to date at the next start: a `Host` becomes a Scope (a local address Local, any other Public), a missing Name becomes the machine's, a `Participants` list becomes the Owner (its other entries dropped) and the connections lose their tokens.
+An optional `Clerk` section holds the four fields above, and `Tasks` the list of the section above, each `{ Id, Name, Package, Writes, Prompt }`. The server's LLM connections are in the same file (`Llms`, kept through the page's LLM list; see [Working with an LLM](llm.html)), and so are the desktop's own fields (`Servers`, `Theme`, `Scale`, `Remembered`); the popup touches neither. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before is brought up to date at the next start: a `Host` becomes a Scope (a local address Local, any other Public), a missing Name becomes the machine's, a `Participants` list becomes the Owner (its other entries dropped), the connections lose their tokens, and the Tasks list is made, a connection's own Review and Build prompts becoming the Answer and Work tasks' and its Checks dropped.
 
 ## Theme and size
 

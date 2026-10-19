@@ -137,5 +137,67 @@
 				"Text": "I renamed this from Usage Scenarios to LLM Tasks"
 			}
 		]
+	},
+	{
+		"Id": "thr-t55-9d5-n8a",
+		"Anchor": {
+			"Text": "the migration of the prompts; Answer and Work in place of Review and Build, behaving as today",
+			"Prefix": "he permission and the tool set, ",
+			"Suffix": ". Enhance, with its package and "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T07:46:23.927Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-19T07:50:38.954Z",
+			"Revision": 20,
+			"RevisionId": "rev-9w6-qgo-pbn",
+			"Outcome": "All eight points taken as recommended: the record and its six Package switches, the Tasks section of the Settings popup, Answer, Work and Session as the set of Step 1, Task in place of Kind on the API with GET /api/tasks, Writes enforced by the run token, the migration of the prompts and the dropping of Checks, per-project enabling in Step 1, one button per enabled task. Written into Step 1 as \"Decided before the build\"."
+		},
+		"Created": "2026-10-19T07:37:07.579Z",
+		"Replies": [
+			{
+				"Id": "rep-m1f-np4-4hw",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-19T07:37:07.579Z",
+				"Text": "Design turn for Step 1, before building. The code was read: today a run's Kind (review, build, session) is hard-wired through the page's three buttons, POST /api/runs, Runner.Package, Package.Build (the Review and Build prompts live on each connection beside its Checks and its Session Prompt), Tools.js (build and session get the file-writing tools) and the run record. The decisions, each with a recommendation; resolve with no reply to take them all and I build.\n\n1. **The record.** `Tasks` in consensus.json, each `{ Id, Name, Package, Writes, Prompt }`: Name what the button says and the run record carries; Package six switches, Instructions, Readme, Documents, Plan (the plan at hand: its title, id and state), Threads (those waiting on the presser), Files (the project's folder as the run's working folder); Writes none, consensus or files; Prompt the task's instructions, under \"Your task: <Name>\" in the package. The text box a button may offer (Enhance) comes with Step 2 as a `Box` switch; Step 1 has none. Recommendation: yes.\n\n2. **Where tasks are edited.** A Tasks section in the server's Settings popup: one row per task with its Name, Writes, the six switches and its Prompt (Reset to the default for the shipped three), Add and Remove, the list's order being the buttons' order. The LLM page's Packaging popup keeps what is the connection's: the documents and threads it leaves out, its Session Prompt, and the preview, now of the task picked. Recommendation: yes; the connection says how the model runs, the task says what it is asked.\n\n3. **The default set of Step 1.** Answer, Work and Session, the three of today renamed and made records; Enhance and Explain are added by their own steps, so no button exists before the thing behind it. Recommendation: yes.\n\n4. **The API.** POST /api/runs and /api/runs/package take `Task` (the task's id) in place of `Kind`; the run record carries `Task: { Id, Name }` (old records keep their Kind and show it as the name); the run token is named \"<Name> run\". GET /api/tasks lists the server's tasks for the page. Recommendation: yes; the page is the only client and the docs follow.\n\n5. **Writes enforced now, by the task.** The run token carries the task's Writes level: none refuses every writing route at the API (403, \"this run reads only\") and gives a local model the read tools only; consensus allows the Consensus writes (reply, apply, thread, state) and the read-only file tools; files adds the file-writing tools and the project's commands. The role side of the rule waits for Step 3. Recommendation: yes; it is what makes a read-only task read-only whoever runs it.\n\n6. **Migration.** At the first start: the connections' Review and Build prompts become the Answer and Work tasks' prompts when they differ from the defaults (the first connection that differs wins, with a start-up line); the connections' Checks are dropped (the Package is the task's now); Unchecked and the Session Prompt stay on the connection. Recommendation: yes.\n\n7. **Enabled per project, in Step 1.** A project's settings popup lists the server's tasks with a checkbox each; project.json keeps `Tasks`, the enabled ids, absent meaning all, so a task added later is on everywhere. Recommendation: yes; it is the owner's \"defined per server and enabled per project\", and it is small.\n\n8. **The buttons.** One per enabled task on the LLM page, in the list's order, labelled by its Name, disabled with a reason as today: no plan picked when the Package needs one, no folder on this machine when Writes is files or Files is on. Recommendation: yes."
+			}
+		]
+	},
+	{
+		"Id": "thr-e5z-thr-p3g",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T14:17:27.071Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-19T14:18:00.868Z",
+			"Revision": 20,
+			"RevisionId": "rev-9w6-qgo-pbn",
+			"Outcome": "Accepted: LLM Tasks Step 1 built as logged, committed as \"LLM Tasks Step 1: Tasks as records\"; the plan goes back to Plan."
+		},
+		"Created": "2026-10-19T08:15:14.253Z",
+		"Replies": [
+			{
+				"Id": "rep-94y-c9g-6py",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-19T08:15:14.253Z",
+				"Text": "**Build log: LLM Tasks Step 1 (Tasks as records), built by Claude Fable 5.1 on 2026-10-19.** The eight points of the design thread, as decided. The plan stays Working until this log is accepted; nothing is committed.\n\n**Built**\n\n- `src/Tasks.js`, new: the record `{ Id, Name, Package, Writes, Prompt }` with the six Package switches (Instructions, Readme, Documents, Plan, Threads, Files) and the three Writes levels; `Fill`, the shipped set (`Defaults`, `DefaultOf`: Answer, every switch on, writes consensus; Work, no threads, writes files; Session, the instructions, the Readme and the documents, writes files, no prompt of its own), `Migrate` (a file with no `Tasks` gets the set, with a start-up line; a connection's own Review or Build prompt, the first that differs from the old default, becomes Answer's or Work's, with a line; the connections' Checks and Review and Build prompts are dropped, with a line), `Problems` (a Name once, an Id once, a known Writes, the six switches, the Prompt text), `Clean`, `ById`, `Enabled( Settings, Project )` and `IsEnabled` (project.json's `Tasks`, the enabled ids; absent means all), `WritesLine`. The shipped ids are `answer`, `work` and `session`; a task made in the popup gets a `tsk-` id (Ids.js).\n- `src/Participants.js`: `Tasks` is a settings field, cleaned and checked through Tasks.js; `Migrate` calls the tasks' migration; a run token carries `Writes`, and `Identify` hands it on as the account's `Writes` (null for any other request; `/api/me` shows it when set).\n- `src/Package.js`: built from the task, not from the connection's checks: the heading \"<Name>: a one-shot from Consensus\", the \"This run\" lines Task and Writes (the sentence of the level), the plan line and the folder line only when the task packages them, each section by its switch, the task's prompt under \"Your task: <Name>\", the connection's Session Prompt last (\"Further instructions\", or \"Your task\" when the task has no prompt of its own).\n- `src/Runner.js`: `Package( { Llm, Task, Project, Plan?, Overrides? } )` reads the task, refuses one the project does not enable, needs a plan when the task packages the plan or the threads and the project's folder when it writes or packages files, and answers `Task` and `Writes` beside the prompt; `Start` mints the token named \"<Name> run\" with the task's Writes. `src/Runs.js`: the record carries `Task: { Id, Name }` and `Writes` (a record from before keeps its `Kind`). `src/Tools.js`: `Tools( { Writes, Folder, Server } )`: write, edit and run only when Writes is files; reply, apply, thread and set_state only when it is not none; the tool instructions say \"This run reads only\" for a none run and give the build loop only to a files run. `src/Instructions.js`: a run's package gets a Writes line. `src/Llms.js`: a connection has no Checks and only the Session prompt.\n- `src/Api.js`: a request on a none run token is refused every method but GET (403, \"this run reads only\"); `GET /api/tasks[?Project=]` lists the tasks (a project's enabled ones with `Project`), the Writes levels, the Package switches and the shipped defaults; `PUT /api/projects/:pid` takes `Tasks` (the enabled ids, trimmed and once each; null drops the list, enabling all); `POST /api/runs` and `/api/runs/package` take `Task` in place of `Kind`.\n- The page: the Settings popup has a Tasks section (one bordered row per task: Name, Writes, up, down, Remove, the six switches, the Prompt with Reset for a shipped one; Add task at the end; the form scrolls now, since the rows make it tall); a project's Settings lists the server's tasks with a checkbox each (all checked, no list is kept); the LLM page shows one Run button per task the picked project enables, in the server's order, labelled by its Name and disabled with a reason as before (a plan is asked for when the task packages one), and says so when none is enabled; the Packaging popup keeps the documents and threads to leave out, the Session Prompt and a Preview button per task; the run rows and the run popup show the task's name, or the Kind of a record from before. The Llms factory reads `/api/tasks` beside `/api/llms`.\n- Docs: the README (the LLM page, the tools, a new LLM tasks paragraph, the routes), `docs/guide/llm.md` (the page runs a task; the shipped three; Writes as the permission), `settings.md` (a Tasks section, the file, the migration), `api.md`, `features.md`; built with `node bin/docs.js build`. `bin/docs.js` presses the Answer button for its pictures (not re-shot).\n\n**Checked**\n\n- `test/Tasks.test.js`, new: the record and the shipped set, the migration of a file from before (the prompts moved, the Checks dropped, a second start quiet), the problems, Clean and Validate through Participants.js, enabling per project. `test/Runs.test.js`: the package from the task's switches (Answer, a bare task, Work, Session, a none task, the preview). `test/Tools.test.js`: the tools by Writes, a none run's read-only set and instructions. `test/Api.test.js`: the runs test on the Answer task; a new test of `/api/tasks`, a task added and a bad list refused through the settings, enabling per project (the package refused for a task not enabled, null for all), an Explain task with Writes none packaged with no plan and no folder, a none token refused a thread and a state but served a read, a consensus token replying, a Work run's record and token. `test/Participants.test.js` and `test/GlobalIds.test.js` follow the new field and id kind. `test/Ui.test.js`: the three task rows in the Settings popup, the three checkboxes in a project's.\n- `node --test` without the UI test: 150 pass, 0 fail. The UI test alone: 36 pass. The Docs test alone: 2 pass. `node bin/smoke.js`: SMOKE OK.\n\n**Decided during the build**\n\n- The shipped tasks keep plain ids (`answer`, `work`, `session`), so a project's enabled list and Reset read the same on every server; tasks made in the popup get `tsk-` ids.\n- The LLM page asks for a plan only when the task packages the plan or the threads; the folder is the server's to check (its refusal shows beside the buttons), since the page cannot tell whether a path exists on the server's machine.\n- The project's settings send no list when every task is checked, so a task added later is on everywhere, as the design says; an explicit list is kept otherwise.\n- A run's record keeps the plan picked even when the task does not package it (Session), as before; the prompt names the plan only when the task packages it.\n- The settings form scrolls (84vh), which the Tasks rows made necessary: the Save button was below the viewport before.\n\nResolve to accept: I apply this log, commit as \"LLM Tasks Step 1: Tasks as records\", set the plan back to Plan, and update the Readme. Reply with what to fix instead."
+			}
+		]
 	}
 ]

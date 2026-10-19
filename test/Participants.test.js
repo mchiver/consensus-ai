@@ -8,6 +8,8 @@ const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
 const PARTICIPANTS = require( '../src/Participants.js' );
 
+const TASKS_LINE = 'Tasks set to the default set: Answer, Work, Session';	// plan LLM Tasks, Step 1: a file with no Tasks gets the shipped set
+
 
 TEST( 'default settings hold the owner, "user" shown as "User", and no participants list', function ()
 {
@@ -33,11 +35,11 @@ TEST( 'every request is the owner: no header is the owner plain, the service hea
 	let settings = PARTICIPANTS.DefaultSettings( 3500 );
 	let tokens = PARTICIPANTS.RunTokens();
 	let plain = PARTICIPANTS.Identify( settings, {}, tokens );
-	ASSERT.deepEqual( plain, { Name: 'user', Display: 'User', Role: 'owner', Service: null, Token: null, Speaker: 'user' } );
+	ASSERT.deepEqual( plain, { Name: 'user', Display: 'User', Role: 'owner', Service: null, Token: null, Writes: null, Speaker: 'user' } );
 	ASSERT.deepEqual( PARTICIPANTS.Identify( settings, { Authorization: '' }, tokens ).Speaker, 'user' );
 	ASSERT.deepEqual( PARTICIPANTS.Identify( settings, undefined, null ).Speaker, 'user' );
 	let agent = PARTICIPANTS.Identify( settings, { Service: ' Claude-CLI ' }, tokens );
-	ASSERT.deepEqual( agent, { Name: 'user', Display: 'User', Role: 'owner', Service: 'Claude-CLI', Token: null, Speaker: 'Claude-CLI by user' } );
+	ASSERT.deepEqual( agent, { Name: 'user', Display: 'User', Role: 'owner', Service: 'Claude-CLI', Token: null, Writes: null, Speaker: 'Claude-CLI by user' } );
 	// a bad service name is ignored
 	ASSERT.equal( PARTICIPANTS.Identify( settings, { Service: 'not a name' }, tokens ).Service, null );
 	ASSERT.equal( PARTICIPANTS.Identify( settings, { Service: 'x'.repeat( 41 ) }, tokens ).Service, null );
@@ -47,7 +49,7 @@ TEST( 'every request is the owner: no header is the owner plain, the service hea
 	let value = tokens.Mint( { Service: 'claude-cli', Name: 'Review run', Project: 'prj-1' } );
 	ASSERT.match( value, /^[0-9a-f]{48}$/ );
 	let run = PARTICIPANTS.Identify( settings, { Authorization: 'Bearer ' + value, Service: 'other' }, tokens );
-	ASSERT.deepEqual( run, { Name: 'user', Display: 'User', Role: 'owner', Service: 'claude-cli', Token: 'Review run', Speaker: 'claude-cli by user' } );
+	ASSERT.deepEqual( run, { Name: 'user', Display: 'User', Role: 'owner', Service: 'claude-cli', Token: 'Review run', Writes: null, Speaker: 'claude-cli by user' } );
 	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'bearer ' + value }, tokens ).Token, 'Review run' );
 	ASSERT.equal( tokens.Count(), 1 );
 	tokens.Drop( value );
@@ -139,23 +141,24 @@ TEST( 'States: the settings\' list, or the defaults; a bad list is named', funct
 TEST( 'a settings file from before: Host becomes Scope, a missing Scope is Local, a missing Name is the machine\'s, the participants become the Owner, the connections lose their tokens', function ()
 {
 	let local = { Host: '127.0.0.1', Port: 3500, Participants: [ { Name: 'user', Role: 'owner' } ] };
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( local ), [ 'Host "127.0.0.1" became Scope Local', 'Name set to ' + require( 'os' ).hostname(), 'Participants became Owner "user"' ] );
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( local ), [ 'Host "127.0.0.1" became Scope Local', 'Name set to ' + require( 'os' ).hostname(), 'Participants became Owner "user"', TASKS_LINE ] );
 	ASSERT.deepEqual( [ local.Scope, 'Host' in local, local.Name, local.Owner, 'Participants' in local ], [ 'Local', false, require( 'os' ).hostname(), { Name: 'user', Display: 'User' }, false ] );
 	let everywhere = { Host: '0.0.0.0', Name: 'cube4', Owner: { Name: 'user', Display: 'User' } };
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( everywhere ), [ 'Host "0.0.0.0" became Scope Public' ] );
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( everywhere ), [ 'Host "0.0.0.0" became Scope Public', TASKS_LINE ] );
 	ASSERT.equal( everywhere.Scope, 'Public' );
 	ASSERT.equal( PARTICIPANTS.Migrate( { Host: 'localhost', Name: 'x', Owner: { Name: 'u' } } )[ 0 ], 'Host "localhost" became Scope Local' );
 	let bare = { Name: 'x' };
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( bare ), [ 'Scope set to Local', 'Owner set to "user"' ] );
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( bare ), [ 'Scope set to Local', 'Owner set to "user"', TASKS_LINE ] );
 	ASSERT.deepEqual( bare.Owner, { Name: 'user', Display: 'User' } );
 	ASSERT.deepEqual( PARTICIPANTS.Migrate( bare ), [] );
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( { Name: 'x', Scope: 'Public', Owner: { Name: 'u' } } ), [] );
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( { Name: 'x', Scope: 'public', Owner: { Name: 'u' } } ), [ 'Scope set to Local' ] );
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( { Name: 'x', Scope: 'Public', Owner: { Name: 'u' } } ), [ TASKS_LINE ] );
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( { Name: 'x', Scope: 'public', Owner: { Name: 'u' } } ), [ 'Scope set to Local', TASKS_LINE ] );
 	// the full list of before: the owner's name and display kept, the llm and the members dropped, the tokens gone
 	let full = { Name: 'cube4', Scope: 'Local', Participants: [ { Name: 'andre', Display: 'Andre', Role: 'owner', Token: 'x' }, { Name: 'llm', Display: 'LLM', Role: 'llm', Token: 'the-llm-token-0123456789' }, { Name: 'ann', Role: 'member', Token: 'a-token-long-enough-0123' } ], Llms: [ { Id: 'llm-1', Name: 'claude-cli', Token: 'tok-0123456789abcdef' }, { Id: 'llm-2', Name: 'o' } ] };
 	ASSERT.deepEqual( PARTICIPANTS.Migrate( full ), [
 		'Participants became Owner "andre"; llm, ann dropped (an LLM is never a user; members come through Clerk)',
 		'the Token of the LLM connection claude-cli dropped: the server makes one per run',
+		TASKS_LINE,
 	] );
 	ASSERT.deepEqual( full.Owner, { Name: 'andre', Display: 'Andre' } );
 	ASSERT.equal( 'Participants' in full, false );
@@ -163,7 +166,7 @@ TEST( 'a settings file from before: Host becomes Scope, a missing Scope is Local
 	ASSERT.deepEqual( PARTICIPANTS.Migrate( full ), [] );
 	// an Owner already there is kept over the participants' owner
 	let both = { Name: 'x', Scope: 'Local', Owner: { Name: 'kept' }, Participants: [ { Name: 'user', Role: 'owner' } ] };
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( both ), [ 'Participants became Owner "kept"' ] );
+	ASSERT.deepEqual( PARTICIPANTS.Migrate( both ), [ 'Participants became Owner "kept"', TASKS_LINE ] );
 	ASSERT.deepEqual( [ PARTICIPANTS.HostOf( 'None' ), PARTICIPANTS.HostOf( 'Local' ), PARTICIPANTS.HostOf( 'Public' ), PARTICIPANTS.HostOf( 'x' ) ], [ null, '127.0.0.1', '0.0.0.0', '127.0.0.1' ] );
 	ASSERT.deepEqual( [ PARTICIPANTS.Scope( {} ), PARTICIPANTS.Scope( { Scope: 'None' } ), PARTICIPANTS.Scope( null ) ], [ 'Local', 'None', 'Local' ] );
 } );

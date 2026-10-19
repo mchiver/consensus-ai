@@ -35,9 +35,9 @@
 			</div>
 		</div>
 		<div class="thread-buttons">
-			<button class="btn btn-sm btn-primary" type="button" id="llm-review-run" ng-click="Run( 'review' )" ng-disabled="!CanRun( 'review' )" title="package the review prompt and run it once"><svg class="icon lead"><use href="#i-play"></use></svg>Review</button>
-			<button class="btn btn-sm btn-primary" type="button" id="llm-build-run" ng-click="Run( 'build' )" ng-disabled="!CanRun( 'build' )" title="package the build prompt and run it once in the project's folder"><svg class="icon lead"><use href="#i-play"></use></svg>Build</button>
-			<button class="btn btn-sm btn-primary" type="button" id="llm-session-run" ng-click="Run( 'session' )" ng-disabled="!CanRun( 'session' )" title="package the checked items and the session prompt and run it once"><svg class="icon lead"><use href="#i-play"></use></svg>Session</button>
+			<!-- One button per task the project enables (plan LLM Tasks, Step 1), in the server's order. -->
+			<button class="btn btn-sm btn-primary llm-task-run" type="button" id="llm-run-{{ task.Id }}" ng-repeat="task in Tasks() track by task.Id" ng-click="Run( task )" ng-disabled="!CanRun( task )" title="{{ TaskTitle( task ) }}"><svg class="icon lead"><use href="#i-play"></use></svg>{{ task.Name }}</button>
+			<span class="muted small" id="llm-no-tasks" ng-show="Tasks().length === 0">no task is enabled in this project</span>
 			<button class="btn btn-sm btn-outline-danger" type="button" id="llm-stop" ng-show="IsRunning()" ng-click="Stop()"><svg class="icon lead"><use href="#i-x"></use></svg>Stop</button>
 			<span class="muted small" id="llm-reasons" ng-show="Reasons()">{{ Reasons() }}</span>
 		</div>
@@ -47,7 +47,7 @@
 		<div class="muted small" ng-show="Runs.length === 0">No runs yet.</div>
 		<div class="run-row" ng-repeat="run in Runs track by run.Id" ng-class="[ run.Status, { selected: RunPopup && RunPopup.Run.Id === run.Id } ]" ng-click="OpenRun( run )" title="open its output and prompt">
 			<span class="run-status">{{ run.Status }}</span>
-			<span class="run-kind">{{ run.Kind }}</span>
+			<span class="run-kind">{{ run.Task ? run.Task.Name : run.Kind }}</span>
 			<span class="run-plan">{{ run.Plan ? run.Plan.Title : '(no plan)' }}</span>
 			<span class="run-workspace muted">{{ run.Project ? run.Project.Name : '' }}{{ run.By ? ' · ' + ( run | byline ) : '' }}</span>
 			<span class="run-when muted">{{ run.Started | stamp }}</span>
@@ -106,45 +106,31 @@
 	<!-- The Packaging popup -->
 	<div class="subplan-popup settings-popup packaging-popup" ng-show="Packaging">
 		<form class="subplan-form settings-form" ng-if="Packaging" ng-submit="SavePackaging()">
-			<div class="subplan-head">Packaging <span class="muted small">what the one-shot prompt holds, in this order</span></div>
+			<div class="subplan-head">Packaging <span class="muted small">what this connection leaves out of a package, and its own prompt; what a task packages is the task's (Settings)</span></div>
 			<div class="port-error" id="packaging-problems" ng-show="Packaging.Problems.length">
 				<ul class="mb-0"><li ng-repeat="problem in Packaging.Problems track by $index">{{ problem }}</li></ul>
 			</div>
-			<div class="check-row"><label title="the connected server's /instructions page: the guide, with the server's address and token first"><input type="checkbox" ng-model="Packaging.Form.Checks.Instructions" ng-change="Packaging.Preview = null"> Agent Instructions</label></div>
-			<div class="check-row"><label title="the project's Readme, whole"><input type="checkbox" ng-model="Packaging.Form.Checks.Readme" ng-change="Packaging.Preview = null"> Readme</label></div>
-			<div class="check-row"><label title="the other documents of the Context folder, each as a title and id"><input type="checkbox" ng-model="Packaging.Form.Checks.Documents" ng-change="Packaging.Preview = null"> Other Context documents</label> <span class="muted small" ng-show="Packaging.Lists.Documents.length === 0">(none in {{ Project.Name }})</span></div>
-			<div class="check-list" ng-show="Packaging.Form.Checks.Documents">
+			<div class="check-row"><label title="the other documents of the Context folder, each as a title and id, when the task packages them">Other Context documents</label> <span class="muted small" ng-show="Packaging.Lists.Documents.length === 0">(none in {{ Project.Name }})</span></div>
+			<div class="check-list">
 				<div class="check-row sub" ng-repeat="document in Packaging.Lists.Documents track by document.Id"><label title="{{ document.Id }}"><input type="checkbox" ng-checked="IsChecked( 'Documents', document.Id )" ng-click="ToggleChecked( 'Documents', document.Id )"> {{ document.Title }}</label></div>
 			</div>
-			<div class="check-row"><label title="the threads of the plan at hand waiting on the connection, each whole"><input type="checkbox" ng-model="Packaging.Form.Checks.Threads" ng-change="Packaging.Preview = null"> Threads waiting on {{ Packaging.Lists.Speaker || 'the connection' }}</label> <span class="muted small" ng-show="!Pick.Plan">(no plan picked)</span><span class="muted small" ng-show="Pick.Plan && Packaging.Lists.Threads.length === 0">(none on {{ PickedPlan().Title }})</span></div>
-			<div class="check-list" ng-show="Packaging.Form.Checks.Threads">
+			<div class="check-row"><label title="the threads of the plan at hand waiting on the connection, each whole, when the task packages them">Threads waiting on {{ Packaging.Lists.Speaker || 'the connection' }}</label> <span class="muted small" ng-show="!Pick.Plan">(no plan picked)</span><span class="muted small" ng-show="Pick.Plan && Packaging.Lists.Threads.length === 0">(none on {{ PickedPlan().Title }})</span></div>
+			<div class="check-list">
 				<div class="check-row sub" ng-repeat="thread in Packaging.Lists.Threads track by thread.Id"><label title="{{ thread.Id }}"><input type="checkbox" ng-checked="IsChecked( 'Threads', thread.Id )" ng-click="ToggleChecked( 'Threads', thread.Id )"> <span class="thread-anchor-words">{{ thread.Anchor ? '“' + thread.Anchor + '”' : 'the whole document' }}</span> <span class="muted">{{ thread.Last }}</span></label></div>
 			</div>
 			<div class="settings-row top">
-				<label for="llm-review">Review Prompt</label>
-				<textarea class="form-control form-control-sm" id="llm-review" rows="4" ng-model="Packaging.Form.Prompts.Review" ng-change="Packaging.Preview = null" title="the task of the Review button: take the llm's turn on the plan at hand"></textarea>
-				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ResetPrompt( 'Review' )" title="the default">Reset</button>
-			</div>
-			<div class="settings-row top">
-				<label for="llm-build">Build Prompt</label>
-				<textarea class="form-control form-control-sm" id="llm-build" rows="4" ng-model="Packaging.Form.Prompts.Build" ng-change="Packaging.Preview = null" title="the task of the Build button: build the plan at hand in the project's folder"></textarea>
-				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ResetPrompt( 'Build' )" title="the default">Reset</button>
-			</div>
-			<div class="settings-row top">
 				<label for="llm-session">Session Prompt</label>
-				<textarea class="form-control form-control-sm" id="llm-session" rows="3" ng-model="Packaging.Form.Prompts.Session" ng-change="Packaging.Preview = null" placeholder="appended at the end of every package, for further context or instructions; alone, the task of the Session button"></textarea>
+				<textarea class="form-control form-control-sm" id="llm-session" rows="3" ng-model="Packaging.Form.Prompts.Session" ng-change="Packaging.Preview = null" placeholder="appended at the end of every package of this connection, for further context or instructions; alone, the task of a button whose prompt is empty (Session)"></textarea>
 				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ResetPrompt( 'Session' )" title="empty">Reset</button>
 			</div>
 			<div class="thread-buttons">
 				<button class="btn btn-sm btn-primary" type="submit" id="packaging-save" ng-disabled="Packaging.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
 				<button class="btn btn-sm btn-outline-secondary" type="button" id="packaging-cancel" ng-click="ClosePackaging()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 				<span class="muted small">Preview:</span>
-				<button class="btn btn-sm btn-outline-secondary" type="button" id="preview-review" ng-click="Preview( 'review' )" ng-disabled="Packaging.Busy || !Pick.Plan" title="the review package for the project and plan picked in Run, as this form stands"><svg class="icon lead"><use href="#i-eye"></use></svg>Review</button>
-				<button class="btn btn-sm btn-outline-secondary" type="button" id="preview-build" ng-click="Preview( 'build' )" ng-disabled="Packaging.Busy || !Pick.Plan" title="the build package"><svg class="icon lead"><use href="#i-eye"></use></svg>Build</button>
-				<button class="btn btn-sm btn-outline-secondary" type="button" id="preview-session" ng-click="Preview( 'session' )" ng-disabled="Packaging.Busy" title="the session package"><svg class="icon lead"><use href="#i-eye"></use></svg>Session</button>
+				<button class="btn btn-sm btn-outline-secondary llm-task-preview" type="button" id="preview-{{ task.Id }}" ng-repeat="task in Tasks() track by task.Id" ng-click="Preview( task )" ng-disabled="Packaging.Busy || ( NeedsPlan( task ) && !Pick.Plan )" title="the {{ task.Name }} package for the project and plan picked in Run, as this form stands"><svg class="icon lead"><use href="#i-eye"></use></svg>{{ task.Name }}</button>
 			</div>
 			<div class="run-text" ng-if="Packaging.Preview">
-				<div class="run-text-head"><b>The {{ Packaging.Preview.Kind }} package</b> <span class="muted small" id="preview-size">{{ Packaging.Preview.Text | size }}</span>
+				<div class="run-text-head"><b>The {{ Packaging.Preview.Name }} package</b> <span class="muted small" id="preview-size">{{ Packaging.Preview.Text | size }}</span>
 					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Copy( Packaging.Preview.Text, Packaging )"><svg class="icon lead"><use href="#i-copy"></use></svg>{{ Packaging.Copied ? 'Copied' : 'Copy' }}</button>
 					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="Packaging.Preview = null"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
 				</div>
@@ -159,7 +145,7 @@
 			<div class="subplan-head">Run <span class="muted small">{{ RunPopup.Run.Id }}</span></div>
 			<div class="run-row static" ng-class="RunPopup.Run.Status">
 				<span class="run-status">{{ RunPopup.Run.Status }}</span>
-				<span class="run-kind">{{ RunPopup.Run.Kind }}</span>
+				<span class="run-kind">{{ RunPopup.Run.Task ? RunPopup.Run.Task.Name : RunPopup.Run.Kind }}</span>
 				<span class="run-plan">{{ RunPopup.Run.Plan ? RunPopup.Run.Plan.Title : '(no plan)' }}</span>
 				<span class="run-workspace muted">{{ RunPopup.Run.Project ? RunPopup.Run.Project.Name : '' }}{{ RunPopup.Run.By ? ' · ' + ( RunPopup.Run | byline ) : '' }}</span>
 				<span class="run-when muted">{{ RunPopup.Run.Started | stamp }}</span>

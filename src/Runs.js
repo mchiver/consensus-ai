@@ -12,11 +12,12 @@
 //
 //   Runs( { Folder, Spawn?, Tokens? } ) -> { Start( Request ), Stop( Id ), List( LlmId? ), Read( Id ), Running( LlmId ), OnChange( Handler ), Close() }
 //   Tokens: the server's RunTokens (Participants.js); a run's token (Request.Token, minted by the Runner) is dropped when it ends.
-//   Request = { Llm, Kind, By, Token: { Value, Name } | null, Project: { Id, Name, Path }, Plan: { Id, Title } | null,
+//   Request = { Llm, Task: { Id, Name }, Writes, By, Token: { Value, Name } | null, Project: { Id, Name, Path }, Plan: { Id, Title } | null,
 //               Folder: { Path, Include, Exclude, Commands } | null (the project's folder, the run's working folder),
 //               Prompt, Server?: { Url, Token, Project } (an ollama run's Consensus tools) }
-//   record  = { Id, Llm: { Id, Name }, Kind, By, Service, Token, Project, Plan, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
+//   record  = { Id, Llm: { Id, Name }, Task, Writes, By, Service, Token, Project, Plan, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
 //             By the presser's account, Service the connection's name, Token the run token's name: the three fields of the plan.
+//             Task the button's task (plan LLM Tasks, Step 1; a record from before has Kind instead), Writes its level.
 //   Status  = 'running' | 'done' | 'failed' | 'stopped'
 
 const FS = require( 'fs' );
@@ -118,7 +119,8 @@ function Runs( Options )
 		let record = {
 			Id: IDS.New( IDS.RUN ),
 			Llm: { Id: llm.Id, Name: llm.Name },
-			Kind: Request.Kind,
+			Task: Request.Task ? { Id: Request.Task.Id, Name: Request.Task.Name } : null,
+			Writes: Request.Writes || null,
 			By: Request.By || null,
 			Service: llm.Name,
 			Token: Request.Token ? Request.Token.Name : null,
@@ -229,7 +231,7 @@ function Runs( Options )
 	{
 		let abort = new AbortController();
 		let state = { Record: record, Child: null, Abort: abort, Timer: null, Stopped: false, Timed: false, Progress: null };
-		let tools = TOOLS.Tools( { Kind: Request.Kind, Folder: Request.Folder || null, Server: Request.Server || null } );
+		let tools = TOOLS.Tools( { Writes: Request.Writes, Folder: Request.Folder || null, Server: Request.Server || null } );
 		running[ llm.Id ] = state;
 		write( record );
 		changed( record );

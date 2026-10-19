@@ -717,7 +717,7 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 		// The demo project open, with its plan last opened, so the LLM page's pickers start on them.
 		await open_plan( page, Url, Demo.Plans[ 'Shopping list' ] );
 		await page.Evaluate( 'location.hash = "#/llm/' + DOC_LLM_ID + '"; true' );
-		await page.WaitFor( '!!document.getElementById( "llm-review-run" ) && !document.getElementById( "llm-review-run" ).disabled', 30000 );
+		await page.WaitFor( '!!document.getElementById( "llm-run-answer" ) && !document.getElementById( "llm-run-answer" ).disabled', 30000 );
 		await wait( 800 );
 		for ( let theme of THEMES )
 		{
@@ -728,7 +728,7 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 		await set_theme( page, 'light' );
 
 		// A review with the stand-in, then its popup.
-		await page.Evaluate( 'document.getElementById( "llm-review-run" ).click(); true' );
+		await page.Evaluate( 'document.getElementById( "llm-run-answer" ).click(); true' );
 		// A finished run opens its own popup (a second .run-row, static, inside it); the log's row is clicked if not.
 		await page.WaitFor( count_of( '.run-row.done' ) + ' >= 1', 120000 );
 		await wait( 500 );

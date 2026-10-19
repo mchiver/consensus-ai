@@ -21,6 +21,7 @@ const TREE = require( './Tree.js' );
 const PORT = require( './ProjectPort.js' );
 const IDS = require( './Ids.js' );
 const LLMS = require( './Llms.js' );
+const TASKS = require( './Tasks.js' );
 const LLM = require( './Llm.js' );
 const REPORT = require( './Report.js' );
 const VERSION = require( '../package.json' ).version;
@@ -49,7 +50,8 @@ function Attach( App, Context )
 	//-----------------------------------------------------------------
 	// Identity (plan User Management, Step 2): every request is the owner account, saying who it is with the
 	// X-Consensus-Service header, or a run on its run token; an unknown token is refused. request.Participant is the
-	// account: { Name, Display, Role, Service, Token, Speaker }, Speaker the key the rules run over.
+	// account: { Name, Display, Role, Service, Token, Writes, Speaker }, Speaker the key the rules run over. A run
+	// whose task writes nothing (plan LLM Tasks, Step 1: Writes none) is refused every request but a read.
 
 	function identify( request, response, next )
 	{
@@ -57,6 +59,10 @@ function Attach( App, Context )
 		if ( !participant )
 		{
 			return fail( response, 401, 'unknown token' );
+		}
+		if ( participant.Writes === 'none' && request.method !== 'GET' && request.method !== 'HEAD' )
+		{
+			return fail( response, 403, 'this run reads only' );
 		}
 		request.Participant = participant;
 		next();
@@ -260,7 +266,7 @@ function Attach( App, Context )
 
 	//-----------------------------------------------------------------
 	// Settings: consensus.json, read whole and written by the owner (the settings modal): the server's fields (Name,
-	// Port, Scope, States, Participants) replace what the file has, and any other field (the desktop's, plan Run Shapes)
+	// Port, Scope, States, Owner, Clerk, Tasks) replace what the file has, and any other field (the desktop's, plan Run Shapes)
 	// stays as it is. Everything applies at once but Scope and Port, which take effect at the next start; the answer
 	// says when a restart is needed.
 
@@ -809,13 +815,18 @@ function Attach( App, Context )
 				}
 			}
 			Object.assign( project, fields.Values );
+			if ( project.Tasks === null )
+			{
+				delete project.Tasks;
+			}
 		} );
 		send_result( response, result, 200, { Project: result.Project } );
 	} );
 
 
 	// The project's lists as a body gives them: States (one or more names, none twice), Include, Exclude and Commands
-	// (any lines). Returns { Values, Problems }.
+	// (any lines), and Tasks (plan LLM Tasks, Step 1: the enabled ids; null enables them all, the list dropped).
+	// Returns { Values, Problems }.
 	function project_fields( body )
 	{
 		let values = {};
@@ -837,6 +848,15 @@ function Attach( App, Context )
 				problems.push( 'States names a state twice' );
 			}
 			values[ field ] = lines;
+		}
+		if ( body.Tasks === null )
+		{
+			values.Tasks = null;
+		}
+		else if ( body.Tasks !== undefined )
+		{
+			let ids = ( Array.isArray( body.Tasks ) ? body.Tasks : [] ).map( function ( id ) { return String( id ).trim(); } );
+			values.Tasks = ids.filter( function ( id, index ) { return id && ids.indexOf( id ) === index; } );
 		}
 		return { Values: values, Problems: problems };
 	}
@@ -1807,6 +1827,19 @@ function Attach( App, Context )
 	}
 
 
+	// The tasks (plan LLM Tasks, Step 1): the server's list in the buttons' order, or those a project enables with
+	// ?Project=; the levels, the switches and the shipped defaults for the Settings popup.
+	router.get( '/tasks', async function ( request, response )
+	{
+		let project = request.query.Project ? await store.ReadProject( request.query.Project ) : null;
+		if ( request.query.Project && !project )
+		{
+			return fail( response, 404, 'no project with the id ' + request.query.Project );
+		}
+		response.json( { Tasks: project ? TASKS.Enabled( settings, project ) : ( settings.Tasks || [] ), Writes: TASKS.WRITES, Package: TASKS.PACKAGE_ITEMS, Defaults: TASKS.Defaults() } );
+	} );
+
+
 	router.get( '/llms', function ( request, response )
 	{
 		let llms = ( settings.Llms || [] ).map( function ( llm ) { return present_llm( llm, request ); } );
@@ -1918,7 +1951,7 @@ function Attach( App, Context )
 	} );
 
 
-	// The prompt a run would get: { Llm, Kind, Project, Plan?, Overrides? } (the popup's unsaved fields).
+	// The prompt a run would get: { Llm, Task, Project, Plan?, Overrides? } (the popup's unsaved fields of the connection).
 	router.post( '/runs/package', async function ( request, response )
 	{
 		if ( !may_run( request, response ) )
@@ -1934,7 +1967,7 @@ function Attach( App, Context )
 	} );
 
 
-	// A run started: { Llm, Kind, Project, Plan? }; its record, with Status running, comes back at once.
+	// A run started: { Llm, Task, Project, Plan? }; its record, with Status running, comes back at once.
 	router.post( '/runs', async function ( request, response )
 	{
 		if ( !may_run( request, response ) )

@@ -18,7 +18,7 @@ How you hand the page over depends on what runs the LLM:
 
   Say "with curl": an agent's web-fetch tool often refuses a local or private address, and curl does not. "Load your context" has it read the project's Readme, the tree of plans and what waits on it, and report back in a few lines. From then on, "your turn in Consensus" is the whole prompt. Give the address the agent can reach: `127.0.0.1` for a server on the same machine, the server's name on your network otherwise.
 
-- **A run from the page** (an LLM connection of the server): nothing to do. The packaged prompt starts with the same text, made for the run, with the token the server makes for it (the Packaging popup lists it, checked by default), so the model is briefed on every run.
+- **A run from the page** (an LLM connection of the server): nothing to do. The packaged prompt starts with the same text, made for the run, with the token the server makes for it (when the task packages the instructions, as the shipped ones do), so the model is briefed on every run.
 
 - **A local model through Ollama**: the server swaps the page for its own tool instructions, because the model works through the server's tools rather than the API, and the token never enters its prompt.
 
@@ -51,13 +51,15 @@ The server runs an LLM for you, once per click, in a project's folder on its own
 - An **LLM connection** is a model and how to run it: **Details** names it (letters, digits, dot, dash and colon; a name from before with other characters, such as "Claude CLI" from the desktop's old file, is brought up to date at the next start, the rest turned to dashes), picks the kind, `claude-cli` (a command run without a shell on the server's machine) or `ollama`, the command and its arguments, the model, a timeout, and for Ollama the context window and the most tool rounds a run takes. **Check** tries the connection as entered.
 - The **project's folder** is where a run works: the folder the project lives in, with the Include, Exclude and **Commands** of the project's own Settings (one command per line, none by default). A run on a project whose folder is not on the server's machine is refused: an LLM works on the projects of its own machine.
 
-![The LLM page: the connection, the project and plan pickers, Review, Build and Session, and the log of runs.](../images/desktop-llm.png)
+![The LLM page: the connection, the project and plan pickers, the task buttons, and the log of runs.](../images/desktop-llm.png)
 
-The **LLM page** packages a prompt from the server's instructions (with the run's token, made when the run starts; the preview says so), the project's Readme, the other Context documents you check, and the threads of the plan at hand that wait on the connection; **Packaging** picks the pieces and previews the result with its size. Then one of three buttons runs it once, on the project and plan picked:
+The **LLM page** runs a **task** once, on the project and plan picked. A task is a record of the server's Settings (one row each: a name, a Package of six switches saying what the prompt holds, a Writes level saying what the run may change, and a prompt), and a project enables the tasks it uses in its own Settings. The package is built from the task's switches: the server's instructions (with the run's token, made when the run starts; the preview says so), the project's Readme, the other Context documents, the plan at hand, the threads waiting on the connection, and the project's folder; **Packaging** on the connection leaves out the documents and threads you uncheck, holds the connection's Session Prompt, and previews any task's package with its size. The shipped three:
 
-- **Review** reads the folder and the plan, replies and applies. Read-only file tools.
-- **Build** implements the plan in the folder, with write, edit and the commands you allowed.
-- **Session** is a build with your own prompt.
+- **Answer** reads the plan, the threads waiting on it and the folder, replies and applies. Writes consensus: replies, applies, threads and states, no files.
+- **Work** carries out the plan in the folder, with write, edit and the commands you allowed. Writes files.
+- **Session** is a run with your own prompt, the connection's Session Prompt, over the Readme and the documents. Writes files.
+
+Writes is the permission: the run's token carries it, so a task with Writes none is refused every write by the server whatever the model tries, and a local model gets the read tools only. Make your own tasks in the Settings popup: a task is a few words of prompt and the switches, and it is not about software unless its prompt is.
 
 Every run is logged, newest first, with who asked for it, and opens in a popup with its prompt and its output rendered or as source. The records live in the config folder, under `runs/`.
 

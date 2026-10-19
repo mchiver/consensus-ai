@@ -1066,6 +1066,10 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-owner-name" ).readOnly' ), true );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-owner-display" ).value' ), 'User' );
 	ASSERT.equal( await page.Evaluate( count_of( '.settings-participant' ) ), 0 );
+	// plan LLM Tasks, Step 1: the three shipped tasks, one row each
+	await page.WaitFor( count_of( '.settings-task' ) + ' === 3' );
+	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".settings-task-name" ).value' ), 'Answer' );
+	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".settings-task-writes" ).selectedOptions[ 0 ].textContent.trim()' ), 'consensus' );
 	// an owner with no name: refused, the problem shown, nothing written
 	await page.Evaluate( '( function () { let box = document.getElementById( "settings-owner-name" ); box.removeAttribute( "readonly" ); box.value = ""; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
 	await page.Click( '#settings-save' );
@@ -1085,6 +1089,8 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	// States, edited in its Settings popup
 	await menu_pick( '.project[data-project="' + home + '"] .project-head', 'Settings' );
 	await page.WaitFor( '( document.getElementById( "project-states" ) || { value: "" } ).value.startsWith( "Draft" )' );
+	await page.WaitFor( count_of( '.project-task' ) + ' === 3' );
+	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".project-task input" ) ].every( function ( box ) { return box.checked; } )' ), true );
 	await page.Evaluate( '( function () { let box = document.getElementById( "project-states" ); box.value = box.value + "\\nShelved"; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
 	await page.Click( '#project-settings-save' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "project-settings-saved" ) ).display !== "none"' );

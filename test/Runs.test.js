@@ -14,6 +14,7 @@ const PATH = require( 'path' );
 const LLMS = require( '../src/Llms.js' );
 const PARTICIPANTS = require( '../src/Participants.js' );
 const PACKAGE = require( '../src/Package.js' );
+const TASKS = require( '../src/Tasks.js' );
 const LLM = require( '../src/Llm.js' );
 const RUNS = require( '../src/Runs.js' );
 const FILES = require( '../src/Files.js' );
@@ -44,17 +45,17 @@ TEST.after( function ()
 
 TEST( 'an LLM connection is filled in with an id and the defaults, no token, named by its kind when unnamed, and its problems are named', function ()
 {
-	let claude = LLMS.Fill( { Name: ' claude-cli ', Model: 'sonnet', Timeout: '120', Checks: { Readme: false }, Prompts: { Session: 'Be brief.' } } );
+	let claude = LLMS.Fill( { Name: ' claude-cli ', Model: 'sonnet', Timeout: '120', Checks: { Readme: false }, Prompts: { Review: 'old', Session: 'Be brief.' } } );
 	ASSERT.match( claude.Id, /^llm-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
 	ASSERT.equal( claude.Name, 'claude-cli' );
 	ASSERT.equal( claude.Kind, 'claude-cli' );
 	ASSERT.equal( claude.Command, 'claude' );
 	ASSERT.deepEqual( claude.Arguments, LLMS.DEFAULT_ARGUMENTS );
 	ASSERT.equal( claude.Timeout, 120 );
-	ASSERT.deepEqual( claude.Checks, { Instructions: true, Readme: false, Documents: true, Threads: true } );
+	ASSERT.equal( 'Checks' in claude, false );
 	ASSERT.deepEqual( claude.Unchecked, { Documents: [], Threads: [] } );
 	ASSERT.deepEqual( LLMS.Fill( { Name: 'u', Unchecked: { Documents: [ 'doc-1', ' ' ], Threads: 'thr-1\nthr-2' } } ).Unchecked, { Documents: [ 'doc-1' ], Threads: [ 'thr-1', 'thr-2' ] } );
-	ASSERT.equal( claude.Prompts.Review, PACKAGE.DEFAULT_PROMPTS.Review );
+	ASSERT.deepEqual( Object.keys( claude.Prompts ), [ 'Session' ] );
 	ASSERT.equal( claude.Prompts.Session, 'Be brief.' );
 	ASSERT.equal( 'Token' in claude, false );
 	let local = LLMS.Fill( { Id: 'llm-aaa-bbb-ccc', Kind: 'ollama', Model: 'llama3', Token: 'a-token-from-before' } );
@@ -131,11 +132,11 @@ TEST( 'every connection is a speaker of its server: listed after the owner, its 
 //---------------------------------------------------------------------
 // The package
 
-TEST( 'the package is one prompt from the checked items in order, the task of the button, and the session prompt last', function ()
+TEST( 'the package is one prompt from the items the task switches on, in order, the task\'s prompt, and the connection\'s session prompt last', function ()
 {
 	let llm = LLMS.Fill( { Name: 'claude-cli', Prompts: { Session: 'Answer in English.' } } );
 	let request = {
-		Kind: 'review',
+		Task: TASKS.DefaultOf( 'answer' ),
 		Llm: llm,
 		Server: { Url: 'http://cube4:3500/', Name: 'cube4' },
 		Project: { Id: 'prj-1', Name: 'Consensus' },
@@ -150,7 +151,7 @@ TEST( 'the package is one prompt from the checked items in order, the task of th
 		Threads: [ { Id: 'thr-1', Status: 'contested', Anchor: { Text: 'a passage' }, Replies: [ { By: 'user', At: '2026-10-01T05:00:00.000Z', Text: 'Why?' } ] } ],
 	};
 	let text = PACKAGE.Build( request );
-	let order = [ '# A review one-shot from Consensus', 'You act for User, the owner of the Consensus server below', 'run once by that server "cube4" through its LLM connection "claude-cli": what you post reads "claude-cli by User".', '## This run', '- Consensus API: http://cube4:3500/api', '- Your token, sent as "Authorization: Bearer <token>": the-token-of-claude-cli-0123', '- The plan at hand: Step 3 (pln-1), state Plan', '- The project\'s folder: W:/code/repo', '## Agent instructions', '# This server', '## Readme of Consensus (ctx-1)', 'The background.', '## Other documents of the Context folder', '- Notes (doc-1)', '## Threads of the plan waiting on claude-cli by User', '### Thread thr-1 (contested, on "a passage")', '**user**', 'Why?', '## Your task: review', 'Take the llm participant', '## Further instructions', 'Answer in English.' ];
+	let order = [ '# Answer: a one-shot from Consensus', 'You act for User, the owner of the Consensus server below', 'run once by that server "cube4" through its LLM connection "claude-cli": what you post reads "claude-cli by User".', '## This run', '- Task: Answer', '- Writes: consensus. You may change Consensus', '- Consensus API: http://cube4:3500/api', '- Your token, sent as "Authorization: Bearer <token>": the-token-of-claude-cli-0123', '- The plan at hand: Step 3 (pln-1), state Plan', '- The project\'s folder: W:/code/repo', '## Agent instructions', '# This server', '## Readme of Consensus (ctx-1)', 'The background.', '## Other documents of the Context folder', '- Notes (doc-1)', '## Threads of the plan waiting on claude-cli by User', '### Thread thr-1 (contested, on "a passage")', '**user**', 'Why?', '## Your task: Answer', 'Take your turn on the plan at hand', '## Further instructions', 'Answer in English.' ];
 	let at = -1;
 	for ( let piece of order )
 	{
@@ -158,28 +159,37 @@ TEST( 'the package is one prompt from the checked items in order, the task of th
 		ASSERT.notEqual( found, -1, 'missing or out of order: ' + piece );
 		at = found;
 	}
-	ASSERT.equal( text.includes( '## Your task: build' ), false );
+	ASSERT.equal( text.includes( '## Your task: Work' ), false );
 
-	// unchecked items are left out; a build carries the build prompt; a session only the session prompt; no plan, no threads
-	llm.Checks = { Instructions: false, Readme: false, Documents: false, Threads: false };
-	let build = PACKAGE.Build( Object.assign( {}, request, { Kind: 'build', Llm: llm } ) );
-	ASSERT.equal( build.includes( '## Agent instructions' ), false );
-	ASSERT.equal( build.includes( '## Readme' ), false );
-	ASSERT.equal( build.includes( '## Threads' ), false );
-	ASSERT.match( build, /## Your task: build\n\nBuild the plan at hand/ );
-	let session = PACKAGE.Build( Object.assign( {}, request, { Kind: 'session', Llm: llm, Plan: null, Folder: null, Token: null } ) );
-	ASSERT.match( session, /- No plan is selected\./ );
+	// a task with every switch off carries its own prompt only; Work writes files and packages no threads
+	let bare = TASKS.Fill( { Id: 'bare', Name: 'Bare', Package: { Instructions: false, Readme: false, Documents: false, Plan: false, Threads: false, Files: false }, Writes: 'files', Prompt: 'Do the thing.' } );
+	let built = PACKAGE.Build( Object.assign( {}, request, { Task: bare } ) );
+	ASSERT.equal( built.includes( '## Agent instructions' ), false );
+	ASSERT.equal( built.includes( '## Readme' ), false );
+	ASSERT.equal( built.includes( '## Threads' ), false );
+	ASSERT.equal( built.includes( 'The plan at hand' ), false );
+	ASSERT.match( built, /- Writes: files\. You may change Consensus and the project's files/ );
+	ASSERT.match( built, /- No folder: this run has no files to work in\./ );
+	ASSERT.match( built, /## Your task: Bare\n\nDo the thing\./ );
+	let work = PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'work' ) } ) );
+	ASSERT.match( work, /## Your task: Work\n\nBuild the plan at hand/ );
+	ASSERT.equal( work.includes( '## Threads' ), false );
+	// a session: no plan line, no threads, the session prompt as the task; no token for a local model
+	let session = PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'session' ), Plan: null, Folder: null, Token: null } ) );
+	ASSERT.equal( session.includes( 'No plan is selected' ), false );
 	ASSERT.match( session, /- No folder/ );
 	ASSERT.equal( session.includes( 'Your token' ), false );
+	ASSERT.equal( session.includes( 'Your task: Answer' ), false );
+	ASSERT.match( session, /## Your task\n\nAnswer in English\./ );
+	// an Answer with no plan says so; a none task says it reads only
+	ASSERT.match( PACKAGE.Build( Object.assign( {}, request, { Plan: null } ) ), /- No plan is selected\./ );
+	ASSERT.match( PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.Fill( { Id: 'ro', Name: 'Explain', Writes: 'none' } ) } ) ), /- Writes: none\. This run reads only/ );
 	// a preview (no token yet) says the server makes one when the run starts
 	ASSERT.match( PACKAGE.Build( Object.assign( {}, request, { Token: undefined } ) ), /Your token, sent as "Authorization: Bearer <token>": made by the server when the run starts/ );
-	ASSERT.equal( session.includes( 'Your task: review' ), false );
-	ASSERT.match( session, /## Your task\n\nAnswer in English\./ );
 	// a readme holding a fence is fenced with a longer one
 	let fenced = PACKAGE.Build( Object.assign( {}, request, { Llm: LLMS.Fill( { Name: 'x' } ), Readme: { Id: 'ctx-1', Title: 'Readme', Text: 'a\n```\nb\n```\n' } } ) );
 	ASSERT.match( fenced, /````\na\n```\nb\n```\n````/ );
 } );
-
 
 //---------------------------------------------------------------------
 // The check and the command line
@@ -225,15 +235,16 @@ TEST( 'a run keeps its record: the prompt on stdin, the output, the exit, the du
 	let heard = [];
 	runs.OnChange( function ( summary ) { heard.push( summary.Status ); } );
 	ASSERT.deepEqual( runs.List(), [] );
-	ASSERT.throws( function () { runs.Start( { Llm: echo, Kind: 'review', Prompt: 'x', Folder: { Path: PATH.join( folder, 'missing' ) } } ); }, /does not exist/ );
+	ASSERT.throws( function () { runs.Start( { Llm: echo, Task: { Id: 'answer', Name: 'Answer' }, Writes: 'consensus', Prompt: 'x', Folder: { Path: PATH.join( folder, 'missing' ) } } ); }, /does not exist/ );
 
-	let started = runs.Start( { Llm: echo, Kind: 'review', By: 'user', Project: { Id: 'prj-1', Name: 'Consensus', Path: folder }, Plan: { Id: 'pln-1', Title: 'Step 3' }, Folder: { Path: folder, Include: [], Exclude: [], Commands: [] }, Prompt: 'hello there' } );
+	let started = runs.Start( { Llm: echo, Task: { Id: 'answer', Name: 'Answer' }, Writes: 'consensus', By: 'user', Project: { Id: 'prj-1', Name: 'Consensus', Path: folder }, Plan: { Id: 'pln-1', Title: 'Step 3' }, Folder: { Path: folder, Include: [], Exclude: [], Commands: [] }, Prompt: 'hello there' } );
+	ASSERT.deepEqual( [ started.Task, started.Writes, 'Kind' in started ], [ { Id: 'answer', Name: 'Answer' }, 'consensus', false ] );
 	ASSERT.match( started.Id, /^run-/ );
 	ASSERT.equal( started.Status, 'running' );
 	ASSERT.equal( started.Prompt, undefined );
 	ASSERT.equal( started.By, 'user' );
 	ASSERT.deepEqual( runs.Running( echo.Id ), started );
-	ASSERT.throws( function () { runs.Start( { Llm: echo, Kind: 'review', Prompt: 'again' } ); }, /already running/ );
+	ASSERT.throws( function () { runs.Start( { Llm: echo, Task: { Id: 'answer', Name: 'Answer' }, Writes: 'consensus', Prompt: 'again' } ); }, /already running/ );
 	let record = await settled( runs, started.Id );
 	ASSERT.equal( record.Status, 'done' );
 	ASSERT.equal( record.Exit, 0 );
@@ -256,7 +267,7 @@ TEST( 'a run keeps its record: the prompt on stdin, the output, the exit, the du
 
 	// a failing command
 	let failing = LLMS.Fill( { Name: 'fail', Command: process.execPath, Arguments: [ '-e', 'process.stdout.write("partial");process.exit(3)' ] } );
-	let failed = await settled( runs, runs.Start( { Llm: failing, Kind: 'build', Prompt: '' } ).Id );
+	let failed = await settled( runs, runs.Start( { Llm: failing, Task: { Id: 'work', Name: 'Work' }, Writes: 'files', Prompt: '' } ).Id );
 	ASSERT.equal( failed.Status, 'failed' );
 	ASSERT.equal( failed.Exit, 3 );
 	ASSERT.match( failed.Error, /exited 3/ );
@@ -264,12 +275,12 @@ TEST( 'a run keeps its record: the prompt on stdin, the output, the exit, the du
 
 	// stopped, and timed out
 	let sleeper = LLMS.Fill( { Name: 'sleep', Command: process.execPath, Arguments: [ '-e', 'setTimeout(function(){},60000)' ], Timeout: 60 } );
-	let sleeping = runs.Start( { Llm: sleeper, Kind: 'session', Prompt: '' } );
+	let sleeping = runs.Start( { Llm: sleeper, Task: { Id: 'session', Name: 'Session' }, Writes: 'files', Prompt: '' } );
 	ASSERT.equal( runs.Stop( sleeping.Id ), true );
 	ASSERT.equal( runs.Stop( 'run-nothing' ), false );
 	ASSERT.equal( ( await settled( runs, sleeping.Id ) ).Status, 'stopped' );
 	let slow = LLMS.Fill( { Name: 'slow', Command: process.execPath, Arguments: [ '-e', 'setTimeout(function(){},60000)' ], Timeout: 1 } );
-	let timed = await settled( runs, runs.Start( { Llm: slow, Kind: 'session', Prompt: '' } ).Id );
+	let timed = await settled( runs, runs.Start( { Llm: slow, Task: { Id: 'session', Name: 'Session' }, Writes: 'files', Prompt: '' } ).Id );
 	ASSERT.equal( timed.Status, 'failed' );
 	ASSERT.match( timed.Error, /longer than 1 seconds/ );
 	ASSERT.equal( runs.List().length, 4 );

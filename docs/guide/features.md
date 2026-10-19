@@ -41,9 +41,9 @@
 - **Your turn in Consensus.** The working loop: the owner comments and resolves, the agent replies and applies, in the plan, not in a chat scroll.
 - **The build loop.** When every thread is applied, the agent builds exactly that plan and posts its build log as a thread, accepted the same way.
 - **LLM connections.** The server runs LLMs for you: Claude Code as a one-shot command, or a local model through Ollama, each posting as `<connection> by <owner>` on a token the server makes for the run.
-- **Review, Build and Session runs.** One button packages the project's Readme, its context documents and the plan's waiting threads into a prompt, runs it in the project's folder, and keeps the log.
-- **Tools for local models.** A local model gets file tools over the project's folder, held to its Include and Exclude lists, and Consensus tools for reading plans, replying and applying.
-- **Packaging you control.** Choose which documents and threads go into a run's prompt, edit the prompts, and preview the package with its token estimate before it runs.
+- **Tasks as buttons.** A task is a record you edit: what the prompt packages (the Readme, the documents, the plan, the waiting threads, the folder), what the run may write (nothing, Consensus, or files) and what it is asked. Answer, Work and Session are shipped; a project enables the ones it uses; one button each runs it and keeps the log.
+- **Tools for local models.** A local model gets file tools over the project's folder, held to its Include and Exclude lists, and Consensus tools for reading plans, replying and applying, each set held to the task's Writes.
+- **Packaging you control.** Choose which documents and threads a connection leaves out, give it a prompt of its own, and preview any task's package with its token estimate before it runs.
 - **Nothing committed on its own.** No run branches, commits or pushes; Git stays the owner's.
 
 ## Running it

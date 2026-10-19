@@ -2,21 +2,24 @@
 
 // Runner - a one-shot from a request (plan Run Shapes, Step 3): what the desktop's main process did over the
 // connected server's API, done in the server over its own store: the lists the packaging popup checks, the package
-// (Package.js) from the connection's checks, and the start of a run (Runs.js) in the project's folder, posting as the
-// presser through the connection (plan User Management, Step 2: the run token the server mints, Tokens, names the
-// connection as the Service, so the run's posts read "<connection> by <owner>"). A run reaches this server at its own
-// address (Url), so a run is always on this machine.
+// (Package.js) from the task's switches (plan LLM Tasks, Step 1: the task the button names, Tasks.js, says what the
+// one-shot is given, what it may write and what it is asked), and the start of a run (Runs.js) in the project's
+// folder, posting as the presser through the connection (plan User Management, Step 2: the run token the server
+// mints, Tokens, names the connection as the Service and carries the task's Writes, so the run's posts read
+// "<connection> by <owner>" and a none run is refused every write). A run reaches this server at its own address
+// (Url), so a run is always on this machine.
 //
 //   Runner( { Store, Settings, Runs, Url, Tokens } ) -> { Lists( Request ), Package( Request, Token? ), Start( Request, By ) }
 //   Url(): this server's address, what a run's tools and prompt reach it at; null when it does not listen.
 //   Lists( { Project, Plan?, Llm? } ) -> { Documents, Threads, Speaker } | { Error }
-//   Package( { Llm, Kind, Project, Plan?, Overrides? }, Token? ) -> { Prompt, Llm, Project, Plan, Folder, Speaker } | { Error }
-//     Token: the run's token value; none for a preview, whose prompt says a token is made at the start.
+//   Package( { Llm, Task, Project, Plan?, Overrides? }, Token? ) -> { Prompt, Llm, Task, Writes, Project, Plan, Folder, Speaker } | { Error }
+//     Task: the task's id; Token: the run's token value; none for a preview, whose prompt says a token is made at the start.
 //   Start( Request, By ) -> { Run } | { Error, Status }
 
 const FS = require( 'fs' );
 const PACKAGE = require( './Package.js' );
 const LLMS = require( './Llms.js' );
+const TASKS = require( './Tasks.js' );
 const TOOLS = require( './Tools.js' );
 const RULES = require( './Rules.js' );
 const PARTICIPANTS = require( './Participants.js' );
@@ -30,8 +33,6 @@ function Runner( Options )
 	let runs = Options.Runs;
 	let tokens = Options.Tokens || null;
 	let url_of = Options.Url || function () { return null; };
-
-	const TASK_NAMES = { review: 'Review run', build: 'Build run', session: 'Session run' };
 
 
 	function documents_of( project )
@@ -101,6 +102,13 @@ function Runner( Options )
 	}
 
 
+	// A task needs the project's folder when it writes files or packages them.
+	function needs_folder( task )
+	{
+		return task.Writes === 'files' || task.Package.Files;
+	}
+
+
 	//-----------------------------------------------------------------
 	// Lists: the other Context documents of the project, and the threads of the plan waiting on the connection.
 
@@ -132,7 +140,8 @@ function Runner( Options )
 
 
 	//-----------------------------------------------------------------
-	// Package: the prompt of a run, from the connection's checks; Overrides are the popup's unsaved fields.
+	// Package: the prompt of a run, from the task's switches; Overrides are the popup's unsaved fields of the
+	// connection (its Session Prompt and its unchecked ids).
 
 	async function Package( Request, Token )
 	{
@@ -146,9 +155,10 @@ function Runner( Options )
 		{
 			llm = LLMS.Fill( Object.assign( {}, llm, request.Overrides, { Id: llm.Id, Name: llm.Name } ) );
 		}
-		if ( !PACKAGE.KINDS.includes( request.Kind ) )
+		let task = TASKS.ById( settings, request.Task );
+		if ( !task )
 		{
-			return { Error: 'the Kind is one of ' + PACKAGE.KINDS.join( ', ' ) };
+			return { Error: request.Task ? 'no task with the id ' + request.Task : 'a Task is needed: one of ' + ( settings.Tasks || [] ).map( function ( one ) { return one.Id; } ).join( ', ' ) };
 		}
 		let url = url_of();
 		if ( !url )
@@ -160,15 +170,19 @@ function Runner( Options )
 		{
 			return { Error: 'no project with the id ' + request.Project };
 		}
-		let folder = folder_of( project );
-		if ( request.Kind === 'build' && !folder )
+		if ( !TASKS.IsEnabled( settings, project, task.Id ) )
 		{
-			return { Error: 'a build needs the project\'s folder on this machine' + ( project.Path ? ': ' + project.Path + ' is missing' : '' ) };
+			return { Error: 'the task "' + task.Name + '" is not enabled in the project "' + project.Name + '"' };
+		}
+		let folder = needs_folder( task ) ? folder_of( project ) : null;
+		if ( needs_folder( task ) && !folder )
+		{
+			return { Error: 'a ' + task.Name + ' needs the project\'s folder on this machine' + ( project.Path ? ': ' + project.Path + ' is missing' : '' ) };
 		}
 		let participant = LLMS.SpeakerName( llm, settings );
 		let is_ollama = ( llm.Kind === 'ollama' );
 		let readme = null;
-		if ( llm.Checks.Readme && project.Context )
+		if ( task.Package.Readme && project.Context )
 		{
 			let read = await store.ReadPlan( project.Context );
 			if ( read )
@@ -177,15 +191,15 @@ function Runner( Options )
 			}
 		}
 		let instructions = null;
-		if ( llm.Checks.Instructions )
+		if ( task.Package.Instructions )
 		{
 			if ( is_ollama )
 			{
-				instructions = TOOLS.Tools( { Kind: request.Kind, Folder: folder, Server: { Url: url, Token: Token || null, Project: project.Id } } ).Instructions();
+				instructions = TOOLS.Tools( { Writes: task.Writes, Folder: folder, Server: { Url: url, Token: Token || null, Project: project.Id } } ).Instructions();
 			}
 			else
 			{
-				instructions = INSTRUCTIONS.Make( settings, url, await INSTRUCTIONS.Guide(), { Service: llm.Name, Token: Token || null } );
+				instructions = INSTRUCTIONS.Make( settings, url, await INSTRUCTIONS.Guide(), { Service: llm.Name, Token: Token || null, Writes: task.Writes } );
 			}
 		}
 		let plan = null;
@@ -198,14 +212,17 @@ function Runner( Options )
 				return { Error: 'no plan with the id ' + request.Plan };
 			}
 			plan = { Id: read.Plan.Id, Title: read.Plan.Title, State: read.Plan.State };
-			threads = waiting_threads( read, participant ).filter( function ( thread ) { return !llm.Unchecked.Threads.includes( thread.Id ); } );
+			if ( task.Package.Threads )
+			{
+				threads = waiting_threads( read, participant ).filter( function ( thread ) { return !llm.Unchecked.Threads.includes( thread.Id ); } );
+			}
 		}
-		else if ( request.Kind !== 'session' )
+		else if ( task.Package.Plan || task.Package.Threads )
 		{
-			return { Error: 'a ' + request.Kind + ' needs a plan: select one in the tree' };
+			return { Error: 'a ' + task.Name + ' needs a plan: select one in the tree' };
 		}
 		let prompt = PACKAGE.Build( {
-			Kind: request.Kind,
+			Task: task,
 			Llm: llm,
 			Server: { Url: url, Name: settings.Name },
 			Project: { Id: project.Id, Name: project.Name },
@@ -221,22 +238,33 @@ function Runner( Options )
 			Documents: documents_of( project ).filter( function ( document ) { return !llm.Unchecked.Documents.includes( document.Id ); } ),
 			Threads: threads,
 		} );
-		return { Prompt: prompt, Llm: llm, Project: { Id: project.Id, Name: project.Name, Path: project.Path || null }, Plan: plan, Folder: folder, Speaker: LLMS.SpeakerDisplay( llm, settings ) };
+		return {
+			Prompt: prompt,
+			Llm: llm,
+			Task: { Id: task.Id, Name: task.Name },
+			Writes: task.Writes,
+			Project: { Id: project.Id, Name: project.Name, Path: project.Path || null },
+			Plan: plan,
+			Folder: folder,
+			Speaker: LLMS.SpeakerDisplay( llm, settings ),
+		};
 	}
 
 
 	//-----------------------------------------------------------------
-	// Start: the run's token minted (named after the task), the package made with it, the run begun, By the presser's
-	// account name; the token is dropped if the run cannot start, and by Runs when it ends.
+	// Start: the run's token minted (named after the task, carrying its Writes), the package made with it, the run
+	// begun, By the presser's account name; the token is dropped if the run cannot start, and by Runs when it ends.
 
 	async function Start( Request, By )
 	{
 		let request = Request || {};
 		let llm = LLMS.ById( settings, request.Llm );
+		let task = TASKS.ById( settings, request.Task );
 		let token = null;
-		if ( llm && tokens )
+		if ( llm && task && tokens )
 		{
-			token = { Value: tokens.Mint( { Service: llm.Name, Name: TASK_NAMES[ request.Kind ] || 'run', Project: request.Project || null } ), Name: TASK_NAMES[ request.Kind ] || 'run' };
+			let name = task.Name + ' run';
+			token = { Value: tokens.Mint( { Service: llm.Name, Name: name, Project: request.Project || null, Writes: task.Writes } ), Name: name };
 		}
 		let made = await Package( request, token ? token.Value : null );
 		if ( made.Error )
@@ -251,7 +279,7 @@ function Runner( Options )
 		}
 		try
 		{
-			let run = runs.Start( { Llm: made.Llm, Kind: request.Kind, By: By || null, Token: token, Project: made.Project, Plan: made.Plan, Folder: made.Folder, Prompt: made.Prompt, Server: server } );
+			let run = runs.Start( { Llm: made.Llm, Task: made.Task, Writes: made.Writes, By: By || null, Token: token, Project: made.Project, Plan: made.Plan, Folder: made.Folder, Prompt: made.Prompt, Server: server } );
 			return { Run: run };
 		}
 		catch ( error )

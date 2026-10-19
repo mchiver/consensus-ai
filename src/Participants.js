@@ -12,12 +12,15 @@
 // its threads (Speakers, SeenSpeakers), so the waiting rule keeps working with no participants list.
 // The settings (consensus.json) are checked here too: Name, Port, Scope, States, Owner ({ Name, Display }, the
 // owner participant of before; Migrate moves it in and drops the other participants and the connections' tokens),
-// and the optional Clerk section (Step 1: PublishableKey, SecretKey, WebhookSecret, AdminEmail; read by nothing yet).
+// and the optional Clerk section (Step 1: PublishableKey, SecretKey, WebhookSecret, AdminEmail; read by nothing yet);
+// the Tasks list (plan LLM Tasks, Step 1) is checked, cleaned and migrated by Tasks.js through the same calls, and a
+// run token carries its task's Writes, which Identify hands on as the account's Writes (null for any other request).
 // Scope (None, Local, Public) says whether the server listens and for whom; Trust says what a Scope and the Clerk
 // section come to: local, trusted (Public with no Clerk keys: every request is the owner), clerk, or none.
 
 const CRYPTO = require( 'crypto' );
 const OS = require( 'os' );
+const TASKS = require( './Tasks.js' );
 
 const DEFAULT_STATES = [ 'Draft', 'Plan', 'Working', 'Finished' ];
 const RENAMED_STATE = { From: 'Proposal', To: 'Draft' };	// plan UI Tweaks V: the first state's new name, migrated at start
@@ -25,7 +28,7 @@ const SCOPES = [ 'None', 'Local', 'Public' ];
 const DEFAULT_SCOPE = 'Local';
 const SCOPE_HOSTS = { None: null, Local: '127.0.0.1', Public: '0.0.0.0' };
 const LOCAL_HOSTS = [ '127.0.0.1', 'localhost', '::1' ];
-const SETTINGS_FIELDS = [ 'Name', 'Port', 'Scope', 'States', 'Owner', 'Clerk' ];
+const SETTINGS_FIELDS = [ 'Name', 'Port', 'Scope', 'States', 'Owner', 'Clerk', 'Tasks' ];
 const DEFAULT_OWNER = { Name: 'user', Display: 'User' };
 const SERVICE_HEADER = 'X-Consensus-Service';
 const SERVICE_PATTERN = /^[A-Za-z0-9.:-]{1,40}$/;
@@ -78,7 +81,7 @@ function ServiceOf( Header )
 
 //---------------------------------------------------------------------
 // RunTokens: the tokens the server makes for its runs, in memory, each { Service, Name, Project, Run }.
-//   Mint( { Service, Name, Project, Run? } ) -> the token's value;  Find( value ) -> the record or null;  Drop( value )
+//   Mint( { Service, Name, Project, Run?, Writes? } ) -> the token's value;  Find( value ) -> the record or null;  Drop( value )
 
 function RunTokens()
 {
@@ -87,7 +90,7 @@ function RunTokens()
 	function Mint( Fields )
 	{
 		let value = NewToken();
-		tokens[ value ] = { Service: Fields.Service || null, Name: Fields.Name || 'run', Project: Fields.Project || null, Run: Fields.Run || null };
+		tokens[ value ] = { Service: Fields.Service || null, Name: Fields.Name || 'run', Project: Fields.Project || null, Run: Fields.Run || null, Writes: Fields.Writes || null };
 		return value;
 	}
 
@@ -113,8 +116,9 @@ function RunTokens()
 //---------------------------------------------------------------------
 // Identify: the account behind a request, or null when its token is unknown.
 //   Headers = { Authorization, Service }: the two headers' values.  Tokens: the server's RunTokens, or null.
-//   account = { Name, Display, Role: 'owner', Service, Token, Speaker }: Service the header's name or the run's
-//   connection, Token the run token's name ("Review run"), Speaker the key the rules run over.
+//   account = { Name, Display, Role: 'owner', Service, Token, Writes, Speaker }: Service the header's name or the
+//   run's connection, Token the run token's name ("Answer run"), Writes the run's level (none, consensus or files;
+//   null for a request on no run token), Speaker the key the rules run over.
 
 function Identify( Settings, Headers, Tokens )
 {
@@ -135,13 +139,13 @@ function Identify( Settings, Headers, Tokens )
 	{
 		return null;
 	}
-	return account_of( owner, run.Service, run.Name );
+	return account_of( owner, run.Service, run.Name, run.Writes );
 }
 
 
-function account_of( owner, service, token )
+function account_of( owner, service, token, writes )
 {
-	let account = { Name: owner.Name, Display: owner.Display, Role: 'owner', Service: service || null, Token: token || null };
+	let account = { Name: owner.Name, Display: owner.Display, Role: 'owner', Service: service || null, Token: token || null, Writes: writes || null };
 	account.Speaker = Speaker( account.Name, account.Service );
 	return account;
 }
@@ -162,6 +166,10 @@ function Public( Account )
 	if ( Account.Token )
 	{
 		shown.Token = Account.Token;
+	}
+	if ( Account.Writes )
+	{
+		shown.Writes = Account.Writes;
 	}
 	return shown;
 }
@@ -325,6 +333,7 @@ function Migrate( Settings )
 	{
 		lines.push( 'the Token of the LLM connection' + ( untokened.length > 1 ? 's ' : ' ' ) + untokened.join( ', ' ) + ' dropped: the server makes one per run' );
 	}
+	lines = lines.concat( TASKS.Migrate( Settings ) );
 	for ( let field of RETIRED_FIELDS )
 	{
 		if ( Settings[ field ] !== undefined )
@@ -447,6 +456,10 @@ function Validate( Settings )
 	{
 		problems = problems.concat( validate_clerk( Settings.Clerk ) );
 	}
+	if ( Settings.Tasks !== undefined )
+	{
+		problems = problems.concat( TASKS.Problems( Settings ) );
+	}
 	if ( Settings.States !== undefined )
 	{
 		let states = Settings.States;
@@ -513,6 +526,10 @@ function Clean( Settings )
 			kept.Display = clean.Owner.Display.trim();
 		}
 		clean.Owner = kept;
+	}
+	if ( clean.Tasks !== undefined )
+	{
+		clean.Tasks = TASKS.Clean( clean.Tasks );
 	}
 	if ( clean.Clerk === null )
 	{

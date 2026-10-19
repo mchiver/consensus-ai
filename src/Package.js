@@ -1,13 +1,13 @@
 'use strict';
 
-// Package - the one-shot prompt (plan Consensus Desktop, Step 3; in the server since plan Run Shapes, Step 3): one
-// text built from the items checked on an LLM connection, in a fixed order, each under a heading, then the prompt of
-// the button pressed (Review or Build; Session has none) and the connection's Session Prompt at the end. Pure: the
-// pieces are fetched by the caller (Runner.js).
+// Package - the one-shot prompt (plan Consensus Desktop, Step 3; in the server since plan Run Shapes, Step 3; from a
+// task's record since plan LLM Tasks, Step 1): one text built from the items the task's Package switches on, in a
+// fixed order, each under a heading, then the task's Prompt and the connection's Session Prompt at the end. Pure:
+// the pieces are fetched by the caller (Runner.js).
 //
 //   Build( {
-//     Kind: 'review' | 'build' | 'session',
-//     Llm: { Name, Checks: { Instructions, Readme, Documents, Threads }, Prompts: { Review, Build, Session } },
+//     Task: { Name, Package: { Instructions, Readme, Documents, Plan, Threads, Files }, Writes, Prompt },
+//     Llm: { Name, Prompts: { Session } },
 //     Server: { Url, Name },  Project: { Id, Name },  Plan: { Id, Title, State } | null,  Folder: path | null,
 //     Owner: { Name, Display },  Service: the connection's name (the byline is "<Service> by <Owner Display>"),
 //     Token?: the run's token; null for a run that needs none (ollama), undefined for a preview,
@@ -16,27 +16,7 @@
 //     Threads: [ { Id, Status, Anchor, Replies: [ { By, At, Text } ] } ],
 //   } ) -> text
 
-const KINDS = [ 'review', 'build', 'session' ];
-
-const CHECK_ITEMS = [ 'Instructions', 'Readme', 'Documents', 'Threads' ];
-
-const DEFAULT_CHECKS = { Instructions: true, Readme: true, Documents: true, Threads: true };
-
-const DEFAULT_PROMPTS = {
-	Review: [
-		'Take the llm participant\'s turn on the plan at hand, as the agent instructions say under "Your turn in Consensus":',
-		'read the plan and the threads waiting on you through the API, reply on the contested ones, apply the resolved ones',
-		'one revision each, and re-anchor any thread left detached. Everything you contribute goes into Consensus through',
-		'the API; when you are done, print a short summary of what you did.',
-	].join( '\n' ),
-	Build: [
-		'Build the plan at hand in this folder, as the agent instructions say under "The build loop": every thread of the',
-		'plan is applied; set the plan Working, implement what the plan says and only that, run the tests, and post the',
-		'build log as one contested whole-document thread on the plan, naming your model. Do not commit, branch or push:',
-		'git is the owner\'s. When you are done, print a short summary of what you built.',
-	].join( '\n' ),
-	Session: '',
-};
+const TASKS = require( './Tasks.js' );
 
 
 //---------------------------------------------------------------------
@@ -96,21 +76,22 @@ function push_thread( lines, thread )
 function Build( Request )
 {
 	let request = Request || {};
-	let kind = KINDS.includes( request.Kind ) ? request.Kind : 'session';
+	let task = TASKS.Fill( request.Task || { Name: 'Session', Writes: 'files' } );
+	let switches = task.Package;
 	let llm = request.Llm || {};
-	let checks = Object.assign( {}, DEFAULT_CHECKS, llm.Checks || {} );
-	let prompts = Object.assign( {}, DEFAULT_PROMPTS, llm.Prompts || {} );
+	let session_prompt = ( llm.Prompts && typeof llm.Prompts.Session === 'string' ) ? llm.Prompts.Session : '';
 	let owner = request.Owner || { Name: 'user', Display: 'User' };
 	let service = request.Service || llm.Name || 'llm';
 	let byline = service + ' by ' + ( owner.Display || owner.Name );
 	let lines = [];
 
 	let server_name = ( request.Server && request.Server.Name ) ? ' "' + request.Server.Name + '"' : '';
-	lines.push( '# A ' + kind + ' one-shot from Consensus' );
+	lines.push( '# ' + task.Name + ': a one-shot from Consensus' );
 	lines.push( '' );
 	lines.push( 'You act for ' + ( owner.Display || owner.Name ) + ', the owner of the Consensus server below, run once by that server' + server_name + ' through its LLM connection "' + service + '": what you post reads "' + byline + '".' );
 	heading( lines, 'This run' );
-	lines.push( '- Kind: ' + kind );
+	lines.push( '- Task: ' + task.Name );
+	lines.push( '- Writes: ' + TASKS.WritesLine( task.Writes ) );
 	if ( request.Server && request.Server.Url )
 	{
 		lines.push( '- Consensus API: ' + String( request.Server.Url ).replace( /\/+$/, '' ) + '/api' );
@@ -127,15 +108,15 @@ function Build( Request )
 	{
 		lines.push( '- Project: ' + request.Project.Name + ' (' + request.Project.Id + ')' );
 	}
-	if ( request.Plan )
+	if ( switches.Plan && request.Plan )
 	{
 		lines.push( '- The plan at hand: ' + request.Plan.Title + ' (' + request.Plan.Id + ')' + ( request.Plan.State ? ', state ' + request.Plan.State : '' ) );
 	}
-	else
+	else if ( switches.Plan )
 	{
 		lines.push( '- No plan is selected.' );
 	}
-	if ( request.Folder )
+	if ( switches.Files && request.Folder )
 	{
 		lines.push( '- The project\'s folder: ' + request.Folder + ' (this run\'s working folder)' );
 	}
@@ -144,17 +125,17 @@ function Build( Request )
 		lines.push( '- No folder: this run has no files to work in.' );
 	}
 
-	if ( checks.Instructions && request.Instructions )
+	if ( switches.Instructions && request.Instructions )
 	{
 		heading( lines, request.InstructionsTitle || 'Agent instructions' );
 		push_text( lines, request.Instructions );
 	}
-	if ( checks.Readme && request.Readme )
+	if ( switches.Readme && request.Readme )
 	{
 		heading( lines, 'Readme of ' + ( request.Project ? request.Project.Name : 'the project' ) + ' (' + request.Readme.Id + ')' );
 		push_text( lines, request.Readme.Text );
 	}
-	if ( checks.Documents && request.Documents && request.Documents.length )
+	if ( switches.Documents && request.Documents && request.Documents.length )
 	{
 		heading( lines, 'Other documents of the Context folder' );
 		lines.push( request.DocumentsHint || 'Read one through the API: GET /api/plans/<id>.' );
@@ -164,7 +145,7 @@ function Build( Request )
 			lines.push( '- ' + document.Title + ' (' + document.Id + ')' );
 		}
 	}
-	if ( checks.Threads && request.Plan )
+	if ( switches.Threads && request.Plan )
 	{
 		let threads = request.Threads || [];
 		heading( lines, 'Threads of the plan waiting on ' + byline );
@@ -177,29 +158,21 @@ function Build( Request )
 			push_thread( lines, thread );
 		}
 	}
-	if ( kind === 'review' && prompts.Review )
+	let prompt = String( task.Prompt || '' ).trim();
+	if ( prompt )
 	{
-		heading( lines, 'Your task: review' );
-		lines.push( prompts.Review.replace( /\s+$/, '' ) );
+		heading( lines, 'Your task: ' + task.Name );
+		lines.push( task.Prompt.replace( /\s+$/, '' ) );
 	}
-	if ( kind === 'build' && prompts.Build )
+	if ( session_prompt.trim() )
 	{
-		heading( lines, 'Your task: build' );
-		lines.push( prompts.Build.replace( /\s+$/, '' ) );
-	}
-	if ( prompts.Session && String( prompts.Session ).trim() )
-	{
-		heading( lines, ( kind === 'session' ) ? 'Your task' : 'Further instructions' );
-		lines.push( String( prompts.Session ).replace( /\s+$/, '' ) );
+		heading( lines, prompt ? 'Further instructions' : 'Your task' );
+		lines.push( session_prompt.replace( /\s+$/, '' ) );
 	}
 	return lines.join( '\n' ) + '\n';
 }
 
 
 module.exports = {
-	KINDS: KINDS,
-	CHECK_ITEMS: CHECK_ITEMS,
-	DEFAULT_CHECKS: DEFAULT_CHECKS,
-	DEFAULT_PROMPTS: DEFAULT_PROMPTS,
 	Build: Build,
 };

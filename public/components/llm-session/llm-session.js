@@ -6,7 +6,8 @@
 //
 // Interface:
 //   <llm-session></llm-session>
-//   reads State.OpenItem (the connection), State.View; the runs and connections through Llms
+//   reads State.OpenItem (the connection), State.View; the runs, the connections and the tasks through Llms (plan LLM
+//   Tasks, Step 1: one Run button per task the picked project enables, in the server's order)
 
 angular.module( 'Consensus' ).component( 'llmSession', {
 	templateUrl: '/components/llm-session/llm-session.html',
@@ -40,7 +41,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		$scope.Error = null;
 		$scope.Busy = false;
 		$scope.Details = null;		// the Details popup: { Form, Problems, Checked, Busy }
-		$scope.Packaging = null;	// the Packaging popup: { Form, Lists, Preview, Problems, Busy, Copied }
+		$scope.Packaging = null;	// the Packaging popup: { Form: { Prompts, Unchecked }, Lists, Preview, Problems, Busy, Copied }
 		$scope.RunPopup = null;		// a run opened from the log: { Run, Source, Copied }
 
 
@@ -186,6 +187,32 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		$scope.MayRun = function ()
 		{
 			return !!current_root().Me;
+		};
+
+
+		// The tasks the picked project enables, in the server's order; a project with no list enables them all.
+		$scope.Tasks = function ()
+		{
+			let tasks = items().Tasks || [];
+			let enabled = $scope.Project ? $scope.Project.Tasks : null;
+			if ( !Array.isArray( enabled ) )
+			{
+				return tasks;
+			}
+			return tasks.filter( function ( task ) { return enabled.includes( task.Id ); } );
+		};
+
+
+		$scope.NeedsPlan = function ( task )
+		{
+			return !!task && !!task.Package && ( task.Package.Plan || task.Package.Threads );
+		};
+
+
+		$scope.TaskTitle = function ( task )
+		{
+			let what = { none: 'reads only', consensus: 'may write to Consensus, not to files', files: 'may write to Consensus and to the project\'s files' };
+			return task.Name + ': package it and run it once; ' + ( what[ task.Writes ] || task.Writes );
 		};
 
 
@@ -337,13 +364,12 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 
 
 		//-----------------------------------------------------------------
-		// The Packaging popup: the checks, the lists of documents and threads (each checkable, the unchecked ids kept),
-		// the prompts, and a Preview of the package as the form stands.
+		// The Packaging popup: the lists of documents and threads (each checkable, the unchecked ids kept), the Session
+		// Prompt, and a Preview of a task's package as the form stands.
 
 		function packaging_form( llm )
 		{
 			return {
-				Checks: Object.assign( {}, llm.Checks ),
 				Prompts: Object.assign( {}, llm.Prompts ),
 				Unchecked: { Documents: ( llm.Unchecked.Documents || [] ).slice(), Threads: ( llm.Unchecked.Threads || [] ).slice() },
 			};
@@ -352,7 +378,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 
 		function from_packaging( form )
 		{
-			return { Checks: form.Checks, Prompts: form.Prompts, Unchecked: form.Unchecked };
+			return { Prompts: form.Prompts, Unchecked: form.Unchecked };
 		}
 
 
@@ -413,9 +439,9 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		};
 
 
-		function request( kind, overrides )
+		function request( task, overrides )
 		{
-			let made = { Llm: $scope.Llm.Id, Kind: kind, Project: $scope.Pick.Project || null, Plan: $scope.Pick.Plan || null };
+			let made = { Llm: $scope.Llm.Id, Task: task.Id, Project: $scope.Pick.Project || null, Plan: $scope.Pick.Plan || null };
 			if ( overrides )
 			{
 				made.Overrides = overrides;
@@ -424,8 +450,8 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		}
 
 
-		// Preview: the package for the project and plan picked in Run, with the checks and prompts as the form stands.
-		$scope.Preview = async function ( kind )
+		// Preview: a task's package for the project and plan picked in Run, with the form's prompt and unchecked ids.
+		$scope.Preview = async function ( task )
 		{
 			let popup = $scope.Packaging;
 			if ( !popup || popup.Busy )
@@ -437,8 +463,8 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 			popup.Problems = [];
 			try
 			{
-				let answer = await Client.Post( current_root(), '/api/runs/package', request( kind, from_packaging( popup.Form ) ) );
-				popup.Preview = { Kind: kind, Text: answer.Prompt };
+				let answer = await Client.Post( current_root(), '/api/runs/package', request( task, from_packaging( popup.Form ) ) );
+				popup.Preview = { Name: task.Name, Text: answer.Prompt };
 			}
 			catch ( error )
 			{
@@ -553,9 +579,9 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		};
 
 
-		// Why a button is disabled, or '' when it can run: no server runs, no one signed in, a run going, no project,
-		// no plan.
-		$scope.Reason = function ( kind )
+		// Why a task's button is disabled, or '' when it can run: no server runs, no one signed in, a run going, no
+		// project, no plan when the task packages one.
+		$scope.Reason = function ( task )
 		{
 			if ( !$scope.Llm )
 			{
@@ -577,7 +603,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 			{
 				return 'pick the project';
 			}
-			if ( kind !== 'session' && !$scope.Pick.Plan )
+			if ( $scope.NeedsPlan( task ) && !$scope.Pick.Plan )
 			{
 				return 'pick the plan at hand';
 			}
@@ -585,9 +611,9 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		};
 
 
-		$scope.CanRun = function ( kind )
+		$scope.CanRun = function ( task )
 		{
-			return !$scope.Busy && $scope.Reason( kind ) === '';
+			return !$scope.Busy && $scope.Reason( task ) === '';
 		};
 
 
@@ -595,9 +621,9 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		$scope.Reasons = function ()
 		{
 			let seen = [];
-			for ( let kind of [ 'review', 'build', 'session' ] )
+			for ( let task of $scope.Tasks() )
 			{
-				let reason = $scope.Reason( kind );
+				let reason = $scope.Reason( task );
 				if ( reason && !seen.includes( reason ) )
 				{
 					seen.push( reason );
@@ -607,9 +633,9 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		};
 
 
-		$scope.Run = async function ( kind )
+		$scope.Run = async function ( task )
 		{
-			if ( !$scope.CanRun( kind ) )
+			if ( !$scope.CanRun( task ) )
 			{
 				return;
 			}
@@ -617,7 +643,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 			$scope.Error = null;
 			try
 			{
-				let answer = await Client.Post( current_root(), '/api/runs', request( kind ) );
+				let answer = await Client.Post( current_root(), '/api/runs', request( task ) );
 				items().Running[ $scope.Llm.Id ] = answer.Run;
 				await load_runs();
 				await $scope.OpenRun( answer.Run );

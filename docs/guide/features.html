@@ -84,9 +84,9 @@
 <li><strong>Your turn in Consensus.</strong> The working loop: the owner comments and resolves, the agent replies and applies, in the plan, not in a chat scroll.</li>
 <li><strong>The build loop.</strong> When every thread is applied, the agent builds exactly that plan and posts its build log as a thread, accepted the same way.</li>
 <li><strong>LLM connections.</strong> The server runs LLMs for you: Claude Code as a one-shot command, or a local model through Ollama, each posting as <code>&lt;connection&gt; by &lt;owner&gt;</code> on a token the server makes for the run.</li>
-<li><strong>Review, Build and Session runs.</strong> One button packages the project&#39;s Readme, its context documents and the plan&#39;s waiting threads into a prompt, runs it in the project&#39;s folder, and keeps the log.</li>
-<li><strong>Tools for local models.</strong> A local model gets file tools over the project&#39;s folder, held to its Include and Exclude lists, and Consensus tools for reading plans, replying and applying.</li>
-<li><strong>Packaging you control.</strong> Choose which documents and threads go into a run&#39;s prompt, edit the prompts, and preview the package with its token estimate before it runs.</li>
+<li><strong>Tasks as buttons.</strong> A task is a record you edit: what the prompt packages (the Readme, the documents, the plan, the waiting threads, the folder), what the run may write (nothing, Consensus, or files) and what it is asked. Answer, Work and Session are shipped; a project enables the ones it uses; one button each runs it and keeps the log.</li>
+<li><strong>Tools for local models.</strong> A local model gets file tools over the project&#39;s folder, held to its Include and Exclude lists, and Consensus tools for reading plans, replying and applying, each set held to the task&#39;s Writes.</li>
+<li><strong>Packaging you control.</strong> Choose which documents and threads a connection leaves out, give it a prompt of its own, and preview any task&#39;s package with its token estimate before it runs.</li>
 <li><strong>Nothing committed on its own.</strong> No run branches, commits or pushes; Git stays the owner&#39;s.</li>
 </ul>
 <h2 id="running-it">Running it</h2>

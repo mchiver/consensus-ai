@@ -44,7 +44,7 @@ GET    /api/settings                             owner; the settings as they are
 PUT    /api/settings                             owner; { Settings }  the whole file, checked
 GET    /api/projects                             every project with its tree, its Archive, States and Path; Context and ContextFolder
 POST   /api/projects                             { Name, Path? }  Path: the project's folder; one holding a project already is opened
-PUT    /api/projects/:pid                        { Name?, States?, Include?, Exclude?, Commands?, Version? }  lists, or lines of text
+PUT    /api/projects/:pid                        { Name?, States?, Include?, Exclude?, Commands?, Version? }  lists, or lines of text; Tasks: the enabled task ids, null for all
 DELETE /api/projects/:pid                        an empty project; never the last one
 POST   /api/projects/:pid/folders                { Name, Parent?, Version? }
 PUT    /api/projects/:pid/folders/:fid           { Name, Version? }
@@ -77,6 +77,7 @@ POST   /api/plans/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor
 GET    /api/trash                                what is there
 DELETE /api/trash                                owner; empties it for good, { Emptied: n }
 GET    /api/waiting                              everything waiting on the caller, in every project
+GET    /api/tasks[?Project=]                     the tasks, in the buttons' order, or those a project enables; the Writes levels, the Package switches and the shipped Defaults
 GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Speaker, Running, the whole records
 POST   /api/llms                                 owner; a connection from its fields, with a new id
 POST   /api/llms/check                           owner; the connection as typed, tried: { Ok, Result | Error }
@@ -84,8 +85,8 @@ PUT    /api/llms/:id                             owner; the fields given over th
 POST   /api/llms/:id/check                       owner; tried as saved, the body's fields over it
 DELETE /api/llms/:id                             owner; not while it runs; its speaker goes with it
 GET    /api/runs/lists?Project=&Plan=&Llm=       the other Context documents, the plan's threads waiting on the connection
-POST   /api/runs/package                         { Llm, Kind, Project, Plan?, Overrides? }  the prompt a run would get
-POST   /api/runs                                 { Llm, Kind, Project, Plan? }  a run started as the presser through the connection, on a token the server makes; one per connection at a time
+POST   /api/runs/package                         { Llm, Task, Project, Plan?, Overrides? }  the prompt a run would get; Task the task's id
+POST   /api/runs                                 { Llm, Task, Project, Plan? }  a run started as the presser through the connection, on a token named after the task that carries its Writes (a none run is refused every write); one per connection at a time
 GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
 GET    /api/runs/:id                             the whole record, the output as it stands
 POST   /api/runs/:id/stop                        a running one stopped

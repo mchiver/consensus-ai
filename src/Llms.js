@@ -4,17 +4,17 @@
 // desktop kept before. Each is a connection the server runs one-shots through (Runs.js). A run is the presser's
 // (plan User Management, Step 2): what it posts reads "<connection Name> by <owner>", the byline (SpeakerName is
 // the key, SpeakerDisplay what the page shows), on a token the server makes for the run; the connection has no
-// token of its own any more. The owner sees the whole record, everyone else its public part.
+// token of its own any more. The owner sees the whole record, everyone else its public part. What a run is given
+// and asked is the task's (plan LLM Tasks, Step 1: Tasks.js); the connection keeps its Session Prompt and the
+// documents and threads it leaves out.
 //
 //   { "Id": "llm-…", "Name": "claude-cli", "Kind": "claude-cli", "Command": "claude", "Arguments": [ "-p", … ],
 //     "Url": "", "Model": "sonnet", "Timeout": 300, "Context": 32768, "Rounds": 30,
-//     "Checks": { "Instructions": true, "Readme": true, "Documents": true, "Threads": true },
 //     "Unchecked": { "Documents": [ "doc-…" ], "Threads": [ "thr-…" ] },
-//     "Prompts": { "Review": "…", "Build": "…", "Session": "" } }
+//     "Prompts": { "Session": "" } }
 //   Context (the model's window, Ollama's num_ctx) and Rounds (the most tool rounds a run takes) matter to an ollama
 //   connection; Command and Arguments to a claude-cli one.
 
-const PACKAGE = require( './Package.js' );
 const IDS = require( './Ids.js' );
 const PARTICIPANTS = require( './Participants.js' );
 
@@ -25,6 +25,7 @@ const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
 const DEFAULT_TIMEOUT = 300;
 const DEFAULT_CONTEXT = 32768;
 const DEFAULT_ROUNDS = 30;
+const DEFAULT_PROMPTS = { Session: '' };
 const NAME_PATTERN = /^[A-Za-z0-9.:-]+$/;
 const PUBLIC_FIELDS = [ 'Id', 'Name', 'Kind', 'Model' ];
 
@@ -70,15 +71,10 @@ function Fill( Llm )
 {
 	let given = ( Llm && typeof Llm === 'object' ) ? Llm : {};
 	let kind = KINDS.includes( given.Kind ) ? given.Kind : KINDS[ 0 ];
-	let checks = {};
-	for ( let item of PACKAGE.CHECK_ITEMS )
-	{
-		checks[ item ] = ( given.Checks && given.Checks[ item ] !== undefined ) ? !!given.Checks[ item ] : PACKAGE.DEFAULT_CHECKS[ item ];
-	}
 	let prompts = {};
-	for ( let name of Object.keys( PACKAGE.DEFAULT_PROMPTS ) )
+	for ( let name of Object.keys( DEFAULT_PROMPTS ) )
 	{
-		prompts[ name ] = ( given.Prompts && typeof given.Prompts[ name ] === 'string' ) ? given.Prompts[ name ] : PACKAGE.DEFAULT_PROMPTS[ name ];
+		prompts[ name ] = ( given.Prompts && typeof given.Prompts[ name ] === 'string' ) ? given.Prompts[ name ] : DEFAULT_PROMPTS[ name ];
 	}
 	let timeout = Number( given.Timeout );
 	let context = Number( given.Context );
@@ -95,7 +91,6 @@ function Fill( Llm )
 		Timeout: ( Number.isFinite( timeout ) && timeout > 0 ) ? Math.round( timeout ) : DEFAULT_TIMEOUT,
 		Context: ( Number.isFinite( context ) && context > 0 ) ? Math.round( context ) : DEFAULT_CONTEXT,
 		Rounds: ( Number.isFinite( rounds ) && rounds > 0 ) ? Math.round( rounds ) : DEFAULT_ROUNDS,
-		Checks: checks,
 		Prompts: prompts,
 		Unchecked: { Documents: lines_of( unchecked.Documents, [] ), Threads: lines_of( unchecked.Threads, [] ) },
 	};
@@ -236,7 +231,7 @@ function Public( Llm, Settings, Whole )
 
 module.exports = {
 	KINDS: KINDS,
-	DEFAULT_PROMPTS: PACKAGE.DEFAULT_PROMPTS,
+	DEFAULT_PROMPTS: DEFAULT_PROMPTS,
 	DEFAULT_COMMAND: DEFAULT_COMMAND,
 	DEFAULT_ARGUMENTS: DEFAULT_ARGUMENTS,
 	DEFAULT_OLLAMA_URL: DEFAULT_OLLAMA_URL,

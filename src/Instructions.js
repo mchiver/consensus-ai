@@ -10,13 +10,14 @@
 const PATH = require( 'path' );
 const FS = require( 'fs' );
 const PARTICIPANTS = require( './Participants.js' );
+const TASKS = require( './Tasks.js' );
 
 const GUIDE_PATH = PATH.join( __dirname, '..', '.guides', 'build-with-consensus.md' );
 
 
 //---------------------------------------------------------------------
 // Make( Settings, Base, Guide, Run? ): the page's text. Base is 'http://<host>:<port>' as the request reached us;
-// Run ({ Service, Token }) is a run's connection and token, for its package; the public page has none.
+// Run ({ Service, Token, Writes? }) is a run's connection, token and level, for its package; the public page has none.
 
 function Make( Settings, Base, Guide, Run )
 {
@@ -26,6 +27,10 @@ function Make( Settings, Base, Guide, Run )
 	{
 		lines.push( '- Your token, sent as "Authorization: Bearer <token>": ' + Run.Token );
 		lines.push( '- What you post reads "' + Run.Service + ' by ' + owner.Display + '": you act for ' + owner.Display + ', the owner, through the LLM connection "' + Run.Service + '".' );
+		if ( Run.Writes )
+		{
+			lines.push( '- Writes: ' + TASKS.WritesLine( Run.Writes ) );
+		}
 	}
 	else
 	{

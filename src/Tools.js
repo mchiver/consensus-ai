@@ -1,12 +1,13 @@
 'use strict';
 
 // Tools - what a local model may do during a one-shot (plan Consensus Desktop, Step 4; in the server since plan Run
-// Shapes, Step 3): the file tools over the project's folder (glob, grep, read; write, edit and run for a build or a
-// session), and the Consensus tools over this server's API, within the project the run is on, as the connection's
-// participant. Every tool is run here, in the server's process; a tool's result is text for the model, and a refusal
+// Shapes, Step 3): the file tools over the project's folder (glob, grep, read; write, edit and run when the task's
+// Writes is files), and the Consensus tools over this server's API, within the project the run is on, as the presser
+// through the connection (the writing ones, reply, apply, thread and set_state, when Writes is not none; plan LLM
+// Tasks, Step 1). Every tool is run here, in the server's process; a tool's result is text for the model, and a refusal
 // is a sentence it can read. A folder and a server are all it needs.
 //
-//   Tools( { Kind, Folder: { Path, Include, Exclude, Commands } | null, Server: { Url, Token, Project } } )
+//   Tools( { Writes: none | consensus | files, Folder: { Path, Include, Exclude, Commands } | null, Server: { Url, Token, Project } } )
 //     -> { Definitions, Call( Name, Arguments ), Describe( Name, Arguments ), Instructions() }
 //   Definitions: the tools in Ollama's form, [ { type: 'function', function: { name, description, parameters } } ]
 //   Call: a promise of the result text; a tool that does not exist or refuses answers with a sentence, never throws
@@ -27,7 +28,7 @@ const RESULT_SHOWN = 300;
 const FETCH_TIMEOUT = 30000;
 const SHELL_OPERATORS = /[|&;<>$`()\n\r]/;
 
-const WRITING_KINDS = [ 'build', 'session' ];
+const WRITES = [ 'none', 'consensus', 'files' ];
 
 const FILE_TOOLS = [
 	{
@@ -86,26 +87,30 @@ const CONSENSUS_TOOLS = [
 	},
 	{
 		name: 'waiting',
-		description: 'The threads waiting on you (the llm participant): of one plan when Plan is given, else of the whole project.',
+		description: 'The threads waiting on you (the account you act for, through the connection): of one plan when Plan is given, else of the whole project.',
 		parameters: { type: 'object', properties: { Plan: { type: 'string', description: 'a plan\'s id' } } },
 	},
 	{
 		name: 'reply',
+		Writes: true,
 		description: 'A reply of yours on a thread of a plan.',
 		parameters: { type: 'object', properties: { Plan: { type: 'string' }, Thread: { type: 'string' }, Text: { type: 'string' } }, required: [ 'Plan', 'Thread', 'Text' ] },
 	},
 	{
 		name: 'apply',
+		Writes: true,
 		description: 'Applies a resolved thread of a plan: Outcome says what was decided; Text is the plan\'s whole new text when it changes (the current revision is supplied for you); Anchor moves the thread to a passage of the new text.',
 		parameters: { type: 'object', properties: { Plan: { type: 'string' }, Thread: { type: 'string' }, Outcome: { type: 'string' }, Text: { type: 'string' }, Anchor: { type: 'string' } }, required: [ 'Plan', 'Thread', 'Outcome' ] },
 	},
 	{
 		name: 'thread',
+		Writes: true,
 		description: 'A new thread of yours on a plan: on the passage Anchor (plain words of the text, no markdown marks), or on the whole document without it.',
 		parameters: { type: 'object', properties: { Plan: { type: 'string' }, Text: { type: 'string' }, Anchor: { type: 'string' } }, required: [ 'Plan', 'Text' ] },
 	},
 	{
 		name: 'set_state',
+		Writes: true,
 		description: 'Sets a plan\'s state, such as Working or Finished.',
 		parameters: { type: 'object', properties: { Plan: { type: 'string' }, State: { type: 'string' } }, required: [ 'Plan', 'State' ] },
 	},
@@ -169,10 +174,9 @@ function number_of( value, fallback )
 function Tools( Options )
 {
 	let options = Options || {};
-	let kind = options.Kind || 'session';
 	let folder = options.Folder || null;
 	let server = options.Server || null;
-	let writes = WRITING_KINDS.includes( kind );
+	let writes = WRITES.includes( options.Writes ) ? options.Writes : 'consensus';
 	let definitions = [];
 	let handlers = {};
 
@@ -180,7 +184,7 @@ function Tools( Options )
 	{
 		for ( let tool of FILE_TOOLS )
 		{
-			if ( !tool.Writes || writes )
+			if ( !tool.Writes || writes === 'files' )
 			{
 				definitions.push( { type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.parameters } } );
 			}
@@ -190,7 +194,10 @@ function Tools( Options )
 	{
 		for ( let tool of CONSENSUS_TOOLS )
 		{
-			definitions.push( { type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.parameters } } );
+			if ( !tool.Writes || writes !== 'none' )
+			{
+				definitions.push( { type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.parameters } } );
+			}
 		}
 	}
 
@@ -709,11 +716,18 @@ function Tools( Options )
 		if ( folder && folder.Path )
 		{
 			lines.push( '' );
-			lines.push( 'The project\'s folder is ' + folder.Path + '; paths are relative to it.' + ( writes ? ( ( folder.Commands || [] ).length ? ' The commands it allows: ' + folder.Commands.join( ', ' ) + '.' : ' It allows no command.' ) : '' ) );
+			lines.push( 'The project\'s folder is ' + folder.Path + '; paths are relative to it.' + ( writes === 'files' ? ( ( folder.Commands || [] ).length ? ' The commands it allows: ' + folder.Commands.join( ', ' ) + '.' : ' It allows no command.' ) : '' ) );
 		}
 		lines.push( '' );
-		lines.push( 'Your turn in Consensus: find the threads waiting on you (waiting); on a contested one, reply with what you understood and the wording you would apply; on a resolved one, apply it, one revision each, with the plan\'s whole new text when the text changes (read_plan gives the current text); when the owner resolved a thread without answering your question, apply your own recommendation and say so in the Outcome; after changing a text, read the plan again and re-anchor any thread left detached (apply with Anchor). Put comments and questions in threads, not in your answer.' );
-		if ( writes )
+		if ( writes === 'none' )
+		{
+			lines.push( 'This run reads only: answer from what the tools return, and change nothing.' );
+		}
+		else
+		{
+			lines.push( 'Your turn in Consensus: find the threads waiting on you (waiting); on a contested one, reply with what you understood and the wording you would apply; on a resolved one, apply it, one revision each, with the plan\'s whole new text when the text changes (read_plan gives the current text); when the owner resolved a thread without answering your question, apply your own recommendation and say so in the Outcome; after changing a text, read the plan again and re-anchor any thread left detached (apply with Anchor). Put comments and questions in threads, not in your answer.' );
+		}
+		if ( writes === 'files' )
 		{
 			lines.push( '' );
 			lines.push( 'The build loop: every thread of the plan is applied; set the plan Working (set_state); implement what the plan says and only that, in the project\'s folder, with read, write and edit; run the allowed commands to test; post the build log as one new thread on the whole document (thread, without Anchor): what was built, where, how it was checked, and which model you are. Never touch git: it is the owner\'s.' );
@@ -733,6 +747,7 @@ function Tools( Options )
 
 
 module.exports = {
+	WRITES: WRITES,
 	FILE_TOOLS: FILE_TOOLS,
 	CONSENSUS_TOOLS: CONSENSUS_TOOLS,
 	SHELL_OPERATORS: SHELL_OPERATORS,

@@ -219,6 +219,29 @@
 				<label for="settings-owner-display">Shown as</label>
 				<input class="form-control form-control-sm" id="settings-owner-display" ng-model="Panel.Form.Owner.Display" placeholder="User" title="how the page shows the owner; the byline of a run or a service reads <service> by <this>">
 			</div>
+			<!-- The tasks (plan LLM Tasks, Step 1): one row per task, in the order of the LLM page's buttons. -->
+			<div class="settings-label">Tasks <span class="muted small fw-normal">what a button asks of an LLM, in this order; the Package is what the run is given, Writes what it may change; a project enables the ones it uses in its own settings</span></div>
+			<div class="settings-task" ng-repeat="task in Panel.Form.Tasks track by $index">
+				<div class="settings-row">
+					<label>Name</label>
+					<input class="form-control form-control-sm settings-task-name" ng-model="task.Name" placeholder="what the button says" title="what the button says and the run record carries">
+					<label>Writes</label>
+					<select class="form-select form-select-sm settings-task-writes" ng-model="task.Writes" ng-options="level for level in TaskItems.Writes" title="none: the run reads only, every write refused; consensus: replies, applies, threads and states, no files; files: the project's files and commands too"></select>
+					<span class="grow"></span>
+					<button class="btn btn-sm btn-outline-secondary settings-task-up" type="button" ng-click="MoveTask( $index, -1 )" ng-disabled="$first" title="earlier among the buttons">&#9650;</button>
+					<button class="btn btn-sm btn-outline-secondary settings-task-down" type="button" ng-click="MoveTask( $index, 1 )" ng-disabled="$last" title="later among the buttons">&#9660;</button>
+					<button class="btn btn-sm btn-outline-danger settings-task-remove" type="button" ng-click="RemoveTask( $index )" title="remove the task; its button goes with it"><svg class="icon lead"><use href="#i-trash"></use></svg>Remove</button>
+				</div>
+				<div class="check-row settings-task-package"><span class="muted small">Package:</span> <label ng-repeat="item in TaskItems.Package" title="{{ item }}"><input type="checkbox" ng-model="task.Package[ item ]"> {{ item }}</label></div>
+				<div class="settings-row top">
+					<label>Prompt</label>
+					<textarea class="form-control form-control-sm settings-task-prompt" rows="2" ng-model="task.Prompt" placeholder="the task's instructions, under &quot;Your task: <name>&quot; in the package; empty, the connection's Session Prompt is the task"></textarea>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-show="HasDefault( task )" ng-click="ResetTask( task )" title="the shipped prompt">Reset</button>
+				</div>
+			</div>
+			<div class="thread-buttons">
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="settings-task-add" ng-click="AddTask()"><svg class="icon lead"><use href="#i-plus"></use></svg>Add task</button>
+			</div>
 			<div class="thread-buttons">
 				<button class="btn btn-sm btn-primary" type="submit" id="settings-save" ng-disabled="Panel.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
 				<button class="btn btn-sm btn-outline-secondary" type="button" id="settings-close" ng-click="Close()"><svg class="icon lead"><use href="#i-x"></use></svg>{{ Panel.Saved ? 'Close' : 'Cancel' }}</button>
@@ -227,7 +250,7 @@
 		</form>
 	</div>
 
-	<!-- A project's own settings (plan Run Shapes, Step 2): its States, Include, Exclude and Commands, one per line. -->
+	<!-- A project's own settings (plan Run Shapes, Step 2): its States, Include, Exclude and Commands, one per line, and the tasks it enables (plan LLM Tasks, Step 1). -->
 	<div class="subplan-popup settings-popup project-settings-popup" ng-controller="ProjectSettingsController" ng-show="Panel.Open" ng-keydown="Key($event)">
 		<form class="subplan-form settings-form" ng-if="Panel.Open" ng-submit="Save()">
 			<div class="subplan-head">Project settings <span class="muted small">{{ Panel.Project.Name }}</span></div>
@@ -251,6 +274,13 @@
 			<div class="settings-row top">
 				<label for="project-commands">Commands</label>
 				<textarea class="form-control form-control-sm" id="project-commands" rows="2" ng-model="Panel.Form.CommandsText" placeholder="one command per line; none by default" title="the commands an LLM may run in the folder, one per line"></textarea>
+			</div>
+			<div class="settings-row top">
+				<label>Tasks</label>
+				<div class="project-tasks">
+					<label class="project-task" ng-repeat="task in Panel.Form.Tasks track by task.Id" title="writes {{ task.Writes }}"><input type="checkbox" ng-model="task.Enabled"> {{ task.Name }}</label>
+					<span class="muted small" ng-show="!Panel.Form.Tasks.length">the server has no tasks</span>
+				</div>
 			</div>
 			<div class="thread-buttons">
 				<button class="btn btn-sm btn-primary" type="submit" id="project-settings-save" ng-disabled="Panel.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
