@@ -45,7 +45,11 @@ async function start()
 async function call( server, method, path, body, authorization )
 {
 	let headers = ( body === undefined ) ? {} : { 'Content-Type': 'application/json' };
-	if ( authorization )
+	if ( authorization && authorization.startsWith( 'service:' ) )
+	{
+		headers[ 'X-Consensus-Service' ] = authorization.slice( 8 );
+	}
+	else if ( authorization )
 	{
 		headers.Authorization = authorization;
 	}
@@ -252,9 +256,7 @@ TEST( 'check: a file that is not an export, or from a newer Consensus, is refuse
 
 TEST( 'export: the whole project, every revision, no token, no corpora; the owner or the llm', async function ()
 {
-	let llm_token = PARTICIPANTS.NewToken();
-	origin.Settings.Participants[ 1 ].Token = llm_token;
-	ASSERT.equal( ( await call( origin, 'GET', '/api/projects/' + alpha.Id + '/export', undefined, 'Bearer ' + llm_token ) ).Status, 200 );
+	ASSERT.equal( ( await call( origin, 'GET', '/api/projects/' + alpha.Id + '/export', undefined, 'service:llm' ) ).Status, 200 );
 	ASSERT.equal( ( await call( origin, 'GET', '/api/projects/jnothing/export' ) ).Status, 404 );
 
 	exported = await export_of( origin, alpha.Id );
@@ -267,7 +269,7 @@ TEST( 'export: the whole project, every revision, no token, no corpora; the owne
 	ASSERT.equal( 'Corpora' in exported, false );
 	ASSERT.equal( 'Workers' in exported, false );
 	let json = JSON.stringify( exported );
-	ASSERT.equal( json.includes( llm_token ), false );
+	ASSERT.equal( json.includes( '"Token"' ), false );
 	let plan_ids = exported.Plans.map( function ( whole ) { return whole.Plan.Id; } ).sort();
 	ASSERT.deepEqual( plan_ids, [ alpha.Context, ids.Plan, ids.Subplan, ids.Document ].sort() );
 	let context_whole = exported.Plans.find( function ( whole ) { return whole.Plan.Id === alpha.Context; } );
@@ -351,9 +353,7 @@ TEST( 'merge existing, by the llm over the API: new revisions, replies and plans
 	await edit( copy, ids.Document, '# Notes\n\nNotes kept here.\n' );
 	await edit( origin, ids.Document, '# Notes\n\nNotes kept there.\n' );
 
-	let llm_token = PARTICIPANTS.NewToken();
-	copy.Settings.Participants[ 1 ].Token = llm_token;
-	let result = await call( copy, 'POST', '/api/projects/import', { Export: await export_of( origin, alpha.Id ), Mode: 'merge' }, 'Bearer ' + llm_token );
+	let result = await call( copy, 'POST', '/api/projects/import', { Export: await export_of( origin, alpha.Id ), Mode: 'merge' }, 'service:llm' );
 	ASSERT.equal( result.Status, 201 );
 	let report = result.Body.Report;
 	ASSERT.deepEqual( report.Project, { Id: alpha.Id, Name: 'Alpha', Mode: 'merge' } );
@@ -541,9 +541,7 @@ TEST( 'item export: a folder with its plans and subplans, a plan with its subpla
 	ASSERT.equal( ( await call( origin, 'GET', '/api/items/' + alpha.Context + '/export' ) ).Status, 409 );
 	ASSERT.equal( ( await call( origin, 'GET', '/api/items/' + alpha.ContextFolder + '/export' ) ).Status, 409 );
 	ASSERT.equal( ( await call( origin, 'GET', '/api/items/fld-no-such/export' ) ).Status, 404 );
-	let llm_token = PARTICIPANTS.NewToken();
-	origin.Settings.Participants[ 1 ].Token = llm_token;
-	ASSERT.equal( ( await call( origin, 'GET', '/api/items/' + ids.Plan + '/export', undefined, 'Bearer ' + llm_token ) ).Status, 200 );
+	ASSERT.equal( ( await call( origin, 'GET', '/api/items/' + ids.Plan + '/export', undefined, 'service:llm' ) ).Status, 200 );
 } );
 
 

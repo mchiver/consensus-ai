@@ -202,7 +202,7 @@ async function start_consensus()
 	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( {
 		Name: 'test', Port: 0, Scope: 'Local',
 		States: [ 'Draft', 'Working', 'Finished' ],
-		Participants: [ { Name: 'user', Display: 'User', Role: 'owner' }, { Name: 'llm', Display: 'LLM', Role: 'llm', Token: TOKEN } ],
+		Owner: { Name: 'user', Display: 'User' },
 	} ) );
 	return SERVER.Start( { Data: data, Port: 0 } );
 }
@@ -223,7 +223,8 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		let resolved = ( await owner( url, 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Say third.', Anchor: { Text: 'A second line.' }, Resolve: true } ) ).Body.Thread;
 		let contested = ( await owner( url, 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Why a first line?' } ) ).Body.Thread;
 
-		let tools = TOOLS.Tools( { Kind: 'review', Folder: null, Server: { Url: url, Token: TOKEN, Project: project.Id } } );
+		// the tools call the API on a run token the server made (plan User Management, Step 2)
+		let tools = TOOLS.Tools( { Kind: 'review', Folder: null, Server: { Url: url, Token: target.Tokens.Mint( { Service: 'llm', Name: 'Review run', Project: project.Id } ), Project: project.Id } } );
 		ASSERT.deepEqual( tools.Definitions.map( function ( d ) { return d.function.name; } ), [ 'list_project', 'read_plan', 'read_document', 'waiting', 'reply', 'apply', 'thread', 'set_state' ] );
 
 		let listed = await tools.Call( 'list_project', {} );
@@ -252,7 +253,7 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		ASSERT.equal( await tools.Call( 'reply', { Plan: plan.Id, Thread: contested.Id, Text: 'Because it comes first.' } ), 'replied on ' + contested.Id );
 		let after_reply = ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body;
 		let replied = after_reply.Threads.find( function ( t ) { return t.Id === contested.Id; } );
-		ASSERT.equal( replied.Replies[ 1 ].By, 'llm' );
+		ASSERT.deepEqual( [ replied.Replies[ 1 ].By, replied.Replies[ 1 ].Service, replied.Replies[ 1 ].Token ], [ 'user', 'llm', 'Review run' ] );
 		ASSERT.equal( replied.Replies[ 1 ].Text, 'Because it comes first.' );
 		ASSERT.match( await tools.Call( 'reply', { Plan: elsewhere.Id, Thread: 'x', Text: 'no' } ), /not in this project/ );
 

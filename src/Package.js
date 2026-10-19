@@ -9,7 +9,8 @@
 //     Kind: 'review' | 'build' | 'session',
 //     Llm: { Name, Checks: { Instructions, Readme, Documents, Threads }, Prompts: { Review, Build, Session } },
 //     Server: { Url, Name },  Project: { Id, Name },  Plan: { Id, Title, State } | null,  Folder: path | null,
-//     Participant: 'claude-cli@cube4',  Token?: the participant's token,
+//     Owner: { Name, Display },  Service: the connection's name (the byline is "<Service> by <Owner Display>"),
+//     Token?: the run's token; null for a run that needs none (ollama), undefined for a preview,
 //     Instructions: text | null,  InstructionsTitle?: 'Agent instructions',  DocumentsHint?: how to read one,
 //     Readme: { Id, Title, Text } | null,  Documents: [ { Id, Title } ],
 //     Threads: [ { Id, Status, Anchor, Replies: [ { By, At, Text } ] } ],
@@ -99,13 +100,15 @@ function Build( Request )
 	let llm = request.Llm || {};
 	let checks = Object.assign( {}, DEFAULT_CHECKS, llm.Checks || {} );
 	let prompts = Object.assign( {}, DEFAULT_PROMPTS, llm.Prompts || {} );
-	let participant = request.Participant || 'llm';
+	let owner = request.Owner || { Name: 'user', Display: 'User' };
+	let service = request.Service || llm.Name || 'llm';
+	let byline = service + ' by ' + ( owner.Display || owner.Name );
 	let lines = [];
 
 	let server_name = ( request.Server && request.Server.Name ) ? ' "' + request.Server.Name + '"' : '';
 	lines.push( '# A ' + kind + ' one-shot from Consensus' );
 	lines.push( '' );
-	lines.push( 'You are the `' + participant + '` participant of the Consensus server below, run once by that server' + server_name + ( llm.Name ? ' through its LLM connection "' + llm.Name + '"' : '' ) + '.' );
+	lines.push( 'You act for ' + ( owner.Display || owner.Name ) + ', the owner of the Consensus server below, run once by that server' + server_name + ' through its LLM connection "' + service + '": what you post reads "' + byline + '".' );
 	heading( lines, 'This run' );
 	lines.push( '- Kind: ' + kind );
 	if ( request.Server && request.Server.Url )
@@ -115,6 +118,10 @@ function Build( Request )
 	if ( request.Token )
 	{
 		lines.push( '- Your token, sent as "Authorization: Bearer <token>": ' + request.Token );
+	}
+	else if ( request.Token === undefined )
+	{
+		lines.push( '- Your token, sent as "Authorization: Bearer <token>": made by the server when the run starts (this is a preview).' );
 	}
 	if ( request.Project )
 	{
@@ -160,7 +167,7 @@ function Build( Request )
 	if ( checks.Threads && request.Plan )
 	{
 		let threads = request.Threads || [];
-		heading( lines, 'Threads of the plan waiting on ' + participant );
+		heading( lines, 'Threads of the plan waiting on ' + byline );
 		if ( !threads.length )
 		{
 			lines.push( 'None.' );

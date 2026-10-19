@@ -96,7 +96,7 @@ async function api( method, path, body, as_llm )
 	}
 	if ( as_llm )
 	{
-		headers.Authorization = 'Bearer ' + LLM_TOKEN;
+		headers[ 'X-Consensus-Service' ] = 'llm';
 	}
 	let response = await fetch( running.Url + path, { method: method, headers: headers, body: ( body === undefined ) ? undefined : JSON.stringify( body ) } );
 	return response.json();
@@ -110,7 +110,6 @@ TEST.before( async function ()
 	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( settings, null, '	' ) );
 	running = await SERVER.Start( { Data: data, Port: 0 } );
 	home = ( await running.Store.ListProjects() )[ 0 ].Id;
-	running.Settings.Participants[ 1 ].Token = LLM_TOKEN;
 	plan = ( await api( 'POST', '/api/plans', { Title: 'Browser check', Text: TEXT } ) ).Plan;
 	browser = await CDP.StartBrowser();
 	page = await browser.OpenPage( running.Url + '/#/p/' + plan.Id );
@@ -839,7 +838,8 @@ TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-docum
 	let posted = threads.find( function ( thread ) { return thread.Replies[ 0 ].Text === 'Add a summary at the top.'; } );
 	ASSERT.equal( posted.Status, 'resolved' );
 	ASSERT.equal( posted.Anchor, null );
-	ASSERT.deepEqual( posted.Turn, [ 'llm' ] );
+	// resolved: waiting on the speakers but the owner (the llm, when it has spoken on this plan)
+	ASSERT.equal( posted.Turn.includes( 'user' ), false );
 
 	// a whole-document thread can be anchored afterwards
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.selected .reanchor-button" ) ).display !== "none"' );
@@ -1013,7 +1013,7 @@ TEST( 'LLM Instructions (plan UI Tweaks VII): a project row\'s menu shows the se
 	await page.WaitFor( '( document.getElementById( "instructions-text" ) || { value: "" } ).value.indexOf( "# This server" ) >= 0' );
 	let text = await page.Evaluate( 'document.getElementById( "instructions-text" ).value' );
 	ASSERT.match( text, /^# Your project\n\n- .+ \(prj-[^)]+\), its Readme (doc|ctx)-[^\n]+\n\n# This server\n/ );
-	ASSERT.ok( text.indexOf( LLM_TOKEN ) >= 0 );
+	ASSERT.ok( text.indexOf( 'X-Consensus-Service: <your name>' ) >= 0 );
 	ASSERT.ok( text.indexOf( '- API: ' + running.Url + '/api' ) >= 0 );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "instructions-open" ).getAttribute( "href" )' ), '/instructions' );
 	await page.Press( 'Escape' );
@@ -1061,18 +1061,19 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	// plan User Management, Step 1: the line beneath the Scope and the empty Clerk section
 	ASSERT.match( await page.Evaluate( text_of( '#settings-trust' ) ), /^Local: this machine only/ );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-clerk-publishable" ).value' ), '' );
-	ASSERT.equal( await page.Evaluate( count_of( '.settings-participant' ) ), 2 );
-	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".settings-participant .settings-token" ) ][ 1 ].value' ), LLM_TOKEN );
-	// a participant with no role left: refused, the problem shown, nothing written
-	await page.Click( '#settings-add-participant' );
-	await page.WaitFor( count_of( '.settings-participant' ) + ' === 3' );
+	// plan User Management, Step 2: the Owner in place of the participants, its name read-only
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-owner-name" ).value' ), 'user' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-owner-name" ).readOnly' ), true );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-owner-display" ).value' ), 'User' );
+	ASSERT.equal( await page.Evaluate( count_of( '.settings-participant' ) ), 0 );
+	// an owner with no name: refused, the problem shown, nothing written
+	await page.Evaluate( '( function () { let box = document.getElementById( "settings-owner-name" ); box.removeAttribute( "readonly" ); box.value = ""; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
 	await page.Click( '#settings-save' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "settings-problems" ) ).display !== "none"' );
-	ASSERT.match( await page.Evaluate( text_of( '#settings-problems' ) ), /a participant has no Name/ );
-	ASSERT.equal( ( await api( 'GET', '/api/settings' ) ).Settings.Participants.length, 2 );
-	// the new participant removed, a state added: saved, and the picker offers it at once
-	await page.Evaluate( '[ ...document.querySelectorAll( ".settings-participant .btn-outline-danger" ) ].pop().click(); true' );
-	await page.WaitFor( count_of( '.settings-participant' ) + ' === 2' );
+	ASSERT.match( await page.Evaluate( text_of( '#settings-problems' ) ), /Owner must have a Name/ );
+	ASSERT.deepEqual( ( await api( 'GET', '/api/settings' ) ).Settings.Owner, { Name: 'user', Display: 'User' } );
+	// the name back, a state added: saved, and the picker offers it at once
+	await page.Evaluate( '( function () { let box = document.getElementById( "settings-owner-name" ); box.value = "user"; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
 	await page.Evaluate( '( function () { let box = document.getElementById( "settings-states" ); box.value = box.value + "\\nShelved"; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
 	await page.Click( '#settings-save' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "settings-saved" ) ).display !== "none"' );

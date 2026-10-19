@@ -166,7 +166,7 @@
 	<div class="subplan-popup port-popup" id="instructions-popup" ng-controller="InstructionsController" ng-show="Instructions.Open" ng-keydown="Key($event)">
 		<div class="subplan-form port-form" ng-if="Instructions.Open" tabindex="-1" auto-focus>
 			<div class="subplan-head">LLM Instructions for &ldquo;{{ Instructions.Project.Name }}&rdquo;</div>
-			<div class="muted small">What an LLM needs to take part, to paste into its session by hand: the project named first, then the server's address and token, then the guide.</div>
+			<div class="muted small">What an LLM needs to take part, to paste into its session by hand: the project named first, then the server's address and how to say who you are, then the guide.</div>
 			<div class="muted small" ng-show="Instructions.Busy">Loading…</div>
 			<textarea class="form-control form-control-sm port-json instructions-text" id="instructions-text" rows="14" readonly ng-model="Instructions.Text" ng-hide="Instructions.Busy"></textarea>
 			<div class="port-error" ng-show="Instructions.Error">{{ Instructions.Error }}</div>
@@ -212,15 +212,12 @@
 				<label for="settings-clerk-admin">Admin email</label>
 				<input class="form-control form-control-sm" id="settings-clerk-admin" type="email" ng-model="Panel.Form.Clerk.AdminEmail" placeholder="admin@example.com" title="the one Administrator of this server, by the email they sign in with" autocomplete="off">
 			</div>
-			<div class="settings-label">Participants <button class="btn btn-sm btn-outline-secondary" type="button" id="settings-add-participant" ng-click="AddParticipant()"><svg class="icon lead"><use href="#i-plus"></use></svg>Add</button></div>
-			<div class="settings-participant" ng-repeat="participant in Panel.Form.Participants">
-				<input class="form-control form-control-sm settings-name" ng-model="participant.Name" placeholder="name" title="the name threads and revisions record">
-				<input class="form-control form-control-sm settings-display" ng-model="participant.Display" placeholder="shown as" title="how the page shows the participant">
-				<select class="form-select form-select-sm settings-role" ng-model="participant.Role" ng-options="role for role in Roles" title="owner: resolves threads and writes the settings; llm: applies resolved threads; member: takes part"></select>
-				<input class="form-control form-control-sm settings-token" ng-model="participant.Token" placeholder="token (none)" title="the token the participant sends as Authorization: Bearer; none for the browser's owner">
-				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="NewToken( participant )" title="a new random token"><svg class="icon lead"><use href="#i-refresh"></use></svg>New</button>
-				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CopyToken( participant )" ng-disabled="!participant.Token" title="copy the token"><svg class="icon lead"><use href="#i-copy"></use></svg>Copy</button>
-				<button class="btn btn-sm btn-outline-danger" type="button" ng-click="RemoveParticipant( $index )" title="remove this participant"><svg class="icon"><use href="#i-x"></use></svg></button>
+			<div class="settings-label">Owner <span class="muted small fw-normal">the one account of this server: every request is the owner; a service or an LLM connection posts as "<service> by <shown as>"</span></div>
+			<div class="settings-row">
+				<label for="settings-owner-name">Name</label>
+				<input class="form-control form-control-sm settings-owner-name" id="settings-owner-name" ng-model="Panel.Form.Owner.Name" readonly title="the name threads and revisions record, kept as it is so the records of before still match">
+				<label for="settings-owner-display">Shown as</label>
+				<input class="form-control form-control-sm" id="settings-owner-display" ng-model="Panel.Form.Owner.Display" placeholder="User" title="how the page shows the owner; the byline of a run or a service reads <service> by <this>">
 			</div>
 			<div class="thread-buttons">
 				<button class="btn btn-sm btn-primary" type="submit" id="settings-save" ng-disabled="Panel.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>

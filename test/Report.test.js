@@ -42,7 +42,7 @@ async function call( method, path, body, as_llm )
 	}
 	if ( as_llm )
 	{
-		headers.Authorization = 'Bearer ' + token;
+		headers[ 'X-Consensus-Service' ] = 'llm';
 	}
 	let response = await fetch( running.Url + path, { method: method, headers: headers, body: ( body === undefined ) ? undefined : JSON.stringify( body ) } );
 	let type = response.headers.get( 'content-type' ) || '';
@@ -54,8 +54,7 @@ async function call( method, path, body, as_llm )
 TEST.before( async function ()
 {
 	running = await SERVER.Start( { Data: FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-report-' ) ), Port: 0 } );
-	token = PARTICIPANTS.NewToken();
-	running.Settings.Participants[ 1 ].Token = token;
+	token = null;
 	plan = ( await call( 'POST', '/api/plans', { Title: 'The reported plan', Text: TEXT } ) ).Body.Plan;
 	subplan = ( await call( 'POST', '/api/plans', { Title: 'The first step', Text: '# The first step\n\nA step\'s text.\n', Parent: plan.Id } ) ).Body.Plan;
 	// applied: anchored, answered by the llm, resolved by the owner, applied by the llm with the outcome
@@ -104,7 +103,7 @@ TEST( 'the report page: the title page, the text with its passages marked and nu
 	ASSERT.ok( html.includes( 'id="browser-button" title="the same report in your browser, for its own preview and print" hidden>' ) );
 	// the title page's facts
 	ASSERT.ok( html.includes( '<dt>State</dt><dd>Draft' ) );
-	ASSERT.ok( html.includes( '<dt>Participants</dt>' ) && html.includes( '<span class="who">User</span>' ) && html.includes( '<span class="who">LLM</span>' ) );
+	ASSERT.ok( html.includes( '<dt>Participants</dt>' ) && html.includes( '<span class="who">User</span>' ) && html.includes( '<span class="who">llm by User</span>' ) );
 	ASSERT.ok( html.includes( '4 threads, 1 applied, 0 resolved, 3 contested (1 reopened), 1 detached; 1 Subplan' ), html.match( /<dt>Threads<\/dt><dd>[^<]*/ )[ 0 ] );
 	ASSERT.ok( html.includes( '<ol class="contents">' ) && html.includes( '>The first step</a>' ) );
 	// the passages: whole document 1, then bold claim 2 and one list item 3 in the text's order, the detached one last (4)
@@ -119,9 +118,9 @@ TEST( 'the report page: the title page, the text with its passages marked and nu
 	ASSERT.match( heads[ 2 ], /<span class="number">3<\/span> <span class="anchor-words">“one list item”<\/span> <span class="badge reopened">reopened<\/span>/ );
 	ASSERT.match( heads[ 3 ], /<span class="number">4<\/span> <span class="anchor-words">“words that will change” \(detached: these words are no longer in the text\)<\/span> <span class="badge contested">contested<\/span>/ );
 	ASSERT.match( heads[ 4 ], /<span class="number">1<\/span> <span class="anchor-words">“A step's text.”<\/span>/ );
-	ASSERT.match( html, /<div class="reply-head"><span class="who">LLM<\/span> <time datetime="[^"]+">\d{4}-\d\d-\d\d \d\d:\d\d:\d\d<\/time><\/div><div class="reply-text markdown"><p>Outcome: it stays.<\/p>/ );
+	ASSERT.match( html, /<div class="reply-head"><span class="who">llm by User<\/span> <time datetime="[^"]+">\d{4}-\d\d-\d\d \d\d:\d\d:\d\d<\/time><\/div><div class="reply-text markdown"><p>Outcome: it stays.<\/p>/ );
 	ASSERT.match( html, /<div class="record">Resolved by <span class="who">User<\/span> <time datetime="[^"]+">\d{4}-\d\d-\d\d \d\d:\d\d:\d\d<\/time><\/div>/ );
-	ASSERT.match( html, /<div class="record">Applied by <span class="who">LLM<\/span> <time[^>]*>[^<]+<\/time> at revision 1: <span class="outcome">kept as it was<\/span><\/div>/ );
+	ASSERT.match( html, /<div class="record">Applied by <span class="who">llm by User<\/span> <time[^>]*>[^<]+<\/time> at revision 1: <span class="outcome">kept as it was<\/span><\/div>/ );
 	// the deleted thread is not there
 	ASSERT.equal( html.includes( 'Forget this one.' ), false );
 	ASSERT.equal( html.includes( threads.Deleted.Id ), false );
@@ -142,7 +141,7 @@ TEST( 'the markdown report: the same record as one markdown document, and a Subp
 	ASSERT.ok( markdown.includes( '- Threads: 4 threads, 1 applied, 0 resolved, 3 contested (1 reopened), 1 detached; 1 Subplan' ) );
 	ASSERT.ok( markdown.includes( '\n# The reported plan\n\nThe first paragraph makes a **bold claim** here' ) );
 	ASSERT.ok( markdown.includes( '\n## Threads of The reported plan\n\n1. the whole document — contested\n    - **User** ' ) );
-	ASSERT.match( markdown, /2\. “bold claim” — applied\n    - \*\*User\*\* \d{4}-\d\d-\d\d \d\d:\d\d:\d\d:\n      Is it bold enough\?\n    - \*\*LLM\*\* [^\n]+:\n      Outcome: it stays\.\n    - Resolved by User [^\n]+\n    - Applied by LLM [^\n]+ at revision 1: kept as it was\n/ );
+	ASSERT.match( markdown, /2\. “bold claim” — applied\n    - \*\*User\*\* \d{4}-\d\d-\d\d \d\d:\d\d:\d\d:\n      Is it bold enough\?\n    - \*\*llm by User\*\* [^\n]+:\n      Outcome: it stays\.\n    - Resolved by User [^\n]+\n    - Applied by llm by User [^\n]+ at revision 1: kept as it was\n/ );
 	ASSERT.ok( markdown.includes( '4. “words that will change” (detached: these words are no longer in the text) — contested' ) );
 	ASSERT.ok( markdown.includes( '\n## Subplan: The first step\n' ) && markdown.includes( '\n### Threads of The first step\n' ) );
 	ASSERT.equal( markdown.includes( 'Forget this one.' ), false );

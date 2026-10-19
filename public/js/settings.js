@@ -1,8 +1,8 @@
 'use strict';
 
 // Settings - the server's settings (consensus.json) in a popup, for the owner (plan Consensus Desktop, Step 1): the
-// Name, the Scope and Port (applied at the next start; plan Run Shapes, Step 1), the States one per line, and the
-// participants with their roles and tokens, and the Clerk section (plan User Management, Step 1: the keys of a Public
+// Name, the Scope and Port (applied at the next start; plan Run Shapes, Step 1), the States one per line, the Owner
+// (its Name read-only, its Display; plan User Management, Step 2: the participants and their tokens are gone), and the Clerk section (plan User Management, Step 1: the keys of a Public
 // server's sign-in, empty for a trusted network; a line beside the Scope says what the two come to). Saved through
 // PUT /api/settings; the server's problems are shown and nothing is saved while there are any.
 
@@ -23,11 +23,9 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 
 .controller( 'SettingsController', [ '$scope', 'State', 'Client', 'SettingsPanel', 'Roots', function ( $scope, State, Client, SettingsPanel, Roots )
 {
-	const ROLES = [ 'owner', 'llm', 'member' ];
 	const SCOPES = [ 'None', 'Local', 'Public' ];
 	const CLERK_FIELDS = [ 'PublishableKey', 'SecretKey', 'WebhookSecret', 'AdminEmail' ];
 	$scope.Panel = SettingsPanel;
-	$scope.Roles = ROLES;
 	$scope.Scopes = SCOPES;
 
 
@@ -43,8 +41,8 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 	}
 
 
-	// The settings as the form holds them: the states as text, one per line; each participant with its Token as a
-	// string (empty for none); the Clerk section as four strings.
+	// The settings as the form holds them: the states as text, one per line; the Owner's Name and Display; the Clerk
+	// section as four strings.
 	function to_form( settings )
 	{
 		return {
@@ -52,10 +50,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 			Scope: SCOPES.includes( settings.Scope ) ? settings.Scope : 'Local',
 			Port: settings.Port,
 			StatesText: ( settings.States || [] ).join( '\n' ),
-			Participants: ( settings.Participants || [] ).map( function ( participant )
-			{
-				return { Name: participant.Name || '', Display: participant.Display || '', Role: participant.Role || 'member', Token: participant.Token || '' };
-			} ),
+			Owner: { Name: ( settings.Owner && settings.Owner.Name ) || 'user', Display: ( settings.Owner && settings.Owner.Display ) || '' },
 			Clerk: clerk_form( settings.Clerk ),
 		};
 	}
@@ -68,10 +63,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 			Scope: form.Scope,
 			Port: form.Port,
 			States: String( form.StatesText || '' ).split( /\r?\n/ ).map( function ( line ) { return line.trim(); } ).filter( function ( line ) { return line; } ),
-			Participants: form.Participants.map( function ( participant )
-			{
-				return { Name: participant.Name, Display: participant.Display, Role: participant.Role, Token: participant.Token };
-			} ),
+			Owner: { Name: form.Owner.Name, Display: form.Owner.Display },
 			Clerk: form.Clerk,
 		};
 	}
@@ -142,36 +134,6 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		if ( event.key === 'Escape' )
 		{
 			$scope.Close();
-		}
-	};
-
-
-	$scope.AddParticipant = function ()
-	{
-		SettingsPanel.Form.Participants.push( { Name: '', Display: '', Role: 'member', Token: '' } );
-	};
-
-
-	$scope.RemoveParticipant = function ( index )
-	{
-		SettingsPanel.Form.Participants.splice( index, 1 );
-	};
-
-
-	// A new token, made here: 24 random bytes as hex, as the server makes them.
-	$scope.NewToken = function ( participant )
-	{
-		let bytes = new Uint8Array( 24 );
-		window.crypto.getRandomValues( bytes );
-		participant.Token = Array.from( bytes ).map( function ( byte ) { return byte.toString( 16 ).padStart( 2, '0' ); } ).join( '' );
-	};
-
-
-	$scope.CopyToken = function ( participant )
-	{
-		if ( participant.Token && navigator.clipboard )
-		{
-			navigator.clipboard.writeText( participant.Token ).catch( function () {} );
 		}
 	};
 

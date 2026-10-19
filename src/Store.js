@@ -12,7 +12,7 @@
 //   <project>/.consensus/content/<id>/content.json     { Id, Title, Kind: 'plan' | 'document', State, Created, Updated, Revision, Head }
 //   <project>/.consensus/content/<id>/content.md       the text at revision Revision
 //   <project>/.consensus/content/<id>/threads.json     [ thread ]
-//   <project>/.consensus/content/<id>/revisions/0001.md, 0001.json    the text, and { Id, Parent, Merged?, Revision, By, At, Reason, Thread?, Note? }
+//   <project>/.consensus/content/<id>/revisions/0001.md, 0001.json    the text, and { Id, Parent, Merged?, Revision, By, Service?, Token?, At, Reason, Thread?, Note? }
 //   <project>/.consensus/archive/<id>/                 an archived item, moved whole; read, never written, until restored
 //   <project>/.consensus/trash/<id>/                   a deleted item, moved whole
 //
@@ -464,7 +464,7 @@ function Open( Folder )
 		homes[ id ] = { Project: Parameters.Project, Archived: false };
 		let where = PATH.join( home, CONTENT_FOLDER, id );
 		await FS.promises.mkdir( PATH.join( where, REVISIONS_FOLDER ), { recursive: true } );
-		await write_snapshot( where, 1, Parameters.Text || '', { Id: head, Parent: null, Revision: 1, By: Parameters.By, At: now, Reason: 'create' } );
+		await write_snapshot( where, 1, Parameters.Text || '', stamped( { Id: head, Parent: null, Revision: 1, By: Parameters.By }, Parameters, { At: now, Reason: 'create' } ) );
 		await write_file( PATH.join( where, 'content.md' ), Parameters.Text || '' );
 		await write_json( PATH.join( where, 'threads.json' ), [] );
 		await write_json( PATH.join( where, 'content.json' ), plan );
@@ -511,7 +511,7 @@ function Open( Folder )
 	}
 
 
-	// A new revision of the text. Parameters: { Text, By, Reason: 'edit' | 'apply', Thread?, Note? }
+	// A new revision of the text. Parameters: { Text, By, Service?, Token?, Reason: 'edit' | 'apply', Thread?, Note? }
 	// Note: a sentence saying why, kept with the revision.
 	async function WriteText( Id, Parameters )
 	{
@@ -523,7 +523,7 @@ function Open( Folder )
 		}
 		let now = new Date().toISOString();
 		let revision = plan.Revision + 1;
-		let record = { Id: IDS.New( IDS.REVISION ), Parent: plan.Head || null, Revision: revision, By: Parameters.By, At: now, Reason: Parameters.Reason };
+		let record = stamped( { Id: IDS.New( IDS.REVISION ), Parent: plan.Head || null, Revision: revision, By: Parameters.By }, Parameters, { At: now, Reason: Parameters.Reason } );
 		if ( Parameters.Thread )
 		{
 			record.Thread = Parameters.Thread;
@@ -539,6 +539,22 @@ function Open( Folder )
 		plan.Updated = now;
 		await write_json( PATH.join( where, 'content.json' ), plan );
 		return plan;
+	}
+
+
+	// A record with the Service and Token of the request that made it, when it had them (plan User Management, Step 2).
+	function stamped( head, parameters, tail )
+	{
+		let record = Object.assign( {}, head );
+		if ( parameters.Service )
+		{
+			record.Service = parameters.Service;
+		}
+		if ( parameters.Token )
+		{
+			record.Token = parameters.Token;
+		}
+		return Object.assign( record, tail );
 	}
 
 

@@ -3,7 +3,7 @@
 		<div class="revision-row" ng-repeat="revision in $ctrl.Revisions" ng-class="{ selected: revision.Revision === $ctrl.Shown.Revision }" ng-click="$ctrl.Show(revision)">
 			<span class="revision-number">{{ revision.Revision }}</span>
 			<span class="revision-reason" ng-class="revision.Reason">{{ revision.Reason }}</span>
-			<span class="revision-by">{{ revision.By | display }}</span>
+			<span class="revision-by">{{ revision | byline }}</span>
 			<span class="revision-at">{{ revision.At | when }}</span>
 			<span class="revision-note" ng-show="revision.Note" title="{{ revision.Note }}">{{ revision.Note }}</span>
 			<span class="revision-thread" ng-show="revision.Thread" ng-class="{ deleted: !$ctrl.ThreadExists(revision.Thread) }" ng-click="$ctrl.OpenThread(revision, $event)" title="{{ $ctrl.ThreadExists(revision.Thread) ? 'the thread it applied' : 'the thread it applied was deleted' }}">{{ $ctrl.ThreadLabel(revision.Thread) }}</span>

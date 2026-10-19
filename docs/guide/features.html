@@ -83,7 +83,7 @@
 <li><strong>Agent sessions.</strong> Point Claude Code or any agent at one address, <code>/instructions</code>, and it learns the rules, finds what waits on it, replies, applies and drafts plans.</li>
 <li><strong>Your turn in Consensus.</strong> The working loop: the owner comments and resolves, the agent replies and applies, in the plan, not in a chat scroll.</li>
 <li><strong>The build loop.</strong> When every thread is applied, the agent builds exactly that plan and posts its build log as a thread, accepted the same way.</li>
-<li><strong>LLM connections.</strong> The server runs LLMs for you: Claude Code as a one-shot command, or a local model through Ollama, each a named participant with its own token.</li>
+<li><strong>LLM connections.</strong> The server runs LLMs for you: Claude Code as a one-shot command, or a local model through Ollama, each posting as <code>&lt;connection&gt; by &lt;owner&gt;</code> on a token the server makes for the run.</li>
 <li><strong>Review, Build and Session runs.</strong> One button packages the project&#39;s Readme, its context documents and the plan&#39;s waiting threads into a prompt, runs it in the project&#39;s folder, and keeps the log.</li>
 <li><strong>Tools for local models.</strong> A local model gets file tools over the project&#39;s folder, held to its Include and Exclude lists, and Consensus tools for reading plans, replying and applying.</li>
 <li><strong>Packaging you control.</strong> Choose which documents and threads go into a run&#39;s prompt, edit the prompts, and preview the package with its token estimate before it runs.</li>
@@ -97,7 +97,7 @@
 <li><strong>Docker.</strong> One image, one volume, port 3500, for a box on your network.</li>
 <li><strong>Scope.</strong> The server listens for this machine only, for the network, or not at all, as the settings say.</li>
 <li><strong>Live updates.</strong> Every change is a Server-Sent Event, so every open page, window and server row stays in step.</li>
-<li><strong>Settings in the app.</strong> Name, scope, port, states, participants and their tokens, and the Clerk keys of a Public server, edited in a popup by the owner. See <a href="settings.html">Settings and themes</a>.</li>
+<li><strong>Settings in the app.</strong> Name, scope, port, states, the owner&#39;s display and the Clerk keys of a Public server, edited in a popup by the owner. See <a href="settings.html">Settings and themes</a>.</li>
 <li><strong>Themes and scale.</strong> System, light, dark and seven more palettes, and three text sizes, remembered per server.</li>
 </ul>
 <h2 id="the-api">The API</h2>

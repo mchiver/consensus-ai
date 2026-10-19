@@ -43,7 +43,7 @@ async function call( method, path, body, as_llm )
 	}
 	if ( as_llm === true )
 	{
-		headers.Authorization = 'Bearer ' + token;
+		headers[ 'X-Consensus-Service' ] = 'llm';
 	}
 	else if ( typeof as_llm === 'string' )
 	{
@@ -92,9 +92,8 @@ TEST.before( async function ()
 {
 	running = await SERVER.Start( { Data: temporary_folder(), Port: 0 } );
 	home = ( await running.Store.ListProjects() )[ 0 ].Id;
-	// The llm needs no token in the file; these tests play it over the API, so it gets one in memory.
-	token = PARTICIPANTS.NewToken();
-	running.Settings.Participants[ 1 ].Token = token;
+	// The llm of these tests is a service acting for the owner (plan User Management, Step 2): the header names it.
+	token = null;
 } );
 
 
@@ -130,7 +129,7 @@ TEST( 'start writes the settings with Scope Local and listens on 127.0.0.1; the 
 	ASSERT.deepEqual( [ from_settings.Scope, from_settings.Address.Host, from_settings.Address.Local ], [ 'Public', '0.0.0.0', false ] );
 	await from_settings.Close();
 	let older = temporary_folder();
-	FS.writeFileSync( PATH.join( older, 'consensus.json' ), JSON.stringify( { Port: 0, Host: '0.0.0.0', Participants: settings.Participants } ) );
+	FS.writeFileSync( PATH.join( older, 'consensus.json' ), JSON.stringify( { Port: 0, Host: '0.0.0.0', Owner: settings.Owner } ) );
 	let migrated = await SERVER.Start( { Config: older, Port: 0 } );
 	ASSERT.deepEqual( [ migrated.Scope, migrated.Settings.Scope, 'Host' in migrated.Settings, migrated.Settings.Name ], [ 'Public', 'Public', false, require( 'os' ).hostname() ] );
 	ASSERT.equal( JSON.parse( FS.readFileSync( PATH.join( older, 'consensus.json' ), 'utf8' ) ).Scope, 'Public' );
@@ -141,16 +140,16 @@ TEST( 'start writes the settings with Scope Local and listens on 127.0.0.1; the 
 	await none.Close();
 	let again = await SERVER.Start( { Data: running.Store.Folder, Port: 0 } );
 	ASSERT.equal( again.SettingsWritten, false );
-	ASSERT.deepEqual( again.Settings.Participants[ 1 ], { Name: 'llm', Display: 'LLM', Role: 'llm' } );
+	ASSERT.deepEqual( again.Settings.Owner, { Name: 'user', Display: 'User' } );
 	await again.Close();
 	// settings with problems stop the start
 	let broken = temporary_folder();
-	FS.writeFileSync( PATH.join( broken, 'consensus.json' ), JSON.stringify( { Port: 0, Participants: [] } ) );
-	await ASSERT.rejects( SERVER.Start( { Data: broken, Port: 0 } ), /no participant has the owner role/ );
+	FS.writeFileSync( PATH.join( broken, 'consensus.json' ), JSON.stringify( { Port: 0, States: [] } ) );
+	await ASSERT.rejects( SERVER.Start( { Data: broken, Port: 0 } ), /States must be a list of one or more names/ );
 } );
 
 
-TEST( 'instructions: plain text, This server first with the address the request reached and the llm token, then the guide', async function ()
+TEST( 'instructions: plain text, This server first with the address the request reached, no token and the service header, then the guide', async function ()
 {
 	let response = await fetch( running.Url + '/instructions' );
 	ASSERT.equal( response.status, 200 );
@@ -158,7 +157,9 @@ TEST( 'instructions: plain text, This server first with the address the request 
 	let text = await response.text();
 	ASSERT.ok( text.startsWith( '# This server\n' ) );
 	ASSERT.ok( text.includes( '- API: ' + running.Url + '/api\n' ) );
-	ASSERT.ok( text.includes( token ) );
+	ASSERT.ok( text.includes( '- No token: a request with none is the owner, User, on this server.\n' ) );
+	ASSERT.ok( text.includes( '"X-Consensus-Service: <your name>"' ) );
+	ASSERT.ok( text.includes( 'reads "<your name> by User"' ) );
 	let guide = FS.readFileSync( PATH.join( __dirname, '..', '.guides', 'build-with-consensus.md' ), 'utf8' );
 	ASSERT.ok( text.endsWith( guide ) );
 	// the address is the one the request reached, as its Host header names it
@@ -176,15 +177,17 @@ TEST( 'instructions: plain text, This server first with the address the request 
 } );
 
 
-TEST( 'identity: no header is the owner, the token is the llm, a wrong token is refused', async function ()
+TEST( 'identity: no header is the owner, the service header names the service acting for the owner, a wrong token is refused', async function ()
 {
 	let owner = await call( 'GET', '/api/me' );
 	ASSERT.equal( owner.Status, 200 );
-	ASSERT.deepEqual( owner.Body.Me, { Name: 'user', Display: 'User', Role: 'owner' } );
+	ASSERT.deepEqual( owner.Body.Me, { Name: 'user', Display: 'User', Role: 'owner', Speaker: 'user' } );
+	ASSERT.deepEqual( owner.Body.Participants, [ { Name: 'user', Display: 'User', Role: 'owner' } ] );
 	ASSERT.equal( owner.Body.Participants.some( function ( participant ) { return 'Token' in participant; } ), false );
 	ASSERT.equal( owner.Body.Version, require( '../package.json' ).version );
 	let llm = await call( 'GET', '/api/me', undefined, true );
-	ASSERT.equal( llm.Body.Me.Name, 'llm' );
+	ASSERT.deepEqual( llm.Body.Me, { Name: 'user', Display: 'User', Role: 'owner', Speaker: 'llm by user', Service: 'llm' } );
+	ASSERT.deepEqual( llm.Body.Participants, [ { Name: 'user', Display: 'User', Role: 'owner' }, { Name: 'llm by user', Display: 'llm by User', Role: 'llm' } ] );
 	let wrong = await call( 'GET', '/api/me', undefined, 'Bearer nope' );
 	ASSERT.equal( wrong.Status, 401 );
 	ASSERT.equal( wrong.Body.Error, 'unknown token' );
@@ -216,18 +219,18 @@ TEST( 'settings: the Clerk section (plan User Management, Step 1) is kept, check
 
 TEST( 'settings: the owner reads and writes consensus.json; problems are refused; Scope and Port wait for a restart; other fields stay', async function ()
 {
-	ASSERT.equal( ( await call( 'GET', '/api/settings', undefined, true ) ).Status, 403 );
-	ASSERT.equal( ( await call( 'PUT', '/api/settings', { Settings: {} }, true ) ).Status, 403 );
+	// a service acting for the owner reads them too (plan User Management, Step 2: every request is the owner)
+	ASSERT.equal( ( await call( 'GET', '/api/settings', undefined, true ) ).Status, 200 );
 	let read = await call( 'GET', '/api/settings' );
 	ASSERT.equal( read.Status, 200 );
 	ASSERT.equal( read.Body.Path, running.Store.SettingsPath() );
 	ASSERT.deepEqual( read.Body.Settings.States, [ 'Draft', 'Plan', 'Working', 'Finished' ] );
-	ASSERT.equal( read.Body.Settings.Participants[ 1 ].Token, token );
+	ASSERT.deepEqual( read.Body.Settings.Owner, { Name: 'user', Display: 'User' } );
 
 	// problems: none written
-	let bad = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read.Body.Settings, { Participants: [ { Name: 'x', Role: 'member' } ] } ) } );
+	let bad = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read.Body.Settings, { Owner: { Display: 'X' } } ) } );
 	ASSERT.equal( bad.Status, 400 );
-	ASSERT.deepEqual( bad.Body.Problems, [ 'no participant has the owner role' ] );
+	ASSERT.deepEqual( bad.Body.Problems, [ 'Owner must have a Name' ] );
 	let plan = await create( 'In a state' );
 	await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Working' } );
 	// the settings' list is the default for a new project; a project's own list (plan Run Shapes, Step 2) refuses a state in use
@@ -239,7 +242,7 @@ TEST( 'settings: the owner reads and writes consensus.json; problems are refused
 	ASSERT.equal( ( await call( 'PUT', '/api/settings', { Settings: read.Body.Settings } ) ).Status, 200 );
 	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.States, [ 'Draft', 'Plan', 'Working', 'Finished' ] );
 
-	// written: the states, a member with a token, the display; the file and the running server follow at once
+	// written: the states, the owner's display; the file and the running server follow at once
 	let member_token = PARTICIPANTS.NewToken();
 	// the desktop's fields in the same file (plan Run Shapes) are not the modal's to write: they stay
 	await running.Store.WriteSettings( Object.assign( {}, read.Body.Settings, { Servers: [ { Name: 'cube4', Url: 'http://cube4:3500' } ] } ) );
@@ -249,7 +252,7 @@ TEST( 'settings: the owner reads and writes consensus.json; problems are refused
 		Scope: read.Body.Settings.Scope,
 		Name: 'renamed',
 		States: [ 'Draft', 'Plan', 'Working', 'Finished', 'Shelved' ],
-		Participants: [ { Name: 'user', Display: 'Owner', Role: 'owner' }, { Name: 'llm', Display: 'LLM', Role: 'llm', Token: token }, { Name: 'ann', Display: 'Ann', Role: 'member', Token: member_token } ],
+		Owner: { Name: 'user', Display: 'Owner' },
 		Workers: [ { Name: 'gone' } ],
 	};
 	let written = await call( 'PUT', '/api/settings', { Settings: fresh } );
@@ -259,11 +262,11 @@ TEST( 'settings: the owner reads and writes consensus.json; problems are refused
 	ASSERT.deepEqual( written.Body.Settings.Servers, [ { Name: 'cube4', Url: 'http://cube4:3500' } ] );
 	ASSERT.equal( ( await call( 'GET', '/api/me' ) ).Body.Server, 'renamed' );
 	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.States, fresh.States );
-	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.Me, { Name: 'user', Display: 'Owner', Role: 'owner' } );
-	ASSERT.equal( ( await call( 'GET', '/api/me', undefined, 'Bearer ' + member_token ) ).Body.Me.Name, 'ann' );
+	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.Me, { Name: 'user', Display: 'Owner', Role: 'owner', Speaker: 'user' } );
+	ASSERT.equal( ( await call( 'GET', '/api/me', undefined, 'Bearer ' + member_token ) ).Status, 401 );
 	let on_disk = JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) );
 	ASSERT.deepEqual( on_disk.States, fresh.States );
-	ASSERT.equal( on_disk.Participants[ 2 ].Token, member_token );
+	ASSERT.deepEqual( on_disk.Owner, { Name: 'user', Display: 'Owner' } );
 	ASSERT.deepEqual( on_disk.Servers, [ { Name: 'cube4', Url: 'http://cube4:3500' } ] );
 	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Shelved' } ) ).Status, 400 );
 	let project_states = await call( 'PUT', '/api/projects/' + home, { States: fresh.States } );
@@ -322,7 +325,7 @@ TEST( 'a thread anchors to visible text, or to the whole document; missing words
 	ASSERT.equal( thread.Anchor.Text, 'anchors and how they survive' );
 	ASSERT.equal( thread.Anchor.Prefix.length > 0, true );
 	ASSERT.equal( thread.Found.Method, 'exact' );
-	ASSERT.deepEqual( thread.Turn, [ 'llm' ] );
+	ASSERT.deepEqual( thread.Turn, [] );
 	ASSERT.equal( thread.WaitingOnMe, false );
 	ASSERT.equal( thread.Replies.length, 1 );
 	ASSERT.equal( thread.Replies[ 0 ].By, 'user' );
@@ -342,19 +345,18 @@ TEST( 'a thread anchors to visible text, or to the whole document; missing words
 } );
 
 
-TEST( 'only the owner resolves; a reply to a resolved thread reopens it', async function ()
+TEST( 'the owner resolves, a service acting for the owner too; a reply to a resolved thread reopens it', async function ()
 {
 	let plan = await create( 'Resolve' );
 	let thread = await discussed_thread( plan.Id, 'one list item', 'Outcome: the item is reworded.' );
-	let by_llm = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve', undefined, true );
-	ASSERT.equal( by_llm.Status, 403 );
 	let resolved = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve' );
 	ASSERT.equal( resolved.Status, 200 );
 	ASSERT.equal( resolved.Body.Thread.Status, 'resolved' );
 	ASSERT.equal( resolved.Body.Thread.State, 'resolved' );
 	ASSERT.equal( resolved.Body.Thread.Resolved.By, 'user' );
-	ASSERT.deepEqual( resolved.Body.Thread.Turn, [ 'llm' ] );
+	ASSERT.deepEqual( resolved.Body.Thread.Turn, [ 'llm by user' ] );
 	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve' ) ).Status, 409 );
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve', undefined, true ) ).Status, 409 );
 	let read = await call( 'GET', '/api/plans/' + plan.Id );
 	ASSERT.equal( read.Body.Plan.StateLine, '1 resolved' );
 	let reply = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/replies', { Text: 'Wait, one more thing.' } );
@@ -371,13 +373,11 @@ TEST( 'only the owner resolves; a reply to a resolved thread reopens it', async 
 } );
 
 
-TEST( 'reply and resolve: the owner\'s reply becomes the outcome in one request; no one else may', async function ()
+TEST( 'reply and resolve: the owner\'s reply becomes the outcome in one request', async function ()
 {
 	let plan = await create( 'Reply and resolve' );
 	let thread = await discussed_thread( plan.Id, 'one list item', 'Question: keep it, or drop it? I would keep it.' );
 	let path = '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/replies';
-	let by_llm = await call( 'POST', path, { Text: 'Keep it.', Resolve: true }, true );
-	ASSERT.equal( by_llm.Status, 403 );
 	let read = await call( 'GET', '/api/plans/' + plan.Id );
 	ASSERT.equal( thread_of_body( read, thread.Id ).Replies.length, 2 );
 	let both = await call( 'POST', path, { Text: 'Drop it.', Resolve: true } );
@@ -385,7 +385,7 @@ TEST( 'reply and resolve: the owner\'s reply becomes the outcome in one request;
 	ASSERT.equal( both.Body.Resolved, true );
 	ASSERT.equal( both.Body.Thread.Status, 'resolved' );
 	ASSERT.equal( both.Body.Thread.Resolved.By, 'user' );
-	ASSERT.deepEqual( both.Body.Thread.Turn, [ 'llm' ] );
+	ASSERT.deepEqual( both.Body.Thread.Turn, [ 'llm by user' ] );
 	let replies = both.Body.Thread.Replies;
 	ASSERT.deepEqual( [ replies[ replies.length - 1 ].By, replies[ replies.length - 1 ].Text ], [ 'user', 'Drop it.' ] );
 	// a plain reply is as it was: it reopens the resolved thread
@@ -395,18 +395,15 @@ TEST( 'reply and resolve: the owner\'s reply becomes the outcome in one request;
 } );
 
 
-TEST( 'comment and resolve: the owner posts a thread already resolved, its comment the outcome; no one else may', async function ()
+TEST( 'comment and resolve: the owner posts a thread already resolved, its comment the outcome', async function ()
 {
 	let plan = await create( 'Comment and resolve' );
 	let path = '/api/plans/' + plan.Id + '/threads';
-	let by_llm = await call( 'POST', path, { Text: 'Drop the last line.', Resolve: true }, true );
-	ASSERT.equal( by_llm.Status, 403 );
-	ASSERT.equal( ( await call( 'GET', path ) ).Body.Threads.length, 0 );
 	let posted = await call( 'POST', path, { Text: 'Drop the last line.', Resolve: true } );
 	ASSERT.equal( posted.Status, 201 );
 	ASSERT.equal( posted.Body.Thread.Status, 'resolved' );
 	ASSERT.equal( posted.Body.Thread.Resolved.By, 'user' );
-	ASSERT.deepEqual( posted.Body.Thread.Turn, [ 'llm' ] );
+	ASSERT.deepEqual( posted.Body.Thread.Turn, [] );
 	ASSERT.equal( posted.Body.Thread.Replies.length, 1 );
 	// without Resolve, a new thread is contested as before
 	let plain = await call( 'POST', path, { Text: 'Why this line?' } );
@@ -420,7 +417,7 @@ function thread_of_body( read, thread_id )
 }
 
 
-TEST( 'only the owner deletes a thread, applied or not; the revision it made keeps its text', async function ()
+TEST( 'a thread is deleted, applied or not, by the owner or a service acting for the owner; the revision it made keeps its text', async function ()
 {
 	let plan = await create( 'Delete a thread' );
 	let thread = await discussed_thread( plan.Id, 'one list item', 'Outcome: the item is reworded.' );
@@ -429,8 +426,7 @@ TEST( 'only the owner deletes a thread, applied or not; the revision it made kee
 	ASSERT.equal( applied.Status, 200 );
 	let other = ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'A second thread.' } ) ).Body.Thread;
 	let path = '/api/plans/' + plan.Id + '/threads/' + thread.Id;
-	ASSERT.equal( ( await call( 'DELETE', path, undefined, true ) ).Status, 403 );
-	let deleted = await call( 'DELETE', path );
+	let deleted = await call( 'DELETE', path, undefined, true );
 	ASSERT.equal( deleted.Status, 200 );
 	ASSERT.equal( deleted.Body.Deleted, thread.Id );
 	ASSERT.equal( ( await call( 'DELETE', path ) ).Status, 404 );
@@ -465,7 +461,7 @@ TEST( 'apply: resolved threads only, a text change makes a revision tied to the 
 	let applied =await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/apply', { Text: new_text, Outcome: 'reworded', Revision: 1, Anchor: { Text: 'a reworded list item' } }, true );
 	ASSERT.equal( applied.Status, 200 );
 	ASSERT.equal( applied.Body.Plan.Revision, 2 );
-	ASSERT.equal( applied.Body.Thread.Applied.By, 'llm' );
+	ASSERT.deepEqual( [ applied.Body.Thread.Applied.By, applied.Body.Thread.Applied.Service, applied.Body.Thread.Applied.Token ], [ 'user', 'llm', undefined ] );
 	ASSERT.equal( applied.Body.Thread.Applied.Revision, 2 );
 	ASSERT.equal( applied.Body.Thread.Applied.Outcome, 'reworded' );
 	ASSERT.equal( applied.Body.Thread.Anchor.Text, 'a reworded list item' );
@@ -476,7 +472,7 @@ TEST( 'apply: resolved threads only, a text change makes a revision tied to the 
 	ASSERT.equal( revisions.Body.Revisions.length, 2 );
 	ASSERT.equal( revisions.Body.Revisions[ 1 ].Reason, 'apply' );
 	ASSERT.equal( revisions.Body.Revisions[ 1 ].Thread, thread.Id );
-	ASSERT.equal( revisions.Body.Revisions[ 1 ].By, 'llm' );
+	ASSERT.deepEqual( [ revisions.Body.Revisions[ 1 ].By, revisions.Body.Revisions[ 1 ].Service ], [ 'user', 'llm' ] );
 	let second = await call( 'GET', '/api/plans/' + plan.Id + '/revisions/2' );
 	ASSERT.equal( second.Body.Revision.Text, new_text );
 	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id + '/revisions/1' ) ).Body.Revision.Text, TEXT );
@@ -573,7 +569,7 @@ TEST( 'waiting lists each participant\'s threads across plans', async function (
 	let asked = ( await call( 'POST', '/api/plans/' + a.Id + '/threads', { Anchor: null, Text: 'A question for the llm.' } ) ).Body.Thread;
 	let answered = await discussed_thread( b.Id, 'one list item', 'Outcome: answered.' );
 	let llm = await call( 'GET', '/api/waiting', undefined, true );
-	ASSERT.equal( llm.Body.Me.Name, 'llm' );
+	ASSERT.equal( llm.Body.Me.Speaker, 'llm by user' );
 	let llm_threads = llm.Body.Waiting.filter( function ( item ) { return item.Plan.Id === a.Id || item.Plan.Id === b.Id; } );
 	ASSERT.deepEqual( llm_threads.map( function ( item ) { return item.Thread.Id; } ), [ asked.Id ] );
 	ASSERT.equal( llm_threads[ 0 ].Plan.Title, 'Waiting A' );
@@ -595,8 +591,7 @@ TEST( 'a deleted plan goes to the trash', async function ()
 	ASSERT.equal( ( await call( 'DELETE', '/api/plans/' + plan.Id ) ).Status, 404 );
 	let trash = await call( 'GET', '/api/trash' );
 	ASSERT.ok( trash.Body.Plans.some( function ( candidate ) { return candidate.Id === plan.Id; } ) );
-	// Empty Trash: the owner's; every trashed item gone for good
-	ASSERT.equal( ( await call( 'DELETE', '/api/trash', undefined, true ) ).Status, 403 );
+	// Empty Trash: every trashed item gone for good
 	let emptied = await call( 'DELETE', '/api/trash' );
 	ASSERT.equal( emptied.Status, 200 );
 	ASSERT.ok( emptied.Body.Emptied >= 1 );
@@ -1118,34 +1113,30 @@ function listen_events()
 }
 
 
-TEST( 'an LLM connection is the owner\'s to make, each a participant named <Name>@<server>, with a token the server makes and shows the owner only', async function ()
+TEST( 'an LLM connection is made, each a speaker "<Name> by <owner>", with no token of its own', async function ()
 {
-	ASSERT.equal( ( await call( 'POST', '/api/llms', { Name: 'nope' }, true ) ).Status, 403 );
 	let made = await call( 'POST', '/api/llms', { Name: 'echo', Kind: 'claude-cli', Command: process.execPath, Arguments: ECHO_ARGUMENTS, Timeout: 30, Id: 'llm-chosen', Token: 'chosen-token-0123456789' } );
 	ASSERT.equal( made.Status, 201 );
 	let echo = made.Body.Llm;
 	ASSERT.match( echo.Id, /^llm-/ );
 	ASSERT.notEqual( echo.Id, 'llm-chosen' );
-	ASSERT.notEqual( echo.Token, 'chosen-token-0123456789' );
-	ASSERT.equal( echo.Token.length >= 16, true );
-	ASSERT.equal( echo.Participant, 'echo@' + running.Settings.Name );
+	ASSERT.equal( 'Token' in echo, false );
+	ASSERT.equal( echo.Speaker, 'echo by User' );
 	ASSERT.equal( echo.Running, null );
-	// the file has it; the participant is listed, with the connection's id; its token identifies it
-	ASSERT.equal( JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).Llms[ 0 ].Token, echo.Token );
-	let me = await call( 'GET', '/api/me', undefined, 'Bearer ' + echo.Token );
-	ASSERT.deepEqual( me.Body.Me, { Name: echo.Participant, Display: 'echo', Role: 'llm', Llm: echo.Id } );
-	ASSERT.deepEqual( me.Body.Participants.find( function ( one ) { return one.Name === echo.Participant; } ), { Name: echo.Participant, Display: 'echo', Role: 'llm', Llm: echo.Id } );
-	// everyone sees the list; only the owner the whole record
+	// the file has it, with no token; the speaker is listed, with the connection's id
+	ASSERT.equal( 'Token' in JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).Llms[ 0 ], false );
+	let me = await call( 'GET', '/api/me' );
+	ASSERT.deepEqual( me.Body.Participants.find( function ( one ) { return one.Name === 'echo by user'; } ), { Name: 'echo by user', Display: 'echo by User', Role: 'llm', Llm: echo.Id } );
+	// everyone sees the list and, every request being the owner, the whole record
 	let listed = await call( 'GET', '/api/llms', undefined, true );
 	ASSERT.equal( listed.Status, 200 );
-	ASSERT.deepEqual( listed.Body.Llms, [ { Id: echo.Id, Name: 'echo', Kind: 'claude-cli', Model: '', Participant: echo.Participant, Running: null } ] );
+	ASSERT.deepEqual( [ listed.Body.Llms[ 0 ].Id, listed.Body.Llms[ 0 ].Name, listed.Body.Llms[ 0 ].Speaker, listed.Body.Llms[ 0 ].Command, listed.Body.Llms[ 0 ].Running ], [ echo.Id, 'echo', 'echo by User', process.execPath, null ] );
 	ASSERT.deepEqual( listed.Body.Kinds, [ 'claude-cli', 'ollama' ] );
 	ASSERT.equal( typeof listed.Body.DefaultPrompts.Review, 'string' );
-	ASSERT.equal( ( await call( 'GET', '/api/llms' ) ).Body.Llms[ 0 ].Token, echo.Token );
-	// changed in place, the id and the token kept; a second one with the same name is refused; a bad name too
+	// changed in place, the id kept, a token given ignored; a second one with the same name is refused; a bad name too
 	let changed = await call( 'PUT', '/api/llms/' + echo.Id, { Timeout: 45, Token: 'ignored-0123456789abc' } );
 	ASSERT.equal( changed.Status, 200 );
-	ASSERT.deepEqual( [ changed.Body.Llm.Id, changed.Body.Llm.Timeout, changed.Body.Llm.Command, changed.Body.Llm.Token ], [ echo.Id, 45, process.execPath, echo.Token ] );
+	ASSERT.deepEqual( [ changed.Body.Llm.Id, changed.Body.Llm.Timeout, changed.Body.Llm.Command, 'Token' in changed.Body.Llm ], [ echo.Id, 45, process.execPath, false ] );
 	let twice = await call( 'POST', '/api/llms', { Name: 'echo' } );
 	ASSERT.equal( twice.Status, 400 );
 	ASSERT.deepEqual( twice.Body.Problems, [ 'LLM connection "echo" is named twice' ] );
@@ -1157,11 +1148,10 @@ TEST( 'an LLM connection is the owner\'s to make, each a participant named <Name
 	ASSERT.match( checked.Body.Result, /--version: v\d+/ );
 	let unsaved = await call( 'POST', '/api/llms/check', { Kind: 'claude-cli', Command: PATH.join( OS.tmpdir(), 'no-such-command' ) } );
 	ASSERT.equal( unsaved.Body.Ok, false );
-	ASSERT.equal( ( await call( 'POST', '/api/llms/check', {}, true ) ).Status, 403 );
 } );
 
 
-TEST( 'a run is asked of a connection by the owner or a member, packaged from the project and the plan, run in the project\'s folder, its record read by everyone and its changes heard', async function ()
+TEST( 'a run is asked of a connection, packaged from the project and the plan with a run token the server mints, run in the project\'s folder as the presser through the connection, its record read by everyone and its changes heard', async function ()
 {
 	let echo = ( await call( 'GET', '/api/llms' ) ).Body.Llms[ 0 ];
 	let plan = await create( 'A plan to review' );
@@ -1169,33 +1159,34 @@ TEST( 'a run is asked of a connection by the owner or a member, packaged from th
 	// the lists: the waiting threads of the connection, the other documents
 	let lists = await call( 'GET', '/api/runs/lists?Project=' + home + '&Plan=' + plan.Id + '&Llm=' + echo.Id, undefined, true );
 	ASSERT.equal( lists.Status, 200 );
-	ASSERT.equal( lists.Body.Participant, echo.Participant );
+	ASSERT.equal( lists.Body.Speaker, 'echo by User' );
 	ASSERT.deepEqual( lists.Body.Threads.map( function ( one ) { return one.Id; } ), [ thread.Id ] );
 	ASSERT.match( lists.Body.Threads[ 0 ].Last, /^user: Is this so\?/ );
 	ASSERT.equal( Array.isArray( lists.Body.Documents ), true );
 	ASSERT.equal( ( await call( 'GET', '/api/runs/lists?Project=prj-nothing' ) ).Status, 400 );
-	// the package: the connection's participant, the token, this server's address, the plan and the folder
+	// the package: the byline, a token promised for the run (the preview has none), this server's address, the plan and the folder
 	let packaged = await call( 'POST', '/api/runs/package', { Llm: echo.Id, Kind: 'review', Project: home, Plan: plan.Id } );
 	ASSERT.equal( packaged.Status, 200 );
-	ASSERT.equal( packaged.Body.Participant, echo.Participant );
-	ASSERT.match( packaged.Body.Prompt, new RegExp( 'You are the `' + echo.Participant + '` participant' ) );
+	ASSERT.equal( packaged.Body.Speaker, 'echo by User' );
+	ASSERT.match( packaged.Body.Prompt, /You act for User, the owner of the Consensus server below, run once by that server ".*" through its LLM connection "echo": what you post reads "echo by User"\./ );
 	ASSERT.match( packaged.Body.Prompt, new RegExp( '- Consensus API: ' + running.Url + '/api' ) );
-	ASSERT.match( packaged.Body.Prompt, new RegExp( 'Bearer <token>": ' + echo.Token ) );
+	ASSERT.match( packaged.Body.Prompt, /Bearer <token>": made by the server when the run starts/ );
 	ASSERT.match( packaged.Body.Prompt, /## Agent instructions\n\n`{3,}\n# This server/ );
-	ASSERT.match( packaged.Body.Prompt, new RegExp( '- Token of the `' + echo.Participant + '` participant: ' + echo.Token ) );
+	ASSERT.match( packaged.Body.Prompt, /- No token: a request with none is the owner, User, on this server\./ );
+	ASSERT.match( packaged.Body.Prompt, /## Threads of the plan waiting on echo by User/ );
 	ASSERT.match( packaged.Body.Prompt, new RegExp( '### Thread ' + thread.Id + ' \\(contested' ) );
 	ASSERT.equal( packaged.Body.Folder, ( await project_named( home ) ).Path );
 	ASSERT.match( ( await call( 'POST', '/api/runs/package', { Llm: echo.Id, Kind: 'review', Project: home } ) ).Body.Error, /needs a plan/ );
 	ASSERT.match( ( await call( 'POST', '/api/runs/package', { Llm: echo.Id, Kind: 'nope', Project: home } ) ).Body.Error, /Kind is one of/ );
 	ASSERT.match( ( await call( 'POST', '/api/runs/package', { Llm: 'llm-nothing', Kind: 'session', Project: home } ) ).Body.Error, /no LLM connection/ );
-	// an llm participant starts no run; the owner does, and hears it over the events
-	ASSERT.equal( ( await call( 'POST', '/api/runs', { Llm: echo.Id, Kind: 'review', Project: home, Plan: plan.Id }, true ) ).Status, 403 );
+	// the owner starts it and hears it over the events
 	let events = listen_events();
 	await new Promise( function ( resolve ) { setTimeout( resolve, 100 ); } );
 	let started = await call( 'POST', '/api/runs', { Llm: echo.Id, Kind: 'review', Project: home, Plan: plan.Id } );
 	ASSERT.equal( started.Status, 201 );
 	ASSERT.match( started.Body.Run.Id, /^run-/ );
-	ASSERT.deepEqual( [ started.Body.Run.Status, started.Body.Run.By, started.Body.Run.Kind, started.Body.Run.Prompt ], [ 'running', 'user', 'review', undefined ] );
+	ASSERT.deepEqual( [ started.Body.Run.Status, started.Body.Run.By, started.Body.Run.Service, started.Body.Run.Token, started.Body.Run.Kind, started.Body.Run.Prompt ], [ 'running', 'user', 'echo', 'Review run', 'review', undefined ] );
+	ASSERT.equal( running.Tokens.Count(), 1 );
 	ASSERT.equal( ( await call( 'GET', '/api/llms', undefined, true ) ).Body.Llms[ 0 ].Running.Id, started.Body.Run.Id );
 	ASSERT.equal( ( await call( 'POST', '/api/runs', { Llm: echo.Id, Kind: 'session', Project: home } ) ).Status, 409 );
 	let done = await run_settled( started.Body.Run.Id );
@@ -1203,7 +1194,11 @@ TEST( 'a run is asked of a connection by the owner or a member, packaged from th
 	ASSERT.match( done.Output, /^got: # A review one-shot from Consensus/ );
 	ASSERT.deepEqual( done.Project, { Id: home, Name: ( await project_named( home ) ).Name, Path: ( await project_named( home ) ).Path } );
 	ASSERT.deepEqual( done.Plan, { Id: plan.Id, Title: 'A plan to review' } );
-	ASSERT.equal( done.Prompt, packaged.Body.Prompt );
+	// the run's prompt carries the run's token, which the preview did not; the token is gone with the run
+	ASSERT.match( done.Prompt, /Bearer <token>": [0-9a-f]{48}\n/ );
+	ASSERT.match( done.Prompt, /What you post reads "echo by User"/ );
+	ASSERT.notEqual( done.Prompt, packaged.Body.Prompt );
+	ASSERT.equal( running.Tokens.Count(), 0 );
 	events.Stop();
 	ASSERT.match( events.Text(), new RegExp( '"Kind":"run","Run":"' + started.Body.Run.Id + '","Llm":"' + echo.Id + '","Status":"running"' ) );
 	ASSERT.match( events.Text(), new RegExp( '"Run":"' + started.Body.Run.Id + '","Llm":"' + echo.Id + '","Status":"done"' ) );
@@ -1216,15 +1211,14 @@ TEST( 'a run is asked of a connection by the owner or a member, packaged from th
 	ASSERT.equal( ( await call( 'POST', '/api/runs/' + started.Body.Run.Id + '/stop' ) ).Status, 404 );
 	ASSERT.equal( ( await call( 'GET', '/api/runs/run-nothing' ) ).Status, 404 );
 	ASSERT.equal( ( await call( 'GET', '/api/runs/../x' ) ).Status, 404 );
-	// deleted: its participant is gone with it
-	ASSERT.equal( ( await call( 'DELETE', '/api/llms/' + echo.Id, undefined, true ) ).Status, 403 );
+	// deleted: its speaker is gone with it
 	ASSERT.deepEqual( ( await call( 'DELETE', '/api/llms/' + echo.Id ) ).Body, { Deleted: echo.Id } );
-	ASSERT.equal( ( await call( 'GET', '/api/me', undefined, 'Bearer ' + echo.Token ) ).Status, 401 );
+	ASSERT.equal( ( await call( 'GET', '/api/me' ) ).Body.Participants.some( function ( one ) { return one.Name === 'echo by user'; } ), false );
 	ASSERT.deepEqual( ( await call( 'GET', '/api/llms' ) ).Body.Llms, [] );
 } );
 
 
-TEST( 'the desktop\'s workspaces from before are moved into their projects at start, and the list dropped; a connection in the file gets its token', async function ()
+TEST( 'the desktop\'s workspaces from before are moved into their projects at start, and the list dropped; a connection in the file gets its id and no token', async function ()
 {
 	let config = temporary_folder();
 	let repo = temporary_folder();
@@ -1246,9 +1240,9 @@ TEST( 'the desktop\'s workspaces from before are moved into their projects at st
 		ASSERT.deepEqual( [ project.Include, project.Exclude, project.Commands ], [ [ 'src/**' ], [], [ 'npm test' ] ] );
 		let written = JSON.parse( FS.readFileSync( file, 'utf8' ) );
 		ASSERT.equal( written.Workspaces, undefined );
-		ASSERT.equal( written.Llms[ 0 ].Token.length >= 16, true );
+		ASSERT.equal( 'Token' in written.Llms[ 0 ], false );
 		ASSERT.match( written.Llms[ 0 ].Id, /^llm-/ );
-		ASSERT.equal( ( await ( await fetch( second.Url + '/api/me' ) ).json() ).Participants.some( function ( one ) { return one.Name === 'claude-cli@' + written.Name; } ), true );
+		ASSERT.equal( ( await ( await fetch( second.Url + '/api/me' ) ).json() ).Participants.some( function ( one ) { return one.Name === 'claude-cli by user'; } ), true );
 		// a project with lists of its own keeps them
 		let again = JSON.parse( FS.readFileSync( file, 'utf8' ) );
 		again.Workspaces = [ { Name: 'other', Path: repo, Include: [ 'docs/**' ], Exclude: [], Commands: [] } ];

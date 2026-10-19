@@ -31,7 +31,7 @@ angular.module( 'Consensus' )
 		}
 		for ( let reply of replies )
 		{
-			parts.push( '**' + State.DisplayOf( reply.By ) + ':** ' + reply.Text );
+			parts.push( '**' + State.BylineOf( reply ) + ':** ' + reply.Text );
 		}
 		if ( draft && draft.trim() )
 		{

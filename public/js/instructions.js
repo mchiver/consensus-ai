@@ -1,10 +1,9 @@
 'use strict';
 
 // Instructions (plan UI Tweaks VII) - "LLM Instructions" in a project row's menu: the server's /instructions page
-// (what an agent session needs: the API's address, the llm participant's token, the guide) shown in a popup to read
-// and copy, for seeding an LLM by hand. A section naming the project and its Readme is put first, so the LLM knows
-// which project is its own. In a browser, Open shows the page itself; the desktop opens links in the system
-// browser, where the token would show, so it has no Open.
+// (what an agent session needs: the API's address, how to say who it is, the guide) shown in a popup to read and
+// copy, for seeding an LLM by hand. A section naming the project and its Readme is put first, so the LLM knows
+// which project is its own. In a browser, Open shows the page itself; the desktop has no Open.
 //   Instructions = { Open, Root, Project, Text, Url, InBrowser, Busy, Copied, Error, Start( Project, Root ), Copy(), Close() }
 
 angular.module( 'Consensus' )

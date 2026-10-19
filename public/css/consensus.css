@@ -773,23 +773,11 @@ body
 	margin: 0.6rem 0 0.3rem;
 }
 
-.settings-participant
+.settings-row .settings-owner-name
 {
-	display: flex;
-	align-items: center;
-	gap: 0.4rem;
-	margin: 0.3rem 0;
+	flex: 0 1 10rem;
+	color: var(--muted);
 }
-
-.settings-participant .form-control, .settings-participant .form-select
-{
-	width: auto;
-}
-
-.settings-participant .settings-name { flex: 1 1 6rem; }
-.settings-participant .settings-display { flex: 1 1 6rem; }
-.settings-participant .settings-role { flex: 0 0 6.5rem; }
-.settings-participant .settings-token { flex: 2 1 12rem; font-family: var(--bs-font-monospace); font-size: 0.8rem; }
 
 /* --------------------------------------------------------------------- the desktop's items (Step 3) */
 

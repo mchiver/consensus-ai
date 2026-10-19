@@ -1,7 +1,8 @@
 'use strict';
 
 // The LLM connections and the runs in the server (plan Run Shapes, Step 3; from Consensus Desktop, Step 3): the
-// connections filled with a token and checked (Llms.js), each a participant of the server (Participants.js), the
+// connections filled and checked (Llms.js), each a speaker of the server (Participants.js: its runs post as the
+// owner through it, "<connection> by <owner>"), the
 // package (Package.js), the check and the command line (Llm.js), the records of a run (Runs.js) and the files of a
 // folder (Files.js). Nothing here needs Electron or a running server.
 
@@ -41,7 +42,7 @@ TEST.after( function ()
 //---------------------------------------------------------------------
 // The connections
 
-TEST( 'an LLM connection is filled in with an id, the defaults and a token, named by its kind when unnamed, and its problems are named', function ()
+TEST( 'an LLM connection is filled in with an id and the defaults, no token, named by its kind when unnamed, and its problems are named', function ()
 {
 	let claude = LLMS.Fill( { Name: ' claude-cli ', Model: 'sonnet', Timeout: '120', Checks: { Readme: false }, Prompts: { Session: 'Be brief.' } } );
 	ASSERT.match( claude.Id, /^llm-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
@@ -55,81 +56,75 @@ TEST( 'an LLM connection is filled in with an id, the defaults and a token, name
 	ASSERT.deepEqual( LLMS.Fill( { Name: 'u', Unchecked: { Documents: [ 'doc-1', ' ' ], Threads: 'thr-1\nthr-2' } } ).Unchecked, { Documents: [ 'doc-1' ], Threads: [ 'thr-1', 'thr-2' ] } );
 	ASSERT.equal( claude.Prompts.Review, PACKAGE.DEFAULT_PROMPTS.Review );
 	ASSERT.equal( claude.Prompts.Session, 'Be brief.' );
-	ASSERT.equal( typeof claude.Token, 'string' );
-	ASSERT.equal( claude.Token.length >= 16, true );
-	ASSERT.equal( LLMS.Fill( claude ).Token, claude.Token );
-	let local = LLMS.Fill( { Id: 'llm-aaa-bbb-ccc', Kind: 'ollama', Model: 'llama3', Token: 'a-token-kept-as-given' } );
+	ASSERT.equal( 'Token' in claude, false );
+	let local = LLMS.Fill( { Id: 'llm-aaa-bbb-ccc', Kind: 'ollama', Model: 'llama3', Token: 'a-token-from-before' } );
 	ASSERT.equal( local.Id, 'llm-aaa-bbb-ccc' );
 	ASSERT.equal( local.Name, 'ollama-llama3' );
 	ASSERT.equal( local.Url, LLMS.DEFAULT_OLLAMA_URL );
 	ASSERT.equal( local.Timeout, LLMS.DEFAULT_TIMEOUT );
 	ASSERT.equal( local.Context, LLMS.DEFAULT_CONTEXT );
 	ASSERT.equal( local.Rounds, LLMS.DEFAULT_ROUNDS );
-	ASSERT.equal( local.Token, 'a-token-kept-as-given' );
+	ASSERT.equal( 'Token' in local, false );
 	ASSERT.equal( LLMS.Fill( { Name: 'o', Context: '8192', Rounds: 5.5 } ).Context, 8192 );
 	ASSERT.equal( LLMS.Fill( { Name: 'o', Context: -1, Rounds: 'x' } ).Rounds, LLMS.DEFAULT_ROUNDS );
 	ASSERT.equal( LLMS.Fill( {} ).Name, 'claude-cli' );
 	ASSERT.equal( LLMS.DefaultName( 'ollama', 'kimi-k2.6:cloud' ), 'ollama-kimi-k2.6:cloud' );
 	ASSERT.equal( LLMS.DefaultName( 'ollama', 'a model/here' ), 'ollama-a-model-here' );
 
-	let settings = { Name: 'cube4', Participants: [ { Name: 'user', Role: 'owner' }, { Name: 'llm', Role: 'llm' } ], Llms: [ claude, local ] };
+	let settings = { Name: 'cube4', Owner: { Name: 'user', Display: 'User' }, Llms: [ claude, local ] };
 	ASSERT.deepEqual( LLMS.Problems( settings ), [] );
 	ASSERT.equal( LLMS.ById( settings, 'llm-aaa-bbb-ccc' ), local );
 	ASSERT.equal( LLMS.ById( settings, 'nope' ), null );
-	ASSERT.equal( LLMS.ParticipantName( claude, settings ), 'claude-cli@cube4' );
-	ASSERT.deepEqual( LLMS.Public( local, settings, false ), { Id: 'llm-aaa-bbb-ccc', Name: 'ollama-llama3', Kind: 'ollama', Model: 'llama3', Participant: 'ollama-llama3@cube4' } );
-	ASSERT.equal( LLMS.Public( local, settings, true ).Token, 'a-token-kept-as-given' );
-	ASSERT.equal( LLMS.Public( local, settings, true ).Participant, 'ollama-llama3@cube4' );
+	ASSERT.equal( LLMS.SpeakerName( claude, settings ), 'claude-cli by user' );
+	ASSERT.equal( LLMS.SpeakerDisplay( claude, settings ), 'claude-cli by User' );
+	ASSERT.deepEqual( LLMS.Public( local, settings, false ), { Id: 'llm-aaa-bbb-ccc', Name: 'ollama-llama3', Kind: 'ollama', Model: 'llama3', Speaker: 'ollama-llama3 by User' } );
+	ASSERT.equal( 'Token' in LLMS.Public( local, settings, true ), false );
+	ASSERT.equal( LLMS.Public( local, settings, true ).Speaker, 'ollama-llama3 by User' );
 
 	let broken = {
 		Name: 'srv',
-		Participants: [ { Name: 'x@srv', Role: 'member' } ],
-		Llms: [ LLMS.Fill( { Name: 'a' } ), LLMS.Fill( { Name: 'a' } ), LLMS.Fill( { Name: 'o', Kind: 'ollama', Url: 'nowhere', Model: '' } ), LLMS.Fill( { Name: 'bad name' } ), LLMS.Fill( { Name: 'x' } ), { Name: '', Id: 'llm-1', Kind: 'claude-cli', Command: 'c', Token: 'short' } ],
+		Llms: [ LLMS.Fill( { Name: 'a' } ), LLMS.Fill( { Name: 'a' } ), LLMS.Fill( { Name: 'o', Kind: 'ollama', Url: 'nowhere', Model: '' } ), LLMS.Fill( { Name: 'bad name' } ), LLMS.Fill( { Name: 'x' } ), { Name: '', Id: 'llm-1', Kind: 'claude-cli', Command: 'c' } ],
 	};
 	ASSERT.deepEqual( LLMS.Problems( broken ), [
 		'LLM connection "a" is named twice',
 		'LLM connection "o": the Url must start with http:// or https://',
 		'LLM connection "o": a Model is needed',
 		'LLM connection "bad name": the Name is letters, digits, dot, dash and colon',
-		'LLM connection "x": a participant is named x@srv already',
 		'an LLM connection has no Name',
-		'LLM connection "?": a Token is a string of 16 characters or more',
 	] );
 	ASSERT.deepEqual( LLMS.Problems( { Llms: 'no' } ), [ 'Llms must be a list' ] );
 
-	// Migrate: a name from before with other characters is brought up to date rather than refused; one used twice or
-	// clashing with a hand-made participant gets a number; a usable list is left alone
-	let older = { Name: 'srv', Participants: [ { Name: 'x@srv', Role: 'member' } ], Llms: [ LLMS.Fill( { Name: 'Claude CLI' } ), LLMS.Fill( { Name: ' my model / fast ', Kind: 'ollama', Model: 'm' } ), LLMS.Fill( { Name: 'Claude-CLI' } ), LLMS.Fill( { Name: 'x' } ), LLMS.Fill( { Name: '???', Kind: 'ollama', Model: 'llama3' } ) ] };
+	// Migrate: a name from before with other characters is brought up to date rather than refused; one used twice
+	// gets a number; a usable list is left alone
+	let older = { Name: 'srv', Llms: [ LLMS.Fill( { Name: 'Claude CLI' } ), LLMS.Fill( { Name: ' my model / fast ', Kind: 'ollama', Model: 'm' } ), LLMS.Fill( { Name: 'Claude-CLI' } ), LLMS.Fill( { Name: 'x' } ), LLMS.Fill( { Name: '???', Kind: 'ollama', Model: 'llama3' } ) ] };
 	ASSERT.deepEqual( LLMS.Migrate( older ), [
 		'LLM connection "Claude CLI" renamed "Claude-CLI": a Name is letters, digits, dot, dash and colon, used once',
 		'LLM connection "my model / fast" renamed "my-model-fast": a Name is letters, digits, dot, dash and colon, used once',
 		'LLM connection "Claude-CLI" renamed "Claude-CLI-2": a Name is letters, digits, dot, dash and colon, used once',
-		'LLM connection "x" renamed "x-2": a Name is letters, digits, dot, dash and colon, used once',
 		'LLM connection "???" renamed "ollama-llama3": a Name is letters, digits, dot, dash and colon, used once',
 	] );
-	ASSERT.deepEqual( older.Llms.map( function ( llm ) { return llm.Name; } ), [ 'Claude-CLI', 'my-model-fast', 'Claude-CLI-2', 'x-2', 'ollama-llama3' ] );
+	ASSERT.deepEqual( older.Llms.map( function ( llm ) { return llm.Name; } ), [ 'Claude-CLI', 'my-model-fast', 'Claude-CLI-2', 'x', 'ollama-llama3' ] );
 	ASSERT.deepEqual( LLMS.Problems( older ), [] );
 	ASSERT.deepEqual( LLMS.Migrate( older ), [] );
 	ASSERT.deepEqual( LLMS.Migrate( settings ), [] );
 } );
 
 
-TEST( 'every connection is a participant of its server: listed with the hand-made ones, identified by its token, public without it', function ()
+TEST( 'every connection is a speaker of its server: listed after the owner, its runs identified by a run token the server minted', function ()
 {
 	let claude = LLMS.Fill( { Name: 'claude-cli' } );
-	let settings = { Name: 'cube4', Participants: [ { Name: 'user', Role: 'owner' }, { Name: 'llm', Role: 'llm', Token: 'the-llm-token-0123456789' } ], Llms: [ claude ] };
-	ASSERT.deepEqual( PARTICIPANTS.LlmParticipants( settings ), [ { Name: 'claude-cli@cube4', Display: 'claude-cli', Role: 'llm', Token: claude.Token, Llm: claude.Id } ] );
-	ASSERT.deepEqual( PARTICIPANTS.All( settings ).map( function ( one ) { return one.Name; } ), [ 'user', 'llm', 'claude-cli@cube4' ] );
-	ASSERT.deepEqual( PARTICIPANTS.PublicList( settings ), [
-		{ Name: 'user', Display: 'user', Role: 'owner' },
-		{ Name: 'llm', Display: 'llm', Role: 'llm' },
-		{ Name: 'claude-cli@cube4', Display: 'claude-cli', Role: 'llm', Llm: claude.Id },
+	let settings = { Name: 'cube4', Owner: { Name: 'user', Display: 'User' }, Llms: [ claude ] };
+	ASSERT.deepEqual( PARTICIPANTS.Speakers( settings ), [
+		{ Name: 'user', Display: 'User', Role: 'owner' },
+		{ Name: 'claude-cli by user', Display: 'claude-cli by User', Role: 'llm', Llm: claude.Id },
 	] );
-	ASSERT.equal( PARTICIPANTS.Identify( settings, 'Bearer ' + claude.Token ).Name, 'claude-cli@cube4' );
-	ASSERT.equal( PARTICIPANTS.Identify( settings, 'Bearer the-llm-token-0123456789' ).Name, 'llm' );
-	ASSERT.equal( PARTICIPANTS.Identify( settings, 'Bearer nothing-like-it-0123456789' ), null );
-	ASSERT.equal( PARTICIPANTS.Identify( settings, '' ).Name, 'user' );
-	ASSERT.deepEqual( PARTICIPANTS.All( { Name: 'x', Participants: [ { Name: 'user', Role: 'owner' } ] } ).length, 1 );
+	let tokens = PARTICIPANTS.RunTokens();
+	let value = tokens.Mint( { Service: claude.Name, Name: 'Review run', Project: 'prj-1' } );
+	let run = PARTICIPANTS.Identify( settings, { Authorization: 'Bearer ' + value }, tokens );
+	ASSERT.deepEqual( [ run.Name, run.Service, run.Token, run.Speaker ], [ 'user', 'claude-cli', 'Review run', 'claude-cli by user' ] );
+	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'Bearer nothing-like-it-0123456789' }, tokens ), null );
+	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: '' }, tokens ).Speaker, 'user' );
+	ASSERT.equal( PARTICIPANTS.Speakers( { Name: 'x' } ).length, 1 );
 } );
 
 
@@ -146,7 +141,8 @@ TEST( 'the package is one prompt from the checked items in order, the task of th
 		Project: { Id: 'prj-1', Name: 'Consensus' },
 		Plan: { Id: 'pln-1', Title: 'Step 3', State: 'Plan' },
 		Folder: 'W:/code/repo',
-		Participant: 'claude-cli@cube4',
+		Owner: { Name: 'user', Display: 'User' },
+		Service: 'claude-cli',
 		Token: 'the-token-of-claude-cli-0123',
 		Instructions: '# This server\n\n- API: http://cube4:3500/api\n',
 		Readme: { Id: 'ctx-1', Title: 'Readme', Text: '# Consensus\n\nThe background.\n' },
@@ -154,7 +150,7 @@ TEST( 'the package is one prompt from the checked items in order, the task of th
 		Threads: [ { Id: 'thr-1', Status: 'contested', Anchor: { Text: 'a passage' }, Replies: [ { By: 'user', At: '2026-10-01T05:00:00.000Z', Text: 'Why?' } ] } ],
 	};
 	let text = PACKAGE.Build( request );
-	let order = [ '# A review one-shot from Consensus', 'You are the `claude-cli@cube4` participant', 'run once by that server "cube4" through its LLM connection "claude-cli"', '## This run', '- Consensus API: http://cube4:3500/api', '- Your token, sent as "Authorization: Bearer <token>": the-token-of-claude-cli-0123', '- The plan at hand: Step 3 (pln-1), state Plan', '- The project\'s folder: W:/code/repo', '## Agent instructions', '# This server', '## Readme of Consensus (ctx-1)', 'The background.', '## Other documents of the Context folder', '- Notes (doc-1)', '## Threads of the plan waiting on claude-cli@cube4', '### Thread thr-1 (contested, on "a passage")', '**user**', 'Why?', '## Your task: review', 'Take the llm participant', '## Further instructions', 'Answer in English.' ];
+	let order = [ '# A review one-shot from Consensus', 'You act for User, the owner of the Consensus server below', 'run once by that server "cube4" through its LLM connection "claude-cli": what you post reads "claude-cli by User".', '## This run', '- Consensus API: http://cube4:3500/api', '- Your token, sent as "Authorization: Bearer <token>": the-token-of-claude-cli-0123', '- The plan at hand: Step 3 (pln-1), state Plan', '- The project\'s folder: W:/code/repo', '## Agent instructions', '# This server', '## Readme of Consensus (ctx-1)', 'The background.', '## Other documents of the Context folder', '- Notes (doc-1)', '## Threads of the plan waiting on claude-cli by User', '### Thread thr-1 (contested, on "a passage")', '**user**', 'Why?', '## Your task: review', 'Take the llm participant', '## Further instructions', 'Answer in English.' ];
 	let at = -1;
 	for ( let piece of order )
 	{
@@ -175,6 +171,8 @@ TEST( 'the package is one prompt from the checked items in order, the task of th
 	ASSERT.match( session, /- No plan is selected\./ );
 	ASSERT.match( session, /- No folder/ );
 	ASSERT.equal( session.includes( 'Your token' ), false );
+	// a preview (no token yet) says the server makes one when the run starts
+	ASSERT.match( PACKAGE.Build( Object.assign( {}, request, { Token: undefined } ) ), /Your token, sent as "Authorization: Bearer <token>": made by the server when the run starts/ );
 	ASSERT.equal( session.includes( 'Your task: review' ), false );
 	ASSERT.match( session, /## Your task\n\nAnswer in English\./ );
 	// a readme holding a fence is fenced with a longer one

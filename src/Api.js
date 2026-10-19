@@ -40,17 +40,20 @@ function Attach( App, Context )
 	let events = Context.Events;
 	let runs = Context.Runs || null;
 	let runner = Context.Runner || null;
+	let tokens = Context.Tokens || null;
 	let router = EXPRESS.Router();
 	router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
 	router.use( identify );
 
 
 	//-----------------------------------------------------------------
-	// Identity
+	// Identity (plan User Management, Step 2): every request is the owner account, saying who it is with the
+	// X-Consensus-Service header, or a run on its run token; an unknown token is refused. request.Participant is the
+	// account: { Name, Display, Role, Service, Token, Speaker }, Speaker the key the rules run over.
 
 	function identify( request, response, next )
 	{
-		let participant = PARTICIPANTS.Identify( settings, request.get( 'Authorization' ) );
+		let participant = PARTICIPANTS.Identify( settings, { Authorization: request.get( 'Authorization' ), Service: request.get( PARTICIPANTS.SERVICE_HEADER ) }, tokens );
 		if ( !participant )
 		{
 			return fail( response, 401, 'unknown token' );
@@ -60,9 +63,10 @@ function Attach( App, Context )
 	}
 
 
-	function participants()
+	// The speakers the rules run over: the owner, one per LLM connection, and everyone seen in the threads given.
+	function speakers( threads, account )
 	{
-		return PARTICIPANTS.PublicList( settings );
+		return PARTICIPANTS.SeenSpeakers( settings, threads || [], account || null );
 	}
 
 
@@ -126,12 +130,13 @@ function Attach( App, Context )
 
 
 	//-----------------------------------------------------------------
-	// Views: what a plan looks like to a participant.
+	// Views: what a plan looks like to the account asking (request.Participant).
 
-	function present_threads( threads, text, name )
+	function present_threads( threads, text, account )
 	{
 		let plain = ANCHORS.PlainText( text );
-		let all = participants();
+		let name = account.Speaker;
+		let all = speakers( threads, account );
 		return threads.map( function ( thread )
 		{
 			let view = Object.assign( {}, thread );
@@ -155,10 +160,10 @@ function Attach( App, Context )
 	}
 
 
-	function summarize( plan, threads, name )
+	function summarize( plan, threads, account )
 	{
-		let tally = RULES.Tally( plan, threads, participants() );
-		let line = is_document( plan ) ? 'a document' : RULES.StateLine( tally, name );
+		let tally = RULES.Tally( plan, threads, speakers( threads, account ) );
+		let line = is_document( plan ) ? 'a document' : RULES.StateLine( tally, account.Speaker );
 		return Object.assign( {}, plan, { Tally: tally, StateLine: line } );
 	}
 
@@ -249,7 +254,7 @@ function Attach( App, Context )
 
 	router.get( '/me', function ( request, response )
 	{
-		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Participants: participants(), States: states(), Version: VERSION, Server: settings.Name || null } );
+		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Participants: speakers( [], request.Participant ), States: states(), Version: VERSION, Server: settings.Name || null } );
 	} );
 
 
@@ -311,7 +316,7 @@ function Attach( App, Context )
 				continue;
 			}
 			let read = await store.ReadPlan( plan.Id );
-			list.push( summarize( plan, read ? read.Threads : [], request.Participant.Name ) );
+			list.push( summarize( plan, read ? read.Threads : [], request.Participant ) );
 		}
 		response.json( { Plans: list } );
 	} );
@@ -348,7 +353,7 @@ function Attach( App, Context )
 		{
 			return send_result( response, result );
 		}
-		response.status( 201 ).json( { Plan: summarize( result.Plan, [], request.Participant.Name ), Project: result.Project } );
+		response.status( 201 ).json( { Plan: summarize( result.Plan, [], request.Participant ), Project: result.Project } );
 	} );
 
 
@@ -381,7 +386,7 @@ function Attach( App, Context )
 		{
 			return refused( 400, PARENT_REFUSED );
 		}
-		let plan = await store.CreatePlan( { Project: target.Id, Title: fields.Title, Text: fields.Text, By: participant.Name, Kind: fields.Kind, State: state } );
+		let plan = await store.CreatePlan( { Project: target.Id, Title: fields.Title, Text: fields.Text, By: participant.Name, Service: participant.Service, Token: participant.Token, Kind: fields.Kind, State: state } );
 		let placed = await change_project( target.Id, null, function ( project )
 		{
 			let node = { Kind: fields.Kind, Id: plan.Id };
@@ -406,11 +411,11 @@ function Attach( App, Context )
 		{
 			return fail( response, 404, 'no such plan' );
 		}
-		let name = request.Participant.Name;
+		let name = request.Participant;
 		let holder = await store.ProjectOf( request.params.id );
 		response.json( {
 			Me: PARTICIPANTS.Public( request.Participant ),
-			Participants: participants(),
+			Participants: speakers( read.Threads, request.Participant ),
 			Project: holder ? { Id: holder.Id, Name: holder.Name } : null,
 			Context: !!( holder && holder.Context === request.params.id ),
 			Plan: summarize( read.Plan, read.Threads, name ),
@@ -470,7 +475,7 @@ function Attach( App, Context )
 				return fail( response, 404, 'no such plan' );
 			}
 			let plan = await store.UpdatePlan( id, { Title: title } );
-			return summarize( plan, read.Threads, request.Participant.Name );
+			return summarize( plan, read.Threads, request.Participant );
 		} );
 		if ( !result )
 		{
@@ -501,10 +506,10 @@ function Attach( App, Context )
 			{
 				return fail( response, 409, 'the text changed since revision ' + body.Revision + '; reload and edit again', { Revision: read.Plan.Revision } );
 			}
-			let plan = await store.WriteText( id, { Text: body.Text, By: request.Participant.Name, Reason: 'edit' } );
+			let plan = await store.WriteText( id, { Text: body.Text, By: request.Participant.Name, Service: request.Participant.Service, Token: request.Participant.Token, Reason: 'edit' } );
 			refind( read.Threads, body.Text );
 			await store.WriteThreads( id, read.Threads );
-			return summarize( plan, read.Threads, request.Participant.Name );
+			return summarize( plan, read.Threads, request.Participant );
 		} );
 		if ( !result )
 		{
@@ -598,7 +603,7 @@ function Attach( App, Context )
 				return fail( response, 409, 'a Document has no State' );
 			}
 			let plan = await store.UpdatePlan( id, { State: wanted } );
-			return summarize( plan, read.Threads, request.Participant.Name );
+			return summarize( plan, read.Threads, request.Participant );
 		} );
 		if ( !result )
 		{
@@ -741,7 +746,7 @@ function Attach( App, Context )
 	router.get( '/projects', async function ( request, response )
 	{
 		let projects = await store.ListProjects();
-		response.json( { Projects: await present_projects( projects, request.Participant.Name ) } );
+		response.json( { Projects: await present_projects( projects, request.Participant ) } );
 	} );
 
 
@@ -882,7 +887,7 @@ function Attach( App, Context )
 		}
 		await store.MoveProject( request.params.pid, before );
 		events.Send( { Project: request.params.pid, Kind: 'project' } );
-		response.json( { Projects: await present_projects( await store.ListProjects(), request.Participant.Name ) } );
+		response.json( { Projects: await present_projects( await store.ListProjects(), request.Participant ) } );
 	} );
 
 
@@ -892,7 +897,7 @@ function Attach( App, Context )
 
 	function may_port( participant )
 	{
-		return participant.Role === 'owner' || participant.Role === 'llm';
+		return !!participant && participant.Role === 'owner';
 	}
 
 
@@ -944,7 +949,7 @@ function Attach( App, Context )
 		}
 		let body = request.body || {};
 		let options = { Mode: body.Mode, Preview: !!body.Preview, Into: body.Into };
-		let names = participants().map( function ( participant ) { return participant.Name; } );
+		let names = speakers().map( function ( speaker ) { return speaker.Name; } );
 		let result = await PORT.Import( store, body.Export, options, {
 			Participants: names,
 			ChangeProject: function ( id, change ) { return change_project( id, null, change ); },
@@ -1378,8 +1383,8 @@ function Attach( App, Context )
 		{
 			return fail( response, 404, 'no such plan' );
 		}
-		let name = request.Participant.Name;
-		let filtered = RULES.Filter( read.Threads, request.query.status, participants(), name );
+		let name = request.Participant;
+		let filtered = RULES.Filter( read.Threads, request.query.status, speakers( read.Threads, name ), name.Speaker );
 		if ( !filtered )
 		{
 			return fail( response, 400, 'unknown status filter "' + request.query.status + '"' );
@@ -1441,7 +1446,7 @@ function Attach( App, Context )
 				Resolved: null,
 				Applied: null,
 				Created: at,
-				Replies: [ { Id: new_id( IDS.REPLY ), By: participant.Name, At: at, Text: text } ],
+				Replies: [ Object.assign( { Id: new_id( IDS.REPLY ) }, RULES.Stamp( participant, at ), { Text: text } ) ],
 			};
 			if ( resolve )
 			{
@@ -1455,7 +1460,7 @@ function Attach( App, Context )
 			read.Threads.push( thread );
 			await store.WriteThreads( id, read.Threads );
 			await store.UpdatePlan( id, {} );
-			return { Thread: present_threads( [ thread ], read.Text, participant.Name )[ 0 ] };
+			return { Thread: present_threads( [ thread ], read.Text, participant )[ 0 ] };
 		} );
 		if ( !result.Refused )
 		{
@@ -1489,7 +1494,7 @@ function Attach( App, Context )
 				thread.Reopened = effect.Reopened;
 				thread.Resolved = effect.Resolved;
 			}
-			thread.Replies.push( { Id: new_id( IDS.REPLY ), By: participant.Name, At: now(), Text: text } );
+			thread.Replies.push( Object.assign( { Id: new_id( IDS.REPLY ) }, RULES.Stamp( participant, now() ), { Text: text } ) );
 			if ( resolve )
 			{
 				let can = RULES.CanResolve( participant, thread );
@@ -1501,7 +1506,7 @@ function Attach( App, Context )
 			}
 			await store.WriteThreads( id, read.Threads );
 			await store.UpdatePlan( id, {} );
-			return { Thread: present_threads( [ thread ], read.Text, participant.Name )[ 0 ], Reopened: effect.Reopen, Resolved: !!resolve };
+			return { Thread: present_threads( [ thread ], read.Text, participant )[ 0 ], Reopened: effect.Reopen, Resolved: !!resolve };
 		} );
 		if ( !result.Refused )
 		{
@@ -1555,7 +1560,7 @@ function Attach( App, Context )
 			thread.Anchor = anchor;
 			thread.Detached = false;
 			await store.WriteThreads( id, read.Threads );
-			return present_threads( [ thread ], read.Text, request.Participant.Name )[ 0 ];
+			return present_threads( [ thread ], read.Text, request.Participant )[ 0 ];
 		} );
 		if ( !result )
 		{
@@ -1589,7 +1594,7 @@ function Attach( App, Context )
 			}
 			Object.assign( thread, RULES.ResolveEffect( request.Participant, now() ) );
 			await store.WriteThreads( id, read.Threads );
-			return present_threads( [ thread ], read.Text, request.Participant.Name )[ 0 ];
+			return present_threads( [ thread ], read.Text, request.Participant )[ 0 ];
 		} );
 		if ( !result )
 		{
@@ -1679,7 +1684,7 @@ function Attach( App, Context )
 			}
 			if ( changed_text )
 			{
-				plan = await store.WriteText( id, { Text: body.Text, By: participant.Name, Reason: 'apply', Thread: thread.Id } );
+				plan = await store.WriteText( id, { Text: body.Text, By: participant.Name, Service: participant.Service, Token: participant.Token, Reason: 'apply', Thread: thread.Id } );
 				refind( read.Threads, text );
 			}
 			if ( anchor )
@@ -1689,7 +1694,7 @@ function Attach( App, Context )
 			}
 			Object.assign( thread, RULES.ApplyEffect( participant, now(), plan.Revision, plan.Head || null, outcome ) );
 			await store.WriteThreads( id, read.Threads );
-			return { Thread: present_threads( [ thread ], text, participant.Name )[ 0 ], Plan: summarize( plan, read.Threads, participant.Name ) };
+			return { Thread: present_threads( [ thread ], text, participant )[ 0 ], Plan: summarize( plan, read.Threads, participant ) };
 		} );
 		if ( !result.Refused )
 		{
@@ -1715,8 +1720,7 @@ function Attach( App, Context )
 
 	router.get( '/waiting', async function ( request, response )
 	{
-		let name = request.Participant.Name;
-		let all = participants();
+		let name = request.Participant;
 		let waiting = [];
 		for ( let plan of await store.ListPlans() )
 		{
@@ -1725,7 +1729,7 @@ function Attach( App, Context )
 			{
 				continue;
 			}
-			let threads = RULES.WaitingOn( name, read.Threads, all );
+			let threads = RULES.WaitingOn( name.Speaker, read.Threads, speakers( read.Threads, name ) );
 			for ( let thread of present_threads( threads, read.Text, name ) )
 			{
 				waiting.push( { Plan: { Id: plan.Id, Title: plan.Title, State: plan.State, Revision: plan.Revision }, Thread: thread } );
@@ -1736,9 +1740,9 @@ function Attach( App, Context )
 
 
 	//-----------------------------------------------------------------
-	// The LLM connections (plan Run Shapes, Step 3): the settings' Llms, each a participant of this server named
-	// <Name>@<server Name>. Everyone sees the list (its public part); the owner writes it and sees the whole records
-	// with their tokens. A connection's Check runs its command or asks its Ollama, saved or not.
+	// The LLM connections (plan Run Shapes, Step 3): the settings' Llms, each a tool a run goes through, its posts
+	// reading "<Name> by <owner>" (plan User Management, Step 2). Everyone sees the list (its public part); the owner
+	// writes it and sees the whole records. A connection's Check runs its command or asks its Ollama, saved or not.
 
 	function llm_running( llm )
 	{
@@ -1782,12 +1786,12 @@ function Attach( App, Context )
 	}
 
 
-	// A connection saved: the body's fields over the record (a new one: over the defaults, with a new id and token),
+	// A connection saved: the body's fields over the record (a new one: over the defaults, with a new id),
 	// filled and checked with the rest; a new one goes to the end of the list.
 	async function save_llm( request, response, existing )
 	{
 		let given = body_of( request );
-		let filled = existing ? LLMS.Fill( Object.assign( {}, existing, given, { Id: existing.Id, Token: existing.Token } ) ) : LLMS.Fill( Object.assign( {}, given, { Id: undefined, Token: undefined } ) );
+		let filled = existing ? LLMS.Fill( Object.assign( {}, existing, given, { Id: existing.Id } ) ) : LLMS.Fill( Object.assign( {}, given, { Id: undefined } ) );
 		let list = ( settings.Llms || [] ).filter( function ( one ) { return one.Id !== filled.Id; } );
 		let index = ( settings.Llms || [] ).findIndex( function ( one ) { return one.Id === filled.Id; } );
 		list.splice( ( index < 0 ) ? list.length : index, 0, filled );
@@ -1854,7 +1858,7 @@ function Attach( App, Context )
 		let llm = llm_of( request, response );
 		if ( llm )
 		{
-			response.json( await LLM.Check( LLMS.Fill( Object.assign( {}, llm, body_of( request ), { Id: llm.Id, Token: llm.Token } ) ) ) );
+			response.json( await LLM.Check( LLMS.Fill( Object.assign( {}, llm, body_of( request ), { Id: llm.Id } ) ) ) );
 		}
 	} );
 
@@ -1882,20 +1886,15 @@ function Attach( App, Context )
 
 
 	//-----------------------------------------------------------------
-	// The runs (plan Run Shapes, Step 3): a one-shot asked of a connection by any participant but an llm one, run by
-	// this server in the project's folder (Runner.js, Runs.js); the records are read by everyone. A run's start,
-	// progress and end go out as { Kind: run } events.
+	// The runs (plan Run Shapes, Step 3): a one-shot asked of a connection by the presser, run by this server in the
+	// project's folder as the presser through the connection (Runner.js, Runs.js); the records are read by everyone.
+	// A run's start, progress and end go out as { Kind: run } events.
 
 	function may_run( request, response )
 	{
 		if ( !runner || !runs )
 		{
 			fail( response, 503, 'this server runs no LLMs' );
-			return false;
-		}
-		if ( request.Participant.Role === 'llm' )
-		{
-			fail( response, 403, 'an LLM participant starts no run' );
 			return false;
 		}
 		return true;
@@ -1931,7 +1930,7 @@ function Attach( App, Context )
 		{
 			return fail( response, 400, made.Error );
 		}
-		response.json( { Prompt: made.Prompt, Participant: made.Participant, Project: made.Project, Plan: made.Plan, Folder: made.Folder ? made.Folder.Path : null } );
+		response.json( { Prompt: made.Prompt, Speaker: made.Speaker, Project: made.Project, Plan: made.Plan, Folder: made.Folder ? made.Folder.Path : null } );
 	} );
 
 

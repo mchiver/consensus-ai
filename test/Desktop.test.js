@@ -175,7 +175,7 @@ TEST( 'the page server serves the page, the connect screen and the vendor files,
 
 TEST( 'Apply puts the desktop\'s fields on the global config in place; MoveIn takes them from desktop.json once, else the defaults', function ()
 {
-	let config = { Name: 'here', Port: 3500, Scope: 'Local', States: [ 'Draft' ], Participants: [ { Name: 'user', Role: 'owner', Token: 'a-token-long-enough-0123' } ] };
+	let config = { Name: 'here', Port: 3500, Scope: 'Local', States: [ 'Draft' ], Owner: { Name: 'user', Display: 'User' } };
 	let folder = temporary_folder( 'desktop-movein-' );
 	let path = PATH.join( folder, 'desktop.json' );
 	let written = SETTINGS.Fill( { Servers: [ { Name: 'cube4', Url: 'http://cube4:3500' } ], Local: { Data: 'W:/old', Port: 3500, Theme: 'nord' }, Last: { Kind: 'local' }, Theme: 'dark', Remembered: { 'consensus.x': 1 } } );
@@ -187,10 +187,10 @@ TEST( 'Apply puts the desktop\'s fields on the global config in place; MoveIn ta
 	ASSERT.match( lines[ 0 ], /desktop\.json moved into the config/ );
 	ASSERT.match( lines[ 1 ], /1 LLM connection\(s\) moved in/ );
 	ASSERT.match( lines[ 2 ], /1 workspace\(s\) moved in/ );
-	// the LLM connections become the server's (plan Run Shapes, Step 3), filled with a token; the workspaces wait for the migration
+	// the LLM connections become the server's (plan Run Shapes, Step 3), filled, with no token (plan User Management, Step 2); the workspaces wait for the migration
 	ASSERT.equal( config.Llms.length, 1 );
 	ASSERT.equal( config.Llms[ 0 ].Name, 'Claude' );
-	ASSERT.equal( config.Llms[ 0 ].Token.length >= 16, true );
+	ASSERT.equal( 'Token' in config.Llms[ 0 ], false );
 	ASSERT.deepEqual( config.Workspaces, written.Workspaces );
 	ASSERT.equal( FS.existsSync( path ), false );
 	ASSERT.equal( FS.existsSync( path + '.moved' ), true );
@@ -199,24 +199,24 @@ TEST( 'Apply puts the desktop\'s fields on the global config in place; MoveIn ta
 	ASSERT.equal( 'Last' in config, false );
 	ASSERT.equal( config.Theme, 'dark' );
 	ASSERT.deepEqual( config.Remembered, { 'consensus.x': 1 } );
-	ASSERT.deepEqual( [ config.Name, config.Scope, config.Participants[ 0 ].Token ], [ 'here', 'Local', 'a-token-long-enough-0123' ] );
+	ASSERT.deepEqual( [ config.Name, config.Scope, config.Owner.Name ], [ 'here', 'Local', 'user' ] );
 	// once: a config with its desktop fields is left alone; one written by hand gets the fields it lacks
 	ASSERT.deepEqual( SETTINGS.MoveIn( config, path ), [] );
-	let by_hand = { Name: 'h', Scope: 'None', Participants: [], Servers: [ { Name: 's', Url: 'http://s:1' } ], Theme: 'light' };
+	let by_hand = { Name: 'h', Scope: 'None', Owner: { Name: 'user' }, Servers: [ { Name: 's', Url: 'http://s:1' } ], Theme: 'light' };
 	ASSERT.deepEqual( SETTINGS.MoveIn( by_hand, path ), [ 'the desktop\'s settings filled in: Scale, Remembered' ] );
 	ASSERT.deepEqual( [ by_hand.Servers[ 0 ], by_hand.Theme, by_hand.Scale, by_hand.Remembered, by_hand.Scope ], [ { Name: 's', Url: 'http://s:1' }, 'light', 'normal', {}, 'None' ] );
 	// a config from before Step 5: Last and the themes per server are dropped, with a line
-	let older = { Name: 'o', Scope: 'Local', Participants: [], Servers: [ { Name: 's', Url: 'http://s:1', Theme: 'nord' } ], Local: { Theme: 'slate' }, Last: { Kind: 'local' }, Theme: 'sepia', Scale: 'large', Remembered: {} };
+	let older = { Name: 'o', Scope: 'Local', Owner: { Name: 'user' }, Servers: [ { Name: 's', Url: 'http://s:1', Theme: 'nord' } ], Local: { Theme: 'slate' }, Last: { Kind: 'local' }, Theme: 'sepia', Scale: 'large', Remembered: {} };
 	ASSERT.deepEqual( SETTINGS.MoveIn( older, path ), [ 'Last and the themes per server dropped: the page shows every server at once, in one theme (plan Run Shapes, Step 5)' ] );
 	ASSERT.deepEqual( [ older.Servers[ 0 ], 'Local' in older, 'Last' in older, older.Theme ], [ { Name: 's', Url: 'http://s:1' }, false, false, 'sepia' ] );
 	ASSERT.deepEqual( SETTINGS.MoveIn( older, path ), [] );
 	ASSERT.equal( SETTINGS.Remember( {}, 'k', 1 ), true );
 	// no desktop.json: the defaults
-	let fresh = { Name: 'n', Scope: 'Local', Participants: [] };
+	let fresh = { Name: 'n', Scope: 'Local', Owner: { Name: 'user' } };
 	ASSERT.match( SETTINGS.MoveIn( fresh, PATH.join( folder, 'none.json' ) )[ 0 ], /start with the defaults/ );
 	ASSERT.deepEqual( fresh.Servers, [] );
 	ASSERT.equal( fresh.Theme, 'system' );
-	ASSERT.deepEqual( Object.keys( fresh ).sort(), [ 'Name', 'Participants', 'Scope' ].concat( SETTINGS.DESKTOP_FIELDS ).sort() );
+	ASSERT.deepEqual( Object.keys( fresh ).sort(), [ 'Name', 'Owner', 'Scope' ].concat( SETTINGS.DESKTOP_FIELDS ).sort() );
 	ASSERT.equal( config.Llms.length, 1 );
 	// Apply: in place, the server's fields untouched, the desktop's all replaced
 	let same = config;
@@ -225,6 +225,6 @@ TEST( 'Apply puts the desktop\'s fields on the global config in place; MoveIn ta
 	ASSERT.equal( config.Theme, 'sepia' );
 	ASSERT.deepEqual( config.Servers, [] );
 	ASSERT.equal( config.Name, 'here' );
-	// Fill gives the pages the desktop's fields only: no participants, no tokens
-	ASSERT.equal( 'Participants' in SETTINGS.Fill( config ), false );
+	// Fill gives the pages the desktop's fields only: no owner, no server fields
+	ASSERT.equal( 'Owner' in SETTINGS.Fill( config ), false );
 } );

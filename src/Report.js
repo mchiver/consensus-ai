@@ -46,7 +46,7 @@ async function Compose( Store, Settings, PlanId )
 		return { Error: 'a document has no threads to report; a report is of a plan', Status: 400 };
 	}
 	let project = await Store.ProjectOf( PlanId );
-	let participants = PARTICIPANTS.PublicList( Settings );
+	let participants = Settings;	// the settings: the speakers of each plan are read off its threads (plan User Management, Step 2)
 	let items = project ? ( project.Items || [] ) : [];
 	let placed = TREE.Find( items, PlanId );
 	if ( !placed && project )
@@ -112,7 +112,7 @@ function make_section( read, participants, depth )
 		Plan: read.Plan,
 		Text: read.Text,
 		Plain: plain,
-		Tally: RULES.Tally( read.Plan, read.Threads, participants ),
+		Tally: RULES.Tally( read.Plan, read.Threads, PARTICIPANTS.SeenSpeakers( participants, read.Threads ) ),
 		Threads: threads,
 	};
 }
@@ -201,32 +201,35 @@ function chain_of( items, id )
 }
 
 
-// The participants who wrote, resolved or applied anything in the report, with their display names and roles.
+// The speakers who wrote, resolved or applied anything in the report, each with the byline shown and a role (the
+// owner's account, or llm for a connection, an agent session or a service acting for the owner).
 function participants_in( plans, participants )
 {
-	let names = new Set();
+	let names = new Map();
+	function note( record )
+	{
+		let key = PARTICIPANTS.SpeakerOf( record );
+		if ( key && !names.has( key ) )
+		{
+			names.set( key, record );
+		}
+	}
 	for ( let section of plans )
 	{
 		for ( let entry of section.Threads )
 		{
 			for ( let reply of entry.Thread.Replies || [] )
 			{
-				names.add( reply.By );
+				note( reply );
 			}
-			if ( entry.Thread.Resolved )
-			{
-				names.add( entry.Thread.Resolved.By );
-			}
-			if ( entry.Thread.Applied )
-			{
-				names.add( entry.Thread.Applied.By );
-			}
+			note( entry.Thread.Resolved );
+			note( entry.Thread.Applied );
 		}
 	}
-	return Array.from( names ).map( function ( name )
+	let owner = PARTICIPANTS.Owner( participants ).Name;
+	return Array.from( names.entries() ).map( function ( entry )
 	{
-		let known = participants.find( function ( participant ) { return participant.Name === name; } );
-		return { Name: name, Display: known ? known.Display : name, Role: known ? known.Role : '' };
+		return { Name: entry[ 0 ], Display: PARTICIPANTS.Byline( participants, entry[ 1 ] ), Role: ( entry[ 0 ] === owner ) ? 'owner' : 'llm' };
 	} );
 }
 
@@ -265,10 +268,12 @@ function stamp( value )
 }
 
 
-function display_of( report, name )
+// The byline of a record (a reply, a resolve, an apply, a revision), or of a speaker's key.
+function display_of( report, who )
 {
-	let known = report.Participants.find( function ( participant ) { return participant.Name === name; } );
-	return known ? known.Display : name;
+	let key = ( who && typeof who === 'object' ) ? PARTICIPANTS.SpeakerOf( who ) : who;
+	let known = report.Participants.find( function ( participant ) { return participant.Name === key; } );
+	return known ? known.Display : ( key || '' );
 }
 
 
@@ -343,7 +348,7 @@ function Markdown( Report )
 			out.push( entry.Number + '. ' + anchor_words( entry ) + ' — ' + entry.State );
 			for ( let reply of entry.Thread.Replies || [] )
 			{
-				out.push( '    - **' + display_of( Report, reply.By ) + '** ' + stamp( reply.At ) + ':' );
+				out.push( '    - **' + display_of( Report, reply ) + '** ' + stamp( reply.At ) + ':' );
 				for ( let line of String( reply.Text || '' ).split( '\n' ) )
 				{
 					out.push( '      ' + line );
@@ -351,11 +356,11 @@ function Markdown( Report )
 			}
 			if ( entry.Thread.Resolved )
 			{
-				out.push( '    - Resolved by ' + display_of( Report, entry.Thread.Resolved.By ) + ' ' + stamp( entry.Thread.Resolved.At ) );
+				out.push( '    - Resolved by ' + display_of( Report, entry.Thread.Resolved ) + ' ' + stamp( entry.Thread.Resolved.At ) );
 			}
 			if ( entry.Thread.Applied )
 			{
-				out.push( '    - Applied by ' + display_of( Report, entry.Thread.Applied.By ) + ' ' + stamp( entry.Thread.Applied.At ) + ' at revision ' + entry.Thread.Applied.Revision + ': ' + String( entry.Thread.Applied.Outcome || '' ).replace( /\s+/g, ' ' ) );
+				out.push( '    - Applied by ' + display_of( Report, entry.Thread.Applied ) + ' ' + stamp( entry.Thread.Applied.At ) + ' at revision ' + entry.Thread.Applied.Revision + ': ' + String( entry.Thread.Applied.Outcome || '' ).replace( /\s+/g, ' ' ) );
 			}
 		}
 		out.push( '' );
@@ -450,15 +455,15 @@ function thread_html( Report, entry )
 	out.push( '<header class="thread-head"><span class="number">' + entry.Number + '</span> <span class="anchor-words">' + escape_html( anchor_words( entry ) ) + '</span> <span class="badge ' + entry.State + '">' + entry.State + '</span></header>' );
 	for ( let reply of thread.Replies || [] )
 	{
-		out.push( '<div class="reply"><div class="reply-head"><span class="who">' + escape_html( display_of( Report, reply.By ) ) + '</span> <time datetime="' + escape_html( reply.At || '' ) + '">' + stamp( reply.At ) + '</time></div><div class="reply-text markdown">' + MARKED.parse( String( reply.Text || '' ) ) + '</div></div>' );
+		out.push( '<div class="reply"><div class="reply-head"><span class="who">' + escape_html( display_of( Report, reply ) ) + '</span> <time datetime="' + escape_html( reply.At || '' ) + '">' + stamp( reply.At ) + '</time></div><div class="reply-text markdown">' + MARKED.parse( String( reply.Text || '' ) ) + '</div></div>' );
 	}
 	if ( thread.Resolved )
 	{
-		out.push( '<div class="record">Resolved by <span class="who">' + escape_html( display_of( Report, thread.Resolved.By ) ) + '</span> <time datetime="' + escape_html( thread.Resolved.At || '' ) + '">' + stamp( thread.Resolved.At ) + '</time></div>' );
+		out.push( '<div class="record">Resolved by <span class="who">' + escape_html( display_of( Report, thread.Resolved ) ) + '</span> <time datetime="' + escape_html( thread.Resolved.At || '' ) + '">' + stamp( thread.Resolved.At ) + '</time></div>' );
 	}
 	if ( thread.Applied )
 	{
-		out.push( '<div class="record">Applied by <span class="who">' + escape_html( display_of( Report, thread.Applied.By ) ) + '</span> <time datetime="' + escape_html( thread.Applied.At || '' ) + '">' + stamp( thread.Applied.At ) + '</time> at revision ' + thread.Applied.Revision + ': <span class="outcome">' + escape_html( thread.Applied.Outcome || '' ) + '</span></div>' );
+		out.push( '<div class="record">Applied by <span class="who">' + escape_html( display_of( Report, thread.Applied ) ) + '</span> <time datetime="' + escape_html( thread.Applied.At || '' ) + '">' + stamp( thread.Applied.At ) + '</time> at revision ' + thread.Applied.Revision + ': <span class="outcome">' + escape_html( thread.Applied.Outcome || '' ) + '</span></div>' );
 	}
 	out.push( '</article>' );
 	return out.join( '\n' );

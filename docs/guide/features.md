@@ -40,7 +40,7 @@
 - **Agent sessions.** Point Claude Code or any agent at one address, `/instructions`, and it learns the rules, finds what waits on it, replies, applies and drafts plans.
 - **Your turn in Consensus.** The working loop: the owner comments and resolves, the agent replies and applies, in the plan, not in a chat scroll.
 - **The build loop.** When every thread is applied, the agent builds exactly that plan and posts its build log as a thread, accepted the same way.
-- **LLM connections.** The server runs LLMs for you: Claude Code as a one-shot command, or a local model through Ollama, each a named participant with its own token.
+- **LLM connections.** The server runs LLMs for you: Claude Code as a one-shot command, or a local model through Ollama, each posting as `<connection> by <owner>` on a token the server makes for the run.
 - **Review, Build and Session runs.** One button packages the project's Readme, its context documents and the plan's waiting threads into a prompt, runs it in the project's folder, and keeps the log.
 - **Tools for local models.** A local model gets file tools over the project's folder, held to its Include and Exclude lists, and Consensus tools for reading plans, replying and applying.
 - **Packaging you control.** Choose which documents and threads go into a run's prompt, edit the prompts, and preview the package with its token estimate before it runs.
@@ -54,7 +54,7 @@
 - **Docker.** One image, one volume, port 3500, for a box on your network.
 - **Scope.** The server listens for this machine only, for the network, or not at all, as the settings say.
 - **Live updates.** Every change is a Server-Sent Event, so every open page, window and server row stays in step.
-- **Settings in the app.** Name, scope, port, states, participants and their tokens, and the Clerk keys of a Public server, edited in a popup by the owner. See [Settings and themes](settings.html).
+- **Settings in the app.** Name, scope, port, states, the owner's display and the Clerk keys of a Public server, edited in a popup by the owner. See [Settings and themes](settings.html).
 - **Themes and scale.** System, light, dark and seven more palettes, and three text sizes, remembered per server.
 
 ## The API

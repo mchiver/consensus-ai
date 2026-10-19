@@ -93,8 +93,8 @@ TEST( 'revisions: each has an Id and the Parent it was made from; the plan\'s He
 TEST( 'an applied thread names its revision by number and by RevisionId', async function ()
 {
 	let running = await SERVER.Start( { Data: temporary_folder( 'consensus-ids-api-' ), Port: 0 } );
-	let token = PARTICIPANTS.NewToken();
-	running.Settings.Participants[ 1 ].Token = token;
+	// a run token the server minted (plan User Management, Step 2): the apply is the owner's through the llm
+	let token = running.Tokens.Mint( { Service: 'llm', Name: 'Review run' } );
 	let plan = ( await call( running, 'POST', '/api/plans', { Title: 'Plan', Text: '# Plan\n\nA line to change.\n' } ) ).Body.Plan;
 	ASSERT.equal( IDS.Is( plan.Id, IDS.PLAN ), true );
 	let thread = ( await call( running, 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Change it.', Resolve: true } ) ).Body.Thread;

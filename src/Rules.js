@@ -5,7 +5,9 @@
 //
 //   thread = { Id, Anchor, Detached, Status: 'contested' | 'resolved', Reopened, Resolved, Applied, Replies }
 //   plan = { Id, Title, State, Revision }   State is one of the settings' States, changed by anyone at any time
-//   participant = { Name, Display, Role: 'owner' | 'llm' | 'member' }
+//   speaker = { Name, Display, Role: 'owner' | 'llm' }   Name is the key the byline makes (Participants.Speaker): the
+//   owner account's name, or "<Service> by <By>" for an LLM connection, an agent session or a service acting for it
+//   (plan User Management, Step 2). A reply, a resolve, an apply and a revision carry By, Service? and Token?.
 //
 // A thread's life: Contested -> Resolved (waiting to be applied) -> Applied. A reply to a resolved or applied
 // thread reopens it (contested, marked reopened); an applied change stays applied, and after the thread is
@@ -38,8 +40,9 @@ function IsApplied( Thread )
 
 //---------------------------------------------------------------------
 // Turn: the names a thread waits on.
-//   contested            every participant except the one who replied last
-//   resolved             every participant with the llm role (waiting to be applied)
+//   contested            every speaker except the one who replied last (the byline: a run's reply as the owner
+//                        through a connection is a different speaker from the owner, so the owner is still waited on)
+//   resolved             every speaker but the owner account: the LLMs and services (waiting to be applied)
 //   applied              nobody
 
 function Turn( Thread, Participants )
@@ -47,20 +50,48 @@ function Turn( Thread, Participants )
 	if ( Thread.Status === 'contested' )
 	{
 		let last_reply = Thread.Replies[ Thread.Replies.length - 1 ];
-		let last_by = last_reply ? last_reply.By : null;
+		let last_by = SpeakerOf( last_reply );
 		return Participants.filter( function ( participant ) { return participant.Name !== last_by; } ).map( name_of );
 	}
 	if ( IsWaiting( Thread ) )
 	{
-		return Participants.filter( is_llm ).map( name_of );
+		return Participants.filter( is_not_owner ).map( name_of );
 	}
 	return [];
 }
 
 
-function is_llm( participant )
+function is_not_owner( participant )
 {
-	return participant.Role === 'llm';
+	return participant.Role !== 'owner';
+}
+
+
+// SpeakerOf: the key of who made a record: "<Service> by <By>", or By alone.
+function SpeakerOf( Record )
+{
+	if ( !Record || !Record.By )
+	{
+		return null;
+	}
+	return Record.Service ? Record.Service + ' by ' + Record.By : Record.By;
+}
+
+
+// Stamp: the three fields and the time a record carries: By the account, Service and Token when the request had them.
+function Stamp( Who, At )
+{
+	let stamp = { By: Who.Name };
+	if ( Who.Service )
+	{
+		stamp.Service = Who.Service;
+	}
+	if ( Who.Token )
+	{
+		stamp.Token = Who.Token;
+	}
+	stamp.At = At;
+	return stamp;
 }
 
 
@@ -228,13 +259,13 @@ function ReplyEffect( Thread )
 
 function ResolveEffect( Who, At )
 {
-	return { Status: 'resolved', Reopened: false, Resolved: { By: Who.Name, At: At } };
+	return { Status: 'resolved', Reopened: false, Resolved: Stamp( Who, At ) };
 }
 
 
 function ApplyEffect( Who, At, Revision, RevisionId, Outcome )
 {
-	return { Applied: { By: Who.Name, At: At, Revision: Revision, RevisionId: RevisionId, Outcome: Outcome } };
+	return { Applied: Object.assign( Stamp( Who, At ), { Revision: Revision, RevisionId: RevisionId, Outcome: Outcome } ) };
 }
 
 
@@ -279,6 +310,8 @@ module.exports = {
 	IsWaiting: IsWaiting,
 	IsApplied: IsApplied,
 	Turn: Turn,
+	SpeakerOf: SpeakerOf,
+	Stamp: Stamp,
 	Tally: Tally,
 	StateLine: StateLine,
 	CanResolve: CanResolve,

@@ -1,7 +1,7 @@
 'use strict';
 
 // Settings - the desktop's fields of the global config (plan Run Shapes, Step 1: consensus.json in the config folder,
-// shared with the server's Name, Port, Scope, States and Participants; desktop.json before, moved in once by MoveIn):
+// shared with the server's Name, Port, Scope, States, Owner and Clerk; desktop.json before, moved in once by MoveIn):
 // the saved servers, the theme and scale the desktop applies to the page it hosts. The LLM connections and the
 // workspaces the desktop kept (plan Consensus Desktop, Step 3) are the server's since plan Run Shapes, Step 3
 // (src/Llms.js; a workspace's lists went into its project): MoveIn carries them from desktop.json once. Since plan Run

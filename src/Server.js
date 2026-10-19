@@ -93,13 +93,14 @@ async function Start( Options )
 	let events = EVENTS.Hub();
 	events.Attach( app, '/api/events' );
 	let url = null;
-	let runs = RUNS.Runs( { Folder: PATH.join( store.Folder, 'runs' ) } );
+	let tokens = PARTICIPANTS.RunTokens();
+	let runs = RUNS.Runs( { Folder: PATH.join( store.Folder, 'runs' ), Tokens: tokens } );
 	runs.OnChange( function ( summary )
 	{
 		events.Send( { Kind: 'run', Run: summary.Id, Llm: summary.Llm ? summary.Llm.Id : null, Status: summary.Status } );
 	} );
-	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Url: function () { return url; } } );
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner } );
+	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Url: function () { return url; }, Tokens: tokens } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens } );
 	INSTRUCTIONS.Attach( app, { Settings: settings } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
@@ -151,6 +152,7 @@ async function Start( Options )
 		PortTaken: port_taken,
 		ScopeForced: scope_forced,
 		Settings: settings,
+		Tokens: tokens,
 		SettingsWritten: settings_written,
 		Store: store,
 		Events: events,

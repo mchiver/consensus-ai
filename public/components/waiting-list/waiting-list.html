@@ -8,7 +8,7 @@
 				<span class="state-badge" ng-class="item.Thread.State">{{ item.Thread.State }}</span>
 				<span class="muted">{{ item.Thread.Anchor ? '“' + item.Thread.Anchor.Text + '”' : 'the whole document' }}</span>
 			</div>
-			<div class="last"><b>{{ $ctrl.DisplayOn( item, $ctrl.Last( item ).By ) }}</b>: {{ $ctrl.Last( item ).Text }}</div>
+			<div class="last"><b>{{ $ctrl.DisplayOn( item, $ctrl.Last( item ) ) }}</b>: {{ $ctrl.Last( item ).Text }}</div>
 		</a>
 	</div>
 </section>

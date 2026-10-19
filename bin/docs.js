@@ -21,12 +21,12 @@ const BUCKET = 's3://consensus-ai.liquicode.com';
 // A link the check leaves alone: another site, mail, data, a fragment of the same page.
 const EXTERNAL = /^(https?:|mailto:|data:|javascript:|#)/i;
 
-// The screenshots: the window, the llm participant's token on the seeded server, the demo project's export, and the
-// desktop's DevTools port.
+// The screenshots: the window, the service the seeding posts as on the seeded server (plan User Management, Step 2:
+// an LLM acts for the owner, with a byline), the demo project's export, and the desktop's DevTools port.
 const WIDTH = 1440;
 const HEIGHT = 900;
 const THEMES = [ 'light', 'dark' ];
-const LLM_TOKEN = 'docs-llm-token-0123456789abcdef';
+const LLM_SERVICE = 'Claude-CLI';
 const DEMO_FILE = 'recipe-box.json';
 const DESKTOP_PORT = 9333;
 // The server's data folder and the desktop's workspace while the pictures are made: a git-ignored folder in the
@@ -220,7 +220,7 @@ function wait( Ms )
 }
 
 
-// A request to the seeded server, as the owner (no token) or as the llm participant.
+// A request to the seeded server, as the owner, or as the owner through the LLM service (the header names it).
 async function api( Url, Method, Path, Body, AsLlm )
 {
 	let headers = {};
@@ -230,7 +230,7 @@ async function api( Url, Method, Path, Body, AsLlm )
 	}
 	if ( AsLlm )
 	{
-		headers.Authorization = 'Bearer ' + LLM_TOKEN;
+		headers[ 'X-Consensus-Service' ] = LLM_SERVICE;
 	}
 	let response = await fetch( Url + Path, { method: Method, headers: headers, body: ( Body === undefined ) ? undefined : JSON.stringify( Body ) } );
 	let json = await response.json();
@@ -778,7 +778,6 @@ async function Screenshots( Options )
 	let data = PATH.join( DEMO_ROOT, 'data' );
 	FS.mkdirSync( data, { recursive: true } );
 	let settings = PARTICIPANTS.DefaultSettings( 3500 );
-	settings.Participants[ 1 ].Token = LLM_TOKEN;
 	// The LLM connection of the seeded server (plan Run Shapes, Step 3): a stand-in command that answers like a review.
 	let stand_in = PATH.join( DEMO_ROOT, 'claude-one-shot.js' );
 	FS.writeFileSync( stand_in, REVIEW_STAND_IN );

@@ -21,22 +21,25 @@ Consensus ones included, and gives it this page's rules in its own words.
   project's Readme, reply and apply, draft plans, and implement plans when the owner asks you to.
 - **The owner**: writes, comments, resolves, and says when a plan is to be built. Git is the owner's: you commit
   only as the build loop says, and never branch or push on your own.
-- Every LLM posts as the one `llm` participant. Say which model you are in each build log.
+- Every LLM acts for the owner. Say who you are with the header `X-Consensus-Service: <your name>` on every
+  request (letters, digits, dot, dash and colon; "Claude-CLI" for a Claude Code session), so that what you post
+  reads "<your name> by <the owner>"; and say which model you are in each build log.
 
 ## Talking to Consensus
 
-- The API's address and the `llm` participant's token are in **This server**, at the top of this page when the
-  server serves it.
+- The API's address, and how this server knows you, are in **This server**, at the top of this page when the
+  server serves it: on a local or trusted-network server a request with no token is the owner; a run the server
+  started carries the token it was given.
 - Everything goes through the API; you have no access to the server's files. The API keeps the queues,
   revisions and anchors right.
 - **Calling the API:** plain HTTP requests (`curl` or any client) to the address in This server, each with the
-  header `Authorization: Bearer <token>` and, for a body, `Content-Type: application/json`. For example, what
-  waits on you, then a reply on a thread:
+  header `X-Consensus-Service: <your name>` (and `Authorization: Bearer <token>` when This server gave you a token)
+  and, for a body, `Content-Type: application/json`. For example, what waits on you, then a reply on a thread:
 
   ```
-  curl -s -H "Authorization: Bearer <token>" http://<server>:<port>/api/waiting
+  curl -s -H "X-Consensus-Service: Claude-CLI" http://<server>:<port>/api/waiting
 
-  curl -s -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+  curl -s -X POST -H "X-Consensus-Service: Claude-CLI" -H "Content-Type: application/json" \
     -d '{ "Text": "Agreed; the wording I will apply: ..." }' \
     http://<server>:<port>/api/plans/<plan id>/threads/<thread id>/replies
   ```
@@ -74,7 +77,7 @@ Context folder, its tree of plans with their states, and what waits on you; repo
 ## What the owner's words mean
 
 - "check consensus", "check again": report what changed and what waits on you, and act on nothing.
-- "your turn": act as the llm participant on everything waiting on you (below).
+- "your turn": act on everything waiting on you (below).
 - "build it", "implement it": the build loop (below), for the plan named or just discussed.
 - A message holding any question is answered only; its instructions wait for a message with no question.
 

@@ -18,15 +18,9 @@ The states a plan's state is picked from, one per line: Draft, Plan, Working and
 
 The sign-in of a Public server (plan Clerk, not active yet): the publishable key, the secret key and the webhook secret of your Clerk instance, and the email of the server's one Administrator. Leave all four empty for a trusted network; an empty section is not written. A key given is checked for its prefix (`pk_`, `sk_`, `whsec_`) and the email for its shape.
 
-## Participants
+## Owner
 
-Each participant has a name, a display name, a role and, for one that calls the API from outside, a token.
-
-- **owner** resolves threads and edits the settings. A request with no token is the owner: the browser.
-- **llm** is a full participant that is asked to apply resolved threads.
-- **member** takes part in discussion.
-
-**New** makes a token, **Copy** copies it. There must be exactly one owner, and no name twice.
+The owner is the one account of a local or trusted-network server: every request is the owner (plan User Management; roles and sign-in for a team come with Clerk). Its **name** is what threads and revisions record, kept as it is so the records of before still match; **Shown as** is how the page shows it, and anything done through a service or an LLM connection carries a byline, `<service> by <shown as>`, such as `Claude-CLI by User`. There are no participants and no tokens to manage: an agent session names itself with a header, and a run gets a token the server makes and forgets.
 
 Saving writes these fields and applies them at once, Scope and Port excepted. The server's own checks apply, and nothing is saved while there are problems; the popup lists them.
 
@@ -40,14 +34,11 @@ The settings are `consensus.json` in the config folder, written at first start:
 	"Port": 3500,
 	"Scope": "Local",
 	"States": [ "Draft", "Plan", "Working", "Finished" ],
-	"Participants": [
-		{ "Name": "user", "Display": "User", "Role": "owner" },
-		{ "Name": "llm", "Display": "LLM", "Role": "llm" }
-	]
+	"Owner": { "Name": "user", "Display": "User" }
 }
 ```
 
-An optional `Clerk` section holds the four fields above. The server's LLM connections are in the same file (`Llms`, kept through the page's LLM list; see [Working with an LLM](llm.html)), and so are the desktop's own fields (`Servers`, `Theme`, `Scale`, `Remembered`); the popup touches neither. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a `Host`, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine's.
+An optional `Clerk` section holds the four fields above. The server's LLM connections are in the same file (`Llms`, kept through the page's LLM list; see [Working with an LLM](llm.html)), and so are the desktop's own fields (`Servers`, `Theme`, `Scale`, `Remembered`); the popup touches neither. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before is brought up to date at the next start: a `Host` becomes a Scope (a local address Local, any other Public), a missing Name becomes the machine's, a `Participants` list becomes the Owner (its other entries dropped) and the connections lose their tokens.
 
 ## Theme and size
 
@@ -69,4 +60,4 @@ The config folder, `.consensus` in your user folder by default or the one `--con
 <project>/.consensus/trash/<id>/           a deleted item, moved whole
 ```
 
-The `.consensus` folder is meant to go into source control with the repository, so the plans and threads travel with the source; nothing secret is written to it, the tokens staying in the config folder's settings. Back a project up by copying its folder. A config folder from before project folders (every project in one data folder) is migrated at the next start, each project into a folder of its own under `projects/`; the console says what moved. A listed folder that is missing, or on a drive not mounted, is skipped with a line and kept in the list; the desktop's connect screen names it.
+The `.consensus` folder is meant to go into source control with the repository, so the plans and threads travel with the source; nothing secret is written to it. Back a project up by copying its folder. A config folder from before project folders (every project in one data folder) is migrated at the next start, each project into a folder of its own under `projects/`; the console says what moved. A listed folder that is missing, or on a drive not mounted, is skipped with a line and kept in the list; the desktop's connect screen names it.

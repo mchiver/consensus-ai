@@ -1,16 +1,16 @@
 'use strict';
 
 // Llms - the LLM connections of a server (plan Run Shapes, Step 3): the Llms list of the global config, which the
-// desktop kept before. Each is a connection the server runs one-shots through (Runs.js), and a participant of this
-// server with the llm role, named <connection Name>@<server Name>, with a Token the server makes when the connection
-// is saved and keeps on it; the owner sees the whole record, everyone else its public part.
+// desktop kept before. Each is a connection the server runs one-shots through (Runs.js). A run is the presser's
+// (plan User Management, Step 2): what it posts reads "<connection Name> by <owner>", the byline (SpeakerName is
+// the key, SpeakerDisplay what the page shows), on a token the server makes for the run; the connection has no
+// token of its own any more. The owner sees the whole record, everyone else its public part.
 //
 //   { "Id": "llm-…", "Name": "claude-cli", "Kind": "claude-cli", "Command": "claude", "Arguments": [ "-p", … ],
 //     "Url": "", "Model": "sonnet", "Timeout": 300, "Context": 32768, "Rounds": 30,
 //     "Checks": { "Instructions": true, "Readme": true, "Documents": true, "Threads": true },
 //     "Unchecked": { "Documents": [ "doc-…" ], "Threads": [ "thr-…" ] },
-//     "Prompts": { "Review": "…", "Build": "…", "Session": "" },
-//     "Token": "…" }
+//     "Prompts": { "Review": "…", "Build": "…", "Session": "" } }
 //   Context (the model's window, Ollama's num_ctx) and Rounds (the most tool rounds a run takes) matter to an ollama
 //   connection; Command and Arguments to a claude-cli one.
 
@@ -64,7 +64,7 @@ function DefaultName( Kind, Model )
 
 
 //---------------------------------------------------------------------
-// Fill: one connection with every field present; a Token is made when there is none.
+// Fill: one connection with every field present.
 
 function Fill( Llm )
 {
@@ -98,7 +98,6 @@ function Fill( Llm )
 		Checks: checks,
 		Prompts: prompts,
 		Unchecked: { Documents: lines_of( unchecked.Documents, [] ), Threads: lines_of( unchecked.Threads, [] ) },
-		Token: text_of( given.Token ) || PARTICIPANTS.NewToken(),
 	};
 }
 
@@ -106,14 +105,12 @@ function Fill( Llm )
 //---------------------------------------------------------------------
 // Migrate( Settings ): the connections brought up to date at start, so a file from before does not stop the server:
 // a Name with other characters than letters, digits, dot, dash and colon (a desktop.json's "Claude CLI") has them
-// turned to dashes, one used twice or clashing with a hand-made participant gets a number. Returns the lines to log;
-// none when nothing changed.
+// turned to dashes, one used twice gets a number. Returns the lines to log; none when nothing changed.
 
 function Migrate( Settings )
 {
 	let lines = [];
 	let llms = ( Settings && Array.isArray( Settings.Llms ) ) ? Settings.Llms : [];
-	let taken = new Set( ( ( Settings && Settings.Participants ) || [] ).map( function ( participant ) { return participant && participant.Name; } ) );
 	let names = new Set();
 	for ( let llm of llms )
 	{
@@ -124,7 +121,7 @@ function Migrate( Settings )
 		let before = text_of( llm.Name );
 		let name = before.replace( /[^A-Za-z0-9.:-]+/g, '-' ).replace( /^-+|-+$/g, '' ) || DefaultName( llm.Kind, llm.Model );
 		let base = name;
-		for ( let number = 2; names.has( name ) || taken.has( PARTICIPANTS.LlmParticipantName( { Name: name }, Settings ) ); number++ )
+		for ( let number = 2; names.has( name ); number++ )
 		{
 			name = base + '-' + number;
 		}
@@ -141,7 +138,7 @@ function Migrate( Settings )
 
 //---------------------------------------------------------------------
 // Problems( Settings ): what is wrong with the settings' Llms, as sentences; none when they are usable. A name is
-// letters, digits, dot, dash and colon, used once, and the participant it makes clashes with no hand-made one.
+// letters, digits, dot, dash and colon, used once.
 
 function Problems( Settings )
 {
@@ -153,7 +150,6 @@ function Problems( Settings )
 	}
 	let names = new Set();
 	let ids = new Set();
-	let taken = new Set( ( ( Settings && Settings.Participants ) || [] ).map( function ( participant ) { return participant && participant.Name; } ) );
 	for ( let llm of llms )
 	{
 		if ( !llm || typeof llm !== 'object' )
@@ -173,10 +169,6 @@ function Problems( Settings )
 		else if ( names.has( llm.Name ) )
 		{
 			problems.push( what + ' is named twice' );
-		}
-		else if ( taken.has( ParticipantName( llm, Settings ) ) )
-		{
-			problems.push( what + ': a participant is named ' + ParticipantName( llm, Settings ) + ' already' );
 		}
 		names.add( llm.Name );
 		if ( !llm.Id || ids.has( llm.Id ) )
@@ -200,21 +192,24 @@ function Problems( Settings )
 		{
 			problems.push( what + ': a Model is needed' );
 		}
-		if ( typeof llm.Token !== 'string' || llm.Token.length < 16 )
-		{
-			problems.push( what + ': a Token is a string of 16 characters or more' );
-		}
 	}
 	return problems;
 }
 
 
 //---------------------------------------------------------------------
-// ParticipantName( Llm, Settings ): the participant the connection posts as, <Name>@<server Name>.
+// SpeakerName( Llm, Settings ): the key a run through the connection speaks as, "<Name> by <owner name>";
+// SpeakerDisplay: the byline the page shows, "<Name> by <owner display>".
 
-function ParticipantName( Llm, Settings )
+function SpeakerName( Llm, Settings )
 {
-	return PARTICIPANTS.LlmParticipantName( Llm, Settings );
+	return PARTICIPANTS.Speaker( PARTICIPANTS.Owner( Settings ).Name, ( Llm && Llm.Name ) || '' );
+}
+
+
+function SpeakerDisplay( Llm, Settings )
+{
+	return PARTICIPANTS.Byline( Settings, { By: PARTICIPANTS.Owner( Settings ).Name, Service: ( Llm && Llm.Name ) || '' } );
 }
 
 
@@ -225,8 +220,8 @@ function ById( Settings, Id )
 }
 
 
-// Public( Llm, Settings, Whole ): what a participant sees: the whole record for the owner, else the public fields
-// and the participant's name.
+// Public( Llm, Settings, Whole ): what a request sees: the whole record for the owner, else the public fields;
+// Speaker is the byline its runs post under.
 function Public( Llm, Settings, Whole )
 {
 	let shown = {};
@@ -234,7 +229,7 @@ function Public( Llm, Settings, Whole )
 	{
 		shown[ field ] = Llm[ field ];
 	}
-	shown.Participant = ParticipantName( Llm, Settings );
+	shown.Speaker = SpeakerDisplay( Llm, Settings );
 	return shown;
 }
 
@@ -253,7 +248,8 @@ module.exports = {
 	Fill: Fill,
 	Migrate: Migrate,
 	Problems: Problems,
-	ParticipantName: ParticipantName,
+	SpeakerName: SpeakerName,
+	SpeakerDisplay: SpeakerDisplay,
 	ById: ById,
 	Public: Public,
 };

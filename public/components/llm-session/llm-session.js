@@ -175,7 +175,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		} );
 
 
-		// The owner keeps the connections; everyone but an llm participant starts a run.
+		// The owner keeps the connections and starts the runs (plan User Management, Step 2: every request is the owner).
 		$scope.IsOwner = function ()
 		{
 			let me = current_root().Me;
@@ -185,8 +185,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 
 		$scope.MayRun = function ()
 		{
-			let me = current_root().Me;
-			return !!me && me.Role !== 'llm';
+			return !!current_root().Me;
 		};
 
 
@@ -363,13 +362,13 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 			{
 				return;
 			}
-			let popup = { Form: packaging_form( $scope.Llm ), Lists: { Documents: [], Threads: [], Participant: $scope.Llm.Participant }, Preview: null, Problems: [], Busy: true, Copied: false };
+			let popup = { Form: packaging_form( $scope.Llm ), Lists: { Documents: [], Threads: [], Speaker: $scope.Llm.Speaker }, Preview: null, Problems: [], Busy: true, Copied: false };
 			$scope.Packaging = popup;
 			try
 			{
 				let query = '?Project=' + encodeURIComponent( $scope.Pick.Project || '' ) + '&Plan=' + encodeURIComponent( $scope.Pick.Plan || '' ) + '&Llm=' + encodeURIComponent( $scope.Llm.Id );
 				let answer = await Client.Get( current_root(), '/api/runs/lists' + query );
-				popup.Lists = { Documents: answer.Documents || [], Threads: answer.Threads || [], Participant: answer.Participant || $scope.Llm.Participant };
+				popup.Lists = { Documents: answer.Documents || [], Threads: answer.Threads || [], Speaker: answer.Speaker || $scope.Llm.Speaker };
 			}
 			catch ( error )
 			{
@@ -554,7 +553,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		};
 
 
-		// Why a button is disabled, or '' when it can run: no server runs, an llm participant, a run going, no project,
+		// Why a button is disabled, or '' when it can run: no server runs, no one signed in, a run going, no project,
 		// no plan.
 		$scope.Reason = function ( kind )
 		{
@@ -568,7 +567,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 			}
 			if ( !$scope.MayRun() )
 			{
-				return 'an LLM participant starts no run';
+				return 'no one is signed in';
 			}
 			if ( $scope.IsRunning() )
 			{

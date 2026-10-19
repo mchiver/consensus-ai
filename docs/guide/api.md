@@ -1,19 +1,19 @@
 # The API
 
-Everything the Consensus-AI page does goes through the API, and so does everything an LLM does. It is plain HTTP with JSON bodies. A request with no `Authorization` header is the owner; a request with `Authorization: Bearer <token>` is the participant holding that token. Errors are `{ "Error": "..." }` with the status: 400 a bad body, 401 an unknown token, 403 not allowed for this role, 404 not found, 409 not allowed in this state or a stale revision.
+Everything the Consensus-AI page does goes through the API, and so does everything an LLM does. It is plain HTTP with JSON bodies. On a local or trusted-network server every request is the owner (plan User Management; roles and sign-in come with Clerk). A request says who it is with the header `X-Consensus-Service: <name>`, and what it posts is then recorded as the owner through that service, shown as the byline `<name> by <owner>`; a run the server started carries `Authorization: Bearer <run token>`, a token the server made for it and forgets when it ends; any other token is refused. Errors are `{ "Error": "..." }` with the status: 400 a bad body, 401 an unknown token, 403 not allowed, 404 not found, 409 not allowed in this state or a stale revision.
 
 ## Four calls
 
 What waits on the caller, across every project:
 
 ```
-curl -s -H "Authorization: Bearer <token>" http://127.0.0.1:3500/api/waiting
+curl -s -H "X-Consensus-Service: <name>" http://127.0.0.1:3500/api/waiting
 ```
 
 A reply on a thread:
 
 ```
-curl -s -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+curl -s -X POST -H "X-Consensus-Service: <name>" -H "Content-Type: application/json" \
   -d '{ "Text": "Agreed; the wording I will apply: ..." }' \
   http://127.0.0.1:3500/api/plans/<plan id>/threads/<thread id>/replies
 ```
@@ -21,7 +21,7 @@ curl -s -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application
 Applying a resolved thread, with the new text of the whole plan and the revision it was made from:
 
 ```
-curl -s -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+curl -s -X POST -H "X-Consensus-Service: <name>" -H "Content-Type: application/json" \
   -d '{ "Outcome": "The section now says ...", "Revision": 4, "Text": "# The plan\n\n..." }' \
   http://127.0.0.1:3500/api/plans/<plan id>/threads/<thread id>/apply
 ```
@@ -29,7 +29,7 @@ curl -s -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application
 A new thread on a passage of the text:
 
 ```
-curl -s -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+curl -s -X POST -H "X-Consensus-Service: <name>" -H "Content-Type: application/json" \
   -d '{ "Text": "Is this the right default?", "Anchor": { "Text": "the words to anchor to" } }' \
   http://127.0.0.1:3500/api/plans/<plan id>/threads
 ```
@@ -39,7 +39,7 @@ An anchor's `Text` is matched against the text as it reads, without markdown mar
 ## The routes
 
 ```
-GET    /api/me                                   who this request is, the participants, the States, the server's Name and Version
+GET    /api/me                                   who this request is (Name, Display, Speaker, Service), the speakers, the States, the server's Name and Version
 GET    /api/settings                             owner; the settings as they are, and the file's path
 PUT    /api/settings                             owner; { Settings }  the whole file, checked
 GET    /api/projects                             every project with its tree, its Archive, States and Path; Context and ContextFolder
@@ -50,9 +50,9 @@ POST   /api/projects/:pid/folders                { Name, Parent?, Version? }
 PUT    /api/projects/:pid/folders/:fid           { Name, Version? }
 DELETE /api/projects/:pid/folders/:fid           an empty folder
 POST   /api/projects/:pid/move                   { Before }  the project in the display order
-GET    /api/projects/:pid/export                 owner or llm; the project as one json object
-POST   /api/projects/import                      owner or llm; { Export, Mode?, Preview?, Into? }  Into: { Project, Parent? } writes the file's items there, every id new
-GET    /api/items/:id/export                     owner or llm; a folder, plan or document as one json object of the same format
+GET    /api/projects/:pid/export                 owner; the project as one json object
+POST   /api/projects/import                      owner; { Export, Mode?, Preview?, Into? }  Into: { Project, Parent? } writes the file's items there, every id new
+GET    /api/items/:id/export                     owner; a folder, plan or document as one json object of the same format
 POST   /api/items/:id/move                       { Project, Parent?, Before? }
 POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id
 POST   /api/items/:id/archive                    a plan, with its Subplans, into the project's Archive, read-only
@@ -77,15 +77,15 @@ POST   /api/plans/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor
 GET    /api/trash                                what is there
 DELETE /api/trash                                owner; empties it for good, { Emptied: n }
 GET    /api/waiting                              everything waiting on the caller, in every project
-GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Participant, Running; the owner sees the whole records
-POST   /api/llms                                 owner; a connection from its fields, with a new id and token
+GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Speaker, Running, the whole records
+POST   /api/llms                                 owner; a connection from its fields, with a new id
 POST   /api/llms/check                           owner; the connection as typed, tried: { Ok, Result | Error }
 PUT    /api/llms/:id                             owner; the fields given over the record
 POST   /api/llms/:id/check                       owner; tried as saved, the body's fields over it
-DELETE /api/llms/:id                             owner; not while it runs; its participant goes with it
+DELETE /api/llms/:id                             owner; not while it runs; its speaker goes with it
 GET    /api/runs/lists?Project=&Plan=&Llm=       the other Context documents, the plan's threads waiting on the connection
 POST   /api/runs/package                         { Llm, Kind, Project, Plan?, Overrides? }  the prompt a run would get
-POST   /api/runs                                 { Llm, Kind, Project, Plan? }  a run started; not by an llm participant; one per connection at a time
+POST   /api/runs                                 { Llm, Kind, Project, Plan? }  a run started as the presser through the connection, on a token the server makes; one per connection at a time
 GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
 GET    /api/runs/:id                             the whole record, the output as it stands
 POST   /api/runs/:id/stop                        a running one stopped
@@ -95,9 +95,9 @@ GET    /api/events                               Server-Sent Events: { Plan | Pr
 ## The rules, in plain words
 
 - A thread is **contested** until the owner resolves it. Resolving accepts the outcome the last reply states.
-- A resolved thread is **resolved**, waiting to be applied, until a participant applies it. Applying makes it **applied** and records who, when, the revision and the outcome.
+- A resolved thread is **resolved**, waiting to be applied, until someone applies it. Applying makes it **applied** and records who, when, the revision and the outcome.
 - Any reply to a resolved or applied thread **reopens** it. Reopening never reverts a change already applied.
-- A contested thread waits on everyone except the one who replied last. A resolved thread waits on every llm participant. An applied thread waits on nobody.
+- A contested thread waits on every speaker except the one who replied last; the speaker is the byline, so a run's reply as `Claude-CLI by User` is a different speaker from `User`, and a question the LLM asks you still waits on you. A plan's speakers are the owner, one per LLM connection, and everyone seen in its threads. A resolved thread waits on every speaker but the owner: the LLMs and the services. An applied thread waits on nobody.
 - A plan's state is set by anyone at any time and does not depend on its threads.
 - Editing is allowed at any time and makes a new revision. A manual edit changes no thread's status.
 - Anchors hold to the visible text. After every change each anchor is found again; one that cannot be found is detached, and can be re-anchored.

@@ -60,11 +60,16 @@ angular.module( 'Consensus' ).component( 'waitingList', {
 		}
 
 
-		// The display name of who replied, on the item's own server.
-		controller.DisplayOn = function ( item, name )
+		// The byline of who replied, on the item's own server: "<Service> by <Display>", or the display alone.
+		controller.DisplayOn = function ( item, record )
 		{
-			let participant = ( item.Root.Participants || [] ).find( function ( candidate ) { return candidate.Name === name; } );
-			return participant ? participant.Display : name;
+			if ( !record || !record.By )
+			{
+				return '';
+			}
+			let participant = ( item.Root.Participants || [] ).find( function ( candidate ) { return candidate.Name === record.By; } );
+			let who = participant ? participant.Display : record.By;
+			return record.Service ? record.Service + ' by ' + who : who;
 		};
 
 

@@ -52,14 +52,8 @@
 <p>The states a plan&#39;s state is picked from, one per line: Draft, Plan, Working and Finished by default. A new plan starts in the first. A state still used by a plan cannot be removed. The first state was called Proposal before; a server whose list still names Proposal and not Draft renames it once at its next start, in the settings and in every plan in that state.</p>
 <h2 id="clerk">Clerk</h2>
 <p>The sign-in of a Public server (plan Clerk, not active yet): the publishable key, the secret key and the webhook secret of your Clerk instance, and the email of the server&#39;s one Administrator. Leave all four empty for a trusted network; an empty section is not written. A key given is checked for its prefix (<code>pk_</code>, <code>sk_</code>, <code>whsec_</code>) and the email for its shape.</p>
-<h2 id="participants">Participants</h2>
-<p>Each participant has a name, a display name, a role and, for one that calls the API from outside, a token.</p>
-<ul>
-<li><strong>owner</strong> resolves threads and edits the settings. A request with no token is the owner: the browser.</li>
-<li><strong>llm</strong> is a full participant that is asked to apply resolved threads.</li>
-<li><strong>member</strong> takes part in discussion.</li>
-</ul>
-<p><strong>New</strong> makes a token, <strong>Copy</strong> copies it. There must be exactly one owner, and no name twice.</p>
+<h2 id="owner">Owner</h2>
+<p>The owner is the one account of a local or trusted-network server: every request is the owner (plan User Management; roles and sign-in for a team come with Clerk). Its <strong>name</strong> is what threads and revisions record, kept as it is so the records of before still match; <strong>Shown as</strong> is how the page shows it, and anything done through a service or an LLM connection carries a byline, <code>&lt;service&gt; by &lt;shown as&gt;</code>, such as <code>Claude-CLI by User</code>. There are no participants and no tokens to manage: an agent session names itself with a header, and a run gets a token the server makes and forgets.</p>
 <p>Saving writes these fields and applies them at once, Scope and Port excepted. The server&#39;s own checks apply, and nothing is saved while there are problems; the popup lists them.</p>
 <h2 id="the-settings-file">The settings file</h2>
 <p>The settings are <code>consensus.json</code> in the config folder, written at first start:</p>
@@ -68,13 +62,10 @@
 	&quot;Port&quot;: 3500,
 	&quot;Scope&quot;: &quot;Local&quot;,
 	&quot;States&quot;: [ &quot;Draft&quot;, &quot;Plan&quot;, &quot;Working&quot;, &quot;Finished&quot; ],
-	&quot;Participants&quot;: [
-		{ &quot;Name&quot;: &quot;user&quot;, &quot;Display&quot;: &quot;User&quot;, &quot;Role&quot;: &quot;owner&quot; },
-		{ &quot;Name&quot;: &quot;llm&quot;, &quot;Display&quot;: &quot;LLM&quot;, &quot;Role&quot;: &quot;llm&quot; }
-	]
+	&quot;Owner&quot;: { &quot;Name&quot;: &quot;user&quot;, &quot;Display&quot;: &quot;User&quot; }
 }
 </code></pre>
-<p>An optional <code>Clerk</code> section holds the four fields above. The server&#39;s LLM connections are in the same file (<code>Llms</code>, kept through the page&#39;s LLM list; see <a href="llm.html">Working with an LLM</a>), and so are the desktop&#39;s own fields (<code>Servers</code>, <code>Theme</code>, <code>Scale</code>, <code>Remembered</code>); the popup touches neither. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a <code>Host</code>, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine&#39;s.</p>
+<p>An optional <code>Clerk</code> section holds the four fields above. The server&#39;s LLM connections are in the same file (<code>Llms</code>, kept through the page&#39;s LLM list; see <a href="llm.html">Working with an LLM</a>), and so are the desktop&#39;s own fields (<code>Servers</code>, <code>Theme</code>, <code>Scale</code>, <code>Remembered</code>); the popup touches neither. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before is brought up to date at the next start: a <code>Host</code> becomes a Scope (a local address Local, any other Public), a missing Name becomes the machine&#39;s, a <code>Participants</code> list becomes the Owner (its other entries dropped) and the connections lose their tokens.</p>
 <h2 id="theme-and-size">Theme and size</h2>
 <p>The gear at the right end of the title bar opens the look: the theme (light, dark, the system&#39;s, or a palette from Sepia and Paper to Nord and Midnight), three sizes, the editor, CodeMirror or Monaco, and Confirm on close (see <a href="editing.html">Editing</a>). They are kept in the browser, not in the settings; the desktop keeps one theme for its window, whatever the servers it shows, and its window buttons follow the palette.</p>
 <figure class="shot"><img class="light-only" src="../images/title-bar.png" alt="The title bar, with the look popover open."><img class="dark-only" src="../images/title-bar-dark.png" alt="The title bar, with the look popover open."><figcaption>The title bar, with the look popover open.</figcaption></figure>
@@ -88,7 +79,7 @@
 &lt;project&gt;/.consensus/archive/&lt;id&gt;/         an archived plan, moved whole
 &lt;project&gt;/.consensus/trash/&lt;id&gt;/           a deleted item, moved whole
 </code></pre>
-<p>The <code>.consensus</code> folder is meant to go into source control with the repository, so the plans and threads travel with the source; nothing secret is written to it, the tokens staying in the config folder&#39;s settings. Back a project up by copying its folder. A config folder from before project folders (every project in one data folder) is migrated at the next start, each project into a folder of its own under <code>projects/</code>; the console says what moved. A listed folder that is missing, or on a drive not mounted, is skipped with a line and kept in the list; the desktop&#39;s connect screen names it.</p>
+<p>The <code>.consensus</code> folder is meant to go into source control with the repository, so the plans and threads travel with the source; nothing secret is written to it. Back a project up by copying its folder. A config folder from before project folders (every project in one data folder) is migrated at the next start, each project into a folder of its own under <code>projects/</code>; the console says what moved. A listed folder that is missing, or on a drive not mounted, is skipped with a line and kept in the list; the desktop&#39;s connect screen names it.</p>
 
 			</article>
 			<nav class="guide-pager">

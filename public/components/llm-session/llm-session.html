@@ -4,7 +4,7 @@
 		<div class="item-head">
 			<span class="tree-icon icon-llm"></span>
 			<span class="item-head-name" id="llm-head-name">{{ Llm.Name }}</span>
-			<span class="muted small" id="llm-head-line">{{ Llm.Participant }}{{ Llm.Kind ? ' · ' + Llm.Kind : '' }}{{ Llm.Model ? ' · ' + Llm.Model : '' }}{{ Llm.Command ? ' · ' + Llm.Command : ( Llm.Url ? ' · ' + Llm.Url : '' ) }}</span>
+			<span class="muted small" id="llm-head-line">{{ Llm.Speaker }}{{ Llm.Kind ? ' · ' + Llm.Kind : '' }}{{ Llm.Model ? ' · ' + Llm.Model : '' }}{{ Llm.Command ? ' · ' + Llm.Command : ( Llm.Url ? ' · ' + Llm.Url : '' ) }}</span>
 			<span class="grow"></span>
 			<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-details" ng-show="IsOwner()" ng-click="OpenDetails()"><svg class="icon lead"><use href="#i-pencil"></use></svg>Details…</button>
 			<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-packaging" ng-show="IsOwner()" ng-click="OpenPackaging()"><svg class="icon lead"><use href="#i-threads"></use></svg>Packaging…</button>
@@ -49,7 +49,7 @@
 			<span class="run-status">{{ run.Status }}</span>
 			<span class="run-kind">{{ run.Kind }}</span>
 			<span class="run-plan">{{ run.Plan ? run.Plan.Title : '(no plan)' }}</span>
-			<span class="run-workspace muted">{{ run.Project ? run.Project.Name : '' }}{{ run.By ? ' · by ' + run.By : '' }}</span>
+			<span class="run-workspace muted">{{ run.Project ? run.Project.Name : '' }}{{ run.By ? ' · ' + ( run | byline ) : '' }}</span>
 			<span class="run-when muted">{{ run.Started | stamp }}</span>
 			<span class="run-duration muted">{{ Duration( run ) }}</span>
 			<span class="run-error text-danger small" ng-show="run.Error && run.Status !== 'stopped'">{{ run.Error }}</span>
@@ -59,14 +59,14 @@
 	<!-- The Details popup -->
 	<div class="subplan-popup settings-popup" ng-show="Details">
 		<form class="subplan-form settings-form" ng-if="Details" ng-submit="SaveDetails()">
-			<div class="subplan-head">Details <span class="muted small">kept in the server's consensus.json; it posts as {{ Llm.Participant }}</span></div>
+			<div class="subplan-head">Details <span class="muted small">kept in the server's consensus.json; its runs post as {{ Llm.Speaker }}</span></div>
 			<div class="port-error" id="llm-problems" ng-show="Details.Problems.length">
 				<div>Not saved. Fix these first:</div>
 				<ul class="mb-0"><li ng-repeat="problem in Details.Problems track by $index">{{ problem }}</li></ul>
 			</div>
 			<div class="settings-row">
 				<label for="llm-name">Name</label>
-				<input class="form-control form-control-sm" id="llm-name" ng-model="Details.Form.Name" placeholder="claude-cli" title="letters, digits, dot, dash and colon: the participant is <name>@<server>" auto-focus>
+				<input class="form-control form-control-sm" id="llm-name" ng-model="Details.Form.Name" placeholder="claude-cli" title="letters, digits, dot, dash and colon: its runs post as <name> by the owner" auto-focus>
 				<label for="llm-kind">Kind</label>
 				<select class="form-select form-select-sm item-kind" id="llm-kind" ng-model="Details.Form.Kind" ng-options="kind for kind in Items.Kinds" title="claude-cli: a command run without a shell on the server's machine, the prompt on its standard input; ollama: an Ollama server, run through the server's tools"></select>
 			</div>
@@ -116,7 +116,7 @@
 			<div class="check-list" ng-show="Packaging.Form.Checks.Documents">
 				<div class="check-row sub" ng-repeat="document in Packaging.Lists.Documents track by document.Id"><label title="{{ document.Id }}"><input type="checkbox" ng-checked="IsChecked( 'Documents', document.Id )" ng-click="ToggleChecked( 'Documents', document.Id )"> {{ document.Title }}</label></div>
 			</div>
-			<div class="check-row"><label title="the threads of the plan at hand waiting on the llm participant, each whole"><input type="checkbox" ng-model="Packaging.Form.Checks.Threads" ng-change="Packaging.Preview = null"> Threads waiting on {{ Packaging.Lists.Participant || 'llm' }}</label> <span class="muted small" ng-show="!Pick.Plan">(no plan picked)</span><span class="muted small" ng-show="Pick.Plan && Packaging.Lists.Threads.length === 0">(none on {{ PickedPlan().Title }})</span></div>
+			<div class="check-row"><label title="the threads of the plan at hand waiting on the connection, each whole"><input type="checkbox" ng-model="Packaging.Form.Checks.Threads" ng-change="Packaging.Preview = null"> Threads waiting on {{ Packaging.Lists.Speaker || 'the connection' }}</label> <span class="muted small" ng-show="!Pick.Plan">(no plan picked)</span><span class="muted small" ng-show="Pick.Plan && Packaging.Lists.Threads.length === 0">(none on {{ PickedPlan().Title }})</span></div>
 			<div class="check-list" ng-show="Packaging.Form.Checks.Threads">
 				<div class="check-row sub" ng-repeat="thread in Packaging.Lists.Threads track by thread.Id"><label title="{{ thread.Id }}"><input type="checkbox" ng-checked="IsChecked( 'Threads', thread.Id )" ng-click="ToggleChecked( 'Threads', thread.Id )"> <span class="thread-anchor-words">{{ thread.Anchor ? '“' + thread.Anchor + '”' : 'the whole document' }}</span> <span class="muted">{{ thread.Last }}</span></label></div>
 			</div>
@@ -161,7 +161,7 @@
 				<span class="run-status">{{ RunPopup.Run.Status }}</span>
 				<span class="run-kind">{{ RunPopup.Run.Kind }}</span>
 				<span class="run-plan">{{ RunPopup.Run.Plan ? RunPopup.Run.Plan.Title : '(no plan)' }}</span>
-				<span class="run-workspace muted">{{ RunPopup.Run.Project ? RunPopup.Run.Project.Name : '' }}{{ RunPopup.Run.By ? ' · by ' + RunPopup.Run.By : '' }}</span>
+				<span class="run-workspace muted">{{ RunPopup.Run.Project ? RunPopup.Run.Project.Name : '' }}{{ RunPopup.Run.By ? ' · ' + ( RunPopup.Run | byline ) : '' }}</span>
 				<span class="run-when muted">{{ RunPopup.Run.Started | stamp }}</span>
 				<span class="run-duration muted">{{ Duration( RunPopup.Run ) }}</span>
 				<span class="muted small" ng-show="RunPopup.Run.Exit !== null">exit {{ RunPopup.Run.Exit }}</span>

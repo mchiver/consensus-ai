@@ -163,6 +163,19 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
+	// The byline of a record (a reply, a resolve, an apply, a revision, a run): "<Service> by <Display>", or the
+	// display alone (plan User Management, Step 2).
+	function byline_of( record )
+	{
+		if ( !record || !record.By )
+		{
+			return '';
+		}
+		let who = display_of( record.By );
+		return record.Service ? record.Service + ' by ' + who : who;
+	}
+
+
 	function fail( error )
 	{
 		state.Error = error.message || String( error );
@@ -457,6 +470,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 
 
 	state.DisplayOf = display_of;
+	state.BylineOf = byline_of;
 	state.SetRoot = SetRoot;
 	state.LoadMe = LoadMe;
 	state.LoadList = LoadList;
@@ -587,6 +601,16 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	return function ( Name )
 	{
 		return State.DisplayOf( Name );
+	};
+} ] )
+
+
+// The byline of a record: "<Service> by <Display>", or the display alone.
+.filter( 'byline', [ 'State', function ( State )
+{
+	return function ( Record )
+	{
+		return State.BylineOf( Record );
 	};
 } ] )
 

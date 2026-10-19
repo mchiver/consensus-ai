@@ -10,11 +10,13 @@
 // entries) is kept whole and the Output is its markdown, both growing with every call, and every listener hears
 // each call; Rounds and Usage are kept; Stop aborts the request in flight.
 //
-//   Runs( { Folder, Spawn? } ) -> { Start( Request ), Stop( Id ), List( LlmId? ), Read( Id ), Running( LlmId ), OnChange( Handler ), Close() }
-//   Request = { Llm, Kind, By, Project: { Id, Name, Path }, Plan: { Id, Title } | null,
+//   Runs( { Folder, Spawn?, Tokens? } ) -> { Start( Request ), Stop( Id ), List( LlmId? ), Read( Id ), Running( LlmId ), OnChange( Handler ), Close() }
+//   Tokens: the server's RunTokens (Participants.js); a run's token (Request.Token, minted by the Runner) is dropped when it ends.
+//   Request = { Llm, Kind, By, Token: { Value, Name } | null, Project: { Id, Name, Path }, Plan: { Id, Title } | null,
 //               Folder: { Path, Include, Exclude, Commands } | null (the project's folder, the run's working folder),
 //               Prompt, Server?: { Url, Token, Project } (an ollama run's Consensus tools) }
-//   record  = { Id, Llm: { Id, Name }, Kind, By, Project, Plan, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
+//   record  = { Id, Llm: { Id, Name }, Kind, By, Service, Token, Project, Plan, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
+//             By the presser's account, Service the connection's name, Token the run token's name: the three fields of the plan.
 //   Status  = 'running' | 'done' | 'failed' | 'stopped'
 
 const FS = require( 'fs' );
@@ -35,6 +37,7 @@ function Runs( Options )
 	let options = Options || {};
 	let folder = options.Folder;
 	let spawn = options.Spawn || CHILD_PROCESS.spawn;
+	let tokens = options.Tokens || null;
 	let running = {};		// Llm id -> { Record, Child, Timer }
 	let handlers = [];
 
@@ -82,6 +85,16 @@ function Runs( Options )
 	}
 
 
+	// The run's token leaves the server's memory with the run.
+	function drop_token( request )
+	{
+		if ( tokens && request.Token && request.Token.Value )
+		{
+			tokens.Drop( request.Token.Value );
+		}
+	}
+
+
 	//-----------------------------------------------------------------
 	// Start: the run begins; its record is returned at once, with Status running, and the command runs on.
 
@@ -107,6 +120,8 @@ function Runs( Options )
 			Llm: { Id: llm.Id, Name: llm.Name },
 			Kind: Request.Kind,
 			By: Request.By || null,
+			Service: llm.Name,
+			Token: Request.Token ? Request.Token.Name : null,
 			Project: Request.Project ? { Id: Request.Project.Id, Name: Request.Project.Name, Path: Request.Project.Path || null } : null,
 			Plan: Request.Plan ? { Id: Request.Plan.Id, Title: Request.Plan.Title } : null,
 			Command: [ line.Command ].concat( line.Arguments ).join( ' ' ),
@@ -161,6 +176,7 @@ function Runs( Options )
 			}
 			clearTimeout( state.Timer );
 			delete running[ llm.Id ];
+			drop_token( Request );
 			if ( state.Stderr.trim() )
 			{
 				record.Output += ( record.Output ? '\n' : '' ) + '--- stderr ---\n' + state.Stderr;
@@ -227,6 +243,7 @@ function Runs( Options )
 			clearTimeout( state.Timer );
 			clearTimeout( state.Progress );
 			delete running[ llm.Id ];
+			drop_token( Request );
 			record.Ended = new Date().toISOString();
 			record.Duration = Math.round( ( new Date( record.Ended ) - new Date( record.Started ) ) / 1000 );
 			record.Status = status;
