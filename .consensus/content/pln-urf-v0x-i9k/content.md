@@ -1,0 +1,58 @@
+# Clerk
+
+Clerk (clerk.com) is the sign-in of Consensus: User Management (rewritten 2026-10-18) keeps no passwords and no sign-in of its own, Clerk identifies people once, and Consensus manages the roles and permissions. This subplan says which parts of Consensus Clerk takes over, which it never touches, how the Clerk application is configured, and how it meets the code. It was drafted on 2026-10-18 while the Clerk application was being created; the dashboard choices below are the ones to make now, the code comes after User Management is built. The decisions were settled on 2026-10-18 (the decisions thread, resolved with no reply): Clerk for network servers only, email code with GitHub and Google, one organization per server, Consensus tokens for machines, Clerk Billing off, the liquicode.com subdomain below, waitlist at launch, and the order of the steps.
+
+
+## Where Clerk fits
+
+- Clerk identifies **people on a server that listens beyond the machine**: the Team tier (a licensed image, Promotion and Monetization Step 5) and Consensus-AI Cloud (Step 6). It is the accounts, the sign-in, the password reset, the invitations and the multi-factor; a team setting requires a Clerk account, and Consensus manages no accounts or passwords of its own.
+- Clerk never touches the **Free local tier**: a desktop or a headless server with Scope Local or None has no users and no sign-in, a request is the owner, and it works with no network and no Clerk account. A Public server without a Clerk section is a trusted network, where every request is the owner too (User Management, The model).
+- Clerk is the **identity in front of the registry**, not the registry. Users.json is the server's list of users and their roles, each record keyed by the Clerk user id; the project role folders (Owners, Members, Service, Watchers) are Accounts and Roles' and the Admin is User Management's. Clerk's organization roles grant nothing in Consensus by themselves.
+- Clerk authenticates **humans**. Agent sessions, the desktop's saved servers and a user's own scripts and services hold a token the user minted from their user page; a Service account's systems hold one the Administrator minted; a server LLM connection runs as the person who pressed the button, on a run-scoped token the server makes (User Management, LLM runs and agent sessions). Clerk's own machine credentials (API keys, M2M tokens) are a later option, not a dependency.
+
+
+## The Clerk application
+
+The choices in the Clerk dashboard, made once, in this order:
+
+- **Name:** Consensus-AI, the public name. The development instance is enough until the hosted tier exists; the production instance needs a domain we control and our own Google and GitHub OAuth applications.
+- **Domain:** the hosted server is app.consensus-ai.liquicode.com, beside the docs, and the production instance's CNAME records (the front-end API, the accounts portal and the mail records) sit under consensus-ai.liquicode.com.
+- **Identifier:** email address only. No phone number (paid in production, and SMS is a support burden), no username.
+- **Sign-in:** email verification code, GitHub and Google. Passwords are off for new users: the audience is developers, and a code plus GitHub covers them without resets. Passkeys are left off until the production instance is paid.
+- **Multi-factor:** off in development, a paid feature in production; the Team tier may require it per organization later. Backup codes go on with it when it does.
+- **Organizations:** on. One organization is one team; personal accounts stay allowed so a single Pro user signs in without a team. Clerk's organization roles map onto the project role folders: an organization admin may be dragged into Owners, a member into Members or Watchers; who holds which role in which project stays Consensus's, in Users.json, as Accounts and Roles says.
+- **Sign-up mode:** public in development; waitlist on production from the launch until the hosted tier takes customers; public after.
+- **Sessions:** Clerk's defaults, one session per browser, no multi-session.
+- **Billing:** Clerk Billing stays off. It runs on Stripe, so the seller stays the merchant of record; the desktop key is sold through Paddle or Lemon Squeezy, which handle tax, as Promotion and Monetization Step 4 says. Team seats may revisit Clerk Billing when that tier is built.
+- **Webhooks:** user created, user updated, user deleted, organization created and organization membership created and deleted, pointed at the server's webhook route (below) and signed with the webhook secret, so the registry follows Clerk without polling.
+
+
+## How it meets the code
+
+- **Configuration.** A `Clerk` section in consensus.json holding the publishable key, the secret key, the webhook secret and the Admin's email, written in the Settings popup. Present on a Public server, the server authenticates with Clerk; absent, the server is a trusted network; on a Local server the section is read for testing only.
+- **Identity.** A request is an account's token (Authorization: Bearer, looked up in Users.json under its account, a user's or a Service account's) or a Clerk session JWT in the same header, verified offline against the instance's public keys, its subject looked up as a Clerk user id. A JWT for a user not yet in the registry writes the record and gives no role: they see the Users folder alone until the Admin drags them in, or until the organization webhook adds them. The no-token-is-owner rule holds on Local and trusted-network servers only.
+- **The page.** No React: the page loads the vanilla ClerkJS script from Clerk's CDN with the publishable key, mounts Clerk's sign-in box where the page shows a sign-in (the API answering 401) when the server's /api/me says Clerk is on, and mounts the user button in the title bar. The page asks Clerk for the session token before each API call; Clerk refreshes it in the background. Sign out is Clerk's.
+- **The server.** One module, `src/Clerk.js`: the JWT verification, the webhook signature check, and the registry writes the webhooks cause (a user created or updated writes the record with the Clerk id, the email, the login name and the display name; deleted removes it and its roles; a membership created writes the member's record with no role, a membership deleted removes it with its roles). The route is `POST /api/clerk/webhook`, unauthenticated, verified by its signature. One dependency at most, Clerk's backend package, for the verification; the Express middleware package is not needed.
+- **Agents and the desktop.** As User Management says: the agent session holds a token the person minted on their user page (Create token, Revoke), the desktop's saved servers hold one each, and a server connection runs as its presser. A person needs such a token because Clerk's session tokens live a minute and only a browser refreshes them. The desktop's own page is served from 127.0.0.1, which a production Clerk instance does not accept as an origin, so the desktop never signs in through Clerk: it opens the server in the system browser, where the user signs in and copies a token back.
+- **Organizations and projects.** An organization maps onto a Consensus server, not onto a project: the licensed image serves one team. The webhook writes each organization member into the registry with no role; the Admin, or a project Owner, drags them into the project role folders as before. A later step may map an organization's custom roles onto Watchers automatically; it is not needed to start.
+
+
+## Limits and prices
+
+As read on 2026-10-18, to be checked on clerk.com/pricing before Step 5 of Promotion and Monetization: Clerk's free tier covers 50,000 monthly retained users since February 2026, with Pro at 25 dollars a month. Older write-ups put the free tier at 100 active organizations of 5 members each, and 1 dollar an organization beyond that on Pro; the free image's three-member trial is counted by Consensus in the role folders either way (Promotion and Monetization Step 5); a Clerk member cap matters only if it falls below what a customer's team needs, and is then our Clerk plan to raise. Phone numbers, passkeys and multi-factor are paid in production.
+
+
+## Out of scope
+
+- Enterprise SSO (SAML and OIDC through Clerk's enterprise connections): the Team tier's SSO, a step of its own when a customer asks.
+- Clerk Billing, Clerk API keys and M2M tokens: noted above as later options.
+- The hosted tier's provisioning (one server per customer): Promotion and Monetization Step 6.
+
+
+## Steps
+
+1. **The Clerk application.** The development instance made with the choices above, the keys kept out of the repository. No code.
+2. **Verification** (User Management Step 4 starts here). `src/Clerk.js` and the `Clerk` settings section: a Clerk JWT identifies a registered user; tests over a signed test token.
+3. **The page.** ClerkJS loaded when the server says Clerk is on; sign-in, user button, the token on each call; the Ui smoke against the development instance.
+4. **The registry follows Clerk.** The webhook route and the registry writes; the organization membership mapped onto the registry.
+5. **Production.** The production instance under consensus-ai.liquicode.com, our own OAuth applications, the mail records, waitlist mode; the guide page updated.

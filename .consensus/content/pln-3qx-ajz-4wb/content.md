@@ -5,7 +5,7 @@ Consensus is at 0.5.1: MIT licensed, local-first, a desktop application and a Do
 1. The pitch is one sentence: *work the plan through with your AI, thread by thread, before any code is written.* Everything public leads with the loop (write, the agent comments in threads, resolve, apply, a revision trail), not with the feature list.
 2. The audience is people who already code with agents: Claude Code, Codex and Cursor users, solo developers first, small teams second. Consensus is distributed where they already are, inside the agent ecosystem, not on a landing page they have to find.
 3. The core stays MIT and free for a single user on their own machine with their own API key. Money comes from commercial desktop use, from LLM runs the server performs on the user's behalf, and from everything a team needs that a single user does not: accounts, shared projects, hosting, support.
-4. Nothing is sold before the server knows who is calling. Today a request without a token is the owner; plan User Management closes that, and every paid tier beyond the desktop license waits on it.
+4. Nothing is sold before the server knows who is calling. Today a request without a token is the owner; plan User Management, with Clerk, closes that on any server that is sold, and every paid tier beyond the desktop license waits on it.
 5. Revenue comes in the order of least infrastructure first: the desktop license and run credits, then a licensed team image, then hosting. Services (support, workshops) run alongside from the start.
 
 The steps below are in order. Steps 1 to 3 cost no infrastructure and start now; Step 4 is the first money; Steps 5 and 6 follow User Management.
@@ -75,12 +75,12 @@ The prices are a starting point to test against the first hundred users, not a d
 
 ## Step 5: Team
 
-After User Management is built, the team features ship as a licensed build of the same image: a `License` setting whose key enables roles beyond owner and llm, SSO (OIDC), the audit log, scheduled backups and the Git sync of the `.consensus` folder. The free image keeps accounts and shared projects for up to three members so a small team can try it; the key removes the limit. One codebase, one image, one key format from Step 4.
+After User Management is built, the team features ship as a licensed build of the same image: a `License` setting whose key lifts the three-account limit on the role folders and enables SSO (OIDC), the audit log, scheduled backups and the Git sync of the `.consensus` folder. The free image keeps accounts and shared projects for up to three members so a small team can try it, the three counted by Consensus in the project role folders, not by Clerk (accounts are Clerk's, roles are Consensus's: plans User Management and Accounts and Roles); the key removes the limit. One codebase, one image, one key format from Step 4.
 
 
 ## Step 6: Hosted
 
-Consensus-AI Cloud: the team image run by us, one server per customer, projects in a volume, the LLM participants on the customer's keys or on credits, billed per seat. It comes last because it carries the running cost and the on-call, and because by then the team image has told us what the customers are. The desktop and the hosted server are the same program, so a customer moves between them with an export.
+Consensus-AI Cloud: the team image run by us, one server per customer, projects in a volume, the LLM connections on the customer's keys or on credits, billed per seat. It comes last because it carries the running cost and the on-call, and because by then the team image has told us what the customers are. The desktop and the hosted server are the same program, so a customer moves between them with an export.
 
 
 ## Services and small money

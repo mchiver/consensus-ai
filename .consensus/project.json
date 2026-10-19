@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-18T09:17:53.943Z",
-	"Version": 39,
+	"Updated": "2026-10-19T02:22:24.836Z",
+	"Version": 49,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -33,10 +33,6 @@
 				},
 				{
 					"Kind": "plan",
-					"Id": "pln-vt0-0ku-dbo"
-				},
-				{
-					"Kind": "plan",
 					"Id": "pln-hv9-t4n-45m"
 				},
 				{
@@ -45,11 +41,39 @@
 				},
 				{
 					"Kind": "plan",
-					"Id": "pln-vhz-wg6-e4v"
+					"Id": "pln-rdh-yu5-a94"
 				},
 				{
 					"Kind": "plan",
-					"Id": "pln-3qx-ajz-4wb"
+					"Id": "pln-jvc-db6-e0r",
+					"Items": [
+						{
+							"Kind": "plan",
+							"Id": "pln-vt0-0ku-dbo",
+							"Items": [
+								{
+									"Kind": "plan",
+									"Id": "pln-urf-v0x-i9k"
+								},
+								{
+									"Kind": "plan",
+									"Id": "pln-h8e-yeu-s8m"
+								},
+								{
+									"Kind": "plan",
+									"Id": "pln-iac-vsr-skd"
+								}
+							]
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-vhz-wg6-e4v"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-3qx-ajz-4wb"
+						}
+					]
 				}
 			]
 		},

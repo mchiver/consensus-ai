@@ -1,35 +1,62 @@
-# Usage Scenarios
+# LLM Tasks
 
-## Local LLM (Sidecar Mode)
-
-When running both an LLM session and a Consensus session on the same machine, You can use the LLM to control Consensus by directly accessing the Consensus MCP Server.
-
-1. Teach the LLM to use Consensus by having it read the Consensus server's instructions page (e.g. http://localhost:3500/instructions). Or copy the instructions directly into the LLM session.
-2. The LLM now understands directions like "check consensus", "your turn in consensus", or simply "your turn".
-3. The LLM now has access to the Consensus MCP Server giving it tools to investigate and transform the Project's files.
-4. The LLM can also manage Consensus with instructions like "create a new draft in consensus to discuss this new feature" or "build the "New Feature" plan and then mark it as finished".
-
-Changes made by the LLM instantly appear in your Consensus view.
-All of your comments and replies are unread by the LLM until you say "your turn".
-
-## Remote LLM
-
-Consensus is running on a different machine from the LLM.
-The LLM does not have direct access to Workspace files.
-Consensus sends task specific tool usage instructions to the LLM. 
-
-All LLM interaction is triggered manually by the user who can initiate a specific task via button press.
-
-- **Enhance**: Enhance a plan's content with additional detail. User supplied custom instructions steer the enhancements.  Used to fill in the gaps and take a rough idea into a formalized plan. LLM updates plan content and/or posts clarifying questions.
-- **Respond**: LLM responds to threads waiting on it. LLM updates plan content and/or posts clarifying questions.
-- **Build**: LLM interacts with the Project's workspace. Results in a build log. Checkboxes for git sync and auto-commit. Build log used for any commit notes.
-
-## Planbuilding
-
-1. Start a new draft with a rough sketch or bullet points of an idea.
-2. Create a comment that says something like "replace this plan text with a more detailed version. create threads to ask questions for clarity".
-3. Force an LLM turn which provides a detailed plan based on the original rough sketch. Any ambiguities are posted as newly contesteed threads.
-4. Respond to all contested threads and force an LLM turn. Repeat this step until all threads are resolved. The result is the final plan.
+How a person starts an LLM on a project, and the guide page that explains the ways of working. Identity is User Management's: a run is the person who pressed the button, allowed what their role allows. Since 2026-10-18 the tasks are configuration, not convention: a task is a record the Administrator edits (the owner, on a Local server), Consensus ships a default set, and what a role may press follows from what the task writes. Enhance and Explain, first drafted as features, are two entries of the set. The five decisions of the rewrite were taken on 2026-10-18 (the decisions thread, resolved with no reply): the names Respond and Work (Respond became Answer on 2026-10-19, the owner's word), Session writing files, tasks per server with per-project hiding (defined per server and enabled per project, in the owner's words of 2026-10-19), the prompts on the task, and the tasks as records first.
 
 
+## LLM Tasks
 
+- **A task is a record**, kept in the settings (consensus.json, a `Tasks` list) and edited in the Settings popup beside the LLM connections: a **Name** (what the button says and what the run record carries), a **Package** (what the one-shot is given: the plan at hand, the threads waiting, the Readme and Context folder, the project's documents, the project folder's files; each a switch, as a connection's Checks are today), a **Writes** level (**none**, **consensus**, or **files**, each including the ones before it), and a **Prompt** (the task's instructions, with the person's own text appended when the button offers a box). The connection keeps its Session Prompt; the task prompts leave it.
+- **Writes is the permission.** A task with Writes none is every role's, Watchers included. A task with Writes consensus or files is for Owners and Members; a Service account presses no task at any level (Accounts and Roles). A task with Writes files needs the project to have a folder, and is not offered where there is none. The rule reads the record, never the name, so a task made next year is governed correctly the day it is made.
+- **The buttons** are the tasks, in the order of the list, on the project and on the plan at hand; a task whose Package needs a plan is disabled with none selected, as a run is today. A local model through Ollama gets the tools its Writes level allows (Tools.js already divides them so); a one-shot command gets the level in its prompt, and the run-scoped token, which carries the presser's role and the task's Writes level, enforces both at the API.
+- **Tasks are defined per server and enabled per project**, as the connections are; a project enables the tasks it has use for in its settings, and adds none. Per-project tasks are a later step if a need appears.
+- **Migration.** The connections' Prompts for Review and Build become the Answer and Work tasks' prompts at the first start after this plan, when they differ from the defaults; the Session prompt stays on the connection.
+
+
+## The default set
+
+| Task | Package | Writes | For |
+|---|---|---|---|
+| Answer | the plan, the threads waiting on the presser, the Readme and documents, the files | consensus | answer what waits on me, as me: replies on the contested threads, applies the resolved ones (Multiuser); Review's successor |
+| Enhance | the plan, the Readme and documents, the person's instructions | consensus | make a plan from a sketch and ask |
+| Work | the plan, the Readme and documents, the files | files | carry out the plan in the folder, as Build does today; the Working state |
+| Explain | the Readme and documents, every plan with its threads and revisions, the run records, the files; the person's question | none | the conversation with the project |
+| Session | the Readme and documents; the person's prompt | files | the open one, no prompt of its own |
+
+The names are plain words that fit a project of any kind: a book, a policy, a research programme or a codebase. Answer and Work are Review and Build renamed; Work's prompt is today's, Answer's says "the threads waiting on you" where Review's said "waiting on the llm participant", since a run is the presser's.
+
+
+## Enhance Task
+
+- On a Draft, with a text box for the person's instructions ("replace this with a detailed plan; open threads for anything unclear" is the default). It runs the project's chosen LLM connection once with the plan, the Readme and the instructions, as a run of the presser.
+- What the run posts is what any turn posts: the new text as a revision, and a contested thread for each question. The person answers the threads and presses Enhance again, or Answer, until the threads are resolved.
+- Enhance is Answer with a different package: the one-shot gets the plan and the instructions, not the waiting threads.
+
+
+## Work Task
+
+- The Work button on a Plan state gets two checkboxes, remembered per project: **Git sync** (pull before the run, push after a commit) and **Auto-commit** (commit the working tree when the build log is accepted, titled after the plan, the build log as the message). Both off by default; both need the project folder to be a git checkout, which the run reports when it is not.
+- The build log thread is the commit message's source, as the build loop already says.
+
+
+## Explain Task
+
+- The one task a Watcher has, and every other role's too. It opens a **conversation tab** for that person and that project: a question at the bottom, the exchange above, newest last. The feature is a conversation with the project, for a supervisor as much as for a member: what the project is, who did what and when, what is planned, why a thread was resolved the way it was.
+- A question runs the project's LLM connection once, as a run of the presser, with the project packaged read-only: the Readme and the Context folder, the plans with their states, the threads with who said what and when, the revisions with who applied them, the run records, and the project folder's files as the connection's packaging lists them. The answer goes into the tab and nowhere else: the run posts nothing to any plan.
+- It is read-only by construction. Writes none gives a local model the read tools only (no write, no shell), and the run-scoped token, carrying Writes none beside the presser's role, refuses any write at the API whatever the model tries, whoever pressed.
+- The conversation is kept with the project, per person, in the project's `.consensus`, and shown to that person and to the project's Owners; the person clears it. A run counts like any run in the quota. (Decided 2026-10-18: the person and the Owners see it, the files are in the package, it is kept in the project.)
+- Explain is the LLM Session pane with the project as its subject and no write; the pane's conversation shape is reused.
+
+
+## The guide page
+
+- `docs/guide/ways-of-working.md`: the ways in prose, each a few paragraphs and one picture: the **agent session** on the same machine (it reads /instructions, understands "check consensus", "your turn", and keeps the project's files; changes appear in Consensus at once; nothing it does not say "your turn" to is read); the **server's LLM connections** (a person presses a task button; Claude Code as a one-shot or a local model through Ollama; the run is theirs); **plan building** (a rough sketch, Enhance, answer the threads, repeat until the plan stands; then Work to carry it out); **Explain**, the conversation with the project that every role has; and a short section on **making your own tasks**, with one example that is not software.
+- Linked from Getting started and the Features page.
+
+
+## Steps
+
+1. Tasks as records: the `Tasks` list, the Settings popup, the buttons from the list, Writes as the permission and the tool set, the migration of the prompts; Answer and Work in place of Review and Build, behaving as today.
+2. Enhance, with its package and its smoke check.
+3. The Work options.
+4. Explain: the conversation tab, the read-only package, the smoke check as a Watcher.
+5. The guide page and the pictures.

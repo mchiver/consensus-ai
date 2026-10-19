@@ -1,0 +1,60 @@
+[
+	{
+		"Id": "thr-yna-pmc-999",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T04:21:16.765Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-19T04:22:57.176Z",
+			"Revision": 5,
+			"RevisionId": "rev-lfb-7n0-qc8",
+			"Outcome": "Resolved with no reply: all six recommendations taken. The introduction records them; each was already a statement. LLM Tasks' Answer row now carries the meaning (revision 17)."
+		},
+		"Created": "2026-10-19T04:11:30.905Z",
+		"Replies": [
+			{
+				"Id": "rep-a6t-se4-yj2",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-19T04:11:30.905Z",
+				"Text": "Formalized from your notes (revision 4). What is yours to decide, each with my recommendation; resolve with no reply to take them all.\n\n1. **Who resolves.** The thread's starter or an Owner of the project. Recommendation: yes; the asker knows when it is answered, the Owner can always close.\n2. **No vote.** Consensus stays one person's acceptance of the last reply's outcome; a per-project 'Owners resolve everything' switch is left for a team that asks. Recommendation: no vote.\n3. **Who a thread waits on.** Contested: starter, Owners and those who replied, minus the last speaker. Resolved: starter and Owners. Recommendation: as written; it keeps bystanders out of the counts.\n4. **Who applies.** Anyone with write access, by Answer or by token; Answer comes to mean 'answer what waits on me, as me'. Recommendation: yes; it is the only reading once an LLM is never a user, and LLM Tasks gets the wording when its two waiting threads are applied.\n5. **State by Owners only.** Draft to Plan, Plan to Working, Working to Finished are an Owner's; today anyone. Recommendation: yes; it is the counterweight to the starter resolving.\n6. **One run per plan at a time**, the rest queued. Recommendation: yes; two runs on one plan would trip each other on the revision check."
+			}
+		]
+	},
+	{
+		"Id": "thr-5m2-n2y-icg",
+		"Anchor": {
+			"Text": "minus the one who replied last",
+			"Prefix": "everyone who has replied in it, ",
+			"Suffix": ". Bystanders are not waited on u"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T05:26:30.042Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-19T05:27:31.885Z",
+			"Revision": 10,
+			"RevisionId": "rev-8pq-azq-3vg",
+			"Outcome": "Resolved with no reply: the byline is the speaker for turn-taking. A bullet in Who a thread waits on says so, the introduction records it, and Step 1 names it."
+		},
+		"Created": "2026-10-19T05:07:45.918Z",
+		"Replies": [
+			{
+				"Id": "rep-l6t-k02-kjc",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-19T05:07:45.918Z",
+				"Text": "One rule the read-through found wanting, with a recommendation; resolve with no reply to take it and I write it in.\n\n**Who counts as the last speaker when a run spoke.** A run is the presser's, so when Andre presses Enhance and the LLM opens a question thread, the thread's starter and last speaker is Andre. Under \"everyone who has replied, minus the last speaker\", the thread then waits on the Owners and anyone else, but not on Andre, who is the one the question was for. The same happens on every Answer run: the LLM's reply as Andre stops the thread waiting on Andre.\n\nRecommendation: for turn-taking, a speaker is the byline, not the account: \"Claude-CLI by Andre\" and \"Andre\" are two speakers. A thread a run opened for Andre waits on Andre; Andre's own reply waits on the others and on his connection, which Answer serves. Permissions stay the account's; only the waiting rule reads the pair. This keeps today's person-and-LLM back-and-forth working inside one account, which is what a single user on a Local server is.\n\nAlternative: a run's threads and replies count as the presser's for waiting too, and Enhance's questions are read in the plan rather than waited on. Simpler, but the waiting list goes quiet exactly when the person is wanted."
+			}
+		]
+	}
+]

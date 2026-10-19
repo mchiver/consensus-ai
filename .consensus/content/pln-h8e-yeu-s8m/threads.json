@@ -1,0 +1,35 @@
+[
+	{
+		"Id": "thr-4us-pft-y0j",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T04:44:44.528Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-19T04:46:47.476Z",
+			"Revision": 5,
+			"RevisionId": "rev-maa-wph-lvx",
+			"Outcome": "Resolved with no reply: all six points taken. The introduction records them; the Owner line says the Administrator creates and deletes projects; the User line says every user mints their own tokens for their sidecars and services, and Service is for systems that are nobody's. User Management, Teams and Clerk now say an account (a person or a Service account) is the principal and a token belongs to an account."
+		},
+		"Created": "2026-10-19T04:31:24.497Z",
+		"Replies": [
+			{
+				"Id": "rep-kxs-afo-ue1",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-19T04:31:24.497Z",
+				"Text": "Formalized from your notes and User Management's Authorization section (revision 4). What is yours to decide, each with my recommendation; resolve with no reply to take them all.\n\n1. **What Service is.** Your line read \"cannot use any LLM Task; gets task-specific read/write tool usage\". I have taken Service as an account that is not a person (an external system, a bot, a job) with a token of its own, writing through the API as a Member, pressing no task. The tool set a task gets is the task's Writes level bounded by the presser's role (LLM Tasks), which is where the task-specific part lives. If you meant instead that the LLM's tools act under a Service role during a run, that would make the LLM a user again, against the model. Recommendation: the non-person account.\n2. **Service as a fourth role folder.** Service accounts are dragged into their own folder, so a project can see at a glance which systems touch it. The alternative drags them into Members. Recommendation: the fourth folder.\n3. **The Administrator in a project.** Full access everywhere by the account type, or a role folder like anyone's plus the right to assign roles. Recommendation: role folder plus assigning roles, as User Management decided; it keeps every write in a project attributable to a role.\n4. **Members resolving.** The Member line now says Members resolve and apply the threads they started, as Multiuser decided. Recommendation: keep it, so this page and Multiuser agree."
+			},
+			{
+				"Id": "rep-1ak-fz1-0wz",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-19T04:37:22.554Z",
+				"Text": "Two more points from the read-through of 2026-10-19, for the same resolve.\n\n5. **Service as a principal.** User Management's model says a person is the only principal and a token belongs to a person; Teams and Clerk's Identity bullet repeat it. If point 1 stands, those lines become \"a person, or a Service account standing for a system, is the principal; an LLM never is\" and \"a token belongs to an account\". I apply them with this thread. Recommendation: yes.\n6. **Who creates and deletes projects on a team server.** This page gives it to the Administrator. Today the owner does; on a team server an Owner is an Owner of some project, and a new project has none yet. The alternative is that any User creates a project and becomes its first Owner. Recommendation: the Administrator creates it and drags in its first Owner, as written; projects are few and the Administrator knows the team."
+			}
+		]
+	}
+]

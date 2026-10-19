@@ -1,1 +1,141 @@
-[]
+[
+	{
+		"Id": "thr-4bf-oe6-iic",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-18T17:52:10.278Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-18T17:55:59.556Z",
+			"Revision": 11,
+			"RevisionId": "rev-7v3-33h-a1q",
+			"Outcome": "Resolved with no reply: the split goes in as proposed. The text is now the two features (Enhance, the Build options) and the ways-of-working guide page, in three steps; the remote mode stays with Run Shapes, the MCP server with Promotion and Monetization Step 2, identity with User Management."
+		},
+		"Created": "2026-10-18T17:45:29.359Z",
+		"Replies": [
+			{
+				"Id": "rep-nhg-irb-nlu",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-18T17:45:29.359Z",
+				"Text": "As agreed in the chat of 2026-10-18, this plan splits: the ways of working become a guide page, written in this plan's build; the plan itself keeps the two features that are new. The remote mode is Run Shapes' LLM connections, already built; the MCP server is Promotion and Monetization Step 2; identity and permissions are User Management's (a run is the person who pressed the button). Resolve to have me replace the text with the one below; reply with changes.\n\n---\n\n# Usage Scenarios\n\nTwo features for the plan-building loop, and the guide page that explains the ways of working. Identity is User Management's: a run is the person who pressed the button, allowed what their role allows.\n\n\n## Enhance\n\n- A button on a Draft, beside Run, for Owners and Members: **Enhance**, with a text box for custom instructions (\"replace this with a detailed plan; open threads for anything unclear\" is the default). It runs the project's chosen LLM connection once with the plan, the Readme and the instructions, as a run of the presser.\n- What the run posts is what any turn posts: the new text as a revision, and a contested thread for each question. The owner answers the threads and presses Enhance again, or Run, until the threads are resolved.\n- Enhance is Run with a different package: the one-shot gets the plan and the instructions, not the waiting threads.\n\n\n## Build options\n\n- The Run button on a Plan state gets two checkboxes, remembered per project: **Git sync** (pull before the run, push after a commit) and **Auto-commit** (commit the working tree when the build log is accepted, titled after the plan, the build log as the message). Both off by default; both need the project folder to be a git checkout, which the run reports when it is not.\n- The build log thread is the commit message's source, as the build loop already says.\n\n\n## The guide page\n\n- `docs/guide/ways-of-working.md`: the three ways in prose, each a few paragraphs and one picture: the **agent session** on the same machine (it reads /instructions, understands \"check consensus\", \"your turn\", and keeps the project's files; changes appear in Consensus at once; nothing it does not say \"your turn\" to is read); the **server's LLM connections** (a person presses Run or Enhance; Claude Code as a one-shot or a local model through Ollama; the run is theirs); and **plan building** (a rough sketch, Enhance, answer the threads, repeat until the plan stands; then Run to build).\n- Linked from Getting started and the Features page.\n\n\n## Steps\n\n1. Enhance, with its package and its smoke check.\n2. The Build options.\n3. The guide page and the pictures."
+			}
+		]
+	},
+	{
+		"Id": "thr-v55-gg9-1bo",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-18T19:39:18.833Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-18T19:39:51.034Z",
+			"Revision": 13,
+			"RevisionId": "rev-nb5-i6t-5vh",
+			"Outcome": "Resolved with no reply: all four recommendations taken. The introduction records them; each was already a statement in the Explain section, so nothing else changes."
+		},
+		"Created": "2026-10-18T18:32:31.487Z",
+		"Replies": [
+			{
+				"Id": "rep-hg8-n9f-vvk",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-18T18:32:31.487Z",
+				"Text": "Explain is written in (revision 12), with one line in User Management (every role presses Explain) and one in Teams. What is yours to decide, each with my recommendation; resolve with no reply to take them all.\n\n1. **Who sees a conversation.** The person and the project's Owners. The alternative is the person alone. Recommendation: person and Owners; a supervisor's questions are something the project should know, and Owners already see everything else in it.\n2. **What the package holds.** The project's documents and history, plus the project folder's files as the connection's packaging lists them. The alternative leaves the files out, so a Watcher never sees code through the model. Recommendation: include the files; a Watcher reads the project, and the plans point into the code constantly.\n3. **Where it is kept.** In the project's .consensus, per person, so it travels with an export. The alternative is the server's data folder. Recommendation: the project.\n4. **Its place in the order.** Step 3 of this plan, after Enhance and the Build options and before the guide page, so it ships with the single-user loop and is there when the first Watcher arrives. Recommendation: as written."
+			}
+		]
+	},
+	{
+		"Id": "thr-1nd-t0q-jzi",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T01:51:21.760Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-19T01:51:47.130Z",
+			"Revision": 15,
+			"RevisionId": "rev-x1f-btj-prj",
+			"Outcome": "Resolved with no reply: all five recommendations taken. The introduction records them with the date; each was already a statement in the text, so nothing else changes."
+		},
+		"Created": "2026-10-19T01:47:18.927Z",
+		"Replies": [
+			{
+				"Id": "rep-nf7-0ed-tb3",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-19T01:47:18.927Z",
+				"Text": "Tasks are now configuration (revision 14): a record with a name, a package, a writes level and a prompt; a default set of five; the writes level as the permission. User Management and Teams point at it. What is yours to decide, each with my recommendation; resolve with no reply to take them all.\n\n1. **The names.** Respond and Work for today's Review and Build; Enhance, Explain and Session as they are. Alternatives: Answer or Reply for Respond; Execute, Carry out or Do for Work. Recommendation: Respond and Work, Work because it is the verb of the Working state.\n2. **Session's writes level.** Files, as today, so it stays the open door for the owner and is therefore Owners' and Members' only. The alternative makes it consensus-only and leaves file writing to Work. Recommendation: files; Session is where the unforeseen use begins, and the role folders already keep it from Watchers.\n3. **Per server, hidden per project.** Tasks are defined once per server, and a project may hide some; it cannot add its own. The alternative is per-project tasks from the start. Recommendation: per server; add per-project when a project needs a task no other has.\n4. **Where the prompts live.** Respond's and Work's prompts move from the connection to the task; the connection keeps only its Session Prompt, which is about the model, not the task. Recommendation: yes, with the migration as written.\n5. **Step 1 first.** The tasks as records come before Enhance, so Enhance and Explain are entries from the day they exist and Review and Build are renamed in the same step. Recommendation: as written."
+			}
+		]
+	},
+	{
+		"Id": "thr-wq7-o69-juh",
+		"Anchor": {
+			"Text": "Respond",
+			"Prefix": "ult set Task Package Writes For ",
+			"Suffix": " the plan, the threads waiting, "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T02:03:45.612Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-19T04:22:57.128Z",
+			"Revision": 17,
+			"RevisionId": "rev-yxq-wdr-58b",
+			"Outcome": "Answer in place of Respond, throughout: the table, the Enhance section, the migration line and the decisions sentence. With it the meaning Multiuser settled: Answer answers the threads waiting on the presser, as the presser. Also the owner's wording from the User Management thread: tasks are defined per server and enabled per project."
+		},
+		"Created": "2026-10-19T02:03:45.612Z",
+		"Replies": [
+			{
+				"Id": "rep-e3i-52t-qz6",
+				"By": "user",
+				"At": "2026-10-19T02:03:45.612Z",
+				"Text": "I like `Answer` rather than `Respond`."
+			}
+		]
+	},
+	{
+		"Id": "thr-kah-rfq-eo2",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T02:26:35.217Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-19T04:22:57.140Z",
+			"Revision": 17,
+			"RevisionId": "rev-yxq-wdr-58b",
+			"Outcome": "The rename to LLM Tasks noted; the title and headings are the owner's edit of revision 16. Teams and User Management now say LLM Tasks where they said Usage Scenarios."
+		},
+		"Created": "2026-10-19T02:26:35.217Z",
+		"Replies": [
+			{
+				"Id": "rep-rq6-zx6-p1x",
+				"By": "user",
+				"At": "2026-10-19T02:26:35.217Z",
+				"Text": "I renamed this from Usage Scenarios to LLM Tasks"
+			}
+		]
+	}
+]

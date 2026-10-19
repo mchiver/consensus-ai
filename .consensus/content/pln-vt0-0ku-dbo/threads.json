@@ -29,9 +29,9 @@
 	{
 		"Id": "thr-ap4-hgh-is0",
 		"Anchor": {
-			"Text": "Credentials are plain passwords, stored as plain text for now; a password may be blank.",
-			"Prefix": " folder, beside consensus.json. ",
-			"Suffix": " The registry may evolve to Cler"
+			"Text": "Consensus keeps no passwords and no sign-in of its own.",
+			"Prefix": "ject, through the role folders. ",
+			"Suffix": " An LLM is never a user. A serve"
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -66,9 +66,9 @@
 	{
 		"Id": "thr-1lu-6e0-myg",
 		"Anchor": {
-			"Text": "A request with no sign-in is refused.",
-			"Prefix": " and signs in when it connects. ",
-			"Suffix": " The Project Tree always holds a"
+			"Text": "Public authenticates with Clerk when the settings hold a Clerk section",
+			"Prefix": "request is the owner, as today. ",
+			"Suffix": "; a Public server without one is"
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -103,9 +103,9 @@
 	{
 		"Id": "thr-jz5-hsn-0it",
 		"Anchor": {
-			"Text": "a user is in one role folder of a project at most",
-			"Prefix": " get that role in that project; ",
-			"Suffix": ", and is dragged between them to"
+			"Text": "what each role allows and which LLM tasks it may press are Accounts and Roles'",
+			"Prefix": "lders they are applied through, ",
+			"Suffix": " (moved there on 2026-10-19 by t"
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -177,9 +177,9 @@
 	{
 		"Id": "thr-hqb-2qe-bp1",
 		"Anchor": {
-			"Text": "What a role allows in its project",
-			"Prefix": "nge role or out to lose access. ",
-			"Suffix": ": an Owner does what the owner d"
+			"Text": "what each role allows and which LLM tasks it may press are Accounts and Roles'",
+			"Prefix": "lders they are applied through, ",
+			"Suffix": " (moved there on 2026-10-19 by t"
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -214,9 +214,9 @@
 	{
 		"Id": "thr-av2-yld-jw1",
 		"Anchor": {
-			"Text": "the desktop keeps the sign-in per saved server and signs in when it connects",
-			"Prefix": "PI answers 401) and a Sign out; ",
-			"Suffix": ". A request with no sign-in is r"
+			"Text": "A saved server holds a token the person minted on it",
+			"Prefix": " without ceremony. The desktop. ",
+			"Suffix": ", in place of the connection scr"
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -251,9 +251,9 @@
 	{
 		"Id": "thr-6it-koo-fd2",
 		"Anchor": {
-			"Text": "An LLM connection has a username in its details",
-			"Prefix": "re sees the Users folder alone. ",
-			"Suffix": ", with that user's password (bla"
+			"Text": "The run record carries the person and the connection",
+			"Prefix": "essions A run is the presser's. ",
+			"Suffix": "; what the run posts (threads, r"
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -282,9 +282,9 @@
 	{
 		"Id": "thr-uyj-8uz-74t",
 		"Anchor": {
-			"Text": "The participants of consensus.json become users",
-			"Prefix": ") one day; today it just works. ",
-			"Suffix": ": at the first start after this "
+			"Text": "the Participants section leaves consensus.json and the Settings popup",
+			"Prefix": "he first start after this plan: ",
+			"Suffix": ". The owner participant becomes "
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -325,9 +325,9 @@
 	{
 		"Id": "thr-2ae-a4e-on8",
 		"Anchor": {
-			"Text": "signs in when it connects",
-			"Prefix": "he sign-in per saved server and ",
-			"Suffix": ". A request with no sign-in is r"
+			"Text": "in place of the connection screen's sign-in",
+			"Prefix": " token the person minted on it, ",
+			"Suffix": "; the desktop's own local server"
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -362,9 +362,9 @@
 	{
 		"Id": "thr-r8n-42n-hz0",
 		"Anchor": {
-			"Text": "good for every project the user has a role in",
-			"Prefix": "me and password) on the server, ",
-			"Suffix": ". The browser page has a sign-in"
+			"Text": "in every project the user has a role",
+			"Prefix": "one is that user via that name, ",
+			"Suffix": " in. What a user gives a token t"
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -393,9 +393,9 @@
 	{
 		"Id": "thr-rq6-nlj-ovk",
 		"Anchor": {
-			"Text": "A project is shown to those with a role in it",
-			"Prefix": " project; a Watcher reads only. ",
-			"Suffix": "; the server-level Users folder "
+			"Text": "what each role allows and which LLM tasks it may press are Accounts and Roles'",
+			"Prefix": "lders they are applied through, ",
+			"Suffix": " (moved there on 2026-10-19 by t"
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -424,9 +424,9 @@
 	{
 		"Id": "thr-x6e-auk-lsc",
 		"Anchor": {
-			"Text": "The Project Tree always holds a Users folder at the server level",
-			"Prefix": "est with no sign-in is refused. ",
-			"Suffix": ", with an item for each user wit"
+			"Text": "The Users folder at the server level holds an item for each user",
+			"Prefix": "ct sees the Users folder alone. ",
+			"Suffix": "; clicking one opens a tab page "
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -455,9 +455,9 @@
 	{
 		"Id": "thr-weg-s1d-s36",
 		"Anchor": {
-			"Text": "A local server started by the desktop",
-			"Prefix": "s turn and build loops do that. ",
-			"Suffix": ": its first start makes the Admi"
+			"Text": "the desktop's own local server needs none",
+			"Prefix": "he connection screen's sign-in; ",
+			"Suffix": ". Administrator A Public server "
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -480,6 +480,72 @@
 				"By": "llm",
 				"At": "2026-10-02T08:11:19.312Z",
 				"Text": "**Sharing a local server.** Today the desktop's local server listens on 127.0.0.1 only (the desktop sets the address itself; the folder's Host is not read), so only this machine reaches it. With sign-in required and roles per project, letting others in becomes safe, so I propose, as part of this plan:\n\n- The connect screen's Local server block gets a **Share on the network** switch beside the data folder (off by default). Off: the server listens on 127.0.0.1, as today. On: it listens on 0.0.0.0, and the screen shows the address others use (the machine's name or address and the port, e.g. `http://cube4:3500`), with the note that they sign in with a username the Admin registers.\n- The choice is kept in desktop.json under Local (`Share: true | false`) and takes effect at the next start of the local server; a running one says which it is.\n- Others reach it with a browser at that address, or with their own desktop by adding it as a saved server; the Admin (the desktop's own sign-in) adds them to the registry and drags them into a project's role folders.\n- Nothing else changes: the server is the same Consensus, and the firewall is the machine's to open.\n\nResolve to take this wording into the plan; reply to change it (for example a Host field instead of a switch)."
+			}
+		]
+	},
+	{
+		"Id": "thr-pj6-tjf-1md",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-18T17:55:25.022Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-18T17:55:59.654Z",
+			"Revision": 12,
+			"RevisionId": "rev-gm8-nv1-hkl",
+			"Outcome": "Resolved with no reply: all seven recommendations taken. The introduction now records them with the date; every one was already a statement in the text, so nothing else changes. Steps 1 and 2 are first when the plan is built."
+		},
+		"Created": "2026-10-18T17:45:29.265Z",
+		"Replies": [
+			{
+				"Id": "rep-8cx-lxh-zj3",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-18T17:45:29.265Z",
+				"Text": "The rewrite of 2026-10-18 is applied as revision 11: Clerk identifies, Consensus authorizes, an LLM is never a user, a run is the presser's. What is still yours to decide, each with my recommendation. Resolve with no reply to take them all; reply with the ones you change.\n\n1. **Public without Clerk.** A Public server with no Clerk section is a trusted network where every request is the owner, as today, said plainly in Settings. The alternative is to refuse to listen. Recommendation: trusted network, because cube4 and a desktop shared on a LAN need it and nothing is sold on it.\n2. **Attribution of a run.** The person is recorded as the author and the connection as Via, shown as \"Andre via Claude-CLI\". The alternative keeps the connection as the author with the person in the record only. Recommendation: person via connection, since permissions and accountability are the person's.\n3. **Tokens are forever.** A person's tokens live until revoked, no expiry. Recommendation: yes; an expiring token would stop an agent session mid-build, and the user page shows every token with its last use.\n4. **The owner's tokens on Local.** The owner may mint named tokens on a Local server too, so threads can say \"owner via Claude Code\"; a request without one stays the plain owner. Recommendation: yes, it is the only way to keep the attribution the threads show today once the connection participants go.\n5. **The Admin by email.** The Admin of a Clerk server is the email named in the Clerk section, not the first to sign in and not Clerk's organization admin. Recommendation: by email; it survives a reinstall and needs no ceremony.\n6. **Old names stay.** Threads and revisions recorded under user, llm and the connection names are left as they are. Recommendation: yes; rewriting history for a display name is not worth a migration.\n7. **Steps.** Five steps as listed, Clerk's own steps being Step 4. Recommendation: build Steps 1 and 2 first, since they change nothing a user sees and remove the connection tokens; Step 3 and the subplan follow when the Team tier is next."
+			}
+		]
+	},
+	{
+		"Id": "thr-y2y-a3c-v8u",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T04:29:42.063Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-19T04:31:24.435Z",
+			"Revision": 16,
+			"RevisionId": "rev-sdy-zi3-fpf",
+			"Outcome": "Resolved with no reply after the clarification: the division stands and the Writes level is the rule. The Authorization section leaves this page for Accounts and Roles, a pointer in its place; the introduction names the three subplans. Accounts and Roles is formalized (revision 4) with the account types, the four roles, Service defined, the Writes rule and 'defined per server, enabled per project'."
+		},
+		"Created": "2026-10-19T04:11:30.913Z",
+		"Replies": [
+			{
+				"Id": "rep-bm3-v5v-wee",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-19T04:11:30.913Z",
+				"Text": "User Management now has three pages under it that overlap: this one, Accounts and Roles and Multiuser. A proposed division, with the two contradictions to settle; resolve with no reply to take it and I apply it (this page's Authorization section moves to Accounts and Roles, the references follow), or reply with changes.\n\n**User Management** keeps the model (a person is the principal, an LLM is never a user, Scope decides, a token is the credential), the registry, the Users folder and user pages, tokens, runs as the presser, the Admin, the migration and the steps.\n\n**Accounts and Roles** takes the account types (Administrator, User) and the project roles (Owner, Member, Service, Watcher), replacing this page's Authorization section, and defines Service: the account an external system or an agent acts under when it is not a person's token, writes within its role, presses no task, and is given a task-specific tool set when a task runs it.\n\n**Multiuser** takes the rules with many parties: who resolves, who a thread waits on, who applies, the State by Owners, runs at any time (formalized today).\n\nThe two contradictions:\n\n1. **Tasks per project or per server.** LLM Tasks says per server, with a project hiding some; Accounts and Roles says an Owner defines tasks for a project. Recommendation: per server, with hiding, as LLM Tasks decided; a project-defined task is a later step when a project needs one no other has.\n2. **Members and tasks.** Accounts and Roles says a Member uses any task; LLM Tasks says what a role may press follows from the task's writes level, which gives a Member every task today anyway. Recommendation: keep the writes rule as the law and let Accounts and Roles state its result for each role, so a future task is governed by its record."
+			},
+			{
+				"Id": "rep-puf-ul0-pio",
+				"By": "user",
+				"At": "2026-10-19T04:18:57.947Z",
+				"Text": "1. Tasks are defined per Server and enabled per Project.\n2. Im not sure I understand what you are asking here."
+			},
+			{
+				"Id": "rep-svk-x22-7c6",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-19T04:22:57.182Z",
+				"Text": "Understood on 1: tasks are defined per server and enabled per project. That wording is now in LLM Tasks (revision 17), and Accounts and Roles will say it the same way when the division is applied.\n\nOn 2, put more plainly. Accounts and Roles says of a Member: \"can use any LLM Task\". LLM Tasks says which tasks a role may press is read from each task's Writes level: none for every role, consensus or files for Owners and Members. Both give a Member every task today, so there is no disagreement now. The question is which sentence is the rule when a new task appears, say one with Writes files that a team wants kept from Members. If the Writes level is the rule, the task's record decides and nothing else changes. If \"any task\" is the rule, roles would need a task list of their own. My recommendation is the Writes level as the rule, with Accounts and Roles stating what it comes to for each role today.\n\nThe division itself (this page keeps the model, registry, tokens, runs, Admin and migration; Accounts and Roles takes the account types and roles, this page's Authorization section moving there, and defines Service; Multiuser keeps the rules) stands as proposed. Resolve this thread with no reply to take the division and the recommendation on 2, and I move the section; reply if either should differ."
 			}
 		]
 	}

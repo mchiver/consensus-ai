@@ -1,0 +1,29 @@
+[
+	{
+		"Id": "thr-y4z-df5-fe0",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-18T18:15:19.942Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-18T18:15:56.324Z",
+			"Revision": 2,
+			"RevisionId": "rev-xjw-jus-i7l",
+			"Outcome": "Resolved with no reply: the name Teams, Promotion and Monetization kept inside, and the order as written. The introduction records the decisions; nothing else changes."
+		},
+		"Created": "2026-10-18T17:59:33.234Z",
+		"Replies": [
+			{
+				"Id": "rep-y8f-ezs-ktf",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-18T17:59:33.234Z",
+				"Text": "The master plan Teams holds User Management (with Clerk inside it), Usage Scenarios and Promotion and Monetization as its subplans, in that order. What is yours to decide, each with my recommendation; resolve with no reply to take them all.\n\n1. **The name.** Teams, because the question only exists when more than one person uses a server, and it is the word the tiers use. Alternatives: Identity, Shared Servers. Recommendation: Teams.\n2. **Promotion and Monetization inside it.** Its Steps 1 to 4 have nothing to do with teams, but its gate (nothing is sold before the server knows who is calling) and its Steps 5 and 6 are this plan's. Recommendation: keep it inside; the page says which of its steps start now.\n3. **The order.** User Management Steps 1 and 2 and Usage Scenarios before the desktop license, since they improve the single-user loop and remove the connection tokens; users, roles and Clerk after the first money. Recommendation: as written."
+			}
+		]
+	}
+]

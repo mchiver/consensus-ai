@@ -1,0 +1,12 @@
+# UI Tweaks IX
+
+- It seems that text in bullted lists is a bit dimmer than normal text. This is more noticeable in darker themes. This is not a terrible deal and if there is agood reason for this, then keep it this way.
+- There is a maximum width that is used when displaying text which is very narrow. When I maximize the application, there are very large margines on either side of the text. I would like to add another view setting `Margins` with values of `Narrow`, `Normal`, and `Wide` which describe the width of these margins.
+- The Thread replies allow you to enter text and then click `Resolve` which resolves the thread but discard the entered text.
+- In the Thread card, the buttons `Reanchor` and `New Subplan` should appear in the thread header and not with the reply buttons.
+- Anchoring highlighting doesnt appear within tabes.
+- When the editor has the focus, it is swallowing the tab switching hotkeys.
+- `Ctrl+UpArrow` and `Ctrl+DownArrow` usually scroll the content without moving the caret.  This does not seem to work in our editor.
+- Formatting hotkeys like `Ctrl+B` do not work either.
+
+

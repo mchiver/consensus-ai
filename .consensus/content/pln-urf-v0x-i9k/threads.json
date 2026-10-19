@@ -1,0 +1,29 @@
+[
+	{
+		"Id": "thr-1zs-ehu-b45",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-18T17:04:06.186Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-18T17:04:36.581Z",
+			"Revision": 2,
+			"RevisionId": "rev-1mp-erf-bsc",
+			"Outcome": "Resolved with no reply: all eight recommendations taken. Written into the text: the introduction records the decisions and the date, the Domain bullet and Step 5 name app.consensus-ai.liquicode.com with Clerk's records under consensus-ai.liquicode.com. The other decisions were already statements in the draft."
+		},
+		"Created": "2026-10-18T16:46:07.549Z",
+		"Replies": [
+			{
+				"Id": "rep-ekp-iee-4a8",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-18T16:46:07.549Z",
+				"Text": "The decisions in this draft that are yours, each with my recommendation. Resolve with no reply to take them all; reply with the ones you change.\n\n1. **Where Clerk sits.** Team and hosted servers only, as an optional provider behind User Management's registry; the local desktop and headless server never need it. Recommendation: yes. The alternative, Clerk for every sign-in, breaks the Free local tier and the offline desktop.\n2. **Sign-in methods.** Email code, GitHub and Google; passwords off; no phone, no username. Recommendation: take it. Add Microsoft only when a Team customer asks.\n3. **Organizations.** On, with personal accounts allowed, one organization per server. Recommendation: yes. Mapping an organization onto a project instead would fight the per-project role folders User Management decided.\n4. **Machine credentials.** Agents, LLM connections and the desktop keep Consensus session tokens; Clerk is for humans only. Recommendation: yes. Clerk's API keys are a second system to learn, and the token already exists in User Management.\n5. **Billing.** Clerk Billing off; the desktop key through Paddle or Lemon Squeezy as Promotion and Monetization says. Recommendation: off. Revisit for Team seats only.\n6. **The domain.** The production instance on a subdomain of liquicode.com beside the docs; which hostname is yours to name. Recommendation: app.consensus-ai.liquicode.com for the hosted server, with Clerk's records under consensus-ai.liquicode.com.\n7. **Sign-up mode at launch.** Waitlist on production until the hosted tier takes customers. Recommendation: waitlist.\n8. **Order.** Step 1 (the Clerk application, no code) now; Steps 2 to 5 after User Management is built, as Promotion and Monetization Step 5. Recommendation: yes."
+			}
+		]
+	}
+]
