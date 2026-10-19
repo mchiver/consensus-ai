@@ -11,6 +11,7 @@ const PATH = require( 'path' );
 const HTTP = require( 'http' );
 const SERVER = require( '../src/Server.js' );
 const PARTICIPANTS = require( '../src/Participants.js' );
+const REPO = require( './support/Repo.js' );
 
 const TEXT = [
 	'# A plan',
@@ -1379,4 +1380,85 @@ TEST( 'the desktop\'s workspaces from before are moved into their projects at st
 	{
 		await second.Close();
 	}
+} );
+
+
+// A stand-in for a Work run (plan LLM Tasks, Step 3): it reads the package from its standard input, writes a file in
+// the project's folder (its working folder) and posts a build log, a whole-document thread, as the run.
+const WORK_STAND_IN = [
+	"let t = '';",
+	"process.stdin.on( 'data', function ( c ) { t += c; } );",
+	"process.stdin.on( 'end', async function ()",
+	"{",
+	"\tlet api = /- Consensus API: (\\S+)/.exec( t )[ 1 ];",
+	"\tlet token = /Bearer <token>\": ([0-9a-f]{48})/.exec( t )[ 1 ];",
+	"\tlet plan = /The plan at hand: .* \\((pln-[^)]+)\\)/.exec( t )[ 1 ];",
+	"\trequire( 'fs' ).writeFileSync( 'built.txt', 'built\\n' );",
+	"\tlet headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };",
+	"\tlet thread = await ( await fetch( api + '/plans/' + plan + '/threads', { method: 'POST', headers: headers, body: JSON.stringify( { Text: '**Build log.** Made built.txt.' } ) } ) ).json();",
+	"\tprocess.stdout.write( 'posted ' + thread.Thread.Id );",
+	"} );",
+].join( '\n' );
+
+
+TEST( 'the Work options (plan LLM Tasks, Step 3): Git sync pulls before a run that writes files and refuses one outside a checkout; Auto-commit commits and pushes the build log the owner resolves, the thread keeping the record', { skip: REPO.Present() ? false : 'git is not on this machine' }, async function ()
+{
+	let repo = REPO.Checkout();
+	let project = ( await call( 'POST', '/api/projects', { Name: 'Synced', Path: repo.Clone } ) ).Body.Project;
+	// the options are the project's; false is dropped from the file
+	let set = await call( 'PUT', '/api/projects/' + project.Id, { GitSync: true, AutoCommit: true } );
+	ASSERT.equal( set.Status, 200 );
+	ASSERT.deepEqual( [ set.Body.Project.GitSync, set.Body.Project.AutoCommit ], [ true, true ] );
+	let unset = await call( 'PUT', '/api/projects/' + project.Id, { AutoCommit: false } );
+	ASSERT.deepEqual( [ 'AutoCommit' in unset.Body.Project, unset.Body.Project.GitSync ], [ false, true ] );
+	await call( 'PUT', '/api/projects/' + project.Id, { AutoCommit: true } );
+	ASSERT.deepEqual( [ ( await project_named( project.Id ) ).GitSync, ( await project_named( project.Id ) ).AutoCommit ], [ true, true ] );
+	// the run: a commit from elsewhere is pulled first, the stand-in writes a file and posts the build log
+	let stand_in = PATH.join( temporary_folder(), 'work.js' );
+	FS.writeFileSync( stand_in, WORK_STAND_IN );
+	let worker = ( await call( 'POST', '/api/llms', { Name: 'worker', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Timeout: 60 } ) ).Body.Llm;
+	let plan = ( await call( 'POST', '/api/plans', { Title: 'Build a thing', Text: '# Build a thing\n\nMake built.txt.\n', Project: project.Id } ) ).Body.Plan;
+	REPO.PushFromElsewhere( repo, 'elsewhere.txt', 'from elsewhere\n' );
+	let started = await call( 'POST', '/api/runs', { Llm: worker.Id, Task: 'work', Project: project.Id, Plan: plan.Id } );
+	ASSERT.equal( started.Status, 201, JSON.stringify( started.Body ) );
+	let done = await run_settled( started.Body.Run.Id );
+	ASSERT.equal( done.Status, 'done', done.Output );
+	ASSERT.match( done.Git.Pull, /elsewhere\.txt/ );
+	ASSERT.equal( FS.existsSync( PATH.join( repo.Clone, 'elsewhere.txt' ) ), true );
+	ASSERT.equal( FS.existsSync( PATH.join( repo.Clone, 'built.txt' ) ), true );
+	let read = ( await call( 'GET', '/api/plans/' + plan.Id ) ).Body;
+	let log = read.Threads[ 0 ];
+	ASSERT.deepEqual( [ log.Anchor, log.Replies[ 0 ].Service, log.Replies[ 0 ].Token ], [ null, 'worker', 'Work run' ] );
+	// a thread of the owner's own is no build log: resolved without a record
+	let note = ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'A note.', Resolve: true } ) ).Body.Thread;
+	ASSERT.equal( note.Git, undefined );
+	// the owner resolves the build log: committed with the plan's title and the log, and pushed
+	let resolved = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + log.Id + '/resolve' );
+	ASSERT.equal( resolved.Status, 200 );
+	let record = resolved.Body.Thread.Git;
+	ASSERT.match( record.Commit, /^[0-9a-f]{7,}$/ );
+	ASSERT.deepEqual( [ record.Branch, record.Pushed, record.Error ], [ 'main', true, null ] );
+	ASSERT.equal( REPO.Sh( repo.Bare, [ 'log', '-1', '--format=%s%n%n%b', 'main' ] ), 'Build a thing\n\n**Build log.** Made built.txt.' );
+	// the record itself is written after the commit, so it lands in the next one
+	ASSERT.equal( REPO.Sh( repo.Clone, [ 'status', '--porcelain' ] ), 'M .consensus/content/' + plan.Id + '/threads.json' );
+	let kept = ( await call( 'GET', '/api/plans/' + plan.Id ) ).Body.Threads.find( function ( one ) { return one.Id === log.Id; } );
+	ASSERT.deepEqual( kept.Git, record );
+	// reopened and resolved again on a project whose .consensus is ignored: nothing to commit, no error
+	FS.writeFileSync( PATH.join( repo.Clone, '.gitignore' ), '.consensus/\n' );
+	REPO.Sh( repo.Clone, [ 'rm', '-r', '-q', '--cached', '.consensus' ] );
+	REPO.Sh( repo.Clone, [ 'add', '-A' ] );
+	REPO.Sh( repo.Clone, [ 'commit', '-q', '-m', 'ignore .consensus' ] );
+	await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + log.Id + '/replies', { Text: 'One more look.' } );
+	let again = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + log.Id + '/replies', { Text: 'Fine.', Resolve: true } );
+	ASSERT.equal( again.Status, 201 );
+	ASSERT.deepEqual( [ again.Body.Thread.Git.Commit, again.Body.Thread.Git.Error, again.Body.Thread.Git.Pushed ], [ null, null, null ] );
+	// a project that is no checkout, Git sync on: the run is refused before it starts
+	let plain = ( await call( 'POST', '/api/projects', { Name: 'Plain', Path: temporary_folder() } ) ).Body.Project;
+	await call( 'PUT', '/api/projects/' + plain.Id, { GitSync: true } );
+	let elsewhere = ( await call( 'POST', '/api/plans', { Title: 'Elsewhere', Text: '# Elsewhere\n', Project: plain.Id } ) ).Body.Plan;
+	let refused = await call( 'POST', '/api/runs', { Llm: worker.Id, Task: 'work', Project: plain.Id, Plan: elsewhere.Id } );
+	ASSERT.equal( refused.Status, 400 );
+	ASSERT.match( refused.Body.Error, /^git pull failed in .*not a git repository/ );
+	ASSERT.equal( running.Tokens.Count(), 0 );
+	ASSERT.deepEqual( ( await call( 'DELETE', '/api/llms/' + worker.Id ) ).Body, { Deleted: worker.Id } );
 } );

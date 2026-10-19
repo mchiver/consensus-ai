@@ -24,6 +24,7 @@ const INSTRUCTIONS = require( './Instructions.js' );
 const LLMS = require( './Llms.js' );
 const RUNS = require( './Runs.js' );
 const RUNNER = require( './Runner.js' );
+const GIT = require( './Git.js' );
 
 const DEFAULT_PORT = 3500;
 const DEFAULT_CONFIG = PATH.join( OS.homedir(), '.consensus' );
@@ -99,8 +100,9 @@ async function Start( Options )
 	{
 		events.Send( { Kind: 'run', Run: summary.Id, Llm: summary.Llm ? summary.Llm.Id : null, Status: summary.Status } );
 	} );
-	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Url: function () { return url; }, Tokens: tokens } );
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens } );
+	let git = GIT.Git();
+	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Url: function () { return url; }, Tokens: tokens, Git: git } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git } );
 	INSTRUCTIONS.Attach( app, { Settings: settings } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )

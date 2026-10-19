@@ -44,7 +44,7 @@
 - **Tasks as buttons.** A task is a record you edit: what the prompt packages (the Readme, the documents, the plan, the waiting threads, the folder), what the run may write (nothing, Consensus, or files) and what it is asked. Answer, Enhance (a plan from a sketch and your instructions), Work and Session are shipped; a project enables the ones it uses; one button each runs it and keeps the log.
 - **Tools for local models.** A local model gets file tools over the project's folder, held to its Include and Exclude lists, and Consensus tools for reading plans, replying and applying, each set held to the task's Writes.
 - **Packaging you control.** Choose which documents and threads a connection leaves out, give it a prompt of its own, and preview any task's package with its token estimate before it runs.
-- **Nothing committed on its own.** No run branches, commits or pushes; Git stays the owner's.
+- **Nothing committed on its own.** No run branches, commits or pushes; Git stays the owner's. The two Work options a project may switch on are the owner's too: Auto-commit commits the build log you resolve, Git sync pulls before the run and pushes after the commit.
 
 ## Running it
 

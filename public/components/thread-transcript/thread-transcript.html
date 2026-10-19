@@ -11,4 +11,5 @@
 </div>
 
 <div class="record" ng-show="$ctrl.thread.Resolved">resolved by {{ $ctrl.thread.Resolved | byline }} {{ $ctrl.thread.Resolved.At | when }}</div>
+<div class="record record-git" ng-show="$ctrl.thread.Git">{{ $ctrl.GitLine() }}</div>
 <div class="record" ng-show="$ctrl.thread.Applied">applied by {{ $ctrl.thread.Applied | byline }} at revision {{ $ctrl.thread.Applied.Revision }}: {{ $ctrl.thread.Applied.Outcome }}</div>

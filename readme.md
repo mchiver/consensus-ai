@@ -325,7 +325,16 @@ so every page follows it). A run on a project whose folder is not on the server'
 works on the projects of its own machine. A `claude-cli` one-shot runs the command once in the project's
 folder with the package on its standard input; the model works through the API itself, with the token in the
 instructions, and nothing is parsed. The default Arguments let a non-interactive `claude` use its tools.
-Nothing in Consensus commits, branches or pushes.
+Nothing in Consensus commits, branches or pushes on its own: the **Work options** (plan LLM Tasks, Step 3) are
+two switches of the project, off by default, shown on the LLM page beneath the task buttons when the project
+enables a task that writes files and kept in project.json as `GitSync` and `AutoCommit`. With Git sync on, a run
+of a task with Writes files pulls first (`git pull`, a failure refusing the run with git's last lines; the run
+record keeps git's words as `Git.Pull`) and a commit is pushed after. With Auto-commit on, the owner's resolve
+of a **build log** (a whole-document thread opened by such a run on the plan) commits the working tree
+(`git add -A`, `git commit`: the plan's title the subject, the log's opening reply the body, git's ignore rules
+and the checkout's own git user) and the thread keeps the record as `Git: { Commit, Branch, Pushed, Error, At }`,
+shown as a line in its transcript; a clean tree is "nothing to commit" and a failure leaves the resolve standing.
+`src/Git.js` runs git without a shell in the project's folder, never prompts and gives up after 60 seconds.
 
 An `ollama` one-shot (plan Consensus Desktop, Step 4: Local Models) runs in the server: a local model has no
 tools of its own, so `Ollama.js` runs the tool loop over Ollama's chat endpoint, one request per round with

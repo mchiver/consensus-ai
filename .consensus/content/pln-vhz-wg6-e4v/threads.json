@@ -261,5 +261,80 @@
 				"Text": "**Build log: LLM Tasks Step 2 (Enhance), built by Claude Fable 5.1 on 2026-10-19.** The seven points of the design thread, as decided. The plan stays Working until this log is accepted; nothing is committed.\n\n**Built**\n\n- `src/Tasks.js`: a seventh Package switch, `Box`, off unless set (the other six are on unless set); the shipped set is Answer, Enhance, Work, Session, Enhance with Instructions, Readme, Documents, Plan and Box on, Threads and Files off, Writes consensus, and a prompt that has the model replace the sketch with a detailed plan as one revision and open a thread for each open question, leaving the waiting threads to Answer; `TasksVersion` (2): a fresh set is written at the version, a list below it gets each shipped task it lacks after the shipped one before it (or first), with a start-up line, and the version is written, so a task removed afterwards stays removed.\n- `src/Package.js`: the person's text under \"Your instructions\" after the task's prompt when the task has a Box and the text is not blank; the connection's Session Prompt then reads \"Further instructions\". `src/Runner.js`: `Text` read from the request when the task has a Box, packaged, answered beside the prompt (the preview carries `Task` and `Text` now) and given to the run. `src/Runs.js`: the record carries `Text` (null without).\n- `src/Tools.js`: `write_text` (Writes consensus): the plan's whole new text as a revision through PUT /api/plans/:id/text with the current revision supplied, as apply does; its line among the tool descriptions.\n- The page: the LLM page's Run section has an Instructions box beneath the pickers, shown when an enabled task has a Box, labelled with those tasks' names, its text kept per project and server in the browser and sent as the run's `Text` for those tasks; the run popup shows the instructions beneath the command line; the Settings popup's task rows show the Box switch (a new task starts with it off).\n- Docs: the README (the switch, Enhance, TasksVersion, write_text, Text on the run routes), `docs/guide/llm.md` (the box, the shipped four), `settings.md`, `api.md`, `features.md`; built with `node bin/docs.js build`. The plan got a Step 6 (the task buttons on the plan page with a project's chosen connection), as the design thread said.\n\n**Checked**\n\n- `test/Api.test.js`: Enhance end to end with a stand-in command that reads the package from its standard input, takes the API address, the token, the plan id and the instructions from it, and posts a new text and a thread as the run: the preview carries the text under \"Your instructions\" and no waiting thread; the run record carries the text and the token \"Enhance run\"; the plan is at revision 2 with the stand-in's text, its revision record By user, Service enhancer, Token Enhance run, Reason edit; the new thread is contested, by the same byline, anchored where the stand-in put it; the token is gone with the run. The tasks test follows the shipped four and the version in the file.\n- `test/Tasks.test.js`: Box off by default, the shipped four, the version migration (a Step 1 file gets Enhance after Answer and Session at the end, once; a list at the version keeps its removals; an empty list gets the four). `test/Runs.test.js`: the package of Enhance with the text, Work ignoring a text, a blank text adding nothing. `test/Tools.test.js`: write_text makes a revision with the run's byline and leaves the threads; refused outside the project. `test/Participants.test.js` and `test/Ui.test.js` follow the four.\n- `node --test` without the browser tests: 149 pass, 0 fail. The UI test alone: 36 pass. The Docs test alone: 2 pass. `node bin/smoke.js`: SMOKE OK.\n\n**Decided during the build**\n\n- The preview route answers `Task` and `Text` beside the prompt, so the page and a test can see what was packaged.\n- The run's `Text` is trimmed; a blank box sends nothing and the package has no \"Your instructions\" section.\n- The box's text is kept under a key per project and per server, so two projects keep their own instructions.\n\nResolve to accept: I apply this log, commit as \"LLM Tasks Step 2: Enhance\", set the plan back to Plan, and update the Readme. Reply with what to fix instead."
 			}
 		]
+	},
+	{
+		"Id": "thr-mgz-rfs-udk",
+		"Anchor": {
+			"Text": "The Work options.",
+			"Prefix": "ttings rows get the Box switch. ",
+			"Suffix": " Explain: the conversation tab, "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T15:19:22.916Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-19T15:19:59.544Z",
+			"Revision": 22,
+			"RevisionId": "rev-ytn-tvj-qg4",
+			"Outcome": "The seven points decided as recommended; written onto Step 3 as \"Decided before the build\"."
+		},
+		"Created": "2026-10-19T15:09:51.715Z",
+		"Replies": [
+			{
+				"Id": "rep-do4-g36-7s4",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-19T15:09:51.715Z",
+				"Text": "**Design for Step 3, the Work options.** Each point is a decision with my recommendation; resolving with no reply takes them all and I build.\n\n1. **The rule stands: nothing in git happens on its own.** Every git action of this step is behind a switch the owner sets per project, off by default, and tied to a press: the pull to the press of the task button (Git sync), the commit to the owner's resolve of the build log (Auto-commit), the push to that commit (Git sync). An agent session like mine, which is not a run, is untouched: it commits by hand as now, on the owner's word. *Recommendation:* build it as the plan says, and the standing rule reads \"only on the project's switches and a press\" from here.\n\n2. **The switches are the project's.** project.json gets `GitSync` and `AutoCommit` (true or false, absent meaning off), set through PUT /api/projects/:pid like the lists, so the server knows them at resolve time; the LLM page's Run section shows the two checkboxes beneath the task buttons when the project enables a task with Writes files, saved on change, with the project's settings popup not repeating them. *Recommendation:* so.\n\n3. **Which runs.** The options follow the record, not the name, as the permission does: every task with Writes files (Work, Session, and any made later). With Git sync on, the run pulls (`git pull`) after the package is made and before the command starts; a pull that fails (the folder is no git checkout, no upstream, a conflict, git missing) refuses the run with git's last lines and nothing starts. The run record carries `Git: { Pull: <git's words> }`. *Recommendation:* so.\n\n4. **The build log and the commit.** A build log is a thread on the whole document (no anchor) opened by a run of a task with Writes files on that plan: the opening reply's Service and Token name match a run record of the plan whose Writes is files. When the owner resolves such a thread (Resolve, or Reply and resolve) and Auto-commit is on, the server commits the working tree: `git add -A` then `git commit`, git's ignore rules deciding what goes in (the project's Exclude is Consensus's, not git's), the plan's title as the subject and the build log's opening reply as the body, the checkout's own git user as the author, no trailer. Nothing to commit is recorded, not an error. With Git sync on, `git push` follows the commit. *Recommendation:* so; a thread reopened and resolved again commits what changed since.\n\n5. **The record of it.** The thread gets `Git: { Commit (the short hash or null), Branch, Pushed, Error, At }` beside Resolved, shown in the thread's transcript as a record line (\"committed abc1234 on master, pushed\" or \"commit failed: …\"), and the resolve's response carries it. A failed commit or push leaves the resolve standing; the owner commits by hand. The commit is the server's act on the owner's switch, no run token involved. *Recommendation:* so.\n\n6. **Git.js and the checks.** A new `src/Git.js`: `Git( { Spawn? } ) -> { Pull( Path ), Commit( Path, Message ), Push( Path ), Branch( Path ) }`, git run without a shell in the folder, no terminal prompts (GIT_TERMINAL_PROMPT=0), a 60-second limit, each answering { Ok, Output } with git's words. Checks: a Git test on a temporary checkout with a bare remote (pull, commit, push, nothing to commit, not a checkout); an API test running Work with a stand-in command that posts a build log, Auto-commit on: the owner's resolve makes the commit with the message and the thread carries it; Git sync on: the pull before the run and the push to the bare remote; a project that is no checkout: the run refused; the UI test counts the two checkboxes; the desktop smoke unchanged. The tests skip with a note when git is not on the machine. *Recommendation:* so.\n\n7. **Docs.** The README, `docs/guide/llm.md` (the sentence \"nothing in Consensus ever branches, commits or pushes on its own\" gets \"unless you switch the project's Auto-commit or Git sync on\"), `api.md` (the project fields, the run's and the thread's Git), `features.md`; built. *Recommendation:* so."
+			},
+			{
+				"Id": "rep-htn-1qb-qfa",
+				"By": "user",
+				"At": "2026-10-19T15:18:18.012Z",
+				"Text": "What does \"Recommendation: so\" mean?"
+			},
+			{
+				"Id": "rep-4mm-p7c-u30",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-19T15:18:40.803Z",
+				"Text": "\"Recommendation: so\" was shorthand for \"I recommend the point exactly as stated above\": where a point held one way of doing it, I put the way in the point itself and left the recommendation as a confirmation rather than repeat it. Read each \"so\" as \"do it as this point says\". Points 1 and 4 carry a recommendation of their own because they add something beyond the point: the standing rule's new wording in 1, and a reopened thread committing again in 4. I will write the recommendation out in full in the next design threads."
+			}
+		]
+	},
+	{
+		"Id": "thr-0jp-bfi-a93",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T15:50:35.660Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-19T15:50:58.155Z",
+			"Revision": 22,
+			"RevisionId": "rev-ytn-tvj-qg4",
+			"Outcome": "Accepted: LLM Tasks Step 3 (the Work options) built as logged; committed as \"LLM Tasks Step 3: the Work options\"."
+		},
+		"Created": "2026-10-19T15:35:03.281Z",
+		"Replies": [
+			{
+				"Id": "rep-y0k-lqp-c3s",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-19T15:35:03.281Z",
+				"Text": "**Build log: LLM Tasks Step 3 (the Work options), built by Claude Fable 5.1 on 2026-10-19.** The seven points of the design thread, as decided. The plan stays Working until this log is accepted; nothing is committed.\n\n**Built**\n\n- `src/Git.js` (new): `Git( { Spawn?, Timeout? } )` with `Pull`, `Commit`, `Push` and `Branch`; git runs without a shell in the project's folder, never prompts (GIT_TERMINAL_PROMPT=0), is killed after 60 seconds, and every answer carries git's own words. Commit stages everything (`git add -A`), answers Nothing on a clean tree, otherwise commits with the message on git's standard input and answers the short hash and the branch.\n- `src/Api.js`: `GitSync` and `AutoCommit` on PUT /api/projects/:pid (true or false; false is dropped from project.json, so absent means off); `after_resolve`, called by the resolve route and by Reply and resolve: a whole-document thread whose opening reply's Service and Token name match a run record of the plan with Writes files is a build log, and when the project's AutoCommit is on the server commits the working tree (the plan's title the subject, the opening reply the body, the checkout's git user) and pushes after when GitSync is on; the thread gets `Git: { Commit, Branch, Pushed, Error, At }`, the resolve's response carries it, a `committed` event follows, and a failure leaves the resolve standing. A thread the owner opens is never a build log.\n- `src/Runner.js`: `Git` option; Start pulls after the package is made and before the command starts when the task writes files and the project's GitSync is on, a failed pull refusing the run (400, \"git pull failed in <folder>: <git's last lines>\") with the token dropped; the run record carries `Git: { Pull }` (`src/Runs.js`). `src/Server.js` wires one Git into the Runner and the API.\n- The page: the LLM page's Run section has a Git row beneath the Instructions box, shown when an enabled task writes files, with the two checkboxes Git sync and Auto-commit, saved on the project at once and put back on a refusal; the run popup shows the pull's words; the thread transcript shows the record as a line (\"committed abc1234 on main, pushed\", \"nothing to commit\", or \"commit failed: …\").\n- Docs: the README (the Work options paragraph in place of \"Nothing in Consensus commits, branches or pushes\"), `docs/guide/llm.md` (the build-loop sentence and the Work bullet), `api.md` (the project fields, the resolve and run routes), `features.md`, `settings.md` (project.json); built with `node bin/docs.js build`.\n\n**Checked**\n\n- `test/Git.test.js` (new) over `test/support/Repo.js` (new: a bare remote, a clone with one commit pushed, a commit pushed from elsewhere): commit with the message, Nothing on a clean tree, push reaching the remote, pull quiet and pull bringing the file from elsewhere, a folder that is no checkout refused with git's words, a git that cannot start. Both skip with a note when git is not on the machine.\n- `test/Api.test.js`: the Work options end to end with a stand-in command that writes a file in the folder and posts a build log on its token: the options saved and false dropped; a commit from elsewhere pulled before the run (the record's Git.Pull names it); the build log a whole-document thread by worker, token \"Work run\"; a thread of the owner's resolved without a record; the owner's resolve committing \"Build a thing\" with the log as the body and pushing it to the bare remote, the thread keeping the record; reopened and resolved again on a project whose .consensus is ignored: nothing to commit, no error; a project that is no checkout with Git sync on: the run refused before it starts; no token left behind.\n- `test/Ui.test.js`: the LLM page shows the two checkboxes for a connection, Auto-commit saves on the project and clears again, no page errors.\n- `node --test` without the browser tests: 152 pass, 0 fail. The UI test alone: 37 pass. The Docs test alone: 2 pass. `node bin/smoke.js`: SMOKE OK.\n\n**Decided during the build**\n\n- The record is written onto the thread after the commit, so the threads.json that holds it is a change the next commit carries; a project that keeps `.consensus` out of git (a .gitignore line) sees a clean tree instead. The README says so.\n- The resolve's response waits for the commit and the push (up to 60 seconds each), so the page shows the record at once; the resolve itself is written first and stands whatever git says.\n- Pull runs `git pull --no-rebase`, so a diverged branch merges rather than rebases; a conflict refuses the run and the folder is left for the owner.\n\nResolve to accept: I apply this log, commit as \"LLM Tasks Step 3: the Work options\", set the plan back to Plan, and update the Readme. Reply with what to fix instead."
+			}
+		]
 	}
 ]

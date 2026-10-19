@@ -2,8 +2,8 @@
 
 // thread-transcript - a thread's replies (plan UI Components, Step 1): each with who and when, its markdown
 // rendered, collapsed or expanded (every reply but the most recent collapsed by default, plan UI Tweaks VIII; a
-// choice made by hand is kept in State.Collapsed), the collapse controls when there are several, and the resolved
-// and applied records.
+// choice made by hand is kept in State.Collapsed), the collapse controls when there are several, and the resolved,
+// committed (plan LLM Tasks, Step 3: what the resolve of a build log committed) and applied records.
 //
 // Interface:
 //   <thread-transcript thread="..."></thread-transcript>
@@ -16,6 +16,27 @@ angular.module( 'Consensus' ).component( 'threadTranscript', {
 	controller: [ 'State', function ( State )
 	{
 		let controller = this;
+
+
+		// The Work options' record (plan LLM Tasks, Step 3): what the resolve of a build log committed and pushed.
+		controller.GitLine = function ()
+		{
+			let git = controller.thread.Git;
+			if ( !git )
+			{
+				return '';
+			}
+			let committed = git.Commit ? 'committed ' + git.Commit + ' on ' + git.Branch : '';
+			if ( git.Error )
+			{
+				return committed ? committed + ', ' + git.Error : 'commit failed: ' + git.Error;
+			}
+			if ( !git.Commit )
+			{
+				return 'nothing to commit';
+			}
+			return committed + ( ( git.Pushed === true ) ? ', pushed' : '' );
+		};
 
 
 		// A reply with no recorded choice follows the default, "collapse earlier" (plan UI Tweaks VIII): in a thread

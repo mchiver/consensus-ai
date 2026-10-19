@@ -7,9 +7,10 @@
 // folder, posting as the presser through the connection (plan User Management, Step 2: the run token the server
 // mints, Tokens, names the connection as the Service and carries the task's Writes, so the run's posts read
 // "<connection> by <owner>" and a none run is refused every write). A run reaches this server at its own address
-// (Url), so a run is always on this machine.
+// (Url), so a run is always on this machine. The Work options (plan LLM Tasks, Step 3): a run of a task with Writes
+// files pulls first when the project's GitSync is on (Git.js), a failed pull refusing the run; the record keeps git's words.
 //
-//   Runner( { Store, Settings, Runs, Url, Tokens } ) -> { Lists( Request ), Package( Request, Token? ), Start( Request, By ) }
+//   Runner( { Store, Settings, Runs, Url, Tokens, Git? } ) -> { Lists( Request ), Package( Request, Token? ), Start( Request, By ) }
 //   Url(): this server's address, what a run's tools and prompt reach it at; null when it does not listen.
 //   Lists( { Project, Plan?, Llm? } ) -> { Documents, Threads, Speaker } | { Error }
 //   Package( { Llm, Task, Project, Plan?, Text?, Overrides? }, Token? ) -> { Prompt, Llm, Task, Writes, Text, Project, Plan, Folder, Speaker } | { Error }
@@ -33,6 +34,7 @@ function Runner( Options )
 	let settings = Options.Settings;
 	let runs = Options.Runs;
 	let tokens = Options.Tokens || null;
+	let git = Options.Git || null;
 	let url_of = Options.Url || function () { return null; };
 
 
@@ -256,8 +258,9 @@ function Runner( Options )
 
 
 	//-----------------------------------------------------------------
-	// Start: the run's token minted (named after the task, carrying its Writes), the package made with it, the run
-	// begun, By the presser's account name; the token is dropped if the run cannot start, and by Runs when it ends.
+	// Start: the run's token minted (named after the task, carrying its Writes), the package made with it, the pull
+	// when the task writes files and the project syncs (Step 3), the run begun, By the presser's account name; the
+	// token is dropped if the run cannot start, and by Runs when it ends.
 
 	async function Start( Request, By )
 	{
@@ -276,6 +279,21 @@ function Runner( Options )
 			drop( token );
 			return { Error: made.Error, Status: 400 };
 		}
+		let pulled = null;
+		if ( made.Writes === 'files' && made.Folder && git )
+		{
+			let project = await project_of( request.Project );
+			if ( project && project.GitSync )
+			{
+				let result = await git.Pull( made.Folder.Path );
+				if ( !result.Ok )
+				{
+					drop( token );
+					return { Error: 'git pull failed in ' + made.Folder.Path + ': ' + last_lines( result.Output ), Status: 400 };
+				}
+				pulled = { Pull: result.Output };
+			}
+		}
 		let server = null;
 		if ( made.Llm.Kind === 'ollama' )
 		{
@@ -283,7 +301,7 @@ function Runner( Options )
 		}
 		try
 		{
-			let run = runs.Start( { Llm: made.Llm, Task: made.Task, Writes: made.Writes, Text: made.Text, By: By || null, Token: token, Project: made.Project, Plan: made.Plan, Folder: made.Folder, Prompt: made.Prompt, Server: server } );
+			let run = runs.Start( { Llm: made.Llm, Task: made.Task, Writes: made.Writes, Text: made.Text, By: By || null, Token: token, Project: made.Project, Plan: made.Plan, Folder: made.Folder, Prompt: made.Prompt, Server: server, Git: pulled } );
 			return { Run: run };
 		}
 		catch ( error )
@@ -300,6 +318,14 @@ function Runner( Options )
 		{
 			tokens.Drop( token.Value );
 		}
+	}
+
+
+	// The last lines of git's words, for a refusal.
+	function last_lines( text )
+	{
+		let lines = String( text || '' ).trim().split( /\r?\n/ );
+		return lines.slice( -3 ).join( ' ' ) || 'no output';
 	}
 
 

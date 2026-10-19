@@ -44,7 +44,7 @@ GET    /api/settings                             owner; the settings as they are
 PUT    /api/settings                             owner; { Settings }  the whole file, checked
 GET    /api/projects                             every project with its tree, its Archive, States and Path; Context and ContextFolder
 POST   /api/projects                             { Name, Path? }  Path: the project's folder; one holding a project already is opened
-PUT    /api/projects/:pid                        { Name?, States?, Include?, Exclude?, Commands?, Version? }  lists, or lines of text; Tasks: the enabled task ids, null for all
+PUT    /api/projects/:pid                        { Name?, States?, Include?, Exclude?, Commands?, Version? }  lists, or lines of text; Tasks: the enabled task ids, null for all; GitSync, AutoCommit: the Work options, true or false
 DELETE /api/projects/:pid                        an empty project; never the last one
 POST   /api/projects/:pid/folders                { Name, Parent?, Version? }
 PUT    /api/projects/:pid/folders/:fid           { Name, Version? }
@@ -71,7 +71,7 @@ GET    /api/plans/:id/threads[?status=]      all | contested | resolved | applie
 POST   /api/plans/:id/threads                { Anchor: { Text, Prefix?, Suffix? } | null, Text, Resolve? }
 POST   /api/plans/:id/threads/:tid/replies   { Text, Resolve? }  reopens a resolved thread
 POST   /api/plans/:id/threads/:tid/anchor    { Anchor }  re-anchor
-POST   /api/plans/:id/threads/:tid/resolve   owner only
+POST   /api/plans/:id/threads/:tid/resolve   owner only; a build log of a project with AutoCommit on is committed (and pushed with GitSync), the thread's Git the record
 DELETE /api/plans/:id/threads/:tid           owner only
 POST   /api/plans/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
 GET    /api/trash                                what is there
@@ -86,7 +86,7 @@ POST   /api/llms/:id/check                       owner; tried as saved, the body
 DELETE /api/llms/:id                             owner; not while it runs; its speaker goes with it
 GET    /api/runs/lists?Project=&Plan=&Llm=       the other Context documents, the plan's threads waiting on the connection
 POST   /api/runs/package                         { Llm, Task, Project, Plan?, Text?, Overrides? }  the prompt a run would get; Task the task's id, Text the box's text
-POST   /api/runs                                 { Llm, Task, Project, Plan?, Text? }  a run started as the presser through the connection, on a token named after the task that carries its Writes (a none run is refused every write); one per connection at a time
+POST   /api/runs                                 { Llm, Task, Project, Plan?, Text? }  a run started as the presser through the connection, on a token named after the task that carries its Writes (a none run is refused every write); one per connection at a time; a run that writes files pulls first when the project's GitSync is on, and is refused when the pull fails
 GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
 GET    /api/runs/:id                             the whole record, the output as it stands
 POST   /api/runs/:id/stop                        a running one stopped

@@ -39,6 +39,12 @@
 			<label for="llm-box">Instructions</label>
 			<textarea class="form-control form-control-sm" id="llm-box" rows="2" ng-model="Box.Text" ng-change="BoxChanged()" placeholder="your instructions for {{ BoxNames() }}, put under 'Your instructions' in the package" title="the text {{ BoxNames() }} packages after the task's prompt; kept per project in this browser"></textarea>
 		</div>
+		<!-- The Work options (plan LLM Tasks, Step 3): the project's GitSync and AutoCommit, shown when an enabled task writes files, saved on change. -->
+		<div class="settings-row" id="llm-git-row" ng-show="FilesTasks().length">
+			<label>Git</label>
+			<label class="llm-git-option" title="pull before a run of {{ FilesNames() }}, and push after an auto-commit; the project's folder must be a git checkout with an upstream"><input type="checkbox" id="llm-git-sync" ng-model="Git.Sync" ng-change="GitChanged()" ng-disabled="!IsOwner() || Git.Busy"> Git sync</label>
+			<label class="llm-git-option" title="commit the working tree when you resolve a build log posted by {{ FilesNames() }}: the plan's title as the subject, the log as the message"><input type="checkbox" id="llm-auto-commit" ng-model="Git.AutoCommit" ng-change="GitChanged()" ng-disabled="!IsOwner() || Git.Busy"> Auto-commit</label>
+		</div>
 		<div class="thread-buttons">
 			<!-- One button per task the project enables (plan LLM Tasks, Step 1), in the server's order. -->
 			<button class="btn btn-sm btn-primary llm-task-run" type="button" id="llm-run-{{ task.Id }}" ng-repeat="task in Tasks() track by task.Id" ng-click="Run( task )" ng-disabled="!CanRun( task )" title="{{ TaskTitle( task ) }}"><svg class="icon lead"><use href="#i-play"></use></svg>{{ task.Name }}</button>
@@ -161,6 +167,7 @@
 			</div>
 			<div class="muted small run-command">{{ RunPopup.Run.Command }}{{ RunPopup.Run.Project && RunPopup.Run.Project.Path ? ' in ' + RunPopup.Run.Project.Path : '' }}</div>
 			<div class="small run-instructions" id="run-instructions" ng-show="RunPopup.Run.Text"><span class="muted">Instructions:</span> {{ RunPopup.Run.Text }}</div>
+			<div class="small run-instructions" id="run-git" ng-show="RunPopup.Run.Git"><span class="muted">Git pull:</span> {{ RunPopup.Run.Git.Pull }}</div>
 			<div class="thread-buttons">
 				<button class="btn btn-sm btn-outline-secondary" type="button" id="run-close" ng-click="CloseRun()"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
 				<button class="btn btn-sm btn-outline-secondary" type="button" ng-show="RunPopup.Run.Status === 'running'" ng-click="RefreshRun()"><svg class="icon lead"><use href="#i-refresh"></use></svg>Refresh</button>

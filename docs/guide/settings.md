@@ -55,7 +55,7 @@ The gear at the right end of the title bar opens the look: the theme (light, dar
 The config folder, `.consensus` in your user folder by default or the one `--config` names, holds the settings, `consensus.json`, whose `Projects` list the project folders in display order (a folder opened from the command line goes to the top). Each project is a folder of its own, a repository as a rule, with a `.consensus` sub-folder that is the project; a project made with no folder named goes under `projects/` in the config folder. Everything is plain files:
 
 ```
-<project>/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands
+<project>/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands, its Tasks, and its Work options GitSync and AutoCommit
 <project>/.consensus/content/<id>/content.md    a plan's or document's text
 <project>/.consensus/content/<id>/content.json  its record
 <project>/.consensus/content/<id>/threads.json  its threads

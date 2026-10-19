@@ -14,11 +14,11 @@
 //   Tokens: the server's RunTokens (Participants.js); a run's token (Request.Token, minted by the Runner) is dropped when it ends.
 //   Request = { Llm, Task: { Id, Name }, Writes, Text, By, Token: { Value, Name } | null, Project: { Id, Name, Path }, Plan: { Id, Title } | null,
 //               Folder: { Path, Include, Exclude, Commands } | null (the project's folder, the run's working folder),
-//               Prompt, Server?: { Url, Token, Project } (an ollama run's Consensus tools) }
-//   record  = { Id, Llm: { Id, Name }, Task, Writes, Text, By, Service, Token, Project, Plan, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
+//               Prompt, Server?: { Url, Token, Project } (an ollama run's Consensus tools), Git?: { Pull } (the pull before the run, Step 3) }
+//   record  = { Id, Llm: { Id, Name }, Task, Writes, Text, Git, By, Service, Token, Project, Plan, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
 //             By the presser's account, Service the connection's name, Token the run token's name: the three fields of the plan.
 //             Task the button's task (plan LLM Tasks, Step 1; a record from before has Kind instead), Writes its level,
-//             Text the person's instructions from the task's box (Step 2), null without.
+//             Text the person's instructions from the task's box (Step 2), null without; Git the pull's words (Step 3), null without.
 //   Status  = 'running' | 'done' | 'failed' | 'stopped'
 
 const FS = require( 'fs' );
@@ -123,6 +123,7 @@ function Runs( Options )
 			Task: Request.Task ? { Id: Request.Task.Id, Name: Request.Task.Name } : null,
 			Writes: Request.Writes || null,
 			Text: Request.Text || null,
+			Git: Request.Git || null,
 			By: Request.By || null,
 			Service: llm.Name,
 			Token: Request.Token ? Request.Token.Name : null,

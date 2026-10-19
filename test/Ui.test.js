@@ -1593,3 +1593,24 @@ TEST( 'Printing and Reporting: Report in a plan\'s row menu, the heading\'s butt
 	ASSERT.ok( html.includes( 'id="plan-' + subplan.Id + '"' ) );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
+
+
+
+TEST( 'the Work options (plan LLM Tasks, Step 3): the LLM page shows Git sync and Auto-commit when a task writes files, and a checkbox saves on the project', async function ()
+{
+	let llm = ( await api( 'POST', '/api/llms', { Name: 'worker', Kind: 'claude-cli', Command: process.execPath, Arguments: [ '-e', '' ], Timeout: 60 } ) ).Llm;
+	await page.Evaluate( 'window.location.hash = "#/llm/' + llm.Id + '"; true' );
+	await page.WaitFor( count_of( '#llm-git-row input[type=checkbox]' ) + ' === 2' );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "llm-git-row" ) ).display !== "none"' ), true );
+	ASSERT.deepEqual( await page.Evaluate( '[ document.getElementById( "llm-git-sync" ).checked, document.getElementById( "llm-auto-commit" ).checked ]' ), [ false, false ] );
+	await page.Click( '#llm-auto-commit' );
+	await page.WaitFor( 'document.getElementById( "llm-auto-commit" ).checked && !document.getElementById( "llm-auto-commit" ).disabled' );
+	let project = ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === home; } );
+	ASSERT.deepEqual( [ project.AutoCommit, project.GitSync ], [ true, undefined ] );
+	await page.Click( '#llm-auto-commit' );
+	await page.WaitFor( '!document.getElementById( "llm-auto-commit" ).checked && !document.getElementById( "llm-auto-commit" ).disabled' );
+	project = ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === home; } );
+	ASSERT.equal( project.AutoCommit, undefined );
+	await api( 'DELETE', '/api/llms/' + llm.Id );
+	ASSERT.deepEqual( page.Errors, [] );
+} );

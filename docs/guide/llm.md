@@ -42,7 +42,7 @@ When every thread of a plan is resolved and applied, you say "build it". The ses
 
 ![A build log: one whole-document thread, applied once the owner accepted it.](../images/build-log.png)
 
-You accept by resolving the build log; the session applies it, commits the work in your repository, sets the plan to Finished and brings the project's Readme up to date. You send it back by replying instead: it fixes what the reply asks and reports again on the same thread. Nothing is committed until it is accepted, and nothing in Consensus ever branches, commits or pushes on its own.
+You accept by resolving the build log; the session applies it, commits the work in your repository, sets the plan to Finished and brings the project's Readme up to date. You send it back by replying instead: it fixes what the reply asks and reports again on the same thread. Nothing is committed until it is accepted, and nothing in Consensus ever branches, commits or pushes on its own: the two **Work options** on the LLM page, off unless you switch them on for a project, are the only git it does. **Auto-commit** commits the working tree when you resolve a build log posted by a run (the plan's title as the subject, the log as the message) and the thread shows what was committed; **Git sync** pulls before such a run and pushes after the commit. Both need the project's folder to be a git checkout, which the run reports when it is not.
 
 ## Connections and runs
 
@@ -57,7 +57,7 @@ The **LLM page** runs a **task** once, on the project and plan picked. A task is
 
 - **Answer** reads the plan, the threads waiting on it and the folder, replies and applies. Writes consensus: replies, applies, threads and states, no files.
 - **Enhance** makes a plan from a sketch: it reads the plan, the Readme and your instructions from the box, posts a detailed text as one revision and opens a thread for each open question. Answer the threads and press Enhance again, or Answer, until the plan stands. Writes consensus, no folder needed.
-- **Work** carries out the plan in the folder, with write, edit and the commands you allowed. Writes files.
+- **Work** carries out the plan in the folder, with write, edit and the commands you allowed, and posts the build log. Writes files; the Work options apply to its runs.
 - **Session** is a run with your own prompt, the connection's Session Prompt, over the Readme and the documents. Writes files.
 
 Writes is the permission: the run's token carries it, so a task with Writes none is refused every write by the server whatever the model tries, and a local model gets the read tools only. Make your own tasks in the Settings popup: a task is a few words of prompt and the switches, and it is not about software unless its prompt is.

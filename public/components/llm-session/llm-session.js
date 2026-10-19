@@ -8,7 +8,8 @@
 //   <llm-session></llm-session>
 //   reads State.OpenItem (the connection), State.View; the runs, the connections and the tasks through Llms (plan LLM
 //   Tasks, Step 1: one Run button per task the picked project enables, in the server's order; Step 2: a text box for
-//   the tasks with a Box, its text kept per project in the browser and sent as the run's Text)
+//   the tasks with a Box, its text kept per project in the browser and sent as the run's Text; Step 3: the Git row,
+//   the project's GitSync and AutoCommit as two checkboxes when an enabled task writes files, saved on change)
 
 angular.module( 'Consensus' ).component( 'llmSession', {
 	templateUrl: '/components/llm-session/llm-session.html',
@@ -41,6 +42,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		$scope.Box = { Text: '' };	// the person's instructions for the tasks with a Box
 		$scope.PickerOpen = false;
 		$scope.Runs = [];
+		$scope.Git = { Sync: false, AutoCommit: false, Busy: false };	// the project's Work options (Step 3)
 		$scope.Error = null;
 		$scope.Busy = false;
 		$scope.Details = null;		// the Details popup: { Form, Problems, Checked, Busy }
@@ -123,6 +125,11 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 			if ( project_changed )
 			{
 				$scope.Box.Text = $scope.Project ? String( window.ConsensusStored.Read( BOX_KEY + ':' + $scope.Project.Id, '', root ) || '' ) : '';
+			}
+			if ( !$scope.Git.Busy )
+			{
+				$scope.Git.Sync = !!( $scope.Project && $scope.Project.GitSync );
+				$scope.Git.AutoCommit = !!( $scope.Project && $scope.Project.AutoCommit );
 			}
 			// the plan at hand: the one picked, else the plan last opened in this project
 			let plans = plan_rows();
@@ -230,6 +237,45 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 			{
 				window.ConsensusStored.Write( BOX_KEY + ':' + $scope.Project.Id, $scope.Box.Text || '', current_root() );
 			}
+		};
+
+
+		// The tasks that write files (the Work options apply to their runs, plan LLM Tasks, Step 3), and their names.
+		$scope.FilesTasks = function ()
+		{
+			return $scope.Tasks().filter( function ( task ) { return task.Writes === 'files'; } );
+		};
+
+
+		$scope.FilesNames = function ()
+		{
+			return $scope.FilesTasks().map( function ( task ) { return task.Name; } ).join( ' and ' );
+		};
+
+
+		// A Work option changed: saved on the project at once; a refusal puts the checkbox back.
+		$scope.GitChanged = async function ()
+		{
+			if ( !$scope.Project || $scope.Git.Busy )
+			{
+				return;
+			}
+			$scope.Git.Busy = true;
+			$scope.Error = null;
+			try
+			{
+				let answer = await Client.Put( current_root(), '/api/projects/' + encodeURIComponent( $scope.Project.Id ), { GitSync: !!$scope.Git.Sync, AutoCommit: !!$scope.Git.AutoCommit } );
+				$scope.Project.GitSync = !!answer.Project.GitSync;
+				$scope.Project.AutoCommit = !!answer.Project.AutoCommit;
+			}
+			catch ( error )
+			{
+				$scope.Error = error.message;
+				$scope.Git.Sync = !!$scope.Project.GitSync;
+				$scope.Git.AutoCommit = !!$scope.Project.AutoCommit;
+			}
+			$scope.Git.Busy = false;
+			$scope.$applyAsync();
 		};
 
 

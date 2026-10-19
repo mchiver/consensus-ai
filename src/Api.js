@@ -32,7 +32,9 @@ const CONTEXT_KEPT = 'the Context folder and its Readme stay as they are: never 
 
 
 //---------------------------------------------------------------------
-// Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Runs?, Runner? }
+// Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Runs?, Runner?, Git? }
+// Git (plan LLM Tasks, Step 3: the Work options): the commit and push when the owner resolves a build log of a
+// project whose AutoCommit is on, the thread keeping the record.
 
 function Attach( App, Context )
 {
@@ -41,6 +43,7 @@ function Attach( App, Context )
 	let events = Context.Events;
 	let runs = Context.Runs || null;
 	let runner = Context.Runner || null;
+	let git = Context.Git || null;
 	let tokens = Context.Tokens || null;
 	let router = EXPRESS.Router();
 	router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
@@ -782,8 +785,9 @@ function Attach( App, Context )
 	} );
 
 
-	// A project's Name, and its own States, Include, Exclude and Commands (each a list, or lines of text); a state still
-	// used by one of its plans cannot be removed.
+	// A project's Name, its own States, Include, Exclude and Commands (each a list, or lines of text), its Tasks, and
+	// its GitSync and AutoCommit (Step 3; false is dropped from the file); a state still used by one of its plans cannot
+	// be removed.
 	router.put( '/projects/:pid', async function ( request, response )
 	{
 		let body = request.body || {};
@@ -819,14 +823,21 @@ function Attach( App, Context )
 			{
 				delete project.Tasks;
 			}
+			for ( let flag of [ 'GitSync', 'AutoCommit' ] )
+			{
+				if ( project[ flag ] === false )
+				{
+					delete project[ flag ];
+				}
+			}
 		} );
 		send_result( response, result, 200, { Project: result.Project } );
 	} );
 
 
 	// The project's lists as a body gives them: States (one or more names, none twice), Include, Exclude and Commands
-	// (any lines), and Tasks (plan LLM Tasks, Step 1: the enabled ids; null enables them all, the list dropped).
-	// Returns { Values, Problems }.
+	// (any lines), Tasks (plan LLM Tasks, Step 1: the enabled ids; null enables them all, the list dropped), and the
+	// Work options GitSync and AutoCommit (Step 3: true or false). Returns { Values, Problems }.
 	function project_fields( body )
 	{
 		let values = {};
@@ -857,6 +868,13 @@ function Attach( App, Context )
 		{
 			let ids = ( Array.isArray( body.Tasks ) ? body.Tasks : [] ).map( function ( id ) { return String( id ).trim(); } );
 			values.Tasks = ids.filter( function ( id, index ) { return id && ids.indexOf( id ) === index; } );
+		}
+		for ( let flag of [ 'GitSync', 'AutoCommit' ] )
+		{
+			if ( body[ flag ] !== undefined )
+			{
+				values[ flag ] = ( body[ flag ] === true );
+			}
 		}
 		return { Values: values, Problems: problems };
 	}
@@ -1532,6 +1550,14 @@ function Attach( App, Context )
 		{
 			let kind = result.Resolved ? 'resolved' : ( result.Reopened ? 'reopened' : 'reply' );
 			changed( id, kind, result.Thread.Id );
+			if ( result.Resolved )
+			{
+				let record = await after_resolve( id, result.Thread );
+				if ( record )
+				{
+					result.Thread.Git = record;
+				}
+			}
 		}
 		return result;
 	}
@@ -1621,8 +1647,78 @@ function Attach( App, Context )
 			return;
 		}
 		changed( id, 'resolved', result.Id );
+		let record = await after_resolve( id, result );
+		if ( record )
+		{
+			result.Git = record;
+		}
 		response.json( { Thread: result } );
 	} );
+
+
+	// The Work options (plan LLM Tasks, Step 3): a build log the owner resolves is committed when the project's
+	// AutoCommit is on (git add -A, git commit: the plan's title the subject, the log's opening reply the body) and
+	// pushed after when its GitSync is on; the thread keeps the record as Git. A build log is a whole-document thread
+	// opened by a run of a task with Writes files on this plan: the opening reply's Service and Token name match a
+	// run record of the plan. A failure leaves the resolve standing. Returns the record, or null when nothing applies.
+	async function after_resolve( id, thread )
+	{
+		if ( !git || !runs || thread.Anchor || !thread.Replies.length )
+		{
+			return null;
+		}
+		let opener = thread.Replies[ 0 ];
+		if ( !opener.Service || !opener.Token )
+		{
+			return null;
+		}
+		let run = runs.List().find( function ( record )
+		{
+			return record.Plan && record.Plan.Id === id && record.Writes === 'files' && record.Service === opener.Service && record.Token === opener.Token;
+		} );
+		if ( !run )
+		{
+			return null;
+		}
+		let project = await store.ProjectOf( id );
+		if ( !project || !project.AutoCommit || !project.Path )
+		{
+			return null;
+		}
+		let read = await store.ReadPlan( id );
+		let message = read.Plan.Title + '\n\n' + String( opener.Text || '' ).trim() + '\n';
+		let committed = await git.Commit( project.Path, message );
+		let record = { Commit: committed.Commit, Branch: committed.Branch, Pushed: null, Error: committed.Ok ? null : last_lines( committed.Output ), At: now() };
+		if ( committed.Ok && committed.Commit && project.GitSync )
+		{
+			let pushed = await git.Push( project.Path );
+			record.Pushed = pushed.Ok;
+			if ( !pushed.Ok )
+			{
+				record.Error = 'push failed: ' + last_lines( pushed.Output );
+			}
+		}
+		await store.Queue( id, async function ()
+		{
+			let again = await store.ReadPlan( id );
+			let kept = again ? find_thread( again, thread.Id ) : null;
+			if ( kept )
+			{
+				kept.Git = record;
+				await store.WriteThreads( id, again.Threads );
+			}
+		} );
+		changed( id, 'committed', thread.Id );
+		return record;
+	}
+
+
+	// The last lines of git's words, for the record.
+	function last_lines( text )
+	{
+		let lines = String( text || '' ).trim().split( /\r?\n/ );
+		return lines.slice( -3 ).join( ' ' ) || 'no output';
+	}
 
 
 	// Delete: owner only, any thread. The revisions that applied it keep their text and their Thread id.
