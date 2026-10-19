@@ -2,8 +2,9 @@
 
 // Settings - the server's settings (consensus.json) in a popup, for the owner (plan Consensus Desktop, Step 1): the
 // Name, the Scope and Port (applied at the next start; plan Run Shapes, Step 1), the States one per line, and the
-// participants with their roles and tokens. Saved through PUT /api/settings; the server's problems are shown and
-// nothing is saved while there are any.
+// participants with their roles and tokens, and the Clerk section (plan User Management, Step 1: the keys of a Public
+// server's sign-in, empty for a trusted network; a line beside the Scope says what the two come to). Saved through
+// PUT /api/settings; the server's problems are shown and nothing is saved while there are any.
 
 angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 {
@@ -24,13 +25,26 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 {
 	const ROLES = [ 'owner', 'llm', 'member' ];
 	const SCOPES = [ 'None', 'Local', 'Public' ];
+	const CLERK_FIELDS = [ 'PublishableKey', 'SecretKey', 'WebhookSecret', 'AdminEmail' ];
 	$scope.Panel = SettingsPanel;
 	$scope.Roles = ROLES;
 	$scope.Scopes = SCOPES;
 
 
+	// The Clerk section as the form holds it: the four fields as strings, empty for none.
+	function clerk_form( clerk )
+	{
+		let form = {};
+		for ( let field of CLERK_FIELDS )
+		{
+			form[ field ] = ( clerk && typeof clerk[ field ] === 'string' ) ? clerk[ field ] : '';
+		}
+		return form;
+	}
+
+
 	// The settings as the form holds them: the states as text, one per line; each participant with its Token as a
-	// string (empty for none).
+	// string (empty for none); the Clerk section as four strings.
 	function to_form( settings )
 	{
 		return {
@@ -42,6 +56,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 			{
 				return { Name: participant.Name || '', Display: participant.Display || '', Role: participant.Role || 'member', Token: participant.Token || '' };
 			} ),
+			Clerk: clerk_form( settings.Clerk ),
 		};
 	}
 
@@ -57,8 +72,34 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 			{
 				return { Name: participant.Name, Display: participant.Display, Role: participant.Role, Token: participant.Token };
 			} ),
+			Clerk: form.Clerk,
 		};
 	}
+
+
+	// What the form's Scope and Clerk keys come to (plan User Management, Step 1), said beneath the Scope.
+	$scope.TrustNote = function ()
+	{
+		let form = SettingsPanel.Form;
+		if ( !form )
+		{
+			return '';
+		}
+		if ( form.Scope === 'None' )
+		{
+			return 'None: no server is started; the desktop is a client of other servers only.';
+		}
+		if ( form.Scope === 'Local' )
+		{
+			return 'Local: this machine only. A request is the owner.';
+		}
+		let keyed = !!( form.Clerk && form.Clerk.PublishableKey.trim() && form.Clerk.SecretKey.trim() );
+		if ( keyed )
+		{
+			return 'Public with Clerk keys: people will sign in through Clerk and Consensus will hold their roles (plan Clerk, not active yet). Until then every request is the owner.';
+		}
+		return 'Public without Clerk: a trusted network. Every request is the owner, so anyone who can reach this server acts as the owner.';
+	};
 
 
 	// Opened by a root's Settings (the sidebar): that server's settings, read afresh each time.

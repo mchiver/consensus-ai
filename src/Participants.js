@@ -10,6 +10,9 @@
 // Public) says whether the server listens and for whom, in place of Host; Name is the server's; a file from before
 // is brought up to date by Migrate. Step 3: every LLM connection of the settings (Llms, see Llms.js) is a participant
 // too, Role llm, named <connection Name>@<server Name>, with the connection's Token: All lists both kinds.
+// Plan User Management, Step 1: an optional Clerk section (PublishableKey, SecretKey, WebhookSecret, AdminEmail) is
+// kept, checked and cleaned here; nothing reads it yet (Step 2 and the subplan Clerk do). Trust says what a Scope
+// and the section come to: local, trusted (Public with no Clerk keys: every request is the owner), clerk, or none.
 
 const CRYPTO = require( 'crypto' );
 const OS = require( 'os' );
@@ -21,7 +24,10 @@ const SCOPES = [ 'None', 'Local', 'Public' ];
 const DEFAULT_SCOPE = 'Local';
 const SCOPE_HOSTS = { None: null, Local: '127.0.0.1', Public: '0.0.0.0' };
 const LOCAL_HOSTS = [ '127.0.0.1', 'localhost', '::1' ];
-const SETTINGS_FIELDS = [ 'Name', 'Port', 'Scope', 'States', 'Participants' ];
+const SETTINGS_FIELDS = [ 'Name', 'Port', 'Scope', 'States', 'Participants', 'Clerk' ];
+const CLERK_FIELDS = [ 'PublishableKey', 'SecretKey', 'WebhookSecret', 'AdminEmail' ];
+const CLERK_PREFIXES = { PublishableKey: 'pk_', SecretKey: 'sk_', WebhookSecret: 'whsec_' };
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RETIRED_FIELDS = [ 'Corpus', 'Context', 'Workers' ];	// from before plan Consensus Desktop, Step 1
 
 
@@ -178,7 +184,72 @@ function Migrate( Settings )
 
 
 //---------------------------------------------------------------------
-// Validate: the settings are usable: Name, Scope and Port when given, States, and the participant list.
+// The Clerk section (plan User Management, Step 1): four texts, each may be empty; a key given starts with Clerk's
+// prefix, the Admin's email is an email. HasClerk: both keys given. Trust: what a Scope and the section come to.
+
+function validate_clerk( Clerk )
+{
+	if ( !Clerk || typeof Clerk !== 'object' || Array.isArray( Clerk ) )
+	{
+		return [ 'Clerk must be an object with ' + CLERK_FIELDS.join( ', ' ) + ' as text' ];
+	}
+	let problems = [];
+	for ( let field of CLERK_FIELDS )
+	{
+		let value = Clerk[ field ];
+		if ( value === undefined || value === null || value === '' )
+		{
+			continue;
+		}
+		if ( typeof value !== 'string' )
+		{
+			problems.push( 'Clerk ' + field + ' must be text' );
+			continue;
+		}
+		if ( CLERK_PREFIXES[ field ] && !value.startsWith( CLERK_PREFIXES[ field ] ) )
+		{
+			problems.push( 'Clerk ' + field + ' starts with ' + CLERK_PREFIXES[ field ] );
+		}
+		if ( field === 'AdminEmail' && !EMAIL.test( value ) )
+		{
+			problems.push( 'Clerk AdminEmail must be an email address' );
+		}
+	}
+	return problems;
+}
+
+
+function HasClerk( Settings )
+{
+	let clerk = ( Settings && Settings.Clerk && typeof Settings.Clerk === 'object' ) ? Settings.Clerk : null;
+	if ( !clerk )
+	{
+		return false;
+	}
+	let publishable = ( typeof clerk.PublishableKey === 'string' ) && clerk.PublishableKey.trim();
+	let secret = ( typeof clerk.SecretKey === 'string' ) && clerk.SecretKey.trim();
+	return !!( publishable && secret );
+}
+
+
+function Trust( Settings )
+{
+	let scope = Scope( Settings );
+	if ( scope === 'None' )
+	{
+		return 'none';
+	}
+	if ( scope === 'Local' )
+	{
+		return 'local';
+	}
+	return HasClerk( Settings ) ? 'clerk' : 'trusted';
+}
+
+
+//---------------------------------------------------------------------
+// Validate: the settings are usable: Name, Scope and Port when given, States, the participant list, and the Clerk
+// section when given.
 
 function Validate( Settings )
 {
@@ -198,6 +269,10 @@ function Validate( Settings )
 	if ( Settings.Name !== undefined && ( typeof Settings.Name !== 'string' || !Settings.Name.trim() ) )
 	{
 		problems.push( 'Name must be a name' );
+	}
+	if ( Settings.Clerk !== undefined && Settings.Clerk !== null )
+	{
+		problems = problems.concat( validate_clerk( Settings.Clerk ) );
 	}
 	let participants = Settings.Participants;
 	if ( !Array.isArray( participants ) )
@@ -277,7 +352,8 @@ function States( Settings )
 
 //---------------------------------------------------------------------
 // Clean: the settings as the modal sends them, kept to the known fields, each participant to its own: Name, Display,
-// Role and Token (none when empty). The result is what Validate checks and what is written.
+// Role and Token (none when empty); the Clerk section to its four texts, trimmed, and dropped when all are empty
+// (absent means a trusted network). The result is what Validate checks and what is written.
 
 function Clean( Settings )
 {
@@ -319,6 +395,30 @@ function Clean( Settings )
 			return kept;
 		} );
 	}
+	if ( clean.Clerk === null )
+	{
+		delete clean.Clerk;
+	}
+	else if ( clean.Clerk && typeof clean.Clerk === 'object' && !Array.isArray( clean.Clerk ) )
+	{
+		let kept_clerk = {};
+		for ( let field of CLERK_FIELDS )
+		{
+			let value = clean.Clerk[ field ];
+			if ( typeof value === 'string' && value.trim() )
+			{
+				kept_clerk[ field ] = value.trim();
+			}
+		}
+		if ( Object.keys( kept_clerk ).length )
+		{
+			clean.Clerk = kept_clerk;
+		}
+		else
+		{
+			delete clean.Clerk;
+		}
+	}
 	return clean;
 }
 
@@ -330,6 +430,9 @@ module.exports = {
 	SCOPES: SCOPES,
 	DEFAULT_SCOPE: DEFAULT_SCOPE,
 	SETTINGS_FIELDS: SETTINGS_FIELDS,
+	CLERK_FIELDS: CLERK_FIELDS,
+	HasClerk: HasClerk,
+	Trust: Trust,
 	DefaultSettings: DefaultSettings,
 	Scope: Scope,
 	HostOf: HostOf,

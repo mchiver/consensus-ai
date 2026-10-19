@@ -31,7 +31,7 @@ Settled in the chats of 2026-10-18 and 19 and written out in User Management, Th
 ## The order
 
 1. Promotion and Monetization Steps 1 to 3, alongside everything below.
-2. User Management Steps 1 and 2: the trusted-network wording, the participants and connection tokens out of consensus.json, runs as the presser. Little a single user sees changes: a thread header may carry the byline "Claude-CLI by owner".
+2. User Management Step 1 (the Clerk settings section and the trusted-network wording; nothing else changes), then Step 2 (the identity change: participants and connection tokens out of consensus.json, run tokens, the byline as the speaker). Little a single user sees changes: a thread header may carry the byline "Claude-CLI by owner".
 3. LLM Tasks: the tasks as records, then Enhance and the Work options, which make the single-user loop better before any team exists; Explain, which is what a Watcher is for; the guide page with them. Multiuser Step 3, the run queue, with the tasks.
 4. Promotion and Monetization Step 4: the desktop license and the run quota, the first money.
 5. User Management Step 3, Multiuser Steps 1 and 2 and Clerk Steps 1 to 5: users, the roles of Accounts and Roles, the rules among many parties, sign-in, the production instance.

@@ -191,6 +191,29 @@ TEST( 'identity: no header is the owner, the token is the llm, a wrong token is 
 } );
 
 
+TEST( 'settings: the Clerk section (plan User Management, Step 1) is kept, checked and dropped when empty', async function ()
+{
+	let read = ( await call( 'GET', '/api/settings' ) ).Body.Settings;
+	ASSERT.equal( 'Clerk' in read, false );
+	let keyed = Object.assign( {}, read, { Clerk: { PublishableKey: ' pk_test_1 ', SecretKey: 'sk_test_1', WebhookSecret: '', AdminEmail: 'andre@example.com' } } );
+	let written = await call( 'PUT', '/api/settings', { Settings: keyed } );
+	ASSERT.equal( written.Status, 200 );
+	ASSERT.equal( written.Body.Restart, false );
+	ASSERT.deepEqual( written.Body.Settings.Clerk, { PublishableKey: 'pk_test_1', SecretKey: 'sk_test_1', AdminEmail: 'andre@example.com' } );
+	ASSERT.deepEqual( JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).Clerk, { PublishableKey: 'pk_test_1', SecretKey: 'sk_test_1', AdminEmail: 'andre@example.com' } );
+	// a problem: nothing written
+	let bad = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read, { Clerk: { PublishableKey: 'pk_x', AdminEmail: 'nobody' } } ) } );
+	ASSERT.equal( bad.Status, 400 );
+	ASSERT.deepEqual( bad.Body.Problems, [ 'Clerk AdminEmail must be an email address' ] );
+	ASSERT.deepEqual( ( await call( 'GET', '/api/settings' ) ).Body.Settings.Clerk, { PublishableKey: 'pk_test_1', SecretKey: 'sk_test_1', AdminEmail: 'andre@example.com' } );
+	// emptied: the section leaves the file
+	let emptied = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read, { Clerk: { PublishableKey: '', SecretKey: '', WebhookSecret: '', AdminEmail: '' } } ) } );
+	ASSERT.equal( emptied.Status, 200 );
+	ASSERT.equal( 'Clerk' in emptied.Body.Settings, false );
+	ASSERT.equal( 'Clerk' in JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ), false );
+} );
+
+
 TEST( 'settings: the owner reads and writes consensus.json; problems are refused; Scope and Port wait for a restart; other fields stay', async function ()
 {
 	ASSERT.equal( ( await call( 'GET', '/api/settings', undefined, true ) ).Status, 403 );

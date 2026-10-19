@@ -753,6 +753,17 @@ body
 	flex: 0 0 7rem;
 }
 
+.settings-row .settings-clerk
+{
+	font-family: var(--bs-font-monospace);
+	font-size: 0.8rem;
+}
+
+.settings-trust
+{
+	margin: -0.1rem 0 0.4rem;
+}
+
 .settings-label
 {
 	display: flex;

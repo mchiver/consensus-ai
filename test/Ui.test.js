@@ -1058,6 +1058,9 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-name" ).value' ), running.Settings.Name );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-scope" ).selectedOptions[ 0 ].textContent.trim()' ), 'Local' );
 	ASSERT.match( await page.Evaluate( 'document.getElementById( "settings-states" ).value' ), /^Draft\nPlan\nWorking\nFinished$/ );
+	// plan User Management, Step 1: the line beneath the Scope and the empty Clerk section
+	ASSERT.match( await page.Evaluate( text_of( '#settings-trust' ) ), /^Local: this machine only/ );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-clerk-publishable" ).value' ), '' );
 	ASSERT.equal( await page.Evaluate( count_of( '.settings-participant' ) ), 2 );
 	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".settings-participant .settings-token" ) ][ 1 ].value' ), LLM_TOKEN );
 	// a participant with no role left: refused, the problem shown, nothing written

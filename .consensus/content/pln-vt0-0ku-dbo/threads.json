@@ -548,5 +548,63 @@
 				"Text": "Understood on 1: tasks are defined per server and enabled per project. That wording is now in LLM Tasks (revision 17), and Accounts and Roles will say it the same way when the division is applied.\n\nOn 2, put more plainly. Accounts and Roles says of a Member: \"can use any LLM Task\". LLM Tasks says which tasks a role may press is read from each task's Writes level: none for every role, consensus or files for Owners and Members. Both give a Member every task today, so there is no disagreement now. The question is which sentence is the rule when a new task appears, say one with Writes files that a team wants kept from Members. If the Writes level is the rule, the task's record decides and nothing else changes. If \"any task\" is the rule, roles would need a task list of their own. My recommendation is the Writes level as the rule, with Accounts and Roles stating what it comes to for each role today.\n\nThe division itself (this page keeps the model, registry, tokens, runs, Admin and migration; Accounts and Roles takes the account types and roles, this page's Authorization section moving there, and defines Service; Multiuser keeps the rules) stands as proposed. Resolve this thread with no reply to take the division and the recommendation on 2, and I move the section; reply if either should differ."
 			}
 		]
+	},
+	{
+		"Id": "thr-fqw-3vl-wof",
+		"Anchor": {
+			"Text": "Scope and trust.",
+			"Prefix": " sharing between servers. Steps ",
+			"Suffix": " The Clerk section in the settin"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T06:16:05.945Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-19T06:17:09.803Z",
+			"Revision": 22,
+			"RevisionId": "rev-ub4-poc-54e",
+			"Outcome": "Resolved with no reply: all four taken. Steps 1 and 2 re-cut as proposed: Step 1 is the Clerk settings section and the trusted-network wording alone; Step 2 the whole identity change with the byline-as-speaker rule from Multiuser and the agent session's service header. Step 1 is built on this resolve."
+		},
+		"Created": "2026-10-19T05:38:45.324Z",
+		"Replies": [
+			{
+				"Id": "rep-nh8-ysr-jxq",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-19T05:38:45.324Z",
+				"Text": "Design turn for Step 1, before building: as written, Step 1 cannot keep every current behaviour, because the participants are what the rules run on. The decisions, each with a recommendation; resolve with no reply to take them all and I rewrite Steps 1 and 2 and build Step 1.\n\n**What the code says.** Participants are not only a settings section. Rules.Turn, the tally, the waiting list, the page's filters (waiting on me, on the llm), the Report's header and an import's unknown-names check all read the participants list; a connection's Token is what a one-shot and an Ollama run use to call the API, and /instructions serves the llm token this agent session posts with. Take the Participants section and the connection tokens out of consensus.json alone, and the runs stop calling the API, the agent session posts as plain owner, and the waiting list goes quiet, because a plan with one participant waits on nobody.\n\n1. **Re-cut Steps 1 and 2.** Step 1 becomes the settings alone: the Clerk section (publishable key, secret key, webhook secret, the Admin's email; kept, validated, shown in the Settings popup, used by nothing yet) and the trusted-network wording beside the Scope. No identity change; nothing a user or a run sees differs. Step 2 becomes the whole identity change in one build: the Participants section and the connection tokens leave consensus.json and the popup; the server mints a token per run in memory; a request is the owner on Local and trusted-network servers, or a run token, or 401; the X-Consensus-Service header is read; records carry By, Token and Service; the byline is shown; /instructions serves no token. Recommendation: yes, because Step 2's pieces are what keep the behaviour Step 1 promises to keep.\n\n2. **Fold Multiuser Step 1's speaker rule into that Step 2.** The rules run over speakers, and once the participants list is gone the speakers are the bylines: the owner, and \"<connection> by owner\" for each run or session. Without it the waiting list stops working on a Local server. Recommendation: yes; Multiuser Step 1 then keeps the rest of its rules (starter resolves, State by Owners, narrower waiting) for its own build.\n\n3. **The agent session after Step 2.** On a Local server it sends no token and declares itself with the header (\"X-Consensus-Service: Claude-CLI\"), so its threads read \"Claude-CLI by User\" as they read \"Claude-CLI\" today; the guide and this session's own setup change with it. Recommendation: yes; the owner's named tokens of Step 3 are not needed for that.\n\n4. **Build Step 1 now, as re-cut.** Small: Participants.js (the Clerk fields in SETTINGS_FIELDS, Validate, Clean), the Settings popup (a Clerk section and the Scope wording), tests, the guide's settings page. Recommendation: yes, on this resolve; Step 2 on your word after."
+			}
+		]
+	},
+	{
+		"Id": "thr-b9n-nyb-gua",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-19T06:25:29.207Z"
+		},
+		"Applied": {
+			"By": "Claude-CLI@Cube12",
+			"At": "2026-10-19T06:25:57.023Z",
+			"Revision": 22,
+			"RevisionId": "rev-ub4-poc-54e",
+			"Outcome": "Accepted: resolved with no reply. Step 1 committed as \"User Management Step 1: Scope and trust\"; the plan back to Plan; the Readme updated."
+		},
+		"Created": "2026-10-19T06:22:51.308Z",
+		"Replies": [
+			{
+				"Id": "rep-5kl-41i-dt5",
+				"By": "Claude-CLI@Cube12",
+				"At": "2026-10-19T06:22:51.308Z",
+				"Text": "**Build log: User Management Step 1 (Scope and trust), built by Claude Fable 5.1 on 2026-10-19.** The settings alone, as re-cut: the Clerk section and the trusted-network wording. No identity change; the plan stays Working until this log is accepted.\n\n**Built**\n\n- `src/Participants.js`: `Clerk` is a settings field (SETTINGS_FIELDS). `validate_clerk` checks the section when given: an object of four texts (PublishableKey, SecretKey, WebhookSecret, AdminEmail), each may be empty; a key given starts with Clerk's prefix (pk_, sk_, whsec_), the Admin's email is an email. `Clean` keeps the four texts trimmed and drops the section when all are empty or it is null (absent means a trusted network); a wrong shape is left for Validate to name. Two exported helpers for Step 2 and the subplan Clerk: `HasClerk( Settings )` (both keys given) and `Trust( Settings )`, what a Scope and the section come to: local, trusted (Public with no keys), clerk, or none. The header comment says so.\n- `public/js/settings.js` and `public/index.html`: a Clerk section in the Settings popup after the States (publishable key, secret key and webhook secret as password fields, Admin email), round-tripped through the form; `TrustNote()` beneath the Scope says in one line what the form's Scope and keys come to (\"Local: this machine only. A request is the owner.\", \"Public without Clerk: a trusted network. Every request is the owner, so anyone who can reach this server acts as the owner.\", and the with-keys line marked not active yet). `public/css/consensus.css`: the key fields in monospace, the note's margin.\n- The API needed no change: PUT /api/settings cleans, validates and writes the section through the same path as the other fields, and the empty section leaves the file.\n- Docs: `docs/guide/settings.md` (the trust line under Name, scope and port; a Clerk section; the optional `Clerk` section in the file) and the Features page line; `node bin/docs.js build` run (settings.png not re-shot; the picture predates the Clerk section).\n\n**Checked**\n\n- `test/Participants.test.js`: a new test over Validate, Clean, HasClerk and Trust (all the prefixes, the email, null, empty, a wrong shape).\n- `test/Api.test.js`: a new test writes the section through PUT /api/settings, reads it back from the answer and the file, sees a bad email refused with nothing written, and sees the emptied section leave the file.\n- `test/Ui.test.js`: the settings popup test now also reads the trust line (\"Local: this machine only\") and the empty publishable-key field.\n- `node --test`: 204 pass, 0 fail (202 before, plus the two new).\n\n**Decided during the build**\n\n- The prefix checks (pk_, sk_, whsec_) are Clerk's own key formats; they catch a key pasted into the wrong box.\n- The secret key and the webhook secret are password fields in the popup; the publishable key and the email are plain.\n- The with-keys line says \"not active yet\" rather than promising a sign-in, since nothing reads the section until Step 2 and the subplan Clerk.\n- `Trust` lives in Participants.js beside Scope, so Step 2 reads one function.\n\nNothing is committed. Resolve to accept: I apply this log, commit as \"User Management Step 1: Scope and trust\", set the plan back to Plan, and update the Readme. Reply with what to fix instead."
+			}
+		]
 	}
 ]

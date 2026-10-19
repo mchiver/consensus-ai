@@ -194,9 +194,23 @@
 				<label for="settings-port">Port</label>
 				<input class="form-control form-control-sm settings-port" id="settings-port" type="number" min="0" max="65535" ng-model="Panel.Form.Port" title="the port at its next start">
 			</div>
+			<div class="muted small settings-trust" id="settings-trust">{{ TrustNote() }}</div>
 			<div class="settings-row top">
 				<label for="settings-states">States</label>
 				<textarea class="form-control form-control-sm" id="settings-states" rows="4" ng-model="Panel.Form.StatesText" placeholder="one state per line; a new plan starts in the first" title="the states a plan is picked from, one per line; one in use by a plan cannot be removed"></textarea>
+			</div>
+			<div class="settings-label">Clerk <span class="muted small fw-normal">sign-in for a Public server (plan Clerk); leave empty for a trusted network</span></div>
+			<div class="settings-row">
+				<label for="settings-clerk-publishable">Publishable key</label>
+				<input class="form-control form-control-sm settings-clerk" id="settings-clerk-publishable" ng-model="Panel.Form.Clerk.PublishableKey" placeholder="pk_…" title="the Clerk instance's publishable key; the page will load Clerk with it" autocomplete="off">
+				<label for="settings-clerk-secret">Secret key</label>
+				<input class="form-control form-control-sm settings-clerk" id="settings-clerk-secret" type="password" ng-model="Panel.Form.Clerk.SecretKey" placeholder="sk_…" title="the Clerk instance's secret key; the server will verify sessions with it" autocomplete="off">
+			</div>
+			<div class="settings-row">
+				<label for="settings-clerk-webhook">Webhook secret</label>
+				<input class="form-control form-control-sm settings-clerk" id="settings-clerk-webhook" type="password" ng-model="Panel.Form.Clerk.WebhookSecret" placeholder="whsec_…" title="the signing secret of the webhook that will keep the users in step with Clerk" autocomplete="off">
+				<label for="settings-clerk-admin">Admin email</label>
+				<input class="form-control form-control-sm" id="settings-clerk-admin" type="email" ng-model="Panel.Form.Clerk.AdminEmail" placeholder="admin@example.com" title="the one Administrator of this server, by the email they sign in with" autocomplete="off">
 			</div>
 			<div class="settings-label">Participants <button class="btn btn-sm btn-outline-secondary" type="button" id="settings-add-participant" ng-click="AddParticipant()"><svg class="icon lead"><use href="#i-plus"></use></svg>Add</button></div>
 			<div class="settings-participant" ng-repeat="participant in Panel.Form.Participants">

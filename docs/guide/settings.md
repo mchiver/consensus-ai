@@ -8,9 +8,15 @@
 
 The server's name, shown to its clients; its Scope, which says whether it listens and for whom: **Local** on this machine only, **Public** on every interface, **None** not at all (the desktop then is a client of other servers only); and its port. Scope and Port take effect at the next start, and the popup says so.
 
+A line beneath them says what the Scope comes to. Local is this machine only, and a request is the owner. Public without Clerk keys is a **trusted network**: every request is the owner, so anyone who can reach the server acts as the owner. Public with Clerk keys will sign people in through Clerk once that plan is built; until then it is a trusted network too.
+
 ## States
 
 The states a plan's state is picked from, one per line: Draft, Plan, Working and Finished by default. A new plan starts in the first. A state still used by a plan cannot be removed. The first state was called Proposal before; a server whose list still names Proposal and not Draft renames it once at its next start, in the settings and in every plan in that state.
+
+## Clerk
+
+The sign-in of a Public server (plan Clerk, not active yet): the publishable key, the secret key and the webhook secret of your Clerk instance, and the email of the server's one Administrator. Leave all four empty for a trusted network; an empty section is not written. A key given is checked for its prefix (`pk_`, `sk_`, `whsec_`) and the email for its shape.
 
 ## Participants
 
@@ -41,7 +47,7 @@ The settings are `consensus.json` in the config folder, written at first start:
 }
 ```
 
-The server's LLM connections are in the same file (`Llms`, kept through the page's LLM list; see [Working with an LLM](llm.html)), and so are the desktop's own fields (`Servers`, `Theme`, `Scale`, `Remembered`); the popup touches neither. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a `Host`, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine's.
+An optional `Clerk` section holds the four fields above. The server's LLM connections are in the same file (`Llms`, kept through the page's LLM list; see [Working with an LLM](llm.html)), and so are the desktop's own fields (`Servers`, `Theme`, `Scale`, `Remembered`); the popup touches neither. The file is read once at start, so an edit by hand needs a restart; the popup does not. A file from before, with a `Host`, is brought up to date at the next start: a local address becomes Scope Local, any other Public, and a missing Name becomes the machine's.
 
 ## Theme and size
 

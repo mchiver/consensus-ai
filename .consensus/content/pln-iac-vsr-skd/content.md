@@ -55,7 +55,7 @@ The consensus rules when more than two parties work a plan. Today the parties ar
 
 ## Steps
 
-1. The rules in `src/Rules.js`: resolve by starter or Owner, the waiting rules with the byline as the speaker, apply by write access, State by Owners; every rule asserted in `test/Rules.test.js`; the API routes read them.
+1. The rules in `src/Rules.js`: resolve by starter or Owner, the waiting rules (the byline as the speaker is built with User Management Step 2, since the participants list goes there), apply by write access, State by Owners; every rule asserted in `test/Rules.test.js`; the API routes read them.
 2. The page: the waiting counts and filters over the new rules; the Resolve button shown to the starter and the Owners; the State menu to Owners.
 3. The run queue, one per plan, with its line in the toast and the run record.
 4. The guide: the consensus rules page rewritten for a team, and the agent instructions' "Your turn" rewritten as Answer's.
