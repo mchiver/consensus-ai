@@ -61,5 +61,6 @@
 
 - **Everything over one REST API.** Projects, plans, threads, revisions, runs and settings, the same routes the page uses. See [The API](api.html).
 - **Users and roles.** The accounts of a server (the owner, the users the Administrator makes, the Service accounts), each with its page, its tokens made and revoked there, and its activity; a project's Users folder with Owners, Members, Service and Watchers, filled by drag; every request checked against the role, with the reason when refused.
+- **Sign in through Clerk.** A Public server with Clerk keys signs people in through Clerk, in the page, with no password of its own; a first sign-in writes the account to the registry, the webhook keeps it following Clerk, and Consensus holds the roles. See [Settings and themes](settings.html).
 - **Events.** A stream of what changed, for anything that wants to follow along.
 - **MIT licensed.** The code is public and free to use, change and run anywhere.

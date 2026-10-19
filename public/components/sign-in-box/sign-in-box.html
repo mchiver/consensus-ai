@@ -1,0 +1,8 @@
+<div class="subplan-popup settings-popup sign-in-popup" id="sign-in-popup" ng-if="$ctrl.Shown()">
+	<div class="subplan-form sign-in-form">
+		<div class="subplan-head">Sign in to {{ $ctrl.Name() }}</div>
+		<div class="muted small">This server signs people in through Clerk. Once signed in you see the projects you have a role in; an account new to the server sees the Users folder alone until an Owner or the Administrator places it in a project.</div>
+		<div class="sign-in-mount" id="sign-in-mount" clerk-mount="sign-in"></div>
+		<div class="sign-in-error small" ng-if="$ctrl.Session.Error">{{ $ctrl.Session.Error }}</div>
+	</div>
+</div>

@@ -155,7 +155,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		let keyed = !!( form.Clerk && form.Clerk.PublishableKey.trim() && form.Clerk.SecretKey.trim() );
 		if ( keyed )
 		{
-			return 'Public with Clerk keys: people will sign in through Clerk and Consensus will hold their roles (plan Clerk, not active yet). Until then every request is the owner.';
+			return 'Public with Clerk keys: people sign in through Clerk and Consensus holds their roles. A request with no session and no token is refused.';
 		}
 		return 'Public without Clerk: a trusted network. Every request is the owner, so anyone who can reach this server acts as the owner.';
 	};

@@ -5,6 +5,7 @@
 		<a class="waiting-link" ng-href="#/waiting" ng-class="{ open: $ctrl.State.View === 'waiting' }" id="waiting-link" title="the threads waiting on you, on every server">Waiting on you: {{ $ctrl.WaitingCount() }}</a>
 		<a class="running-link" ng-if="$ctrl.RunningCount()" ng-href="{{ $ctrl.RunningHref() }}" id="running-link" title="{{ $ctrl.RunningTitle() }}">Running: {{ $ctrl.RunningCount() }}</a>
 	</div>
+	<span class="user-button" id="user-button" ng-if="$ctrl.Session.SignedIn()" clerk-mount="user" title="your account; sign out is in its menu"></span>
 	<button class="title-button look-button" type="button" id="look-button" ng-class="{ shown: $ctrl.LookOpen }" ng-click="$ctrl.ToggleLook($event)" title="the theme, the size and the editor"><svg class="icon"><use href="#i-gear"></use></svg></button>
 	<div class="look-popover" id="look-popover" ng-if="$ctrl.LookOpen">
 		<look-controls></look-controls>

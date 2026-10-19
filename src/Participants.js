@@ -169,7 +169,8 @@ function account_of( owner, service, token, writes, users )
 }
 
 
-// A user or Service account on its own token (Step 3).
+// A user or Service account on its own token (Step 3), or a user on a Clerk session (Step 4: Clerk.js finds the
+// record, the API builds the account; token null).
 function user_account( settings, users, record, service, token )
 {
 	let account = { Id: record.Id, Name: record.Login, Display: record.Display, Role: record.Type, Type: record.Type, Admin: users.IsAdmin( settings, record ), Service: service || null, Token: token || null, Writes: null };
@@ -619,6 +620,7 @@ module.exports = {
 	ServiceOf: ServiceOf,
 	RunTokens: RunTokens,
 	Identify: Identify,
+	UserAccount: user_account,
 	Public: Public,
 	Speaker: Speaker,
 	SpeakerOf: SpeakerOf,

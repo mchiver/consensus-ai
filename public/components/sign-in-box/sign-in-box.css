@@ -1,0 +1,27 @@
+/* sign-in-box: the popup's frame and form are the page's (.subplan-popup, .subplan-form in consensus.css); the box
+   Clerk's form is mounted in is its own (plan User Management, Step 4). */
+
+sign-in-box
+{
+	display: contents;
+}
+
+.sign-in-form
+{
+	width: min( 30rem, calc( 100% - 2rem ) );
+	align-items: center;
+	text-align: center;
+}
+
+.sign-in-mount
+{
+	display: flex;
+	justify-content: center;
+	width: 100%;
+	min-height: 8rem;
+}
+
+.sign-in-error
+{
+	color: var(--danger, #b02a37);
+}

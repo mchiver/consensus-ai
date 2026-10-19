@@ -29,6 +29,7 @@
 	<link rel="stylesheet" href="/components/users-fold/users-fold.css">
 	<link rel="stylesheet" href="/components/user-page/user-page.css">
 	<link rel="stylesheet" href="/components/roles-folder/roles-folder.css">
+	<link rel="stylesheet" href="/components/sign-in-box/sign-in-box.css">
 	<link rel="stylesheet" href="/components/html-view/html-view.css">
 	<link rel="stylesheet" href="/components/selection-buttons/selection-buttons.css">
 	<link rel="stylesheet" href="/components/close-prompt/close-prompt.css">
@@ -352,6 +353,9 @@
 	<!-- The prompt before tabs with unsaved edits close (plan Markdown Editor, Step 4). -->
 	<close-prompt></close-prompt>
 
+	<!-- Clerk's sign-in (plan User Management, Step 4), when the server signs people in and refused the request. -->
+	<sign-in-box></sign-in-box>
+
 	<!-- Help (plan UI Tweaks VI): About, and the hotkeys. -->
 	<div class="subplan-popup settings-popup help-popup" id="help-popup" ng-controller="HelpController" ng-show="Panel.Open" ng-keydown="Key($event)">
 		<div class="subplan-form settings-form help-form" ng-if="Panel.Open === 'about'" tabindex="-1" auto-focus>
@@ -418,6 +422,7 @@
 	<script src="/js/stored.js"></script>
 	<script src="/js/layout.js"></script>
 	<script src="/js/client.js"></script>
+	<script src="/js/session.js"></script>
 	<script src="/js/render.js"></script>
 	<script src="/js/editor.js"></script>
 	<script src="/js/mirror.js"></script>
@@ -463,6 +468,7 @@
 	<script src="/components/users-fold/users-fold.js"></script>
 	<script src="/components/user-page/user-page.js"></script>
 	<script src="/components/roles-folder/roles-folder.js"></script>
+	<script src="/components/sign-in-box/sign-in-box.js"></script>
 	<script src="/components/comment-editor/comment-editor.js"></script>
 	<script src="/components/thread-filters/thread-filters.js"></script>
 	<script src="/components/thread-list/thread-list.js"></script>

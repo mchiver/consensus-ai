@@ -34,7 +34,10 @@ const CONTEXT_KEPT = 'the Context folder and its Readme stay as they are: never 
 
 
 //---------------------------------------------------------------------
-// Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Runs?, Runner?, Git?, Users? }
+// Attach: mounts the routes on an Express app. Context = { Store, Settings, Events, Runs?, Runner?, Git?, Users?, Clerk? }
+// Clerk (plan User Management, Step 4): the sign-in of a shared server; a Clerk session token is its user's account, a
+// bare request on a Public server with Clerk keys is refused, and GET /clerk and POST /clerk/webhook serve the page and
+// Clerk's events before identify.
 // Users (plan User Management, Step 3): the registry; a user token is its account, every route is checked against
 // the account's role in the project (authorize), and the users routes serve the Users folder and the user pages.
 // Git (plan LLM Tasks, Step 3: the Work options): the commit and push when the owner resolves a build log of a
@@ -50,7 +53,14 @@ function Attach( App, Context )
 	let git = Context.Git || null;
 	let tokens = Context.Tokens || null;
 	let users = Context.Users || null;
+	let clerk = Context.Clerk || null;
 	let router = EXPRESS.Router();
+	// Before identify (Step 4): what the page needs to sign in, and Clerk's events over the raw body.
+	router.get( '/clerk', function ( request, response )
+	{
+		response.json( clerk ? clerk.Config() : { On: false, PublishableKey: null, FrontendApi: null } );
+	} );
+	router.post( '/clerk/webhook', EXPRESS.raw( { type: function () { return true; }, limit: '1mb' } ), clerk_webhook );
 	router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
 	router.use( identify );
 	router.use( authorize );
@@ -61,13 +71,31 @@ function Attach( App, Context )
 	// X-Consensus-Service header, or a run on its run token; an unknown token is refused. request.Participant is the
 	// account: { Name, Display, Role, Service, Token, Writes, Speaker }, Speaker the key the rules run over. A run
 	// whose task writes nothing (plan LLM Tasks, Step 1: Writes none) is refused every request but a read.
+	// Step 4: with Clerk keys a Bearer value that is no token of ours is tried as a Clerk session token, its user the
+	// account; on a Public server with Clerk a bare request is refused with "sign in" (on Local it stays the owner).
 
-	function identify( request, response, next )
+	async function identify( request, response, next )
 	{
-		let participant = PARTICIPANTS.Identify( settings, { Authorization: request.get( 'Authorization' ), Service: request.get( PARTICIPANTS.SERVICE_HEADER ) }, tokens, users );
+		let authorization = ( request.get( 'Authorization' ) || '' ).trim();
+		let service = request.get( PARTICIPANTS.SERVICE_HEADER );
+		if ( !authorization && PARTICIPANTS.Trust( settings ) === 'clerk' )
+		{
+			return fail( response, 401, 'sign in' );
+		}
+		let participant = PARTICIPANTS.Identify( settings, { Authorization: authorization, Service: service }, tokens, users );
+		let session = false;
+		if ( !participant && clerk && clerk.On() )
+		{
+			let match = /^Bearer\s+(.+)$/i.exec( authorization );
+			session = !!( match && clerk.Looks( match[ 1 ].trim() ) );
+			if ( session )
+			{
+				participant = await clerk_participant( match[ 1 ].trim(), service, request.get( 'host' ) );
+			}
+		}
 		if ( !participant )
 		{
-			return fail( response, 401, 'unknown token' );
+			return fail( response, 401, session ? 'sign in' : 'unknown token' );
 		}
 		if ( participant.Writes === 'none' && request.method !== 'GET' && request.method !== 'HEAD' )
 		{
@@ -75,6 +103,80 @@ function Attach( App, Context )
 		}
 		request.Participant = participant;
 		next();
+	}
+
+
+	// A Clerk session token (Step 4): the registry record of its subject as the account, fetched from Clerk and
+	// written when the registry lacks it; null when the token is no live session of this instance.
+	async function clerk_participant( value, service, host )
+	{
+		let record = null;
+		try
+		{
+			record = await clerk.Identify( value, host );
+		}
+		catch ( error )
+		{
+			record = null;
+		}
+		return record ? PARTICIPANTS.UserAccount( settings, users, record, PARTICIPANTS.ServiceOf( service ), null ) : null;
+	}
+
+
+	// Clerk's events (Step 4), signed the Svix way over the raw body: the registry follows them (Clerk.Handle), and an
+	// account Clerk removed goes out of every project's role folders too.
+	async function clerk_webhook( request, response )
+	{
+		if ( !clerk || !users )
+		{
+			return fail( response, 404, 'no Clerk on this server' );
+		}
+		let body = Buffer.isBuffer( request.body ) ? request.body.toString( 'utf8' ) : '';
+		if ( !clerk.VerifyWebhook( request.headers, body ) )
+		{
+			return fail( response, 401, 'bad webhook signature' );
+		}
+		let event = null;
+		try
+		{
+			event = JSON.parse( body );
+		}
+		catch ( error )
+		{
+			return fail( response, 400, 'the body is not JSON' );
+		}
+		let handled = clerk.Handle( event );
+		if ( handled.Removed )
+		{
+			await clear_roles( handled.Removed.Id );
+		}
+		if ( handled.Record || handled.Removed )
+		{
+			events.Send( { Kind: 'users' } );
+		}
+		console.log( 'clerk webhook ' + handled.Line );
+		response.json( { Handled: handled.Type, Line: handled.Line } );
+	}
+
+
+	// An account out of every project's role folders (an account deleted, or removed by Clerk).
+	async function clear_roles( account_id )
+	{
+		for ( let project of await store.ListProjects() )
+		{
+			if ( ROLES.RoleOf( project, account_id ) )
+			{
+				await change_project( project.Id, undefined, async function ( held )
+				{
+					let roles = ROLES.Clean( held.Roles );
+					for ( let role of ROLES.ROLES )
+					{
+						roles[ role ] = roles[ role ].filter( function ( id ) { return id !== account_id; } );
+					}
+					held.Roles = roles;
+				} );
+			}
+		}
 	}
 
 
@@ -2448,21 +2550,7 @@ function Attach( App, Context )
 		{
 			return fail( response, 409, 'the owner is not deleted' );
 		}
-		for ( let project of await store.ListProjects() )
-		{
-			if ( ROLES.RoleOf( project, record.Id ) )
-			{
-				await change_project( project.Id, undefined, async function ( held )
-				{
-					let roles = ROLES.Clean( held.Roles );
-					for ( let role of ROLES.ROLES )
-					{
-						roles[ role ] = roles[ role ].filter( function ( id ) { return id !== record.Id; } );
-					}
-					held.Roles = roles;
-				} );
-			}
-		}
+		await clear_roles( record.Id );
 		users.Delete( record.Id );
 		events.Send( { Kind: 'users' } );
 		response.json( { Deleted: record.Id } );

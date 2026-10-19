@@ -8,7 +8,7 @@
 
 The server's name, shown to its clients; its Scope, which says whether it listens and for whom: **Local** on this machine only, **Public** on every interface, **None** not at all (the desktop then is a client of other servers only); and its port. Scope and Port take effect at the next start, and the popup says so.
 
-A line beneath them says what the Scope comes to. Local is this machine only, and a request is the owner. Public without Clerk keys is a **trusted network**: every request is the owner, so anyone who can reach the server acts as the owner. Public with Clerk keys will sign people in through Clerk once that plan is built; until then it is a trusted network too.
+A line beneath them says what the Scope comes to. Local is this machine only, and a request is the owner. Public without Clerk keys is a **trusted network**: every request is the owner, so anyone who can reach the server acts as the owner. Public with Clerk keys signs people in through Clerk: a request with no session and no token is refused, and everyone acts by their role in each project.
 
 ## States
 
@@ -16,11 +16,11 @@ The states a plan's state is picked from, one per line: Draft, Plan, Working and
 
 ## Clerk
 
-The sign-in of a Public server (plan Clerk, not active yet): the publishable key, the secret key and the webhook secret of your Clerk instance, and the email of the server's one Administrator. Leave all four empty for a trusted network; an empty section is not written. A key given is checked for its prefix (`pk_`, `sk_`, `whsec_`) and the email for its shape.
+The sign-in of a Public server (plan Clerk; User Management Step 4): the publishable key and the secret key of your Clerk instance (the API keys page of the dashboard), the signing secret of the webhook endpoint you point at `/api/clerk/webhook` on this server (user created, updated and deleted, organization created, organization membership created and deleted), and the email of the server's one Administrator. Leave all four empty for a trusted network; an empty section is not written. A key given is checked for its prefix (`pk_`, `sk_`, `whsec_`) and the email for its shape. Saved, the keys count at once: the page loads Clerk's sign-in, a person's first sign-in writes their account to the registry (matched by email to one you made by hand, or new with no role), and the person whose email is the Administrator's manages the server. On a Local server the keys are read too, for testing: a bare request stays the owner there.
 
 ## Owner
 
-The owner is the one account of a local or trusted-network server: a bare request is the owner (plan User Management; sign-in for a team comes with Clerk). Since User Management Step 3 the server keeps a registry beside the settings, `Users.json`, with the owner's record and, on a shared server, the accounts the Administrator makes on the sidebar's Users fold; each account's page holds its tokens (a request carrying one is that account) and a project's Users folder holds its role folders, Owners, Members, Service and Watchers. Its **name** is what threads and revisions record, kept as it is so the records of before still match; **Shown as** is how the page shows it, and anything done through a service or an LLM connection carries a byline, `<service> by <shown as>`, such as `Claude-CLI by User`. There are no participants and no tokens to manage: an agent session names itself with a header, and a run gets a token the server makes and forgets.
+The owner is the one account of a local or trusted-network server: a bare request is the owner (plan User Management; on a Public server with Clerk keys people sign in instead, see above). Since User Management Step 3 the server keeps a registry beside the settings, `Users.json`, with the owner's record and, on a shared server, the accounts the Administrator makes on the sidebar's Users fold; each account's page holds its tokens (a request carrying one is that account) and a project's Users folder holds its role folders, Owners, Members, Service and Watchers. Its **name** is what threads and revisions record, kept as it is so the records of before still match; **Shown as** is how the page shows it, and anything done through a service or an LLM connection carries a byline, `<service> by <shown as>`, such as `Claude-CLI by User`. There are no participants and no tokens to manage: an agent session names itself with a header, and a run gets a token the server makes and forgets.
 
 ## Tasks
 

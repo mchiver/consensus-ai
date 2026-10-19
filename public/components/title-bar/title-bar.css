@@ -124,3 +124,14 @@ title-bar
 	box-shadow: 0 6px 20px rgba( 0, 0, 0, 0.18 );
 	-webkit-app-region: no-drag;
 }
+
+/* Clerk's user button (plan User Management, Step 4), before the look button when someone is signed in. */
+
+.user-button
+{
+	display: inline-flex;
+	align-items: center;
+	min-width: 1.75rem;
+	min-height: 1.75rem;
+	-webkit-app-region: no-drag;
+}

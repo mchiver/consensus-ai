@@ -10,16 +10,18 @@
 //
 // Interface:
 //   <title-bar></title-bar>
-//   reads State.View, Roots.List (the waiting tallies), Llms.For( root ).Running; opens the Menus popup and the
+//   reads State.View, Roots.List (the waiting tallies), Llms.For( root ).Running, Session.SignedIn() (plan User
+//   Management, Step 4: Clerk's user button mounted when someone is signed in); opens the Menus popup and the
 //   HelpPanel popups; hears consensus-theme on the document; calls window.Desktop (the menu's desktop items) and
 //   window.ConsensusDesktop.SetChrome when the desktop is the host
 
 angular.module( 'Consensus' ).component( 'titleBar', {
 	templateUrl: '/components/title-bar/title-bar.html',
-	controller: [ '$scope', '$element', '$window', 'State', 'Roots', 'Llms', 'Menus', 'HelpPanel', function ( $scope, $element, $window, State, Roots, Llms, Menus, HelpPanel )
+	controller: [ '$scope', '$element', '$window', 'State', 'Roots', 'Llms', 'Menus', 'HelpPanel', 'Session', function ( $scope, $element, $window, State, Roots, Llms, Menus, HelpPanel, Session )
 	{
 		const MENU_KEY = 'app';
 		let controller = this;
+		controller.Session = Session;
 		let desktop = ( $window.Desktop && typeof $window.Desktop.Servers === 'function' ) ? $window.Desktop : null;
 		controller.State = State;
 		controller.LookOpen = false;

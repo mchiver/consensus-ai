@@ -352,7 +352,8 @@ Tokens, Created }), the owner's record made at the first start from the settings
 Local or trusted-network server holds the owner's alone. A token is minted on an account's page with a name, its
 value shown once and kept as a sha256; a request carrying it (`Authorization: Bearer`) is that account, the
 token's name recorded as Token beside the service header's name, the byline reading "<service> by <login>";
-a revoked token is nobody. A bare request is still the owner everywhere until plan Clerk brings the session. The
+a revoked token is nobody. A bare request is the owner on a Local or trusted-network server (Step 4: on a Public
+server with Clerk keys it is refused). The
 Administrator (the owner; on a Public server with Clerk the account whose email is the Clerk section's AdminEmail)
 makes accounts on the server-level **Users** fold in the sidebar (New user with a login, a display and an email, the
 record Clerk completes at the person's first sign-in; New Service account with a name) and mints a Service
@@ -372,6 +373,28 @@ is, and its package says who it acts for. The owner account passes every check, 
 changes. An account's page (`#/u/<id>`, `public/components/user-page/`) holds the details, the projects and the
 role in each, the tokens and the activity the threads and revisions record (`GET /api/users/:id/activity`); the
 Users fold is `public/components/users-fold/`, the role folders `public/components/roles-folder/`.
+
+**Sign-in through Clerk** (plan User Management, Step 4; the subplan Clerk, Steps 2 to 4) puts people on a shared
+server without a password of ours. The settings' Clerk section (the publishable key, the secret key, the webhook
+secret and the Administrator's email) turns it on; `src/Clerk.js` needs no package: a Clerk session token is an
+RS256 JWT, verified with Node's crypto against the instance's published keys (read from the Frontend API the
+publishable key names, cached, read again for an unknown key id), its exp and nbf with a minute's leeway, its
+issuer and, when it carries one, its azp against the request's host; a Bearer value that is no token of ours is
+tried as one, and its subject is the registry record with that Clerk id. A subject the registry lacks is fetched
+once from Clerk's Backend API with the secret key and written: matched by email to a record the Administrator
+made by hand, whose Clerk id is filled in, else a new user with a login made from the email (lowercased, other
+characters a dash, a number while taken) and no role. On a Public server with keys a bare request is refused with
+401 "sign in"; on Local it stays the owner and a session is accepted too, for testing against the development
+instance. The page asks `GET /api/clerk` (public: On, the publishable key, the Frontend API host; never the
+secret) and, when On, loads ClerkJS from that host; `public/js/session.js` hands every call to the page's own server
+the session token, a 401 shows Clerk's sign-in box in a popup (`public/components/sign-in-box/`), the title bar
+mounts Clerk's user button (sign out is in its menu), and a sign-in or sign-out reloads the page. The desktop stays
+on tokens. `POST /api/clerk/webhook`, before identify and verified the Svix way (HMAC-SHA256 over id, timestamp and
+the raw body with the whsec_ secret, five minutes' window), keeps the registry following Clerk: user.created and
+user.updated write or bring up the record, user.deleted removes it and its roles, organizationMembership.created
+writes the member with no role, organizationMembership.deleted removes it, organization.created is logged; each
+write sends { Kind: 'users' }. The production instance, our own OAuth applications and waitlist mode are dashboard
+work (Clerk Step 5); the guide pages are Step 5 of User Management.
 
 An `ollama` one-shot (plan Consensus Desktop, Step 4: Local Models) runs in the server: a local model has no
 tools of its own, so `Ollama.js` runs the tool loop over Ollama's chat endpoint, one request per round with

@@ -1684,3 +1684,15 @@ TEST( 'users and roles (plan User Management, Step 3): the Users fold holds the 
 	await page.WaitFor( count_of( '#users-list .user-row' ) + ' === 1' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
+
+
+TEST( 'Clerk off (plan User Management, Step 4): the page asks its server, finds no Clerk, shows no sign-in box and no user button, and the owner\'s calls carry no token', async function ()
+{
+	ASSERT.deepEqual( await api( 'GET', '/api/clerk' ), { On: false, PublishableKey: null, FrontendApi: null } );
+	await page.WaitFor( '( function () { let session = angular.element( document.body ).injector().get( "Session" ); return session.Loaded && !session.On && !session.Required; } )()' );
+	ASSERT.equal( await page.Evaluate( count_of( '#sign-in-popup' ) ), 0 );
+	ASSERT.equal( await page.Evaluate( count_of( '#user-button' ) ), 0 );
+	ASSERT.equal( await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Token().then( function ( token ) { return token === null; } )' ), true );
+	ASSERT.match( await page.Evaluate( text_of( '.root-head .me' ) ), /^you are User \(owner\)/ );
+	ASSERT.deepEqual( page.Errors, [] );
+} );

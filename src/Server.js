@@ -1,6 +1,6 @@
 'use strict';
 
-// Server - Start( { Config, Port, Scope, Project } ) returns { App, Address, Url, Settings, Store, Events, Close, ... }.
+// Server - Start( { Config, Port, Scope, Project, Clerk? } ) returns { App, Address, Url, Settings, Store, Events, Close, ... }.
 // The config folder (plan Run Shapes, Step 1) is <user>/.consensus unless given (Data is the older name of the same
 // option); its consensus.json holds the settings, whose Projects list the project folders (Step 2: Store.js). The server
 // listens as the Scope says (the option, else the settings', else Local): Local on 127.0.0.1, Public on 0.0.0.0, and
@@ -10,7 +10,9 @@
 // checked, the desktop's workspaces from before are moved into the projects, and the runs (Runs.js, their records in
 // <config>/runs/) and the Runner are attached to the API; a run's changes go out over the events. Step 4: Project
 // (a folder on the command line) loads that project alone, Scope None taken as Local for it; the configured port in
-// use (another instance) gives way to a free one, PortTaken saying which was taken.
+// use (another instance) gives way to a free one, PortTaken saying which was taken. Plan User Management, Step 4: Clerk
+// (Clerk.js) over the settings' Clerk section and the registry; the option Clerk = { Jwks, FetchUser } is the tests'
+// way of standing in for the instance.
 
 const PATH = require( 'path' );
 const OS = require( 'os' );
@@ -26,6 +28,7 @@ const RUNS = require( './Runs.js' );
 const RUNNER = require( './Runner.js' );
 const GIT = require( './Git.js' );
 const USERS = require( './Users.js' );
+const CLERK = require( './Clerk.js' );
 const ROLES = require( './Roles.js' );
 
 const DEFAULT_PORT = 3500;
@@ -91,6 +94,11 @@ async function Start( Options )
 	{
 		console.log( line );
 	}
+	let clerk = CLERK.Clerk( { Settings: settings, Users: users, Jwks: options.Clerk ? options.Clerk.Jwks : null, FetchUser: options.Clerk ? options.Clerk.FetchUser : null } );
+	if ( clerk.On() )
+	{
+		console.log( 'Clerk on: people sign in through ' + ( clerk.FrontendApi() || 'an instance the publishable key does not name' ) + ( PARTICIPANTS.Trust( settings ) === 'clerk' ? '' : ' (Scope Local: a bare request is still the owner)' ) );
+	}
 	let port = ( options.Port !== undefined ) ? options.Port : ( settings.Port || DEFAULT_PORT );
 	let scope = PARTICIPANTS.SCOPES.includes( options.Scope ) ? options.Scope : PARTICIPANTS.Scope( settings );
 	let scope_forced = false;
@@ -114,7 +122,7 @@ async function Start( Options )
 	} );
 	let git = GIT.Git();
 	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Url: function () { return url; }, Tokens: tokens, Git: git } );
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git, Users: users } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git, Users: users, Clerk: clerk } );
 	INSTRUCTIONS.Attach( app, { Settings: settings } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
@@ -168,6 +176,7 @@ async function Start( Options )
 		Settings: settings,
 		Tokens: tokens,
 		Users: users,
+		Clerk: clerk,
 		SettingsWritten: settings_written,
 		Store: store,
 		Events: events,
