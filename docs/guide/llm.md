@@ -61,6 +61,8 @@ The **LLM page** runs a **task** once, on the project and plan picked. A task is
 - **Explain** answers a question about the project: what it is, who did what and when, what is planned, why a thread was resolved as it was. It lives in the project's Explain tab (Explain in the project's menu; the button on the LLM page opens it): the exchange above, your question below, the answer when the run ends; Clear deletes the conversation's runs. Writes none: it reads through the API and posts nothing.
 - **Session** is a run with your own prompt, the connection's Session Prompt, over the Readme and the documents. Writes files.
 
+The same buttons are on a **plan's heading** (plan LLM Tasks, Step 6): the enabled tasks that package the plan, run through the **LLM connection** the project chose in its own Settings. Until it chose one they are greyed out and say so, and a server with no connection shows none. A task with a box asks for your instructions in a popup (the LLM page's box, shared); a line at the bottom says when the run started and when it ended, and the run is logged on the LLM page, where Stop is. The Explain tab asks the same connection.
+
 Writes is the permission: the run's token carries it, so a task with Writes none is refused every write by the server whatever the model tries, and a local model gets the read tools only. Make your own tasks in the Settings popup: a task is a few words of prompt and the switches, and it is not about software unless its prompt is.
 
 Every run is logged, newest first, with who asked for it, and opens in a popup with its prompt and its output rendered or as source. The records live in the config folder, under `runs/`.

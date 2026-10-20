@@ -267,6 +267,10 @@
 				<label for="project-commands">Commands</label>
 				<textarea class="form-control form-control-sm" id="project-commands" rows="2" ng-model="Panel.Form.CommandsText" placeholder="one command per line; none by default" title="the commands an LLM may run in the folder, one per line"></textarea>
 			</div>
+			<div class="settings-row">
+				<label for="project-llm">LLM connection</label>
+				<select class="form-select form-select-sm" id="project-llm" ng-model="Panel.Form.Llm" ng-options="llm.Id as llm.Name for llm in Panel.Form.Llms" title="the connection the task buttons on this project's plans and its Explain tab run through (plan LLM Tasks, Step 6); none: those buttons wait"><option value="">none</option></select>
+			</div>
 			<div class="settings-row top">
 				<label>Tasks</label>
 				<div class="project-tasks">

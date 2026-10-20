@@ -209,13 +209,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		// The tasks the picked project enables, in the server's order; a project with no list enables them all.
 		$scope.Tasks = function ()
 		{
-			let tasks = items().Tasks || [];
-			let enabled = $scope.Project ? $scope.Project.Tasks : null;
-			if ( !Array.isArray( enabled ) )
-			{
-				return tasks;
-			}
-			return tasks.filter( function ( task ) { return enabled.includes( task.Id ); } );
+			return Llms.TasksOf( current_root(), $scope.Project );
 		};
 
 
@@ -282,7 +276,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 
 		$scope.NeedsPlan = function ( task )
 		{
-			return !!task && !!task.Package && ( task.Package.Plan || task.Package.Threads );
+			return Llms.NeedsPlan( task );
 		};
 
 
@@ -661,34 +655,11 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 
 
 		// Why a task's button is disabled, or '' when it can run: no server runs, no one signed in, a run going, no
-		// project, no plan when the task packages one.
+		// project, no plan when the task packages one (plan LLM Tasks, Step 6: the rules are the Llms service's, shared
+		// with the plan's heading).
 		$scope.Reason = function ( task )
 		{
-			if ( !$scope.Llm )
-			{
-				return 'no connection';
-			}
-			if ( !items().Available )
-			{
-				return 'this server runs no LLMs';
-			}
-			if ( !$scope.MayRun() )
-			{
-				return 'no one is signed in';
-			}
-			if ( $scope.IsRunning() )
-			{
-				return 'a run is going';
-			}
-			if ( !$scope.Pick.Project )
-			{
-				return 'pick the project';
-			}
-			if ( $scope.NeedsPlan( task ) && !$scope.Pick.Plan )
-			{
-				return 'pick the plan at hand';
-			}
-			return '';
+			return Llms.Reason( current_root(), { Llm: $scope.Llm ? $scope.Llm.Id : null, Project: $scope.Pick.Project, Plan: $scope.Pick.Plan, Task: task } );
 		};
 
 

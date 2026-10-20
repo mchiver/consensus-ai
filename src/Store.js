@@ -6,7 +6,7 @@
 //
 //   <config>/consensus.json                            settings; its Projects: [ { Path } ] lists the project folders, in display order
 //   <project>/.consensus/project.json                  { Id, Name, Context, ContextFolder, Created, Updated, Version, Items: [ node ],
-//                                                      Archive: [ node ], States, Include, Exclude, Commands, Tasks, GitSync, AutoCommit,
+//                                                      Archive: [ node ], States, Include, Exclude, Commands, Tasks, GitSync, AutoCommit, Llm,
 //                                                      Roles: { Owners, Members, Service, Watchers } (account ids, plan User Management, Step 3) }  (see Tree.js)
 //                                                      Context: the id of the project's Readme; ContextFolder: the id of the Context
 //                                                      folder that holds it, first in Items; Archive: the archived plans, whole

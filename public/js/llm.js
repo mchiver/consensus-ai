@@ -8,7 +8,9 @@
 // in the project's folder on its own machine.
 //
 //   Llms      { For( root ) -> { Loaded, Available, Llms, Tasks, Running, Kinds, DefaultPrompts, Reload() }, LlmById( id ),
-//               RunChanged( root, event ); and the current root's Loaded, Available, Llms, Tasks, Running, Kinds, DefaultPrompts }
+//               RunChanged( root, event ); TasksOf( root, project ), NeedsPlan( task ), ProjectLlm( root, project ),
+//               Reason( root, pick ) (plan LLM Tasks, Step 6: the one set of rules the LLM page and the plan's heading
+//               ask); and the current root's Loaded, Available, Llms, Tasks, Running, Kinds, DefaultPrompts }
 //   route     #/llm/<llm id>, under #/s/<root> for a named root (plan Run Shapes, Step 5)
 
 angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State', 'Roots', function ( $rootScope, Client, State, Roots )
@@ -119,6 +121,73 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State'
 	}
 
 
+	// The tasks a project enables, in the server's order; a project with no list enables them all (plan LLM Tasks, Step 1).
+	function TasksOf( Root, Project )
+	{
+		let tasks = For( Root ).Tasks || [];
+		let enabled = Project ? Project.Tasks : null;
+		if ( !Array.isArray( enabled ) )
+		{
+			return tasks;
+		}
+		return tasks.filter( function ( task ) { return enabled.includes( task.Id ); } );
+	}
+
+
+	// A task that packages the plan or its threads needs one picked.
+	function NeedsPlan( Task )
+	{
+		return !!Task && !!Task.Package && !!( Task.Package.Plan || Task.Package.Threads );
+	}
+
+
+	// The connection a project chose (plan LLM Tasks, Step 6: project.json's Llm), while the server still has it.
+	function ProjectLlm( Root, Project )
+	{
+		let id = ( Project && typeof Project.Llm === 'string' ) ? Project.Llm : '';
+		if ( !id )
+		{
+			return null;
+		}
+		return For( Root ).Llms.find( function ( llm ) { return llm.Id === id; } ) || null;
+	}
+
+
+	// Why a task cannot run, or '' when it can (plan LLM Tasks, Step 6: one set of rules for the LLM page and the plan's
+	// heading): no connection, no server that runs, no one signed in, a run going on that connection, no project, no
+	// plan when the task packages one. Pick = { Llm: a connection's id or null, NoLlm: the words when there is none,
+	// Project: its id, Plan: its id, Task }.
+	function Reason( Root, Pick )
+	{
+		let items = For( Root );
+		if ( !Pick.Llm )
+		{
+			return Pick.NoLlm || 'no connection';
+		}
+		if ( !items.Available )
+		{
+			return 'this server runs no LLMs';
+		}
+		if ( !items.Root || !items.Root.Me )
+		{
+			return 'no one is signed in';
+		}
+		if ( items.Running[ Pick.Llm ] )
+		{
+			return 'a run is going';
+		}
+		if ( !Pick.Project )
+		{
+			return 'pick the project';
+		}
+		if ( NeedsPlan( Pick.Task ) && !Pick.Plan )
+		{
+			return 'pick the plan at hand';
+		}
+		return '';
+	}
+
+
 	// The current root's connections, as the panes read them when the page had one server.
 	let llms = {};
 
@@ -137,6 +206,10 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State'
 	llms.For = For;
 	llms.LlmById = LlmById;
 	llms.RunChanged = RunChanged;
+	llms.TasksOf = TasksOf;
+	llms.NeedsPlan = NeedsPlan;
+	llms.ProjectLlm = ProjectLlm;
+	llms.Reason = Reason;
 	llms.Reload = function () { return For( State.Root ).Reload(); };
 	for ( let root of Roots.List )
 	{

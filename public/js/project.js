@@ -35,10 +35,28 @@ angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
 	}
 
 
+	// The server's connections for the picker, and the one the project chose while the server still has it (plan LLM
+	// Tasks, Step 6).
+	function llms_form( project )
+	{
+		let root = Roots.Of( project.Root ) || State.Root;
+		return ( Llms.For( root ).Llms || [] ).map( function ( llm ) { return { Id: llm.Id, Name: llm.Name }; } );
+	}
+
+
+	function llm_form( project )
+	{
+		let chosen = Llms.ProjectLlm( Roots.Of( project.Root ) || State.Root, project );
+		return chosen ? chosen.Id : null;
+	}
+
+
 	function to_form( project )
 	{
 		return {
 			Tasks: tasks_form( project ),
+			Llms: llms_form( project ),
+			Llm: llm_form( project ),
 			StatesText: ( project.States || [] ).join( '\n' ),
 			IncludeText: ( project.Include || [] ).join( '\n' ),
 			ExcludeText: ( project.Exclude || [] ).join( '\n' ),
@@ -92,7 +110,7 @@ angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
 		ProjectSettings.Saved = false;
 		let form = ProjectSettings.Form;
 		let enabled = form.Tasks.filter( function ( task ) { return task.Enabled; } ).map( function ( task ) { return task.Id; } );
-		let body = { States: lines_of( form.StatesText ), Include: lines_of( form.IncludeText ), Exclude: lines_of( form.ExcludeText ), Commands: lines_of( form.CommandsText ), Tasks: ( enabled.length === form.Tasks.length ) ? null : enabled };
+		let body = { States: lines_of( form.StatesText ), Include: lines_of( form.IncludeText ), Exclude: lines_of( form.ExcludeText ), Commands: lines_of( form.CommandsText ), Tasks: ( enabled.length === form.Tasks.length ) ? null : enabled, Llm: form.Llm || null };
 		try
 		{
 			let root = Roots.Of( ProjectSettings.Project.Root ) || State.Root;

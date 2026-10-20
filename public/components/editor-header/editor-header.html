@@ -33,9 +33,23 @@
 			<span class="revision text-size" id="text-size" title="the text's characters as saved, and about a quarter as many tokens">{{ $ctrl.Size() }}</span>
 		</div>
 		<div class="header-buttons">
+			<!-- The plan-tasks (plan LLM Tasks, Step 6): one button per enabled task that packages the plan, run through the project's chosen connection. -->
+			<button class="btn btn-sm btn-outline-primary plan-task" type="button" id="plan-task-{{ task.Id }}" ng-repeat="task in $ctrl.PlanTasks() track by task.Id" ng-show="$ctrl.ShowTasks()" ng-click="$ctrl.RunTask( task )" ng-disabled="$ctrl.TaskReason( task )" title="{{ $ctrl.TaskTitle( task ) }}"><svg class="icon lead"><use href="#i-play"></use></svg>{{ task.Name }}</button>
+			<span class="muted small plan-task-error" id="plan-task-error" ng-show="$ctrl.TaskError">{{ $ctrl.TaskError }}</span>
 			<button class="btn btn-sm btn-outline-secondary" id="new-comment" ng-click="$ctrl.CommentOnWhole()" ng-show="($ctrl.State.View === 'read' || $ctrl.State.MirrorShown()) && $ctrl.HasThreads() && !$ctrl.IsArchived()" title="a comment on the whole document; Re-anchor puts it on a passage"><svg class="icon lead"><use href="#i-comment"></use></svg>New Comment</button>
 			<button class="btn btn-sm btn-outline-secondary" id="report-button" ng-click="$ctrl.OpenReport()" ng-show="$ctrl.IsPlan()" title="the plan, its Subplans and all their threads as one page to review or print (Ctrl+P)"><svg class="icon lead"><use href="#i-eye"></use></svg>Report</button>
 			<button class="btn btn-sm btn-outline-secondary" id="new-subplan" ng-click="$ctrl.NewSubplan()" ng-show="$ctrl.IsPlan() && !$ctrl.IsArchived()" title="a new plan under this one"><svg class="icon lead"><use href="#i-subplan"></use></svg>New subplan</button>
 		</div>
 	</div>
 </header>
+<!-- The box (plan LLM Tasks, Step 6): a task with a Box asks for the person's instructions here; the text is the LLM page's, remembered per project. -->
+<div class="subplan-popup plan-task-popup" ng-if="$ctrl.BoxPopup" ng-keydown="$ctrl.BoxKey( $event )">
+	<form class="subplan-form" ng-submit="$ctrl.RunBox()">
+		<div class="subplan-head">{{ $ctrl.BoxPopup.Task.Name }} <span class="muted small">on {{ $ctrl.BoxPopup.Llm.Name }}: your instructions for this plan</span></div>
+		<textarea class="form-control form-control-sm" id="plan-task-box" rows="5" ng-model="$ctrl.BoxPopup.Text" placeholder="what the run should do with the plan (Ctrl+Enter runs)" autofocus></textarea>
+		<div class="thread-buttons">
+			<button class="btn btn-sm btn-primary" type="submit" id="plan-task-run" ng-disabled="$ctrl.Starting"><svg class="icon lead"><use href="#i-play"></use></svg>Run</button>
+			<button class="btn btn-sm btn-outline-secondary" type="button" id="plan-task-cancel" ng-click="$ctrl.BoxPopup = null"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
+		</div>
+	</form>
+</div>

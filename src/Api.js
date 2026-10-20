@@ -1113,8 +1113,8 @@ function Attach( App, Context )
 
 
 	// A project's Name, its own States, Include, Exclude and Commands (each a list, or lines of text), its Tasks, and
-	// its GitSync and AutoCommit (Step 3; false is dropped from the file); a state still used by one of its plans cannot
-	// be removed.
+	// its GitSync and AutoCommit (Step 3; false is dropped from the file) and its Llm (Step 6: the connection the plan
+	// page's buttons run through; null drops it); a state still used by one of its plans cannot be removed.
 	router.put( '/projects/:pid', async function ( request, response )
 	{
 		let body = request.body || {};
@@ -1150,6 +1150,10 @@ function Attach( App, Context )
 			{
 				delete project.Tasks;
 			}
+			if ( project.Llm === null )
+			{
+				delete project.Llm;
+			}
 			for ( let flag of [ 'GitSync', 'AutoCommit' ] )
 			{
 				if ( project[ flag ] === false )
@@ -1164,7 +1168,8 @@ function Attach( App, Context )
 
 	// The project's lists as a body gives them: States (one or more names, none twice), Include, Exclude and Commands
 	// (any lines), Tasks (plan LLM Tasks, Step 1: the enabled ids; null enables them all, the list dropped), and the
-	// Work options GitSync and AutoCommit (Step 3: true or false). Returns { Values, Problems }.
+	// Work options GitSync and AutoCommit (Step 3: true or false), and Llm (Step 6: a connection's id, or null). Returns
+	// { Values, Problems }.
 	function project_fields( body )
 	{
 		let values = {};
@@ -1202,6 +1207,20 @@ function Attach( App, Context )
 			{
 				values[ flag ] = ( body[ flag ] === true );
 			}
+		}
+		// The project's LLM connection (plan LLM Tasks, Step 6): one of the server's, by id; null clears it.
+		if ( body.Llm === null )
+		{
+			values.Llm = null;
+		}
+		else if ( body.Llm !== undefined )
+		{
+			let id = ( typeof body.Llm === 'string' ) ? body.Llm.trim() : '';
+			if ( !id || !LLMS.ById( settings, id ) )
+			{
+				problems.push( 'Llm names no connection of this server' );
+			}
+			values.Llm = id;
 		}
 		return { Values: values, Problems: problems };
 	}

@@ -5,7 +5,9 @@
 // (plan Markdown Editor, Step 3) Source and Revisions, with Save and Discard, since the editor is the one view there. The second: the location, server / project
 // / folders / parent plans / the item, the project and folder crumbs revealing their node in the tree, a parent
 // plan's opening it. The third: the state picker and the one-line state, the revision and the text's size, then
-// Report (plan Printing and Reporting: the report page in a new tab, Ctrl+P), New Comment and New subplan. Delete is in the item's menu in the tree. Ctrl+E (hotkeys.js) switches between
+// the plan-tasks (plan LLM Tasks, Step 6: one button per enabled task that packages the plan, run through the project's
+// chosen connection, a task with a Box asking in a popup), Report (plan Printing and Reporting: the report page in a new
+// tab, Ctrl+P), New Comment and New subplan. Delete is in the item's menu in the tree. Ctrl+E (hotkeys.js) switches between
 // Edit and Read.
 //
 // Interface:
@@ -16,7 +18,7 @@
 
 angular.module( 'Consensus' ).component( 'editorHeader', {
 	templateUrl: '/components/editor-header/editor-header.html',
-	controller: [ '$scope', '$rootScope', 'State', 'Client', 'Subplans', 'Roots', 'Reports', function ( $scope, $rootScope, State, Client, Subplans, Roots, Reports )
+	controller: [ '$scope', '$rootScope', 'State', 'Client', 'Subplans', 'Roots', 'Reports', 'Llms', 'Toast', function ( $scope, $rootScope, State, Client, Subplans, Roots, Reports, Llms, Toast )
 	{
 		let controller = this;
 		controller.State = State;
@@ -124,6 +126,171 @@ angular.module( 'Consensus' ).component( 'editorHeader', {
 		{
 			return !!( State.Open && State.Open.Plan && State.Open.Plan.Archived );
 		};
+
+
+		//-------------------------------------------------------------
+		// The plan-tasks (plan LLM Tasks, Step 6): the enabled tasks that package the plan, run through the connection the
+		// project chose in its settings. The rules are the Llms service's, the same the LLM page asks.
+
+		const BOX_KEY = 'llm-box';		// the box's text, per project, the LLM page's (stored.js, per server)
+		const NO_LLM = 'choose the project\'s LLM connection in its settings';
+		controller.BoxPopup = null;		// { Task, Llm, Text }
+		controller.Starting = false;
+		controller.TaskError = '';
+
+
+		function open_project()
+		{
+			if ( !State.Open || !State.Open.Project )
+			{
+				return null;
+			}
+			return State.Projects.find( function ( candidate ) { return candidate.Id === State.Open.Project.Id; } ) || null;
+		}
+
+
+		controller.PlanTasks = function ()
+		{
+			return Llms.TasksOf( State.Root, open_project() ).filter( function ( task ) { return !!task.Package && !!task.Package.Plan; } );
+		};
+
+
+		// Shown on a plan that is not archived, when the server runs LLMs and has a connection.
+		controller.ShowTasks = function ()
+		{
+			let items = Llms.For( State.Root );
+			return controller.IsPlan() && !controller.IsArchived() && items.Available && items.Llms.length > 0;
+		};
+
+
+		controller.ProjectLlm = function ()
+		{
+			return Llms.ProjectLlm( State.Root, open_project() );
+		};
+
+
+		controller.TaskReason = function ( task )
+		{
+			if ( controller.Starting )
+			{
+				return 'starting';
+			}
+			let llm = controller.ProjectLlm();
+			let project = open_project();
+			return Llms.Reason( State.Root, { Llm: llm ? llm.Id : null, NoLlm: NO_LLM, Project: project ? project.Id : null, Plan: State.OpenId, Task: task } );
+		};
+
+
+		controller.TaskTitle = function ( task )
+		{
+			let reason = controller.TaskReason( task );
+			if ( reason )
+			{
+				return reason;
+			}
+			let what = { none: 'reads only', consensus: 'may write to Consensus, not to files', files: 'may write to Consensus and to the project\'s files' };
+			return task.Name + ' on ' + controller.ProjectLlm().Name + ': package this plan and run it once; ' + ( what[ task.Writes ] || task.Writes );
+		};
+
+
+		// A press: a task with a Box asks first; the others run at once.
+		controller.RunTask = function ( task )
+		{
+			if ( controller.TaskReason( task ) )
+			{
+				return;
+			}
+			let project = open_project();
+			if ( task.Package && task.Package.Box )
+			{
+				let text = String( window.ConsensusStored.Read( BOX_KEY + ':' + project.Id, '', State.Root ) || '' );
+				controller.BoxPopup = { Task: task, Llm: controller.ProjectLlm(), Text: text };
+				return;
+			}
+			start( task, controller.ProjectLlm(), project, null );
+		};
+
+
+		controller.RunBox = function ()
+		{
+			let popup = controller.BoxPopup;
+			let project = open_project();
+			if ( !popup || !project || controller.Starting )
+			{
+				return;
+			}
+			window.ConsensusStored.Write( BOX_KEY + ':' + project.Id, popup.Text || '', State.Root );
+			controller.BoxPopup = null;
+			start( popup.Task, popup.Llm, project, popup.Text || '' );
+		};
+
+
+		controller.BoxKey = function ( event )
+		{
+			if ( event.key === 'Escape' )
+			{
+				controller.BoxPopup = null;
+			}
+			else if ( event.key === 'Enter' && ( event.ctrlKey || event.metaKey ) )
+			{
+				event.preventDefault();
+				controller.RunBox();
+			}
+		};
+
+
+		// The run starts on the project's connection with the open plan; the toast says so, and the running mark
+		// disables the buttons until the events say it ended. A refusal is shown beside the buttons until the next press.
+		async function start( task, llm, project, text )
+		{
+			controller.Starting = true;
+			controller.TaskError = '';
+			let body = { Llm: llm.Id, Task: task.Id, Project: project.Id, Plan: State.OpenId };
+			if ( text !== null )
+			{
+				body.Text = text;
+			}
+			try
+			{
+				let answer = await Client.Post( State.Root, '/api/runs', body );
+				Llms.For( State.Root ).Running[ llm.Id ] = answer.Run;
+				Toast.Show( task.Name + ' started on ' + llm.Name );
+			}
+			catch ( error )
+			{
+				controller.TaskError = task.Name + ' refused: ' + error.message;
+			}
+			controller.Starting = false;
+			$scope.$applyAsync();
+		}
+
+
+		// A run on the project's connection ended: the toast says so (the plan itself reloads over the events, as any
+		// change does); a failure is read from the run for its first line.
+		$scope.$on( 'runs-changed', async function ( event, summary )
+		{
+			let llm = controller.ProjectLlm();
+			if ( !llm || !summary.Llm || summary.Llm.Id !== llm.Id || !State.Root || summary.Root !== State.Root.Key || summary.Status === 'running' )
+			{
+				return;
+			}
+			if ( summary.Status === 'failed' )
+			{
+				let words = '';
+				try
+				{
+					let run = ( await Client.Get( State.Root, '/api/runs/' + encodeURIComponent( summary.Id ) ) ).Run;
+					words = String( run.Error || '' ).split( '\n' )[ 0 ];
+				}
+				catch ( error )
+				{
+					words = '';
+				}
+				Toast.Show( 'the run on ' + llm.Name + ' failed' + ( words ? ': ' + words : '' ) );
+				return;
+			}
+			Toast.Show( 'the run on ' + llm.Name + ( summary.Status === 'stopped' ? ' was stopped' : ' ended' ) );
+		} );
 
 
 		//-------------------------------------------------------------

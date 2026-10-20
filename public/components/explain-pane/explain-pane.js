@@ -2,8 +2,8 @@
 
 // explain-pane - the conversation with a project (plan LLM Tasks, Step 4: Explain): the person's Explain runs of the
 // project, oldest first, each a question and its answer (the run's Text and Output, rendered as markdown), the
-// question box at the bottom with Ask (Ctrl+Enter), a connection picker remembered per project in this browser, and
-// Clear. An answer is a run of the Explain task, Writes none: it reads the project through the API or the tools and
+// question box at the bottom with Ask (Ctrl+Enter), the project's chosen connection (plan LLM Tasks, Step 6: project.json's
+// Llm, picked in the project's settings; none chosen, Ask waits and says so), and Clear. An answer is a run of the Explain task, Writes none: it reads the project through the API or the tools and
 // posts nothing, the answer being its output. The exchange follows the runs over the events.
 //
 // Interface:
@@ -16,7 +16,6 @@ angular.module( 'Consensus' ).component( 'explainPane', {
 	templateUrl: '/components/explain-pane/explain-pane.html',
 	controller: [ '$scope', 'State', 'Client', 'Llms', 'Roots', function ( $scope, State, Client, Llms, Roots )
 	{
-		const LLM_KEY = 'explain-llm';		// the picked connection, per project (stored.js, per server)
 		const TASK = 'explain';
 
 		let controller = this;
@@ -25,7 +24,6 @@ angular.module( 'Consensus' ).component( 'explainPane', {
 		controller.Project = null;
 		controller.Items = [];			// { Id, Question, Answer, Status, Error, Started, By, Llm }
 		controller.Loaded = false;
-		controller.Llm = null;			// the picked connection's id
 		controller.Question = '';
 		controller.Busy = false;
 		controller.Clearing = false;
@@ -61,9 +59,6 @@ angular.module( 'Consensus' ).component( 'explainPane', {
 				controller.Loaded = false;
 				controller.Error = null;
 				controller.Clearing = false;
-				let remembered = window.ConsensusStored.Read( LLM_KEY + ':' + where.Project.Id, null, where.Root );
-				let llms = controller.Llms();
-				controller.Llm = llms.some( function ( llm ) { return llm.Id === remembered; } ) ? remembered : ( llms.length ? llms[ 0 ].Id : null );
 			}
 			await load_runs();
 		}
@@ -112,6 +107,25 @@ angular.module( 'Consensus' ).component( 'explainPane', {
 		};
 
 
+		// The project's chosen connection, read from the server's list each time: the settings may change it while the tab is open.
+		controller.ProjectLlm = function ()
+		{
+			if ( !controller.Root || !controller.Project )
+			{
+				return null;
+			}
+			let project = controller.Root.Projects.find( function ( candidate ) { return candidate.Id === controller.Project.Id; } ) || controller.Project;
+			return Llms.ProjectLlm( controller.Root, project );
+		};
+
+
+		controller.LlmName = function ()
+		{
+			let llm = controller.ProjectLlm();
+			return llm ? llm.Name : '';
+		};
+
+
 		// Explain is enabled in the project when the server has it and the project's list, if any, names it.
 		controller.Enabled = function ()
 		{
@@ -133,16 +147,7 @@ angular.module( 'Consensus' ).component( 'explainPane', {
 
 		controller.CanAsk = function ()
 		{
-			return !!controller.Llm && !!controller.Question.trim() && !controller.Busy && controller.Enabled() && !controller.Answering();
-		};
-
-
-		controller.LlmChanged = function ()
-		{
-			if ( controller.Project )
-			{
-				window.ConsensusStored.Write( LLM_KEY + ':' + controller.Project.Id, controller.Llm || '', controller.Root );
-			}
+			return !!controller.ProjectLlm() && !!controller.Question.trim() && !controller.Busy && controller.Enabled() && !controller.Answering();
 		};
 
 
@@ -157,7 +162,7 @@ angular.module( 'Consensus' ).component( 'explainPane', {
 			let question = controller.Question.trim();
 			try
 			{
-				let answer = await Client.Post( controller.Root, '/api/runs', { Llm: controller.Llm, Task: TASK, Project: controller.Project.Id, Text: question } );
+				let answer = await Client.Post( controller.Root, '/api/runs', { Llm: controller.ProjectLlm().Id, Task: TASK, Project: controller.Project.Id, Text: question } );
 				controller.Question = '';
 				controller.Items.push( { Id: answer.Run.Id, Question: question, Answer: '', Status: 'running', Error: null, Started: answer.Run.Started, By: answer.Run.By, Llm: answer.Run.Llm } );
 			}
@@ -215,16 +220,6 @@ angular.module( 'Consensus' ).component( 'explainPane', {
 			if ( key )
 			{
 				load();
-			}
-		} );
-		// The connections arrive after the tab at times: the first one is picked once there is one and none is.
-		$scope.$watch( function () { return controller.Llms().length; }, function ()
-		{
-			let llms = controller.Llms();
-			if ( llms.length && !llms.some( function ( llm ) { return llm.Id === controller.Llm; } ) )
-			{
-				let remembered = controller.Project ? window.ConsensusStored.Read( LLM_KEY + ':' + controller.Project.Id, null, controller.Root ) : null;
-				controller.Llm = llms.some( function ( llm ) { return llm.Id === remembered; } ) ? remembered : llms[ 0 ].Id;
 			}
 		} );
 		$scope.$on( 'runs-changed', function ( event, summary )

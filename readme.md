@@ -336,10 +336,19 @@ and the checkout's own git user) and the thread keeps the record as `Git: { Comm
 shown as a line in its transcript; a clean tree is "nothing to commit" and a failure leaves the resolve standing.
 `src/Git.js` runs git without a shell in the project's folder, never prompts and gives up after 60 seconds.
 
+**The plan page's buttons** (plan LLM Tasks, Step 6): a plan's heading (`public/components/editor-header/`) has one
+button per enabled task whose Package has Plan on, run through the project's chosen connection (`Llm` in
+project.json, set through PUT /api/projects/:pid and picked in the project's Settings popup; an unknown id is
+refused, null clears it, a connection deleted since counts as none); with none chosen the buttons are disabled
+and say so, and a server with no connection shows none. The rules are one set, `Llms.Reason` in `public/js/llm.js`,
+asked by the LLM page and the heading alike; a task with a Box asks in a popup sharing the LLM page's remembered
+text; a toast says the run started and, over the events, that it ended or failed; the log, the run popup and Stop
+stay on the LLM page.
+
 **Explain** (plan LLM Tasks, Step 4) is the conversation with a project: a tab per project (`#/x/<project id>`;
 Explain in the project's menu, or the Explain button on the LLM page, which opens the tab instead of running;
 `public/components/explain-pane/`) with the exchange above and a question box below. Ask starts an Explain run
-of the picked connection (remembered per project in the browser) with the question as its Text, and the answer
+of the project's chosen connection (Step 6: project.json's `Llm`, picked in the project's Settings popup) with the question as its Text, and the answer
 is the run's output, rendered when the run ends. The conversation is the person's Explain runs of the project,
 read from the run records (`GET /api/runs?Project=&Task=explain&By=`), so nothing is kept in the project; Clear
 deletes them (`DELETE /api/runs/:id`, never a running one). An Explain run has Writes none: it reads the project

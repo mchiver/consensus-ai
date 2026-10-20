@@ -1620,15 +1620,16 @@ TEST( 'the Work options (plan LLM Tasks, Step 3): the LLM page shows Git sync an
 } );
 
 
-TEST( 'Explain (plan LLM Tasks, Step 4): the project\'s menu opens its Explain tab with the question box, the connection picker and Ask; the Explain button on the LLM page opens it too', async function ()
+TEST( 'Explain (plan LLM Tasks, Step 4): the project\'s menu opens its Explain tab with the question box, the project\'s connection and Ask; the Explain button on the LLM page opens it too', async function ()
 {
 	let llm = ( await api( 'POST', '/api/llms', { Name: 'explainer', Kind: 'claude-cli', Command: process.execPath, Arguments: [ '-e', '' ], Timeout: 60 } ) ).Llm;
+	await api( 'PUT', '/api/projects/' + home, { Llm: llm.Id } );	// plan LLM Tasks, Step 6: the tab runs the project's connection
 	await menu_pick( '.project[data-project="' + home + '"] .project-head', 'Explain' );
 	await page.WaitFor( 'window.location.hash === "#/x/' + home + '"' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "explain-view" ) ).display !== "none"' );
 	await page.WaitFor( 'document.getElementById( "explain-empty" ) !== null && getComputedStyle( document.getElementById( "explain-empty" ) ).display !== "none"' );
 	ASSERT.match( await page.Evaluate( 'document.querySelector( ".tab[data-key=\\"x:' + home + '\\"]" ).textContent' ), /Explain · / );
-	await page.WaitFor( 'document.getElementById( "explain-llm" ).options.length === 1' );
+	await page.WaitFor( 'document.getElementById( "explain-llm" ) !== null && document.getElementById( "explain-llm" ).textContent.includes( "explainer" )' );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "explain-ask" ).disabled' ), true );
 	await page.Evaluate( '( function () { let box = document.getElementById( "explain-question" ); box.value = "What is this project?"; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
 	await page.WaitFor( '!document.getElementById( "explain-ask" ).disabled' );
@@ -1639,6 +1640,69 @@ TEST( 'Explain (plan LLM Tasks, Step 4): the project\'s menu opens its Explain t
 	await page.Click( '#llm-run-explain' );
 	await page.WaitFor( 'window.location.hash === "#/x/' + home + '"' );
 	ASSERT.equal( ( await api( 'GET', '/api/runs?Task=explain' ) ).Runs.length, 0 );
+	await api( 'PUT', '/api/projects/' + home, { Llm: null } );
+	await api( 'DELETE', '/api/llms/' + llm.Id );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+// A stand-in for an Enhance run (as test/Api.test.js has it): it reads the package from its standard input, takes the
+// API address, the token, the plan id and the person's instructions from it, and posts a new text as the run.
+const ENHANCE_STAND_IN = [
+	"let t = '';",
+	"process.stdin.on( 'data', function ( c ) { t += c; } );",
+	"process.stdin.on( 'end', async function ()",
+	"{",
+	"\tlet api = /- Consensus API: (\\S+)/.exec( t )[ 1 ];",
+	"\tlet token = /Bearer <token>\": ([0-9a-f]{48})/.exec( t )[ 1 ];",
+	"\tlet plan = /The plan at hand: .* \\((pln-[^)]+)\\)/.exec( t )[ 1 ];",
+	"\tlet asked = /## Your instructions\\n\\n([^\\n]+)/.exec( t )[ 1 ];",
+	"\tlet headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };",
+	"\tlet current = await ( await fetch( api + '/plans/' + plan, { headers: headers } ) ).json();",
+	"\tlet text = '# Buttoned\\n\\n## Enhanced\\n\\nAs asked: ' + asked + '\\n';",
+	"\tlet written = await ( await fetch( api + '/plans/' + plan + '/text', { method: 'PUT', headers: headers, body: JSON.stringify( { Text: text, Revision: current.Plan.Revision } ) } ) ).json();",
+	"\tprocess.stdout.write( 'wrote revision ' + written.Plan.Revision );",
+	"} );",
+].join( '\n' );
+
+
+TEST( 'the task buttons on the plan page (plan LLM Tasks, Step 6): on a plan\'s heading once the server has a connection, disabled until the project chooses its LLM connection in its settings; Enhance asks for the instructions in a popup and runs on that connection', async function ()
+{
+	let plan = ( await api( 'POST', '/api/plans', { Title: 'Buttoned', Text: '# Buttoned\n\nA sketch.\n', Project: home } ) ).Plan;
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+	await page.WaitFor( 'document.getElementById( "revision" ) !== null && document.getElementById( "revision" ).textContent.trim() === "revision 1"' );
+	// no connection on the server: no button
+	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".plan-task" ) ].filter( function ( button ) { return getComputedStyle( button ).display !== "none"; } ).length' ), 0 );
+	// a connection: the three plan-tasks appear, disabled with the reason
+	let stand_in = PATH.join( FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-ui-' ) ), 'enhance.js' );
+	FS.writeFileSync( stand_in, ENHANCE_STAND_IN );
+	let llm = ( await api( 'POST', '/api/llms', { Name: 'planner', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Timeout: 60 } ) ).Llm;
+	await page.WaitFor( '[ ...document.querySelectorAll( ".plan-task" ) ].filter( function ( button ) { return getComputedStyle( button ).display !== "none"; } ).length === 3' );
+	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( ".plan-task" ) ].map( function ( button ) { return button.textContent.trim(); } )' ), [ 'Answer', 'Enhance', 'Work' ] );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "plan-task-enhance" ).disabled' ), true );
+	ASSERT.match( await page.Evaluate( 'document.getElementById( "plan-task-enhance" ).title' ), /choose the project's LLM connection in its settings/ );
+	// the project's settings choose it
+	await menu_pick( '.project[data-project="' + home + '"] .project-head', 'Settings' );
+	await page.WaitFor( 'document.getElementById( "project-llm" ) !== null && document.getElementById( "project-llm" ).options.length === 2' );
+	await page.Evaluate( '( function () { let pick = document.getElementById( "project-llm" ); pick.selectedIndex = 1; pick.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	await page.Click( '#project-settings-save' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "project-settings-saved" ) ).display !== "none"' );
+	await page.Click( '#project-settings-close' );
+	ASSERT.equal( ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === home; } ).Llm, llm.Id );
+	await page.WaitFor( '!document.getElementById( "plan-task-enhance" ).disabled' );
+	ASSERT.match( await page.Evaluate( 'document.getElementById( "plan-task-enhance" ).title' ), /^Enhance on planner: package this plan and run it once/ );
+	// Enhance: the popup, the instructions, the run; the plan reloads with the stand-in's revision
+	await page.Click( '#plan-task-enhance' );
+	await page.WaitFor( 'document.getElementById( "plan-task-box" ) !== null' );
+	await page.Evaluate( '( function () { let box = document.getElementById( "plan-task-box" ); box.value = "Three sections, please."; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+	await page.Click( '#plan-task-run' );
+	await page.WaitFor( 'document.getElementById( "plan-task-box" ) === null' );
+	await page.WaitFor( 'document.getElementById( "revision" ).textContent.trim() === "revision 2"', 30000 );
+	let runs = ( await api( 'GET', '/api/runs?Project=' + home + '&Task=enhance' ) ).Runs;
+	ASSERT.equal( runs.length, 1 );
+	let run = ( await api( 'GET', '/api/runs/' + runs[ 0 ].Id ) ).Run;
+	ASSERT.deepEqual( [ run.Llm.Id, run.Text, ( run.Plan && run.Plan.Id ) || run.Plan ], [ llm.Id, 'Three sections, please.', plan.Id ] );
+	await api( 'PUT', '/api/projects/' + home, { Llm: null } );
 	await api( 'DELETE', '/api/llms/' + llm.Id );
 	ASSERT.deepEqual( page.Errors, [] );
 } );

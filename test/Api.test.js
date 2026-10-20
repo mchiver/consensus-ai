@@ -1299,6 +1299,27 @@ TEST( 'the tasks (plan LLM Tasks, Step 1): listed, edited in the settings, enabl
 } );
 
 
+TEST( 'the project\'s LLM connection (plan LLM Tasks, Step 6): PUT /api/projects/:pid takes Llm, refuses one the server lacks, and null clears it', async function ()
+{
+	let project = ( await call( 'POST', '/api/projects', { Name: 'Connected' } ) ).Body.Project;
+	let llm = ( await call( 'POST', '/api/llms', { Name: 'chosen', Kind: 'claude-cli', Command: process.execPath, Arguments: [ '-e', '' ], Timeout: 60 } ) ).Body.Llm;
+	ASSERT.equal( 'Llm' in project, false );
+	let set = await call( 'PUT', '/api/projects/' + project.Id, { Llm: llm.Id } );
+	ASSERT.equal( set.Status, 200 );
+	ASSERT.equal( set.Body.Project.Llm, llm.Id );
+	ASSERT.equal( ( await project_named( project.Id ) ).Llm, llm.Id );
+	let bad = await call( 'PUT', '/api/projects/' + project.Id, { Llm: 'llm-nobody' } );
+	ASSERT.equal( bad.Status, 400 );
+	ASSERT.match( bad.Body.Error, /names no connection of this server/ );
+	ASSERT.equal( ( await project_named( project.Id ) ).Llm, llm.Id );
+	let cleared = await call( 'PUT', '/api/projects/' + project.Id, { Llm: null } );
+	ASSERT.equal( cleared.Status, 200 );
+	ASSERT.equal( 'Llm' in cleared.Body.Project, false );
+	ASSERT.equal( 'Llm' in ( await project_named( project.Id ) ), false );
+	await call( 'DELETE', '/api/llms/' + llm.Id );
+} );
+
+
 // A stand-in for an Enhance run (plan LLM Tasks, Step 2): it reads the package from its standard input, takes the API
 // address, the token, the plan id and the person's instructions from it, and posts a new text and one thread as the run.
 const ENHANCE_STAND_IN = [

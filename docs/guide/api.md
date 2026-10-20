@@ -44,7 +44,7 @@ GET    /api/settings                             owner; the settings as they are
 PUT    /api/settings                             owner; { Settings }  the whole file, checked
 GET    /api/projects                             every project with its tree, its Archive, States and Path; Context and ContextFolder
 POST   /api/projects                             { Name, Path? }  Path: the project's folder; one holding a project already is opened
-PUT    /api/projects/:pid                        { Name?, States?, Include?, Exclude?, Commands?, Version? }  lists, or lines of text; Tasks: the enabled task ids, null for all; GitSync, AutoCommit: the Work options, true or false
+PUT    /api/projects/:pid                        { Name?, States?, Include?, Exclude?, Commands?, Version? }  lists, or lines of text; Tasks: the enabled task ids, null for all; GitSync, AutoCommit: the Work options, true or false; Llm: the connection the plan page's buttons and the Explain tab run through, null clearing it
 DELETE /api/projects/:pid                        an empty project; never the last one
 POST   /api/projects/:pid/folders                { Name, Parent?, Version? }
 PUT    /api/projects/:pid/folders/:fid           { Name, Version? }

@@ -22,7 +22,8 @@
 		<textarea class="form-control form-control-sm" id="explain-question" rows="3" ng-model="$ctrl.Question" ng-keydown="$ctrl.Key( $event )" placeholder="a question about {{ $ctrl.Project.Name }}: what it is, who did what and when, what is planned, why a thread was resolved as it was (Ctrl+Enter asks)"></textarea>
 		<div class="settings-row">
 			<button class="btn btn-sm btn-primary" type="submit" id="explain-ask" ng-disabled="!$ctrl.CanAsk()"><svg class="icon lead"><use href="#i-play"></use></svg>Ask</button>
-			<select class="form-select form-select-sm explain-llm" id="explain-llm" ng-model="$ctrl.Llm" ng-change="$ctrl.LlmChanged()" ng-options="llm.Id as llm.Name for llm in $ctrl.Llms()" title="the LLM connection that answers; remembered per project in this browser"></select>
+			<span class="muted small explain-llm" id="explain-llm" ng-show="$ctrl.LlmName()" title="the project's LLM connection, chosen in its settings (plan LLM Tasks, Step 6)">through {{ $ctrl.LlmName() }}</span>
+			<span class="muted small" id="explain-no-llm" ng-show="$ctrl.Llms().length && !$ctrl.LlmName()">choose the project's LLM connection in its settings</span>
 			<span class="muted small" ng-show="$ctrl.Llms().length === 0">no LLM connection on this server</span>
 			<span class="muted small" id="explain-disabled" ng-show="$ctrl.Llms().length && !$ctrl.Enabled()">Explain is not enabled in this project</span>
 			<button class="btn btn-sm btn-outline-secondary" type="button" id="explain-clear" ng-click="$ctrl.StartClear()" ng-show="$ctrl.Items.length && !$ctrl.Clearing" title="delete the conversation's runs"><svg class="icon lead"><use href="#i-x"></use></svg>Clear</button>

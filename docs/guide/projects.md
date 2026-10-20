@@ -37,7 +37,7 @@ The **Default** project is there from the first start; ad-hoc items live there. 
 
 ## A project's own settings
 
-**Settings** in a project's menu opens its own lists, one per line each: its **States** (the server's list is only the default for a new project; a state still used by one of its plans cannot be removed), and the **Include**, **Exclude** and **Commands** an LLM working in its folder goes by. The state picker and the menu's "New …" follow the project's States.
+**Settings** in a project's menu opens its own lists, one per line each: its **States** (the server's list is only the default for a new project; a state still used by one of its plans cannot be removed), and the **Include**, **Exclude** and **Commands** an LLM working in its folder goes by; then the tasks it enables and its **LLM connection** (plan LLM Tasks, Step 6), the one the task buttons on its plans' headings and its Explain tab run through (none chosen, those buttons wait and say so). The state picker and the menu's "New …" follow the project's States.
 
 ## Archive
 
