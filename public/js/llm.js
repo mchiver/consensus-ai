@@ -172,6 +172,24 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State'
 		{
 			return 'no one is signed in';
 		}
+		// Plan User Management, Step 5: what the role may press, as src/Roles.js MayPress has it, said before the server says it.
+		if ( items.Root.Me.Role !== 'owner' && Pick.Project )
+		{
+			let role = ( items.Root.Roles || {} )[ Pick.Project ] || null;
+			let writes = ( Pick.Task && Pick.Task.Writes ) || 'consensus';
+			if ( !role )
+			{
+				return 'no role in this project';
+			}
+			if ( role === 'Service' )
+			{
+				return 'a Service account presses no task';
+			}
+			if ( role === 'Watchers' && writes !== 'none' )
+			{
+				return 'a Watcher presses a task that reads only';
+			}
+		}
 		if ( items.Running[ Pick.Llm ] )
 		{
 			return 'a run is going';

@@ -35,7 +35,9 @@
 				<a class="guide-link" href="threads.html">Threads</a>
 				<a class="guide-link" href="editing.html">Editing and revisions</a>
 				<a class="guide-link" href="llm.html">Working with an LLM</a>
+				<a class="guide-link" href="ways-of-working.html">Ways of working</a>
 				<a class="guide-link" href="settings.html">Settings and themes</a>
+				<a class="guide-link" href="sharing.html">Sharing a server</a>
 				<a class="guide-link" href="export-import.html">Export and import</a>
 				<a class="guide-link" href="api.html">The API</a>
 			</nav>
@@ -81,10 +83,10 @@
 <ul>
 <li><strong>The LLM as a participant.</strong> Every LLM takes part through the API as a participant of its own, so every reply and every applied change says who made it. See <a href="llm.html">Working with an LLM</a>.</li>
 <li><strong>Agent sessions.</strong> Point Claude Code or any agent at one address, <code>/instructions</code>, and it learns the rules, finds what waits on it, replies, applies and drafts plans.</li>
-<li><strong>Your turn in Consensus.</strong> The working loop: the owner comments and resolves, the agent replies and applies, in the plan, not in a chat scroll.</li>
+<li><strong>Your turn in Consensus.</strong> The working loop: the owner comments and resolves, the agent replies and applies, in the plan, not in a chat scroll. See <a href="ways-of-working.html">Ways of working</a>.</li>
 <li><strong>The build loop.</strong> When every thread is applied, the agent builds exactly that plan and posts its build log as a thread, accepted the same way.</li>
 <li><strong>LLM connections.</strong> The server runs LLMs for you: Claude Code as a one-shot command, or a local model through Ollama, each posting as <code>&lt;connection&gt; by &lt;owner&gt;</code> on a token the server makes for the run.</li>
-<li><strong>Tasks as buttons.</strong> A task is a record you edit: what the prompt packages (the Readme, the documents, the plan, the waiting threads, the folder), what the run may write (nothing, Consensus, or files) and what it is asked. Answer, Enhance (a plan from a sketch and your instructions), Work, Explain (a conversation with the project in its own tab: your question, a read-only run, its answer) and Session are shipped; a project enables the ones it uses; one button each on the LLM page, and on a plan&#39;s heading for the tasks that take the plan, through the connection the project chose; the LLM page keeps the log.</li>
+<li><strong>Tasks as buttons.</strong> A task is a record you edit: what the prompt packages (the Readme, the documents, the plan, the waiting threads, the folder), what the run may write (nothing, Consensus, or files) and what it is asked. Answer, Enhance (a plan from a sketch and your instructions), Work, Explain (a conversation with the project in its own tab: your question, a read-only run, its answer) and Session are shipped; a project enables the ones it uses; one button each on the LLM page, and on a plan&#39;s heading for the tasks that take the plan, through the connection the project chose; the LLM page keeps the log. See <a href="ways-of-working.html">Ways of working</a>.</li>
 <li><strong>Tools for local models.</strong> A local model gets file tools over the project&#39;s folder, held to its Include and Exclude lists, and Consensus tools for reading plans, replying and applying, each set held to the task&#39;s Writes.</li>
 <li><strong>Packaging you control.</strong> Choose which documents and threads a connection leaves out, give it a prompt of its own, and preview any task&#39;s package with its token estimate before it runs.</li>
 <li><strong>Nothing committed on its own.</strong> No run branches, commits or pushes; Git stays the owner&#39;s. The two Work options a project may switch on are the owner&#39;s too: Auto-commit commits the build log you resolve, Git sync pulls before the run and pushes after the commit.</li>
@@ -103,8 +105,8 @@
 <h2 id="the-api">The API</h2>
 <ul>
 <li><strong>Everything over one REST API.</strong> Projects, plans, threads, revisions, runs and settings, the same routes the page uses. See <a href="api.html">The API</a>.</li>
-<li><strong>Users and roles.</strong> The accounts of a server (the owner, the users the Administrator makes, the Service accounts), each with its page, its tokens made and revoked there, and its activity; a project&#39;s Users folder with Owners, Members, Service and Watchers, filled by drag; every request checked against the role, with the reason when refused.</li>
-<li><strong>Sign in through Consensus-AI.</strong> A Public server signs people in through Consensus-AI&#39;s Clerk instance, in the page, in the browser and in the desktop alike, with no password of its own and nothing to configure; a first sign-in writes the account to the registry from the token, and Consensus holds the roles. See <a href="settings.html">Settings and themes</a>.</li>
+<li><strong>Users and roles.</strong> The accounts of a server (the owner, the users the Administrator makes, the Service accounts), each with its page, its tokens made and revoked there, and its activity; a project&#39;s Users folder with Owners, Members, Service and Watchers, filled by drag; every request checked against the role, with the reason when refused. See <a href="sharing.html">Sharing a server</a>.</li>
+<li><strong>Sign in through Consensus-AI.</strong> A Public server signs people in through Consensus-AI&#39;s Clerk instance, in the page, in the browser and in the desktop alike, with no password of its own and nothing to configure; a first sign-in writes the account to the registry from the token, and Consensus holds the roles. See <a href="sharing.html">Sharing a server</a>.</li>
 <li><strong>Licenses for people, not servers.</strong> Free is the Local server. A Host license runs a Public server and is its Administrator, a User license is an Owner or a Member in projects, a Watcher needs none; a site license is an organization whose members carry it. The server checks the plan at sign-in, at the Scope and at the drag into a role, and says which plan it wants.</li>
 <li><strong>Events.</strong> A stream of what changed, for anything that wants to follow along.</li>
 <li><strong>MIT licensed.</strong> The code is public and free to use, change and run anywhere.</li>

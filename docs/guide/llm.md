@@ -1,10 +1,10 @@
 # Working with an LLM
 
-The server reads no code and indexes nothing on its own. Every LLM takes part through the API, acting for you: a coding agent in your repository, or a connection the server runs for you (below). What they all do is the same: read what waits on them, reply, apply what you resolved, draft plans, and build what a finished plan says.
+The server reads no code and indexes nothing on its own. Every LLM takes part through the API, acting for you: a coding agent in your repository, or a connection the server runs for you (below). What they all do is the same: read what waits on them, reply, apply what you resolved, draft plans, and build what a finished plan says. [Ways of working](ways-of-working.html) tells it as a story; this page is the reference.
 
 ## Who an LLM is
 
-An LLM is never a user. On your own server every request is the owner, you; what an LLM posts is recorded as you, through it, and shown with a **byline**: `Claude-CLI by User`. An agent session says who it is with the header `X-Consensus-Service: <name>` on each request; a connection the server runs needs nothing, the run's token says it. There are no participants and no tokens to manage (plan User Management; roles and sign-in for a team come with Clerk). See [Settings and themes](settings.html).
+An LLM is never a user. On your own server every request is the owner, you; what an LLM posts is recorded as you, through it, and shown with a **byline**: `Claude-CLI by User`. An agent session says who it is with the header `X-Consensus-Service: <name>` on each request; a connection the server runs needs nothing, the run's token says it. On a shared server a person signs in through Consensus-AI and acts by their role in each project, and their own agent session acts as them on a token from their account's page; see [Sharing a server](sharing.html). There are no participants to manage.
 
 ## Giving an LLM the instructions
 

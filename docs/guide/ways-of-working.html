@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Ways of working - Consensus-AI guide</title>
+	<meta name="description" content="The Consensus-AI user guide: Ways of working.">
+	<link rel="icon" href="../images/mark.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="../css/bootstrap.min.css">
+	<link rel="stylesheet" href="../css/site.css">
+	<script src="../js/site.js"></script>
+</head>
+<body class="guide-page">
+
+	<header class="site-header">
+		<div class="container site-header-row">
+			<a class="brand" href="../index.html"><img class="brand-mark" src="../images/mark.svg" alt="">Consensus-AI</a>
+			<nav class="site-nav">
+				<a href="getting-started.html" class="active">Guide</a>
+				<a href="features.html">Features</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">GitHub</a>
+				<button class="theme-toggle" type="button" data-theme-toggle title="light or dark"><span class="theme-sun" aria-hidden="true">&#9728;</span><span class="theme-moon" aria-hidden="true">&#9790;</span><span class="visually-hidden">Toggle the theme</span></button>
+			</nav>
+		</div>
+	</header>
+
+	<div class="container guide-layout">
+		<aside class="guide-side">
+			<div class="guide-side-title">The guide</div>
+			<nav class="guide-nav">
+				<a class="guide-link" href="getting-started.html">Getting started</a>
+				<a class="guide-link" href="features.html">Features</a>
+				<a class="guide-link" href="projects.html">Projects, plans and documents</a>
+				<a class="guide-link" href="threads.html">Threads</a>
+				<a class="guide-link" href="editing.html">Editing and revisions</a>
+				<a class="guide-link" href="llm.html">Working with an LLM</a>
+				<a class="guide-link active" href="ways-of-working.html">Ways of working</a>
+				<a class="guide-link" href="settings.html">Settings and themes</a>
+				<a class="guide-link" href="sharing.html">Sharing a server</a>
+				<a class="guide-link" href="export-import.html">Export and import</a>
+				<a class="guide-link" href="api.html">The API</a>
+			</nav>
+		</aside>
+		<main class="guide-main">
+			<article class="guide-article">
+<h1 id="ways-of-working">Ways of working</h1>
+<p>Consensus-AI is a place where you and an LLM settle a plan, thread by thread, and then have it carried out. The LLM can take part in two ways, and you will likely use both: an <strong>agent session</strong> open beside your editor, and a <strong>connection</strong> your server runs when you press a button. This page tells how each goes, and the loop you will use with either; <a href="llm.html">Working with an LLM</a> is the reference behind it.</p>
+<h2 id="the-agent-session">The agent session</h2>
+<p>An agent session is a coding agent such as Claude Code, open in a terminal on your repository. It needs one thing from you: the address of your server&#39;s instructions page. One line starts it:</p>
+<blockquote>
+<p>Read the instructions at <code>http://127.0.0.1:3500/instructions</code> with curl, then load your context.</p>
+</blockquote>
+<p>The page tells the agent what Consensus is, how to call the API, and what your words mean. &quot;Load your context&quot; has it read the project&#39;s Readme, the tree of plans and what waits on it, and report back in a few lines. From then on your side of the work is short: you comment on a plan and resolve threads in the page, and when it is the agent&#39;s turn you say so, &quot;your turn in Consensus&quot;. It fetches what waits on it, replies to the threads you contested, applies the ones you resolved, one revision each, and tells you what it did. You read its replies in the threads pane, resolve what you agree with, answer what you do not, and say &quot;your turn&quot; again.</p>
+<figure class="shot"><img class="light-only" src="../images/instructions.png" alt="The instructions page, shown from a project's menu: This server first, then the guide."><img class="dark-only" src="../images/instructions-dark.png" alt="The instructions page, shown from a project's menu: This server first, then the guide."><figcaption>The instructions page, shown from a project's menu: This server first, then the guide.</figcaption></figure>
+<p>Two things the agent never does. It never touches a thread you have not sent its way: what you do not say &quot;your turn&quot; to, it does not read. And it never commits, branches or pushes on its own; git stays yours. The session keeps the project&#39;s files as any coding agent does, and what it writes to Consensus appears in the page at once, with a byline that names the agent and you.</p>
+<p>The agent&#39;s own setup is nothing: no package, no key, no file in the repository. The instructions page is served by your server, so an agent on any machine that can reach it can take part. On a shared server the agent acts as you on a token from your account&#39;s page; see <a href="sharing.html">Sharing a server</a>.</p>
+<h2 id="a-run-from-the-page">A run from the page</h2>
+<p>The other way needs no terminal. Your server keeps <strong>LLM connections</strong>, each a model and how to run it: Claude Code as a one-shot command on the server&#39;s machine, or a local model through Ollama. A connection is listed in the sidebar under the server&#39;s projects, and its page has the buttons. Press one and the server runs the model once, in the project&#39;s folder, with a prompt it packages for the task, and logs the run: who pressed it, what it was given, what it answered.</p>
+<figure class="shot"><img class="light-only" src="../images/desktop-llm.png" alt="The LLM page: the connection, the project and plan pickers, the task buttons, and the log of runs."><img class="dark-only" src="../images/desktop-llm-dark.png" alt="The LLM page: the connection, the project and plan pickers, the task buttons, and the log of runs."><figcaption>The LLM page: the connection, the project and plan pickers, the task buttons, and the log of runs.</figcaption></figure>
+<p>A run is yours. Whatever it posts reads <code>&lt;connection&gt; by &lt;you&gt;</code>, and it is allowed what your role in the project allows, no more. The same buttons are on a plan&#39;s heading, for the tasks that take the plan, through the connection the project chose in its settings; a task that wants your instructions asks for them in a popup first.</p>
+<figure class="shot"><img class="light-only" src="../images/plan-tasks.png" alt="A plan's heading: the task buttons, and Enhance asking for instructions."><img class="dark-only" src="../images/plan-tasks-dark.png" alt="A plan's heading: the task buttons, and Enhance asking for instructions."><figcaption>A plan's heading: the task buttons, and Enhance asking for instructions.</figcaption></figure>
+<h2 id="building-a-plan">Building a plan</h2>
+<p>A plan starts as a sketch: a title and a few lines of what you want. From there:</p>
+<ol>
+<li>Press <strong>Enhance</strong> on it, with a line of instructions in the box (&quot;replace this with a detailed plan; open threads for anything unclear&quot; is the default). The run reads the sketch and the project&#39;s Readme, posts a detailed text as one revision, and opens a thread for each open question.</li>
+<li>Answer the threads. Resolve what is right, reply where it is not.</li>
+<li>Press Enhance again, or <strong>Answer</strong>, which reads the threads waiting on it, replies and applies what you resolved. Repeat until no thread is open and the plan says what you mean.</li>
+<li>Press <strong>Work</strong>. The run carries the plan out in the project&#39;s folder, with the files and the commands the project allows, and posts its <strong>build log</strong> as a thread on the plan: what it built, where, how it checked it.</li>
+<li>Read the log. Resolve it to accept; reply to send it back with what to fix.</li>
+</ol>
+<p>Nothing is committed unless you switch the project&#39;s <strong>Work options</strong> on, and then only when you resolve a build log. An agent session does the same loop with the same words: &quot;build it&quot; where you would press Work.</p>
+<h2 id="explain">Explain</h2>
+<p>Explain is a conversation with the project, and the one task every role has, a Watcher included. It opens a tab of its own, from the project&#39;s menu: your question at the bottom, the exchange above. A question runs the project&#39;s connection once with the project packaged read-only, the Readme and documents, the plans with their states, the threads with who said what and when, the revisions, the run records and the folder&#39;s files, and the answer goes into the tab and nowhere else. It is for anyone who needs to know what the project is, who did what and when, what is planned, or why a thread was resolved the way it was.</p>
+<figure class="shot"><img class="light-only" src="../images/explain.png" alt="The Explain tab: a question about the project, and the answers so far."><img class="dark-only" src="../images/explain-dark.png" alt="The Explain tab: a question about the project, and the answers so far."><figcaption>The Explain tab: a question about the project, and the answers so far.</figcaption></figure>
+<h2 id="your-own-tasks">Your own tasks</h2>
+<p>A task is a record, and the five that come with Consensus are only the first five. The Settings popup lists them: a <strong>Name</strong>, which is what the button says; a <strong>Package</strong> of switches, which say what the prompt holds (the Readme, the other documents, the plan at hand, the threads waiting, the folder&#39;s files, a box for your instructions, the project&#39;s shape); a <strong>Writes</strong> level, which says what the run may change (nothing, Consensus, or the files too) and is enforced by the server whatever the model tries; and a <strong>Prompt</strong>, the task&#39;s instructions. A project enables the tasks it has use for in its own settings.</p>
+<figure class="shot"><img class="light-only" src="../images/tasks.png" alt="The Tasks section of the Settings popup: one row per task."><img class="dark-only" src="../images/tasks-dark.png" alt="The Tasks section of the Settings popup: one row per task."><figcaption>The Tasks section of the Settings popup: one row per task.</figcaption></figure>
+<p>Nothing about a task is about software unless its prompt is. A reading group keeps its chapters as documents and wants a summary of each before the meeting: a task named <strong>Summarize</strong>, with the Readme and the documents in the package and the plan at hand, Writes consensus, and the prompt &quot;Write a one-page summary of the plan&#39;s text for readers who have not read it, as a new revision; open a thread on any passage whose meaning is unclear.&quot; One row in the Settings popup, one button on every plan of the project, and a summary when it is pressed.</p>
+
+			</article>
+			<nav class="guide-pager">
+				<a class="guide-previous" href="llm.html">&larr; Working with an LLM</a>
+				<a class="guide-next" href="settings.html">Next: Settings and themes &rarr;</a>
+			</nav>
+		</main>
+	</div>
+
+	<footer class="site-footer">
+		<div class="container site-footer-row">
+			<span>Consensus-AI is free software under the MIT license.</span>
+			<nav>
+				<a href="getting-started.html">Guide</a>
+				<a href="features.html">Features</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">Repository</a>
+			</nav>
+		</div>
+	</footer>
+
+	<div class="lightbox" id="lightbox" hidden><img alt=""><button type="button" class="lightbox-close" title="close">&times;</button></div>
+</body>
+</html>

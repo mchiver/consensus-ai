@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Sharing a server - Consensus-AI guide</title>
+	<meta name="description" content="The Consensus-AI user guide: Sharing a server.">
+	<link rel="icon" href="../images/mark.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="../css/bootstrap.min.css">
+	<link rel="stylesheet" href="../css/site.css">
+	<script src="../js/site.js"></script>
+</head>
+<body class="guide-page">
+
+	<header class="site-header">
+		<div class="container site-header-row">
+			<a class="brand" href="../index.html"><img class="brand-mark" src="../images/mark.svg" alt="">Consensus-AI</a>
+			<nav class="site-nav">
+				<a href="getting-started.html" class="active">Guide</a>
+				<a href="features.html">Features</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">GitHub</a>
+				<button class="theme-toggle" type="button" data-theme-toggle title="light or dark"><span class="theme-sun" aria-hidden="true">&#9728;</span><span class="theme-moon" aria-hidden="true">&#9790;</span><span class="visually-hidden">Toggle the theme</span></button>
+			</nav>
+		</div>
+	</header>
+
+	<div class="container guide-layout">
+		<aside class="guide-side">
+			<div class="guide-side-title">The guide</div>
+			<nav class="guide-nav">
+				<a class="guide-link" href="getting-started.html">Getting started</a>
+				<a class="guide-link" href="features.html">Features</a>
+				<a class="guide-link" href="projects.html">Projects, plans and documents</a>
+				<a class="guide-link" href="threads.html">Threads</a>
+				<a class="guide-link" href="editing.html">Editing and revisions</a>
+				<a class="guide-link" href="llm.html">Working with an LLM</a>
+				<a class="guide-link" href="ways-of-working.html">Ways of working</a>
+				<a class="guide-link" href="settings.html">Settings and themes</a>
+				<a class="guide-link active" href="sharing.html">Sharing a server</a>
+				<a class="guide-link" href="export-import.html">Export and import</a>
+				<a class="guide-link" href="api.html">The API</a>
+			</nav>
+		</aside>
+		<main class="guide-main">
+			<article class="guide-article">
+<h1 id="sharing-a-server">Sharing a server</h1>
+<p>A Consensus-AI server on your own machine is yours alone: every request is the owner, and nobody signs in. A server for a team listens beyond the machine, signs people in through Consensus-AI, and gives each of them a role in each project. This page is the order you meet it in: going Public, the Administrator, the accounts, the roles, the tokens, and what each role sees. <a href="settings.html">Settings and themes</a> has the settings themselves.</p>
+<h2 id="going-public">Going Public</h2>
+<p>A server listens for a team when its <strong>Scope</strong> is Public. Public is offered to a person holding a <strong>Host license</strong>: in the Settings popup, press <strong>Sign in</strong> beneath the Scope, sign in with your Consensus-AI account, and once the page holds a Host license the Public choice is enabled; save, and the server listens on every interface from its next start. A server started Public from its file or from the command line, the Docker image among them, listens at once and admits licensed sign-ins alone: nothing can be done on it until a person with a Host license signs in.</p>
+<p>On a Public server a request with no session and no token is refused. The page shows Consensus-AI&#39;s sign-in box, and a person who has signed in is who they are everywhere on the server, in the browser and in the desktop alike. Consensus keeps no password: Consensus-AI&#39;s sign-in identifies people, and Consensus holds the roles.</p>
+<h2 id="the-administrator">The Administrator</h2>
+<p>Every Public server has one Administrator: the first person to sign in with a Host license, or the one a Docker server names with the environment variable <code>CONSENSUS_ADMIN</code>. The Administrator alone writes the server&#39;s settings, makes and deletes accounts, mints a Service account&#39;s tokens, defines the LLM tasks and connections, makes and deletes projects, and may place anyone in any project&#39;s roles. Inside a project the Administrator otherwise acts by the role folder they are in, like anyone.</p>
+<h2 id="accounts">Accounts</h2>
+<p>The server keeps a registry of its accounts, shown as the <strong>Users</strong> fold at the bottom of the server&#39;s tree, which every signed-in person sees. An account is a <strong>user</strong>, a person, or a <strong>Service account</strong>, a system that is nobody&#39;s in particular: a bot, a scheduled job, a system the team shares.</p>
+<p>A person&#39;s account is written the first time they sign in, from their sign-in: their email, their names, and the license their account carries. The Administrator may make the record ahead of time with <strong>New user</strong> in the fold&#39;s menu (a login, a display name and the email), so the person can be placed in a project before they ever sign in; the record is completed by their first sign-in, matched by email. <strong>New Service account</strong> makes the other kind, with a name. A record is removed by the Administrator from the account&#39;s page, which takes it out of every role folder and revokes its tokens.</p>
+<figure class="shot"><img class="light-only" src="../images/users.png" alt="The Users fold, and the owner's page: the roles, the tokens, the activity."><img class="dark-only" src="../images/users-dark.png" alt="The Users fold, and the owner's page: the roles, the tokens, the activity."><figcaption>The Users fold, and the owner's page: the roles, the tokens, the activity.</figcaption></figure>
+<p>Clicking an account opens its page: its details, the projects it has a role in, its tokens, and its activity on the server, newest first. A person sees their own page; the Administrator sees everyone&#39;s.</p>
+<h2 id="roles">Roles</h2>
+<p>A role is what an account may see and do in one project. Every project has a fixed <strong>Users</strong> folder after its Context folder, holding exactly four folders: <strong>Owners</strong>, <strong>Members</strong>, <strong>Service</strong> and <strong>Watchers</strong>. An account is in one of them at most. The Administrator, or an Owner of the project, drags an account from the server&#39;s Users fold into a folder to give it that role, between folders to change it, and presses the × beside it to take it out of the project.</p>
+<figure class="shot"><img class="light-only" src="../images/roles.png" alt="A project's Users folder: a Member and a Watcher."><img class="dark-only" src="../images/roles-dark.png" alt="A project's Users folder: a Member and a Watcher."><figcaption>A project's Users folder: a Member and a Watcher.</figcaption></figure>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>May</th>
+<th>License</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Owner</td>
+<td>everything in the project: read, write, comment and reply, resolve any thread, set the plan states, create, rename, move, archive and export, manage the Users folder, enable the server&#39;s tasks for the project, press any task</td>
+<td>User</td>
+</tr>
+<tr>
+<td>Member</td>
+<td>read and write: edit, create, comment and reply, resolve and apply the threads they started, press the tasks that write to Consensus or to files</td>
+<td>User</td>
+</tr>
+<tr>
+<td>Service</td>
+<td>read and write the project through the API as a Member does; press no task, so no run is ever started under it</td>
+<td>none (a token)</td>
+</tr>
+<tr>
+<td>Watcher</td>
+<td>read the project and its threads; press the tasks that read only, Explain among them</td>
+<td>none</td>
+</tr>
+</tbody></table>
+<p>The license is the person&#39;s, not the server&#39;s: a <strong>User</strong> license is needed to be an Owner or a Member, and the server says so when someone is dragged into those folders without one. A Watcher needs an account and nothing more. A site license is an organization in Consensus-AI whose members carry it.</p>
+<p>Which task a role may press is read from the task&#39;s <strong>Writes</strong> level, never from its name: a task that writes nothing is every role&#39;s, a task that writes to Consensus or to files is Owners&#39; and Members&#39;, and a Service account presses none. A task you make next year is governed the same way the day you make it.</p>
+<h2 id="tokens">Tokens</h2>
+<p>A token is the credential for anything that is not a browser: an agent session beside your editor, a script, a desktop window on another machine, a service you run. Every account mints its own on its page: <strong>Create token</strong> with a name, the value shown once, then listed with its last use, and <strong>Revoke</strong> beside it. A request carrying the token (<code>Authorization: Bearer &lt;token&gt;</code>) is that account, in every project the account has a role in, and every record of what it did names the account, the token and the service that declared itself.</p>
+<p>For your own agent session on a shared server, the one line to paste becomes two facts: the instructions page, and your token. Mint one on your page, then:</p>
+<blockquote>
+<p>Read the instructions at <code>http://team-server:3500/instructions</code> with curl, and send <code>Authorization: Bearer &lt;your token&gt;</code> with every request.</p>
+</blockquote>
+<p>The agent then acts as you, allowed what your role allows, and what it posts reads <code>&lt;agent&gt; by &lt;you&gt;</code>. A Service account&#39;s tokens are minted by the Administrator on its page, for the systems that are nobody&#39;s.</p>
+<h2 id="what-each-role-sees">What each role sees</h2>
+<p>A project is shown to those with a role in it, and to the Administrator. The server&#39;s Users fold is shown to every signed-in account; an account&#39;s page to that account and to the Administrator. A person with no role in any project sees the Users fold alone, until an Owner or the Administrator places them. A request outside what a role allows is refused with the reason in plain words, in the page and over the API alike: &quot;a Watcher reads only&quot;, &quot;no role in this project&quot;.</p>
+
+			</article>
+			<nav class="guide-pager">
+				<a class="guide-previous" href="settings.html">&larr; Settings and themes</a>
+				<a class="guide-next" href="export-import.html">Next: Export and import &rarr;</a>
+			</nav>
+		</main>
+	</div>
+
+	<footer class="site-footer">
+		<div class="container site-footer-row">
+			<span>Consensus-AI is free software under the MIT license.</span>
+			<nav>
+				<a href="getting-started.html">Guide</a>
+				<a href="features.html">Features</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">Repository</a>
+			</nav>
+		</div>
+	</footer>
+
+	<div class="lightbox" id="lightbox" hidden><img alt=""><button type="button" class="lightbox-close" title="close">&times;</button></div>
+</body>
+</html>

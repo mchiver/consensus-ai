@@ -357,7 +357,15 @@ async function demo_project( Url, Folder, Log )
 			walk( Node.Items );
 		} );
 	} )( project.Items );
-	return { Id: project.Id, Context: project.Context.Id || project.Context, Plans: plans };
+	// The seeded connection is the project's (plan LLM Tasks, Step 6), so a plan's heading shows its buttons enabled.
+	await api( Url, 'PUT', '/api/projects/' + project.Id, { Llm: DOC_LLM_ID } );
+	// Two accounts with a role each, and a token on the owner's page (plan User Management, Step 5: the pictures).
+	let maria = ( await api( Url, 'POST', '/api/users', { Type: 'user', Login: 'maria', Display: 'Maria', Email: 'maria@example.com' } ) ).User;
+	let sam = ( await api( Url, 'POST', '/api/users', { Type: 'user', Login: 'sam', Display: 'Sam', Email: 'sam@example.com' } ) ).User;
+	await api( Url, 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ maria.Id ], Watchers: [ sam.Id ] } );
+	let owner = ( await api( Url, 'GET', '/api/users' ) ).Users.find( function ( One ) { return One.Type === 'owner'; } );
+	await api( Url, 'POST', '/api/users/' + owner.Id + '/tokens', { Name: 'laptop-agent' } );
+	return { Id: project.Id, Context: project.Context.Id || project.Context, Plans: plans, Owner: owner.Id };
 }
 
 
@@ -580,6 +588,54 @@ const PAGE_PICTURES = [
 		},
 	},
 	{
+		// The instructions page in its popup, LLM Instructions in the project's menu (plan LLM Tasks, Step 5).
+		Name: 'instructions',
+		Make: async function ( Page, Url, Demo, Folder, Theme )
+		{
+			await open_plan( Page, Url, Demo.Plans[ 'Shopping list' ] );
+			await Page.Evaluate( 'document.querySelector( ".project.open .project-head .row-menu" ).click(); true' );
+			await Page.WaitFor( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].some( function ( entry ) { return entry.textContent.trim() === "LLM Instructions"; } )' );
+			await Page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( entry ) { return entry.textContent.trim() === "LLM Instructions"; } ).click(); true' );
+			await Page.WaitFor( visible( '#instructions-popup' ) + ' && !!document.getElementById( "instructions-text" ) && document.getElementById( "instructions-text" ).value.length > 200', 20000 );
+			await wait( 400 );
+			let file = await capture( Page, Folder, 'instructions', Theme );
+			await Page.Evaluate( 'document.getElementById( "instructions-close" ).click(); true' );
+			await wait( 200 );
+			return file;
+		},
+	},
+	{
+		// A plan's heading with the task buttons, Enhance asking for the instructions (plan LLM Tasks, Step 6).
+		Name: 'plan-tasks',
+		Make: async function ( Page, Url, Demo, Folder, Theme )
+		{
+			await Page.WaitFor( '!!document.getElementById( "plan-task-enhance" ) && !document.getElementById( "plan-task-enhance" ).disabled', 20000 );
+			await Page.Evaluate( 'document.getElementById( "plan-task-enhance" ).click(); true' );
+			await Page.WaitFor( visible( '#plan-task-box' ) );
+			await Page.Evaluate( '( function () { let box = document.getElementById( "plan-task-box" ); box.value = "Turn this sketch into a plan with one section per screen, and ask about anything the store layout leaves open."; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+			await wait( 300 );
+			let file = await capture( Page, Folder, 'plan-tasks', Theme );
+			await Page.Evaluate( 'document.getElementById( "plan-task-cancel" ).click(); true' );
+			await Page.WaitFor( count_of( '#plan-task-box' ) + ' === 0' );
+			return file;
+		},
+	},
+	{
+		// The Explain tab with a question typed (plan LLM Tasks, Step 4); its tab closed after.
+		Name: 'explain',
+		Make: async function ( Page, Url, Demo, Folder, Theme )
+		{
+			await Page.Evaluate( 'location.hash = ' + JSON.stringify( '#/x/' + Demo.Id ) + '; true' );
+			await Page.WaitFor( visible( '#explain-view' ) + ' && ' + visible( '#explain-empty' ), 20000 );
+			await Page.Evaluate( '( function () { let box = document.getElementById( "explain-question" ); box.value = "Why did we leave the pantry staples on the list?"; box.dispatchEvent( new Event( "input" ) ); return true; } )()' );
+			await wait( 300 );
+			let file = await capture( Page, Folder, 'explain', Theme );
+			await Page.Evaluate( '( function () { let box = document.getElementById( "explain-question" ); box.value = ""; box.dispatchEvent( new Event( "input" ) ); let tab = document.querySelector( ' + JSON.stringify( '.tab[data-key="x:' + Demo.Id + '"] .close-tab' ) + ' ); if ( tab ) { tab.click(); } return true; } )()' );
+			await wait( 200 );
+			return file;
+		},
+	},
+	{
 		Name: 'settings',
 		Make: async function ( Page, Url, Demo, Folder, Theme )
 		{
@@ -591,6 +647,54 @@ const PAGE_PICTURES = [
 			await wait( 400 );
 			let file = await capture( Page, Folder, 'settings', Theme );
 			await Page.Click( '#settings-close' );
+			await wait( 200 );
+			return file;
+		},
+	},
+	{
+		// The Tasks section of the Settings popup (plan LLM Tasks, Step 5): the popup scrolled to it.
+		Name: 'tasks',
+		Make: async function ( Page, Url, Demo, Folder, Theme )
+		{
+			await Page.Evaluate( 'document.getElementById( "root-menu" ).click(); true' );
+			await Page.WaitFor( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].some( function ( entry ) { return entry.textContent.trim() === "Settings"; } )' );
+			await Page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( entry ) { return entry.textContent.trim() === "Settings"; } ).click(); true' );
+			await Page.WaitFor( visible( '#settings-popup' ) + ' && ' + count_of( '.settings-task' ) + ' === 5', 20000 );
+			await Page.Evaluate( '[ ...document.querySelectorAll( "#settings-popup .settings-label" ) ].find( function ( label ) { return label.textContent.trim().startsWith( "Tasks" ); } ).scrollIntoView( { block: "start" } ); true' );
+			await wait( 400 );
+			let file = await capture( Page, Folder, 'tasks', Theme );
+			await Page.Click( '#settings-close' );
+			await wait( 200 );
+			return file;
+		},
+	},
+	{
+		// The Users fold and the owner's page with its token (plan User Management, Step 5); the tab closed after.
+		Name: 'users',
+		Make: async function ( Page, Url, Demo, Folder, Theme )
+		{
+			await Page.Evaluate( 'location.hash = ' + JSON.stringify( '#/u/' + Demo.Owner ) + '; true' );
+			await Page.WaitFor( visible( '#user-view' ) + ' && !!document.getElementById( "user-tokens" ) && document.getElementById( "user-tokens" ).textContent.includes( "laptop-agent" ) && ' + count_of( '#users-list .user-row' ) + ' === 3', 20000 );
+			await wait( 400 );
+			let file = await capture( Page, Folder, 'users', Theme );
+			await Page.Evaluate( '( function () { let tab = document.querySelector( ' + JSON.stringify( '.tab[data-key="u:' + Demo.Owner + '"] .close-tab' ) + ' ); if ( tab ) { tab.click(); } return true; } )()' );
+			await wait( 200 );
+			return file;
+		},
+	},
+	{
+		// A project's Users folder with its role folders open, a Member and a Watcher in them (plan User Management, Step 5).
+		Name: 'roles',
+		Make: async function ( Page, Url, Demo, Folder, Theme )
+		{
+			await open_plan( Page, Url, Demo.Plans[ 'Shopping list' ] );
+			await Page.Evaluate( '( function () { let folder = document.querySelector( ".roles-folder" ); if ( !folder.querySelector( ".folder-body" ) ) { folder.querySelector( ".folder-head" ).click(); } return true; } )()' );
+			await Page.WaitFor( count_of( '.roles-folder .role-folder' ) + ' === 4' );
+			await Page.Evaluate( '( function () { for ( let role of [ "Members", "Watchers" ] ) { let folder = document.querySelector( ".role-folder[data-role=\\"" + role + "\\"]" ); if ( !folder.querySelector( ".folder-body" ) ) { folder.querySelector( ".folder-head" ).click(); } } return true; } )()' );
+			await Page.WaitFor( count_of( '.roles-folder .role-account' ) + ' === 2' );
+			await wait( 300 );
+			let file = await capture( Page, Folder, 'roles', Theme, { Selector: '.sidebar', Height: 600 } );
+			await Page.Evaluate( 'document.querySelector( ".roles-folder .folder-head" ).click(); true' );
 			await wait( 200 );
 			return file;
 		},

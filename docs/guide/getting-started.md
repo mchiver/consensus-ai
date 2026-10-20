@@ -86,3 +86,4 @@ On Windows, the desktop comes packaged with its server, with nothing to install 
 1. Open the Readme in the Context folder and write a few lines about what the project is for. Every LLM that works on the project reads it.
 2. Make a plan with **New plan** in the project's menu, and write a draft.
 3. Select a sentence of the draft and comment on it. That is a thread, and the rest of this guide is about what happens next.
+4. Read [Ways of working](ways-of-working.html) for how an LLM takes part: an agent session beside your editor, or a connection the server runs, and the loop you will use with either.

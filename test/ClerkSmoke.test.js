@@ -225,3 +225,112 @@ TEST( 'the desktop signs in the same way (plan Clerk, Step 7): the Settings popu
 		await Promise.race( [ exited, wait( 10000 ) ] );
 	}
 } );
+
+
+//---------------------------------------------------------------------
+// A Watcher and a Member (plan User Management, Step 5): the owner, on a token minted in the registry, makes the
+// person's record ahead of their sign-in, a plan, and a connection the project runs, and places the person; the
+// person signs in, and the page shows what each role allows: a Watcher's comment is refused with the reason and
+// the plan's task buttons are held, a Member's comment posts under their name and the buttons are free; moved out,
+// the project is gone from their tree.
+
+const SMOKE_LLM_ID = 'llm-smo-ke0-000';
+
+
+async function open_plan( Page, Id )
+{
+	await Page.Evaluate( 'location.hash = ' + JSON.stringify( '#/p/' + Id ) + '; true' );
+	await Page.WaitFor( '!!angular.element( document.body ).injector() && angular.element( document.body ).injector().get( "State" ).OpenId === ' + JSON.stringify( Id ) + ' && ' + count_of( '.header .title' ) + ' === 1', 30000 );
+}
+
+
+async function sign_in( Page )
+{
+	await Page.WaitFor( count_of( '#sign-in-popup' ) + ' === 1', 30000 );
+	await Page.WaitFor( count_of( '#sign-in-mount input[name="identifier"]' ) + ' === 1', 60000 );
+	await Page.Click( '#sign-in-mount input[name="identifier"]' );
+	await Page.Type( EMAIL );
+	await Page.Press( 'Enter' );
+	await Page.WaitFor( count_of( '#sign-in-mount input[autocomplete="one-time-code"], #sign-in-mount input[name="code"]' ) + ' >= 1', 60000 );
+	await Page.Click( '#sign-in-mount input[autocomplete="one-time-code"], #sign-in-mount input[name="code"]' );
+	await type_code( Page );
+	await wait( 4000 );
+	try
+	{
+		await Page.WaitFor( count_of( '#user-button' ) + ' === 1', 60000 );
+	}
+	catch ( error )
+	{
+		throw new Error( 'no user button after the code; Clerk says: ' + JSON.stringify( await clerk_error( Page ) ) + '; ' + error.message.slice( 0, 150 ) );
+	}
+}
+
+
+async function comment( Page, Text )
+{
+	await Page.Evaluate( 'document.getElementById( "new-comment" ).click(); true' );
+	await Page.WaitFor( 'document.activeElement && document.activeElement.closest( "#compose-text" ) !== null', 10000 );
+	await Page.Type( Text );
+	await Page.WaitFor( '!document.getElementById( "compose-post" ).disabled', 10000 );
+	await Page.Evaluate( 'document.getElementById( "compose-post" ).click(); true' );
+}
+
+
+TEST( 'a Watcher and a Member (plan User Management, Step 5): as a Watcher the page refuses a comment with the reason and holds the plan\'s task buttons, as a Member it posts under the person\'s name and the buttons are free, and moved out the project is gone', { skip: SKIP, timeout: 480000 }, async function ()
+{
+	let folder = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-roles-' ) );
+	let stand_in = PATH.join( folder, 'never-run.js' );
+	FS.writeFileSync( stand_in, 'process.exit( 0 );\n' );
+	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( { Port: 0, Scope: 'Public', Clerk: { PublishableKey: PUBLISHABLE, SecretKey: SECRET }, Llms: [ { Id: SMOKE_LLM_ID, Name: 'planner', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Timeout: 60 } ] } ) );
+	let running = await SERVER.Start( { Config: folder, Port: 0 } );
+	let browser = null;
+	try
+	{
+		// The owner through the API, on a token minted in the registry: the record, the plan, the connection, the role.
+		let owner = running.Users.List().find( function ( one ) { return one.Type === 'owner'; } );
+		let as_owner = { Authorization: 'Bearer ' + running.Users.MintToken( owner.Id, 'smoke' ) };
+		let project = ( await json( 'GET', running.Url + '/api/projects', undefined, as_owner ) ).Body.Projects[ 0 ];
+		let plan = ( await json( 'POST', running.Url + '/api/plans', { Title: 'Shared plan', Text: '# Shared plan\n\nA line to comment on.\n', Project: project.Id }, as_owner ) ).Body.Plan;
+		ASSERT.equal( ( await json( 'PUT', running.Url + '/api/projects/' + project.Id, { Llm: SMOKE_LLM_ID }, as_owner ) ).Status, 200 );
+		let made = await json( 'POST', running.Url + '/api/users', { Type: 'user', Login: LOGIN, Display: 'Smoke Test', Email: EMAIL }, as_owner );
+		ASSERT.equal( made.Status, 201, JSON.stringify( made.Body ).slice( 0, 200 ) );
+		let person = made.Body.User;
+		ASSERT.equal( ( await json( 'PUT', running.Url + '/api/projects/' + project.Id + '/roles', { Watchers: [ person.Id ] }, as_owner ) ).Status, 200 );
+		// The Watcher: signed in, the project in the tree, the plan open, the buttons held, a comment refused.
+		browser = await CDP.StartBrowser();
+		let page = await browser.OpenPage( 'http://localhost:' + running.Address.Port + '/' );
+		await sign_in( page );
+		await page.WaitFor( count_of( '.project[data-project="' + project.Id + '"]' ) + ' === 1', 30000 );
+		await open_plan( page, plan.Id );
+		// (the heading's buttons settle once the plan is read: the title says why a Watcher cannot press)
+		await page.WaitFor( '!!document.getElementById( "plan-task-answer" ) && document.getElementById( "plan-task-answer" ).title.indexOf( "Watcher" ) >= 0', 20000 );
+		ASSERT.equal( await page.Evaluate( 'document.getElementById( "plan-task-answer" ).disabled' ), true, 'a Watcher cannot press Answer' );
+		await comment( page, 'May I?' );
+		await page.WaitFor( '( angular.element( document.body ).injector().get( "State" ).Error || "" ).indexOf( "Watcher" ) >= 0', 20000 );
+		ASSERT.equal( ( await json( 'GET', running.Url + '/api/plans/' + plan.Id + '/threads', undefined, as_owner ) ).Body.Threads.length, 0, 'nothing posted' );
+		// A Member: the page reloaded with the role; the comment posts under the person's name, the buttons are free.
+		ASSERT.equal( ( await json( 'PUT', running.Url + '/api/projects/' + project.Id + '/roles', { Members: [ person.Id ], Watchers: [] }, as_owner ) ).Status, 200 );
+		await page.Navigate( 'http://localhost:' + running.Address.Port + '/?as=member' );	// another URL: a hash alone fires no load event
+		await page.WaitFor( count_of( '#user-button' ) + ' === 1', 60000 );
+		await open_plan( page, plan.Id );
+		await page.WaitFor( '!!document.getElementById( "plan-task-answer" ) && !document.getElementById( "plan-task-answer" ).disabled', 20000 );
+		await comment( page, 'As a Member now.' );
+		await page.WaitFor( count_of( 'thread-card' ) + ' === 1', 20000 );
+		let threads = ( await json( 'GET', running.Url + '/api/plans/' + plan.Id + '/threads', undefined, as_owner ) ).Body.Threads;
+		ASSERT.deepEqual( [ threads.length, threads[ 0 ].Replies[ 0 ].By ], [ 1, LOGIN ] );
+		// Moved out: the project is gone from the person's tree.
+		ASSERT.equal( ( await json( 'PUT', running.Url + '/api/projects/' + project.Id + '/roles', { Members: [] }, as_owner ) ).Status, 200 );
+		await page.Navigate( 'http://localhost:' + running.Address.Port + '/?as=nobody' );
+		await page.WaitFor( count_of( '#user-button' ) + ' === 1', 60000 );
+		await wait( 2000 );
+		ASSERT.equal( await page.Evaluate( count_of( '.project[data-project="' + project.Id + '"]' ) ), 0, 'no role, no project' );
+	}
+	finally
+	{
+		if ( browser )
+		{
+			await browser.Close();
+		}
+		await running.Close();
+	}
+} );

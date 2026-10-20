@@ -12,7 +12,7 @@ const OS = require( 'os' );
 const PATH = require( 'path' );
 const DOCS = require( '../bin/docs.js' );
 
-const PAGE_PICTURES = [ 'first-start', 'plan', 'threads', 'tree', 'menu', 'comment', 'edit', 'source', 'revisions', 'tabs', 'close-prompt', 'build-log', 'waiting', 'settings', 'title-bar' ];
+const PAGE_PICTURES = [ 'first-start', 'plan', 'threads', 'tree', 'menu', 'comment', 'edit', 'source', 'revisions', 'tabs', 'close-prompt', 'build-log', 'waiting', 'instructions', 'plan-tasks', 'explain', 'settings', 'tasks', 'users', 'roles', 'title-bar' ];
 const DESKTOP_PICTURES = [ 'desktop-connect', 'desktop-llm', 'desktop-run' ];
 
 let copy = null;
