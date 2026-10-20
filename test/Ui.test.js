@@ -1059,8 +1059,12 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-scope" ).selectedOptions[ 0 ].textContent.trim()' ), 'Local' );
 	ASSERT.match( await page.Evaluate( 'document.getElementById( "settings-states" ).value' ), /^Draft\nPlan\nWorking\nFinished$/ );
 	// plan User Management, Step 1: the line beneath the Scope and the empty Clerk section
-	ASSERT.match( await page.Evaluate( text_of( '#settings-trust' ) ), /^Local: this machine only/ );
+	ASSERT.match( await page.Evaluate( text_of( '#settings-trust' ) ), /^Local: this machine only\. A request is the owner\. Public needs a sign-in with a Host license\./ );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-clerk-publishable" ).value' ), '' );
+	// plan Clerk, Step 5: Public is offered to a sign-in with a Host license alone; the Sign in button asks for one
+	ASSERT.equal( await page.Evaluate( '[ ...document.getElementById( "settings-scope" ).options ].find( function ( option ) { return option.textContent.trim() === "Public"; } ).disabled' ), true );
+	ASSERT.equal( await page.Evaluate( '[ ...document.getElementById( "settings-scope" ).options ].find( function ( option ) { return option.textContent.trim() === "Local"; } ).disabled' ), false );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "settings-sign-in" ) ).display !== "none"' ), true );
 	// plan User Management, Step 2: the Owner in place of the participants, its name read-only
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-owner-name" ).value' ), 'user' );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-owner-name" ).readOnly' ), true );
@@ -1686,13 +1690,17 @@ TEST( 'users and roles (plan User Management, Step 3): the Users fold holds the 
 } );
 
 
-TEST( 'Clerk off (plan User Management, Step 4): the page asks its server, finds no Clerk, shows no sign-in box and no user button, and the owner\'s calls carry no token', async function ()
+TEST( 'Clerk on a Local server (plan User Management, Step 4; plan Clerk, Step 5): the page asks its server, finds our instance with no sign-in required, loads nothing from Clerk, shows no sign-in box and no user button, and the owner\'s calls carry no token', async function ()
 {
-	ASSERT.deepEqual( await api( 'GET', '/api/clerk' ), { On: false, PublishableKey: null, FrontendApi: null } );
-	await page.WaitFor( '( function () { let session = angular.element( document.body ).injector().get( "Session" ); return session.Loaded && !session.On && !session.Required; } )()' );
+	let config = await api( 'GET', '/api/clerk' );
+	ASSERT.deepEqual( [ config.On, config.Required, /^pk_/.test( config.PublishableKey ), typeof config.FrontendApi, typeof config.Pricing ], [ true, false, true, 'string', 'string' ] );
+	await page.WaitFor( '( function () { let session = angular.element( document.body ).injector().get( "Session" ); return session.Loaded && session.On && !session.Required && !session.Asked; } )()' );
+	ASSERT.equal( await page.Evaluate( 'typeof window.Clerk' ), 'undefined', 'ClerkJS is not loaded until asked' );
 	ASSERT.equal( await page.Evaluate( count_of( '#sign-in-popup' ) ), 0 );
 	ASSERT.equal( await page.Evaluate( count_of( '#user-button' ) ), 0 );
 	ASSERT.equal( await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Token().then( function ( token ) { return token === null; } )' ), true );
+	ASSERT.equal( await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Plan()' ), null );
+	ASSERT.equal( await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Licensed( "Host" )' ), false );
 	ASSERT.match( await page.Evaluate( text_of( '.root-head .me' ) ), /^you are User \(owner\)/ );
 	ASSERT.deepEqual( page.Errors, [] );
 } );

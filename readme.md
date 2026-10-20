@@ -348,13 +348,13 @@ through the API or the read tools and is refused every write, so it posts nothin
 **Users and roles** (plan User Management, Step 3; the model is Accounts and Roles') put people besides the owner
 on a server, each allowed per project what their role there allows. The registry is `<config>/Users.json`
 (`src/Users.js`): one record per account ({ Id usr-…, Type owner | user | service, Login, Display, Email, Clerk,
-Tokens, Created }), the owner's record made at the first start from the settings' Owner and kept up to it; a
-Local or trusted-network server holds the owner's alone. A token is minted on an account's page with a name, its
+Plan, Tokens, Created }), the owner's record made at the first start from the settings' Owner and kept up to it; a
+Local server holds the owner's and the Service accounts the owner makes. A token is minted on an account's page with a name, its
 value shown once and kept as a sha256; a request carrying it (`Authorization: Bearer`) is that account, the
 token's name recorded as Token beside the service header's name, the byline reading "<service> by <login>";
-a revoked token is nobody. A bare request is the owner on a Local or trusted-network server (Step 4: on a Public
-server with Clerk keys it is refused). The
-Administrator (the owner; on a Public server with Clerk the account whose email is the Clerk section's AdminEmail)
+a revoked token is nobody. A bare request is the owner on a Local server (on a Public server it is refused,
+Step 4). The
+Administrator (the owner; on a Public server the account whose email is the Clerk section's AdminEmail)
 makes accounts on the server-level **Users** fold in the sidebar (New user with a login, a display and an email, the
 record Clerk completes at the person's first sign-in; New Service account with a name) and mints a Service
 account's tokens; an account edits its own display and mints and revokes its own. A project's **Users** folder,
@@ -383,10 +383,10 @@ issuer and, when it carries one, its azp against the request's host; a Bearer va
 tried as one, and its subject is the registry record with that Clerk id. A subject the registry lacks is fetched
 once from Clerk's Backend API with the secret key and written: matched by email to a record the Administrator
 made by hand, whose Clerk id is filled in, else a new user with a login made from the email (lowercased, other
-characters a dash, a number while taken) and no role. On a Public server with keys a bare request is refused with
-401 "sign in"; on Local it stays the owner and a session is accepted too, for testing against the development
-instance. The page asks `GET /api/clerk` (public: On, the publishable key, the Frontend API host; never the
-secret) and, when On, loads ClerkJS from that host; `public/js/session.js` hands every call to the page's own server
+characters a dash, a number while taken) and no role. On a Public server a bare request is refused with 401
+"sign in"; on Local it stays the owner, and a session there is the owner's. The page asks `GET /api/clerk`
+(public: On, Required, the publishable key, the Frontend API host, the pricing page; never the secret) and loads
+ClerkJS from that host when it is needed; `public/js/session.js` hands every call to the page's own server
 the session token, a 401 shows Clerk's sign-in box in a popup (`public/components/sign-in-box/`), the title bar
 mounts Clerk's user button (sign out is in its menu), and a sign-in or sign-out reloads the page. The desktop stays
 on tokens. `POST /api/clerk/webhook`, before identify and verified the Svix way (HMAC-SHA256 over id, timestamp and
@@ -394,7 +394,36 @@ the raw body with the whsec_ secret, five minutes' window), keeps the registry f
 user.updated write or bring up the record, user.deleted removes it and its roles, organizationMembership.created
 writes the member with no role, organizationMembership.deleted removes it, organization.created is logged; each
 write sends { Kind: 'users' }. The production instance, our own OAuth applications and waitlist mode are dashboard
-work (Clerk Step 5); the guide pages are Step 5 of User Management.
+work (Clerk Step 6); the guide pages are Step 5 of User Management.
+
+**The license** (the subplan Clerk, Step 5, 2026-10-20) belongs to a person, not to a server. Free is the Local
+server: no sign-in, the owner's typed name, the owner's and the Service accounts' tokens, unlimited installations.
+Paid is a single-user license on a Consensus-AI account, with a kind, its Plan: **Host** runs a Public server and is
+its Administrator, **User** is an Owner or a Member in projects; a Watcher needs an account and no license, and a
+Service account none, being a token. A site license is a Clerk organization carrying the license for its members,
+capped at the seats bought; the sign-in stays personal, the tie is Clerk's invitation, and the page makes the
+person's organization active at sign-in so the token carries its license. There is one Clerk instance, ours: its
+publishable key is a constant in `src/Clerk.js`, so a Public server needs no Clerk section (the section overrides
+the key with another instance's, adds the secret key and the webhook secret on our own servers, and names the
+Administrator); the trusted network of before, Public with no keys, is gone, and Trust is local, clerk or none. A
+person's email, names and license come from the session token's claims, written there by the instance's session
+token template (`email`, `first`, `last`, `username`, `license` from the user's public metadata, `org_license` from
+the active organization's: `{ Plan, Until }` or the plan as a string, the higher valid one counting); the Backend
+API is asked only when a secret key is there and the claims lack an email. `src/Roles.js` ranks the plans
+(`PLANS`, `PlanRank`, `PlanFor`: Owners and Members need User). Three checks, each naming the plan it wants: at
+sign-in (`clerk_participant` in `src/Api.js`) the Administrator needs Host and an Owner or a Member of any project
+needs User, else 401 `{ Error: 'license', Plan, Has }`, a Watcher-only or unplaced person admitted free, the plan
+written on the record (`Plan`, shown by `GET /api/users` and `/api/me`); at `PUT /api/settings`, Scope Public is
+saved from a session with a Host plan alone (403 otherwise; a server configured Public from its file or
+environment starts and listens, and admits licensed sign-ins alone); at `PUT /api/projects/:pid/roles`, a person
+seen without a User plan stays out of Owners and Members (400). On a Public server with no AdminEmail the first
+sign-in with a Host plan becomes the Administrator, written to the settings; a Docker server takes
+`CONSENSUS_ADMIN` from the environment at start. The settings routes are the Administrator's (the owner on Local).
+The page (`public/js/session.js`) loads ClerkJS only when the server requires a sign-in, when this browser
+remembers one, or when the Settings popup's Sign in button asks, so a free Local server loads nothing from Clerk;
+the popup offers Public to a session with a Host plan alone; the sign-in box shows the license message with the
+pricing link and Clerk's sign-out on a 401 license. The production instance, the token template and the pricing
+page are Clerk Step 6.
 
 An `ollama` one-shot (plan Consensus Desktop, Step 4: Local Models) runs in the server: a local model has no
 tools of its own, so `Ollama.js` runs the tool loop over Ollama's chat endpoint, one request per round with

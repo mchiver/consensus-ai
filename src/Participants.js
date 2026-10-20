@@ -17,8 +17,9 @@
 // and the optional Clerk section (Step 1: PublishableKey, SecretKey, WebhookSecret, AdminEmail; read by nothing yet);
 // the Tasks list (plan LLM Tasks, Step 1) is checked, cleaned and migrated by Tasks.js through the same calls, and a
 // run token carries its task's Writes, which Identify hands on as the account's Writes (null for any other request).
-// Scope (None, Local, Public) says whether the server listens and for whom; Trust says what a Scope and the Clerk
-// section come to: local, trusted (Public with no Clerk keys: every request is the owner), clerk, or none.
+// Scope (None, Local, Public) says whether the server listens and for whom; Trust says what a Scope comes to: local,
+// clerk (Public: people sign in through Clerk with a license, plan Clerk Step 5; a bare request is refused), or none.
+// An account carries its Plan (User or Host, plan Clerk Step 5), the license its last sign-in showed.
 
 const CRYPTO = require( 'crypto' );
 const OS = require( 'os' );
@@ -163,7 +164,7 @@ function Identify( Settings, Headers, Tokens, Users )
 function account_of( owner, service, token, writes, users )
 {
 	let record = users ? users.List().find( function ( one ) { return one.Type === 'owner'; } ) : null;
-	let account = { Id: record ? record.Id : null, Name: owner.Name, Display: owner.Display, Role: 'owner', Type: 'owner', Admin: true, Service: service || null, Token: token || null, Writes: writes || null };
+	let account = { Id: record ? record.Id : null, Name: owner.Name, Display: owner.Display, Role: 'owner', Type: 'owner', Admin: true, Service: service || null, Token: token || null, Writes: writes || null, Plan: record ? ( record.Plan || null ) : null };
 	account.Speaker = Speaker( account.Name, account.Service );
 	return account;
 }
@@ -173,7 +174,7 @@ function account_of( owner, service, token, writes, users )
 // record, the API builds the account; token null).
 function user_account( settings, users, record, service, token )
 {
-	let account = { Id: record.Id, Name: record.Login, Display: record.Display, Role: record.Type, Type: record.Type, Admin: users.IsAdmin( settings, record ), Service: service || null, Token: token || null, Writes: null };
+	let account = { Id: record.Id, Name: record.Login, Display: record.Display, Role: record.Type, Type: record.Type, Admin: users.IsAdmin( settings, record ), Service: service || null, Token: token || null, Writes: null, Plan: record.Plan || null };
 	account.Speaker = Speaker( account.Name, account.Service );
 	return account;
 }
@@ -211,6 +212,10 @@ function Public( Account )
 	if ( Account.Writes )
 	{
 		shown.Writes = Account.Writes;
+	}
+	if ( Account.Plan )
+	{
+		shown.Plan = Account.Plan;
 	}
 	return shown;
 }
@@ -447,7 +452,7 @@ function Trust( Settings )
 	{
 		return 'local';
 	}
-	return HasClerk( Settings ) ? 'clerk' : 'trusted';
+	return 'clerk';
 }
 
 
@@ -534,7 +539,8 @@ function States( Settings )
 //---------------------------------------------------------------------
 // Clean: the settings as the modal sends them, kept to the known fields: the Owner to its Name and Display (trimmed,
 // the Display dropped when empty); the Clerk section to its four texts, trimmed, and dropped when all are empty
-// (absent means a trusted network). The result is what Validate checks and what is written.
+// (absent means our own instance, whose publishable key is built in; plan Clerk, Step 5). The result is what Validate
+// checks and what is written.
 
 function Clean( Settings )
 {

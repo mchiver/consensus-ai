@@ -106,3 +106,11 @@ What must be true before the first key is sold, in order:
 ## Measures
 
 The plan is working when, six months after the launch: a thousand GitHub stars, a hundred public repositories with a `.consensus` folder, a hundred Pro keys sold, and five team licenses. If the Pro keys do not come but the stars do, the price is wrong or the commercial reminder is too soft, and Step 4 is revisited before Step 5 is started.
+
+
+## Feature Lines
+
+- Consensus-AI uses less tokens. Rather then send all of the context, we send only the right context.
+- Stakholders can view and interrogate a Project's status.
+
+

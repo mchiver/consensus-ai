@@ -2,8 +2,10 @@
 
 // Settings - the server's settings (consensus.json) in a popup, for the owner (plan Consensus Desktop, Step 1): the
 // Name, the Scope and Port (applied at the next start; plan Run Shapes, Step 1), the States one per line, the Owner
-// (its Name read-only, its Display; plan User Management, Step 2: the participants and their tokens are gone), and the Clerk section (plan User Management, Step 1: the keys of a Public
-// server's sign-in, empty for a trusted network; a line beside the Scope says what the two come to), and the Tasks
+// (its Name read-only, its Display; plan User Management, Step 2: the participants and their tokens are gone), the Clerk section (plan User Management, Step 1;
+// plan Clerk, Step 5: an override of our instance's key, the secret key and webhook secret of our own servers, the
+// Administrator's email; a line beneath the Scope says what the Scope comes to, and Public is offered to a session
+// with a Host license alone, the Sign in button beside the line asking for one on a Local server), and the Tasks
 // (plan LLM Tasks, Step 1: one row per task, its Name, Writes, the Package switches (Box, Step 2, off for a new one) and its Prompt; Add, Remove,
 // up and down, Reset for a shipped one; the levels, the switches and the defaults come from GET /api/tasks). Saved
 // through PUT /api/settings; the server's problems are shown and nothing is saved while there are any.
@@ -23,7 +25,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 } ] )
 
 
-.controller( 'SettingsController', [ '$scope', 'State', 'Client', 'SettingsPanel', 'Roots', function ( $scope, State, Client, SettingsPanel, Roots )
+.controller( 'SettingsController', [ '$scope', 'State', 'Client', 'SettingsPanel', 'Roots', 'Session', function ( $scope, State, Client, SettingsPanel, Roots, Session )
 {
 	const SCOPES = [ 'None', 'Local', 'Public' ];
 	const CLERK_FIELDS = [ 'PublishableKey', 'SecretKey', 'WebhookSecret', 'AdminEmail' ];
@@ -136,7 +138,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 	};
 
 
-	// What the form's Scope and Clerk keys come to (plan User Management, Step 1), said beneath the Scope.
+	// What the form's Scope comes to (plan User Management, Step 1; plan Clerk, Step 5), said beneath the Scope.
 	$scope.TrustNote = function ()
 	{
 		let form = SettingsPanel.Form;
@@ -150,14 +152,39 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		}
 		if ( form.Scope === 'Local' )
 		{
-			return 'Local: this machine only. A request is the owner.';
+			return 'Local: this machine only. A request is the owner.' + ( $scope.ScopeAllowed( 'Public' ) ? '' : ' Public needs a sign-in with a Host license.' );
 		}
-		let keyed = !!( form.Clerk && form.Clerk.PublishableKey.trim() && form.Clerk.SecretKey.trim() );
-		if ( keyed )
+		return 'Public: people sign in through Consensus-AI with a license and act by their roles. A request with no session and no token is refused.';
+	};
+
+
+	// The popup opened on the page's own server, not on another root.
+	function own_server()
+	{
+		return !( SettingsPanel.Root && SettingsPanel.Root.Base );
+	}
+
+
+	// Public is offered to a session with a Host license, and to a server that is Public already.
+	$scope.ScopeAllowed = function ( scope )
+	{
+		if ( scope !== 'Public' || SettingsPanel.WasPublic )
 		{
-			return 'Public with Clerk keys: people sign in through Clerk and Consensus holds their roles. A request with no session and no token is refused.';
+			return true;
 		}
-		return 'Public without Clerk: a trusted network. Every request is the owner, so anyone who can reach this server acts as the owner.';
+		return own_server() && Session.Licensed( 'Host' );
+	};
+
+
+	$scope.CanSignIn = function ()
+	{
+		return own_server() && Session.On && !Session.SignedIn();
+	};
+
+
+	$scope.SignIn = function ()
+	{
+		Session.Open();
 	};
 
 
@@ -184,6 +211,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 			return;
 		}
 		SettingsPanel.Path = answer.Path;
+		SettingsPanel.WasPublic = ( answer.Settings.Scope === 'Public' );
 		SettingsPanel.Form = to_form( answer.Settings );
 		try
 		{

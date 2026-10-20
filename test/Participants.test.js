@@ -35,11 +35,11 @@ TEST( 'every request is the owner: no header is the owner plain, the service hea
 	let settings = PARTICIPANTS.DefaultSettings( 3500 );
 	let tokens = PARTICIPANTS.RunTokens();
 	let plain = PARTICIPANTS.Identify( settings, {}, tokens );
-	ASSERT.deepEqual( plain, { Id: null, Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Service: null, Token: null, Writes: null, Speaker: 'user' } );
+	ASSERT.deepEqual( plain, { Id: null, Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Service: null, Token: null, Writes: null, Plan: null, Speaker: 'user' } );
 	ASSERT.deepEqual( PARTICIPANTS.Identify( settings, { Authorization: '' }, tokens ).Speaker, 'user' );
 	ASSERT.deepEqual( PARTICIPANTS.Identify( settings, undefined, null ).Speaker, 'user' );
 	let agent = PARTICIPANTS.Identify( settings, { Service: ' Claude-CLI ' }, tokens );
-	ASSERT.deepEqual( agent, { Id: null, Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Service: 'Claude-CLI', Token: null, Writes: null, Speaker: 'Claude-CLI by user' } );
+	ASSERT.deepEqual( agent, { Id: null, Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Service: 'Claude-CLI', Token: null, Writes: null, Plan: null, Speaker: 'Claude-CLI by user' } );
 	// a bad service name is ignored
 	ASSERT.equal( PARTICIPANTS.Identify( settings, { Service: 'not a name' }, tokens ).Service, null );
 	ASSERT.equal( PARTICIPANTS.Identify( settings, { Service: 'x'.repeat( 41 ) }, tokens ).Service, null );
@@ -49,7 +49,7 @@ TEST( 'every request is the owner: no header is the owner plain, the service hea
 	let value = tokens.Mint( { Service: 'claude-cli', Name: 'Review run', Project: 'prj-1' } );
 	ASSERT.match( value, /^[0-9a-f]{48}$/ );
 	let run = PARTICIPANTS.Identify( settings, { Authorization: 'Bearer ' + value, Service: 'other' }, tokens );
-	ASSERT.deepEqual( run, { Id: null, Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Service: 'claude-cli', Token: 'Review run', Writes: null, Speaker: 'claude-cli by user' } );
+	ASSERT.deepEqual( run, { Id: null, Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Service: 'claude-cli', Token: 'Review run', Writes: null, Plan: null, Speaker: 'claude-cli by user' } );
 	// a run token carrying the presser's account (plan User Management, Step 3) is that account, with its role in the project
 	let pressed = tokens.Mint( { Service: 'claude-cli', Name: 'Explain run', Project: 'prj-1', Writes: 'none', Account: { Id: 'usr-1', Name: 'ann', Display: 'Ann', Role: 'user', Type: 'user', Admin: false }, Role: 'Watchers' } );
 	ASSERT.deepEqual( PARTICIPANTS.Identify( settings, { Authorization: 'Bearer ' + pressed }, tokens ), { Id: 'usr-1', Name: 'ann', Display: 'Ann', Role: 'user', Type: 'user', Admin: false, Service: 'claude-cli', Token: 'Explain run', Writes: 'none', ProjectRole: 'Watchers', Speaker: 'claude-cli by ann' } );
@@ -221,7 +221,7 @@ TEST( 'the Clerk section (plan User Management, Step 1): checked, cleaned, dropp
 	ASSERT.equal( PARTICIPANTS.HasClerk( settings ), false );
 	ASSERT.equal( PARTICIPANTS.HasClerk( { Clerk: { PublishableKey: 'pk_a' } } ), false );
 	ASSERT.equal( PARTICIPANTS.HasClerk( { Clerk: { PublishableKey: 'pk_a', SecretKey: 'sk_a' } } ), true );
-	ASSERT.equal( PARTICIPANTS.Trust( settings ), 'trusted' );
+	ASSERT.equal( PARTICIPANTS.Trust( settings ), 'clerk', 'Public is Clerk with or without a section (plan Clerk, Step 5)' );
 	ASSERT.equal( PARTICIPANTS.Trust( Object.assign( {}, settings, { Clerk: { PublishableKey: 'pk_a', SecretKey: 'sk_a' } } ) ), 'clerk' );
 	ASSERT.equal( PARTICIPANTS.Trust( PARTICIPANTS.DefaultSettings( 3500 ) ), 'local' );
 	ASSERT.equal( PARTICIPANTS.Trust( PARTICIPANTS.DefaultSettings( 3500, 'None' ) ), 'none' );

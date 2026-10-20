@@ -3,8 +3,9 @@
 // Roles - what an account may do in a project (plan User Management, Step 3; the roles are Accounts and Roles'):
 // the four project roles, applied through the project's role folders (project.json's Roles: { Owners, Members,
 // Service, Watchers }, each a list of account ids, an account in one at most), the actions the API's routes come to,
-// and which role allows which. The owner account of a Local or trusted-network server, and the Administrator for the
-// server's own routes, pass every check; everyone else is what their role folder says.
+// and which role allows which. The owner account of a Local server, and the Administrator for the server's own
+// routes, pass every check; everyone else is what their role folder says. The license kinds (plan Clerk, Step 5)
+// sit here too: a role needs a plan, and a plan has a rank.
 //
 //   ROLES                       [ 'Owners', 'Members', 'Service', 'Watchers' ]
 //   ACTIONS                     read, write, resolve, state, manage, roles, press (a project's), admin (the server's),
@@ -17,8 +18,13 @@
 //   Reason( Role, Action )      the refusal, in plain words
 //   Rule( Method, Path )        { Action, Source: 'param' | 'plan' | 'item' | 'body' | 'query' | null, Id }: what a route
 //                               comes to and where its project is found (Id the captured id, when the path holds one)
+//   PLANS                       [ 'User', 'Host' ]: the license kinds, Host above User; a Watcher needs none
+//   PlanRank( Plan )            0 for none or an unknown plan, 1 for User, 2 for Host
+//   PlanFor( Role )             the plan a role needs: User for Owners and Members, null for the rest
 
 const ROLES = [ 'Owners', 'Members', 'Service', 'Watchers' ];
+const PLANS = [ 'User', 'Host' ];
+const NEEDS_PLAN = { Owners: 'User', Members: 'User' };
 
 const ALLOWED = {
 	Owners: [ 'read', 'write', 'resolve', 'state', 'manage', 'roles', 'press' ],
@@ -128,6 +134,18 @@ function Allows( Role, Action )
 }
 
 
+function PlanRank( Plan )
+{
+	return PLANS.indexOf( Plan ) + 1;
+}
+
+
+function PlanFor( Role )
+{
+	return NEEDS_PLAN[ Role ] || null;
+}
+
+
 // Which tasks a role may press is read from the task's Writes level: none is every role's, consensus and files are
 // Owners' and Members'; a Service account presses none.
 function MayPress( Role, Writes )
@@ -185,6 +203,9 @@ function Rule( Method, Path )
 module.exports = {
 	ROLES: ROLES,
 	ALLOWED: ALLOWED,
+	PLANS: PLANS,
+	PlanRank: PlanRank,
+	PlanFor: PlanFor,
 	Empty: Empty,
 	Clean: Clean,
 	RoleOf: RoleOf,

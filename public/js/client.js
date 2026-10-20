@@ -69,7 +69,7 @@ angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope'
 		{
 			if ( response.status === 401 && own )
 			{
-				Session.Needed();
+				Session.Needed( json );
 			}
 			let failure = new Error( json.Error || ( 'request failed: ' + response.status ) );
 			failure.Status = response.status;

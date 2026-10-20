@@ -1,11 +1,13 @@
 'use strict';
 
 // The sign-in through Clerk in a real browser against the development instance (plan User Management, Step 4;
-// plan Clerk, Step 3): a temporary server with the development keys and Scope Public in its settings (it still
-// listens on 127.0.0.1), so a bare request is refused and the page shows Clerk's sign-in box; a Clerk test user
-// (an address ending +clerk_test@example.com, made through the Backend API when missing) signs in with the fixed
-// code 424242; the page reloads as that person, with the user button in the title bar and the account written to
-// the registry with a login made from the email. It runs only when the environment names the development keys,
+// plan Clerk, Steps 3 and 5): a temporary server started Public from a settings file with the development keys (it
+// still listens on 127.0.0.1), so a bare request is refused and the page shows Clerk's sign-in box; a Clerk test user
+// (an address ending +clerk_test@example.com, made through the Backend API when missing, given a User license in its
+// public metadata) signs in with the fixed code 424242; the page reloads as that person, with the user button in the
+// title bar and the account written to the registry with a login made from the email. The license reaches the
+// server only once the instance's session token template carries it (plan Clerk, Step 6), so the record's Plan is
+// not asserted. It runs only when the environment names the development keys,
 // CONSENSUS_CLERK_PUBLISHABLE and CONSENSUS_CLERK_SECRET, and is skipped with a note otherwise, so the suite stays
 // green on any machine. The keys never go into the repository.
 
@@ -52,18 +54,18 @@ async function json( method, url, body, headers )
 TEST( 'a person signs in through Clerk in the page: the sign-in box on a refused request, the test code, the page reloaded as the person, the account written', { skip: SKIP, timeout: 180000 }, async function ()
 {
 	// The test user at Clerk, made once through the Backend API (422: it exists already).
-	let made = await json( 'POST', 'https://api.clerk.com/v1/users', { email_address: [ EMAIL ], first_name: 'Smoke', last_name: 'Test', skip_password_requirement: true }, { Authorization: 'Bearer ' + SECRET } );
+	let made = await json( 'POST', 'https://api.clerk.com/v1/users', { email_address: [ EMAIL ], first_name: 'Smoke', last_name: 'Test', skip_password_requirement: true, public_metadata: { license: { Plan: 'User' } } }, { Authorization: 'Bearer ' + SECRET } );
 	ASSERT.ok( made.Status === 200 || made.Status === 422, 'the test user at Clerk: ' + made.Status + ' ' + JSON.stringify( made.Body ).slice( 0, 200 ) );
-	let running = await SERVER.Start( { Data: FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-smoke-' ) ), Port: 0 } );
+	// Public from the settings file, with the keys (plan Clerk, Step 5: Public is not saved from a bare request).
+	let folder = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-smoke-' ) );
+	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( { Port: 0, Scope: 'Public', Clerk: { PublishableKey: PUBLISHABLE, SecretKey: SECRET } } ) );
+	let running = await SERVER.Start( { Config: folder, Port: 0 } );
 	let browser = null;
 	try
 	{
-		// The keys and Scope Public in the settings: a bare request is refused from here on.
-		let settings = ( await json( 'GET', running.Url + '/api/settings' ) ).Body.Settings;
-		let saved = await json( 'PUT', running.Url + '/api/settings', Object.assign( {}, settings, { Scope: 'Public', Clerk: { PublishableKey: PUBLISHABLE, SecretKey: SECRET, WebhookSecret: '', AdminEmail: '' } } ) );
-		ASSERT.equal( saved.Status, 200, JSON.stringify( saved.Body ) );
+		// A bare request is refused; the page is told to sign in.
 		ASSERT.deepEqual( await json( 'GET', running.Url + '/api/me' ), { Status: 401, Body: { Error: 'sign in' } } );
-		ASSERT.equal( ( await json( 'GET', running.Url + '/api/clerk' ) ).Body.On, true );
+		ASSERT.deepEqual( [ ( await json( 'GET', running.Url + '/api/clerk' ) ).Body.On, ( await json( 'GET', running.Url + '/api/clerk' ) ).Body.Required ], [ true, true ] );
 		// The page at localhost (a development instance accepts it as an origin): the sign-in box, Clerk's form in it.
 		browser = await CDP.StartBrowser();
 		let page = await browser.OpenPage( 'http://localhost:' + running.Address.Port + '/' );

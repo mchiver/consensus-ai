@@ -1,19 +1,28 @@
 'use strict';
 
-// Clerk - the sign-in of a shared server (plan Clerk, Steps 2 and 4; plan User Management, Step 4). Clerk identifies
+// Clerk - the sign-in of a shared server (plan Clerk, Steps 2, 4 and 5; plan User Management, Step 4). Clerk identifies
 // people, Consensus keeps the registry (Users.js) and the roles. Nothing here needs a package: a Clerk session token
 // is an RS256 JWT, verified with Node's own crypto against the instance's published keys (the JWKS at
 // https://<frontend api>/.well-known/jwks.json, the Frontend API host decoded from the publishable key, whose base64
 // part reads "<host>$"); a webhook is signed the Svix way (HMAC-SHA256 over "<id>.<timestamp>.<body>" with the
-// secret decoded from its whsec_ form). The settings' Clerk section is read live, so keys saved in the popup count at
-// once; On() is whether both keys are there.
+// secret decoded from its whsec_ form). There is one instance, ours (plan Clerk, Step 5): its publishable key is
+// PUBLISHABLE_KEY below, so a server needs no Clerk section; the section, read live, overrides the key with another
+// instance's and adds the secret key and the webhook secret on our own servers. On() is whether the server listens.
+// The license (Step 5) is a claim of the session token, from the user's or the active organization's public metadata
+// through the instance's session token template ({ Plan: 'User' | 'Host', Until? }, or the plan as a string); the
+// template also carries the email and the names, so a person is written from the claims with no secret key.
 //
 //   Clerk( { Settings, Users, Jwks?, FetchUser?, Now? } ) -> {
-//     On(), FrontendApi(), Config() -> { On, PublishableKey, FrontendApi } (never the secret),
+//     On(), FrontendApi(), PublishableKey(),
+//     Config() -> { On, Required (a Public server: everyone signs in), PublishableKey, FrontendApi, Pricing } (never the secret),
 //     Verify( Token, Host? ) -> the claims | null  (async): the signature against the key the token names, exp and
 //       nbf with a minute's leeway, the issuer, and azp against Host (the request's Host header) when both are there,
-//     Identify( Token, Host? ) -> record | null  (async): the registry record of the token's subject; a subject the
-//       registry lacks is fetched once from Clerk's Backend API with the secret key and written (Adopt),
+//     License( Claims ) -> { Plan, Until } | null: the higher of the user's and the organization's valid licenses,
+//     Session( Token, Host? ) -> { Record, Claims, License } | null  (async): the registry record of the token's
+//       subject with the Plan written on it; a subject the registry lacks is written from the claims (Adopt), or
+//       fetched once from Clerk's Backend API when the claims lack an email and a secret key is there; on a Local
+//       server the session is the owner's, whose record takes the Clerk id and the Plan,
+//     Identify( Token, Host? ) -> record | null  (async): Session's record,
 //     Adopt( { Clerk, Email, First?, Last?, Username? } ) -> { Record, Made } | null: the record by Clerk id brought
 //       up (Made updated or kept), else the hand-made record with that email completed with the Clerk id (completed),
 //       else a new user with a login made from the email and no role (created),
@@ -28,6 +37,7 @@
 
 const CRYPTO = require( 'crypto' );
 const PARTICIPANTS = require( './Participants.js' );
+const ROLES = require( './Roles.js' );
 
 const LEEWAY = 60;	// seconds either way on exp and nbf
 const WEBHOOK_WINDOW = 5 * 60;	// seconds a webhook's timestamp may be off
@@ -37,6 +47,8 @@ const FETCH_TIMEOUT = 10 * 1000;
 const LOGIN_LIMIT = 40;
 const HOST = /^[a-z0-9.-]+$/i;
 const WEBHOOK_PREFIX = 'whsec_';
+const PUBLISHABLE_KEY = 'pk_test_YnVyc3RpbmctZWdyZXQtMjU5MS5jbGVyay5hY2NvdW50cy5kZXYk';	// our instance (plan Clerk, Step 5); the production key replaces it in Step 6
+const PRICING = 'http://consensus-ai.liquicode.com/pricing.html';
 
 
 function Clerk( Options )
@@ -59,14 +71,29 @@ function Clerk( Options )
 
 	function On()
 	{
-		return PARTICIPANTS.HasClerk( settings );
+		return PARTICIPANTS.Scope( settings ) !== 'None' && !!PublishableKey();
+	}
+
+
+	// The section's publishable key when it holds one, else our instance's.
+	function PublishableKey()
+	{
+		let given = ( typeof section().PublishableKey === 'string' ) ? section().PublishableKey.trim() : '';
+		return given.startsWith( 'pk_' ) ? given : PUBLISHABLE_KEY;
+	}
+
+
+	function secret_key()
+	{
+		let given = ( typeof section().SecretKey === 'string' ) ? section().SecretKey.trim() : '';
+		return given.startsWith( 'sk_' ) ? given : '';
 	}
 
 
 	// The Frontend API host the publishable key names: pk_test_<base64 of "<host>$"> or pk_live_….
 	function FrontendApi()
 	{
-		let key = ( typeof section().PublishableKey === 'string' ) ? section().PublishableKey.trim() : '';
+		let key = PublishableKey();
 		let encoded = key.split( '_' ).slice( 2 ).join( '_' );
 		if ( !encoded )
 		{
@@ -80,7 +107,7 @@ function Clerk( Options )
 	function Config()
 	{
 		let on = On();
-		return { On: on, PublishableKey: on ? section().PublishableKey.trim() : null, FrontendApi: on ? FrontendApi() : null };
+		return { On: on, Required: on && PARTICIPANTS.Trust( settings ) === 'clerk', PublishableKey: on ? PublishableKey() : null, FrontendApi: on ? FrontendApi() : null, Pricing: PRICING };
 	}
 
 
@@ -370,7 +397,11 @@ function Clerk( Options )
 			{
 				return await fetch_user( id );
 			}
-			let response = await fetch( BACKEND_API + '/users/' + encodeURIComponent( id ), { headers: { Authorization: 'Bearer ' + section().SecretKey.trim() }, signal: AbortSignal.timeout( FETCH_TIMEOUT ) } );
+			if ( !secret_key() )
+			{
+				return null;
+			}
+			let response = await fetch( BACKEND_API + '/users/' + encodeURIComponent( id ), { headers: { Authorization: 'Bearer ' + secret_key() }, signal: AbortSignal.timeout( FETCH_TIMEOUT ) } );
 			if ( !response.ok )
 			{
 				return null;
@@ -384,25 +415,115 @@ function Clerk( Options )
 	}
 
 
-	async function Identify( Token, Host )
+	//-----------------------------------------------------------------
+	// The license (plan Clerk, Step 5)
+
+	// One license claim as the template writes it: the metadata object { Plan, Until }, or the plan as a string.
+	function license_of( claim )
 	{
-		let claims = await Verify( Token, Host );
-		if ( !claims || typeof claims.sub !== 'string' || !claims.sub )
+		let given = ( typeof claim === 'string' ) ? { Plan: claim } : claim;
+		if ( !given || typeof given !== 'object' || !ROLES.PlanRank( given.Plan ) )
 		{
 			return null;
+		}
+		let until = null;
+		if ( given.Until !== undefined && given.Until !== null && given.Until !== '' )
+		{
+			let stamp = ( typeof given.Until === 'number' ) ? given.Until * 1000 : Date.parse( String( given.Until ) );
+			if ( !Number.isFinite( stamp ) || stamp < now() )
+			{
+				return null;
+			}
+			until = new Date( stamp ).toISOString();
+		}
+		return { Plan: given.Plan, Until: until };
+	}
+
+
+	function License( Claims )
+	{
+		let claims = ( Claims && typeof Claims === 'object' ) ? Claims : {};
+		let best = null;
+		for ( let name of [ 'license', 'org_license' ] )
+		{
+			let license = license_of( claims[ name ] );
+			if ( license && ( !best || ROLES.PlanRank( license.Plan ) > ROLES.PlanRank( best.Plan ) ) )
+			{
+				best = license;
+			}
+		}
+		return best;
+	}
+
+
+	// The person as the session token template carries them (email, first, last, username beside Clerk's own claims).
+	function profile_of_claims( claims )
+	{
+		return { Clerk: claims.sub, Email: ( typeof claims.email === 'string' ) ? claims.email : null, First: claims.first, Last: claims.last, Username: claims.username };
+	}
+
+
+	function with_plan( record, license )
+	{
+		let plan = license ? license.Plan : null;
+		if ( !users || !record || ( record.Plan || null ) === plan )
+		{
+			return record;
+		}
+		return users.Update( record.Id, { Plan: plan } );
+	}
+
+
+	async function Session( Token, Host )
+	{
+		let claims = await Verify( Token, Host );
+		if ( !claims || typeof claims.sub !== 'string' || !claims.sub || !users )
+		{
+			return null;
+		}
+		let license = License( claims );
+		if ( PARTICIPANTS.Trust( settings ) === 'local' )
+		{
+			// The owner signed in, to go Public with a license: the owner's record takes the Clerk id and the plan.
+			let owner = users.List().find( function ( one ) { return one.Type === 'owner'; } ) || null;
+			if ( !owner )
+			{
+				return null;
+			}
+			if ( owner.Clerk !== claims.sub )
+			{
+				owner = users.Update( owner.Id, { Clerk: claims.sub } );
+			}
+			return { Record: with_plan( owner, license ), Claims: claims, License: license };
 		}
 		let record = by_clerk( claims.sub );
 		if ( record )
 		{
-			return record;
+			return { Record: with_plan( record, license ), Claims: claims, License: license };
 		}
-		let user = await read_user( claims.sub );
-		if ( !user || user.id !== claims.sub )
+		let profile = profile_of_claims( claims );
+		if ( !profile.Email )
+		{
+			let user = await read_user( claims.sub );
+			if ( !user || user.id !== claims.sub )
+			{
+				return null;
+			}
+			profile = profile_of( user );
+		}
+		let adopted = Adopt( profile );
+		if ( !adopted )
 		{
 			return null;
 		}
-		let adopted = Adopt( profile_of( user ) );
-		return adopted ? adopted.Record : null;
+		return { Record: with_plan( adopted.Record, license ), Claims: claims, License: license };
+	}
+
+
+	async function Identify( Token, Host )
+	{
+		let found = await Session( Token, Host );
+		return found ? found.Record : null;
 	}
 
 
@@ -510,9 +631,12 @@ function Clerk( Options )
 	return {
 		On: On,
 		FrontendApi: FrontendApi,
+		PublishableKey: PublishableKey,
 		Config: Config,
 		Looks: Looks,
 		Verify: Verify,
+		License: License,
+		Session: Session,
 		Identify: Identify,
 		Adopt: Adopt,
 		LoginFrom: LoginFrom,
@@ -524,6 +648,7 @@ function Clerk( Options )
 
 module.exports = {
 	Clerk: Clerk,
+	PRICING: PRICING,
 	LEEWAY: LEEWAY,
 	WEBHOOK_WINDOW: WEBHOOK_WINDOW,
 	BACKEND_API: BACKEND_API,

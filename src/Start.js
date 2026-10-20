@@ -132,7 +132,7 @@ async function Lines( Running )
 		}
 		if ( Running.Scope === 'Public' )
 		{
-			lines.push( 'warning: listening beyond this machine; anyone who can reach it acts as the owner, and reads the llm token at /instructions' );
+			lines.push( 'warning: listening beyond this machine; people sign in through Clerk with a license, and a bare request is refused' );
 		}
 	}
 	else

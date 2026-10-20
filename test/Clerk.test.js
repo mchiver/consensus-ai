@@ -4,7 +4,8 @@
 // instance: a session token verified with its claims, the refusals (expired, another key, another issuer, another
 // azp, no such key id, a wrong algorithm), the keys read again for an unknown key id; the subject matched to a
 // record or fetched once and written; the login made from an email; the webhook signature good, bad and stale; and
-// the registry writes each webhook event causes.
+// the registry writes each webhook event causes. Plan Clerk, Step 5: the built-in key, the person and the license
+// from the claims, a Local session the owner's.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -86,18 +87,25 @@ function webhook_headers( Body, Fields )
 
 //---------------------------------------------------------------------
 
-TEST( 'the publishable key names the Frontend API; Config never carries the secret; without both keys Clerk is off', function ()
+TEST( 'the publishable key names the Frontend API; Config never carries the secret; without a section the built-in key names our instance; Scope None is off', function ()
 {
 	let on = clerk_of().Clerk;
 	ASSERT.equal( on.On(), true );
 	ASSERT.equal( on.FrontendApi(), HOST );
-	ASSERT.deepEqual( on.Config(), { On: true, PublishableKey: SECTION.PublishableKey, FrontendApi: HOST } );
+	ASSERT.deepEqual( on.Config(), { On: true, Required: true, PublishableKey: SECTION.PublishableKey, FrontendApi: HOST, Pricing: CLERK.PRICING } );
 	ASSERT.equal( JSON.stringify( on.Config() ).includes( 'sk_test' ), false );
-	let off = CLERK.Clerk( { Settings: { Scope: 'Public', Clerk: { PublishableKey: SECTION.PublishableKey } } } );
-	ASSERT.equal( off.On(), false );
-	ASSERT.deepEqual( off.Config(), { On: false, PublishableKey: null, FrontendApi: null } );
+	// the section's key alone overrides; a Local server is on but not required
+	let local = CLERK.Clerk( { Settings: { Scope: 'Local', Clerk: { PublishableKey: SECTION.PublishableKey } } } );
+	ASSERT.deepEqual( [ local.On(), local.Config().Required, local.FrontendApi() ], [ true, false, HOST ] );
+	// no section: our instance
+	let ours = CLERK.Clerk( { Settings: {} } );
+	ASSERT.equal( ours.On(), true );
+	ASSERT.match( ours.PublishableKey(), /^pk_(test|live)_[A-Za-z0-9]+$/ );
+	ASSERT.match( ours.FrontendApi(), /^[a-z0-9.-]+\.clerk\.accounts\.dev$|^clerk\./ );
+	ASSERT.equal( ours.Config().Required, false );
 	ASSERT.equal( CLERK.Clerk( { Settings: { Clerk: { PublishableKey: 'pk_test_!!!', SecretKey: 'sk_x' } } } ).FrontendApi(), null );
-	ASSERT.equal( CLERK.Clerk( { Settings: {} } ).On(), false );
+	ASSERT.equal( CLERK.Clerk( { Settings: { Scope: 'None' } } ).On(), false );
+	ASSERT.deepEqual( CLERK.Clerk( { Settings: { Scope: 'None' } } ).Config(), { On: false, Required: false, PublishableKey: null, FrontendApi: null, Pricing: CLERK.PRICING } );
 } );
 
 
@@ -132,8 +140,9 @@ TEST( 'a session token is verified: the signature, exp and nbf with a minute\'s 
 	made.State.Clock += 61 * 1000;
 	ASSERT.equal( ( await clerk.Verify( sign( { sub: 'user_2' }, OTHER.privateKey, { alg: 'RS256', kid: 'key-2' } ) ) ).sub, 'user_2' );
 	ASSERT.equal( made.State.Reads, reads + 1 );
-	// with Clerk off nothing verifies
+	// another instance's token: the issuer is not ours
 	ASSERT.equal( await CLERK.Clerk( { Settings: {}, Jwks: function () { return [ JWK ]; } } ).Verify( sign( {} ) ), null );
+	ASSERT.equal( await CLERK.Clerk( { Settings: { Scope: 'None', Clerk: SECTION }, Jwks: function () { return [ JWK ]; } } ).Verify( sign( {} ) ), null, 'Scope None verifies nothing' );
 	ASSERT.equal( clerk.Looks( signed ), true );
 	ASSERT.equal( clerk.Looks( 'abcdef0123456789' ), false );
 } );
@@ -219,4 +228,44 @@ TEST( 'the registry follows the events: a user created, updated and deleted, a m
 	let owner = users.List()[ 0 ];
 	users.Update( owner.Id, { Clerk: 'user_owner' } );
 	ASSERT.equal( clerk.Handle( { type: 'user.deleted', data: { id: 'user_owner' } } ).Removed, null );
+} );
+
+
+TEST( 'the license (plan Clerk, Step 5): the person written from the claims with no secret key, the plan the higher of the user\'s and the organization\'s, an expired one nothing, the plan on the record; a Local session is the owner\'s', async function ()
+{
+	let users = fresh_users();
+	let fetched = [];
+	let made = clerk_of( { Users: users, Section: { SecretKey: '' }, FetchUser: function ( id ) { fetched.push( id ); return null; } } );
+	let clerk = made.Clerk;
+	// License reads the claims the template writes: an object, a string, the higher of the two, an expired one dropped
+	ASSERT.deepEqual( clerk.License( { license: { Plan: 'User' } } ), { Plan: 'User', Until: null } );
+	ASSERT.deepEqual( clerk.License( { license: 'Host' } ), { Plan: 'Host', Until: null } );
+	ASSERT.deepEqual( clerk.License( { license: { Plan: 'User' }, org_license: { Plan: 'Host', Until: '2099-01-01' } } ), { Plan: 'Host', Until: '2099-01-01T00:00:00.000Z' } );
+	ASSERT.deepEqual( clerk.License( { license: { Plan: 'Host', Until: '2001-01-01' }, org_license: { Plan: 'User' } } ), { Plan: 'User', Until: null } );
+	ASSERT.equal( clerk.License( { license: { Plan: 'Gold' } } ), null );
+	ASSERT.equal( clerk.License( { license: { Plan: 'User', Until: 'soon' } } ), null );
+	ASSERT.equal( clerk.License( {} ), null );
+	ASSERT.equal( clerk.License( null ), null );
+	// a person from the claims: written with no fetch, the plan on the record
+	let ann = await clerk.Session( sign( { sub: 'user_ann', email: 'Ann@example.com', first: 'Ann', last: 'A.', license: { Plan: 'User' } } ) );
+	ASSERT.deepEqual( [ ann.Record.Login, ann.Record.Display, ann.Record.Email, ann.Record.Clerk, ann.Record.Plan, ann.License.Plan, ann.Claims.sub ], [ 'ann', 'Ann A.', 'Ann@example.com', 'user_ann', 'User', 'User', 'user_ann' ] );
+	ASSERT.deepEqual( fetched, [] );
+	ASSERT.equal( users.Get( ann.Record.Id ).Plan, 'User' );
+	// the plan follows the token: an organization's Host, then none
+	ASSERT.equal( ( await clerk.Session( sign( { sub: 'user_ann', org_license: { Plan: 'Host' } } ) ) ).Record.Plan, 'Host' );
+	let bare = await clerk.Session( sign( { sub: 'user_ann' } ) );
+	ASSERT.deepEqual( [ bare.Record.Id, bare.Record.Plan, bare.License ], [ ann.Record.Id, null, null ] );
+	// no email in the claims and no secret key: nobody, nothing written
+	ASSERT.equal( await clerk.Session( sign( { sub: 'user_bob' } ) ), null );
+	ASSERT.deepEqual( fetched, [ 'user_bob' ], 'the test fetch stands in for the Backend API' );
+	ASSERT.equal( users.List().length, 2 );
+	ASSERT.equal( await clerk.Identify( sign( { sub: 'user_x', email: 'x@example.com' }, OTHER.privateKey ) ), null );
+	// a Local server: the session is the owner's, whose record takes the Clerk id and the plan
+	let local_users = fresh_users();
+	let local = CLERK.Clerk( { Settings: { Scope: 'Local', Clerk: SECTION }, Users: local_users, Jwks: function () { return [ JWK ]; } } );
+	let owner = await local.Session( sign( { sub: 'user_owner', email: 'owner@example.com', license: 'Host' } ) );
+	ASSERT.deepEqual( [ owner.Record.Type, owner.Record.Login, owner.Record.Clerk, owner.Record.Plan, owner.License.Plan ], [ 'owner', 'user', 'user_owner', 'Host', 'Host' ] );
+	ASSERT.equal( local_users.List().length, 1, 'nothing else written' );
+	ASSERT.equal( ( await local.Session( sign( { sub: 'user_other', email: 'other@example.com' } ) ) ).Record.Type, 'owner', 'any session on Local is the owner' );
+	ASSERT.equal( local_users.List()[ 0 ].Plan, null );
 } );

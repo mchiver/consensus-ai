@@ -25,3 +25,13 @@ sign-in-box
 {
 	color: var(--danger, #b02a37);
 }
+
+.sign-in-license
+{
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	align-items: center;
+	width: 100%;
+	padding: 0.5rem 0;
+}

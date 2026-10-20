@@ -195,21 +195,21 @@
 				<label for="settings-name">Name</label>
 				<input class="form-control form-control-sm" id="settings-name" ng-model="Panel.Form.Name" placeholder="this server's name" title="the server's name, shown to its clients">
 				<label for="settings-scope">Scope</label>
-				<select class="form-select form-select-sm settings-scope" id="settings-scope" ng-model="Panel.Form.Scope" ng-options="scope for scope in Scopes" title="at its next start: Local listens on this machine only, Public on every interface, None starts no server"></select>
+				<select class="form-select form-select-sm settings-scope" id="settings-scope" ng-model="Panel.Form.Scope" ng-options="scope disable when !ScopeAllowed( scope ) for scope in Scopes" title="at its next start: Local listens on this machine only, Public on every interface (people sign in with a license; saved from a sign-in with a Host license), None starts no server"></select>
 				<label for="settings-port">Port</label>
 				<input class="form-control form-control-sm settings-port" id="settings-port" type="number" min="0" max="65535" ng-model="Panel.Form.Port" title="the port at its next start">
 			</div>
-			<div class="muted small settings-trust" id="settings-trust">{{ TrustNote() }}</div>
+			<div class="muted small settings-trust" id="settings-trust">{{ TrustNote() }} <button class="btn btn-sm btn-outline-secondary settings-sign-in" type="button" id="settings-sign-in" ng-show="CanSignIn()" ng-click="SignIn()" title="sign in with your Consensus-AI account; a Host license lets this server run as Public">Sign in</button></div>
 			<div class="settings-row top">
 				<label for="settings-states">States</label>
 				<textarea class="form-control form-control-sm" id="settings-states" rows="4" ng-model="Panel.Form.StatesText" placeholder="one state per line; a new plan starts in the first" title="the states a plan is picked from, one per line; one in use by a plan cannot be removed"></textarea>
 			</div>
-			<div class="settings-label">Clerk <span class="muted small fw-normal">sign-in for a Public server (plan Clerk); leave empty for a trusted network</span></div>
+			<div class="settings-label">Clerk <span class="muted small fw-normal">people sign in through Consensus-AI; the keys are for another instance of your own, the secret and webhook secret for our own servers, the Admin email names the Administrator (empty, the first sign-in with a Host license becomes it)</span></div>
 			<div class="settings-row">
 				<label for="settings-clerk-publishable">Publishable key</label>
-				<input class="form-control form-control-sm settings-clerk" id="settings-clerk-publishable" ng-model="Panel.Form.Clerk.PublishableKey" placeholder="pk_…" title="the Clerk instance's publishable key; the page will load Clerk with it" autocomplete="off">
+				<input class="form-control form-control-sm settings-clerk" id="settings-clerk-publishable" ng-model="Panel.Form.Clerk.PublishableKey" placeholder="pk_…" title="another Clerk instance's publishable key, in place of Consensus-AI's; the page loads Clerk with it" autocomplete="off">
 				<label for="settings-clerk-secret">Secret key</label>
-				<input class="form-control form-control-sm settings-clerk" id="settings-clerk-secret" type="password" ng-model="Panel.Form.Clerk.SecretKey" placeholder="sk_…" title="the Clerk instance's secret key; the server will verify sessions with it" autocomplete="off">
+				<input class="form-control form-control-sm settings-clerk" id="settings-clerk-secret" type="password" ng-model="Panel.Form.Clerk.SecretKey" placeholder="sk_…" title="the instance's secret key (our own servers): a person whose token lacks their email is fetched from Clerk with it" autocomplete="off">
 			</div>
 			<div class="settings-row">
 				<label for="settings-clerk-webhook">Webhook secret</label>

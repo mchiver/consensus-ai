@@ -94,7 +94,7 @@ TEST( 'tokens: minted with a name and shown once, kept as a hash, matched, touch
 	users.Touch( ann.Id, 'nope' );
 	let shown = users.Public( users.Get( ann.Id ), true );
 	ASSERT.deepEqual( shown.Tokens, [ { Name: 'laptop', Created: record.Tokens[ 0 ].Created, LastUsed: first } ] );
-	ASSERT.deepEqual( Object.keys( users.Public( ann, false ) ), [ 'Id', 'Type', 'Login', 'Display', 'Email', 'Clerk', 'Created' ] );
+	ASSERT.deepEqual( Object.keys( users.Public( ann, false ) ), [ 'Id', 'Type', 'Login', 'Display', 'Email', 'Clerk', 'Plan', 'Created' ] );
 	ASSERT.equal( users.Public( null ), null );
 	ASSERT.equal( users.RevokeToken( ann.Id, 'laptop' ), true );
 	ASSERT.equal( users.RevokeToken( ann.Id, 'laptop' ), false );

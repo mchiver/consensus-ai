@@ -1,16 +1,17 @@
 'use strict';
 
 // Users - the registry of a server's accounts (plan User Management, Step 3; the model is Accounts and Roles'):
-// <config>/Users.json, { Users: [ record ] }, on every server. A Local or trusted-network server holds the owner's
-// record alone; a Public server with Clerk holds the people Clerk identifies (their records made by the Administrator
+// <config>/Users.json, { Users: [ record ] }, on every server. A Local server holds the owner's record and the Service
+// accounts the owner makes; a Public server holds the people Clerk identifies (their records made by the Administrator
 // now, completed by Clerk at their first sign-in, plan Clerk) and the Service accounts. No credentials: a token is
-// kept as a sha256 of its value, the value shown once when minted.
+// kept as a sha256 of its value, the value shown once when minted. Plan is the license the account's last sign-in
+// showed (User or Host, plan Clerk Step 5), null before one.
 //
-//   record = { Id (usr-…), Type: 'owner' | 'user' | 'service', Login, Display, Email, Clerk, Tokens: [ { Name, Hash, Created, LastUsed } ], Created }
+//   record = { Id (usr-…), Type: 'owner' | 'user' | 'service', Login, Display, Email, Clerk, Plan, Tokens: [ { Name, Hash, Created, LastUsed } ], Created }
 //   Users( { Folder } ) -> {
 //     List(), Get( Id ), ByLogin( Login ), ByToken( Value ) -> { Record, Token } | null,
 //     Create( { Type, Login, Display, Email? } ) -> record (throws on a problem),
-//     Update( Id, { Login?, Display?, Email?, Clerk? } ) -> record,  Delete( Id ) -> true | false,
+//     Update( Id, { Login?, Display?, Email?, Clerk?, Plan? } ) -> record,  Delete( Id ) -> true | false,
 //     MintToken( Id, Name ) -> value (throws when the name is taken),  RevokeToken( Id, Name ) -> true | false,
 //     Touch( Id, Name ): the token's LastUsed, written once a minute at most,
 //     Migrate( Settings ) -> lines: the owner's record made or brought up to the settings' Owner,
@@ -87,6 +88,7 @@ function Users( Options )
 			Display: String( given.Display || given.Login || '' ).trim(),
 			Email: given.Email ? String( given.Email ).trim() : null,
 			Clerk: given.Clerk || null,
+			Plan: given.Plan || null,
 			Tokens: ( Array.isArray( given.Tokens ) ? given.Tokens : [] ).map( function ( token )
 			{
 				return { Name: String( token.Name || '' ), Hash: String( token.Hash || '' ), Created: token.Created || null, LastUsed: token.LastUsed || null };
@@ -220,6 +222,10 @@ function Users( Options )
 		{
 			record.Clerk = fields.Clerk || null;
 		}
+		if ( fields.Plan !== undefined )
+		{
+			record.Plan = fields.Plan || null;
+		}
 		save();
 		return record;
 	}
@@ -352,7 +358,7 @@ function Users( Options )
 		{
 			return null;
 		}
-		let shown = { Id: Record.Id, Type: Record.Type, Login: Record.Login, Display: Record.Display, Email: Record.Email || null, Clerk: Record.Clerk ? true : false, Created: Record.Created };
+		let shown = { Id: Record.Id, Type: Record.Type, Login: Record.Login, Display: Record.Display, Email: Record.Email || null, Clerk: Record.Clerk ? true : false, Plan: Record.Plan || null, Created: Record.Created };
 		if ( WithTokens )
 		{
 			shown.Tokens = Record.Tokens.map( function ( token ) { return { Name: token.Name, Created: token.Created, LastUsed: token.LastUsed }; } );

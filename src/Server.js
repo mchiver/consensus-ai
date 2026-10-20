@@ -94,10 +94,27 @@ async function Start( Options )
 	{
 		console.log( line );
 	}
-	let clerk = CLERK.Clerk( { Settings: settings, Users: users, Jwks: options.Clerk ? options.Clerk.Jwks : null, FetchUser: options.Clerk ? options.Clerk.FetchUser : null } );
-	if ( clerk.On() )
+	// The Administrator from the environment (plan Clerk, Step 5: a Docker server nobody signed in to yet).
+	let admin_from_env = ( process.env.CONSENSUS_ADMIN || '' ).trim();
+	if ( admin_from_env && !( settings.Clerk && settings.Clerk.AdminEmail ) )
 	{
-		console.log( 'Clerk on: people sign in through ' + ( clerk.FrontendApi() || 'an instance the publishable key does not name' ) + ( PARTICIPANTS.Trust( settings ) === 'clerk' ? '' : ' (Scope Local: a bare request is still the owner)' ) );
+		let with_admin = Object.assign( {}, settings, { Clerk: Object.assign( {}, settings.Clerk || {}, { AdminEmail: admin_from_env } ) } );
+		if ( PARTICIPANTS.Validate( with_admin ).length === 0 )
+		{
+			settings.Clerk = with_admin.Clerk;
+			await store.WriteSettings( settings );
+			console.log( 'the Administrator from CONSENSUS_ADMIN: ' + admin_from_env );
+		}
+		else
+		{
+			console.log( 'CONSENSUS_ADMIN is not an email address: ignored' );
+		}
+	}
+	let clerk = CLERK.Clerk( { Settings: settings, Users: users, Jwks: options.Clerk ? options.Clerk.Jwks : null, FetchUser: options.Clerk ? options.Clerk.FetchUser : null } );
+	if ( clerk.On() && PARTICIPANTS.Trust( settings ) === 'clerk' )
+	{
+		let admin_email = ( settings.Clerk && settings.Clerk.AdminEmail ) ? settings.Clerk.AdminEmail : null;
+		console.log( 'Clerk: people sign in through ' + ( clerk.FrontendApi() || 'an instance the publishable key does not name' ) + ' with a license; ' + ( admin_email ? ( 'the Administrator is ' + admin_email ) : 'no Administrator yet: the first sign-in with a Host license becomes it' ) );
 	}
 	let port = ( options.Port !== undefined ) ? options.Port : ( settings.Port || DEFAULT_PORT );
 	let scope = PARTICIPANTS.SCOPES.includes( options.Scope ) ? options.Scope : PARTICIPANTS.Scope( settings );

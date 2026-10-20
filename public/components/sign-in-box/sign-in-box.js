@@ -1,13 +1,17 @@
 'use strict';
 
-// sign-in-box - Clerk's sign-in form in a popup (plan User Management, Step 4; plan Clerk, Step 3), shown when the
-// page's own server signs people in through Clerk and refused a request with 401: the session is Required and
-// nobody is signed in. The form is Clerk's, mounted into the box by the clerk-mount directive below; a finished
-// sign-in reloads the page (Session). The same directive mounts Clerk's user button in the title bar.
+// sign-in-box - Clerk's sign-in form in a popup (plan User Management, Step 4; plan Clerk, Steps 3 and 5), shown when
+// the page's own server refused a request with 401 (the session is Required) and nobody is signed in, or when the
+// Settings popup's Sign in button asked for one on a Local server (Asked). The form is Clerk's, mounted into the box
+// by the clerk-mount directive below; a finished sign-in reloads the page (Session). When the server refused a
+// signed-in person for their license (401 "license"), the box says which plan the person's roles need, links the
+// pricing page and offers Clerk's sign-out instead of the form. The same directive mounts Clerk's user button in the
+// title bar.
 //
 // Interface:
 //   <sign-in-box></sign-in-box>
-//   reads Session.On, Session.Required, Session.SignedIn(), Session.Error; Roots.Of( '' ) for the server's name
+//   reads Session.On, Session.Required, Session.Asked, Session.Refusal, Session.SignedIn(), Session.Error,
+//   Session.Pricing; Roots.Of( '' ) for the server's name
 //   <element clerk-mount="sign-in"> or <element clerk-mount="user">: Clerk's form or user button mounted on the element
 
 angular.module( 'Consensus' ).component( 'signInBox', {
@@ -20,7 +24,15 @@ angular.module( 'Consensus' ).component( 'signInBox', {
 
 		controller.Shown = function ()
 		{
-			return Session.On && Session.Required && !Session.SignedIn();
+			if ( !Session.On )
+			{
+				return false;
+			}
+			if ( Session.Refusal )
+			{
+				return true;
+			}
+			return ( Session.Required || Session.Asked ) && !Session.SignedIn();
 		};
 
 
@@ -28,6 +40,12 @@ angular.module( 'Consensus' ).component( 'signInBox', {
 		{
 			let root = Roots.Of( '' );
 			return ( root && root.Name ) ? root.Name : window.location.host;
+		};
+
+
+		controller.SignOut = function ()
+		{
+			Session.SignOut();
 		};
 	} ],
 } )

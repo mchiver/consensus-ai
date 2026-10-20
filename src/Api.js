@@ -58,7 +58,7 @@ function Attach( App, Context )
 	// Before identify (Step 4): what the page needs to sign in, and Clerk's events over the raw body.
 	router.get( '/clerk', function ( request, response )
 	{
-		response.json( clerk ? clerk.Config() : { On: false, PublishableKey: null, FrontendApi: null } );
+		response.json( clerk ? clerk.Config() : { On: false, Required: false, PublishableKey: null, FrontendApi: null, Pricing: null } );
 	} );
 	router.post( '/clerk/webhook', EXPRESS.raw( { type: function () { return true; }, limit: '1mb' } ), clerk_webhook );
 	router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
@@ -71,8 +71,10 @@ function Attach( App, Context )
 	// X-Consensus-Service header, or a run on its run token; an unknown token is refused. request.Participant is the
 	// account: { Name, Display, Role, Service, Token, Writes, Speaker }, Speaker the key the rules run over. A run
 	// whose task writes nothing (plan LLM Tasks, Step 1: Writes none) is refused every request but a read.
-	// Step 4: with Clerk keys a Bearer value that is no token of ours is tried as a Clerk session token, its user the
-	// account; on a Public server with Clerk a bare request is refused with "sign in" (on Local it stays the owner).
+	// Step 4: a Bearer value that is no token of ours is tried as a Clerk session token, its user the account; on a
+	// Public server a bare request is refused with "sign in" (on Local it stays the owner, and a session is the owner's).
+	// Plan Clerk, Step 5: a session whose license is below what the person's roles need is refused with "license" and
+	// the plan wanted (Host for the Administrator, User for an Owner or a Member; a Watcher needs none).
 
 	async function identify( request, response, next )
 	{
@@ -93,6 +95,10 @@ function Attach( App, Context )
 				participant = await clerk_participant( match[ 1 ].trim(), service, request.get( 'host' ) );
 			}
 		}
+		if ( participant && participant.Refused )
+		{
+			return fail( response, 401, 'license', { Plan: participant.Refused, Has: participant.Has || null } );
+		}
 		if ( !participant )
 		{
 			return fail( response, 401, session ? 'sign in' : 'unknown token' );
@@ -106,20 +112,73 @@ function Attach( App, Context )
 	}
 
 
-	// A Clerk session token (Step 4): the registry record of its subject as the account, fetched from Clerk and
-	// written when the registry lacks it; null when the token is no live session of this instance.
+	// A Clerk session token (Step 4): the registry record of its subject as the account, written from the token's claims
+	// when the registry lacks it (on a Local server the owner's record); null when the token is no live session of this
+	// instance. Plan Clerk, Step 5: the account carries the session's Plan; the first sign-in with a Host license on a
+	// Public server with no Administrator becomes it; a plan below what the person's roles need is a refusal
+	// ({ Refused: the plan wanted, Has }) that identify answers with 401 "license".
 	async function clerk_participant( value, service, host )
 	{
-		let record = null;
+		let found = null;
 		try
 		{
-			record = await clerk.Identify( value, host );
+			found = await clerk.Session( value, host );
 		}
 		catch ( error )
 		{
-			record = null;
+			found = null;
 		}
-		return record ? PARTICIPANTS.UserAccount( settings, users, record, PARTICIPANTS.ServiceOf( service ), null ) : null;
+		if ( !found )
+		{
+			return null;
+		}
+		let account = ( found.Record.Type === 'owner' ) ? PARTICIPANTS.Identify( settings, { Service: service }, tokens, users ) : PARTICIPANTS.UserAccount( settings, users, found.Record, PARTICIPANTS.ServiceOf( service ), null );
+		account.Plan = found.License ? found.License.Plan : null;
+		account.Session = true;
+		if ( account.Type !== 'owner' && !admin_email() && found.Record.Email && ROLES.PlanRank( account.Plan ) >= ROLES.PlanRank( 'Host' ) )
+		{
+			settings.Clerk = Object.assign( {}, settings.Clerk || {}, { AdminEmail: found.Record.Email } );
+			await store.WriteSettings( settings );
+			console.log( 'the Administrator is ' + found.Record.Email + ': the first sign-in with a Host license' );
+			events.Send( { Settings: true, Kind: 'settings' } );
+			account.Admin = true;
+		}
+		let needed = await needed_plan( account );
+		if ( needed && ROLES.PlanRank( account.Plan ) < ROLES.PlanRank( needed ) )
+		{
+			return { Refused: needed, Has: account.Plan };
+		}
+		return account;
+	}
+
+
+	function admin_email()
+	{
+		return ( settings.Clerk && typeof settings.Clerk.AdminEmail === 'string' ) ? settings.Clerk.AdminEmail.trim() : '';
+	}
+
+
+	// The plan a person's roles need (plan Clerk, Step 5): Host for the Administrator, User for an Owner or a Member
+	// of any project, none for a Watcher or someone placed nowhere; the owner of a Local server needs none.
+	async function needed_plan( account )
+	{
+		if ( account.Type === 'owner' )
+		{
+			return null;
+		}
+		if ( account.Admin )
+		{
+			return 'Host';
+		}
+		let roles = await roles_of( account );
+		for ( let project_id of Object.keys( roles ) )
+		{
+			if ( ROLES.PlanFor( roles[ project_id ] ) )
+			{
+				return ROLES.PlanFor( roles[ project_id ] );
+			}
+		}
+		return null;
 	}
 
 
@@ -505,16 +564,17 @@ function Attach( App, Context )
 
 
 	//-----------------------------------------------------------------
-	// Settings: consensus.json, read whole and written by the owner (the settings modal): the server's fields (Name,
+	// Settings: consensus.json, read whole and written by the Administrator (the settings modal; the owner on a Local
+	// server): the server's fields (Name,
 	// Port, Scope, States, Owner, Clerk, Tasks) replace what the file has, and any other field (the desktop's, plan Run Shapes)
 	// stays as it is. Everything applies at once but Scope and Port, which take effect at the next start; the answer
 	// says when a restart is needed.
 
 	router.get( '/settings', function ( request, response )
 	{
-		if ( request.Participant.Role !== 'owner' )
+		if ( !is_admin( request.Participant ) )
 		{
-			return fail( response, 403, 'only the owner reads the settings' );
+			return fail( response, 403, 'only the Administrator reads the settings' );
 		}
 		response.json( { Settings: settings, Path: store.SettingsPath() } );
 	} );
@@ -522,9 +582,9 @@ function Attach( App, Context )
 
 	router.put( '/settings', async function ( request, response )
 	{
-		if ( request.Participant.Role !== 'owner' )
+		if ( !is_admin( request.Participant ) )
 		{
-			return fail( response, 403, 'only the owner writes the settings' );
+			return fail( response, 403, 'only the Administrator writes the settings' );
 		}
 		let body = request.body || {};
 		let clean = PARTICIPANTS.Clean( body.Settings || body );
@@ -534,6 +594,11 @@ function Attach( App, Context )
 			return fail( response, 400, 'the settings have problems: ' + problems[ 0 ], { Problems: problems } );
 		}
 		let before = { Scope: PARTICIPANTS.Scope( settings ), Port: settings.Port };
+		// Plan Clerk, Step 5: a server goes Public from a session with a Host license alone.
+		if ( clean.Scope === 'Public' && before.Scope !== 'Public' && ROLES.PlanRank( request.Participant.Plan ) < ROLES.PlanRank( 'Host' ) )
+		{
+			return fail( response, 403, 'a Host license is required to run a Public server: sign in with one first', { Plan: 'Host' } );
+		}
 		for ( let field of PARTICIPANTS.SETTINGS_FIELDS )
 		{
 			delete settings[ field ];
@@ -2698,6 +2763,12 @@ function Attach( App, Context )
 				if ( ( record.Type === 'service' ) !== ( role === 'Service' ) )
 				{
 					return fail( response, 400, ( record.Type === 'service' ) ? 'a Service account goes in the Service folder only' : 'the Service folder takes Service accounts only' );
+				}
+				// Plan Clerk, Step 5: a person seen without the plan the folder needs stays out of it.
+				let needed = ROLES.PlanFor( role );
+				if ( needed && record.Clerk && ROLES.PlanRank( record.Plan ) < ROLES.PlanRank( needed ) )
+				{
+					return fail( response, 400, record.Login + ' needs a ' + needed + ' license to be in ' + role, { Plan: needed } );
 				}
 			}
 		}
