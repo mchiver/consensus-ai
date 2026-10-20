@@ -184,7 +184,14 @@
 			"By": "user",
 			"At": "2026-10-20T09:40:16.871Z"
 		},
-		"Applied": null,
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-20T09:41:35.293Z",
+			"Revision": 8,
+			"RevisionId": "rev-kpb-k7c-wn4",
+			"Outcome": "Accepted as built. Committed as \"Clerk Step 7: The sign-in everywhere\" (bb6b0a5); the plan back to Plan; the Readme updated. Verifying against the dev instance found and fixed three bugs (the ClerkJS UMD global shadowed by the editor loader, the JWKS cache race, a Local server missing a completed sign-in)."
+		},
 		"Created": "2026-10-20T09:26:48.516Z",
 		"Replies": [
 			{
