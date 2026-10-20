@@ -182,6 +182,34 @@ function apply_roots()
 
 
 //---------------------------------------------------------------------
+// The page server on the port it had last time (remembered in desktop.json as page-port), so the window's origin
+// stays the same between starts and a sign-in through Clerk survives a restart (plan Clerk, Step 7); a port in use
+// gives way to a free one, which is remembered instead.
+
+async function serve_page()
+{
+	let remembered = ( settings.Remembered && Number.isInteger( settings.Remembered[ 'page-port' ] ) ) ? settings.Remembered[ 'page-port' ] : 0;
+	if ( remembered > 0 )
+	{
+		try
+		{
+			return await PAGE.Serve( { Port: remembered } );
+		}
+		catch ( error )
+		{
+			console.log( 'the page port ' + remembered + ' is in use: another one' );
+		}
+	}
+	let served = await PAGE.Serve();
+	if ( SETTINGS.Remember( settings, 'page-port', Number( new URL( served.Url ).port ) ) )
+	{
+		save_settings();
+	}
+	return served;
+}
+
+
+//---------------------------------------------------------------------
 // The window: the connect screen, or the Consensus page copy.
 
 function show_connect()
@@ -718,7 +746,7 @@ async function main()
 		process.on( 'SIGTERM', quit_headless );
 		return;
 	}
-	page = await PAGE.Serve();
+	page = await serve_page();
 	attach_handlers();
 	create_window();
 	ELECTRON.app.on( 'window-all-closed', function ()

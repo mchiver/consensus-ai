@@ -61,6 +61,7 @@ function Clerk( Options )
 	let now = ( typeof options.Now === 'function' ) ? options.Now : Date.now;
 	let keys = {};			// key id -> KeyObject
 	let keys_read_at = 0;
+	let reading = null;		// the one in-flight JWKS read, shared by concurrent requests
 
 
 	function section()
@@ -168,7 +169,7 @@ function Clerk( Options )
 			let response = await fetch( 'https://' + host + '/.well-known/jwks.json', { signal: AbortSignal.timeout( FETCH_TIMEOUT ) } );
 			if ( !response.ok )
 			{
-				return;
+				throw new Error( 'the JWKS answered ' + response.status );
 			}
 			list = ( await response.json() ).keys;
 		}
@@ -192,25 +193,27 @@ function Clerk( Options )
 	}
 
 
-	// The key a token names, read from the instance when the cache lacks it (once a minute at most).
+	// The key a token names, read from the instance when the cache lacks it. Concurrent requests (the page's first
+	// calls come together) share the one in-flight read, so a load spends a single fetch; a read that succeeds but
+	// lacks the kid holds off another for a minute (a token naming a rotated key does not re-read each time), while a
+	// read that fails clears that hold so the next request, or the page's retry, tries again at once.
 	async function key_for( kid )
 	{
 		if ( keys[ kid ] )
 		{
 			return keys[ kid ];
 		}
-		if ( now() - keys_read_at < JWKS_INTERVAL )
+		if ( !reading && now() - keys_read_at >= JWKS_INTERVAL )
 		{
-			return null;
+			keys_read_at = now();
+			reading = read_keys().then(
+				function () { reading = null; },
+				function () { reading = null; keys_read_at = 0; }
+			);
 		}
-		keys_read_at = now();
-		try
+		if ( reading )
 		{
-			await read_keys();
-		}
-		catch ( error )
-		{
-			return null;
+			await reading;
 		}
 		return keys[ kid ] || null;
 	}

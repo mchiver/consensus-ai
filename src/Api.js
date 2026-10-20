@@ -54,6 +54,7 @@ function Attach( App, Context )
 	let tokens = Context.Tokens || null;
 	let users = Context.Users || null;
 	let clerk = Context.Clerk || null;
+	const LOOPBACK = [ '127.0.0.1', '::1', '::ffff:127.0.0.1' ];
 	let router = EXPRESS.Router();
 	// Before identify (Step 4): what the page needs to sign in, and Clerk's events over the raw body.
 	router.get( '/clerk', function ( request, response )
@@ -92,7 +93,7 @@ function Attach( App, Context )
 			session = !!( match && clerk.Looks( match[ 1 ].trim() ) );
 			if ( session )
 			{
-				participant = await clerk_participant( match[ 1 ].trim(), service, request.get( 'host' ) );
+				participant = await clerk_participant( match[ 1 ].trim(), service, page_host( request ) );
 			}
 		}
 		if ( participant && participant.Refused )
@@ -149,6 +150,20 @@ function Attach( App, Context )
 			return { Refused: needed, Has: account.Plan };
 		}
 		return account;
+	}
+
+
+	// The host the page used (plan Clerk, Step 7): the desktop's page server forwards to its own server over the
+	// loopback and says which host the window had, so a session's azp still matches; from anywhere else the Host header.
+	function page_host( request )
+	{
+		let forwarded = request.get( 'x-forwarded-host' );
+		let address = ( request.socket && request.socket.remoteAddress ) ? request.socket.remoteAddress : '';
+		if ( forwarded && LOOPBACK.includes( address ) )
+		{
+			return forwarded;
+		}
+		return request.get( 'host' );
 	}
 
 

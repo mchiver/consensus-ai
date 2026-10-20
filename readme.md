@@ -388,8 +388,12 @@ characters a dash, a number while taken) and no role. On a Public server a bare 
 (public: On, Required, the publishable key, the Frontend API host, the pricing page; never the secret) and loads
 ClerkJS from that host when it is needed; `public/js/session.js` hands every call to the page's own server
 the session token, a 401 shows Clerk's sign-in box in a popup (`public/components/sign-in-box/`), the title bar
-mounts Clerk's user button (sign out is in its menu), and a sign-in or sign-out reloads the page. The desktop stays
-on tokens. `POST /api/clerk/webhook`, before identify and verified the Svix way (HMAC-SHA256 over id, timestamp and
+mounts Clerk's user button (sign out is in its menu), and a sign-in or sign-out reloads the page. The desktop's
+own server signs in the same way since Clerk Step 7 (2026-10-20): the session knows the page's own server (the
+browser's one root, or the desktop's own under /servers/local), the desktop's page server forwards the window's
+host as X-Forwarded-Host, which the API takes from the loopback so the token's azp still matches, and the page
+server's port is remembered in desktop.json so the sign-in survives a restart; the desktop's saved servers stay on
+tokens. `POST /api/clerk/webhook`, before identify and verified the Svix way (HMAC-SHA256 over id, timestamp and
 the raw body with the whsec_ secret, five minutes' window), keeps the registry following Clerk: user.created and
 user.updated write or bring up the record, user.deleted removes it and its roles, organizationMembership.created
 writes the member with no role, organizationMembership.deleted removes it, organization.created is logged; each

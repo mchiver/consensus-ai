@@ -326,6 +326,17 @@ async function smoke_desktop()
 		await page.Press( 'Escape' );
 		await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
 
+		// the sign-in (plan Clerk, Step 7): the Settings popup of the desktop's own server offers Sign in, Public greyed
+		// out, and nothing is loaded from Clerk until the button is pressed
+		await page.Evaluate( 'angular.element( document.body ).scope().$broadcast( "settings-opened" ); true' );
+		await page.WaitFor( count_of( '#settings-popup .settings-form' ) + ' === 1 && !!document.getElementById( "settings-sign-in" )', 20000 );
+		check( 'settings: the session knows the desktop\'s own server', await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Base' ), '/servers/local' );
+		check( 'settings: the Sign in button', await page.Evaluate( 'getComputedStyle( document.getElementById( "settings-sign-in" ) ).display !== "none"' ), true );
+		check( 'settings: Public greyed out', await page.Evaluate( '[ ...document.getElementById( "settings-scope" ).options ].find( function ( option ) { return option.textContent.trim() === "Public"; } ).disabled' ), true );
+		check( 'settings: nothing loaded from Clerk', await page.Evaluate( 'typeof window.Clerk' ), 'undefined' );
+		await page.Evaluate( 'document.getElementById( "settings-close" ).click(); true' );
+		await page.WaitFor( count_of( '.settings-form' ) + ' === 0' );
+
 		// the overlay follows the theme and the size
 		await page.Evaluate( 'window.ConsensusTheme.SetTheme( "light" ); true' );
 		await wait( 600 );

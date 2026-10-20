@@ -11,7 +11,7 @@
 // Interface:
 //   <sign-in-box></sign-in-box>
 //   reads Session.On, Session.Required, Session.Asked, Session.Refusal, Session.SignedIn(), Session.Error,
-//   Session.Pricing; Roots.Of( '' ) for the server's name
+//   Session.Pricing; Roots.Of( Session.Key ) for the server's name
 //   <element clerk-mount="sign-in"> or <element clerk-mount="user">: Clerk's form or user button mounted on the element
 
 angular.module( 'Consensus' ).component( 'signInBox', {
@@ -38,7 +38,7 @@ angular.module( 'Consensus' ).component( 'signInBox', {
 
 		controller.Name = function ()
 		{
-			let root = Roots.Of( '' );
+			let root = Roots.Of( Session.Key || '' );
 			return ( root && root.Name ) ? root.Name : window.location.host;
 		};
 

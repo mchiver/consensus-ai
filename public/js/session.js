@@ -10,10 +10,13 @@
 // "license" keeps the refusal (the plan wanted), and the sign-in box (sign-in-box) shows Clerk's form or the license
 // message; the title bar mounts Clerk's user button, whose menu holds sign out. A sign-in or a sign-out reloads the
 // page, so every list is read again as the new account. The person's organization is made active at sign-in when
-// none is, so the token carries the organization's license. The desktop never signs in through Clerk (its page is
-// served from 127.0.0.1 and its saved servers hold tokens), so in the desktop the session is off.
+// none is, so the token carries the organization's license. The page's own server is the browser's one root (Base
+// ''), or in the desktop the desktop's own server, reached through the page server under /servers/local (plan Clerk,
+// Step 7); the desktop's other servers hold tokens and never sign in this way, and a desktop window with no own
+// server has no session.
 //
-//   Session { On, Loaded, Required, Asked, Refusal, Error, Config, Pricing, Ready (a promise: loaded),
+//   Session { Key, Base (the own server's root key and base, null when there is none),
+//             On, Loaded, Required, Asked, Refusal, Error, Config, Pricing, Ready (a promise: loaded),
 //             Token(), SignedIn(), User(), Plan(), Licensed( plan ), Needed( body ), Open(), SignOut(),
 //             MountSignIn( element ), MountUserButton( element ), Unmount( element, kind ) }
 
@@ -22,10 +25,26 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	const SCRIPT = '/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
 	const PLANS = [ 'User', 'Host' ];	// Roles.js's PLANS: the rank is the index plus one
 	const REMEMBERED = 'consensus-signed-in';
-	let session = { On: false, Loaded: false, Required: false, Asked: false, Refusal: null, Error: null, Config: null, Pricing: null, Ready: null };
+	const SESSION_WAIT = 4000;	// milliseconds given to a remembered session to arrive after ClerkJS loads
+	let own = own_root();
+	let session = { Key: own ? own.Key : null, Base: own ? own.Base : null, On: false, Loaded: false, Required: false, Asked: false, Refusal: null, Error: null, Config: null, Pricing: null, Ready: null };
 	let clerk = null;
 	let loading = null;
 	let was_signed_in = false;
+	let retried = false;
+
+
+	// The page's own server: the browser's one root, or the desktop's own server (Kind local).
+	function own_root()
+	{
+		if ( !window.ConsensusDesktop )
+		{
+			return { Key: '', Base: '' };
+		}
+		let roots = Array.isArray( window.ConsensusDesktop.Roots ) ? window.ConsensusDesktop.Roots : [];
+		let local = roots.find( function ( root ) { return root && root.Kind === 'local' && root.Key; } );
+		return local ? { Key: String( local.Key ), Base: '/servers/' + encodeURIComponent( String( local.Key ) ) } : null;
+	}
 
 
 	function remembered()
@@ -61,17 +80,31 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	}
 
 
+	// ClerkJS is a UMD bundle: with Monaco's AMD loader on the page it would register itself as an anonymous AMD
+	// module and never set window.Clerk, so define.amd is hidden while the script loads and put back after.
 	function load_script( host, key )
 	{
 		return new Promise( function ( resolve, reject )
 		{
+			let amd = ( window.define && window.define.amd ) ? window.define.amd : null;
+			function restore()
+			{
+				if ( amd && window.define )
+				{
+					window.define.amd = amd;
+				}
+			}
+			if ( amd )
+			{
+				window.define.amd = undefined;
+			}
 			let script = document.createElement( 'script' );
 			script.async = true;
 			script.crossOrigin = 'anonymous';
 			script.setAttribute( 'data-clerk-publishable-key', key );
 			script.src = 'https://' + host + SCRIPT;
-			script.onload = function () { resolve(); };
-			script.onerror = function () { reject( new Error( 'ClerkJS did not load from ' + host ) ); };
+			script.onload = function () { restore(); resolve(); };
+			script.onerror = function () { restore(); reject( new Error( 'ClerkJS did not load from ' + host ) ); };
 			document.head.appendChild( script );
 		} );
 	}
@@ -80,7 +113,7 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	// The configuration, once; ClerkJS when the server requires a sign-in or this browser remembers one.
 	async function load()
 	{
-		if ( window.ConsensusDesktop )
+		if ( session.Base === null )
 		{
 			session.Loaded = true;
 			return;
@@ -88,7 +121,7 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		let config = { On: false };
 		try
 		{
-			let response = await fetch( '/api/clerk' );
+			let response = await fetch( session.Base + '/api/clerk' );
 			if ( response.ok )
 			{
 				config = await response.json();
@@ -101,12 +134,22 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		session.Config = config;
 		session.Pricing = config.Pricing || null;
 		session.On = !!( config.On && config.PublishableKey && config.FrontendApi );
-		if ( session.On && ( config.Required || remembered() ) )
+		if ( session.On && ( config.Required || signed_in_hint() || remembered() ) )
 		{
 			await load_clerk();
 		}
 		session.Loaded = true;
 		$rootScope.$applyAsync();
+	}
+
+
+	// Whether a Clerk session exists, read without loading ClerkJS: Clerk's __client_uat cookie holds the time of the
+	// last sign-in, zero when signed out. It survives Clerk's own after-sign-in navigation, so a server where a
+	// sign-in is optional (a Local server, Required false) still loads ClerkJS and shows the person after they sign in.
+	function signed_in_hint()
+	{
+		let match = ( typeof document !== 'undefined' ) ? document.cookie.match( /(?:^|;\s*)__client_uat=([^;]*)/ ) : null;
+		return !!( match && Number( match[ 1 ] ) > 0 );
 	}
 
 
@@ -128,6 +171,10 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 			await load_script( session.Config.FrontendApi, session.Config.PublishableKey );
 			clerk = window.Clerk;
 			await clerk.load();
+			if ( remembered() && !( clerk.user && clerk.session ) )
+			{
+				await wait_for_session( SESSION_WAIT );
+			}
 			was_signed_in = !!clerk.user;
 			remember( was_signed_in );
 			await activate_organization();
@@ -139,6 +186,27 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 			clerk = null;
 			session.Error = error.message;
 		}
+	}
+
+
+	// The session can arrive a moment after load() resolves: when this browser remembers a sign-in, the page waits for
+	// Clerk to hold the session and the user, up to a limit, before its first calls go out.
+	function wait_for_session( limit )
+	{
+		return new Promise( function ( resolve )
+		{
+			let start = Date.now();
+			function poll()
+			{
+				if ( ( clerk.user && clerk.session ) || Date.now() - start >= limit )
+				{
+					resolve();
+					return;
+				}
+				setTimeout( poll, 100 );
+			}
+			poll();
+		} );
 	}
 
 
@@ -258,6 +326,14 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	{
 		if ( !session.On )
 		{
+			return;
+		}
+		// Refused while Clerk holds a session: the call went out before the token was there. Once per page, the page
+		// reads everything again (app.js listens), instead of asking a signed-in person to sign in.
+		if ( clerk && clerk.user && clerk.session && !retried && !( Body && Body.Error === 'license' ) )
+		{
+			retried = true;
+			$rootScope.$broadcast( 'session-ready' );
 			return;
 		}
 		session.Required = true;

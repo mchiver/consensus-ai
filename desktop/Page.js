@@ -53,7 +53,8 @@ async function Serve( Options )
 
 
 	// One request forwarded to the root's server as it is: method, path (the rest after /servers/<key>), headers (the
-	// host is the target's) and body, the answer streamed back, which keeps the events stream open.
+	// host is the target's, the window's host kept as X-Forwarded-Host so a Clerk session's azp still matches, plan
+	// Clerk Step 7) and body, the answer streamed back, which keeps the events stream open.
 	function forward( request, response )
 	{
 		let target = roots[ request.params.key ];
@@ -77,6 +78,7 @@ async function Serve( Options )
 				headers[ name ] = request.headers[ name ];
 			}
 		}
+		headers[ 'x-forwarded-host' ] = request.headers.host || '';
 		headers.host = url.host;
 		let client = ( url.protocol === 'https:' ) ? HTTPS : HTTP;
 		let upstream = client.request( url, { method: request.method, headers: headers }, function ( answer )

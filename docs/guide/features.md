@@ -61,7 +61,7 @@
 
 - **Everything over one REST API.** Projects, plans, threads, revisions, runs and settings, the same routes the page uses. See [The API](api.html).
 - **Users and roles.** The accounts of a server (the owner, the users the Administrator makes, the Service accounts), each with its page, its tokens made and revoked there, and its activity; a project's Users folder with Owners, Members, Service and Watchers, filled by drag; every request checked against the role, with the reason when refused.
-- **Sign in through Consensus-AI.** A Public server signs people in through Consensus-AI's Clerk instance, in the page, with no password of its own and nothing to configure; a first sign-in writes the account to the registry from the token, and Consensus holds the roles. See [Settings and themes](settings.html).
+- **Sign in through Consensus-AI.** A Public server signs people in through Consensus-AI's Clerk instance, in the page, in the browser and in the desktop alike, with no password of its own and nothing to configure; a first sign-in writes the account to the registry from the token, and Consensus holds the roles. See [Settings and themes](settings.html).
 - **Licenses for people, not servers.** Free is the Local server. A Host license runs a Public server and is its Administrator, a User license is an Owner or a Member in projects, a Watcher needs none; a site license is an organization whose members carry it. The server checks the plan at sign-in, at the Scope and at the drag into a role, and says which plan it wants.
 - **Events.** A stream of what changed, for anything that wants to follow along.
 - **MIT licensed.** The code is public and free to use, change and run anywhere.

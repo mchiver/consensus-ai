@@ -800,6 +800,15 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		$scope.$applyAsync( route );
 	} );
 
+	// The session's token was missing from the first calls (plan Clerk, Step 7): every root's lists are read again.
+	$scope.$on( 'session-ready', function ()
+	{
+		for ( let root of Roots.List )
+		{
+			on_status( root, true );
+		}
+	} );
+
 	// The first root is the current one until an item of another opens; the route is read once its identity is known,
 	// and every root's stream brings its lists in as it connects.
 	State.SetRoot( Roots.List[ 0 ] || null );

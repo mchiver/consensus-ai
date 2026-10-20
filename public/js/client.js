@@ -1,6 +1,8 @@
 'use strict';
 
-// Client - fetch over the API, and the Server-Sent Events stream. The browser is the owner, no token, until the page's
+// Client - fetch over the API, and the Server-Sent Events stream. A call to the page's own server (Session.Base: the
+// browser's one root, or the desktop's own server) carries the session token when there is one (plan Clerk, Step 7).
+// The browser is the owner, no token, until the page's
 // own server signs people in through Clerk (plan User Management, Step 4: session.js): then every call to that server
 // carries the session token, and a 401 from it asks for a sign-in.
 // The desktop (plan Consensus Desktop, Step 2) sets the API's base URL before the page starts
@@ -46,7 +48,7 @@ angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope'
 			options.headers[ 'Content-Type' ] = 'application/json';
 			options.body = JSON.stringify( body );
 		}
-		let own = ( base_of( root ) === '' );
+		let own = ( Session.Base !== null && base_of( root ) === BASE + Session.Base );
 		if ( own )
 		{
 			let token = await Session.Token();

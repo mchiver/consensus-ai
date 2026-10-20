@@ -51,6 +51,24 @@ async function json( method, url, body, headers )
 }
 
 
+// The code typed as key presses with a pause, the way a person types it into Clerk's boxes; then the sign-in is given
+// a moment, and Clerk's own error text, when it shows one, goes into the failure.
+async function type_code( Page )
+{
+	for ( let digit of CODE )
+	{
+		await Page.Press( digit );
+		await new Promise( function ( Resolve ) { setTimeout( Resolve, 120 ); } );
+	}
+}
+
+
+async function clerk_error( Page )
+{
+	return await Page.Evaluate( '( function () { let error = document.querySelector( ".cl-formFieldErrorText, .cl-alertText, [data-localization-key$=\\"error\\"]" ); return error ? error.textContent.trim() : ""; } )()' );
+}
+
+
 TEST( 'a person signs in through Clerk in the page: the sign-in box on a refused request, the test code, the page reloaded as the person, the account written', { skip: SKIP, timeout: 180000 }, async function ()
 {
 	// The test user at Clerk, made once through the Backend API (422: it exists already).
@@ -76,15 +94,25 @@ TEST( 'a person signs in through Clerk in the page: the sign-in box on a refused
 		await page.Press( 'Enter' );
 		await page.WaitFor( count_of( '#sign-in-mount input[autocomplete="one-time-code"], #sign-in-mount input[name="code"]' ) + ' >= 1', 60000 );
 		await page.Click( '#sign-in-mount input[autocomplete="one-time-code"], #sign-in-mount input[name="code"]' );
-		await page.Type( CODE );
-		// A finished sign-in reloads the page as the person: the user button, the root's line, the registry record.
-		await page.WaitFor( count_of( '#user-button' ) + ' === 1', 60000 );
+		await type_code( page );
+		// A finished sign-in reloads the page as the person (a moment given to the reload, so no wait spans it): the
+		// user button, the root's line, the registry record.
+		await new Promise( function ( Resolve ) { setTimeout( Resolve, 4000 ); } );
+		try
+		{
+			await page.WaitFor( count_of( '#user-button' ) + ' === 1', 60000 );
+		}
+		catch ( error )
+		{
+			throw new Error( 'no user button after the code; Clerk says: ' + JSON.stringify( await clerk_error( page ) ) + '; ' + error.message );
+		}
 		await page.WaitFor( text_of( '.root-head .me' ) + '.indexOf( ' + JSON.stringify( LOGIN ) + ' ) >= 0 || ' + text_of( '.root-head .me' ) + '.indexOf( "Smoke Test" ) >= 0', 30000 );
 		let record = running.Users.List().find( function ( one ) { return one.Email && one.Email.toLowerCase() === EMAIL; } );
 		ASSERT.ok( record, 'the account written to the registry' );
 		ASSERT.deepEqual( [ record.Type, record.Login, record.Display, !!record.Clerk ], [ 'user', LOGIN, 'Smoke Test', true ] );
 		ASSERT.equal( await page.Evaluate( count_of( '#sign-in-popup' ) ), 0 );
-		ASSERT.equal( await page.Evaluate( count_of( '#users-list .user-row' ) ), 2, 'the Users fold: the owner and the person' );
+		// The Users fold lists the person (a user with no role sees the list the route narrows for them).
+		await page.WaitFor( count_of( '#users-list .user-row[data-id="' + record.Id + '"]' ) + ' === 1', 15000 );
 	}
 	finally
 	{
@@ -93,5 +121,107 @@ TEST( 'a person signs in through Clerk in the page: the sign-in box on a refused
 			await browser.Close();
 		}
 		await running.Close();
+	}
+} );
+
+
+//---------------------------------------------------------------------
+// The desktop (plan Clerk, Step 7): the same sign-in inside the desktop window, on the desktop's own server. The
+// desktop is started on a temporary config with the development keys and its own user data, over its DevTools port;
+// the Settings popup's Sign in button opens Clerk's form, the test user signs in with the code, and the page reloads
+// signed in: the user button, the session's plan (User, from the test user's metadata; so Public stays greyed out,
+// which needs Host), and the owner's record carrying the Clerk id.
+
+const CHILD_PROCESS = require( 'child_process' );
+const DESKTOP_PORT = 9338;
+const ROOT = PATH.join( __dirname, '..' );
+
+
+function wait( Ms )
+{
+	return new Promise( function ( Resolve ) { setTimeout( Resolve, Ms ); } );
+}
+
+
+async function desktop_target( TimeoutMs )
+{
+	let limit = Date.now() + ( TimeoutMs || 30000 );
+	while ( Date.now() < limit )
+	{
+		try
+		{
+			let list = await ( await fetch( 'http://127.0.0.1:' + DESKTOP_PORT + '/json/list' ) ).json();
+			let found = list.find( function ( target ) { return target.type === 'page' && /^http:\/\/127\.0\.0\.1/.test( target.url ); } );
+			if ( found )
+			{
+				return found;
+			}
+		}
+		catch ( error )
+		{
+			// not up yet
+		}
+		await wait( 250 );
+	}
+	throw new Error( 'the desktop did not show its page within ' + ( TimeoutMs || 30000 ) + ' ms' );
+}
+
+
+TEST( 'the desktop signs in the same way (plan Clerk, Step 7): the Settings popup\'s Sign in button, the code, the page reloaded as the person, the plan read, Public still greyed out without Host', { skip: SKIP, timeout: 240000 }, async function ()
+{
+	let electron = require( 'electron' );
+	let config = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-desktop-config-' ) );
+	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-desktop-user-data-' ) );
+	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( { Port: 0, Scope: 'Local', Clerk: { PublishableKey: PUBLISHABLE, SecretKey: SECRET } } ) );
+	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--config', config, '--port', '0', '--user-data-dir=' + user_data, '--remote-debugging-port=' + DESKTOP_PORT ], { cwd: ROOT, stdio: 'ignore' } );
+	let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
+	try
+	{
+		let target = await desktop_target();
+		ASSERT.doesNotMatch( target.url, /connect\.html/, 'the desktop opened on the connect screen: its own server did not start' );
+		let page = await CDP.Attach( target.webSocketDebuggerUrl );
+		await page.WaitFor( 'window.ConsensusDesktop !== undefined && ' + count_of( 'title-bar .brand' ) + ' === 1 && document.querySelector( ".connection" ) !== null && document.querySelector( ".connection" ).classList.contains( "live" )', 30000 );
+		await page.WaitFor( '( function () { let session = angular.element( document.body ).injector().get( "Session" ); return session.Loaded && session.On && session.Base === "/servers/local"; } )()', 20000 );
+		ASSERT.equal( await page.Evaluate( 'typeof window.Clerk' ), 'undefined', 'nothing loaded from Clerk yet' );
+		// The Settings popup: Sign in
+		await page.Evaluate( 'angular.element( document.body ).scope().$broadcast( "settings-opened" ); true' );
+		await page.WaitFor( count_of( '#settings-popup .settings-form' ) + ' === 1 && getComputedStyle( document.getElementById( "settings-sign-in" ) ).display !== "none"', 20000 );
+		await page.Evaluate( 'document.getElementById( "settings-sign-in" ).click(); true' );
+		await page.WaitFor( count_of( '#sign-in-popup' ) + ' === 1', 30000 );
+		await page.WaitFor( count_of( '#sign-in-mount input[name="identifier"]' ) + ' === 1', 60000 );
+		await page.Click( '#sign-in-mount input[name="identifier"]' );
+		await page.Type( EMAIL );
+		await page.Press( 'Enter' );
+		await page.WaitFor( count_of( '#sign-in-mount input[autocomplete="one-time-code"], #sign-in-mount input[name="code"]' ) + ' >= 1', 60000 );
+		await page.Click( '#sign-in-mount input[autocomplete="one-time-code"], #sign-in-mount input[name="code"]' );
+		await type_code( page );
+		// Clerk's form navigates to its after-sign-in URL on success (a fresh load); a moment, then the reloaded target.
+		await wait( 6000 );
+		let again = await desktop_target();
+		let reloaded = await CDP.Attach( again.webSocketDebuggerUrl );
+		try
+		{
+			await reloaded.WaitFor( count_of( '#user-button' ) + ' === 1', 60000 );
+		}
+		catch ( error )
+		{
+			throw new Error( 'no user button after the code; Clerk says: ' + JSON.stringify( await clerk_error( reloaded ) ) + '; ' + error.message.slice( 0, 150 ) );
+		}
+		await reloaded.WaitFor( 'angular.element( document.body ).injector().get( "Session" ).SignedIn()', 20000 );
+		ASSERT.equal( await reloaded.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Plan()' ), 'User', 'the test user\'s metadata' );
+		ASSERT.equal( await reloaded.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Licensed( "Host" )' ), false );
+		await reloaded.Evaluate( 'angular.element( document.body ).scope().$broadcast( "settings-opened" ); true' );
+		await reloaded.WaitFor( count_of( '#settings-popup .settings-form' ) + ' === 1', 20000 );
+		ASSERT.equal( await reloaded.Evaluate( '[ ...document.getElementById( "settings-scope" ).options ].find( function ( option ) { return option.textContent.trim() === "Public"; } ).disabled' ), true, 'Public needs Host' );
+		ASSERT.equal( await reloaded.Evaluate( 'getComputedStyle( document.getElementById( "settings-sign-in" ) ).display' ), 'none', 'signed in: no Sign in button' );
+		// The owner's record carries the Clerk id: a Local session is the owner's
+		let users = JSON.parse( FS.readFileSync( PATH.join( config, 'Users.json' ), 'utf8' ) ).Users;
+		ASSERT.ok( users.find( function ( one ) { return one.Type === 'owner' && one.Clerk; } ), 'the owner signed in' );
+		ASSERT.equal( users.length, 1, 'nothing else written on Local' );
+	}
+	finally
+	{
+		child.kill();
+		await Promise.race( [ exited, wait( 10000 ) ] );
 	}
 } );

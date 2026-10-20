@@ -158,10 +158,12 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 	};
 
 
-	// The popup opened on the page's own server, not on another root.
+	// The popup opened on the page's own server (Session.Base: the browser's one root, or the desktop's own), not on
+	// another root.
 	function own_server()
 	{
-		return !( SettingsPanel.Root && SettingsPanel.Root.Base );
+		let base = SettingsPanel.Root ? ( SettingsPanel.Root.Base || '' ) : '';
+		return Session.Base !== null && base === Session.Base;
 	}
 
 
