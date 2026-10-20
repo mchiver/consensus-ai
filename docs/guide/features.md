@@ -54,7 +54,7 @@
 - **Docker.** One image, one volume, port 3500, for a box on your network.
 - **Scope.** The server listens for this machine only, for the network, or not at all, as the settings say.
 - **Live updates.** Every change is a Server-Sent Event, so every open page, window and server row stays in step.
-- **Settings in the app.** Name, scope, port, states, the owner's display and the Clerk section, edited in a popup by the owner or the Administrator; Public is offered to a sign-in with a Host license. See [Settings and themes](settings.html).
+- **Settings in the app.** Name, scope, port, states, the owner's display and the tasks, edited in a popup by the owner or the Administrator; Public is offered to a sign-in with a Host license. See [Settings and themes](settings.html).
 - **Themes and scale.** System, light, dark and seven more palettes, and three text sizes, remembered per server.
 
 ## The API

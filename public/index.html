@@ -204,19 +204,6 @@
 				<label for="settings-states">States</label>
 				<textarea class="form-control form-control-sm" id="settings-states" rows="4" ng-model="Panel.Form.StatesText" placeholder="one state per line; a new plan starts in the first" title="the states a plan is picked from, one per line; one in use by a plan cannot be removed"></textarea>
 			</div>
-			<div class="settings-label">Clerk <span class="muted small fw-normal">people sign in through Consensus-AI; the keys are for another instance of your own, the secret and webhook secret for our own servers, the Admin email names the Administrator (empty, the first sign-in with a Host license becomes it)</span></div>
-			<div class="settings-row">
-				<label for="settings-clerk-publishable">Publishable key</label>
-				<input class="form-control form-control-sm settings-clerk" id="settings-clerk-publishable" ng-model="Panel.Form.Clerk.PublishableKey" placeholder="pk_…" title="another Clerk instance's publishable key, in place of Consensus-AI's; the page loads Clerk with it" autocomplete="off">
-				<label for="settings-clerk-secret">Secret key</label>
-				<input class="form-control form-control-sm settings-clerk" id="settings-clerk-secret" type="password" ng-model="Panel.Form.Clerk.SecretKey" placeholder="sk_…" title="the instance's secret key (our own servers): a person whose token lacks their email is fetched from Clerk with it" autocomplete="off">
-			</div>
-			<div class="settings-row">
-				<label for="settings-clerk-webhook">Webhook secret</label>
-				<input class="form-control form-control-sm settings-clerk" id="settings-clerk-webhook" type="password" ng-model="Panel.Form.Clerk.WebhookSecret" placeholder="whsec_…" title="the signing secret of the webhook that will keep the users in step with Clerk" autocomplete="off">
-				<label for="settings-clerk-admin">Admin email</label>
-				<input class="form-control form-control-sm" id="settings-clerk-admin" type="email" ng-model="Panel.Form.Clerk.AdminEmail" placeholder="admin@example.com" title="the one Administrator of this server, by the email they sign in with" autocomplete="off">
-			</div>
 			<div class="settings-label">Owner <span class="muted small fw-normal">the one account of this server: every request is the owner; a service or an LLM connection posts as "<service> by <shown as>"</span></div>
 			<div class="settings-row">
 				<label for="settings-owner-name">Name</label>

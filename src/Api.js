@@ -603,6 +603,11 @@ function Attach( App, Context )
 		}
 		let body = request.body || {};
 		let clean = PARTICIPANTS.Clean( body.Settings || body );
+		// The Clerk section is the file's since 2026-10-20 (it left the Settings popup): a body without one keeps it.
+		if ( ( body.Settings || body ).Clerk === undefined && settings.Clerk !== undefined )
+		{
+			clean.Clerk = settings.Clerk;
+		}
 		let problems = PARTICIPANTS.Validate( clean );
 		if ( problems.length )
 		{

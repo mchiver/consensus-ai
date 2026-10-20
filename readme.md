@@ -375,8 +375,9 @@ role in each, the tokens and the activity the threads and revisions record (`GET
 Users fold is `public/components/users-fold/`, the role folders `public/components/roles-folder/`.
 
 **Sign-in through Clerk** (plan User Management, Step 4; the subplan Clerk, Steps 2 to 4) puts people on a shared
-server without a password of ours. The settings' Clerk section (the publishable key, the secret key, the webhook
-secret and the Administrator's email) turns it on; `src/Clerk.js` needs no package: a Clerk session token is an
+server without a password of ours. The built-in publishable key turns it on (the file's optional Clerk section,
+hand-edited since it left the Settings popup on 2026-10-20, overrides it and adds the secret key, the webhook
+secret and the Administrator's email; PUT /api/settings keeps the section when the body gives none); `src/Clerk.js` needs no package: a Clerk session token is an
 RS256 JWT, verified with Node's crypto against the instance's published keys (read from the Frontend API the
 publishable key names, cached, read again for an unknown key id), its exp and nbf with a minute's leeway, its
 issuer and, when it carries one, its azp against the request's host; a Bearer value that is no token of ours is

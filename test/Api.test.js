@@ -206,6 +206,10 @@ TEST( 'settings: the Clerk section (plan User Management, Step 1) is kept, check
 	ASSERT.equal( written.Body.Restart, false );
 	ASSERT.deepEqual( written.Body.Settings.Clerk, { PublishableKey: 'pk_test_1', SecretKey: 'sk_test_1', AdminEmail: 'andre@example.com' } );
 	ASSERT.deepEqual( JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).Clerk, { PublishableKey: 'pk_test_1', SecretKey: 'sk_test_1', AdminEmail: 'andre@example.com' } );
+	// 2026-10-20, the section left the Settings popup: a body without Clerk keeps the file's section
+	let kept = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read ) } );
+	ASSERT.equal( kept.Status, 200 );
+	ASSERT.deepEqual( kept.Body.Settings.Clerk, { PublishableKey: 'pk_test_1', SecretKey: 'sk_test_1', AdminEmail: 'andre@example.com' } );
 	// a problem: nothing written
 	let bad = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read, { Clerk: { PublishableKey: 'pk_x', AdminEmail: 'nobody' } } ) } );
 	ASSERT.equal( bad.Status, 400 );

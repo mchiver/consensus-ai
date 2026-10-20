@@ -2,10 +2,10 @@
 
 // Settings - the server's settings (consensus.json) in a popup, for the owner (plan Consensus Desktop, Step 1): the
 // Name, the Scope and Port (applied at the next start; plan Run Shapes, Step 1), the States one per line, the Owner
-// (its Name read-only, its Display; plan User Management, Step 2: the participants and their tokens are gone), the Clerk section (plan User Management, Step 1;
-// plan Clerk, Step 5: an override of our instance's key, the secret key and webhook secret of our own servers, the
-// Administrator's email; a line beneath the Scope says what the Scope comes to, and Public is offered to a session
-// with a Host license alone, the Sign in button beside the line asking for one on a Local server), and the Tasks
+// (its Name read-only, its Display; plan User Management, Step 2: the participants and their tokens are gone; the Clerk
+// section left the popup on 2026-10-20 and is the file's: the form sends none and the server keeps it), a line beneath
+// the Scope saying what the Scope comes to (plan Clerk, Step 5: Public is offered to a session with a Host license
+// alone, the Sign in button beside the line asking for one on a Local server), and the Tasks
 // (plan LLM Tasks, Step 1: one row per task, its Name, Writes, the Package switches (Box, Step 2, off for a new one) and its Prompt; Add, Remove,
 // up and down, Reset for a shipped one; the levels, the switches and the defaults come from GET /api/tasks). Saved
 // through PUT /api/settings; the server's problems are shown and nothing is saved while there are any.
@@ -28,26 +28,13 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 .controller( 'SettingsController', [ '$scope', 'State', 'Client', 'SettingsPanel', 'Roots', 'Session', function ( $scope, State, Client, SettingsPanel, Roots, Session )
 {
 	const SCOPES = [ 'None', 'Local', 'Public' ];
-	const CLERK_FIELDS = [ 'PublishableKey', 'SecretKey', 'WebhookSecret', 'AdminEmail' ];
 	$scope.Panel = SettingsPanel;
 	$scope.Scopes = SCOPES;
 	$scope.TaskItems = { Writes: [ 'none', 'consensus', 'files' ], Package: [ 'Instructions', 'Readme', 'Documents', 'Plan', 'Threads', 'Files', 'Project', 'Box' ], Off: [ 'Project', 'Box' ], Defaults: [] };
 
 
-	// The Clerk section as the form holds it: the four fields as strings, empty for none.
-	function clerk_form( clerk )
-	{
-		let form = {};
-		for ( let field of CLERK_FIELDS )
-		{
-			form[ field ] = ( clerk && typeof clerk[ field ] === 'string' ) ? clerk[ field ] : '';
-		}
-		return form;
-	}
-
-
-	// The settings as the form holds them: the states as text, one per line; the Owner's Name and Display; the Clerk
-	// section as four strings.
+	// The settings as the form holds them: the states as text, one per line; the Owner's Name and Display; the Tasks.
+	// The file's Clerk section is not the form's: left out of the save, the server keeps it.
 	function to_form( settings )
 	{
 		return {
@@ -56,7 +43,6 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 			Port: settings.Port,
 			StatesText: ( settings.States || [] ).join( '\n' ),
 			Owner: { Name: ( settings.Owner && settings.Owner.Name ) || 'user', Display: ( settings.Owner && settings.Owner.Display ) || '' },
-			Clerk: clerk_form( settings.Clerk ),
 			Tasks: ( settings.Tasks || [] ).map( task_form ),
 		};
 	}
@@ -77,7 +63,6 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 			Port: form.Port,
 			States: String( form.StatesText || '' ).split( /\r?\n/ ).map( function ( line ) { return line.trim(); } ).filter( function ( line ) { return line; } ),
 			Owner: { Name: form.Owner.Name, Display: form.Owner.Display },
-			Clerk: form.Clerk,
 			Tasks: ( form.Tasks || [] ).map( task_form ),
 		};
 	}
