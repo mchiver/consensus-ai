@@ -838,8 +838,8 @@ TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-docum
 	let posted = threads.find( function ( thread ) { return thread.Replies[ 0 ].Text === 'Add a summary at the top.'; } );
 	ASSERT.equal( posted.Status, 'resolved' );
 	ASSERT.equal( posted.Anchor, null );
-	// resolved: waiting on the speakers but the owner (the llm, when it has spoken on this plan)
-	ASSERT.equal( posted.Turn.includes( 'user' ), false );
+	// resolved: waiting on its starter and the Owners to apply it (plan Multiuser), the owner here
+	ASSERT.deepEqual( posted.Turn, [ 'user' ] );
 
 	// a whole-document thread can be anchored afterwards
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.selected .reanchor-button" ) ).display !== "none"' );

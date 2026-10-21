@@ -10,8 +10,11 @@
 // other token is refused.
 // A record of what a request did carries three fields: By (the account), Service and Token (the token's name); the
 // speaker the rules run over is the byline, "<Service> by <By>", or By alone (Speaker, SpeakerOf); the page shows
-// "<Service> by <Display>" (Byline). A plan's speakers are the owner, one per LLM connection, and everyone seen in
-// its threads (Speakers, SeenSpeakers), so the waiting rule keeps working with no participants list.
+// "<Service> by <Display>" (Byline). A plan's speakers are the owner, one per LLM connection, the Owners of the plan's
+// project and everyone seen in its threads (Speakers, SeenSpeakers), so the waiting rule keeps working with no
+// participants list; each is { Name, Display, Role: 'owner' | 'user' | 'llm', Owner? } (plan Multiuser: Owner marks
+// the server's owner and the project's Owners; a byline with a service in it is an llm speaker, a bare name a person's
+// or a Service account's own).
 // The settings (consensus.json) are checked here too: Name, Port, Scope, States, Owner ({ Name, Display }, the
 // owner participant of before; Migrate moves it in and drops the other participants and the connections' tokens),
 // and the optional Clerk section (Step 1: PublishableKey, SecretKey, WebhookSecret, AdminEmail; read by nothing yet);
@@ -262,7 +265,7 @@ function Byline( Settings, Record )
 function Speakers( Settings )
 {
 	let owner = Owner( Settings );
-	let list = [ { Name: owner.Name, Display: owner.Display, Role: 'owner' } ];
+	let list = [ { Name: owner.Name, Display: owner.Display, Role: 'owner', Owner: true } ];
 	let llms = ( Settings && Array.isArray( Settings.Llms ) ) ? Settings.Llms : [];
 	for ( let llm of llms )
 	{
@@ -275,19 +278,28 @@ function Speakers( Settings )
 }
 
 
-// SeenSpeakers( Settings, Threads, Account? ): Speakers and everyone who replied, resolved or applied in the threads,
-// and the account asking, so that a service that has not spoken yet is still waited on.
-function SeenSpeakers( Settings, Threads, Account )
+// SeenSpeakers( Settings, Threads, Account?, Owners? ): Speakers, the project's Owners (each { Name, Display }, plan
+// Multiuser), everyone who replied, resolved or applied in the threads, and the account asking, so that a connection
+// that has not spoken yet is still waited on.
+function SeenSpeakers( Settings, Threads, Account, Owners )
 {
 	let list = Speakers( Settings );
 	let known = new Set( list.map( function ( one ) { return one.Name; } ) );
+	for ( let owner of Owners || [] )
+	{
+		if ( owner && owner.Name && !known.has( owner.Name ) )
+		{
+			known.add( owner.Name );
+			list.push( { Name: owner.Name, Display: owner.Display || owner.Name, Role: 'user', Owner: true } );
+		}
+	}
 	function note( record )
 	{
 		let key = SpeakerOf( record );
 		if ( key && !known.has( key ) )
 		{
 			known.add( key );
-			list.push( { Name: key, Display: Byline( Settings, record ), Role: 'llm' } );
+			list.push( { Name: key, Display: Byline( Settings, record ), Role: record.Service ? 'llm' : 'user' } );
 		}
 	}
 	for ( let thread of Threads || [] )

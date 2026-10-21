@@ -116,7 +116,7 @@ TEST( 'every connection is a speaker of its server: listed after the owner, its 
 	let claude = LLMS.Fill( { Name: 'claude-cli' } );
 	let settings = { Name: 'cube4', Owner: { Name: 'user', Display: 'User' }, Llms: [ claude ] };
 	ASSERT.deepEqual( PARTICIPANTS.Speakers( settings ), [
-		{ Name: 'user', Display: 'User', Role: 'owner' },
+		{ Name: 'user', Display: 'User', Role: 'owner', Owner: true },
 		{ Name: 'claude-cli by user', Display: 'claude-cli by User', Role: 'llm', Llm: claude.Id },
 	] );
 	let tokens = PARTICIPANTS.RunTokens();

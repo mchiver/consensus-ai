@@ -4,15 +4,25 @@
 // Nothing here touches a file or a request; every rule is asserted in test/Rules.test.js.
 //
 //   thread = { Id, Anchor, Detached, Status: 'contested' | 'resolved', Reopened, Resolved, Applied, Replies }
-//   plan = { Id, Title, State, Revision }   State is one of the settings' States, changed by anyone at any time
-//   speaker = { Name, Display, Role: 'owner' | 'llm' }   Name is the key the byline makes (Participants.Speaker): the
-//   owner account's name, or "<Service> by <By>" for an LLM connection, an agent session or a service acting for it
-//   (plan User Management, Step 2). A reply, a resolve, an apply and a revision carry By, Service? and Token?.
+//   plan = { Id, Title, State, Revision }   State is one of the settings' States, changed by an Owner (plan Multiuser)
+//   speaker = { Name, Display, Role: 'owner' | 'user' | 'llm', Owner? }   Name is the key the byline makes
+//   (Participants.Speaker): an account's name, or "<Service> by <By>" for an LLM connection, an agent session or a
+//   service acting for it (plan User Management, Step 2). Role owner is the server's owner account, user a person's
+//   or a Service account's own name, llm a byline with a service in it: the ones that answer. Owner marks the
+//   server's owner and the accounts in the project's Owners folder (plan Multiuser).
+//   who = an account as Identify builds it: { Name, Role: 'owner' | 'user' | 'service', ProjectRole?, Service?, Token? }
+//   A reply, a resolve, an apply and a revision carry By, Service? and Token?.
 //
 // A thread's life: Contested -> Resolved (waiting to be applied) -> Applied. A reply to a resolved or applied
 // thread reopens it (contested, marked reopened); an applied change stays applied, and after the thread is
 // resolved again it is waiting to be applied again, since the resolution is newer than the applied record.
 // A plan's State does not depend on its threads.
+//
+// Plan Multiuser (its six decisions taken 2026-10-19): a thread is resolved by the one who started it or an Owner,
+// with no vote; it waits on its parties, not on bystanders; anyone with write access applies it; the plan's State
+// is an Owner's.
+
+const ROLES = require( './Roles.js' );
 
 
 //---------------------------------------------------------------------
@@ -39,31 +49,40 @@ function IsApplied( Thread )
 
 
 //---------------------------------------------------------------------
-// Turn: the names a thread waits on.
-//   contested            every speaker except the one who replied last (the byline: a run's reply as the owner
-//                        through a connection is a different speaker from the owner, so the owner is still waited on)
-//   resolved             every speaker but the owner account: the LLMs and services (waiting to be applied)
+// Turn: the names a thread waits on (plan Multiuser: the parties, not the bystanders).
+//   contested            the starter, the Owners, everyone who has replied in it, and the LLM speakers (a connection,
+//                        an agent session or a service acting for a person: the ones that answer), minus the one who
+//                        replied last. A person who has not joined in is not waited on. The byline is the speaker:
+//                        a run's reply as the owner through a connection is a different speaker from the owner, so
+//                        the owner is still waited on.
+//   resolved             the starter and the Owners, so that someone who cares sees it applied (waiting to be applied)
 //   applied              nobody
 
 function Turn( Thread, Participants )
 {
+	let replies = Thread.Replies || [];
 	if ( Thread.Status === 'contested' )
 	{
-		let last_reply = Thread.Replies[ Thread.Replies.length - 1 ];
-		let last_by = SpeakerOf( last_reply );
-		return Participants.filter( function ( participant ) { return participant.Name !== last_by; } ).map( name_of );
+		let spoke = new Set( replies.map( SpeakerOf ) );
+		let last_by = SpeakerOf( replies[ replies.length - 1 ] );
+		return Participants.filter( function ( participant )
+		{
+			return participant.Name !== last_by && ( is_owner( participant ) || participant.Role === 'llm' || spoke.has( participant.Name ) );
+		} ).map( name_of );
 	}
 	if ( IsWaiting( Thread ) )
 	{
-		return Participants.filter( is_not_owner ).map( name_of );
+		let starter = SpeakerOf( replies[ 0 ] );
+		return Participants.filter( function ( participant ) { return is_owner( participant ) || participant.Name === starter; } ).map( name_of );
 	}
 	return [];
 }
 
 
-function is_not_owner( participant )
+// An Owner among the speakers: the server's owner account, or an account in the project's Owners folder.
+function is_owner( participant )
 {
-	return participant.Role !== 'owner';
+	return participant.Role === 'owner' || !!participant.Owner;
 }
 
 
@@ -143,7 +162,8 @@ function Tally( Plan, Threads, Participants )
 
 
 //---------------------------------------------------------------------
-// StateLine: the one line at the top, for the participant reading it.
+// StateLine: the one line at the top, for the participant reading it. "waiting on you" counts every thread waiting
+// on them, the resolved ones they are to apply as well as the contested ones (plan Multiuser).
 
 function StateLine( Tally_, Name )
 {
@@ -183,24 +203,31 @@ function StateLine( Tally_, Name )
 
 
 //---------------------------------------------------------------------
-// Who may do what. Each answers { Ok, Reason }.
+// Who may do what. Each answers { Ok, Reason }. The server's owner account passes every check; anyone else is what
+// their role in the project allows (Roles.js), the role the API found and put on the account as ProjectRole.
 
-// The project role an account acts with (plan User Management, Step 3): the one the API found, or Owners for the
-// server's owner. An Owner resolves any thread; a Member the threads they started (Accounts and Roles).
+// The project role an account acts with: the one the API found, or Owners for the server's owner.
 function project_role( Who )
 {
 	return Who.ProjectRole || ( ( Who.Role === 'owner' ) ? 'Owners' : null );
 }
 
 
+function is_project_owner( Who )
+{
+	return Who.Role === 'owner' || project_role( Who ) === 'Owners';
+}
+
+
+// A thread is resolved by the one who started it, or by an Owner of the project (plan Multiuser): the one who asked
+// knows when it is answered; an Owner closes any thread so that a starter who has gone quiet does not hold the plan.
 function may_resolve( Who, Thread )
 {
-	let role = project_role( Who );
-	if ( Who.Role === 'owner' || role === 'Owners' )
+	if ( is_project_owner( Who ) )
 	{
 		return true;
 	}
-	return role === 'Members' && Thread.Replies.length > 0 && Thread.Replies[ 0 ].By === Who.Name;
+	return ROLES.Allows( project_role( Who ), 'resolve' ) && Thread.Replies.length > 0 && Thread.Replies[ 0 ].By === Who.Name;
 }
 
 
@@ -208,7 +235,7 @@ function CanResolve( Who, Thread )
 {
 	if ( !Who || !may_resolve( Who, Thread ) )
 	{
-		return { Ok: false, Reason: ( Who && project_role( Who ) === 'Members' ) ? 'a Member resolves the threads they started' : 'only the owner resolves a thread' };
+		return { Ok: false, Reason: ( Who && project_role( Who ) === 'Members' ) ? 'a Member resolves the threads they started' : 'a thread is resolved by the one who started it, or an Owner' };
 	}
 	if ( Thread.Status !== 'contested' )
 	{
@@ -222,11 +249,28 @@ function CanResolve( Who, Thread )
 }
 
 
-function CanApply( Who, Thread )
+// Anyone with write access to the project applies a resolved thread (plan Multiuser): an Owner, a Member or a
+// Service account, in person or through an agent session holding their token.
+function MayApply( Who )
 {
 	if ( !Who )
 	{
 		return { Ok: false, Reason: 'unknown participant' };
+	}
+	if ( Who.Role !== 'owner' && !ROLES.Allows( project_role( Who ), 'write' ) )
+	{
+		return { Ok: false, Reason: 'applying a thread takes write access: an Owner, a Member or a Service account' };
+	}
+	return { Ok: true };
+}
+
+
+function CanApply( Who, Thread )
+{
+	let may = MayApply( Who );
+	if ( !may.Ok )
+	{
+		return may;
 	}
 	if ( Thread.Status !== 'resolved' )
 	{
@@ -244,7 +288,7 @@ function CanApply( Who, Thread )
 // keep their text.
 function CanDeleteThread( Who )
 {
-	if ( !Who || ( Who.Role !== 'owner' && project_role( Who ) !== 'Owners' ) )
+	if ( !Who || !is_project_owner( Who ) )
 	{
 		return { Ok: false, Reason: 'only the owner deletes a thread' };
 	}
@@ -252,7 +296,19 @@ function CanDeleteThread( Who )
 }
 
 
-// A plan's state: any of the settings' States, by anyone, at any time.
+// A plan's State is an Owner's (plan Multiuser): Draft to Plan is the Owner's acceptance of the text, Plan to Working
+// the word to build, Working to Finished the acceptance of the build. Members move the text through their threads.
+function MaySetState( Who )
+{
+	if ( !Who || !is_project_owner( Who ) )
+	{
+		return { Ok: false, Reason: 'only an Owner sets a plan\'s State' };
+	}
+	return { Ok: true };
+}
+
+
+// The value: any of the settings' States.
 function CanSetState( State, States )
 {
 	if ( typeof State !== 'string' || !States.includes( State ) )
@@ -290,19 +346,25 @@ function ApplyEffect( Who, At, Revision, RevisionId, Outcome )
 
 
 //---------------------------------------------------------------------
-// WaitingOn: the threads waiting on one participant.
+// WaitingOn: the threads waiting on one speaker. Person, when given, is the account the speaker acts for (a run or an
+// agent session through a connection): it also serves the resolved threads waiting on that person, since Answer
+// applies them as the presser (plan Multiuser); the contested ones waiting on the person are the person's own to answer.
 
-function WaitingOn( Name, Threads, Participants )
+function WaitingOn( Name, Threads, Participants, Person )
 {
-	return Threads.filter( function ( thread ) { return Turn( thread, Participants ).includes( Name ); } );
+	return Threads.filter( function ( thread )
+	{
+		let turn = Turn( thread, Participants );
+		return turn.includes( Name ) || ( !!Person && IsWaiting( thread ) && turn.includes( Person ) );
+	} );
 }
 
 
 //---------------------------------------------------------------------
 // Filter: threads by the page's filter names.
-//   all | contested | resolved (waiting to be applied) | applied | reopened | detached | mine
+//   all | contested | resolved (waiting to be applied) | applied | reopened | detached | mine (WaitingOn's Name and Person)
 
-function Filter( Threads, Status, Participants, Name )
+function Filter( Threads, Status, Participants, Name, Person )
 {
 	switch ( Status || 'all' )
 	{
@@ -319,7 +381,7 @@ function Filter( Threads, Status, Participants, Name )
 		case 'detached':
 			return Threads.filter( function ( thread ) { return !!thread.Detached; } );
 		case 'mine':
-			return WaitingOn( Name, Threads, Participants || [] );
+			return WaitingOn( Name, Threads, Participants || [], Person );
 		default:
 			return null;
 	}
@@ -335,8 +397,10 @@ module.exports = {
 	Tally: Tally,
 	StateLine: StateLine,
 	CanResolve: CanResolve,
+	MayApply: MayApply,
 	CanApply: CanApply,
 	CanDeleteThread: CanDeleteThread,
+	MaySetState: MaySetState,
 	CanSetState: CanSetState,
 	ReplyEffect: ReplyEffect,
 	ResolveEffect: ResolveEffect,

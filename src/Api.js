@@ -382,10 +382,40 @@ function Attach( App, Context )
 	}
 
 
-	// The speakers the rules run over: the owner, one per LLM connection, and everyone seen in the threads given.
-	function speakers( threads, account )
+	// The speakers the rules run over (Participants.SeenSpeakers): the owner, one per LLM connection, the Owners of the
+	// plan's project (plan Multiuser), and everyone seen in the threads given.
+	async function speakers( plan_id, threads, account )
 	{
-		return PARTICIPANTS.SeenSpeakers( settings, threads || [], account || null );
+		return PARTICIPANTS.SeenSpeakers( settings, threads || [], account || null, await owners_of( plan_id ) );
+	}
+
+
+	// The person an account acts for, when it acts through a connection or a service (plan Multiuser: a run serves the
+	// resolved threads waiting on its presser); null for a person acting in their own name.
+	function person_of( account )
+	{
+		return account.Service ? account.Name : null;
+	}
+
+
+	// The accounts in the Owners folder of the project holding a plan, each { Name, Display }; none without a registry.
+	async function owners_of( plan_id )
+	{
+		let project = plan_id ? await store.ProjectOf( plan_id ) : null;
+		if ( !project || !users )
+		{
+			return [];
+		}
+		let owners = [];
+		for ( let id of ROLES.Clean( project.Roles ).Owners )
+		{
+			let record = users.Get( id );
+			if ( record )
+			{
+				owners.push( { Name: record.Login, Display: record.Display || record.Login } );
+			}
+		}
+		return owners;
 	}
 
 
@@ -451,17 +481,17 @@ function Attach( App, Context )
 	//-----------------------------------------------------------------
 	// Views: what a plan looks like to the account asking (request.Participant).
 
-	function present_threads( threads, text, account )
+	async function present_threads( plan_id, threads, text, account )
 	{
 		let plain = ANCHORS.PlainText( text );
 		let name = account.Speaker;
-		let all = speakers( threads, account );
+		let all = await speakers( plan_id, threads, account );
 		return threads.map( function ( thread )
 		{
 			let view = Object.assign( {}, thread );
 			view.Found = thread.Anchor ? ANCHORS.Find( plain, thread.Anchor ) : null;
 			view.Turn = RULES.Turn( thread, all );
-			view.WaitingOnMe = view.Turn.includes( name );
+			view.WaitingOnMe = RULES.WaitingOn( name, [ thread ], all, person_of( account ) ).length > 0;
 			view.State = state_of( thread );
 			return view;
 		} );
@@ -479,9 +509,9 @@ function Attach( App, Context )
 	}
 
 
-	function summarize( plan, threads, account )
+	async function summarize( plan, threads, account )
 	{
-		let tally = RULES.Tally( plan, threads, speakers( threads, account ) );
+		let tally = RULES.Tally( plan, threads, await speakers( plan.Id, threads, account ) );
 		let line = is_document( plan ) ? 'a document' : RULES.StateLine( tally, account.Speaker );
 		return Object.assign( {}, plan, { Tally: tally, StateLine: line } );
 	}
@@ -574,7 +604,7 @@ function Attach( App, Context )
 	router.get( '/me', async function ( request, response )
 	{
 		let account = ( users && request.Participant.Id ) ? users.Public( users.Get( request.Participant.Id ), false ) : null;
-		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Account: account, Admin: is_admin( request.Participant ), Roles: await roles_of( request.Participant ), Participants: speakers( [], request.Participant ), States: states(), Version: VERSION, Server: settings.Name || null } );
+		response.json( { Me: PARTICIPANTS.Public( request.Participant ), Account: account, Admin: is_admin( request.Participant ), Roles: await roles_of( request.Participant ), Participants: await speakers( null, [], request.Participant ), States: states(), Version: VERSION, Server: settings.Name || null } );
 	} );
 
 
@@ -652,7 +682,7 @@ function Attach( App, Context )
 				continue;
 			}
 			let read = await store.ReadPlan( plan.Id );
-			list.push( summarize( plan, read ? read.Threads : [], request.Participant ) );
+			list.push( await summarize( plan, read ? read.Threads : [], request.Participant ) );
 		}
 		response.json( { Plans: list } );
 	} );
@@ -689,7 +719,7 @@ function Attach( App, Context )
 		{
 			return send_result( response, result );
 		}
-		response.status( 201 ).json( { Plan: summarize( result.Plan, [], request.Participant ), Project: result.Project } );
+		response.status( 201 ).json( { Plan: await summarize( result.Plan, [], request.Participant ), Project: result.Project } );
 	} );
 
 
@@ -706,6 +736,11 @@ function Attach( App, Context )
 		let state = project_states( target )[ 0 ];
 		if ( fields.Kind === 'plan' && fields.State !== undefined )
 		{
+			let may = RULES.MaySetState( participant );
+			if ( !may.Ok )
+			{
+				return refused( 403, may.Reason );
+			}
 			let can = RULES.CanSetState( fields.State, project_states( target ) );
 			if ( !can.Ok )
 			{
@@ -751,12 +786,12 @@ function Attach( App, Context )
 		let holder = await store.ProjectOf( request.params.id );
 		response.json( {
 			Me: PARTICIPANTS.Public( request.Participant ),
-			Participants: speakers( read.Threads, request.Participant ),
+			Participants: await speakers( request.params.id, read.Threads, request.Participant ),
 			Project: holder ? { Id: holder.Id, Name: holder.Name } : null,
 			Context: !!( holder && holder.Context === request.params.id ),
-			Plan: summarize( read.Plan, read.Threads, name ),
+			Plan: await summarize( read.Plan, read.Threads, name ),
 			Text: read.Text,
-			Threads: present_threads( read.Threads, read.Text, name ),
+			Threads: await present_threads( request.params.id, read.Threads, read.Text, name ),
 		} );
 	} );
 
@@ -917,11 +952,16 @@ function Attach( App, Context )
 	} );
 
 
-	// A plan's state: one of its project's States, set by anyone at any time. { State }
+	// A plan's state: one of its project's States, set by an Owner at any time (plan Multiuser). { State }
 	router.put( '/plans/:id/state', async function ( request, response )
 	{
 		let wanted = ( request.body || {} ).State;
 		let id = request.params.id;
+		let may = RULES.MaySetState( request.Participant );
+		if ( !may.Ok )
+		{
+			return fail( response, 403, may.Reason );
+		}
 		let can = RULES.CanSetState( wanted, project_states( await store.ProjectOf( id ) ) );
 		if ( !can.Ok )
 		{
@@ -999,7 +1039,7 @@ function Attach( App, Context )
 		for ( let plan of await store.ListPlans() )
 		{
 			let read = await store.ReadPlan( plan.Id );
-			let summary = summarize( plan, read ? read.Threads : [], name );
+			let summary = await summarize( plan, read ? read.Threads : [], name );
 			views[ plan.Id ] = { Title: summary.Title, State: summary.State, Tally: summary.Tally, StateLine: summary.StateLine, Created: summary.Created, Updated: summary.Updated };
 		}
 		for ( let project of projects )
@@ -1009,7 +1049,7 @@ function Attach( App, Context )
 				let read = await store.ReadPlan( id );
 				if ( read )
 				{
-					let summary = summarize( read.Plan, read.Threads, name );
+					let summary = await summarize( read.Plan, read.Threads, name );
 					views[ id ] = { Title: summary.Title, State: summary.State, Tally: summary.Tally, StateLine: summary.StateLine, Created: summary.Created, Updated: summary.Updated, Archived: true };
 				}
 			}
@@ -1333,7 +1373,7 @@ function Attach( App, Context )
 		}
 		let body = request.body || {};
 		let options = { Mode: body.Mode, Preview: !!body.Preview, Into: body.Into };
-		let names = speakers().map( function ( speaker ) { return speaker.Name; } );
+		let names = PARTICIPANTS.Speakers( settings ).map( function ( speaker ) { return speaker.Name; } );
 		let result = await PORT.Import( store, body.Export, options, {
 			Participants: names,
 			ChangeProject: function ( id, change ) { return change_project( id, null, change ); },
@@ -1768,12 +1808,12 @@ function Attach( App, Context )
 			return fail( response, 404, 'no such plan' );
 		}
 		let name = request.Participant;
-		let filtered = RULES.Filter( read.Threads, request.query.status, speakers( read.Threads, name ), name.Speaker );
+		let filtered = RULES.Filter( read.Threads, request.query.status, await speakers( request.params.id, read.Threads, name ), name.Speaker, person_of( name ) );
 		if ( !filtered )
 		{
 			return fail( response, 400, 'unknown status filter "' + request.query.status + '"' );
 		}
-		response.json( { Threads: present_threads( filtered, read.Text, name ) } );
+		response.json( { Threads: await present_threads( request.params.id, filtered, read.Text, name ) } );
 	} );
 
 
@@ -1844,7 +1884,7 @@ function Attach( App, Context )
 			read.Threads.push( thread );
 			await store.WriteThreads( id, read.Threads );
 			await store.UpdatePlan( id, {} );
-			return { Thread: present_threads( [ thread ], read.Text, participant )[ 0 ] };
+			return { Thread: ( await present_threads( id, [ thread ], read.Text, participant ) )[ 0 ] };
 		} );
 		if ( !result.Refused )
 		{
@@ -1890,7 +1930,7 @@ function Attach( App, Context )
 			}
 			await store.WriteThreads( id, read.Threads );
 			await store.UpdatePlan( id, {} );
-			return { Thread: present_threads( [ thread ], read.Text, participant )[ 0 ], Reopened: effect.Reopen, Resolved: !!resolve };
+			return { Thread: ( await present_threads( id, [ thread ], read.Text, participant ) )[ 0 ], Reopened: effect.Reopen, Resolved: !!resolve };
 		} );
 		if ( !result.Refused )
 		{
@@ -1952,7 +1992,7 @@ function Attach( App, Context )
 			thread.Anchor = anchor;
 			thread.Detached = false;
 			await store.WriteThreads( id, read.Threads );
-			return present_threads( [ thread ], read.Text, request.Participant )[ 0 ];
+			return ( await present_threads( id, [ thread ], read.Text, request.Participant ) )[ 0 ];
 		} );
 		if ( !result )
 		{
@@ -1963,7 +2003,8 @@ function Attach( App, Context )
 	} );
 
 
-	// Resolve: owner only, contested threads only. Resolving accepts the outcome stated in the last reply.
+	// Resolve: the starter or an Owner (plan Multiuser), contested threads only. Resolving accepts the outcome stated in
+	// the last reply.
 	router.post( '/plans/:id/threads/:tid/resolve', async function ( request, response )
 	{
 		let id = request.params.id;
@@ -1986,7 +2027,7 @@ function Attach( App, Context )
 			}
 			Object.assign( thread, RULES.ResolveEffect( request.Participant, now() ) );
 			await store.WriteThreads( id, read.Threads );
-			return present_threads( [ thread ], read.Text, request.Participant )[ 0 ];
+			return ( await present_threads( id, [ thread ], read.Text, request.Participant ) )[ 0 ];
 		} );
 		if ( !result )
 		{
@@ -2125,6 +2166,11 @@ function Attach( App, Context )
 			{
 				return refused( 404, 'no such thread' );
 			}
+			let may = RULES.MayApply( participant );
+			if ( !may.Ok )
+			{
+				return refused( 403, may.Reason );
+			}
 			let can = RULES.CanApply( participant, thread );
 			if ( !can.Ok )
 			{
@@ -2156,7 +2202,7 @@ function Attach( App, Context )
 			}
 			Object.assign( thread, RULES.ApplyEffect( participant, now(), plan.Revision, plan.Head || null, outcome ) );
 			await store.WriteThreads( id, read.Threads );
-			return { Thread: present_threads( [ thread ], text, participant )[ 0 ], Plan: summarize( plan, read.Threads, participant ) };
+			return { Thread: ( await present_threads( id, [ thread ], text, participant ) )[ 0 ], Plan: await summarize( plan, read.Threads, participant ) };
 		} );
 		if ( !result.Refused )
 		{
@@ -2196,8 +2242,8 @@ function Attach( App, Context )
 			{
 				continue;
 			}
-			let threads = RULES.WaitingOn( name.Speaker, read.Threads, speakers( read.Threads, name ) );
-			for ( let thread of present_threads( threads, read.Text, name ) )
+			let threads = RULES.WaitingOn( name.Speaker, read.Threads, await speakers( plan.Id, read.Threads, name ), person_of( name ) );
+			for ( let thread of await present_threads( plan.Id, threads, read.Text, name ) )
 			{
 				waiting.push( { Plan: { Id: plan.Id, Title: plan.Title, State: plan.State, Revision: plan.Revision }, Thread: thread } );
 			}

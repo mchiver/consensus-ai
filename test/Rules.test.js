@@ -1,18 +1,30 @@
 'use strict';
 
-// Every carried-over rule and every default of the plan, as a case.
+// Every carried-over rule and every default of the plan, as a case. The rules among many parties are plan
+// Multiuser's (Step 1): resolve by the starter or an Owner, the waiting rule over the parties, apply by write
+// access, the State by Owners.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
 const RULES = require( '../src/Rules.js' );
 
+// The speakers the rules run over: the server's owner, its LLM connection, and the people and services seen.
 const PARTICIPANTS = [
-	{ Name: 'user', Display: 'User', Role: 'owner' },
+	{ Name: 'user', Display: 'User', Role: 'owner', Owner: true },
 	{ Name: 'llm', Display: 'LLM', Role: 'llm' },
 ];
-const OWNER = PARTICIPANTS[ 0 ];
-const LLM = PARTICIPANTS[ 1 ];
-const MEMBER = { Name: 'ann', Display: 'Ann', Role: 'member' };
+const ANN_SPEAKER = { Name: 'ann', Display: 'Ann', Role: 'user' };
+const OLGA_SPEAKER = { Name: 'olga', Display: 'Olga', Role: 'user', Owner: true };
+const MANY = PARTICIPANTS.concat( [ ANN_SPEAKER, OLGA_SPEAKER ] );
+
+// The accounts that act, as Identify builds them, their project role found by the API.
+const OWNER = { Name: 'user', Display: 'User', Role: 'owner' };
+const LLM = { Name: 'user', Display: 'User', Role: 'owner', Service: 'llm' };
+const OLGA = { Name: 'olga', Display: 'Olga', Role: 'user', ProjectRole: 'Owners' };
+const MEMBER = { Name: 'ann', Display: 'Ann', Role: 'user', ProjectRole: 'Members' };
+const SERVICE = { Name: 'nightly', Display: 'nightly', Role: 'service', ProjectRole: 'Service' };
+const WATCHER = { Name: 'wim', Display: 'Wim', Role: 'user', ProjectRole: 'Watchers' };
+const NOBODY = { Name: 'zed', Display: 'Zed', Role: 'user' };
 
 
 function thread( overrides )
@@ -32,20 +44,32 @@ function plan( overrides )
 
 //---------------------------------------------------------------------
 
-TEST( 'a contested thread waits on everyone except the last replier', function ()
+TEST( 'a contested thread waits on its parties, the starter, the Owners, the repliers and the LLM speakers, except the last replier', function ()
 {
 	ASSERT.deepEqual( RULES.Turn( thread(), PARTICIPANTS ), [ 'llm' ] );
 	let answered = thread( { Replies: [ { By: 'user', Text: 'q' }, { By: 'llm', Text: 'a' } ] } );
 	ASSERT.deepEqual( RULES.Turn( answered, PARTICIPANTS ), [ 'user' ] );
-	ASSERT.deepEqual( RULES.Turn( answered, PARTICIPANTS.concat( [ MEMBER ] ) ), [ 'user', 'ann' ] );
+	// a Member who has not joined in is a bystander; an Owner is always a party
+	ASSERT.deepEqual( RULES.Turn( answered, MANY ), [ 'user', 'olga' ] );
+	// a Member who replied is a party from then on
+	let joined = thread( { Replies: [ { By: 'user', Text: 'q' }, { By: 'ann', Text: 'me too' }, { By: 'llm', Text: 'a' } ] } );
+	ASSERT.deepEqual( RULES.Turn( joined, MANY ), [ 'user', 'ann', 'olga' ] );
+	// a thread a Member started waits on the Owners and the LLM, not on the other Members
+	let anns = thread( { Replies: [ { By: 'ann', Text: 'q' } ] } );
+	ASSERT.deepEqual( RULES.Turn( anns, MANY.concat( [ { Name: 'bob', Role: 'user' } ] ) ), [ 'user', 'llm', 'olga' ] );
+	// the byline is the speaker: the owner's reply through a connection leaves the owner waited on
+	let through = thread( { Replies: [ { By: 'user', Text: 'q' }, { By: 'user', Service: 'llm', Text: 'a' } ] } );
+	ASSERT.deepEqual( RULES.Turn( through, [ PARTICIPANTS[ 0 ], { Name: 'llm by user', Role: 'llm' } ] ), [ 'user' ] );
 } );
 
 
-TEST( 'a resolved, unapplied thread waits on every llm participant', function ()
+TEST( 'a resolved, unapplied thread waits on its starter and the Owners', function ()
 {
 	let resolved = thread( { Status: 'resolved', Resolved: { By: 'user', At: 'now' } } );
-	ASSERT.deepEqual( RULES.Turn( resolved, PARTICIPANTS ), [ 'llm' ] );
-	ASSERT.deepEqual( RULES.Turn( resolved, PARTICIPANTS.concat( [ { Name: 'llm2', Role: 'llm' } ] ) ), [ 'llm', 'llm2' ] );
+	ASSERT.deepEqual( RULES.Turn( resolved, PARTICIPANTS ), [ 'user' ] );
+	ASSERT.deepEqual( RULES.Turn( resolved, MANY ), [ 'user', 'olga' ] );
+	let anns = thread( { Status: 'resolved', Resolved: { By: 'olga', At: 'now' }, Replies: [ { By: 'ann', Text: 'q' }, { By: 'llm', Text: 'a' } ] } );
+	ASSERT.deepEqual( RULES.Turn( anns, MANY ), [ 'user', 'ann', 'olga' ] );
 } );
 
 
@@ -56,11 +80,18 @@ TEST( 'an applied thread waits on nobody', function ()
 } );
 
 
-TEST( 'only the owner resolves, and only a contested thread with a reply', function ()
+TEST( 'the starter or an Owner resolves, and only a contested thread with a reply', function ()
 {
 	ASSERT.equal( RULES.CanResolve( OWNER, thread() ).Ok, true );
-	ASSERT.equal( RULES.CanResolve( LLM, thread() ).Ok, false );
+	ASSERT.equal( RULES.CanResolve( LLM, thread() ).Ok, true );
+	ASSERT.equal( RULES.CanResolve( OLGA, thread() ).Ok, true );
 	ASSERT.equal( RULES.CanResolve( MEMBER, thread() ).Ok, false );
+	ASSERT.equal( RULES.CanResolve( MEMBER, thread() ).Reason, 'a Member resolves the threads they started' );
+	ASSERT.equal( RULES.CanResolve( MEMBER, thread( { Replies: [ { By: 'ann', Text: 'mine' } ] } ) ).Ok, true );
+	ASSERT.equal( RULES.CanResolve( SERVICE, thread( { Replies: [ { By: 'nightly', Text: 'its own' } ] } ) ).Ok, false );
+	ASSERT.equal( RULES.CanResolve( WATCHER, thread() ).Ok, false );
+	ASSERT.equal( RULES.CanResolve( NOBODY, thread() ).Ok, false );
+	ASSERT.equal( RULES.CanResolve( NOBODY, thread() ).Reason, 'a thread is resolved by the one who started it, or an Owner' );
 	ASSERT.equal( RULES.CanResolve( null, thread() ).Ok, false );
 	ASSERT.equal( RULES.CanResolve( OWNER, thread( { Status: 'resolved' } ) ).Ok, false );
 	ASSERT.equal( RULES.CanResolve( OWNER, thread( { Replies: [] } ) ).Ok, false );
@@ -74,22 +105,29 @@ TEST( 'resolving marks resolved and clears reopened', function ()
 } );
 
 
-TEST( 'any participant applies, but only a resolved, unapplied thread', function ()
+TEST( 'anyone with write access applies, but only a resolved, unapplied thread', function ()
 {
 	let resolved = thread( { Status: 'resolved' } );
 	ASSERT.equal( RULES.CanApply( LLM, resolved ).Ok, true );
 	ASSERT.equal( RULES.CanApply( OWNER, resolved ).Ok, true );
+	ASSERT.equal( RULES.CanApply( OLGA, resolved ).Ok, true );
 	ASSERT.equal( RULES.CanApply( MEMBER, resolved ).Ok, true );
+	ASSERT.equal( RULES.CanApply( SERVICE, resolved ).Ok, true );
+	ASSERT.equal( RULES.CanApply( WATCHER, resolved ).Ok, false );
+	ASSERT.equal( RULES.MayApply( WATCHER ).Reason, 'applying a thread takes write access: an Owner, a Member or a Service account' );
+	ASSERT.equal( RULES.CanApply( NOBODY, resolved ).Ok, false );
 	ASSERT.equal( RULES.CanApply( LLM, thread() ).Ok, false );
 	ASSERT.equal( RULES.CanApply( LLM, thread( { Status: 'resolved', Applied: { By: 'llm' } } ) ).Ok, false );
 	ASSERT.equal( RULES.CanApply( null, resolved ).Ok, false );
+	ASSERT.equal( RULES.MayApply( null ).Ok, false );
 } );
 
 
-TEST( 'only the owner deletes a thread', function ()
+TEST( 'only an Owner deletes a thread', function ()
 {
 	ASSERT.equal( RULES.CanDeleteThread( OWNER ).Ok, true );
-	ASSERT.equal( RULES.CanDeleteThread( LLM ).Ok, false );
+	ASSERT.equal( RULES.CanDeleteThread( LLM ).Ok, true );
+	ASSERT.equal( RULES.CanDeleteThread( OLGA ).Ok, true );
 	ASSERT.equal( RULES.CanDeleteThread( MEMBER ).Ok, false );
 	ASSERT.equal( RULES.CanDeleteThread( null ).Ok, false );
 } );
@@ -101,7 +139,7 @@ TEST( 'a reopened, applied thread that is resolved again waits to be applied aga
 	ASSERT.equal( RULES.IsWaiting( again ), true );
 	ASSERT.equal( RULES.IsApplied( again ), false );
 	ASSERT.equal( RULES.CanApply( LLM, again ).Ok, true );
-	ASSERT.deepEqual( RULES.Turn( again, PARTICIPANTS ), [ 'llm' ] );
+	ASSERT.deepEqual( RULES.Turn( again, PARTICIPANTS ), [ 'user' ] );
 	let done = thread( { Status: 'resolved', Resolved: { By: 'user', At: '2026-09-24T02:00:00Z' }, Applied: { By: 'llm', At: '2026-09-24T03:00:00Z', Revision: 3, Outcome: 'second' } } );
 	ASSERT.equal( RULES.IsWaiting( done ), false );
 	ASSERT.equal( RULES.IsApplied( done ), true );
@@ -116,7 +154,8 @@ TEST( 'a reopened, applied thread that is resolved again waits to be applied aga
 
 TEST( 'applying records who, when, the revision and the outcome', function ()
 {
-	ASSERT.deepEqual( RULES.ApplyEffect( LLM, 'at', 5, 'rev-aaa-bbb-ccc', 'dropped' ), { Applied: { By: 'llm', At: 'at', Revision: 5, RevisionId: 'rev-aaa-bbb-ccc', Outcome: 'dropped' } } );
+	ASSERT.deepEqual( RULES.ApplyEffect( MEMBER, 'at', 5, 'rev-aaa-bbb-ccc', 'dropped' ), { Applied: { By: 'ann', At: 'at', Revision: 5, RevisionId: 'rev-aaa-bbb-ccc', Outcome: 'dropped' } } );
+	ASSERT.deepEqual( RULES.ApplyEffect( LLM, 'at', 5, 'rev-aaa-bbb-ccc', 'dropped' ), { Applied: { By: 'user', Service: 'llm', At: 'at', Revision: 5, RevisionId: 'rev-aaa-bbb-ccc', Outcome: 'dropped' } } );
 } );
 
 
@@ -140,7 +179,7 @@ TEST( 'reopening an applied thread keeps its applied record', function ()
 } );
 
 
-TEST( 'a plan\'s state is any of the settings\' States (user, 2026-09-25)', function ()
+TEST( 'a plan\'s state is any of the settings\' States (user, 2026-09-25), set by an Owner (plan Multiuser)', function ()
 {
 	let states = [ 'Plan', 'Plan', 'Working', 'Finished' ];
 	ASSERT.equal( RULES.CanSetState( 'Working', states ).Ok, true );
@@ -149,6 +188,13 @@ TEST( 'a plan\'s state is any of the settings\' States (user, 2026-09-25)', func
 	ASSERT.match( RULES.CanSetState( 'Done', states ).Reason, /Plan, Plan, Working, Finished/ );
 	ASSERT.equal( RULES.CanSetState( undefined, states ).Ok, false );
 	ASSERT.equal( RULES.CanSetState( 3, states ).Ok, false );
+	ASSERT.equal( RULES.MaySetState( OWNER ).Ok, true );
+	ASSERT.equal( RULES.MaySetState( LLM ).Ok, true );
+	ASSERT.equal( RULES.MaySetState( OLGA ).Ok, true );
+	ASSERT.equal( RULES.MaySetState( MEMBER ).Ok, false );
+	ASSERT.equal( RULES.MaySetState( MEMBER ).Reason, 'only an Owner sets a plan\'s State' );
+	ASSERT.equal( RULES.MaySetState( SERVICE ).Ok, false );
+	ASSERT.equal( RULES.MaySetState( null ).Ok, false );
 } );
 
 
@@ -168,7 +214,8 @@ TEST( 'the tally counts contested, reopened, resolved, applied and detached, and
 	ASSERT.equal( tally.Resolved, 1 );
 	ASSERT.equal( tally.Applied, 2 );
 	ASSERT.equal( tally.Detached, 1 );
-	ASSERT.deepEqual( tally.WaitingOn, { user: 1, llm: 2 } );
+	// the owner is waited on by b (the llm replied last) and c (resolved, theirs to apply); the llm by a
+	ASSERT.deepEqual( tally.WaitingOn, { user: 2, llm: 1 } );
 	ASSERT.equal( 'Approvable' in tally, false );
 } );
 
@@ -182,8 +229,8 @@ TEST( 'the state line says what to do next', function ()
 		thread( { Id: 'd', Status: 'resolved', Applied: { By: 'llm' } } ),
 	];
 	let tally = RULES.Tally( plan(), threads, PARTICIPANTS );
-	ASSERT.equal( RULES.StateLine( tally, 'user' ), '2 contested, waiting on you 1 · 1 resolved · 1 applied' );
-	ASSERT.equal( RULES.StateLine( tally, 'llm' ), '2 contested, waiting on you 2 · 1 resolved · 1 applied' );
+	ASSERT.equal( RULES.StateLine( tally, 'user' ), '2 contested, waiting on you 2 · 1 resolved · 1 applied' );
+	ASSERT.equal( RULES.StateLine( tally, 'llm' ), '2 contested, waiting on you 1 · 1 resolved · 1 applied' );
 	let done = RULES.Tally( plan(), [ threads[ 3 ] ], PARTICIPANTS );
 	ASSERT.equal( RULES.StateLine( done, 'user' ), '1 applied' );
 	ASSERT.equal( RULES.StateLine( RULES.Tally( plan(), [], PARTICIPANTS ), 'user' ), 'no threads yet' );
@@ -197,8 +244,10 @@ TEST( 'waiting on a name lists that participant\'s threads', function ()
 		thread( { Id: 'b', Replies: [ { By: 'user' }, { By: 'llm' } ] } ),
 		thread( { Id: 'c', Status: 'resolved' } ),
 	];
-	ASSERT.deepEqual( RULES.WaitingOn( 'llm', threads, PARTICIPANTS ).map( function ( t ) { return t.Id; } ), [ 'a', 'c' ] );
-	ASSERT.deepEqual( RULES.WaitingOn( 'user', threads, PARTICIPANTS ).map( function ( t ) { return t.Id; } ), [ 'b' ] );
+	ASSERT.deepEqual( RULES.WaitingOn( 'llm', threads, PARTICIPANTS ).map( function ( t ) { return t.Id; } ), [ 'a' ] );
+	ASSERT.deepEqual( RULES.WaitingOn( 'user', threads, PARTICIPANTS ).map( function ( t ) { return t.Id; } ), [ 'b', 'c' ] );
+	// the llm acting for the owner also serves the resolved thread waiting on the owner, to apply it as the presser
+	ASSERT.deepEqual( RULES.WaitingOn( 'llm', threads, PARTICIPANTS, 'user' ).map( function ( t ) { return t.Id; } ), [ 'a', 'c' ] );
 } );
 
 
@@ -220,6 +269,8 @@ TEST( 'threads filter by status', function ()
 	ASSERT.deepEqual( ids( 'applied' ), [ 'd' ] );
 	ASSERT.deepEqual( ids( 'reopened' ), [ 'b' ] );
 	ASSERT.deepEqual( ids( 'detached' ), [ 'd' ] );
-	ASSERT.deepEqual( ids( 'mine' ), [ 'a', 'b', 'c' ] );
+	ASSERT.deepEqual( ids( 'mine' ), [ 'a', 'b' ] );
+	ASSERT.deepEqual( RULES.Filter( threads, 'mine', PARTICIPANTS, 'user' ).map( function ( t ) { return t.Id; } ), [ 'c' ] );
+	ASSERT.deepEqual( RULES.Filter( threads, 'mine', PARTICIPANTS, 'llm', 'user' ).map( function ( t ) { return t.Id; } ), [ 'a', 'b', 'c' ] );
 	ASSERT.equal( RULES.Filter( threads, 'nonsense' ), null );
 } );

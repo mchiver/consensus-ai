@@ -83,7 +83,7 @@ TEST( 'the speaker is the byline: the key, the display, the owner and the connec
 	ASSERT.equal( PARTICIPANTS.Byline( settings, { By: 'llm' } ), 'llm' );
 	ASSERT.equal( PARTICIPANTS.Byline( settings, { By: 'Claude-CLI@Cube12' } ), 'Claude-CLI@Cube12' );
 	ASSERT.deepEqual( PARTICIPANTS.Speakers( settings ), [
-		{ Name: 'user', Display: 'Andre', Role: 'owner' },
+		{ Name: 'user', Display: 'Andre', Role: 'owner', Owner: true },
 		{ Name: 'Claude-CLI by user', Display: 'Claude-CLI by Andre', Role: 'llm', Llm: 'llm-1' },
 		{ Name: 'ollama-kimi by user', Display: 'ollama-kimi by Andre', Role: 'llm', Llm: 'llm-2' },
 	] );
@@ -95,11 +95,16 @@ TEST( 'the speaker is the byline: the key, the display, the owner and the connec
 		'user = Andre (owner)',
 		'Claude-CLI by user = Claude-CLI by Andre (llm)',
 		'ollama-kimi by user = ollama-kimi by Andre (llm)',
-		'llm = llm (llm)',
+		'llm = llm (user)',
 		'Codex by user = Codex by Andre (llm)',
-		'Claude-CLI@Cube12 = Claude-CLI@Cube12 (llm)',
+		'Claude-CLI@Cube12 = Claude-CLI@Cube12 (user)',
 	] );
 	ASSERT.equal( PARTICIPANTS.SeenSpeakers( settings, [] ).length, 3 );
+	// the project's Owners come after the connections, marked (plan Multiuser); one already seen is not listed twice
+	let with_owners = PARTICIPANTS.SeenSpeakers( settings, threads, null, [ { Name: 'olga', Display: 'Olga' }, { Name: 'llm' } ] );
+	ASSERT.deepEqual( with_owners[ 3 ], { Name: 'olga', Display: 'Olga', Role: 'user', Owner: true } );
+	ASSERT.deepEqual( with_owners[ 4 ], { Name: 'llm', Display: 'llm', Role: 'user', Owner: true } );
+	ASSERT.equal( with_owners.length, 7 );
 	ASSERT.equal( PARTICIPANTS.SeenSpeakers( { Owner: { Name: 'user' } }, null ).length, 1 );
 } );
 
