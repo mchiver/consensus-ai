@@ -162,8 +162,8 @@ function Tally( Plan, Threads, Participants )
 
 
 //---------------------------------------------------------------------
-// StateLine: the one line at the top, for the participant reading it. "waiting on you" counts every thread waiting
-// on them, the resolved ones they are to apply as well as the contested ones (plan Multiuser).
+// StateLine: the one line at the top, for the participant reading it. It leads with "waiting on you N" when anything
+// does, the resolved threads they are to apply as well as the contested ones (plan Multiuser, Step 2), then the counts.
 
 function StateLine( Tally_, Name )
 {
@@ -172,14 +172,14 @@ function StateLine( Tally_, Name )
 		return 'no threads yet';
 	}
 	let parts = [];
+	let mine = Tally_.WaitingOn[ Name ] || 0;
+	if ( mine > 0 )
+	{
+		parts.push( 'waiting on you ' + mine );
+	}
 	if ( Tally_.Contested > 0 )
 	{
 		let part = Tally_.Contested + ' contested';
-		let mine = Tally_.WaitingOn[ Name ] || 0;
-		if ( mine > 0 )
-		{
-			part += ', waiting on you ' + mine;
-		}
 		if ( Tally_.Reopened > 0 )
 		{
 			part += ', ' + Tally_.Reopened + ' reopened';

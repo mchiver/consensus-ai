@@ -4,7 +4,7 @@
 	<comment-editor id="compose-text" text="$ctrl.State.Compose.Text" placeholder="Your comment" autofocus="true" submit="$ctrl.Primary()"></comment-editor>
 	<div class="thread-buttons">
 		<button class="btn btn-sm btn-primary" id="compose-post" ng-click="$ctrl.Post(false)" ng-disabled="!$ctrl.HasText() || $ctrl.Threads.Busy"><svg class="icon lead"><use href="#i-comment"></use></svg>Comment</button>
-		<button class="btn btn-sm btn-success" id="compose-resolve" ng-show="$ctrl.Threads.IsOwner()" ng-click="$ctrl.Post(true)" ng-disabled="!$ctrl.HasText() || $ctrl.Threads.Busy" title="post your comment as the outcome and resolve the thread"><svg class="icon lead"><use href="#i-check"></use></svg>Comment and resolve</button>
+		<button class="btn btn-sm btn-success" id="compose-resolve" ng-show="$ctrl.Threads.CanStartResolved()" ng-click="$ctrl.Post(true)" ng-disabled="!$ctrl.HasText() || $ctrl.Threads.Busy" title="post your comment as the outcome and resolve the thread"><svg class="icon lead"><use href="#i-check"></use></svg>Comment and resolve</button>
 		<button class="btn btn-sm btn-outline-secondary" id="compose-subplan" ng-show="$ctrl.Threads.IsPlan()" ng-click="$ctrl.Subplan()" ng-disabled="$ctrl.Threads.Busy" title="post this thread with a link to a new Subplan that starts from it"><svg class="icon lead"><use href="#i-subplan"></use></svg>Start a new Subplan</button>
 		<button class="btn btn-sm btn-outline-secondary" ng-click="$ctrl.Cancel()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 	</div>

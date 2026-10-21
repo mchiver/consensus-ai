@@ -27,7 +27,7 @@
 		<div class="state-line">
 			<span class="document-badge" id="document-badge" ng-show="$ctrl.State.Open.Plan.Kind === 'document'">{{ $ctrl.IsContext() ? 'Readme' : 'Document' }}</span>
 			<span class="document-badge archived-badge" id="archived-badge" ng-show="$ctrl.IsArchived()" title="archived: read-only until Restore in the tree's Archive folder">archived</span>
-			<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="$ctrl.State.Open.Plan.Kind !== 'document'" title="the plan's state: anyone can change it" ng-model="$ctrl.PickedState" ng-change="$ctrl.SetState()" ng-disabled="$ctrl.Busy || $ctrl.IsArchived()" ng-options="name for name in $ctrl.StateOptions()"></select>
+			<select class="form-select form-select-sm state-picker" id="state-picker" ng-show="$ctrl.State.Open.Plan.Kind !== 'document'" title="{{ $ctrl.CanSetState() ? 'the plan\'s state: an Owner changes it' : 'the plan\'s state: only an Owner changes it' }}" ng-model="$ctrl.PickedState" ng-change="$ctrl.SetState()" ng-disabled="$ctrl.Busy || $ctrl.IsArchived() || !$ctrl.CanSetState()" ng-options="name for name in $ctrl.StateOptions()"></select>
 			<span id="state-line">{{ $ctrl.State.Open.Plan.StateLine }}</span>
 			<span class="revision" id="revision">revision {{ $ctrl.State.Open.Plan.Revision }}</span>
 			<span class="revision text-size" id="text-size" title="the text's characters as saved, and about a quarter as many tokens">{{ $ctrl.Size() }}</span>

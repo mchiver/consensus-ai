@@ -347,7 +347,7 @@ TEST( 'a thread anchors to visible text, or to the whole document; missing words
 	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: '  ' } ) ).Status, 400 );
 	let read = await call( 'GET', '/api/plans/' + plan.Id );
 	ASSERT.equal( read.Body.Plan.Tally.Contested, 2 );
-	ASSERT.equal( read.Body.Plan.StateLine, '2 contested, waiting on you 1' );
+	ASSERT.equal( read.Body.Plan.StateLine, 'waiting on you 1 · 2 contested' );
 	let filtered = await call( 'GET', '/api/plans/' + plan.Id + '/threads?status=mine', undefined, true );
 	ASSERT.deepEqual( filtered.Body.Threads.map( function ( candidate ) { return candidate.Id; } ), [ thread.Id ] );
 	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id + '/threads?status=bogus' ) ).Status, 400 );
@@ -368,7 +368,7 @@ TEST( 'the owner resolves, a service acting for the owner too; a reply to a reso
 	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve' ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve', undefined, true ) ).Status, 409 );
 	let read = await call( 'GET', '/api/plans/' + plan.Id );
-	ASSERT.equal( read.Body.Plan.StateLine, '1 resolved' );
+	ASSERT.equal( read.Body.Plan.StateLine, 'waiting on you 1 · 1 resolved' );
 	let reply = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/replies', { Text: 'Wait, one more thing.' } );
 	ASSERT.equal( reply.Status, 201 );
 	ASSERT.equal( reply.Body.Reopened, true );
@@ -378,7 +378,7 @@ TEST( 'the owner resolves, a service acting for the owner too; a reply to a reso
 	let reopened = await call( 'GET', '/api/plans/' + plan.Id + '/threads?status=reopened' );
 	ASSERT.equal( reopened.Body.Threads.length, 1 );
 	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id ) ).Body.Plan.StateLine, '1 contested, 1 reopened' );
-	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id, undefined, true ) ).Body.Plan.StateLine, '1 contested, waiting on you 1, 1 reopened' );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id, undefined, true ) ).Body.Plan.StateLine, 'waiting on you 1 · 1 contested, 1 reopened' );
 	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/none/replies', { Text: 'x' } ) ).Status, 404 );
 } );
 

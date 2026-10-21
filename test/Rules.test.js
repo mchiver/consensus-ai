@@ -229,8 +229,9 @@ TEST( 'the state line says what to do next', function ()
 		thread( { Id: 'd', Status: 'resolved', Applied: { By: 'llm' } } ),
 	];
 	let tally = RULES.Tally( plan(), threads, PARTICIPANTS );
-	ASSERT.equal( RULES.StateLine( tally, 'user' ), '2 contested, waiting on you 2 · 1 resolved · 1 applied' );
-	ASSERT.equal( RULES.StateLine( tally, 'llm' ), '2 contested, waiting on you 1 · 1 resolved · 1 applied' );
+	ASSERT.equal( RULES.StateLine( tally, 'user' ), 'waiting on you 2 · 2 contested · 1 resolved · 1 applied' );
+	ASSERT.equal( RULES.StateLine( tally, 'llm' ), 'waiting on you 1 · 2 contested · 1 resolved · 1 applied' );
+	ASSERT.equal( RULES.StateLine( RULES.Tally( plan(), [ thread( { Reopened: true } ) ], PARTICIPANTS ), 'llm' ), 'waiting on you 1 · 1 contested, 1 reopened' );
 	let done = RULES.Tally( plan(), [ threads[ 3 ] ], PARTICIPANTS );
 	ASSERT.equal( RULES.StateLine( done, 'user' ), '1 applied' );
 	ASSERT.equal( RULES.StateLine( RULES.Tally( plan(), [], PARTICIPANTS ), 'user' ), 'no threads yet' );

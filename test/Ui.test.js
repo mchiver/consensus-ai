@@ -180,7 +180,7 @@ TEST( 'the llm replies over the API, and the reply arrives live', async function
 	await api( 'POST', '/api/plans/' + plan.Id + '/threads/' + threads[ 0 ].Id + '/replies', { Text: 'Outcome: one item stays.' }, true );
 	await page.WaitFor( count_of( '.thread:not(.compose) .reply' ) + ' === 2' );
 	ASSERT.equal( await page.Evaluate( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).pop().textContent.trim()' ), 'Outcome: one item stays.' );
-	await page.WaitFor( text_of( '#state-line' ) + ' === "1 contested, waiting on you 1"' );
+	await page.WaitFor( text_of( '#state-line' ) + ' === "waiting on you 1 · 1 contested"' );
 	await page.WaitFor( text_of( '#waiting-link' ) + ' === "Waiting on you: 1"' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
@@ -189,12 +189,14 @@ TEST( 'the llm replies over the API, and the reply arrives live', async function
 TEST( 'the owner resolves from the page; the selection moves on; Reply and Contest on the resolved thread; a blank click or Escape deselects', async function ()
 {
 	await show_all_threads();
+	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
 	await page.Click( '.thread:not(.compose)' );
 	await page.WaitFor( count_of( '.thread.selected .resolve-button' ) + ' === 1' );
 	ASSERT.equal( await page.Evaluate( text_of( '.thread.selected .reply-button' ) ), 'Reply' );
 	await page.Click( '.thread.selected .resolve-button' );
 	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "resolved"' );
-	await page.WaitFor( text_of( '#state-line' ) + ' === "1 resolved"' );
+	// resolved, the thread waits on the owner to apply it (plan Multiuser), and the line leads with that
+	await page.WaitFor( text_of( '#state-line' ) + ' === "waiting on you 1 · 1 resolved"' );
 	// after the owner's own resolve the selection passes on: with no other thread, to none (plan UI Tweaks VI)
 	await page.WaitFor( count_of( '.thread.selected' ) + ' === 0' );
 	// on the resolved thread, Reply reads Reply and Contest, in the contested colour
@@ -1893,6 +1895,46 @@ TEST( 'users and roles (plan User Management, Step 3): the Users fold holds the 
 	ASSERT.deepEqual( ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === home; } ).Roles.Watchers, [] );
 	await api( 'DELETE', '/api/users/' + ann.Id );
 	await page.WaitFor( count_of( '#users-list .user-row' ) + ' === 1' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'Multiuser Step 2: the page says who may resolve, comment and resolve, and set the State, as the server does; the state line leads with what waits on you', async function ()
+{
+	let plan = await created( 'Many parties' );
+	let asked = ( await api( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: null, Text: 'The owner asks.' } ) ).Thread;
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Many parties"' );
+	// the thread waits on nobody yet (no LLM has spoken here), so the "mine" filter would hide it
+	await show_all_threads();
+	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
+	await page.Evaluate( 'document.querySelector( ".thread:not(.compose)" ).click(); true' );
+	await page.WaitFor( count_of( '.thread.selected' ) + ' === 1' );
+	// the owner: an Owner of every project
+	await page.WaitFor( '( function () { let e = document.querySelector( ".thread.selected .resolve-button" ); return !!e && getComputedStyle( e ).display !== "none"; } )()' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).disabled' ), false );
+	ASSERT.equal( await page.Evaluate( text_of( '#state-line' ) ), '1 contested' );
+	let me = await page.Evaluate( 'JSON.stringify( angular.element( document.body ).injector().get( "State" ).Root.Me )' );
+	const AS = '( function ( me, role ) { let injector = angular.element( document.body ).injector(); let state = injector.get( "State" ); state.Root.Me = me; if ( role ) { state.Root.Roles[ state.Open.Project.Id ] = role; } else { delete state.Root.Roles[ state.Open.Project.Id ]; } injector.get( "$rootScope" ).$apply(); return true; } )';
+	const RULES = 'JSON.stringify( ( function () { let threads = angular.element( document.body ).injector().get( "Threads" ); return [ threads.IsOwner(), threads.CanStartResolved(), threads.CanSetState(), threads.CanResolve( { Status: "contested", Replies: [ { By: "bob" } ] } ), threads.CanDelete() ]; } )() )';
+	// as bob, a Member: the owner's thread is not his to resolve, his own is; the State is not his; Comment and resolve is
+	await page.Evaluate( AS + '( { Name: "bob", Display: "Bob", Role: "user" }, "Members" )' );
+	await page.WaitFor( '( function () { let e = document.querySelector( ".thread.selected .resolve-button" ); return !e || getComputedStyle( e ).display === "none"; } )()' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).disabled' ), true );
+	ASSERT.match( await page.Evaluate( 'document.getElementById( "state-picker" ).title' ), /only an Owner/ );
+	ASSERT.equal( await page.Evaluate( RULES ), '[false,true,false,true,false]' );
+	// as ann, a Watcher: nothing
+	await page.Evaluate( AS + '( { Name: "ann", Display: "Ann", Role: "user" }, "Watchers" )' );
+	ASSERT.equal( await page.Evaluate( RULES ), '[false,false,false,false,false]' );
+	// as olga, in the project's Owners folder: everything, as the owner
+	await page.Evaluate( AS + '( { Name: "olga", Display: "Olga", Role: "user" }, "Owners" )' );
+	ASSERT.equal( await page.Evaluate( RULES ), '[true,true,true,true,true]' );
+	await page.WaitFor( '( function () { let e = document.querySelector( ".thread.selected .resolve-button" ); return !!e && getComputedStyle( e ).display !== "none"; } )()' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).disabled' ), false );
+	// the owner again: the thread they resolve waits on them to apply it, and the line leads with it
+	await page.Evaluate( AS + '( ' + me + ', null )' );
+	await api( 'POST', '/api/plans/' + plan.Id + '/threads/' + asked.Id + '/resolve' );
+	await page.WaitFor( text_of( '#state-line' ) + ' === "waiting on you 1 · 1 resolved"' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 

@@ -7,7 +7,8 @@
 // thread requests. After your own Reply, Reply and Contest, Reply and resolve or Resolve, thread-done goes out
 // with the thread's id, and thread-list passes the selection on (plan UI Tweaks VI).
 //
-//   Threads = { Busy, Listed(), Matches( thread ), Highlighted(), IsOwner(), CanResolve( thread ), CanDelete(), IsPlan(),
+//   Threads = { Busy, Listed(), Matches( thread ), Highlighted(), IsOwner(), CanResolve( thread ), CanStartResolved(),
+//               CanSetState(), CanDelete(), IsPlan(),
 //               Post( Resolve ), Reply( thread ), ReplyAndResolve( thread ), Resolve( thread ), Delete( thread ),
 //               Reanchor( thread ), SubplanFromCompose(), SubplanFromThread( thread ) }
 
@@ -98,17 +99,61 @@ angular.module( 'Consensus' ).factory( 'Threads', [ '$rootScope', 'State', 'Clie
 
 
 	//-----------------------------------------------------------------
-	// Who may do what.
+	// Who may do what (plan Multiuser, Step 2): the page says before the server does what src/Rules.js has. An Owner
+	// is the server's owner or an account in the open project's Owners folder (the root's Roles, by project); a Member
+	// resolves the threads they started; the plan's State is an Owner's.
+
+	// My role in the open item's project: Owners for the server's owner, else the root's role folder for it, or null.
+	function role()
+	{
+		if ( !State.Me )
+		{
+			return null;
+		}
+		if ( State.Me.Role === 'owner' )
+		{
+			return 'Owners';
+		}
+		let project = ( State.Open && State.Open.Project ) ? State.Open.Project.Id : null;
+		if ( !project || !State.Root || !State.Root.Roles )
+		{
+			return null;
+		}
+		return State.Root.Roles[ project ] || null;
+	}
+
 
 	function IsOwner()
 	{
-		return !!State.Me && State.Me.Role === 'owner';
+		return role() === 'Owners';
 	}
 
 
 	function CanResolve( thread )
 	{
-		return IsOwner() && thread.Status === 'contested';
+		if ( thread.Status !== 'contested' )
+		{
+			return false;
+		}
+		if ( IsOwner() )
+		{
+			return true;
+		}
+		let first = ( thread.Replies || [] )[ 0 ];
+		return role() === 'Members' && !!first && first.By === State.Me.Name;
+	}
+
+
+	// Comment and resolve: a thread posted resolved is the poster's own, so an Owner's or a Member's.
+	function CanStartResolved()
+	{
+		return IsOwner() || role() === 'Members';
+	}
+
+
+	function CanSetState()
+	{
+		return IsOwner();
 	}
 
 
@@ -275,6 +320,8 @@ angular.module( 'Consensus' ).factory( 'Threads', [ '$rootScope', 'State', 'Clie
 	threads.Highlighted = Highlighted;
 	threads.Matches = Matches;
 	threads.IsOwner = IsOwner;
+	threads.CanStartResolved = CanStartResolved;
+	threads.CanSetState = CanSetState;
 	threads.CanResolve = CanResolve;
 	threads.CanDelete = CanDelete;
 	threads.IsPlan = IsPlan;

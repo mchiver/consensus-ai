@@ -19,7 +19,7 @@
 
 angular.module( 'Consensus' ).component( 'editorHeader', {
 	templateUrl: '/components/editor-header/editor-header.html',
-	controller: [ '$scope', '$rootScope', 'State', 'Client', 'Subplans', 'Roots', 'Reports', 'Llms', 'Toast', 'Menus', function ( $scope, $rootScope, State, Client, Subplans, Roots, Reports, Llms, Toast, Menus )
+	controller: [ '$scope', '$rootScope', 'State', 'Client', 'Subplans', 'Roots', 'Reports', 'Llms', 'Toast', 'Menus', 'Threads', function ( $scope, $rootScope, State, Client, Subplans, Roots, Reports, Llms, Toast, Menus, Threads )
 	{
 		let controller = this;
 		controller.State = State;
@@ -417,7 +417,13 @@ angular.module( 'Consensus' ).component( 'editorHeader', {
 
 
 		//-------------------------------------------------------------
-		// The state picker: any of the settings' States, by anyone, at any time.
+		// The state picker: any of the settings' States, by an Owner (plan Multiuser, Step 2; by anyone before), at any time.
+
+		controller.CanSetState = function ()
+		{
+			return Threads.CanSetState();
+		};
+
 
 		$scope.$watch( function () { return State.Open ? State.Open.Plan.State : null; }, function ( current )
 		{
