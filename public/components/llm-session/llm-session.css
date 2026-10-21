@@ -89,6 +89,7 @@ llm-session
 	outline: 2px solid var(--accent);
 }
 
+.run-row.queued { border-left-color: var(--muted); border-left-style: dashed; }
 .run-row.running { border-left-color: var(--mine-edge); }
 .run-row.done { border-left-color: var(--applied-edge); }
 .run-row.failed { border-left-color: var(--contested-edge); }

@@ -1107,7 +1107,7 @@ const ECHO_ARGUMENTS = [ '-e', "let t='';process.stdin.on('data',function(c){t+=
 async function run_settled( id )
 {
 	let read = null;
-	for ( let attempt = 0; attempt < 200 && ( !read || read.Body.Run.Status === 'running' ); attempt++ )
+	for ( let attempt = 0; attempt < 200 && ( !read || read.Body.Run.Status === 'running' || read.Body.Run.Status === 'queued' ); attempt++ )
 	{
 		await new Promise( function ( resolve ) { setTimeout( resolve, 50 ); } );
 		read = await call( 'GET', '/api/runs/' + id );
@@ -1205,8 +1205,18 @@ TEST( 'a run is asked of a connection, packaged from the project and the plan wi
 	ASSERT.deepEqual( [ started.Body.Run.Status, started.Body.Run.By, started.Body.Run.Service, started.Body.Run.Token, started.Body.Run.Task, started.Body.Run.Writes, started.Body.Run.Prompt ], [ 'running', 'user', 'echo', 'Answer run', { Id: 'answer', Name: 'Answer' }, 'consensus', undefined ] );
 	ASSERT.equal( running.Tokens.Count(), 1 );
 	ASSERT.equal( ( await call( 'GET', '/api/llms', undefined, true ) ).Body.Llms[ 0 ].Running.Id, started.Body.Run.Id );
-	ASSERT.equal( ( await call( 'POST', '/api/runs', { Llm: echo.Id, Task: 'session', Project: home } ) ).Status, 409 );
+	// a second press on the connection waits its turn (plan Multiuser, Step 3): queued behind the first, told so, run after it
+	let second = await call( 'POST', '/api/runs', { Llm: echo.Id, Task: 'session', Project: home } );
+	ASSERT.equal( second.Status, 201 );
+	ASSERT.deepEqual( [ second.Body.Run.Status, second.Body.Run.Started, second.Body.Run.Behind.Id, second.Body.Run.Behind.Task.Name, second.Body.Run.Behind.Plan.Title ], [ 'queued', null, started.Body.Run.Id, 'Answer', 'A plan to review' ] );
+	ASSERT.equal( typeof second.Body.Run.Queued, 'string' );
+	ASSERT.equal( ( await call( 'GET', '/api/runs/' + second.Body.Run.Id ) ).Body.Run.Status, 'queued' );
+	ASSERT.equal( running.Tokens.Count(), 2 );
 	let done = await run_settled( started.Body.Run.Id );
+	let second_done = await run_settled( second.Body.Run.Id );
+	ASSERT.equal( second_done.Status, 'done' );
+	ASSERT.equal( second_done.Behind.Id, started.Body.Run.Id );
+	ASSERT.match( second_done.Prompt, /Bearer <token>": [0-9a-f]{48}\n/ );
 	ASSERT.equal( done.Status, 'done' );
 	ASSERT.match( done.Output, /^got: # Answer: a one-shot from Consensus/ );
 	ASSERT.deepEqual( done.Project, { Id: home, Name: ( await project_named( home ) ).Name, Path: ( await project_named( home ) ).Path } );
@@ -1221,7 +1231,8 @@ TEST( 'a run is asked of a connection, packaged from the project and the plan wi
 	ASSERT.match( events.Text(), new RegExp( '"Run":"' + started.Body.Run.Id + '","Llm":"' + echo.Id + '","Status":"done"' ) );
 	// the list, as the llm too; the record file in the config folder; a finished run is not stopped
 	let listed = await call( 'GET', '/api/runs?Llm=' + echo.Id, undefined, true );
-	ASSERT.equal( listed.Body.Runs.length, 1 );
+	ASSERT.equal( listed.Body.Runs.length, 2 );
+	ASSERT.deepEqual( listed.Body.Runs.map( function ( one ) { return one.Id; } ), [ second.Body.Run.Id, started.Body.Run.Id ] );
 	ASSERT.equal( listed.Body.Runs[ 0 ].Output, undefined );
 	ASSERT.equal( listed.Body.Running, null );
 	ASSERT.equal( FS.existsSync( PATH.join( running.Store.Folder, 'runs', started.Body.Run.Id + '.json' ) ), true );

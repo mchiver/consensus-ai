@@ -235,7 +235,7 @@ TEST( 'the check runs the command with --version, and the command line carries t
 async function settled( runs, id )
 {
 	let record = null;
-	for ( let attempt = 0; attempt < 200 && ( !record || record.Status === 'running' ); attempt++ )
+	for ( let attempt = 0; attempt < 200 && ( !record || record.Status === 'running' || record.Status === 'queued' ); attempt++ )
 	{
 		await new Promise( function ( resolve ) { setTimeout( resolve, 50 ); } );
 		record = runs.Read( id );
@@ -261,7 +261,6 @@ TEST( 'a run keeps its record: the prompt on stdin, the output, the exit, the du
 	ASSERT.equal( started.Prompt, undefined );
 	ASSERT.equal( started.By, 'user' );
 	ASSERT.deepEqual( runs.Running( echo.Id ), started );
-	ASSERT.throws( function () { runs.Start( { Llm: echo, Task: { Id: 'answer', Name: 'Answer' }, Writes: 'consensus', Prompt: 'again' } ); }, /already running/ );
 	let record = await settled( runs, started.Id );
 	ASSERT.equal( record.Status, 'done' );
 	ASSERT.equal( record.Exit, 0 );
@@ -303,6 +302,66 @@ TEST( 'a run keeps its record: the prompt on stdin, the output, the exit, the du
 	ASSERT.equal( runs.List().length, 4 );
 	ASSERT.equal( runs.List()[ 0 ].Id, timed.Id );
 	ASSERT.equal( runs.Read( 'run-nothing' ), null );
+	await runs.Close();
+} );
+
+
+TEST( 'one run per connection and per plan at a time (plan Multiuser, Step 3): a second press queues behind the first and is told so, is packaged again and runs when its turn comes; a queued run is stopped out of the line; other plans on other connections go together', async function ()
+{
+	let folder = temporary_folder( 'consensus-queue-' );
+	let runs = RUNS.Runs( { Folder: PATH.join( folder, 'runs' ) } );
+	const ECHO = [ '-e', "let t='';process.stdin.on('data',function(c){t+=c});process.stdin.on('end',function(){process.stdout.write('got: '+t)})" ];
+	let echo = LLMS.Fill( { Name: 'echo', Command: process.execPath, Arguments: ECHO } );
+	let other = LLMS.Fill( { Name: 'other', Command: process.execPath, Arguments: ECHO } );
+	let heard = [];
+	runs.OnChange( function ( summary ) { heard.push( summary.Id + ' ' + summary.Status ); } );
+	let first = runs.Start( { Llm: echo, Task: { Id: 'work', Name: 'Work' }, Writes: 'consensus', Plan: { Id: 'pln-1', Title: 'One' }, Prompt: 'first' } );
+	ASSERT.deepEqual( [ first.Status, first.Queued, first.Behind ], [ 'running', null, null ] );
+	// the connection is busy: the second waits, told what for, and is packaged afresh when it starts
+	let prepared = 0;
+	let second = runs.Start( { Llm: echo, Task: { Id: 'answer', Name: 'Answer' }, Writes: 'consensus', Plan: { Id: 'pln-2', Title: 'Two' }, Prompt: 'stale', Prepare: async function () { prepared++; return { Prompt: 'fresh' }; } } );
+	ASSERT.deepEqual( [ second.Status, second.Started, second.Behind.Id, second.Behind.Task.Name, second.Behind.Plan.Title ], [ 'queued', null, first.Id, 'Work', 'One' ] );
+	ASSERT.equal( typeof second.Queued, 'string' );
+	ASSERT.equal( runs.Read( second.Id ).Status, 'queued' );
+	// the same plan on another connection waits too; another plan on that connection waits behind it in press order
+	let third = runs.Start( { Llm: other, Task: { Id: 'work', Name: 'Work' }, Writes: 'consensus', Plan: { Id: 'pln-1', Title: 'One' }, Prompt: 'third' } );
+	ASSERT.deepEqual( [ third.Status, third.Behind.Id ], [ 'queued', first.Id ] );
+	ASSERT.equal( runs.IsBlocked( { Llm: other.Id, Plan: 'pln-1' } ).Id, first.Id );
+	ASSERT.equal( runs.IsBlocked( { Llm: other.Id, Plan: 'pln-3' } ).Id, third.Id );
+	ASSERT.equal( runs.IsBlocked( { Llm: 'llm-free', Plan: 'pln-3' } ), null );
+	let fourth = runs.Start( { Llm: other, Task: { Id: 'work', Name: 'Work' }, Writes: 'consensus', Plan: { Id: 'pln-3', Title: 'Three' }, Prompt: 'fourth' } );
+	ASSERT.deepEqual( [ fourth.Status, fourth.Behind.Id ], [ 'queued', third.Id ] );
+	// a queued run is stopped out of the line; one in the line is not deleted
+	ASSERT.equal( runs.Stop( fourth.Id ), true );
+	ASSERT.deepEqual( [ runs.Read( fourth.Id ).Status, runs.Read( fourth.Id ).Error, runs.Read( fourth.Id ).Duration ], [ 'stopped', 'stopped before it started', 0 ] );
+	ASSERT.throws( function () { runs.Delete( third.Id ); }, /still queued/ );
+	// the first ends: the second (its connection free) and the third (its plan free) start
+	let done_first = await settled( runs, first.Id );
+	let done_second = await settled( runs, second.Id );
+	let done_third = await settled( runs, third.Id );
+	ASSERT.equal( done_first.Output, 'got: first' );
+	ASSERT.deepEqual( [ done_second.Status, done_second.Output, done_second.Behind.Id, prepared ], [ 'done', 'got: fresh', first.Id, 1 ] );
+	ASSERT.deepEqual( [ done_third.Status, done_third.Output ], [ 'done', 'got: third' ] );
+	ASSERT.equal( done_second.Started >= done_second.Queued, true );
+	ASSERT.deepEqual( heard.slice( 0, 6 ), [ first.Id + ' running', second.Id + ' queued', third.Id + ' queued', fourth.Id + ' queued', fourth.Id + ' stopped', first.Id + ' done' ] );
+	ASSERT.deepEqual( heard.slice( 6 ).sort(), [ second.Id + ' done', second.Id + ' running', third.Id + ' done', third.Id + ' running' ].sort() );
+	// the list is in press order, newest first (presses in one burst can share a millisecond, so the order is checked by time)
+	let listed = runs.List();
+	ASSERT.deepEqual( listed.map( function ( one ) { return one.Id; } ).sort(), [ first.Id, second.Id, third.Id, fourth.Id ].sort() );
+	let presses = listed.map( function ( one ) { return one.Queued || one.Started; } );
+	ASSERT.deepEqual( presses, presses.slice().sort().reverse() );
+	// a run whose package fails when its turn comes fails without running
+	let fifth = runs.Start( { Llm: echo, Task: { Id: 'work', Name: 'Work' }, Writes: 'consensus', Plan: { Id: 'pln-1', Title: 'One' }, Prompt: 'fifth' } );
+	let sixth = runs.Start( { Llm: echo, Task: { Id: 'work', Name: 'Work' }, Writes: 'consensus', Plan: { Id: 'pln-1', Title: 'One' }, Prompt: 'sixth', Prepare: async function () { return { Error: 'the plan is gone' }; } } );
+	ASSERT.equal( sixth.Status, 'queued' );
+	await settled( runs, fifth.Id );
+	let failed = await settled( runs, sixth.Id );
+	ASSERT.deepEqual( [ failed.Status, failed.Error, failed.Output ], [ 'failed', 'the plan is gone', '' ] );
+	// a run left queued by a server that stopped is closed at the next start
+	let orphan = Object.assign( runs.Read( sixth.Id ), { Id: 'run-orphan', Status: 'queued', Ended: null, Error: null } );
+	FS.writeFileSync( PATH.join( folder, 'runs', 'run-orphan.json' ), JSON.stringify( orphan ) );
+	let again = RUNS.Runs( { Folder: PATH.join( folder, 'runs' ) } );
+	ASSERT.deepEqual( [ again.Read( 'run-orphan' ).Status, again.Read( 'run-orphan' ).Error ], [ 'stopped', 'the server stopped before the run started' ] );
 	await runs.Close();
 } );
 

@@ -61,7 +61,7 @@
 			<span class="run-kind">{{ run.Task ? run.Task.Name : run.Kind }}</span>
 			<span class="run-plan">{{ run.Plan ? run.Plan.Title : '(no plan)' }}</span>
 			<span class="run-workspace muted">{{ run.Project ? run.Project.Name : '' }}{{ run.By ? ' · ' + ( run | byline ) : '' }}</span>
-			<span class="run-when muted">{{ run.Started | stamp }}</span>
+			<span class="run-when muted">{{ ( run.Started || run.Queued ) | stamp }}</span>
 			<span class="run-duration muted">{{ Duration( run ) }}</span>
 			<span class="run-error text-danger small" ng-show="run.Error && run.Status !== 'stopped'">{{ run.Error }}</span>
 		</div>
@@ -159,7 +159,7 @@
 				<span class="run-kind">{{ RunPopup.Run.Task ? RunPopup.Run.Task.Name : RunPopup.Run.Kind }}</span>
 				<span class="run-plan">{{ RunPopup.Run.Plan ? RunPopup.Run.Plan.Title : '(no plan)' }}</span>
 				<span class="run-workspace muted">{{ RunPopup.Run.Project ? RunPopup.Run.Project.Name : '' }}{{ RunPopup.Run.By ? ' · ' + ( RunPopup.Run | byline ) : '' }}</span>
-				<span class="run-when muted">{{ RunPopup.Run.Started | stamp }}</span>
+				<span class="run-when muted">{{ ( RunPopup.Run.Started || RunPopup.Run.Queued ) | stamp }}</span>
 				<span class="run-duration muted">{{ Duration( RunPopup.Run ) }}</span>
 				<span class="muted small" ng-show="RunPopup.Run.Exit !== null">exit {{ RunPopup.Run.Exit }}</span>
 				<span class="muted small run-spent" id="run-spent" ng-show="Spent( RunPopup.Run )">{{ Spent( RunPopup.Run ) }}</span>
@@ -168,7 +168,10 @@
 			<div class="muted small run-command">{{ RunPopup.Run.Command }}{{ RunPopup.Run.Project && RunPopup.Run.Project.Path ? ' in ' + RunPopup.Run.Project.Path : '' }}</div>
 			<div class="small run-instructions" id="run-instructions" ng-show="RunPopup.Run.Text"><span class="muted">Instructions:</span> {{ RunPopup.Run.Text }}</div>
 			<div class="small run-instructions" id="run-git" ng-show="RunPopup.Run.Git"><span class="muted">Git pull:</span> {{ RunPopup.Run.Git.Pull }}</div>
+			<!-- A run that waited its turn (plan Multiuser, Step 3): when it was pressed and what it waited for. -->
+			<div class="small run-instructions" id="run-behind" ng-show="RunPopup.Run.Behind"><span class="muted">Queued:</span> pressed {{ RunPopup.Run.Queued | stamp }}, {{ BehindWords( RunPopup.Run ).trim() }} ({{ RunPopup.Run.Behind.Id }})</div>
 			<div class="thread-buttons">
+				<button class="btn btn-sm btn-outline-danger" type="button" id="run-unqueue" ng-show="RunPopup.Run.Status === 'queued'" ng-click="StopRun( RunPopup.Run )" title="take it out of the line: it will not run"><svg class="icon lead"><use href="#i-x"></use></svg>Stop</button>
 				<button class="btn btn-sm btn-outline-secondary" type="button" id="run-close" ng-click="CloseRun()"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
 				<button class="btn btn-sm btn-outline-secondary" type="button" ng-show="RunPopup.Run.Status === 'running'" ng-click="RefreshRun()"><svg class="icon lead"><use href="#i-refresh"></use></svg>Refresh</button>
 				<button class="btn btn-sm" type="button" id="run-source" ng-class="RunPopup.Source ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="RunPopup.Source = !RunPopup.Source" title="the raw text instead of the rendered markdown"><svg class="icon lead"><use href="#i-eye"></use></svg>Source</button>

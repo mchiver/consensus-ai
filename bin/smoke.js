@@ -151,7 +151,8 @@ async function smoke_page()
 		check( 'layout: the grid starts under the bar and ends at the window', Math.round( layout.Top ) === Math.round( layout.Bar ) && Math.round( layout.Bottom ) === layout.Inner );
 		check( 'layout: no page scroll', layout.Scroll, layout.Inner );
 
-		// the tree and the header
+		// the tree and the header (the tree's rows come with the lists, a moment after the page: waited for)
+		await page.WaitFor( count_of( '.project.open' ) + ' === 1 && ' + count_of( '.tree-item.open[data-id="' + plan.Id + '"]' ) + ' === 1' );
 		check( 'tree: the project is open and the plan is its row', await page.Evaluate( count_of( '.project.open' ) + ' === 1 && ' + count_of( '.tree-item.open[data-id="' + plan.Id + '"]' ) + ' === 1' ), true );
 		check( 'header: the title', await page.Evaluate( text_of( '.header .title' ) ), PLAN_TITLE );
 		check( 'header: the location line', await page.Evaluate( count_of( '#location .crumb-link' ) ) >= 1 );

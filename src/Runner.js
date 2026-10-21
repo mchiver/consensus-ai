@@ -339,19 +339,17 @@ function Runner( Options )
 			drop( token );
 			return { Error: made.Error, Status: 400 };
 		}
+		// A press that must wait for its connection or its plan (plan Multiuser, Step 3) is packaged and pulled again
+		// when its turn comes, since the plan may have changed; the pull now is for a run that starts now.
+		let waits = !!runs.IsBlocked( { Llm: made.Llm.Id, Plan: made.Plan ? made.Plan.Id : null } );
 		let pulled = null;
-		if ( made.Writes === 'files' && made.Folder && git )
+		if ( !waits )
 		{
-			let project = await project_of( request.Project );
-			if ( project && project.GitSync )
+			pulled = await pull_for( request, made );
+			if ( pulled && pulled.Error )
 			{
-				let result = await git.Pull( made.Folder.Path );
-				if ( !result.Ok )
-				{
-					drop( token );
-					return { Error: 'git pull failed in ' + made.Folder.Path + ': ' + last_lines( result.Output ), Status: 400 };
-				}
-				pulled = { Pull: result.Output };
+				drop( token );
+				return { Error: pulled.Error, Status: 400 };
 			}
 		}
 		let server = null;
@@ -359,9 +357,23 @@ function Runner( Options )
 		{
 			server = { Url: url_of(), Token: token ? token.Value : null, Project: made.Project.Id };
 		}
+		async function prepare()
+		{
+			let again = await Package( request, token ? token.Value : null, by );
+			if ( again.Error )
+			{
+				return { Error: again.Error };
+			}
+			let pull = await pull_for( request, again );
+			if ( pull && pull.Error )
+			{
+				return { Error: pull.Error };
+			}
+			return { Prompt: again.Prompt, Folder: again.Folder, Git: pull };
+		}
 		try
 		{
-			let run = runs.Start( { Llm: made.Llm, Task: made.Task, Writes: made.Writes, Text: made.Text, By: by.Name || null, Token: token, Project: made.Project, Plan: made.Plan, Folder: made.Folder, Prompt: made.Prompt, Server: server, Git: pulled } );
+			let run = runs.Start( { Llm: made.Llm, Task: made.Task, Writes: made.Writes, Text: made.Text, By: by.Name || null, Token: token, Project: made.Project, Plan: made.Plan, Folder: made.Folder, Prompt: made.Prompt, Server: server, Git: pulled, Prepare: prepare } );
 			return { Run: run };
 		}
 		catch ( error )
@@ -369,6 +381,28 @@ function Runner( Options )
 			drop( token );
 			return { Error: error.message, Status: /already running/.test( error.message ) ? 409 : 400 };
 		}
+	}
+
+
+	// The pull before a files-writing run of a project that syncs (plan LLM Tasks, Step 3): { Pull } with git's words,
+	// null when there is none to do, { Error } when it failed.
+	async function pull_for( request, made )
+	{
+		if ( made.Writes !== 'files' || !made.Folder || !git )
+		{
+			return null;
+		}
+		let project = await project_of( request.Project );
+		if ( !project || !project.GitSync )
+		{
+			return null;
+		}
+		let result = await git.Pull( made.Folder.Path );
+		if ( !result.Ok )
+		{
+			return { Error: 'git pull failed in ' + made.Folder.Path + ': ' + last_lines( result.Output ) };
+		}
+		return { Pull: result.Output };
 	}
 
 

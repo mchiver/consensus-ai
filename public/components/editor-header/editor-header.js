@@ -281,8 +281,16 @@ angular.module( 'Consensus' ).component( 'editorHeader', {
 			try
 			{
 				let answer = await Client.Post( State.Root, '/api/runs', body );
-				Llms.For( State.Root ).Running[ llm.Id ] = answer.Run;
-				Toast.Show( task.Name + ' started on ' + llm.Name );
+				if ( answer.Run.Status === 'queued' )
+				{
+					// a run on this plan or this connection is on: the press waits its turn (plan Multiuser, Step 3)
+					Toast.Show( task.Name + ' queued on ' + llm.Name + Llms.BehindWords( answer.Run ) );
+				}
+				else
+				{
+					Llms.For( State.Root ).Running[ llm.Id ] = answer.Run;
+					Toast.Show( task.Name + ' started on ' + llm.Name );
+				}
 			}
 			catch ( error )
 			{
@@ -298,7 +306,7 @@ angular.module( 'Consensus' ).component( 'editorHeader', {
 		$scope.$on( 'runs-changed', async function ( event, summary )
 		{
 			let llm = controller.ProjectLlm();
-			if ( !llm || !summary.Llm || summary.Llm.Id !== llm.Id || !State.Root || summary.Root !== State.Root.Key || summary.Status === 'running' )
+			if ( !llm || !summary.Llm || summary.Llm.Id !== llm.Id || !State.Root || summary.Root !== State.Root.Key || summary.Status === 'running' || summary.Status === 'queued' )
 			{
 				return;
 			}

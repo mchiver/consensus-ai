@@ -113,8 +113,9 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State'
 		{
 			items.Running[ Event.Llm ] = summary;
 		}
-		else
+		else if ( Event.Status !== 'queued' )
 		{
+			// a run queued behind the running one (plan Multiuser, Step 3) changes nothing about the mark
 			delete items.Running[ Event.Llm ];
 		}
 		$rootScope.$broadcast( 'runs-changed', summary );
@@ -221,8 +222,20 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State'
 	Object.defineProperty( llms, 'Running', { get: of_current( 'Running' ) } );
 	Object.defineProperty( llms, 'Kinds', { get: of_current( 'Kinds' ) } );
 	Object.defineProperty( llms, 'DefaultPrompts', { get: of_current( 'DefaultPrompts' ) } );
+	// What a queued run waits for, for a toast or a record's line (plan Multiuser, Step 3): " behind Work on The plan".
+	function BehindWords( Run )
+	{
+		if ( !Run || !Run.Behind )
+		{
+			return '';
+		}
+		return ' behind ' + ( Run.Behind.Task ? Run.Behind.Task.Name : 'a run' ) + ( Run.Behind.Plan ? ' on ' + Run.Behind.Plan.Title : '' );
+	}
+
+
 	llms.For = For;
 	llms.LlmById = LlmById;
+	llms.BehindWords = BehindWords;
 	llms.RunChanged = RunChanged;
 	llms.TasksOf = TasksOf;
 	llms.NeedsPlan = NeedsPlan;

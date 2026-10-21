@@ -86,10 +86,10 @@ POST   /api/llms/:id/check                       owner; tried as saved, the body
 DELETE /api/llms/:id                             owner; not while it runs; its speaker goes with it
 GET    /api/runs/lists?Project=&Plan=&Llm=       the other Context documents, the plan's threads waiting on the connection
 POST   /api/runs/package                         { Llm, Task, Project, Plan?, Text?, Overrides? }  the prompt a run would get; Task the task's id, Text the box's text
-POST   /api/runs                                 { Llm, Task, Project, Plan?, Text? }  a run started as the presser through the connection, on a token named after the task that carries its Writes (a none run is refused every write); one per connection at a time; a run that writes files pulls first when the project's GitSync is on, and is refused when the pull fails
+POST   /api/runs                                 { Llm, Task, Project, Plan?, Text? }  a run started as the presser through the connection, on a token named after the task that carries its Writes (a none run is refused every write); one per connection and per plan at a time: a press while either has a run on is answered 201 with Status queued, Queued when and Behind which run, waits its turn in press order and is packaged again when it starts; a run that writes files pulls first when the project's GitSync is on, and is refused when the pull fails
 GET    /api/runs[?Llm=&Project=&Task=&By=]       the runs, newest first, without their prompts and outputs; a person's Explain runs of a project are its conversation
 GET    /api/runs/:id                             the whole record, the output as it stands
-POST   /api/runs/:id/stop                        a running one stopped
+POST   /api/runs/:id/stop                        a running one stopped, a queued one taken out of the line
 DELETE /api/runs/:id                             the record removed (Clear in the Explain tab); not a running one
 GET    /api/events                               Server-Sent Events: { Plan | Project, Kind, Thread? }; { Kind: llms }, { Kind: users } and { Kind: run, Run, Llm, Status }
 GET    /api/users                                the accounts of the server (Users.json): Id, Type, Login, Display, Email; Admin: whether you are the Administrator

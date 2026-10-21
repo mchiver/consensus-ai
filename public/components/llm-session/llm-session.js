@@ -14,7 +14,7 @@
 
 angular.module( 'Consensus' ).component( 'llmSession', {
 	templateUrl: '/components/llm-session/llm-session.html',
-	controller: [ '$scope', '$window', 'State', 'Client', 'Llms', 'Roots', function ( $scope, $window, State, Client, Llms, Roots )
+	controller: [ '$scope', '$window', 'State', 'Client', 'Llms', 'Roots', 'Toast', function ( $scope, $window, State, Client, Llms, Roots, Toast )
 	{
 		const OPEN_PROJECT_KEY = 'project';		// the sidebar's open project (stored.js, per server)
 		const BOX_KEY = 'llm-box';				// the box's text, per project (stored.js, per server)
@@ -180,7 +180,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 				{
 					$scope.RefreshRun();
 				}
-				if ( summary.Status !== 'running' )
+				if ( summary.Status !== 'running' && summary.Status !== 'queued' )
 				{
 					Roots.LoadList( current_root() );
 					if ( current_root() === State.Root )
@@ -701,7 +701,14 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 			try
 			{
 				let answer = await Client.Post( current_root(), '/api/runs', request( task ) );
-				items().Running[ $scope.Llm.Id ] = answer.Run;
+				if ( answer.Run.Status === 'queued' )
+				{
+					Toast.Show( task.Name + ' queued on ' + $scope.Llm.Name + Llms.BehindWords( answer.Run ) );
+				}
+				else
+				{
+					items().Running[ $scope.Llm.Id ] = answer.Run;
+				}
 				await load_runs();
 				await $scope.OpenRun( answer.Run );
 			}
@@ -710,6 +717,26 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 				$scope.Error = error.message;
 			}
 			$scope.Busy = false;
+			$scope.$applyAsync();
+		};
+
+
+		$scope.BehindWords = Llms.BehindWords;
+
+
+		// A queued run taken out of the line from its popup (plan Multiuser, Step 3).
+		$scope.StopRun = async function ( run )
+		{
+			try
+			{
+				await Client.Post( current_root(), '/api/runs/' + encodeURIComponent( run.Id ) + '/stop' );
+				await load_runs();
+				await $scope.RefreshRun();
+			}
+			catch ( error )
+			{
+				$scope.Error = error.message;
+			}
 			$scope.$applyAsync();
 		};
 
@@ -798,6 +825,10 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 
 		$scope.Duration = function ( run )
 		{
+			if ( run.Status === 'queued' )
+			{
+				return 'queued since ' + new Date( run.Queued ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } );
+			}
 			if ( run.Duration === null || run.Duration === undefined )
 			{
 				return 'running since ' + new Date( run.Started ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } );

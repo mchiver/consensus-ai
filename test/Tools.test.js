@@ -539,7 +539,11 @@ TEST( 'an ollama run keeps the transcript, the answer, the rounds and the usage;
 		let started = runs.Start( { Llm: llm, Writes: 'consensus', Project: { Id: 'default', Name: 'Consensus' }, Plan: { Id: 'pln-1', Title: 'Step 4' }, Folder: place, Prompt: 'What is here?' } );
 		ASSERT.equal( started.Status, 'running' );
 		ASSERT.equal( started.Command, 'ollama fake:latest at ' + fake.Url );
-		ASSERT.throws( function () { runs.Start( { Llm: llm, Writes: 'consensus', Prompt: 'again' } ); }, /already running/ );
+		// a press on the same plan from another connection waits its turn (plan Multiuser, Step 3), and is stopped out of the line
+		let other = LLMS.Fill( { Name: 'other', Kind: 'ollama', Url: fake.Url, Model: 'fake:latest', Timeout: 30 } );
+		let again = runs.Start( { Llm: other, Writes: 'consensus', Plan: { Id: 'pln-1', Title: 'Step 4' }, Prompt: 'again' } );
+		ASSERT.deepEqual( [ again.Status, again.Behind.Id ], [ 'queued', started.Id ] );
+		ASSERT.equal( runs.Stop( again.Id ), true );
 		let record = await settled( runs, started.Id );
 		ASSERT.equal( record.Status, 'done' );
 		ASSERT.equal( record.Exit, 0 );
@@ -552,7 +556,7 @@ TEST( 'an ollama run keeps the transcript, the answer, the rounds and the usage;
 		ASSERT.equal( record.Transcript[ 1 ].Kind, 'answer' );
 		ASSERT.equal( record.Prompt, 'What is here?' );
 		// every window heard the call as it happened, between the start and the end
-		ASSERT.deepEqual( heard, [ 'running', 'running', 'done' ] );
+		ASSERT.deepEqual( heard, [ 'running', 'queued', 'stopped', 'running', 'done' ] );
 		ASSERT.equal( runs.List( llm.Id )[ 0 ].Transcript, undefined );
 		ASSERT.equal( runs.List( llm.Id )[ 0 ].Rounds, 2 );
 		ASSERT.equal( JSON.parse( FS.readFileSync( PATH.join( folder, 'runs', started.Id + '.json' ), 'utf8' ) ).Rounds, 2 );
