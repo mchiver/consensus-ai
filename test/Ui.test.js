@@ -195,8 +195,8 @@ TEST( 'the owner resolves from the page; the selection moves on; Reply and Conte
 	ASSERT.equal( await page.Evaluate( text_of( '.thread.selected .reply-button' ) ), 'Reply' );
 	await page.Click( '.thread.selected .resolve-button' );
 	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "resolved"' );
-	// resolved, the thread waits on the owner to apply it (plan Multiuser), and the line leads with that
-	await page.WaitFor( text_of( '#state-line' ) + ' === "waiting on you 1 · 1 resolved"' );
+	// resolved, the thread is off the owner's list: it waits on the llm to apply it
+	await page.WaitFor( text_of( '#state-line' ) + ' === "1 resolved"' );
 	// after the owner's own resolve the selection passes on: with no other thread, to none (plan UI Tweaks VI)
 	await page.WaitFor( count_of( '.thread.selected' ) + ' === 0' );
 	// on the resolved thread, Reply reads Reply and Contest, in the contested colour
@@ -840,8 +840,8 @@ TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-docum
 	let posted = threads.find( function ( thread ) { return thread.Replies[ 0 ].Text === 'Add a summary at the top.'; } );
 	ASSERT.equal( posted.Status, 'resolved' );
 	ASSERT.equal( posted.Anchor, null );
-	// resolved: waiting on its starter and the Owners to apply it (plan Multiuser), the owner here
-	ASSERT.deepEqual( posted.Turn, [ 'user' ] );
+	// resolved: waiting on the llm speakers that apply it, never on the owner who resolved it
+	ASSERT.equal( posted.Turn.includes( 'user' ), false );
 
 	// a whole-document thread can be anchored afterwards
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.selected .reanchor-button" ) ).display !== "none"' );
@@ -1931,10 +1931,10 @@ TEST( 'Multiuser Step 2: the page says who may resolve, comment and resolve, and
 	ASSERT.equal( await page.Evaluate( RULES ), '[true,true,true,true,true]' );
 	await page.WaitFor( '( function () { let e = document.querySelector( ".thread.selected .resolve-button" ); return !!e && getComputedStyle( e ).display !== "none"; } )()' );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "state-picker" ).disabled' ), false );
-	// the owner again: the thread they resolve waits on them to apply it, and the line leads with it
+	// the owner again: the thread they resolve is off their list, counted as resolved
 	await page.Evaluate( AS + '( ' + me + ', null )' );
 	await api( 'POST', '/api/plans/' + plan.Id + '/threads/' + asked.Id + '/resolve' );
-	await page.WaitFor( text_of( '#state-line' ) + ' === "waiting on you 1 · 1 resolved"' );
+	await page.WaitFor( text_of( '#state-line' ) + ' === "1 resolved"' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 

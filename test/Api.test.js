@@ -363,12 +363,12 @@ TEST( 'the owner resolves, a service acting for the owner too; a reply to a reso
 	ASSERT.equal( resolved.Body.Thread.Status, 'resolved' );
 	ASSERT.equal( resolved.Body.Thread.State, 'resolved' );
 	ASSERT.equal( resolved.Body.Thread.Resolved.By, 'user' );
-	// resolved: waiting on its starter and the Owners to apply it (plan Multiuser), the owner here
-	ASSERT.deepEqual( resolved.Body.Thread.Turn, [ 'user' ] );
+	// resolved: waiting on the LLM speakers to apply it, never on the person who resolved it
+	ASSERT.deepEqual( resolved.Body.Thread.Turn, [ 'llm by user' ] );
 	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve' ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/resolve', undefined, true ) ).Status, 409 );
 	let read = await call( 'GET', '/api/plans/' + plan.Id );
-	ASSERT.equal( read.Body.Plan.StateLine, 'waiting on you 1 · 1 resolved' );
+	ASSERT.equal( read.Body.Plan.StateLine, '1 resolved' );
 	let reply = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/replies', { Text: 'Wait, one more thing.' } );
 	ASSERT.equal( reply.Status, 201 );
 	ASSERT.equal( reply.Body.Reopened, true );
@@ -395,7 +395,7 @@ TEST( 'reply and resolve: the owner\'s reply becomes the outcome in one request'
 	ASSERT.equal( both.Body.Resolved, true );
 	ASSERT.equal( both.Body.Thread.Status, 'resolved' );
 	ASSERT.equal( both.Body.Thread.Resolved.By, 'user' );
-	ASSERT.deepEqual( both.Body.Thread.Turn, [ 'user' ] );
+	ASSERT.deepEqual( both.Body.Thread.Turn, [ 'llm by user' ] );
 	let replies = both.Body.Thread.Replies;
 	ASSERT.deepEqual( [ replies[ replies.length - 1 ].By, replies[ replies.length - 1 ].Text ], [ 'user', 'Drop it.' ] );
 	// a plain reply is as it was: it reopens the resolved thread
@@ -413,7 +413,7 @@ TEST( 'comment and resolve: the owner posts a thread already resolved, its comme
 	ASSERT.equal( posted.Status, 201 );
 	ASSERT.equal( posted.Body.Thread.Status, 'resolved' );
 	ASSERT.equal( posted.Body.Thread.Resolved.By, 'user' );
-	ASSERT.deepEqual( posted.Body.Thread.Turn, [ 'user' ] );
+	ASSERT.deepEqual( posted.Body.Thread.Turn, [] );
 	ASSERT.equal( posted.Body.Thread.Replies.length, 1 );
 	// without Resolve, a new thread is contested as before
 	let plain = await call( 'POST', path, { Text: 'Why this line?' } );
@@ -586,15 +586,14 @@ TEST( 'waiting lists each participant\'s threads across plans', async function (
 	let user = await call( 'GET', '/api/waiting' );
 	let user_threads = user.Body.Waiting.filter( function ( item ) { return item.Plan.Id === a.Id || item.Plan.Id === b.Id; } );
 	ASSERT.deepEqual( user_threads.map( function ( item ) { return item.Thread.Id; } ), [ answered.Id ] );
-	// resolved, it waits on its starter and the Owners to apply it (plan Multiuser): the owner here, and so the llm
-	// acting for the owner serves it too, to apply it as the presser
+	// resolved, it waits on the llm to apply it, and no longer on the owner who resolved it
 	await call( 'POST', '/api/plans/' + b.Id + '/threads/' + answered.Id + '/resolve' );
 	let llm_again = await call( 'GET', '/api/waiting', undefined, true );
 	let ids = llm_again.Body.Waiting.filter( function ( item ) { return item.Plan.Id === b.Id; } ).map( function ( item ) { return item.Thread.Id; } );
 	ASSERT.deepEqual( ids, [ answered.Id ] );
-	ASSERT.deepEqual( llm_again.Body.Waiting.filter( function ( item ) { return item.Plan.Id === b.Id; } )[ 0 ].Thread.Turn, [ 'user' ] );
+	ASSERT.deepEqual( llm_again.Body.Waiting.filter( function ( item ) { return item.Plan.Id === b.Id; } )[ 0 ].Thread.Turn, [ 'llm by user' ] );
 	let user_again = await call( 'GET', '/api/waiting' );
-	ASSERT.deepEqual( user_again.Body.Waiting.filter( function ( item ) { return item.Plan.Id === b.Id; } ).map( function ( item ) { return item.Thread.Id; } ), [ answered.Id ] );
+	ASSERT.deepEqual( user_again.Body.Waiting.filter( function ( item ) { return item.Plan.Id === b.Id; } ), [] );
 } );
 
 
@@ -1662,7 +1661,7 @@ TEST( 'users and roles (plan User Management, Step 3): accounts made by the Admi
 	ASSERT.deepEqual( ( await call( 'GET', '/api/waiting', undefined, ann_token ) ).Body.Waiting.length, 0 );
 	let bob_resolved = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + bobs.Body.Thread.Id + '/resolve', undefined, bob_token );
 	ASSERT.equal( bob_resolved.Status, 200 );
-	ASSERT.deepEqual( bob_resolved.Body.Thread.Turn, [ 'user', 'bob' ] );
+	ASSERT.deepEqual( bob_resolved.Body.Thread.Turn, [ 'echo3 by user' ] );
 	// a Member applies what is resolved, a Watcher does not; a Member creates a plan but sets no State on it
 	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + bobs.Body.Thread.Id + '/apply', { Outcome: 'noted' }, ann_token ) ).Body.Error, 'a Watcher reads only' );
 	let bob_applied = await call( 'POST', '/api/plans/' + plan.Id + '/threads/' + bobs.Body.Thread.Id + '/apply', { Outcome: 'noted' }, bob_token );

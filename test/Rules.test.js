@@ -2,7 +2,7 @@
 
 // Every carried-over rule and every default of the plan, as a case. The rules among many parties are plan
 // Multiuser's (Step 1): resolve by the starter or an Owner, the waiting rule over the parties, apply by write
-// access, the State by Owners.
+// access, the State by Owners; a resolved thread waits on the LLM speakers, never on a person (2026-10-22).
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -63,13 +63,16 @@ TEST( 'a contested thread waits on its parties, the starter, the Owners, the rep
 } );
 
 
-TEST( 'a resolved, unapplied thread waits on its starter and the Owners', function ()
+TEST( 'a resolved, unapplied thread waits on the LLM speakers that apply it, never on a person', function ()
 {
 	let resolved = thread( { Status: 'resolved', Resolved: { By: 'user', At: 'now' } } );
-	ASSERT.deepEqual( RULES.Turn( resolved, PARTICIPANTS ), [ 'user' ] );
-	ASSERT.deepEqual( RULES.Turn( resolved, MANY ), [ 'user', 'olga' ] );
+	ASSERT.deepEqual( RULES.Turn( resolved, PARTICIPANTS ), [ 'llm' ] );
+	ASSERT.deepEqual( RULES.Turn( resolved, MANY ), [ 'llm' ] );
+	ASSERT.deepEqual( RULES.Turn( resolved, PARTICIPANTS.concat( [ { Name: 'claude by user', Role: 'llm' } ] ) ), [ 'llm', 'claude by user' ] );
 	let anns = thread( { Status: 'resolved', Resolved: { By: 'olga', At: 'now' }, Replies: [ { By: 'ann', Text: 'q' }, { By: 'llm', Text: 'a' } ] } );
-	ASSERT.deepEqual( RULES.Turn( anns, MANY ), [ 'user', 'ann', 'olga' ] );
+	ASSERT.deepEqual( RULES.Turn( anns, MANY ), [ 'llm' ] );
+	// no LLM about: it waits on nobody until something applies it, and the resolved count says so
+	ASSERT.deepEqual( RULES.Turn( resolved, [ PARTICIPANTS[ 0 ], OLGA_SPEAKER ] ), [] );
 } );
 
 
@@ -139,7 +142,7 @@ TEST( 'a reopened, applied thread that is resolved again waits to be applied aga
 	ASSERT.equal( RULES.IsWaiting( again ), true );
 	ASSERT.equal( RULES.IsApplied( again ), false );
 	ASSERT.equal( RULES.CanApply( LLM, again ).Ok, true );
-	ASSERT.deepEqual( RULES.Turn( again, PARTICIPANTS ), [ 'user' ] );
+	ASSERT.deepEqual( RULES.Turn( again, PARTICIPANTS ), [ 'llm' ] );
 	let done = thread( { Status: 'resolved', Resolved: { By: 'user', At: '2026-09-24T02:00:00Z' }, Applied: { By: 'llm', At: '2026-09-24T03:00:00Z', Revision: 3, Outcome: 'second' } } );
 	ASSERT.equal( RULES.IsWaiting( done ), false );
 	ASSERT.equal( RULES.IsApplied( done ), true );
@@ -214,8 +217,8 @@ TEST( 'the tally counts contested, reopened, resolved, applied and detached, and
 	ASSERT.equal( tally.Resolved, 1 );
 	ASSERT.equal( tally.Applied, 2 );
 	ASSERT.equal( tally.Detached, 1 );
-	// the owner is waited on by b (the llm replied last) and c (resolved, theirs to apply); the llm by a
-	ASSERT.deepEqual( tally.WaitingOn, { user: 2, llm: 1 } );
+	// the owner is waited on by b (the llm replied last); the llm by a and by c (resolved, its to apply)
+	ASSERT.deepEqual( tally.WaitingOn, { user: 1, llm: 2 } );
 	ASSERT.equal( 'Approvable' in tally, false );
 } );
 
@@ -229,8 +232,8 @@ TEST( 'the state line says what to do next', function ()
 		thread( { Id: 'd', Status: 'resolved', Applied: { By: 'llm' } } ),
 	];
 	let tally = RULES.Tally( plan(), threads, PARTICIPANTS );
-	ASSERT.equal( RULES.StateLine( tally, 'user' ), 'waiting on you 2 · 2 contested · 1 resolved · 1 applied' );
-	ASSERT.equal( RULES.StateLine( tally, 'llm' ), 'waiting on you 1 · 2 contested · 1 resolved · 1 applied' );
+	ASSERT.equal( RULES.StateLine( tally, 'user' ), 'waiting on you 1 · 2 contested · 1 resolved · 1 applied' );
+	ASSERT.equal( RULES.StateLine( tally, 'llm' ), 'waiting on you 2 · 2 contested · 1 resolved · 1 applied' );
 	ASSERT.equal( RULES.StateLine( RULES.Tally( plan(), [ thread( { Reopened: true } ) ], PARTICIPANTS ), 'llm' ), 'waiting on you 1 · 1 contested, 1 reopened' );
 	let done = RULES.Tally( plan(), [ threads[ 3 ] ], PARTICIPANTS );
 	ASSERT.equal( RULES.StateLine( done, 'user' ), '1 applied' );
@@ -245,10 +248,8 @@ TEST( 'waiting on a name lists that participant\'s threads', function ()
 		thread( { Id: 'b', Replies: [ { By: 'user' }, { By: 'llm' } ] } ),
 		thread( { Id: 'c', Status: 'resolved' } ),
 	];
-	ASSERT.deepEqual( RULES.WaitingOn( 'llm', threads, PARTICIPANTS ).map( function ( t ) { return t.Id; } ), [ 'a' ] );
-	ASSERT.deepEqual( RULES.WaitingOn( 'user', threads, PARTICIPANTS ).map( function ( t ) { return t.Id; } ), [ 'b', 'c' ] );
-	// the llm acting for the owner also serves the resolved thread waiting on the owner, to apply it as the presser
-	ASSERT.deepEqual( RULES.WaitingOn( 'llm', threads, PARTICIPANTS, 'user' ).map( function ( t ) { return t.Id; } ), [ 'a', 'c' ] );
+	ASSERT.deepEqual( RULES.WaitingOn( 'llm', threads, PARTICIPANTS ).map( function ( t ) { return t.Id; } ), [ 'a', 'c' ] );
+	ASSERT.deepEqual( RULES.WaitingOn( 'user', threads, PARTICIPANTS ).map( function ( t ) { return t.Id; } ), [ 'b' ] );
 } );
 
 
@@ -270,8 +271,7 @@ TEST( 'threads filter by status', function ()
 	ASSERT.deepEqual( ids( 'applied' ), [ 'd' ] );
 	ASSERT.deepEqual( ids( 'reopened' ), [ 'b' ] );
 	ASSERT.deepEqual( ids( 'detached' ), [ 'd' ] );
-	ASSERT.deepEqual( ids( 'mine' ), [ 'a', 'b' ] );
-	ASSERT.deepEqual( RULES.Filter( threads, 'mine', PARTICIPANTS, 'user' ).map( function ( t ) { return t.Id; } ), [ 'c' ] );
-	ASSERT.deepEqual( RULES.Filter( threads, 'mine', PARTICIPANTS, 'llm', 'user' ).map( function ( t ) { return t.Id; } ), [ 'a', 'b', 'c' ] );
+	ASSERT.deepEqual( ids( 'mine' ), [ 'a', 'b', 'c' ] );
+	ASSERT.deepEqual( RULES.Filter( threads, 'mine', PARTICIPANTS, 'user' ).map( function ( t ) { return t.Id; } ), [] );
 	ASSERT.equal( RULES.Filter( threads, 'nonsense' ), null );
 } );

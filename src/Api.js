@@ -390,14 +390,6 @@ function Attach( App, Context )
 	}
 
 
-	// The person an account acts for, when it acts through a connection or a service (plan Multiuser: a run serves the
-	// resolved threads waiting on its presser); null for a person acting in their own name.
-	function person_of( account )
-	{
-		return account.Service ? account.Name : null;
-	}
-
-
 	// The accounts in the Owners folder of the project holding a plan, each { Name, Display }; none without a registry.
 	async function owners_of( plan_id )
 	{
@@ -491,7 +483,7 @@ function Attach( App, Context )
 			let view = Object.assign( {}, thread );
 			view.Found = thread.Anchor ? ANCHORS.Find( plain, thread.Anchor ) : null;
 			view.Turn = RULES.Turn( thread, all );
-			view.WaitingOnMe = RULES.WaitingOn( name, [ thread ], all, person_of( account ) ).length > 0;
+			view.WaitingOnMe = view.Turn.includes( name );
 			view.State = state_of( thread );
 			return view;
 		} );
@@ -1808,7 +1800,7 @@ function Attach( App, Context )
 			return fail( response, 404, 'no such plan' );
 		}
 		let name = request.Participant;
-		let filtered = RULES.Filter( read.Threads, request.query.status, await speakers( request.params.id, read.Threads, name ), name.Speaker, person_of( name ) );
+		let filtered = RULES.Filter( read.Threads, request.query.status, await speakers( request.params.id, read.Threads, name ), name.Speaker );
 		if ( !filtered )
 		{
 			return fail( response, 400, 'unknown status filter "' + request.query.status + '"' );
@@ -2242,7 +2234,7 @@ function Attach( App, Context )
 			{
 				continue;
 			}
-			let threads = RULES.WaitingOn( name.Speaker, read.Threads, await speakers( plan.Id, read.Threads, name ), person_of( name ) );
+			let threads = RULES.WaitingOn( name.Speaker, read.Threads, await speakers( plan.Id, read.Threads, name ) );
 			for ( let thread of await present_threads( plan.Id, threads, read.Text, name ) )
 			{
 				waiting.push( { Plan: { Id: plan.Id, Title: plan.Title, State: plan.State, Revision: plan.Revision }, Thread: thread } );

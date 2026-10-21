@@ -20,7 +20,8 @@
 //
 // Plan Multiuser (its six decisions taken 2026-10-19): a thread is resolved by the one who started it or an Owner,
 // with no vote; it waits on its parties, not on bystanders; anyone with write access applies it; the plan's State
-// is an Owner's.
+// is an Owner's. A resolved thread waits on the LLM speakers that apply it, never on a person (the owner's word,
+// 2026-10-22: a thread you resolve is off your list).
 
 const ROLES = require( './Roles.js' );
 
@@ -55,7 +56,8 @@ function IsApplied( Thread )
 //                        replied last. A person who has not joined in is not waited on. The byline is the speaker:
 //                        a run's reply as the owner through a connection is a different speaker from the owner, so
 //                        the owner is still waited on.
-//   resolved             the starter and the Owners, so that someone who cares sees it applied (waiting to be applied)
+//   resolved             the LLM speakers, the ones that apply it (waiting to be applied); never a person, so a thread
+//                        you resolve is off your list, and the "resolved" count says it is still to be applied
 //   applied              nobody
 
 function Turn( Thread, Participants )
@@ -72,8 +74,7 @@ function Turn( Thread, Participants )
 	}
 	if ( IsWaiting( Thread ) )
 	{
-		let starter = SpeakerOf( replies[ 0 ] );
-		return Participants.filter( function ( participant ) { return is_owner( participant ) || participant.Name === starter; } ).map( name_of );
+		return Participants.filter( function ( participant ) { return participant.Role === 'llm'; } ).map( name_of );
 	}
 	return [];
 }
@@ -346,25 +347,19 @@ function ApplyEffect( Who, At, Revision, RevisionId, Outcome )
 
 
 //---------------------------------------------------------------------
-// WaitingOn: the threads waiting on one speaker. Person, when given, is the account the speaker acts for (a run or an
-// agent session through a connection): it also serves the resolved threads waiting on that person, since Answer
-// applies them as the presser (plan Multiuser); the contested ones waiting on the person are the person's own to answer.
+// WaitingOn: the threads waiting on one speaker.
 
-function WaitingOn( Name, Threads, Participants, Person )
+function WaitingOn( Name, Threads, Participants )
 {
-	return Threads.filter( function ( thread )
-	{
-		let turn = Turn( thread, Participants );
-		return turn.includes( Name ) || ( !!Person && IsWaiting( thread ) && turn.includes( Person ) );
-	} );
+	return Threads.filter( function ( thread ) { return Turn( thread, Participants ).includes( Name ); } );
 }
 
 
 //---------------------------------------------------------------------
 // Filter: threads by the page's filter names.
-//   all | contested | resolved (waiting to be applied) | applied | reopened | detached | mine (WaitingOn's Name and Person)
+//   all | contested | resolved (waiting to be applied) | applied | reopened | detached | mine
 
-function Filter( Threads, Status, Participants, Name, Person )
+function Filter( Threads, Status, Participants, Name )
 {
 	switch ( Status || 'all' )
 	{
@@ -381,7 +376,7 @@ function Filter( Threads, Status, Participants, Name, Person )
 		case 'detached':
 			return Threads.filter( function ( thread ) { return !!thread.Detached; } );
 		case 'mine':
-			return WaitingOn( Name, Threads, Participants || [], Person );
+			return WaitingOn( Name, Threads, Participants || [] );
 		default:
 			return null;
 	}
