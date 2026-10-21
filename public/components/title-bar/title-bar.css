@@ -26,6 +26,12 @@ title-bar
 	-webkit-app-region: drag;
 }
 
+/* While a menu is open (menus.js, plan UI Tweaks IX) the bar is no drag region, so a click on it closes the menu. */
+body.menu-open .title-bar
+{
+	-webkit-app-region: no-drag;
+}
+
 .brand
 {
 	display: flex;

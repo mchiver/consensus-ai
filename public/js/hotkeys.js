@@ -10,9 +10,11 @@
 // desktop both work. What only a controller can do (Save, Copy, Paste) is handed in with Provide( name, handler ).
 //
 // The rules: Ctrl+S and Ctrl+E work wherever the page has focus, the editor included; Ctrl+C and Ctrl+V are the
-// browser's own while typing or with text selected; the Ctrl+Shift keys work everywhere; the tab keys yield to the
-// editor, whose own they are there; no hotkey but Escape fires while a popup is open, and Escape is the popups' and
-// the menu's own, each closing itself. Ctrl reads as Cmd on a Mac.
+// browser's own while typing or with text selected; the Ctrl+Shift keys work everywhere; the tab keys work in the
+// editor too (plan UI Tweaks IX) but Ctrl+Home and Ctrl+End, which are the editor's own there; Ctrl+F4 (Alt+W in a
+// browser, where Ctrl+F4 is the browser's) closes the tab; no hotkey but Escape fires while a popup is open, and
+// Escape presses the open popup's close button (plan UI Tweaks IX: every popup has one at its top right) wherever the
+// focus is, or lets the menu close itself. Ctrl reads as Cmd on a Mac.
 
 angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'State', 'Tabs', 'Menus', 'Reports', function ( $rootScope, $window, State, Tabs, Menus, Reports )
 {
@@ -74,16 +76,24 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	}
 
 
-	function popup_open()
+	// The popup shown, the last in the page when several are: an element with the subplan-popup class that is displayed.
+	function open_popup()
 	{
+		let found = null;
 		for ( let popup of document.querySelectorAll( '.subplan-popup' ) )
 		{
 			if ( getComputedStyle( popup ).display !== 'none' )
 			{
-				return true;
+				found = popup;
 			}
 		}
-		return false;
+		return found;
+	}
+
+
+	function popup_open()
+	{
+		return !!open_popup();
 	}
 
 
@@ -176,7 +186,8 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	}
 
 
-	// Escape: the menu and the popups close themselves; with none open, the selected thread is deselected.
+	// Escape: the menu closes itself and a popup's close button is pressed for it (on_key, outside the digest, since the
+	// button's own click runs one); with neither open, the selected thread is deselected.
 	function escape()
 	{
 		if ( Menus.Open || popup_open() || !State.Selected )
@@ -222,6 +233,19 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	}
 
 
+	// Ctrl+F4, or Alt+W (plan UI Tweaks IX): the active tab closes, a draft asking first as the tab's own close does.
+	function close_tab()
+	{
+		let tab = Tabs.Active();
+		if ( Tabs.Detached || !tab )
+		{
+			return false;
+		}
+		Tabs.Close( tab );
+		return true;
+	}
+
+
 	// The tabs by keyboard: the main window's tabs that are not out in their own window, wrapping at the ends.
 	function live_tabs()
 	{
@@ -229,9 +253,14 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	}
 
 
-	function go_tab( how )
+	// In the editor the keys work too (plan UI Tweaks IX), but Ctrl+Home and Ctrl+End, which are the editor's own there.
+	function go_tab( how, event )
 	{
-		if ( Tabs.Detached || in_editor() )
+		if ( Tabs.Detached )
+		{
+			return false;
+		}
+		if ( in_editor() && ( how === 'first' || how === 'last' ) && ( event.ctrlKey || event.metaKey ) )
 		{
 			return false;
 		}
@@ -284,10 +313,11 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 		{ Keys: [ 'Ctrl+Shift+T', 'Ctrl+Shift+H' ], Label: 'Show or hide the threads', When: 'a plan open', Act: toggle_threads },
 		{ Keys: [ 'Ctrl+P' ], Label: 'Report: the open plan, its Subplans and all their threads as one page to print', When: 'a plan open', Act: report },
 		{ Keys: [ 'Ctrl+Shift+C' ], Label: 'Comment on the whole document', When: 'a plan\'s Read view, or its CodeMirror editor', Act: comment_on_whole },
-		{ Keys: [ 'Ctrl+PgUp', 'Alt+PgUp' ], Label: 'Previous tab, wrapping to the last', When: 'outside the editor', Act: function () { return go_tab( 'previous' ); } },
-		{ Keys: [ 'Ctrl+PgDn', 'Alt+PgDn' ], Label: 'Next tab, wrapping to the first', When: 'outside the editor', Act: function () { return go_tab( 'next' ); } },
-		{ Keys: [ 'Ctrl+Home', 'Alt+Home' ], Label: 'First tab', When: 'outside the editor', Act: function () { return go_tab( 'first' ); } },
-		{ Keys: [ 'Ctrl+End', 'Alt+End' ], Label: 'Last tab', When: 'outside the editor', Act: function () { return go_tab( 'last' ); } },
+		{ Keys: [ 'Ctrl+PgUp', 'Alt+PgUp' ], Label: 'Previous tab, wrapping to the last', When: 'the main window, the editor included', Act: function ( event ) { return go_tab( 'previous', event ); } },
+		{ Keys: [ 'Ctrl+PgDn', 'Alt+PgDn' ], Label: 'Next tab, wrapping to the first', When: 'the main window, the editor included', Act: function ( event ) { return go_tab( 'next', event ); } },
+		{ Keys: [ 'Ctrl+Home', 'Alt+Home' ], Label: 'First tab', When: 'the main window; in the editor Alt+Home, Ctrl+Home being the editor\'s', Act: function ( event ) { return go_tab( 'first', event ); } },
+		{ Keys: [ 'Ctrl+End', 'Alt+End' ], Label: 'Last tab', When: 'the main window; in the editor Alt+End, Ctrl+End being the editor\'s', Act: function ( event ) { return go_tab( 'last', event ); } },
+		{ Keys: [ 'Ctrl+F4', 'Alt+W' ], Label: 'Close the tab', When: 'the main window', Act: close_tab },
 	];
 
 
@@ -324,12 +354,21 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 
 	function on_key( event )
 	{
-		if ( event.key === 'Escape' && ( Menus.Open || popup_open() ) )
+		if ( event.key === 'Escape' && Menus.Open )
 		{
 			return;
 		}
-		if ( popup_open() )
+		let popup = open_popup();
+		if ( popup )
 		{
+			// Escape presses the popup's close (plan UI Tweaks IX), wherever the focus is; the other keys are the popup's own
+			let close = ( event.key === 'Escape' ) ? popup.querySelector( '.popup-close' ) : null;
+			if ( close )
+			{
+				event.preventDefault();
+				event.stopPropagation();
+				close.click();
+			}
 			return;
 		}
 		for ( let row of rows )
@@ -376,6 +415,15 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 	}
 
 
+	// The editor's own keys (plan UI Tweaks IX), listed by Help > Hotkeys; mirror.js and editor.js act on them.
+	const EDITOR_ROWS = [
+		{ Keys: [ 'Ctrl+Up', 'Ctrl+Down' ], Label: 'Scroll a line up or down, the cursor staying', When: '' },
+		{ Keys: [ 'Ctrl+B' ], Label: 'Bold (**) around the selection or the word at the cursor; again takes it off', When: '' },
+		{ Keys: [ 'Ctrl+I' ], Label: 'Italic (_) around the selection or the word at the cursor; again takes it off', When: '' },
+		{ Keys: [ 'Ctrl+Home', 'Ctrl+End' ], Label: 'The start or the end of the text', When: '' },
+	];
+
+
 	// The desktop window's own keys (plan UI Components, Step 6): the accelerators of its menu, which is set but not
 	// shown (desktop/main.js). Listed by Help > Hotkeys when the desktop is the host; nothing here acts on them.
 	const DESKTOP_ROWS = [
@@ -390,6 +438,7 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 
 	return {
 		Rows: rows,
+		EditorRows: EDITOR_ROWS,
 		DesktopRows: DESKTOP_ROWS,
 		Desktop: !!( $window.Desktop && typeof $window.Desktop.Servers === 'function' ),
 		Provide: Provide,

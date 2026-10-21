@@ -15,7 +15,7 @@ llm-session
 
 .item-form
 {
-	max-width: 60rem;
+	max-width: var(--text-width);
 }
 
 .item-form .view-heading

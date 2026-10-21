@@ -43,6 +43,21 @@ angular.module( 'Consensus' ).component( 'signInBox', {
 		};
 
 
+		// The close (plan UI Tweaks IX): not on a server that requires the sign-in, where nothing is behind the box; on a
+		// Local server the box was asked for, and closing it forgets the ask and the license refusal it may show.
+		controller.CanClose = function ()
+		{
+			return !Session.Required;
+		};
+
+
+		controller.Close = function ()
+		{
+			Session.Asked = false;
+			Session.Refusal = null;
+		};
+
+
 		controller.SignOut = function ()
 		{
 			Session.SignOut();

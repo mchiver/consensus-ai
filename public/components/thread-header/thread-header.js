@@ -1,13 +1,14 @@
 'use strict';
 
 // thread-header - the first lines of a thread card (plan UI Components, Step 1): the state badge, detached,
-// who it waits on, the owner's delete with its inline confirmation, and the anchor words (a click shows the
-// passage in the text) or "the whole document".
+// who it waits on, on the selected thread Re-anchor and Start a new Subplan as icon buttons (plan UI Tweaks IX;
+// the reply row had them), the owner's delete with its inline confirmation, and the anchor words (a click shows
+// the passage in the text) or "the whole document".
 //
 // Interface:
 //   <thread-header thread="..."></thread-header>
 //   thread  the thread as the server lists it
-//   deletes through the Threads service; selects through State.Select
+//   deletes, re-anchors and starts a Subplan through the Threads service; selects through State.Select
 
 angular.module( 'Consensus' ).component( 'threadHeader', {
 	templateUrl: '/components/thread-header/thread-header.html',
@@ -17,6 +18,26 @@ angular.module( 'Consensus' ).component( 'threadHeader', {
 		let controller = this;
 		controller.Threads = Threads;
 		controller.Deleting = false;
+
+
+		controller.Selected = function ()
+		{
+			return State.Selected === controller.thread.Id;
+		};
+
+
+		controller.Reanchor = function ( event )
+		{
+			event.stopPropagation();
+			Threads.Reanchor( controller.thread );
+		};
+
+
+		controller.Subplan = function ( event )
+		{
+			event.stopPropagation();
+			Threads.SubplanFromThread( controller.thread );
+		};
 
 
 		controller.CanDelete = function ()

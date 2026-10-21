@@ -1,8 +1,8 @@
-<!-- The project's Users folder (plan User Management, Step 3): the four role folders, fixed. -->
+<!-- The project's Users folder (plan User Management, Step 3): the four role folders, fixed. Not a folder of the owner's, so it looks apart (plan UI Tweaks IX): the people icon, the name muted, a hairline above. -->
 <div class="folder roles-folder" data-roles="{{ $ctrl.project.Id }}">
-	<div class="folder-head tree-row" style="--depth: 1" ng-click="$ctrl.Toggle( $event )" title="who may do what in this project: drag an account from the server's Users into a role folder">
+	<div class="folder-head tree-row users-head" style="--depth: 1" ng-click="$ctrl.Toggle( $event )" title="who may do what in this project: drag an account from the server's Users into a role folder">
 		<span class="chevron" ng-class="{ folded: !$ctrl.Showing }"></span>
-		<span class="tree-icon" ng-class="$ctrl.Showing ? 'icon-folder-open' : 'icon-folder'"></span>
+		<span class="tree-icon icon-users"></span>
 		<span class="folder-name">Users</span>
 		<span class="count">{{ $ctrl.Count() }}</span>
 	</div>

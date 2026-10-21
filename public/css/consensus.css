@@ -9,9 +9,10 @@
 	--bs-tertiary-bg: var(--panel-bg);
 	--bs-secondary-bg: var(--panel-bg);
 
-	--sidebar-width: 260px;
+	--sidebar-width: 480px;
 	--threads-width: 400px;
 	--scale: 1;
+	--text-width: 68rem;	/* the Margins setting (plan UI Tweaks IX): Normal; Narrow none, Wide 52rem */
 
 	--page-bg: #ffffff;
 	--panel-bg: #f6f7f9;
@@ -98,6 +99,17 @@ body
 .muted
 {
 	color: var(--muted);
+}
+
+/* The Margins setting (plan UI Tweaks IX, look-controls): the width the text is held to, Narrow letting it take the pane. */
+:root[data-margins="narrow"]
+{
+	--text-width: none;
+}
+
+:root[data-margins="wide"]
+{
+	--text-width: 52rem;
 }
 
 /* --------------------------------------------------------------------- layout */
@@ -275,7 +287,7 @@ body
 /* The text can be scrolled past its end: room below it, as the editor leaves (plan UI Tweaks IV). */
 .markdown
 {
-	max-width: 52rem;
+	max-width: var(--text-width);
 	margin: 0 auto;
 	line-height: 1.6;
 }
@@ -304,6 +316,21 @@ body
 	flex-wrap: wrap;
 	gap: 0.5rem;
 	margin-top: 0.4rem;
+}
+
+/* The task buttons (plan UI Tweaks IX): Answer, Enhance and Work with room between them, on the LLM page and the plan's
+   heading alike; Stop set apart. */
+.task-buttons
+{
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.task-buttons .task-stop
+{
+	margin-left: 0.5rem;
 }
 
 /* --------------------------------------------------------------------- header actions, errors, trash */
@@ -421,7 +448,27 @@ body
 
 .subplan-head
 {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
 	font-weight: 600;
+}
+
+/* Every popup's close (plan UI Tweaks IX): an × at the top right of its head, which Escape presses (hotkeys.js). */
+.popup-close
+{
+	margin-left: auto;
+	padding: 0 0.3rem;
+	line-height: 1;
+	border: 0;
+	background: transparent;
+	color: var(--muted);
+	font-weight: normal;
+}
+
+.popup-close:hover
+{
+	color: var(--text);
 }
 
 .subplan-seed

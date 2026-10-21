@@ -5,6 +5,10 @@
 // pointer, kept within the window. A click elsewhere, Escape, a scroll or a resize closes it.
 //
 //   item = { Label, Icon?, Act: function (), Disabled?, Danger? }   or   { Separator: true }
+//
+// While a menu is open the page carries the class menu-open (plan UI Tweaks IX): in the desktop the title bar is the
+// window's drag region, whose clicks Electron keeps for itself, so the bar gives the region up while a menu is open
+// (title-bar.css) and a click on it reaches the page and closes the menu, as in a browser.
 
 angular.module( 'Consensus' ).factory( 'Menus', [ '$rootScope', function ( $rootScope )
 {
@@ -91,6 +95,12 @@ angular.module( 'Consensus' ).factory( 'Menus', [ '$rootScope', function ( $root
 	{
 		element.style.visibility = 'hidden';
 		$timeout( place, 0, false );
+	} );
+
+
+	$scope.$watch( function () { return !!Menus.Open; }, function ( open )
+	{
+		document.body.classList.toggle( 'menu-open', open );
 	} );
 
 

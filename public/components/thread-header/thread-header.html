@@ -3,6 +3,11 @@
 	<span class="detached-badge" ng-show="$ctrl.thread.Detached">detached</span>
 	<span class="turn" ng-show="$ctrl.thread.Turn.length">waiting on {{ $ctrl.thread.Turn.join(', ') }}</span>
 	<span class="turn none" ng-hide="$ctrl.thread.Turn.length">nothing to do</span>
+	<!-- Re-anchor and Start a new Subplan (plan UI Tweaks IX): icon buttons on the selected thread. -->
+	<span class="thread-tools" ng-show="$ctrl.Selected()">
+		<button class="btn btn-link btn-sm reanchor-button" type="button" ng-click="$ctrl.Reanchor($event)" title="{{ $ctrl.thread.Anchor ? 'Re-anchor: anchor it to another passage' : 'Re-anchor: anchor it to a passage' }}"><svg class="icon"><use href="#i-target"></use></svg></button>
+		<button class="btn btn-link btn-sm subplan-from-thread" type="button" ng-show="$ctrl.Threads.IsPlan()" ng-click="$ctrl.Subplan($event)" ng-disabled="$ctrl.Threads.Busy" title="Start a new Subplan: reply with a link to a new Subplan that starts from this thread"><svg class="icon"><use href="#i-subplan"></use></svg></button>
+	</span>
 	<span class="thread-delete" ng-show="$ctrl.CanDelete()">
 		<button class="btn btn-link btn-sm delete-thread" ng-hide="$ctrl.Deleting" title="delete this thread" ng-click="$ctrl.StartDelete($event)"><svg class="icon"><use href="#i-x"></use></svg></button>
 		<span class="confirm" ng-show="$ctrl.Deleting">

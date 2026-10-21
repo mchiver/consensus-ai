@@ -132,7 +132,7 @@ revisions-view
 
 .revision-editor .cm-editor.cm-live .cm-content
 {
-	max-width: 52rem;
+	max-width: var(--text-width);
 	margin: 0 auto;
 	padding: 1rem 1.5rem 50vh;
 }

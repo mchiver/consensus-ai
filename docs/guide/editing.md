@@ -69,8 +69,11 @@ The project tree's state per server, the open project, the folded folders and th
 | Ctrl+PgDn, or Alt+PgDn | Next tab, wrapping to the first |
 | Ctrl+Home, or Alt+Home | First tab |
 | Ctrl+End, or Alt+End | Last tab |
+| Ctrl+F4, or Alt+W | Close the tab |
 
-In a browser, Ctrl+PgUp, Ctrl+PgDn and Ctrl+Shift+T are the browser's own and never reach the page; the second key of each does. In the desktop both work. The tab keys yield to the editor, whose own Ctrl+Home and Ctrl+End are; Ctrl+E and Ctrl+S work in the editor.
+In a browser, Ctrl+PgUp, Ctrl+PgDn, Ctrl+Shift+T and Ctrl+F4 are the browser's own and never reach the page; the second key of each does. In the desktop both work. The keys work in the editor too, but Ctrl+Home and Ctrl+End, which are the editor's own there (Alt+Home and Alt+End go to the first and last tab from the editor). Escape closes the open popup wherever the focus is; every popup also has an × at its top right.
+
+The editor has keys of its own, listed under the page's in Menu > Hotkeys: Ctrl+Up and Ctrl+Down scroll a line with the cursor staying; Ctrl+B puts `**` around the selection, or the word at the cursor, and takes it off again; Ctrl+I does the same with `_`; Ctrl+Home and Ctrl+End go to the start and the end of the text. Each tab remembers where its text was scrolled and where the cursor stood, so switching tabs and back finds the editor as you left it.
 
 The desktop window has keys of its own, listed under the page's in Menu > Hotkeys:
 

@@ -2,9 +2,7 @@
 	<comment-editor class="reply-box" text="$ctrl.State.Drafts[ $ctrl.thread.Id ]" placeholder="{{ $ctrl.Placeholder() }}" submit="$ctrl.Primary()"></comment-editor>
 	<div class="thread-buttons">
 		<button class="btn btn-sm btn-primary reply-button" ng-class="{ contest: $ctrl.thread.Status === 'resolved' }" ng-click="$ctrl.Reply()" ng-disabled="!$ctrl.HasDraft() || $ctrl.Threads.Busy" title="{{ $ctrl.thread.Status === 'resolved' ? 'post your reply and reopen the thread: it stays open and contested' : 'post your reply' }}"><svg class="icon lead"><use href="#i-reply"></use></svg>{{ $ctrl.thread.Status === 'resolved' ? 'Reply and Contest' : 'Reply' }}</button>
-		<button class="btn btn-sm btn-success reply-resolve-button" ng-show="$ctrl.CanResolve()" ng-click="$ctrl.ReplyAndResolve()" ng-disabled="!$ctrl.HasDraft() || $ctrl.Threads.Busy" title="post your reply as the outcome and resolve the thread"><svg class="icon lead"><use href="#i-check"></use></svg>Reply and resolve</button>
-		<button class="btn btn-sm btn-success resolve-button" ng-show="$ctrl.CanResolve()" ng-click="$ctrl.Resolve()" ng-disabled="$ctrl.Threads.Busy" title="accept the outcome or recommendation in the last reply"><svg class="icon lead"><use href="#i-check"></use></svg>Resolve</button>
-		<button class="btn btn-sm btn-outline-secondary reanchor-button" ng-click="$ctrl.Reanchor()" title="{{ $ctrl.thread.Anchor ? 'anchor it to another passage' : 'anchor it to a passage' }}"><svg class="icon lead"><use href="#i-target"></use></svg>Re-anchor</button>
-		<button class="btn btn-sm btn-outline-secondary subplan-from-thread" ng-show="$ctrl.Threads.IsPlan()" ng-click="$ctrl.Subplan()" ng-disabled="$ctrl.Threads.Busy" title="reply with a link to a new Subplan that starts from this thread"><svg class="icon lead"><use href="#i-subplan"></use></svg>Start a new Subplan</button>
+		<!-- One Resolve (plan UI Tweaks IX): a reply in the box is posted as the outcome; none, the last reply's is accepted. -->
+		<button class="btn btn-sm btn-success resolve-button" ng-show="$ctrl.CanResolve()" ng-click="$ctrl.Resolve()" ng-disabled="$ctrl.Threads.Busy" title="{{ $ctrl.HasDraft() ? 'post your reply as the outcome and resolve the thread' : 'accept the outcome or recommendation in the last reply' }}"><svg class="icon lead"><use href="#i-check"></use></svg>Resolve</button>
 	</div>
 </div>

@@ -61,6 +61,27 @@
 	font-size: 0.85rem;
 }
 
+/* Re-anchor and Start a new Subplan (plan UI Tweaks IX): icon buttons before the delete, on the selected thread. */
+.thread-tools
+{
+	display: inline-flex;
+	gap: 0.1rem;
+}
+
+.thread-tools .btn
+{
+	padding: 0 0.3rem;
+	line-height: 1;
+	font-size: 1rem;
+	color: var(--muted);
+	text-decoration: none;
+}
+
+.thread-tools .btn:hover
+{
+	color: var(--accent);
+}
+
 /* A thread's delete: an × at the end of its first line, confirmed inline. */
 .thread-delete .btn
 {

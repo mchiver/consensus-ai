@@ -8,9 +8,12 @@
 //                 them shows whole
 //       Tree      the Lezer markdown tree of Source (the editor's; parsed here with the anchor map's parser when
 //                 not given, as the node test does)
-//   Extension() -> the editor extensions: a state field of decorations over the whole document, rebuilt when the
-//                 document changes or the revealed lines change (a field, not a view plugin, because the table and
-//                 image widgets are block decorations), and the handlers (Ctrl+click opens a link).
+//   Extension( Options ) -> the editor extensions: a state field of decorations over the whole document, rebuilt when
+//                 the document changes, the revealed lines change or the anchors change (a field, not a view plugin,
+//                 because the table and image widgets are block decorations), and the handlers (Ctrl+click opens a
+//                 link). Options (plan UI Tweaks IX, for the table widget's anchors): Anchors, the editor's anchor
+//                 field (mirror.js: { Decorations, Selected }); Wrap( Element, Markdown, Threads, SelectedId ), the
+//                 Read view's rendering with the marks (Render.Show); OnAnchorClick( Ids ), a mousedown on a mark.
 //
 // The kinds: line (Class: h1 to h6, quote, code-line), hide (a range replaced by nothing), escape (the backslash),
 // bullet (a list mark replaced by a bullet), check (a task marker replaced by a checkbox; Checked), link (a mark
@@ -19,13 +22,15 @@
 // whole table; Text) and image (the image's source; Url, Alt). The block kinds cover whole lines.
 
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
-import { StateField } from '@codemirror/state';
+import { StateField, Facet } from '@codemirror/state';
 import { syntaxTree, ensureSyntaxTree } from '@codemirror/language';
-import { Parser } from './anchormap.js';
+import { Parser, Build, PlainRange } from './anchormap.js';
 
 const HEADINGS = { ATXHeading1: 'h1', ATXHeading2: 'h2', ATXHeading3: 'h3', ATXHeading4: 'h4', ATXHeading5: 'h5', ATXHeading6: 'h6', SetextHeading1: 'h1', SetextHeading2: 'h2' };
 const MARKS = new Set( [ 'EmphasisMark', 'StrikethroughMark' ] );
 const PARSE_BUDGET = 100;		// milliseconds given to finish the tree before the decorations are built
+// What Extension was given, as a facet of the editor's state (each editor its own: the revisions view makes editors too).
+const OPTIONS = Facet.define( { combine: function ( values ) { return values.length ? values[ 0 ] : {}; } } );
 
 
 //---------------------------------------------------------------------
@@ -473,23 +478,65 @@ class LineWidget extends WidgetType
 }
 
 
+// The table, rendered by marked; the anchors within it (plan UI Tweaks IX: Anchors in offsets of Text, { From, To, Id,
+// State }) are wrapped in the Read view's marks by Options.Wrap, over the table's own anchor map, so an anchored
+// passage in a table highlights as elsewhere; a mousedown on a mark is the thread's, any other click edits the table.
 class TableWidget extends WidgetType
 {
-	constructor( Text )
+	constructor( Text, Anchors, Selected, Options )
 	{
 		super();
 		this.Text = Text;
+		this.Anchors = Anchors || [];
+		this.Selected = Selected || null;
+		this.Options = Options || {};
+	}
+
+	key()
+	{
+		return this.Anchors.map( function ( anchor ) { return anchor.From + ':' + anchor.To + ':' + anchor.Id + ':' + anchor.State; } ).join( ' ' ) + '|' + this.Selected;
 	}
 
 	toDOM( view )
 	{
+		let options = this.Options;
 		let div = document.createElement( 'div' );
 		div.className = 'cm-live-table markdown';
-		div.innerHTML = ( typeof globalThis.marked !== 'undefined' ) ? globalThis.marked.parse( this.Text ) : '';
+		let threads = [];
+		if ( this.Anchors.length && typeof options.Wrap === 'function' )
+		{
+			let map = Build( this.Text );
+			for ( let anchor of this.Anchors )
+			{
+				let plain = PlainRange( map, anchor.From, anchor.To );
+				if ( plain )
+				{
+					threads.push( { Id: anchor.Id, State: anchor.State, Found: { Start: plain.Start, End: plain.End } } );
+				}
+			}
+		}
+		if ( threads.length )
+		{
+			options.Wrap( div, this.Text, threads, this.Selected );
+		}
+		else
+		{
+			div.innerHTML = ( typeof globalThis.marked !== 'undefined' ) ? globalThis.marked.parse( this.Text ) : '';
+		}
 		div.title = 'click to edit the table';
 		div.addEventListener( 'mousedown', function ( event )
 		{
 			event.preventDefault();
+			let mark = event.target.closest( '.anchor' );
+			if ( mark && typeof options.OnAnchorClick === 'function' )
+			{
+				let ids = String( mark.dataset.threads || '' ).split( ' ' ).filter( function ( id ) { return !!id; } );
+				if ( ids.length )
+				{
+					options.OnAnchorClick( ids );
+					return;
+				}
+			}
 			let at = view.posAtDOM( div );
 			view.dispatch( { selection: { anchor: at } } );
 			view.focus();
@@ -499,13 +546,34 @@ class TableWidget extends WidgetType
 
 	eq( other )
 	{
-		return other.Text === this.Text;
+		return other.Text === this.Text && other.key() === this.key();
 	}
 
 	ignoreEvent()
 	{
 		return true;
 	}
+}
+
+
+// The anchors of the editor's field that fall within a table, in offsets of the table's text, and the selected thread.
+function table_anchors( state, from, to )
+{
+	let options = state.facet( OPTIONS );
+	let field = options.Anchors ? state.field( options.Anchors, false ) : null;
+	if ( !field )
+	{
+		return { List: [], Selected: null };
+	}
+	let list = [];
+	field.Decorations.between( from, to, function ( start, end, decoration )
+	{
+		if ( decoration.spec.Anchor && end > from && start < to )
+		{
+			list.push( { From: Math.max( start, from ) - from, To: Math.min( end, to ) - from, Id: decoration.spec.Anchor.Id, State: decoration.spec.Anchor.State } );
+		}
+	} );
+	return { List: list, Selected: field.Selected };
 }
 
 
@@ -552,7 +620,7 @@ class ImageWidget extends WidgetType
 //---------------------------------------------------------------------
 // The decorations from the plan.
 
-function decoration_of( item )
+function decoration_of( item, state )
 {
 	switch ( item.Kind )
 	{
@@ -567,7 +635,11 @@ function decoration_of( item )
 		case 'fence-end': return Decoration.replace( { widget: new FenceWidget( '', 'end' ), block: true } );
 		case 'setext': return Decoration.replace( { widget: new LineWidget( 'cm-live-setext' ), block: true } );
 		case 'rule': return Decoration.replace( { widget: new LineWidget( 'cm-live-rule' ), block: true } );
-		case 'table': return Decoration.replace( { widget: new TableWidget( item.Text ), block: true } );
+		case 'table':
+		{
+			let anchors = table_anchors( state, item.From, item.To );
+			return Decoration.replace( { widget: new TableWidget( item.Text, anchors.List, anchors.Selected, state.facet( OPTIONS ) ), block: true } );
+		}
 		case 'image': return Decoration.replace( { widget: new ImageWidget( item.Url, item.Alt ) } );
 	}
 	return null;
@@ -599,7 +671,7 @@ function build( state )
 	let ranges = [];
 	for ( let item of items )
 	{
-		let decoration = decoration_of( item );
+		let decoration = decoration_of( item, state );
 		if ( decoration )
 		{
 			ranges.push( decoration.range( item.From, item.To ) );
@@ -617,7 +689,9 @@ const FIELD = StateField.define( {
 	update: function ( value, transaction )
 	{
 		let key = Array.from( revealed_lines( transaction.state ) ).sort( function ( a, b ) { return a - b; } ).join( ',' );
-		if ( !transaction.docChanged && key === value.Key )
+		let anchor_field = transaction.state.facet( OPTIONS ).Anchors;
+		let anchors_changed = !!anchor_field && transaction.state.field( anchor_field, false ) !== transaction.startState.field( anchor_field, false );
+		if ( !transaction.docChanged && key === value.Key && !anchors_changed )
 		{
 			return value;
 		}
@@ -646,7 +720,7 @@ const HANDLERS = EditorView.domEventHandlers( {
 } );
 
 
-export function Extension()
+export function Extension( Options )
 {
-	return [ FIELD, HANDLERS ];
+	return [ OPTIONS.of( Options || {} ), FIELD, HANDLERS ];
 }

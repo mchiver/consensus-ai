@@ -24,7 +24,7 @@ Clicking an account opens its page: its details, the projects it has a role in, 
 
 ## Roles
 
-A role is what an account may see and do in one project. Every project has a fixed **Users** folder after its Context folder, holding exactly four folders: **Owners**, **Members**, **Service** and **Watchers**. An account is in one of them at most. The Administrator, or an Owner of the project, drags an account from the server's Users fold into a folder to give it that role, between folders to change it, and presses the × beside it to take it out of the project.
+A role is what an account may see and do in one project. Every project has a fixed **Users** folder, last in the project with the people icon, holding exactly four folders: **Owners**, **Members**, **Service** and **Watchers**. An account is in one of them at most. The Administrator, or an Owner of the project, drags an account from the server's Users fold into a folder to give it that role, between folders to change it, and presses the × beside it to take it out of the project.
 
 ![A project's Users folder: a Member and a Watcher.](../images/roles.png)
 

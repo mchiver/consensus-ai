@@ -10,6 +10,8 @@
 //     Hash   the route that shows it (#/p/<id>, #/waiting, #/s/<root>/p/<id>)
 //     View   read | edit | revisions, for a plan: each tab comes back as it was left
 //     Draft  { Text, Base }: an unsaved edit, kept while its tab is not the one shown
+//     Place  where the tab was left (plan UI Tweaks IX): the editor's Scroll, Anchor and Head (CodeMirror) or Monaco
+//            (its view state), and Read, the Read view's scroll; kept while the tab is open and gone with it
 //
 // The hash stays the route: AppController calls Visit for it, and a tab's click sets it. The tabs are kept once per
 // window (stored.js: localStorage in a browser, the config in the desktop), so a restart brings them back.
@@ -513,6 +515,25 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	}
 
 
+	// The place of the plan Id's tab: the fields given are set over those kept.
+	function SetPlace( Id, Place )
+	{
+		let tab = find_item( 'p', Id );
+		if ( tab && Place )
+		{
+			tab.Place = Object.assign( tab.Place || {}, Place );
+			save();
+		}
+	}
+
+
+	function PlaceOf( Id )
+	{
+		let tab = find_item( 'p', Id );
+		return ( tab && tab.Place ) ? tab.Place : null;
+	}
+
+
 	function DraftOf( Id )
 	{
 		let tab = find_item( 'p', Id );
@@ -776,6 +797,8 @@ angular.module( 'Consensus' ).factory( 'Tabs', [ '$window', '$rootScope', '$time
 	tabs.Move = Move;
 	tabs.SetDraft = SetDraft;
 	tabs.DraftOf = DraftOf;
+	tabs.SetPlace = SetPlace;
+	tabs.PlaceOf = PlaceOf;
 	tabs.CanDetach = CanDetach;
 	tabs.Detach = Detach;
 	tabs.IsOut = IsOut;

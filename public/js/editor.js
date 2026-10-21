@@ -85,6 +85,18 @@ angular.module( 'Consensus.Editor', [] ).factory( 'Editor', [ '$q', function ( $
 			Focus: function () { instance.focus(); },
 			Layout: function () { instance.layout(); },
 			LineHeight: function () { return instance.getOption( monaco.editor.EditorOption.lineHeight ); },
+			// The place (plan UI Tweaks IX): Monaco's own view state, the scroll and the cursor; none means the top.
+			GetPlace: function () { return { Monaco: instance.saveViewState() }; },
+			SetPlace: function ( Place )
+			{
+				if ( Place && Place.Monaco )
+				{
+					instance.restoreViewState( Place.Monaco );
+					return;
+				}
+				instance.setScrollTop( 0 );
+				instance.setPosition( { lineNumber: 1, column: 1 } );
+			},
 			Dispose: function ()
 			{
 				instance.dispose();
@@ -109,7 +121,60 @@ angular.module( 'Consensus.Editor', [] ).factory( 'Editor', [ '$q', function ( $
 	}
 
 
-	// Create: the Edit view's editor in Element holding Text; OnChange fires on every edit; Ctrl+S is OnSave's handler.
+	// Ctrl+B and Ctrl+I (plan UI Tweaks IX): Mark put around the selection, or the word at the cursor; already there,
+	// inside the selection or just outside it, it comes off.
+	function toggle_mark( monaco, instance, mark )
+	{
+		let model = instance.getModel();
+		let selection = instance.getSelection();
+		let range = selection;
+		if ( selection.isEmpty() )
+		{
+			let word = model.getWordAtPosition( selection.getStartPosition() );
+			if ( !word )
+			{
+				return;
+			}
+			range = new monaco.Range( selection.startLineNumber, word.startColumn, selection.startLineNumber, word.endColumn );
+		}
+		let length = mark.length;
+		let one_line = ( range.startLineNumber === range.endLineNumber );
+		let inside = model.getValueInRange( range );
+		let before = model.getValueInRange( new monaco.Range( range.startLineNumber, Math.max( 1, range.startColumn - length ), range.startLineNumber, range.startColumn ) );
+		let after = model.getValueInRange( new monaco.Range( range.endLineNumber, range.endColumn, range.endLineNumber, range.endColumn + length ) );
+		let edits = null;
+		let next = null;
+		if ( inside.length >= 2 * length && inside.startsWith( mark ) && inside.endsWith( mark ) )
+		{
+			edits = [
+				{ range: new monaco.Range( range.startLineNumber, range.startColumn, range.startLineNumber, range.startColumn + length ), text: '' },
+				{ range: new monaco.Range( range.endLineNumber, range.endColumn - length, range.endLineNumber, range.endColumn ), text: '' },
+			];
+			next = new monaco.Selection( range.startLineNumber, range.startColumn, range.endLineNumber, range.endColumn - ( one_line ? 2 * length : length ) );
+		}
+		else if ( before === mark && after === mark )
+		{
+			edits = [
+				{ range: new monaco.Range( range.startLineNumber, range.startColumn - length, range.startLineNumber, range.startColumn ), text: '' },
+				{ range: new monaco.Range( range.endLineNumber, range.endColumn, range.endLineNumber, range.endColumn + length ), text: '' },
+			];
+			next = new monaco.Selection( range.startLineNumber, range.startColumn - length, range.endLineNumber, range.endColumn - ( one_line ? length : 0 ) );
+		}
+		else
+		{
+			edits = [
+				{ range: new monaco.Range( range.startLineNumber, range.startColumn, range.startLineNumber, range.startColumn ), text: mark },
+				{ range: new monaco.Range( range.endLineNumber, range.endColumn, range.endLineNumber, range.endColumn ), text: mark },
+			];
+			next = new monaco.Selection( range.startLineNumber, range.startColumn + length, range.endLineNumber, range.endColumn + ( one_line ? length : 0 ) );
+		}
+		instance.executeEdits( 'mark', edits );
+		instance.setSelection( next );
+	}
+
+
+	// Create: the Edit view's editor in Element holding Text; OnChange fires on every edit; Ctrl+S is OnSave's handler;
+	// Ctrl+B and Ctrl+I toggle the marks (plan UI Tweaks IX).
 	async function Create( Element, Text, OnChange )
 	{
 		let monaco = await Load();
@@ -133,6 +198,8 @@ angular.module( 'Consensus.Editor', [] ).factory( 'Editor', [ '$q', function ( $
 				save_handler();
 			}
 		} );
+		on_chord( monaco, instance, monaco.KeyCode.KeyB, function () { toggle_mark( monaco, instance, '**' ); } );
+		on_chord( monaco, instance, monaco.KeyCode.KeyI, function () { toggle_mark( monaco, instance, '_' ); } );
 		instance.onDidChangeModelContent( function ()
 		{
 			OnChange();

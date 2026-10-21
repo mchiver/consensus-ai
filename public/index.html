@@ -153,7 +153,7 @@
 	<!-- A new Subplan: its title, and what it starts with. -->
 	<div class="subplan-popup" ng-controller="SubplanController" ng-show="Subplans.Pending">
 		<form class="subplan-form" ng-if="Subplans.Pending" ng-submit="Create()" ng-keydown="Key($event)">
-			<div class="subplan-head">New Subplan under &ldquo;{{ Subplans.Pending.Parent.Title }}&rdquo;</div>
+			<div class="subplan-head">New Subplan under &ldquo;{{ Subplans.Pending.Parent.Title }}&rdquo;<button class="popup-close" type="button" title="close (Escape)" ng-click="Cancel()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 			<input class="form-control form-control-sm" type="text" id="subplan-title" placeholder="Subplan title" ng-model="Subplans.Pending.Title" auto-focus>
 			<div class="muted small" ng-show="Subplans.Pending.Seed">It starts with:</div>
 			<pre class="subplan-seed" ng-show="Subplans.Pending.Seed">{{ Subplans.Pending.Seed }}</pre>
@@ -170,7 +170,7 @@
 	<!-- LLM Instructions (plan UI Tweaks VII): the server's /instructions, the project named first, to read and copy for seeding an LLM by hand. -->
 	<div class="subplan-popup port-popup" id="instructions-popup" ng-controller="InstructionsController" ng-show="Instructions.Open" ng-keydown="Key($event)">
 		<div class="subplan-form port-form" ng-if="Instructions.Open" tabindex="-1" auto-focus>
-			<div class="subplan-head">LLM Instructions for &ldquo;{{ Instructions.Project.Name }}&rdquo;</div>
+			<div class="subplan-head">LLM Instructions for &ldquo;{{ Instructions.Project.Name }}&rdquo;<button class="popup-close" type="button" title="close (Escape)" ng-click="Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 			<div class="muted small">What an LLM needs to take part, to paste into its session by hand: the project named first, then the server's address and how to say who you are, then the guide.</div>
 			<div class="muted small" ng-show="Instructions.Busy">Loading…</div>
 			<textarea class="form-control form-control-sm port-json instructions-text" id="instructions-text" rows="14" readonly ng-model="Instructions.Text" ng-hide="Instructions.Busy"></textarea>
@@ -185,7 +185,7 @@
 
 	<div class="subplan-popup settings-popup" id="settings-popup" ng-controller="SettingsController" ng-show="Panel.Open" ng-keydown="Key($event)">
 		<form class="subplan-form settings-form" ng-if="Panel.Open" ng-submit="Save()">
-			<div class="subplan-head">Settings <span class="muted small">{{ Panel.Path }}</span></div>
+			<div class="subplan-head">Settings <span class="muted small">{{ Panel.Path }}</span><button class="popup-close" type="button" title="close (Escape)" ng-click="Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 			<div class="port-error" id="settings-problems" ng-show="Panel.Problems.length">
 				<div>Not saved. Fix these first:</div>
 				<ul class="mb-0"><li ng-repeat="problem in Panel.Problems track by $index">{{ problem }}</li></ul>
@@ -245,7 +245,7 @@
 	<!-- A project's own settings (plan Run Shapes, Step 2): its States, Include, Exclude and Commands, one per line, and the tasks it enables (plan LLM Tasks, Step 1). -->
 	<div class="subplan-popup settings-popup project-settings-popup" ng-controller="ProjectSettingsController" ng-show="Panel.Open" ng-keydown="Key($event)">
 		<form class="subplan-form settings-form" ng-if="Panel.Open" ng-submit="Save()">
-			<div class="subplan-head">Project settings <span class="muted small">{{ Panel.Project.Name }}</span></div>
+			<div class="subplan-head">Project settings <span class="muted small">{{ Panel.Project.Name }}</span><button class="popup-close" type="button" title="close (Escape)" ng-click="Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 			<div class="muted small" id="project-settings-path" ng-show="Panel.Project.Path">{{ Panel.Project.Path }}</div>
 			<div class="port-error" id="project-settings-problems" ng-show="Panel.Problems.length">
 				<div>Not saved. Fix these first:</div>
@@ -289,7 +289,7 @@
 	<!-- Export and import a whole project. -->
 	<div class="subplan-popup port-popup" ng-controller="PortController" ng-show="Ports.Open" ng-keydown="Key($event)">
 		<div class="subplan-form port-form" ng-if="Ports.Open === 'export'">
-			<div class="subplan-head">Export &ldquo;{{ Ports.Project.Name }}&rdquo;</div>
+			<div class="subplan-head">Export &ldquo;{{ Ports.Project.Name }}&rdquo;<button class="popup-close" type="button" title="close (Escape)" ng-click="Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 			<div class="muted small">The whole project as json: its Context folder and documents, folders, plans, Subplans, threads and every revision. No tokens.</div>
 			<div class="muted small" ng-show="Ports.Busy">Exporting…</div>
 			<textarea class="form-control form-control-sm port-json" id="export-json" rows="12" readonly ng-model="Ports.Json" ng-hide="Ports.Busy"></textarea>
@@ -302,7 +302,7 @@
 		</div>
 
 		<div class="subplan-form port-form" ng-if="Ports.Open === 'import'">
-			<div class="subplan-head">Import a project</div>
+			<div class="subplan-head">Import a project<button class="popup-close" type="button" title="close (Escape)" ng-click="Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 
 			<div ng-hide="Ports.Report">
 				<div class="muted small">Paste an exported project, or load its file.</div>
@@ -350,7 +350,7 @@
 	<!-- Help (plan UI Tweaks VI): About, and the hotkeys. -->
 	<div class="subplan-popup settings-popup help-popup" id="help-popup" ng-controller="HelpController" ng-show="Panel.Open" ng-keydown="Key($event)">
 		<div class="subplan-form settings-form help-form" ng-if="Panel.Open === 'about'" tabindex="-1" auto-focus>
-			<div class="subplan-head"><img class="about-mark" src="/img/mark.svg" alt="">About Consensus <span class="muted small" id="about-version" ng-show="Version()">version {{ Version() }}</span></div>
+			<div class="subplan-head"><img class="about-mark" src="/img/mark.svg" alt="">About Consensus <span class="muted small" id="about-version" ng-show="Version()">version {{ Version() }}</span><button class="popup-close" type="button" title="close (Escape)" ng-click="Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 			<div class="help-links">
 				<a ng-href="{{ SourceUrl }}" target="_blank" rel="noopener" id="about-source"><svg class="icon lead"><use href="#i-link"></use></svg>Source</a>
 				<a ng-href="{{ GuideUrl }}" target="_blank" rel="noopener" id="about-guide"><svg class="icon lead"><use href="#i-link"></use></svg>Online guide</a>
@@ -370,7 +370,7 @@
 			</div>
 		</div>
 		<div class="subplan-form settings-form help-form" ng-if="Panel.Open === 'hotkeys'" tabindex="-1" auto-focus>
-			<div class="subplan-head">Hotkeys</div>
+			<div class="subplan-head">Hotkeys<button class="popup-close" type="button" title="close (Escape)" ng-click="Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 			<table class="help-table hotkeys-table">
 				<tbody>
 					<tr ng-repeat="row in Hotkeys.Rows track by $index">
@@ -380,7 +380,18 @@
 					</tr>
 				</tbody>
 			</table>
-			<div class="muted small">In a browser, Ctrl+PgUp, Ctrl+PgDn and Ctrl+Shift+T are the browser's own and never reach the page; the second key of each does. In the desktop both work.</div>
+			<div class="muted small">In a browser, Ctrl+PgUp, Ctrl+PgDn, Ctrl+Shift+T and Ctrl+F4 are the browser's own and never reach the page; the second key of each does. In the desktop both work.</div>
+			<!-- The editor's own keys (plan UI Tweaks IX). -->
+			<div class="view-heading">In the editor</div>
+			<table class="help-table editor-keys-table">
+				<tbody>
+					<tr ng-repeat="row in Hotkeys.EditorRows track by $index">
+						<td class="help-keys"><span ng-repeat="keys in KeysOf( row ) track by $index"><kbd>{{ keys }}</kbd><span class="muted small" ng-if="!$last"> or </span></span></td>
+						<td>{{ row.Label }}</td>
+						<td class="muted small">{{ row.When }}</td>
+					</tr>
+				</tbody>
+			</table>
 			<!-- The desktop window's own keys (plan UI Components, Step 6), when the desktop is the host. -->
 			<div ng-if="Hotkeys.Desktop">
 				<div class="view-heading">In the desktop</div>

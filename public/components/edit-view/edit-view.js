@@ -16,7 +16,9 @@
 // of what the Read view does with the threads (plan Markdown Editor, Step 2): a thread selected elsewhere scrolls
 // to its passage and flashes it; a selection offers the selection-buttons (Copy always, Comment or Re-anchor here
 // and Start a new Subplan while the text is the saved one); a pending select, scroll or compose is settled here
-// when this is the view shown.
+// when this is the view shown. Each tab keeps its place (plan UI Tweaks IX): the editor's scroll and selection are
+// taken into the tab's record (Tabs.SetPlace) before another plan's text goes into the one instance, and put back
+// when the tab is shown again; a tab with no place starts at the top.
 //
 // Interface:
 //   <edit-view></edit-view>
@@ -102,6 +104,11 @@ angular.module( 'Consensus' ).component( 'editView', {
 			}
 			// an archived plan is read in the editor, never written (plan Markdown Editor, Step 3)
 			let read_only = !!State.Open.Plan.Archived;
+			let switched = ( opened_id !== State.OpenId );
+			if ( instance && switched )
+			{
+				keep_place();
+			}
 			if ( instance )
 			{
 				if ( instance.Get() !== text )
@@ -129,9 +136,24 @@ angular.module( 'Consensus' ).component( 'editView', {
 			controller.ReadOnly = read_only;
 			instance.Layout();
 			instance.Focus();
+			if ( switched && instance.SetPlace )
+			{
+				// a tab with no place yet starts at the top
+				instance.SetPlace( Tabs.PlaceOf( opened_id ) || { Scroll: 0, Anchor: 0, Head: 0 } );
+			}
 			set_anchors();
 			settle_pending();
 			$scope.$applyAsync();
+		}
+
+
+		// The place of the plan the instance holds, into its tab (plan UI Tweaks IX).
+		function keep_place()
+		{
+			if ( instance && instance.GetPlace && opened_id )
+			{
+				Tabs.SetPlace( opened_id, instance.GetPlace() );
+			}
 		}
 
 
@@ -556,6 +578,7 @@ angular.module( 'Consensus' ).component( 'editView', {
 
 		controller.$onDestroy = function ()
 		{
+			keep_place();
 			if ( instance )
 			{
 				instance.Dispose();

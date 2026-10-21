@@ -20,7 +20,7 @@
 - **Revisions.** Every save and every applied thread is a revision, with who, when and why. The plan keeps its own history, so there is no change log to maintain.
 - **Safe concurrent edits.** A save carries the revision it was made from; a stale one is refused instead of overwriting someone else's work.
 - **Tabs.** Every open item is a tab, reordered by drag, restored as you left it after a reload, and detachable into a window of its own.
-- **Hotkeys.** One table of keys, listed under Menu, for saving, switching views, commenting and moving between panes.
+- **Hotkeys.** One table of keys, listed under Menu, for saving, switching views, commenting, moving between tabs and panes, and closing a tab or a popup; the editor's own for bold, italic and scrolling a line.
 
 ## Projects and documents
 
@@ -55,7 +55,7 @@
 - **Scope.** The server listens for this machine only, for the network, or not at all, as the settings say.
 - **Live updates.** Every change is a Server-Sent Event, so every open page, window and server row stays in step.
 - **Settings in the app.** Name, scope, port, states, the owner's display and the tasks, edited in a popup by the owner or the Administrator; Public is offered to a sign-in with a Host license. See [Settings and themes](settings.html).
-- **Themes and scale.** System, light, dark and seven more palettes, and three text sizes, remembered per server.
+- **Themes, scale and margins.** System, light, dark and seven more palettes, three text sizes, and the width the text is held to, remembered in the browser.
 
 ## The API
 

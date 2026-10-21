@@ -140,8 +140,8 @@ async function smoke_page()
 		await page.Press( 'Escape' );
 		await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display === "none"' );
 		await page.Click( '#look-button' );
-		await page.WaitFor( count_of( '#look-popover select' ) + ' === 3' );
-		check( 'look popover: three selects', await page.Evaluate( count_of( '#look-popover select' ) ), 3 );
+		await page.WaitFor( count_of( '#look-popover select' ) + ' === 4' );
+		check( 'look popover: four selects (theme, size, margins, editor)', await page.Evaluate( count_of( '#look-popover select' ) ), 4 );
 		await page.Press( 'Escape' );
 		await page.WaitFor( count_of( '#look-popover' ) + ' === 0' );
 		check( 'look popover: Escape closes it', await page.Evaluate( count_of( '#look-popover' ) ), 0 );
@@ -314,7 +314,22 @@ async function smoke_desktop()
 		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
 		await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
 		check( 'menu: the desktop items', await page.Evaluate( MENU_ITEMS ), 'About|Hotkeys|Servers…|New window|Open folder in new window…|Reload|Quit' );
-		await page.Press( 'Escape' );
+		// while the menu is open the bar is no drag region, so a click on it closes the menu (plan UI Tweaks IX)
+		check( 'menu: the bar gives up the drag region while a menu is open', await page.Evaluate( 'getComputedStyle( document.querySelector( ".title-bar" ) ).webkitAppRegion' ), 'no-drag' );
+		let bar_spot = JSON.parse( await page.Evaluate( '( function () { let r = document.querySelector( ".title-bar" ).getBoundingClientRect(); return JSON.stringify( { x: r.left + r.width / 2, y: r.top + r.height / 2 } ); } )()' ) );
+		await page.Send( 'Input.dispatchMouseEvent', { type: 'mousePressed', x: bar_spot.x, y: bar_spot.y, button: 'left', clickCount: 1 } );
+		await page.Send( 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: bar_spot.x, y: bar_spot.y, button: 'left', clickCount: 1 } );
+		await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display === "none"', 5000 );
+		check( 'menu: a click on the bar closed it', await page.Evaluate( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display' ), 'none' );
+		check( 'menu: the bar is the drag region again', await page.Evaluate( 'getComputedStyle( document.querySelector( ".title-bar" ) ).webkitAppRegion' ), 'drag' );
+		// a click in the text closes it too
+		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
+		await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
+		let text_spot = JSON.parse( await page.Evaluate( '( function () { let r = document.querySelector( "#editor .cm-content" ).getBoundingClientRect(); return JSON.stringify( { x: r.left + 40, y: r.top + 20 } ); } )()' ) );
+		await page.Send( 'Input.dispatchMouseEvent', { type: 'mousePressed', x: text_spot.x, y: text_spot.y, button: 'left', clickCount: 1 } );
+		await page.Send( 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: text_spot.x, y: text_spot.y, button: 'left', clickCount: 1 } );
+		await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display === "none"', 5000 );
+		check( 'menu: a click in the text closed it', await page.Evaluate( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display' ), 'none' );
 		check( 'bridge: OpenFolderWindow, Quit, SetChrome', await page.Evaluate( 'typeof window.Desktop.OpenFolderWindow + "," + typeof window.Desktop.Quit + "," + typeof window.ConsensusDesktop.SetChrome' ), 'function,function,function' );
 		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
 		await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );

@@ -45,11 +45,11 @@
 			<label class="llm-git-option" title="pull before a run of {{ FilesNames() }}, and push after an auto-commit; the project's folder must be a git checkout with an upstream"><input type="checkbox" id="llm-git-sync" ng-model="Git.Sync" ng-change="GitChanged()" ng-disabled="!IsOwner() || Git.Busy"> Git sync</label>
 			<label class="llm-git-option" title="commit the working tree when you resolve a build log posted by {{ FilesNames() }}: the plan's title as the subject, the log as the message"><input type="checkbox" id="llm-auto-commit" ng-model="Git.AutoCommit" ng-change="GitChanged()" ng-disabled="!IsOwner() || Git.Busy"> Auto-commit</label>
 		</div>
-		<div class="thread-buttons">
-			<!-- One button per task the project enables (plan LLM Tasks, Step 1), in the server's order. -->
+		<div class="thread-buttons task-buttons">
+			<!-- One button per task the project enables (plan LLM Tasks, Step 1), in the server's order; room between them (plan UI Tweaks IX). -->
 			<button class="btn btn-sm btn-primary llm-task-run" type="button" id="llm-run-{{ task.Id }}" ng-repeat="task in Tasks() track by task.Id" ng-click="Run( task )" ng-disabled="!CanRun( task )" title="{{ TaskTitle( task ) }}"><svg class="icon lead"><use href="#i-play"></use></svg>{{ task.Name }}</button>
 			<span class="muted small" id="llm-no-tasks" ng-show="Tasks().length === 0">no task is enabled in this project</span>
-			<button class="btn btn-sm btn-outline-danger" type="button" id="llm-stop" ng-show="IsRunning()" ng-click="Stop()"><svg class="icon lead"><use href="#i-x"></use></svg>Stop</button>
+			<button class="btn btn-sm btn-outline-danger task-stop" type="button" id="llm-stop" ng-show="IsRunning()" ng-click="Stop()"><svg class="icon lead"><use href="#i-x"></use></svg>Stop</button>
 			<span class="muted small" id="llm-reasons" ng-show="Reasons()">{{ Reasons() }}</span>
 		</div>
 		<div class="port-error" id="llm-error" ng-show="Error">{{ Error }}</div>
@@ -70,7 +70,7 @@
 	<!-- The Details popup -->
 	<div class="subplan-popup settings-popup" ng-show="Details">
 		<form class="subplan-form settings-form" ng-if="Details" ng-submit="SaveDetails()">
-			<div class="subplan-head">Details <span class="muted small">kept in the server's consensus.json; its runs post as {{ Llm.Speaker }}</span></div>
+			<div class="subplan-head">Details <span class="muted small">kept in the server's consensus.json; its runs post as {{ Llm.Speaker }}</span><button class="popup-close" type="button" title="close (Escape)" ng-click="CloseDetails()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 			<div class="port-error" id="llm-problems" ng-show="Details.Problems.length">
 				<div>Not saved. Fix these first:</div>
 				<ul class="mb-0"><li ng-repeat="problem in Details.Problems track by $index">{{ problem }}</li></ul>
@@ -117,7 +117,7 @@
 	<!-- The Packaging popup -->
 	<div class="subplan-popup settings-popup packaging-popup" ng-show="Packaging">
 		<form class="subplan-form settings-form" ng-if="Packaging" ng-submit="SavePackaging()">
-			<div class="subplan-head">Packaging <span class="muted small">what this connection leaves out of a package, and its own prompt; what a task packages is the task's (Settings)</span></div>
+			<div class="subplan-head">Packaging <span class="muted small">what this connection leaves out of a package, and its own prompt; what a task packages is the task's (Settings)</span><button class="popup-close" type="button" title="close (Escape)" ng-click="ClosePackaging()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 			<div class="port-error" id="packaging-problems" ng-show="Packaging.Problems.length">
 				<ul class="mb-0"><li ng-repeat="problem in Packaging.Problems track by $index">{{ problem }}</li></ul>
 			</div>
@@ -153,7 +153,7 @@
 	<!-- A run's popup -->
 	<div class="subplan-popup settings-popup run-popup" ng-show="RunPopup">
 		<div class="subplan-form settings-form" ng-if="RunPopup">
-			<div class="subplan-head">Run <span class="muted small">{{ RunPopup.Run.Id }}</span></div>
+			<div class="subplan-head">Run <span class="muted small">{{ RunPopup.Run.Id }}</span><button class="popup-close" type="button" title="close (Escape)" ng-click="CloseRun()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 			<div class="run-row static" ng-class="RunPopup.Run.Status">
 				<span class="run-status">{{ RunPopup.Run.Status }}</span>
 				<span class="run-kind">{{ RunPopup.Run.Task ? RunPopup.Run.Task.Name : RunPopup.Run.Kind }}</span>

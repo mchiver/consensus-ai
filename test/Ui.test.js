@@ -367,9 +367,9 @@ TEST( 'the threads and the preview hide and are remembered; a plan is renamed in
 } );
 
 
-TEST( 'reply and resolve: one click posts the owner\'s answer and resolves the thread', async function ()
+TEST( 'reply and resolve: Resolve with a reply typed posts it as the outcome and resolves the thread (plan UI Tweaks IX: the one Resolve button)', async function ()
 {
-	// the only thread is applied; a reply reopens it, and Reply and resolve settles it again
+	// the only thread is applied; a reply reopens it, and Resolve with a draft settles it again
 	await show_all_threads();
 	await page.WaitFor( count_of( '.thread:not(.compose)' ) + ' === 1' );
 	await page.Click( '.thread:not(.compose)' );
@@ -378,16 +378,17 @@ TEST( 'reply and resolve: one click posts the owner\'s answer and resolves the t
 	await page.Evaluate( draft_of( 'Reopened to ask again.' ) );
 	await page.Click( '.thread.selected .reply-button' );
 	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "reopened"' );
-	// the reply moved the selection on (to none: the only thread); picked again, Reply reads plainly, and Reply and resolve shows
+	// the reply moved the selection on (to none: the only thread); picked again, Reply reads plainly, and Resolve shows; there is one Resolve
 	await page.WaitFor( count_of( '.thread.selected' ) + ' === 0' );
 	await page.Click( '.thread:not(.compose)' );
 	await page.WaitFor( text_of( '.thread.selected .reply-button' ) + ' === "Reply"' );
-	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.selected .reply-resolve-button" ) ).display !== "none"' );
-	// the posted draft is cleared a moment after the reply lands, so the button is waited for, not read at once
-	await page.WaitFor( 'document.querySelector( ".thread.selected .reply-resolve-button" ).disabled' );
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.selected .resolve-button" ) ).display !== "none"' );
+	ASSERT.equal( await page.Evaluate( count_of( '.thread.selected .reply-resolve-button' ) ), 0 );
+	// the posted draft is cleared a moment after the reply lands, so the button's title is waited for, not read at once
+	await page.WaitFor( 'document.querySelector( ".thread.selected .resolve-button" ).title === "accept the outcome or recommendation in the last reply"' );
 	await page.Evaluate( draft_of( 'Keep one item.' ) );
-	await page.WaitFor( '!document.querySelector( ".thread.selected .reply-resolve-button" ).disabled' );
-	await page.Click( '.thread.selected .reply-resolve-button' );
+	await page.WaitFor( 'document.querySelector( ".thread.selected .resolve-button" ).title === "post your reply as the outcome and resolve the thread"' );
+	await page.Click( '.thread.selected .resolve-button' );
 	await page.WaitFor( text_of( '.thread:not(.compose) .state-badge' ) + ' === "resolved"' );
 	await page.WaitFor( 'Array.from( document.querySelectorAll( ".thread:not(.compose) .reply-text" ) ).pop().textContent.trim() === "Keep one item."' );
 	ASSERT.deepEqual( page.Errors, [] );
@@ -672,9 +673,9 @@ TEST( 'subplans: started from the header, selected text, a new thread and a repl
 		return ( await api( 'GET', '/api/plans/' + id ) ).Threads;
 	}
 
-	// from the header: an empty Subplan, opened
+	// from the header's Actions menu (plan UI Tweaks IX): an empty Subplan, opened
 	await open_parent();
-	await page.Click( '#new-subplan' );
+	await menu_pick( '.header', 'New subplan', '#header-actions' );
 	await name_it( 'From the header' );
 
 	// from selected text: it starts with the passage; the parent is not changed
@@ -825,10 +826,9 @@ TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-docum
 	await page.Evaluate( '( function () { let select = document.getElementById( "thread-highlight" ); select.selectedIndex = 0; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
 	await page.WaitFor( MARKED + '.includes( "' + resolved_thread.Id + '" )' );
 
-	// New Comment starts a whole-document thread; Comment and resolve posts it resolved
+	// New Comment (in the header's Actions menu, plan UI Tweaks IX) starts a whole-document thread; Comment and resolve posts it resolved
 	await show_all_threads();
-	ASSERT.equal( await page.Evaluate( text_of( '#new-comment' ) ), 'New Comment' );
-	await page.Click( '#new-comment' );
+	await menu_pick( '.header', 'New Comment', '#header-actions' );
 	await page.WaitFor( 'document.activeElement && document.activeElement.closest( "#compose-text" ) !== null' );
 	await page.Type( 'Add a summary at the top.' );
 	await page.WaitFor( '!document.getElementById( "compose-resolve" ).disabled' );
@@ -972,7 +972,9 @@ TEST( 'Help: About shows the version, the links and the project summary; Hotkeys
 	await page.Press( 'Escape' );
 	await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
 	await menu_pick( '', 'Hotkeys', '#app-menu' );
-	await page.WaitFor( count_of( '.hotkeys-table tr' ) + ' === 13' );
+	await page.WaitFor( count_of( '.hotkeys-table tr' ) + ' === 14' );
+	// the editor's own keys (plan UI Tweaks IX)
+	ASSERT.equal( await page.Evaluate( count_of( '.editor-keys-table tr' ) ), 4 );
 	ASSERT.equal( await page.Evaluate( text_of( '.hotkeys-table tr:first-child kbd' ) ), 'Ctrl+E' );
 	// the desktop window's keys are listed in the desktop only (plan UI Components, Step 6)
 	ASSERT.equal( await page.Evaluate( count_of( '.desktop-keys-table' ) ), 0 );
@@ -1312,8 +1314,11 @@ TEST( 'The threads in the editor (plan Markdown Editor, Step 2): a thread picked
 	await set_editor( 'codemirror' );
 	// the editor renders the lines in view and around them, so only the first passage's mark is in the DOM yet
 	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 1 && ' + count_of( '#editor .cm-content .anchor[data-threads="' + claim.Id + '"]' ) + ' === 1', 30000 );
-	// New Comment is offered in the editor
-	ASSERT.equal( await page.Evaluate( 'document.getElementById( "new-comment" ).offsetParent !== null' ), true );
+	// New Comment is offered in the editor: the Actions menu's entry is enabled there
+	await page.Evaluate( 'document.getElementById( "header-actions" ).click(); true' );
+	await page.WaitFor( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].some( function ( entry ) { return entry.textContent.trim() === "New Comment" && !entry.disabled; } )' );
+	await page.Press( 'Escape' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display === "none"' );
 	// the closing thread\'s card: the editor scrolls to its passage, which flashes
 	const IN_VIEW = '( function () { let mark = document.querySelector( "#editor .cm-content .anchor[data-threads=\\"' + closing.Id + '\\"]" ); let scroller = document.querySelector( "#editor .cm-scroller" ); if ( !mark || !scroller ) { return false; } let m = mark.getBoundingClientRect(); let s = scroller.getBoundingClientRect(); return m.top >= Math.max( 0, s.top ) && m.bottom <= Math.min( window.innerHeight, s.bottom ); } )()';
 	ASSERT.equal( await page.Evaluate( IN_VIEW ), false );
@@ -1574,8 +1579,8 @@ TEST( 'Printing and Reporting: Report in a plan\'s row menu, the heading\'s butt
 	// window.open is caught, so the page stays here and the URL is read
 	await page.Evaluate( 'window.__opened = []; window.open = function ( url ) { window.__opened.push( url ); return null; }; true' );
 	const OPENED = 'JSON.stringify( window.__opened )';
-	// the heading's button
-	await page.Click( '#report-button' );
+	// the heading's Actions menu (plan UI Tweaks IX)
+	await menu_pick( '.header', 'Report', '#header-actions' );
 	await page.WaitFor( OPENED + ' === ' + JSON.stringify( JSON.stringify( [ '/api/plans/' + plan.Id + '/report' ] ) ) );
 	// Ctrl+P
 	await page.Press( 'p', [ 'Control' ] );
@@ -1584,10 +1589,10 @@ TEST( 'Printing and Reporting: Report in a plan\'s row menu, the heading\'s butt
 	await menu_pick( '.tree-item[data-id="' + plan.Id + '"]', 'Report' );
 	await page.WaitFor( 'window.__opened.length === 3' );
 	ASSERT.equal( await page.Evaluate( 'window.__opened[ 2 ]' ), '/api/plans/' + plan.Id + '/report' );
-	// a document has no Report button
+	// a document has no Actions menu (no threads, no Report, no Subplans)
 	let readme = ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === home; } ).Context.Id;
 	await page.Evaluate( 'window.location.hash = "#/p/' + readme + '"; true' );
-	await page.WaitFor( 'document.getElementById( "report-button" ) === null || document.getElementById( "report-button" ).offsetParent === null' );
+	await page.WaitFor( 'document.getElementById( "header-actions" ) === null || document.getElementById( "header-actions" ).offsetParent === null' );
 	// the page itself
 	let response = await fetch( running.Url + '/api/plans/' + plan.Id + '/report' );
 	ASSERT.equal( response.status, 200 );
@@ -1672,12 +1677,12 @@ TEST( 'the task buttons on the plan page (plan LLM Tasks, Step 6): on a plan\'s 
 	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
 	await page.WaitFor( 'document.getElementById( "revision" ) !== null && document.getElementById( "revision" ).textContent.trim() === "revision 1"' );
 	// no connection on the server: no button
-	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".plan-task" ) ].filter( function ( button ) { return getComputedStyle( button ).display !== "none"; } ).length' ), 0 );
+	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".plan-task" ) ].filter( function ( button ) { return button.offsetParent !== null; } ).length' ), 0 );
 	// a connection: the three plan-tasks appear, disabled with the reason
 	let stand_in = PATH.join( FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-ui-' ) ), 'enhance.js' );
 	FS.writeFileSync( stand_in, ENHANCE_STAND_IN );
 	let llm = ( await api( 'POST', '/api/llms', { Name: 'planner', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Timeout: 60 } ) ).Llm;
-	await page.WaitFor( '[ ...document.querySelectorAll( ".plan-task" ) ].filter( function ( button ) { return getComputedStyle( button ).display !== "none"; } ).length === 3' );
+	await page.WaitFor( '[ ...document.querySelectorAll( ".plan-task" ) ].filter( function ( button ) { return button.offsetParent !== null; } ).length === 3' );
 	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( ".plan-task" ) ].map( function ( button ) { return button.textContent.trim(); } )' ), [ 'Answer', 'Enhance', 'Work' ] );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "plan-task-enhance" ).disabled' ), true );
 	ASSERT.match( await page.Evaluate( 'document.getElementById( "plan-task-enhance" ).title' ), /choose the project's LLM connection in its settings/ );
@@ -1707,6 +1712,144 @@ TEST( 'the task buttons on the plan page (plan LLM Tasks, Step 6): on a plan\'s 
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 
+
+
+// The editor's view, for a check of where it is.
+const VIEW = 'window.CodeMirror6.EditorView.findFromDOM( document.querySelector( "#editor .cm-editor" ) )';
+
+
+TEST( 'UI Tweaks IX: the margins setting, Resolve with a draft, the thread tools in the header, an anchor in a table, the tab keys and Ctrl+B in the editor, a tab\'s place, Escape and the × on a popup, Alt+W closes a tab, the Users folder last with its own icon, the tree width, the Actions menu', async function ()
+{
+	// the tree's default width (14)
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.documentElement ).getPropertyValue( "--sidebar-width" ).trim()' ), '480px' );
+	// the Users folder (13): last in the project, with the people icon
+	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".project[data-project=\\"' + home + '\\"] .project-body" ).lastElementChild.tagName === "ROLES-FOLDER"' ), true );
+	ASSERT.equal( await page.Evaluate( count_of( '.project[data-project="' + home + '"] .roles-folder .users-head .icon-users' ) ), 1 );
+
+	// a long plan with a table and an anchored thread in it; the editor is CodeMirror
+	let lines = [ '# Tweaks nine', '', 'The first line makes a claim.', '', '| Head | Other |', '| --- | --- |', '| alpha cell | beta cell |', '' ];
+	for ( let index = 1; index <= 60; index++ )
+	{
+		lines.push( 'Filler line number ' + index + ' of the long text.', '' );
+	}
+	lines.push( 'A closing line.', '' );
+	let plan = ( await api( 'POST', '/api/plans', { Title: 'Tweaks nine', Text: lines.join( '\n' ), Project: home } ) ).Plan;
+	let other = await created( 'Tweaks other' );
+	let cell = ( await api( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'In the table.', Anchor: { Text: 'alpha cell' } }, true ) ).Thread;
+	let whole = ( await api( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'On the whole.', Anchor: null }, true ) ).Thread;
+	await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tweaks nine"' );
+	await show_all_threads();
+	await set_editor( 'codemirror' );
+	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 1 && ' + count_of( '#editor .cm-live-table' ) + ' === 1', 30000 );
+
+	// the margins (2): the look popover's select sets the page's attribute and the text's width
+	const WIDTH = 'getComputedStyle( document.querySelector( "#editor .cm-content" ) ).maxWidth';
+	await page.Click( '#look-button' );
+	await page.WaitFor( count_of( '#look-popover #margins-select' ) + ' === 1' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "margins-select" ).value' ), 'normal' );
+	let normal = await page.Evaluate( WIDTH );
+	for ( let name of [ 'narrow', 'wide', 'normal' ] )
+	{
+		await page.Evaluate( '( function () { let select = document.getElementById( "margins-select" ); select.value = ' + JSON.stringify( name ) + '; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+		await page.WaitFor( 'document.documentElement.dataset.margins === ' + JSON.stringify( name ) );
+		if ( name === 'narrow' )
+		{
+			ASSERT.equal( await page.Evaluate( WIDTH ), 'none' );
+		}
+		if ( name === 'wide' )
+		{
+			ASSERT.ok( parseFloat( await page.Evaluate( WIDTH ) ) < parseFloat( normal ), 'wide margins hold the text narrower than normal' );
+		}
+	}
+	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.margins" )' ), '"normal"' );
+	await page.Click( '#look-button' );
+	await page.WaitFor( count_of( '#look-popover' ) + ' === 0' );
+
+	// the anchor in the table (5): marked in the Live Preview's table, a click on it selects the thread
+	await page.WaitFor( count_of( '#editor .cm-live-table mark.anchor' ) + ' === 1 && document.querySelector( "#editor .cm-live-table mark.anchor" ).textContent === "alpha cell"', 10000 );
+	// a mousedown on the mark, as the Live Preview test clicks the table: the widget's own listener hears it
+	await page.Evaluate( 'document.querySelector( "#editor .cm-live-table mark.anchor" ).dispatchEvent( new MouseEvent( "mousedown", { bubbles: true, cancelable: true } ) ); true' );
+	await page.WaitFor( count_of( '.thread.selected' ) + ' === 1 && document.querySelector( ".thread.selected" ).id === "thread-' + cell.Id + '"' );
+	await page.WaitFor( 'document.querySelector( "#editor .cm-live-table mark.anchor" ).classList.contains( "selected" )' );
+	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-live-table table' ) ), 1, 'the table is still the widget' );
+	// the thread tools (4): Re-anchor and Start a new Subplan in the selected thread's header, not in the reply row
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".thread.selected .thread-head .reanchor-button" ) ).display !== "none"' );
+	ASSERT.equal( await page.Evaluate( count_of( '.thread.selected .thread-head .subplan-from-thread' ) + ' + ' + count_of( '.thread.selected .reply-form .reanchor-button' ) + ' + ' + count_of( '.thread.selected .reply-form .subplan-from-thread' ) ), 1 );
+
+	// Resolve with a draft (3): the draft is the outcome
+	await page.Click( '#thread-' + whole.Id );
+	await page.WaitFor( count_of( '.thread.selected .resolve-button' ) + ' === 1 && document.querySelector( ".thread.selected" ).id === "thread-' + whole.Id + '"' );
+	await page.Evaluate( draft_of( 'Agreed, as the outcome.' ) );
+	await page.WaitFor( 'document.querySelector( ".thread.selected .resolve-button" ).title === "post your reply as the outcome and resolve the thread"' );
+	await page.Click( '.thread.selected .resolve-button' );
+	await page.WaitFor( text_of( '#thread-' + whole.Id + ' .state-badge' ) + ' === "resolved"' );
+	let resolved = ( await api( 'GET', '/api/plans/' + plan.Id + '/threads' ) ).Threads.find( function ( thread ) { return thread.Id === whole.Id; } );
+	ASSERT.equal( resolved.Replies[ resolved.Replies.length - 1 ].Text, 'Agreed, as the outcome.' );
+
+	// the editor's keys (7, 8): Ctrl+Down scrolls with the cursor staying; Ctrl+B puts ** around the word and takes it off again
+	await page.Evaluate( 'document.querySelector( "#editor .cm-content" ).focus(); true' );
+	await page.Evaluate( VIEW + '.dispatch( { selection: { anchor: 0 } } ); ' + VIEW + '.scrollDOM.scrollTop = 0; true' );
+	await page.Press( 'ArrowDown', [ 'Control' ] );
+	await page.Press( 'ArrowDown', [ 'Control' ] );
+	await page.WaitFor( VIEW + '.scrollDOM.scrollTop > 0' );
+	ASSERT.equal( await page.Evaluate( VIEW + '.state.selection.main.anchor' ), 0 );
+	let at = lines.join( '\n' ).indexOf( 'claim' );
+	await page.Evaluate( VIEW + '.dispatch( { selection: { anchor: ' + at + ' } } ); true' );
+	await page.Press( 'b', [ 'Control' ] );
+	await page.WaitFor( VIEW + '.state.doc.toString().indexOf( "makes a **claim**." ) > 0' );
+	await page.Press( 'b', [ 'Control' ] );
+	await page.WaitFor( VIEW + '.state.doc.toString().indexOf( "makes a claim." ) > 0' );
+	await page.Press( 'i', [ 'Control' ] );
+	await page.WaitFor( VIEW + '.state.doc.toString().indexOf( "makes a _claim_." ) > 0' );
+	await page.Press( 'i', [ 'Control' ] );
+	await page.WaitFor( VIEW + '.state.doc.toString().indexOf( "makes a claim." ) > 0' );
+	await page.WaitFor( 'document.getElementById( "save-button" ).disabled' );
+
+	// a tab's place (9): scrolled and placed, left for another tab and shown again, the editor is where it was; the other tab starts at the top
+	await page.Evaluate( VIEW + '.dispatch( { selection: { anchor: 40 } } ); ' + VIEW + '.scrollDOM.scrollTop = 150; true' );
+	await page.WaitFor( VIEW + '.scrollDOM.scrollTop >= 140' );
+	await page.Evaluate( 'window.location.hash = "#/p/' + other.Id + '"; true' );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tweaks other" && ' + VIEW + '.state.doc.toString().startsWith( "# Tweaks other" )' );
+	ASSERT.equal( await page.Evaluate( VIEW + '.scrollDOM.scrollTop' ), 0 );
+	// the tab keys in the editor (6): Alt+PgUp from the editor goes to the previous tab
+	await page.Evaluate( 'document.querySelector( "#editor .cm-content" ).focus(); true' );
+	await page.Press( 'PageUp', [ 'Alt' ] );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tweaks nine" && ' + VIEW + '.state.doc.toString().startsWith( "# Tweaks nine" )' );
+	await page.WaitFor( VIEW + '.state.selection.main.anchor === 40', 5000 );
+	await page.WaitFor( VIEW + '.scrollDOM.scrollTop >= 140', 5000 );
+
+	// the Actions menu (15): New Comment from it, then cancelled
+	await menu_pick( '.header', 'New Comment', '#header-actions' );
+	await page.WaitFor( 'document.activeElement && document.activeElement.closest( "#compose-text" ) !== null' );
+	await page.Evaluate( '[ ...document.querySelectorAll( ".thread.compose button" ) ].pop().click(); true' );
+	await page.WaitFor( 'document.querySelector( ".thread.compose" ) === null' );
+	ASSERT.equal( await page.Evaluate( count_of( '#new-comment' ) + ' + ' + count_of( '#report-button' ) + ' + ' + count_of( '#new-subplan' ) ), 0 );
+
+	// Escape and the × (11): Settings closes on Escape with the focus outside it, and on its ×
+	await menu_pick( '.root-head', 'Settings' );
+	await page.WaitFor( 'document.getElementById( "settings-port" ) !== null', 20000 );
+	await page.Evaluate( 'document.activeElement.blur(); document.body.focus(); true' );
+	await page.Press( 'Escape' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "settings-popup" ) ).display === "none"' );
+	await menu_pick( '.root-head', 'Settings' );
+	await page.WaitFor( 'document.getElementById( "settings-port" ) !== null', 20000 );
+	await page.Click( '#settings-popup .popup-close' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "settings-popup" ) ).display === "none"' );
+
+	// Alt+W (12) closes the tab shown
+	let before = await page.Evaluate( count_of( '.tab' ) );
+	await page.Click( tab_selector( other.Id ) );
+	await page.WaitFor( text_of( '.header .title' ) + ' === "Tweaks other"' );
+	await page.Press( 'w', [ 'Alt' ] );
+	await page.WaitFor( count_of( '.tab' ) + ' === ' + ( before - 1 ) + ' && ' + count_of( tab_selector( other.Id ) ) + ' === 0' );
+
+	// the task buttons' row (16): the group's gap
+	let gap = JSON.parse( await page.Evaluate( 'JSON.stringify( [ getComputedStyle( document.querySelector( ".header .task-buttons" ) ).gap, getComputedStyle( document.documentElement ).fontSize ] )' ) );
+	ASSERT.ok( Math.abs( parseFloat( gap[ 0 ] ) - 0.75 * parseFloat( gap[ 1 ] ) ) < 0.1, 'the task buttons sit 0.75rem apart: ' + gap.join( ' at ' ) );
+	await set_editor( 'monaco' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
 
 
 TEST( 'users and roles (plan User Management, Step 3): the Users fold holds the owner, the owner\'s page mints a token shown once and revokes it, a project shows the four role folders and an account placed in Watchers, taken out with the ×', async function ()

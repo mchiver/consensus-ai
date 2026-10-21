@@ -34,7 +34,7 @@ document-editor
 {
 	flex: none;
 	width: calc( 100% - 4rem );
-	max-width: 52rem;
+	max-width: var(--text-width);
 	margin: 0.75rem auto 0;
 	display: flex;
 	justify-content: space-between;

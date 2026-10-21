@@ -18,9 +18,12 @@
 // following the text through edits; SetSelected restyles for the selected thread; a mousedown on a mark calls
 // Handlers.OnAnchorClick( ids ) with the threads under the pointer; Handlers.OnSelection() is called when the
 // selection changes. ScrollTo( From ) brings a position to the middle; Flash( From, To ) marks a range for a second
-// (plan Markdown Editor, Step 2).
+// (plan Markdown Editor, Step 2). GetPlace and SetPlace (plan UI Tweaks IX): the scroll and the selection, kept per tab.
+// The keys (plan UI Tweaks IX): Ctrl+Up and Ctrl+Down scroll a line, Ctrl+B and Ctrl+I toggle bold (**) and italic (_)
+// around the selection or the word at the caret. The Live Preview's table widget marks the anchors within it with the
+// Read view's own wrapping (Render.Show), handed to it with the anchor field.
 
-angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $q )
+angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', 'Render', function ( $q, Render )
 {
 	let loading = null;
 	let save_handler = null;
@@ -80,7 +83,6 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 			{ tag: tags.link, color: accent, textDecoration: 'underline' },
 			{ tag: tags.url, color: muted },
 			{ tag: tags.processingInstruction, color: muted },
-			{ tag: tags.list, color: muted },
 			{ tag: tags.quote, color: muted },
 			{ tag: tags.escape, color: muted },
 			{ tag: tags.labelName, color: muted },
@@ -176,6 +178,10 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 			create: function () { return { Decorations: CM.Decoration.none, Selected: null }; },
 			update: function ( value, transaction )
 			{
+				if ( !transaction.docChanged && !transaction.effects.length )
+				{
+					return value;
+				}
 				let decorations = value.Decorations.map( transaction.changes );
 				let selected = value.Selected;
 				for ( let effect of transaction.effects )
@@ -218,6 +224,65 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 			}
 		} );
 		return ids;
+	}
+
+
+	//-----------------------------------------------------------------
+	// The keys (plan UI Tweaks IX).
+
+	// Ctrl+Up and Ctrl+Down: the view scrolls one line, the selection stays.
+	function scroll_line( view, direction )
+	{
+		view.scrollDOM.scrollBy( 0, direction * view.defaultLineHeight );
+		return true;
+	}
+
+
+	// Ctrl+B and Ctrl+I: Mark put around the main selection, or the word at the caret; already there, inside the
+	// selection or just outside it, it comes off.
+	function toggle_mark( view, mark )
+	{
+		let state = view.state;
+		let range = state.selection.main;
+		let from = range.from;
+		let to = range.to;
+		if ( range.empty )
+		{
+			let word = state.wordAt( from );
+			if ( !word )
+			{
+				return true;
+			}
+			from = word.from;
+			to = word.to;
+		}
+		let length = mark.length;
+		let inside = state.sliceDoc( from, to );
+		let before = state.sliceDoc( Math.max( 0, from - length ), from );
+		let after = state.sliceDoc( to, Math.min( state.doc.length, to + length ) );
+		if ( inside.length >= 2 * length && inside.startsWith( mark ) && inside.endsWith( mark ) )
+		{
+			view.dispatch( { changes: [ { from: from, to: from + length, insert: '' }, { from: to - length, to: to, insert: '' } ], selection: { anchor: from, head: to - 2 * length } } );
+			return true;
+		}
+		if ( before === mark && after === mark )
+		{
+			view.dispatch( { changes: [ { from: from - length, to: from, insert: '' }, { from: to, to: to + length, insert: '' } ], selection: { anchor: from - length, head: to - length } } );
+			return true;
+		}
+		view.dispatch( { changes: [ { from: from, insert: mark }, { from: to, insert: mark } ], selection: { anchor: from + length, head: to + length } } );
+		return true;
+	}
+
+
+	function key_extensions()
+	{
+		return [
+			{ key: 'Mod-ArrowUp', run: function ( view ) { return scroll_line( view, -1 ); } },
+			{ key: 'Mod-ArrowDown', run: function ( view ) { return scroll_line( view, 1 ); } },
+			{ key: 'Mod-b', run: function ( view ) { return toggle_mark( view, '**' ); } },
+			{ key: 'Mod-i', run: function ( view ) { return toggle_mark( view, '_' ); } },
+		];
 	}
 
 
@@ -288,9 +353,10 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 
 	// The Live Preview, with the class the theme and the styles key on (an editor attribute: CodeMirror owns the
 	// editor element's class list and would drop a class set from outside).
-	function live_extensions( CM )
+	function live_extensions( CM, Handlers )
 	{
-		return [ CM.LivePreview.Extension(), CM.EditorView.editorAttributes.of( { class: 'cm-live' } ) ];
+		let options = { Anchors: anchor_effects( CM ).Field, Wrap: Render.Show, OnAnchorClick: ( Handlers && Handlers.OnAnchorClick ) ? Handlers.OnAnchorClick : null };
+		return [ CM.LivePreview.Extension( options ), CM.EditorView.editorAttributes.of( { class: 'cm-live' } ) ];
 	}
 
 
@@ -326,6 +392,10 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 						}
 						let position = view.posAtCoords( { x: event.clientX, y: event.clientY } );
 						let ids = ( position === null ) ? [] : threads_at( CM, view, position );
+						if ( !ids.length )
+						{
+							ids = String( event.target.closest( '.anchor' ).dataset.threads || '' ).split( ' ' ).filter( function ( id ) { return !!id; } );
+						}
 						if ( ids.length )
 						{
 							Handlers.OnAnchorClick( ids );
@@ -343,10 +413,10 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 				CM.keymap.of( [
 					{ key: 'Mod-s', run: function () { if ( save_handler ) { save_handler(); } return true; } },
 					CM.indentWithTab,
-				].concat( CM.defaultKeymap, CM.historyKeymap, CM.searchKeymap, CM.foldKeymap ) ),
+				].concat( key_extensions(), CM.defaultKeymap, CM.historyKeymap, CM.searchKeymap, CM.foldKeymap ) ),
 			].concat( common_extensions( CM, theme, OnChange ) ).concat( [
 				// after the language, whose tree the preview reads
-				preview.of( live ? live_extensions( CM ) : [] ),
+				preview.of( live ? live_extensions( CM, Handlers ) : [] ),
 			] ),
 		} );
 		let view = new CM.EditorView( { state: state, parent: Element } );
@@ -355,9 +425,41 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', function ( $
 		instance.SetPreview = function ( On )
 		{
 			live = !!On;
-			view.dispatch( { effects: [ preview.reconfigure( live ? live_extensions( CM ) : [] ), gutters.reconfigure( live ? [] : gutter_extensions( CM ) ) ] } );
+			view.dispatch( { effects: [ preview.reconfigure( live ? live_extensions( CM, Handlers ) : [] ), gutters.reconfigure( live ? [] : gutter_extensions( CM ) ) ] } );
 		};
 		instance.IsPreview = function () { return live; };
+		// The place (plan UI Tweaks IX): the scroll and the main selection, taken when a tab is left and put back when it
+		// is shown again; the scroll is set once more a frame later, when the view has measured the new text.
+		instance.GetPlace = function ()
+		{
+			let main = view.state.selection.main;
+			return { Scroll: view.scrollDOM.scrollTop, Anchor: main.anchor, Head: main.head };
+		};
+		instance.SetPlace = function ( Place )
+		{
+			if ( !Place )
+			{
+				return;
+			}
+			let length = view.state.doc.length;
+			let anchor = Math.max( 0, Math.min( length, Place.Anchor || 0 ) );
+			let head = Math.max( 0, Math.min( length, ( Place.Head === undefined ) ? anchor : Place.Head ) );
+			view.dispatch( { selection: { anchor: anchor, head: head } } );
+			let scroll = Place.Scroll || 0;
+			view.scrollDOM.scrollTop = scroll;
+			// once more after the view's next measure of the new text, and the frame after that
+			view.requestMeasure( { read: function () { return null; }, write: function ()
+			{
+				view.scrollDOM.scrollTop = scroll;
+				window.requestAnimationFrame( function ()
+				{
+					if ( instances.has( instance ) )
+					{
+						view.scrollDOM.scrollTop = scroll;
+					}
+				} );
+			} } );
+		};
 		instance.SetReadOnly = function ( On )
 		{
 			if ( read_only === !!On )

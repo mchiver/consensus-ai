@@ -12,6 +12,14 @@
 		</select>
 	</label>
 	<label class="look-row">
+		<span>Margins</span>
+		<select class="form-select form-select-sm" ng-model="$ctrl.Margins" ng-change="$ctrl.SetMargins()" title="the margins beside the text: Narrow lets it take the pane, Normal holds it to 68rem, Wide to 52rem" id="margins-select">
+			<option value="narrow">Narrow</option>
+			<option value="normal">Normal</option>
+			<option value="wide">Wide</option>
+		</select>
+	</label>
+	<label class="look-row">
 		<span>Editor</span>
 		<select class="form-select form-select-sm" ng-model="$ctrl.Editor" ng-change="$ctrl.SetEditor()" title="the editor: CodeMirror, the Live Preview as the one view, or Monaco with Read and Edit" id="editor-select">
 			<option value="monaco">Monaco</option>

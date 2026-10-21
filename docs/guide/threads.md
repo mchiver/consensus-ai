@@ -24,10 +24,12 @@ Any reply to a resolved or applied thread **reopens** it (orange): contested aga
 
 ## Resolving
 
-Only the owner resolves, and in one of two ways:
+Only the owner resolves, with the one **Resolve** button, in one of two ways:
 
-- **Reply and resolve** posts your reply and resolves the thread with it. Your reply is the outcome the LLM applies, read as the answer to the question before it.
-- **Resolve** with no reply accepts the outcome, or the recommendation, in the last reply.
+- With a reply typed in the box, Resolve posts it and resolves the thread with it. Your reply is the outcome the LLM applies, read as the answer to the question before it.
+- With nothing typed, Resolve accepts the outcome, or the recommendation, in the last reply.
+
+The selected thread's header has two tools at its right: **Re-anchor** (the target), which puts the thread on a passage you select, and **Start a new Subplan** (on a plan), which replies with a link to a new Subplan that starts from the thread.
 
 On a resolved or applied thread the Reply button reads **Reply and Contest**, in the contested colour: it posts your reply and reopens the thread, which stays open and contested.
 

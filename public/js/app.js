@@ -68,6 +68,8 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	const DETACHED = /[?&]detached=1(&|$)/.test( window.location.search );
 	const THREADS_HIDDEN_KEY = 'threads-hidden';
 	const EDITOR_KEY = 'editor';
+	const MARGINS_KEY = 'margins';
+	const MARGINS = [ 'narrow', 'normal', 'wide' ];
 	const PREVIEW_HIDDEN_KEY = 'preview-hidden';
 	const SOURCE_KEY = 'source-mode';
 	const CONFIRM_CLOSE_KEY = 'confirm-close';
@@ -96,6 +98,20 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
+	// The Margins setting (plan UI Tweaks IX): the width the text is held to, as a data attribute the stylesheet reads.
+	function margins_setting()
+	{
+		let wanted = recall( MARGINS_KEY, 'normal' );
+		return MARGINS.includes( wanted ) ? wanted : 'normal';
+	}
+
+
+	function apply_margins( name )
+	{
+		document.documentElement.dataset.margins = name;
+	}
+
+
 	// The Monaco preview's hidden flag; the CodeMirror editor has no preview pane since plan Markdown Editor, Step 1.
 	function preview_hidden()
 	{
@@ -106,6 +122,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	let state = {
 		ThreadsHidden: recall( THREADS_HIDDEN_KEY, false ),
 		Editor: editor_setting(),
+		Margins: margins_setting(),	// narrow, normal or wide (plan UI Tweaks IX)
 		PreviewHidden: preview_hidden(),
 		Source: recall( SOURCE_KEY, false ),	// the CodeMirror editor in Source mode, the plain markdown instead of the Live Preview (plan Markdown Editor, Step 1)
 		ConfirmClose: recall( CONFIRM_CLOSE_KEY, true ),	// ask before the window closes, or the page is left, with unsaved edits (plan Markdown Editor, Step 4)
@@ -351,6 +368,17 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
+	function SetMargins( Name )
+	{
+		state.Margins = MARGINS.includes( Name ) ? Name : 'normal';
+		remember( MARGINS_KEY, state.Margins );
+		apply_margins( state.Margins );
+	}
+
+
+	apply_margins( state.Margins );
+
+
 	// The project tree shown or hidden, remembered in this browser.
 	function SetTreeHidden( Hidden )
 	{
@@ -481,6 +509,7 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	state.SetThreadsHidden = SetThreadsHidden;
 	state.SetPreviewHidden = SetPreviewHidden;
 	state.SetEditor = SetEditor;
+	state.SetMargins = SetMargins;
 	state.SetSource = SetSource;
 	state.SetConfirmClose = SetConfirmClose;
 	state.MirrorShown = MirrorShown;

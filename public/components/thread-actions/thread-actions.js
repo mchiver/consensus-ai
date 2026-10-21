@@ -2,8 +2,9 @@
 
 // thread-actions - the reply form of the selected thread (plan UI Components, Step 1): the comment-editor over
 // the thread's draft (State.Drafts, kept per thread) and the buttons: Reply (Reply and Contest on a resolved
-// thread), the owner's Reply and resolve and Resolve, Re-anchor, and Start a new Subplan on a plan. Ctrl+Enter
-// in the box is Reply.
+// thread) and the owner's Resolve, which posts the draft as the outcome when there is one (plan UI Tweaks IX: one
+// button; Reply and resolve went) and accepts the last reply's otherwise. Re-anchor and Start a new Subplan are in
+// thread-header since the same plan. Ctrl+Enter in the box is Reply.
 //
 // Interface:
 //   <thread-actions thread="..."></thread-actions>
@@ -38,27 +39,15 @@ angular.module( 'Consensus' ).component( 'threadActions', {
 		};
 
 
-		controller.ReplyAndResolve = function ()
-		{
-			Threads.ReplyAndResolve( controller.thread );
-		};
-
-
+		// A draft in the box goes up as the outcome; none, the last reply's outcome or recommendation is accepted.
 		controller.Resolve = function ()
 		{
+			if ( controller.HasDraft() )
+			{
+				Threads.ReplyAndResolve( controller.thread );
+				return;
+			}
 			Threads.Resolve( controller.thread );
-		};
-
-
-		controller.Reanchor = function ()
-		{
-			Threads.Reanchor( controller.thread );
-		};
-
-
-		controller.Subplan = function ()
-		{
-			Threads.SubplanFromThread( controller.thread );
 		};
 
 

@@ -1,6 +1,6 @@
 <div class="subplan-popup settings-popup close-popup" id="close-popup" ng-show="$ctrl.Closing.Prompt" ng-keydown="$ctrl.Key($event)">
 	<div class="subplan-form close-form" ng-if="$ctrl.Closing.Prompt" tabindex="-1" auto-focus>
-		<div class="subplan-head">{{ $ctrl.Heading() }}</div>
+		<div class="subplan-head">{{ $ctrl.Heading() }}<button class="popup-close" type="button" title="close (Escape)" ng-click="$ctrl.Answer('cancel')"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 		<ul class="close-list">
 			<li ng-repeat="entry in $ctrl.Closing.Prompt.Entries track by entry.Tab.Key">{{ entry.Title }} <span class="muted small" ng-if="entry.Stale">stale, cannot be saved: the plan moved on since this edit began</span></li>
 		</ul>

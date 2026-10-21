@@ -6,8 +6,9 @@
 // / folders / parent plans / the item, the project and folder crumbs revealing their node in the tree, a parent
 // plan's opening it. The third: the state picker and the one-line state, the revision and the text's size, then
 // the plan-tasks (plan LLM Tasks, Step 6: one button per enabled task that packages the plan, run through the project's
-// chosen connection, a task with a Box asking in a popup), Report (plan Printing and Reporting: the report page in a new
-// tab, Ctrl+P), New Comment and New subplan. Delete is in the item's menu in the tree. Ctrl+E (hotkeys.js) switches between
+// chosen connection, a task with a Box asking in a popup), then one Actions menu (plan UI Tweaks IX; three buttons
+// before) holding New Comment, Report (plan Printing and Reporting: the report page in a new tab, Ctrl+P) and New
+// subplan, each disabled with its rule. Delete is in the item's menu in the tree. Ctrl+E (hotkeys.js) switches between
 // Edit and Read.
 //
 // Interface:
@@ -18,7 +19,7 @@
 
 angular.module( 'Consensus' ).component( 'editorHeader', {
 	templateUrl: '/components/editor-header/editor-header.html',
-	controller: [ '$scope', '$rootScope', 'State', 'Client', 'Subplans', 'Roots', 'Reports', 'Llms', 'Toast', function ( $scope, $rootScope, State, Client, Subplans, Roots, Reports, Llms, Toast )
+	controller: [ '$scope', '$rootScope', 'State', 'Client', 'Subplans', 'Roots', 'Reports', 'Llms', 'Toast', 'Menus', function ( $scope, $rootScope, State, Client, Subplans, Roots, Reports, Llms, Toast, Menus )
 	{
 		let controller = this;
 		controller.State = State;
@@ -125,6 +126,33 @@ angular.module( 'Consensus' ).component( 'editorHeader', {
 		controller.IsArchived = function ()
 		{
 			return !!( State.Open && State.Open.Plan && State.Open.Plan.Archived );
+		};
+
+
+		//-------------------------------------------------------------
+		// The Actions menu (plan UI Tweaks IX): New Comment, Report and New subplan, through the page's menu.
+
+		function can_comment()
+		{
+			return ( State.View === 'read' || State.MirrorShown() ) && controller.HasThreads() && !controller.IsArchived();
+		}
+
+
+		// Shown on a plan (the three) or a document with threads (New Comment).
+		controller.HasActions = function ()
+		{
+			return controller.IsPlan() || controller.HasThreads();
+		};
+
+
+		controller.OpenActions = function ( event )
+		{
+			let items = [
+				{ Label: 'New Comment', Icon: 'comment', Disabled: !can_comment(), Act: controller.CommentOnWhole },
+				{ Label: 'Report', Icon: 'eye', Disabled: !controller.IsPlan(), Act: controller.OpenReport },
+				{ Label: 'New subplan', Icon: 'subplan', Disabled: !controller.IsPlan() || controller.IsArchived(), Act: controller.NewSubplan },
+			];
+			Menus.Show( items, event, 'header-actions' );
 		};
 
 

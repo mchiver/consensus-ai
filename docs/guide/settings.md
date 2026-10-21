@@ -48,7 +48,7 @@ An optional `Clerk` section, edited by hand and not by the popup (which leaves i
 
 ## Theme and size
 
-The gear at the right end of the title bar opens the look: the theme (light, dark, the system's, or a palette from Sepia and Paper to Nord and Midnight), three sizes, the editor, CodeMirror or Monaco, and Confirm on close (see [Editing](editing.html)). They are kept in the browser, not in the settings; the desktop keeps one theme for its window, whatever the servers it shows, and its window buttons follow the palette.
+The gear at the right end of the title bar opens the look: the theme (light, dark, the system's, or a palette from Sepia and Paper to Nord and Midnight), three sizes, the margins (**Narrow** lets the text take the pane, **Normal** holds it to a wide column, **Wide** to a narrow one), the editor, CodeMirror or Monaco, and Confirm on close (see [Editing](editing.html)). They are kept in the browser, not in the settings; the desktop keeps one theme for its window, whatever the servers it shows, and its window buttons follow the palette.
 
 ![The title bar, with the look popover open.](../images/title-bar.png)
 

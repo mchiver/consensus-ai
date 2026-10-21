@@ -150,7 +150,7 @@ edit-view
 /* The text sits as the Read view's does: the same width, centred, room below it. */
 .editor .cm-editor.cm-live .cm-content
 {
-	max-width: 52rem;
+	max-width: var(--text-width);
 	margin: 0 auto;
 	padding: 1rem 1.5rem 50vh;
 }
