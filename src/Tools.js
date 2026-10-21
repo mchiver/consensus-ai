@@ -744,12 +744,12 @@ function Tools( Options )
 		}
 		else
 		{
-			lines.push( 'Your turn in Consensus: find the threads waiting on you (waiting); on a contested one, reply with what you understood and the wording you would apply; on a resolved one, apply it, one revision each, with the plan\'s whole new text when the text changes (read_plan gives the current text); when the owner resolved a thread without answering your question, apply your own recommendation and say so in the Outcome; after changing a text, read the plan again and re-anchor any thread left detached (apply with Anchor). Put comments and questions in threads, not in your answer.' );
+			lines.push( 'Your turn in Consensus: find the threads waiting on you (waiting); on a contested one, reply with what you understood and the wording you would apply; on a resolved one, apply it, one revision each, with the plan\'s whole new text when the text changes (read_plan gives the current text); when a thread was resolved without answering your question, apply your own recommendation and say so in the Outcome; after changing a text, read the plan again and re-anchor any thread left detached (apply with Anchor). Put comments and questions in threads, not in your answer.' );
 		}
 		if ( writes === 'files' )
 		{
 			lines.push( '' );
-			lines.push( 'The build loop: every thread of the plan is applied; set the plan Working (set_state); implement what the plan says and only that, in the project\'s folder, with read, write and edit; run the allowed commands to test; post the build log as one new thread on the whole document (thread, without Anchor): what was built, where, how it was checked, and which model you are. Never touch git: it is the owner\'s.' );
+			lines.push( 'The build loop: every thread of the plan is applied; set the plan Working (set_state; the State is an Owner\'s, so when you act for a Member leave it and say so); implement what the plan says and only that, in the project\'s folder, with read, write and edit; run the allowed commands to test; post the build log as one new thread on the whole document (thread, without Anchor): what was built, where, how it was checked, and which model you are. Never touch git: it is the owner\'s.' );
 		}
 		return lines.join( '\n' );
 	}

@@ -45,7 +45,7 @@
 		<main class="guide-main">
 			<article class="guide-article">
 <h1 id="threads">Threads</h1>
-<p>A thread is a comment on a plan, and the way a plan is settled. You comment on a passage, the LLM replies, you resolve, and the LLM applies the outcome to the text. The plan is done when every thread is applied.</p>
+<p>A thread is a comment on a plan, and the way a plan is settled. You comment on a passage, the LLM replies, you resolve, and the LLM applies the outcome to the text. The plan is done when every thread is applied. On your own server you are the only person; on a shared one the same rules hold among many, with the project&#39;s roles saying who may do what (below, and in <a href="sharing.html">Sharing</a>).</p>
 <figure class="shot"><img class="light-only" src="../images/plan.png" alt="A plan with its threads: the anchored passages in the text, the threads on the right."><img class="dark-only" src="../images/plan-dark.png" alt="A plan with its threads: the anchored passages in the text, the threads on the right."><figcaption>A plan with its threads: the anchored passages in the text, the threads on the right.</figcaption></figure>
 <h2 id="starting-one">Starting one</h2>
 <p>Select text in the plan, click <strong>Comment</strong>, write and post. The thread is <strong>anchored</strong> to the words you selected, which are highlighted in the text. A comment with nothing selected is on the whole document.</p>
@@ -54,13 +54,13 @@
 <p>Every thread is in one of three states, and the colour of its passage says which.</p>
 <ul>
 <li><strong>Contested</strong> (yellow): under discussion. The thread waits on everyone except the one who replied last, so a reply hands it over.</li>
-<li><strong>Resolved</strong> (blue): the owner has settled it, and it waits for the LLM to apply the outcome. It never looks finished before the text shows it.</li>
+<li><strong>Resolved</strong> (blue): its starter or an Owner has settled it, and it waits for the LLM to apply the outcome. It never looks finished before the text shows it.</li>
 <li><strong>Applied</strong> (green): the LLM changed the text, or confirmed that nothing had to change, and recorded who, when, the revision and the outcome.</li>
 </ul>
 <figure class="shot"><img class="light-only" src="../images/threads.png" alt="The threads pane: a contested, a resolved and an applied thread."><img class="dark-only" src="../images/threads-dark.png" alt="The threads pane: a contested, a resolved and an applied thread."><figcaption>The threads pane: a contested, a resolved and an applied thread.</figcaption></figure>
 <p>Any reply to a resolved or applied thread <strong>reopens</strong> it (orange): contested again, marked reopened. Reopening never reverts a change already applied; resolving it again makes it wait to be applied again.</p>
 <h2 id="resolving">Resolving</h2>
-<p>Only the owner resolves, with the one <strong>Resolve</strong> button, in one of two ways:</p>
+<p>A thread is resolved by the one who started it, or by an Owner of the project: the one who asked knows when it is answered, and an Owner can close any thread so that a starter who has gone quiet does not hold the plan. There is no vote. The one <strong>Resolve</strong> button works in one of two ways:</p>
 <ul>
 <li>With a reply typed in the box, Resolve posts it and resolves the thread with it. Your reply is the outcome the LLM applies, read as the answer to the question before it.</li>
 <li>With nothing typed, Resolve accepts the outcome, or the recommendation, in the last reply.</li>
@@ -68,13 +68,24 @@
 <p>The selected thread&#39;s header has two tools at its right: <strong>Re-anchor</strong> (the target), which puts the thread on a passage you select, and <strong>Start a new Subplan</strong> (on a plan), which replies with a link to a new Subplan that starts from the thread.</p>
 <p>On a resolved or applied thread the Reply button reads <strong>Reply and Contest</strong>, in the contested colour: it posts your reply and reopens the thread, which stays open and contested.</p>
 <p>Resolving means agreeing with how the thread was deliberated and decided, not with any one line in it: the last reply states what goes in.</p>
+<h2 id="who-does-what-in-a-team">Who does what in a team</h2>
+<p>On a shared server the people of a project are its <strong>Owners</strong>, <strong>Members</strong>, <strong>Service</strong> accounts and <strong>Watchers</strong> (see <a href="sharing.html">Sharing</a>); the LLM is never one of them, it acts for the person who pressed the button, shown as the byline. The rules among them:</p>
+<ul>
+<li><strong>Anyone starts a thread, anyone comments, anyone presses a task</strong>, within their role: a Watcher reads and presses the read-only tasks only; a Service account writes but presses none. There is no turn order among people: the waiting list says whose attention is wanted, it does not forbid.</li>
+<li><strong>Resolve</strong>: the thread&#39;s starter, or an Owner. A Member resolves the threads they started.</li>
+<li><strong>Apply</strong>: anyone with write access, an Owner, a Member or a Service account, in person or through the LLM acting for them. Usually the LLM does it, on your turn or on Answer.</li>
+<li><strong>The plan&#39;s State</strong> is an Owner&#39;s: Draft to Plan is the Owner&#39;s acceptance of the text the threads worked out, Plan to Working the word to build, Working to Finished the acceptance of the build. Members move the text through their threads; an Owner signs off once, on the document, not on every thread. The picker is disabled for anyone else.</li>
+<li><strong>One run per plan at a time</strong>, and one per connection: a press while either has a run on waits its turn, told so, and starts when both are free. Runs on other plans through other connections go together.</li>
+<li><strong>Delete</strong>: an Owner, any thread.</li>
+</ul>
 <h2 id="whose-turn">Whose turn</h2>
+<p>A thread waits on its parties: while it is contested, the one who started it, the project&#39;s Owners, everyone who has replied in it and the LLM, minus whoever spoke last, so a Reply hands it over and a person who has not joined in is not waited on. Once resolved it waits on the LLM alone, to apply it: a thread you resolve is off your list, and the plan&#39;s &quot;resolved&quot; count says it is still to be applied. An applied thread waits on nobody.</p>
 <p><strong>Waiting on you</strong> in the title bar counts every thread waiting on you, across projects and servers, and opens the Waiting tab; beside it, while an LLM run is in progress on any server, <strong>Running</strong> counts the runs and opens the first one&#39;s LLM page. The threads pane filters by state and by whose turn it is, and highlights every thread&#39;s passage in the text or the open ones&#39; only (the two pickers stay at the top while the list scrolls); both choices are the page&#39;s, the same in every item, and remembered in the browser. A plan&#39;s row shows a &quot;you&quot; badge with the count. Clicking an anchored passage selects its thread, and clicking a thread&#39;s quoted words in the pane scrolls the text to its passage and flashes it; the selected thread stays listed whatever the filter, until another is picked or the selection is cleared with Escape (in Monaco mode&#39;s Read view a click off any highlight clears it too). After your own reply or resolve the selection passes to the next thread in the pane (or the previous one, when it was the last), so you can work down the list.</p>
 <figure class="shot"><img class="light-only" src="../images/waiting.png" alt="The Waiting tab: everything waiting on you."><img class="dark-only" src="../images/waiting-dark.png" alt="The Waiting tab: everything waiting on you."><figcaption>The Waiting tab: everything waiting on you.</figcaption></figure>
 <h2 id="anchors-that-follow-the-text">Anchors that follow the text</h2>
 <p>An anchor holds to the visible words, not the markdown, so bold and links do not break it. After every change to the text each anchor is found again: one whose words changed a little follows them; one that cannot be found is <strong>detached</strong>, shown first in the pane, and can be re-anchored by selecting text.</p>
 <h2 id="deleting">Deleting</h2>
-<p>The owner deletes a thread with the <strong>×</strong> on its first line. A revision that applied a deleted thread keeps its text and shows &quot;(deleted thread)&quot;.</p>
+<p>An Owner deletes a thread with the <strong>×</strong> on its first line. A revision that applied a deleted thread keeps its text and shows &quot;(deleted thread)&quot;.</p>
 
 			</article>
 			<nav class="guide-pager">

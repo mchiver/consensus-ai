@@ -31,8 +31,8 @@ A role is what an account may see and do in one project. Every project has a fix
 | Role | May | License |
 |---|---|---|
 | Owner | everything in the project: read, write, comment and reply, resolve any thread, set the plan states, create, rename, move, archive and export, manage the Users folder, enable the server's tasks for the project, press any task | User |
-| Member | read and write: edit, create, comment and reply, resolve and apply the threads they started, press the tasks that write to Consensus or to files | User |
-| Service | read and write the project through the API as a Member does; press no task, so no run is ever started under it | none (a token) |
+| Member | read and write: edit, create, comment and reply, resolve the threads they started, apply any resolved thread, press the tasks that write to Consensus or to files | User |
+| Service | read and write the project through the API as a Member does, resolve nothing; press no task, so no run is ever started under it | none (a token) |
 | Watcher | read the project and its threads; press the tasks that read only, Explain among them | none |
 
 The license is the person's, not the server's: a **User** license is needed to be an Owner or a Member, and the server says so when someone is dragged into those folders without one. A Watcher needs an account and nothing more. A site license is an organization in Consensus-AI whose members carry it.

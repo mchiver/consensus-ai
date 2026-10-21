@@ -134,11 +134,12 @@ PUT    /api/projects/:pid/roles                  { Owners?, Members?, Service?, 
 </code></pre>
 <h2 id="the-rules-in-plain-words">The rules, in plain words</h2>
 <ul>
-<li>A thread is <strong>contested</strong> until the owner resolves it. Resolving accepts the outcome the last reply states.</li>
-<li>A resolved thread is <strong>resolved</strong>, waiting to be applied, until someone applies it. Applying makes it <strong>applied</strong> and records who, when, the revision and the outcome.</li>
+<li>A thread is <strong>contested</strong> until its starter or an Owner of the project resolves it (a Member the threads they started; no vote). Resolving accepts the outcome the last reply states.</li>
+<li>A resolved thread is <strong>resolved</strong>, waiting to be applied, until someone with write access to the project applies it: an Owner, a Member or a Service account, in person or through an LLM acting for them (a Watcher is refused 403). Applying makes it <strong>applied</strong> and records who, when, the revision and the outcome.</li>
 <li>Any reply to a resolved or applied thread <strong>reopens</strong> it. Reopening never reverts a change already applied.</li>
-<li>A contested thread waits on every speaker except the one who replied last; the speaker is the byline, so a run&#39;s reply as <code>Claude-CLI by User</code> is a different speaker from <code>User</code>, and a question the LLM asks you still waits on you. A plan&#39;s speakers are the owner, one per LLM connection, and everyone seen in its threads. A resolved thread waits on every speaker but the owner: the LLMs and the services. An applied thread waits on nobody.</li>
-<li>A plan&#39;s state is set by anyone at any time and does not depend on its threads.</li>
+<li>A contested thread waits on its parties, the starter, the project&#39;s Owners, everyone who has replied in it and the LLM speakers, except the one who replied last; a person who has not joined in is not waited on. The speaker is the byline, so a run&#39;s reply as <code>Claude-CLI by User</code> is a different speaker from <code>User</code>, and a question the LLM asks you still waits on you. A plan&#39;s speakers are the owner, one per LLM connection, the Owners of its project, and everyone seen in its threads. A resolved thread waits on the LLM speakers, the ones that apply it, never on a person. An applied thread waits on nobody.</li>
+<li>A plan&#39;s state is set by an Owner of the project (the server&#39;s owner is one of every project&#39;s) at any time, 403 for anyone else, and does not depend on its threads.</li>
+<li>One run per plan at a time, and one per connection: a press while either has a run on is queued behind it, in press order (<code>POST /api/runs</code> above).</li>
 <li>Editing is allowed at any time and makes a new revision. A manual edit changes no thread&#39;s status.</li>
 <li>Anchors hold to the visible text. After every change each anchor is found again; one that cannot be found is detached, and can be re-anchored.</li>
 <li>A text change carries the revision it was made from; a stale one is refused with the current revision.</li>

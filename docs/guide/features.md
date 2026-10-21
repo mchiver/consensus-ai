@@ -4,10 +4,11 @@
 
 - **Plans with threads.** A plan is a markdown document with a conversation beside it. Each thread is one question, settled in one place. See [Threads](threads.html).
 - **Anchored comments.** Select a passage and comment on it; the thread is tied to those words, highlighted in the text, and follows them as the text changes.
-- **Three thread states.** Contested while it is discussed, resolved when the owner settles it, applied when the LLM has changed the text. The colour of the passage says which.
-- **Reply and resolve.** The owner settles a thread with a reply that becomes the outcome, or resolves it with no reply to accept the last recommendation.
+- **Three thread states.** Contested while it is discussed, resolved when its starter or an Owner settles it, applied when the LLM has changed the text. The colour of the passage says which.
+- **Reply and resolve.** You settle a thread with a reply that becomes the outcome, or resolve it with no reply to accept the last recommendation.
 - **Reopening.** Any reply to a settled thread reopens it, marked as such, without undoing what was applied.
-- **Whose turn.** Every thread knows who it waits on. The tree, the title bar and the threads pane count what waits on you; **Waiting on you** lists it across every project.
+- **Whose turn.** Every thread knows who it waits on: its parties, minus whoever spoke last, so a reply or a resolve takes it off your list. The tree, the title bar and the threads pane count what waits on you; **Waiting on you** lists it across every project.
+- **Rules for a team.** The same consensus among many people: the starter or an Owner resolves, no vote; anyone with write access applies; the plan's State is an Owner's; one run per plan at a time. See [Threads](threads.html#who-does-what-in-a-team).
 - **Plan states.** Draft, Plan, Working and Finished by default, picked from the heading at any time; the list is yours to change per project.
 - **Subplans.** A plan can hold plans. Start one from a thread, from selected text or from the menu, and it carries the passage and the discussion with it.
 - **Whole-document threads.** A comment with nothing selected is on the plan as a whole, the place for a review or a build log.

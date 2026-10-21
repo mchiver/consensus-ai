@@ -1,9 +1,11 @@
 # Build with Consensus
 
-Use Consensus to construct documents and plans with your user. Consensus is where the two of you work them out,
-thread by thread: your user (the owner) writes, comments and resolves; you reply, apply what the owner resolves,
-draft plans, and build what the plans say in your own repo. What you contribute goes into Consensus through its
-API; the chat with the owner carries short summaries and the questions that need an answer before you act.
+Use Consensus to construct documents and plans with your user. Consensus is where you work them out together,
+thread by thread: the people write, comment and resolve; you reply, apply what they resolve, draft plans, and
+build what the plans say in your own repo. On a personal server your user is the owner and the only person; on a
+shared one the people are a project's Owners, Members, Service accounts and Watchers, and you act for one of
+them: the one who runs your session or pressed the button (the plan Multiuser). What you contribute goes into
+Consensus through its API; the chat carries short summaries and the questions that need an answer before you act.
 
 For an agent session (Claude Code or similar) working on a repo whose plans live in Consensus. Read this with
 `curl` (`curl -s http://<server>:<port>/instructions`): a session's web fetch tool may not reach a local or
@@ -17,13 +19,20 @@ Consensus ones included, and gives it this page's rules in its own words.
 
 ## Who does what
 
-- **Agent session** (you): reads and writes the codebase, and works in Consensus through its API. You keep the
-  project's Readme, reply and apply, draft plans, and implement plans when the owner asks you to.
-- **The owner**: writes, comments, resolves, and says when a plan is to be built. Git is the owner's: you commit
-  only as the build loop says, and never branch or push on your own.
-- Every LLM acts for the owner. Say who you are with the header `X-Consensus-Service: <your name>` on every
-  request (letters, digits, dot, dash and colon; "Claude-CLI" for a Claude Code session), so that what you post
-  reads "<your name> by <the owner>"; and say which model you are in each build log.
+- **Agent session, or a run** (you): reads and writes the codebase, and works in Consensus through its API. You
+  keep the project's Readme, reply and apply, draft plans, and implement plans when asked to.
+- **The people**: write, comment, resolve, and an Owner says when a plan is to be built. Git is theirs: you
+  commit only as the build loop says, and never branch or push on your own.
+- **The rules among many** (the same on a personal server, where the owner is everyone): a thread is resolved
+  by the one who started it or by an Owner of the project, with no vote; anyone with write access applies a
+  resolved one, an Owner, a Member or a Service account, which is what you do for them; the plan's State is an
+  Owner's; one run per plan at a time. A contested thread waits on its parties, the starter, the Owners,
+  everyone who replied in it and the LLM, minus whoever spoke last; a resolved one waits on the LLM alone.
+- Every LLM acts for a person, never as a user of its own: an agent session for the account whose server or
+  token it uses, a run for the one who pressed the button. Say who you are with the header
+  `X-Consensus-Service: <your name>` on every request (letters, digits, dot, dash and colon; "Claude-CLI" for a
+  Claude Code session), so that what you post reads "<your name> by <the person>"; and say which model you are
+  in each build log. This server, at the top of this page, says whom you act for and what their role allows.
 
 ## Talking to Consensus
 
@@ -74,47 +83,56 @@ ask the owner, and remember the answer for the session.
 "Load your context": read your project's Readme (its `Context` id) and the other documents of its
 Context folder, its tree of plans with their states, and what waits on you; report it in a few lines.
 
-## What the owner's words mean
+## What your user's words mean
 
 - "check consensus", "check again": report what changed and what waits on you, and act on nothing.
-- "your turn": act on everything waiting on you (below).
+- "your turn": act on everything waiting on you (below). The Answer task of the page is the same turn, taken
+  for the one who pressed it.
 - "build it", "implement it": the build loop (below), for the plan named or just discussed.
 - A message holding any question is answered only; its instructions wait for a message with no question.
 
 ## "Your turn in Consensus"
 
-1. Find what waits on you (`GET /api/waiting`).
+You take it for the person you act for, as their byline: the one whose session this is, or who pressed Answer.
+What you post is theirs, within what their role allows (an Owner or a Member applies; a Watcher's Explain reads
+only, and so do you then).
+
+1. Find what waits on you (`GET /api/waiting`): the contested threads whose last word is not yours, and the
+   resolved ones to apply.
 2. Resolved threads: apply each one, one revision each. What resolving means:
-   - **Reply and resolve** (the owner's own reply is last): that reply is the outcome, read as the answer to
+   - **Reply and resolve** (the resolver's own reply is last): that reply is the outcome, read as the answer to
      the question before it. Apply it directly; no confirming round.
-   - **Resolve with no reply:** the owner accepts the outcome, or the recommendation, in your last reply.
+   - **Resolve with no reply:** the resolver accepts the outcome, or the recommendation, in the last reply.
      Apply it, and say in the Outcome that the recommendation went in.
    - **Comment and resolve** (a new thread, resolved as it was posted): the comment is the outcome.
-3. Contested threads the owner answered: reply. Confirm what you understood and give the wording you will
-   apply; ask any follow-up with a recommendation.
+   - Whoever resolved it, the starter or an Owner, the outcome is the thread's; apply it as the person you act
+     for, who has write access.
+3. Contested threads someone answered: reply. Confirm what you understood and give the wording you will
+   apply; ask any follow-up with a recommendation. A thread waits on its parties, so a reply hands it to them.
 4. After changing the text, check for detached threads and re-anchor them.
 5. Put comments and questions in Consensus as anchored threads, not in the chat; the chat gets a summary.
 
 ## Drafting a plan
 
 Decided defaults go into the text as statements; open threads only for real questions. A request to rework a
-document is answered with a reply holding the exact new text, applied once the owner resolves it.
+document is answered with a reply holding the exact new text, applied once its starter or an Owner resolves it.
 
 ## The build loop
 
 1. **Ready?** Every thread in the plan is resolved and applied. If any is not, list the open threads in the
    chat and stop. Post nothing in Consensus.
-2. **Start.** When the owner says to implement the plan, set its state to Working.
+2. **Start.** When an Owner says to implement the plan, set its state to Working. The State is an Owner's: when
+   you act for a Member (a Work run pressed by one), leave it and say so in the log.
 3. **Implement** what the plan says, and only that. Run the tests.
 4. **Report.** Post one contested whole-document thread on the plan: the build log. Say what was built,
    where (files), how it was checked (tests), and which model built it.
-5. **Accepted** (the owner resolved the build log):
+5. **Accepted** (the build log was resolved, by the one who pressed or an Owner):
    - apply the build log thread, outcome only, no text change;
    - commit the work in your own repo: one commit titled after the plan, with a summary of the build log, no
      attribution trailers;
    - set the plan's state to Finished;
    - bring the project's Readme up to date with what changed.
-6. **Sent back** (the owner replied to the build log instead): fix what the reply asks, run the tests, and
+6. **Sent back** (someone replied to the build log instead): fix what the reply asks, run the tests, and
    reply on the same thread with the new result. Nothing is committed until it is accepted.
 
 ## Starting a project from a codebase
