@@ -13,6 +13,7 @@ const OS = require( 'os' );
 const PATH = require( 'path' );
 const CHILD_PROCESS = require( 'child_process' );
 const MARKED = require( 'marked' );
+const OPERATIONS = require( '../src/Operations.js' );
 
 const DOCS_FOLDER = PATH.join( __dirname, '..', 'docs' );
 const BOOTSTRAP_CSS = PATH.join( __dirname, '..', 'node_modules', 'bootstrap', 'dist', 'css', 'bootstrap.min.css' );
@@ -152,6 +153,45 @@ function check_links( Folder )
 // Build: the guide's pages into the template, Bootstrap beside the stylesheet, and the check.
 // Returns { Pages: [ file ], Problems: [ text ] }.
 
+// The operations (plan MCP Server, Step 3): the list between the markers of a page is rendered from the definition
+// (one line per operation: its name, its route, what it does, its arguments), so the reference and the MCP tools are
+// one text; the markdown is written back with it, so the published .md says the same as the page.
+const OPERATIONS_START = '<!-- operations -->';
+const OPERATIONS_END = '<!-- /operations -->';
+
+function operations_markdown()
+{
+	let lines = [];
+	for ( let operation of OPERATIONS.Definition() )
+	{
+		let fields = Object.keys( operation.Parameters );
+		let arguments_text = '';
+		if ( fields.length )
+		{
+			arguments_text = ' Arguments: ' + fields.map( function ( field )
+			{
+				let parameter = operation.Parameters[ field ];
+				return '`' + field + '` (' + parameter.Type + ( parameter.Required ? ', required' : '' ) + ')' + ( parameter.Description ? ': ' + parameter.Description : '' );
+			} ).join( '; ' ) + '.';
+		}
+		lines.push( '- **`' + operation.Name + '`** `' + operation.Method + ' /api' + operation.Path + '`' + ( operation.Status === 201 ? ' (answers 201)' : '' ) + ' — ' + operation.Description + arguments_text );
+	}
+	return lines.join( '\n' );
+}
+
+
+function render_operations( Markdown )
+{
+	let start = Markdown.indexOf( OPERATIONS_START );
+	let end = Markdown.indexOf( OPERATIONS_END );
+	if ( start < 0 || end < 0 || end < start )
+	{
+		return Markdown;
+	}
+	return Markdown.slice( 0, start + OPERATIONS_START.length ) + '\n' + operations_markdown() + '\n' + Markdown.slice( end );
+}
+
+
 function Build( Options )
 {
 	let folder = ( Options && Options.Folder ) || DOCS_FOLDER;
@@ -164,6 +204,12 @@ function Build( Options )
 	pages.forEach( function ( Page, Index )
 	{
 		let markdown = FS.readFileSync( PATH.join( guide, Page.File ), 'utf8' );
+		let rendered = render_operations( markdown );
+		if ( rendered !== markdown )
+		{
+			FS.writeFileSync( PATH.join( guide, Page.File ), rendered );
+			markdown = rendered;
+		}
 		let html_name = Page.File.replace( /\.md$/, '.html' );
 		let navigation = pages.map( function ( Other )
 		{

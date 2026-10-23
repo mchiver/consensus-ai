@@ -36,75 +36,86 @@ curl -s -X POST -H "X-Consensus-Service: <name>" -H "Content-Type: application/j
 
 An anchor's `Text` is matched against the text as it reads, without markdown marks: no backticks or asterisks.
 
-## The routes
+## The operations
 
-```
-GET    /api/me                                   who this request is (Name, Display, Speaker, Service), the speakers, the States, the server's Name and Version
-GET    /api/settings                             owner; the settings as they are, and the file's path
-PUT    /api/settings                             owner; { Settings }  the whole file, checked
-GET    /api/projects                             every project with its tree, its Archive, States and Path; Context and ContextFolder
-POST   /api/projects                             { Name, Path? }  Path: the project's folder; one holding a project already is opened
-PUT    /api/projects/:pid                        { Name?, States?, Include?, Exclude?, Commands?, Version? }  lists, or lines of text; Tasks: the enabled task ids, null for all; GitSync, AutoCommit: the Work options, true or false; Llm: the connection the plan page's buttons and the Explain tab run through, null clearing it
-DELETE /api/projects/:pid                        an empty project; never the last one
-POST   /api/projects/:pid/folders                { Name, Parent?, Version? }
-PUT    /api/projects/:pid/folders/:fid           { Name, Version? }
-DELETE /api/projects/:pid/folders/:fid           an empty folder
-POST   /api/projects/:pid/move                   { Before }  the project in the display order
-GET    /api/projects/:pid/export                 owner; the project as one json object
-POST   /api/projects/import                      owner; { Export, Mode?, Preview?, Into? }  Into: { Project, Parent? } writes the file's items there, every id new
-GET    /api/items/:id/export                     owner; a folder, plan or document as one json object of the same format
-POST   /api/items/:id/move                       { Project, Parent?, Before? }
-POST   /api/items/:id/copy                       { Project, Parent? }  a whole copy under a new id
-POST   /api/items/:id/archive                    a plan, with its Subplans, into the project's Archive, read-only
-POST   /api/items/:id/restore                    back to the project's root
-GET    /api/plans[?state=]                   plans and documents with their tallies
-POST   /api/plans                            { Title, Text, Kind?, State?, Project?, Parent? }
-GET    /api/plans/:id                        text, threads with positions, tally, whose turn
-PUT    /api/plans/:id                        { Title }
-PUT    /api/plans/:id/state                  { State }
-PUT    /api/plans/:id/text                   { Text, Revision }  a manual edit
-DELETE /api/plans/:id                        to the trash
-GET    /api/plans/:id/revisions[/:n]         the record; a revision's text
-GET    /api/plans/:id/report                 the plan, its Subplans and all their threads as one page made for printing
-GET    /api/plans/:id/report.md              the same report as markdown
-GET    /api/plans/:id/threads[?status=]      all | contested | resolved | applied | reopened | detached | mine
-POST   /api/plans/:id/threads                { Anchor: { Text, Prefix?, Suffix? } | null, Text, Resolve? }
-POST   /api/plans/:id/threads/:tid/replies   { Text, Resolve? }  reopens a resolved thread
-POST   /api/plans/:id/threads/:tid/anchor    { Anchor }  re-anchor
-POST   /api/plans/:id/threads/:tid/resolve   owner only; a build log of a project with AutoCommit on is committed (and pushed with GitSync), the thread's Git the record
-DELETE /api/plans/:id/threads/:tid           owner only
-POST   /api/plans/:id/threads/:tid/apply     { Outcome, Revision?, Text?, Anchor? }  resolved threads only
-GET    /api/trash                                what is there
-DELETE /api/trash                                owner; empties it for good, { Emptied: n }
-GET    /api/waiting                              everything waiting on the caller, in every project
-GET    /api/tasks[?Project=]                     the tasks, in the buttons' order, or those a project enables; the Writes levels, the Package switches (and which are Off unless set) and the shipped Defaults
-GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Speaker, Running, the whole records
-POST   /api/llms                                 owner; a connection from its fields, with a new id
-POST   /api/llms/check                           owner; the connection as typed, tried: { Ok, Result | Error }
-PUT    /api/llms/:id                             owner; the fields given over the record
-POST   /api/llms/:id/check                       owner; tried as saved, the body's fields over it
-DELETE /api/llms/:id                             owner; not while it runs; its speaker goes with it
-GET    /api/runs/lists?Project=&Plan=&Llm=       the other Context documents, the plan's threads waiting on the connection
-POST   /api/runs/package                         { Llm, Task, Project, Plan?, Text?, Overrides? }  the prompt a run would get; Task the task's id, Text the box's text
-POST   /api/runs                                 { Llm, Task, Project, Plan?, Text? }  a run started as the presser through the connection, on a token named after the task that carries its Writes (a none run is refused every write); one per connection and per plan at a time: a press while either has a run on is answered 201 with Status queued, Queued when and Behind which run, waits its turn in press order and is packaged again when it starts; a run that writes files pulls first when the project's GitSync is on, and is refused when the pull fails
-GET    /api/runs[?Llm=&Project=&Task=&By=]       the runs, newest first, without their prompts and outputs; a person's Explain runs of a project are its conversation
-GET    /api/runs/:id                             the whole record, the output as it stands
-POST   /api/runs/:id/stop                        a running one stopped, a queued one taken out of the line
-DELETE /api/runs/:id                             the record removed (Clear in the Explain tab); not a running one
-GET    /api/events                               Server-Sent Events: { Plan | Project, Kind, Thread? }; { Kind: llms }, { Kind: users } and { Kind: run, Run, Llm, Status }
-GET    /api/users                                the accounts of the server (Users.json): Id, Type, Login, Display, Email; Admin: whether you are the Administrator
-POST   /api/users                                Administrator; { Type: user | service, Login, Display?, Email? }  a user needs an email
-GET    /api/users/:id                            the account's own page or the Administrator's: the record with its tokens' names, created and last use
-PUT    /api/users/:id                            { Login?, Display?, Email? }  the Administrator; an account its own Display
-DELETE /api/users/:id                            Administrator; out of every role folder, its tokens gone; never the owner
-POST   /api/users/:id/tokens                     { Name } -> { Token, Name }  the value, shown once; an account's own, a Service account's by the Administrator
-DELETE /api/users/:id/tokens/:name               revoked
-GET    /api/users/:id/activity                   the threads, replies, resolves, applies and revisions by the account, newest first
-GET    /api/clerk                                everyone, before identify: { On, Required, PublishableKey, FrontendApi, Pricing }  how people sign in through Clerk, Required on a Public server (never the secret)
-POST   /api/clerk/webhook                        Clerk's events, signed (svix-id, svix-timestamp, svix-signature over the raw body); the registry follows them
-PUT    /api/projects/:pid/roles                  { Owners?, Members?, Service?, Watchers? }  account ids, one folder each; an Owner of the project or the Administrator; a person seen without a User license stays out of Owners and Members (400, Plan)
-```
+Every route is an operation of one interface definition (`src/Operations.js`), of which the REST API, the MCP server and a local model's tools are three faces: the name an MCP client calls the tool by, the route the API serves it at, what it does, and its arguments. The path's parameters are arguments too (`:id` is `Id`, `:pid` `Project`, `:fid` `Folder`, `:tid` `Thread`, `:n` `Revision`, `:name` `Name`); a GET takes the rest as its query, anything else as its JSON body; an answer is JSON at 200 unless the operation says 201. The list is rendered from the definition when the docs are built, so it is what the server serves.
 
+<!-- operations -->
+- **`me`** `GET /api/me` — Who you are to this server: your account, your roles by project, the speakers the rules run over, the default states and the server's version and name.
+- **`instructions`** `GET /api/instructions` — The instructions for an LLM working with this server: what Consensus is, how to call it, what your user's words mean ("check consensus", "your turn", "build it"), the turn and the build loop; This server first, with the API's address and how to say who you are. Read it first.
+- **`read_settings`** `GET /api/settings` — The server's settings file, whole, and its path; the Administrator's.
+- **`write_settings`** `PUT /api/settings` — Writes the server's settings (Name, Port, Scope, States, Owner, Tasks, Llms; the Administrator's): the fields given replace the file's, any other field stays. Answers whether a restart is needed (Scope and Port take effect at the next start). Arguments: `Settings` (object): the settings to write; the fields may also be given at the top level.
+- **`list_plans`** `GET /api/plans` — Every plan and document you may see, across projects, each with its state and the tally of its threads; State keeps the plans in that state. Arguments: `State` (string): only the plans in this state.
+- **`create_plan`** `POST /api/plans` (answers 201) — A new plan, or a document (Kind document), in a project: at Parent (a folder, or a plan for a Subplan), else at the project's root (a document: in its Context folder). A plan starts in the project's first state unless State says otherwise. Arguments: `Title` (string, required); `Text` (string): the markdown; empty when not given; `Project` (string): the project's id; the first project when not given; `Parent` (string): a folder's id, or a plan's id for a Subplan; `Kind` (string): plan (the default) or document; `State` (string): one of the project's states; an Owner's to give.
+- **`read_plan`** `GET /api/plans/:id` — A plan or document whole: its text at its current revision, its summary with the tally of its threads, its threads with their status, anchor and replies, its project, and whether it is the project's Readme (Context). Arguments: `Id` (string, required): the plan's or document's id.
+- **`report`** `GET /api/plans/:id/report` — The plan, its Subplans and all their threads as one HTML page made for printing: the passages marked and numbered, every reply with who and when. Arguments: `Id` (string, required): the plan's id.
+- **`report_markdown`** `GET /api/plans/:id/report.md` — The same report as markdown. Arguments: `Id` (string, required): the plan's id.
+- **`rename_plan`** `PUT /api/plans/:id` — A plan's or document's new Title; never the Readme's. Arguments: `Id` (string, required); `Title` (string, required).
+- **`write_text`** `PUT /api/plans/:id/text` — The plan's or document's whole new text as a new revision, made from Revision (refused with the current revision when the text changed since); the threads stay where they were, an anchor no longer found marking its thread detached. Arguments: `Id` (string, required); `Text` (string, required): the whole markdown; `Revision` (integer, required): the revision the text was made from.
+- **`delete_plan`** `DELETE /api/plans/:id` — A plan or document to the trash, its Subplans with it; never the Readme. Arguments: `Id` (string, required).
+- **`list_trash`** `GET /api/trash` — The trashed plans and documents of every project.
+- **`empty_trash`** `DELETE /api/trash` — Removes every trashed item of every project for good; the owner's.
+- **`set_state`** `PUT /api/plans/:id/state` — Sets a plan's state to one of its project's (Draft, Plan, Working, Finished by default); an Owner's. Arguments: `Id` (string, required); `State` (string, required).
+- **`list_projects`** `GET /api/projects` — Every project you may see with its tree: the folders, the plans with their states and the tally of their threads, the documents of its Context folder, the archive; the id of its Readme (Context) and of its Context folder.
+- **`create_project`** `POST /api/projects` (answers 201) — A new project named Name, its folder at Path (<config>/projects/<name>/ when not given); a Path that holds a project already is opened instead, under its own name. Arguments: `Name` (string): required unless Path holds a project; `Path` (string): the project's folder.
+- **`update_project`** `PUT /api/projects/:pid` — A project's settings: its Name, its States, the Include, Exclude and Commands lists a run works within, the Tasks it enables, the Work options GitSync and AutoCommit, and the Llm connection its buttons run through; a state still used by a plan cannot be removed. Arguments: `Project` (string, required): the project's id; `Name` (string); `States` (array): the state names, or lines of text; `Include` (array); `Exclude` (array); `Commands` (array); `Tasks` (array): the enabled task ids; null enables them all; `GitSync` (boolean); `AutoCommit` (boolean); `Llm` (string): a connection's id, or null; `Version` (integer): the project version the change was made from; refused when it moved on.
+- **`delete_project`** `DELETE /api/projects/:pid` — Deletes an empty project (its Readme goes to the trash with it); never the last project, and never one that still holds items. Arguments: `Project` (string, required): the project's id.
+- **`move_project`** `POST /api/projects/:pid/move` — Moves a project in the display order: just before the project Before, or to the end without it. Answers every project as list_projects does. Arguments: `Project` (string, required): the project's id; `Before` (string): the id of the project it goes just before.
+- **`export_project`** `GET /api/projects/:pid/export` — A whole project as one JSON object: its tree, every plan and document with its threads and every revision (the export format); the owner's. Arguments: `Project` (string, required): the project's id.
+- **`export_item`** `GET /api/items/:id/export` — A folder, a plan or a document as one JSON object of the export format, with everything under it; never the Readme or the Context folder on their own; the owner's. Arguments: `Id` (string, required): the item's id.
+- **`import_project`** `POST /api/projects/import` (answers 201) — Imports an export file: as a project (one that is here already needs Mode copy or merge), or with Into its items into a project's root or folder with every id new; Preview writes nothing and says what would happen; the owner's. Arguments: `Export` (object, required): the export file's content; `Mode` (string): copy or merge, for a project that is here already; `Preview` (boolean); `Into` (object): { Project, Parent? }: the project and folder the items go into.
+- **`create_folder`** `POST /api/projects/:pid/folders` (answers 201) — A new folder in a project, at Parent (a folder) or at the root; never in the Context folder. Arguments: `Project` (string, required): the project's id; `Name` (string, required); `Parent` (string): a folder's id; the root when not given; `Version` (integer): the project version the change was made from.
+- **`rename_folder`** `PUT /api/projects/:pid/folders/:fid` — A folder's new Name; never the Context folder's. Arguments: `Project` (string, required): the project's id; `Folder` (string, required): the folder's id; `Name` (string, required); `Version` (integer): the project version the change was made from.
+- **`delete_folder`** `DELETE /api/projects/:pid/folders/:fid` — Deletes an empty folder; never the Context folder, and never one that still holds items. Arguments: `Project` (string, required): the project's id; `Folder` (string, required): the folder's id.
+- **`move_item`** `POST /api/items/:id/move` — Moves a folder, plan or document into a project's root or one of its folders (a plan into a plan as a Subplan), at the end or just before a child of it, within its project or into another; never the Readme or the Context folder. Arguments: `Id` (string, required): the item's id; `Project` (string, required): the project it goes into; `Parent` (string): a folder's id (or a plan's, for a Subplan); the root when not given; `Before` (string): the id of the child it goes just before; the end when not given.
+- **`copy_item`** `POST /api/items/:id/copy` (answers 201) — Copies a folder, plan or document into a project's root or one of its folders, whole (text, threads, revisions, Subplans, everything under a folder) with every id new; never the Readme or the Context folder. Arguments: `Id` (string, required): the item's id; `Project` (string, required): the project the copy goes into; `Parent` (string): a folder's id; the root when not given.
+- **`archive_item`** `POST /api/items/:id/archive` — Archives a plan with its Subplans: out of the tree into the project's archive, where it is read and never written. Arguments: `Id` (string, required): the plan's id.
+- **`restore_item`** `POST /api/items/:id/restore` — Restores an archived plan, with its Subplans, to the root of its project's tree. Arguments: `Id` (string, required): the plan's id.
+- **`list_revisions`** `GET /api/plans/:id/revisions` — The revisions of a plan or document: each with its number, who made it, when and why (an edit, an apply with its thread, an import). Arguments: `Id` (string, required).
+- **`read_revision`** `GET /api/plans/:id/revisions/:n` — One revision of a plan or document, with its text as it was. Arguments: `Id` (string, required); `Revision` (integer, required): the revision's number.
+- **`list_threads`** `GET /api/plans/:id/threads` — The threads of a plan, each with its status, its anchor and where it is found, its replies, whom it waits on and whether it waits on you; Status keeps one state (contested, resolved, applied, mine ...). Arguments: `Id` (string, required); `Status` (string): a status filter, as Rules.Filter knows them.
+- **`thread`** `POST /api/plans/:id/threads` (answers 201) — A new thread of yours on a plan: on the passage Anchor ({ Text, Prefix?, Suffix? }, plain words of the text, no markdown marks), or on the whole document without it; Resolve posts it resolved, the comment its outcome (Comment and resolve). Arguments: `Id` (string, required): the plan's id; `Text` (string, required): the comment, markdown; `Anchor` (object): { Text, Prefix?, Suffix? }: the passage; the whole document without it; `Resolve` (boolean): post it resolved.
+- **`reply`** `POST /api/plans/:id/threads/:tid/replies` (answers 201) — A reply of yours on a thread; a reply to a settled thread reopens it. Resolve resolves it in the same write, the reply being its outcome (Reply and resolve). Arguments: `Id` (string, required): the plan's id; `Thread` (string, required): the thread's id; `Text` (string, required): the reply, markdown; `Resolve` (boolean).
+- **`reanchor`** `POST /api/plans/:id/threads/:tid/anchor` — Moves a thread, detached or not, onto a passage of the current text: Anchor { Text, Prefix?, Suffix? }, plain words found exactly once. Arguments: `Id` (string, required): the plan's id; `Thread` (string, required): the thread's id; `Anchor` (object, required): { Text, Prefix?, Suffix? }.
+- **`resolve`** `POST /api/plans/:id/threads/:tid/resolve` — Resolves a contested thread, accepting the outcome stated in its last reply; the starter's or an Owner's. A build log resolved with the project's Work options on is committed. Arguments: `Id` (string, required): the plan's id; `Thread` (string, required): the thread's id.
+- **`delete_thread`** `DELETE /api/plans/:id/threads/:tid` — Deletes a thread; the owner's. The revisions that applied it keep their text. Arguments: `Id` (string, required): the plan's id; `Thread` (string, required): the thread's id.
+- **`apply`** `POST /api/plans/:id/threads/:tid/apply` — Applies a resolved thread: Outcome says what was decided; Text is the plan's whole new text when it changes, made from Revision (refused when stale); Anchor moves the thread onto the passage the change produced. Answers the thread and the plan. Arguments: `Id` (string, required): the plan's id; `Thread` (string, required): the thread's id; `Outcome` (string, required): what was decided and done, recorded on the thread; `Text` (string): the whole new text; the outcome alone without it; `Revision` (integer): the revision Text was made from; required with Text; `Anchor` (object): { Text, Prefix?, Suffix? }: the passage the thread points at after.
+- **`waiting`** `GET /api/waiting` — Every thread waiting on you, across every plan and project you may see: the contested threads whose last word is not yours, and the resolved ones to apply; each with its plan.
+- **`list_tasks`** `GET /api/tasks` — The tasks a run can be asked for (Answer, Enhance, Work, Explain, Session and any of your own): the server's list, or the ones a project enables with Project; with the Writes levels, the package switches and the shipped defaults. Arguments: `Project` (string): a project's id: its enabled tasks only.
+- **`list_llms`** `GET /api/llms` — The server's LLM connections (their public part; the whole records for the owner), each with its running run; the kinds and the default prompts; whether this server runs LLMs at all.
+- **`create_llm`** `POST /api/llms` (answers 201) — A new LLM connection from the fields given (Name, Kind, Command or Model and Url, the prompts), filled with the defaults and checked; the owner's. Arguments: `Name` (string); `Kind` (string): one of the kinds list_llms names.
+- **`check_llm`** `POST /api/llms/check` — Checks a connection as given, saved or not: runs its command or asks its Ollama once; the owner's. Arguments: `Kind` (string).
+- **`update_llm`** `PUT /api/llms/:id` — A saved LLM connection changed: the fields given over its record, filled and checked; the owner's. Arguments: `Id` (string, required): the connection's id.
+- **`check_saved_llm`** `POST /api/llms/:id/check` — Checks a saved connection, the fields given over its record (the popup's unsaved ones); the owner's. Arguments: `Id` (string, required): the connection's id.
+- **`delete_llm`** `DELETE /api/llms/:id` — Deletes a saved LLM connection; not while it is running; the owner's. Arguments: `Id` (string, required): the connection's id.
+- **`run_lists`** `GET /api/runs/lists` — What a run of a connection on a plan could package: the project's other Context documents and the plan's threads waiting on the connection, for the packaging popup. Arguments: `Project` (string, required); `Plan` (string); `Llm` (string): the connection's id.
+- **`package_run`** `POST /api/runs/package` — The prompt a run would get, without running it: the task's package over the project and the plan, with the person's instructions (Text) and the connection's unsaved fields (Overrides). Arguments: `Llm` (string, required): the connection's id; `Task` (string, required): the task's id; `Project` (string, required); `Plan` (string); `Text` (string): the instructions for a task with a box; `Overrides` (object).
+- **`start_run`** `POST /api/runs` (answers 201) — Starts a run: the task pressed on a plan (or the project) through a connection, as you, in the project's folder, on a token named after the task that carries its Writes; its record comes back at once (Status running), or queued behind a run of the same plan or connection when there is one (Status queued, Behind which run), to start when its turn comes, packaged afresh; a run that writes files pulls first when the project's GitSync is on. Arguments: `Llm` (string, required): the connection's id; `Task` (string, required): the task's id; `Project` (string, required); `Plan` (string); `Text` (string): the instructions for a task with a box.
+- **`list_runs`** `GET /api/runs` — The run records, newest first: of one connection (Llm, with its running one), of a project, a task or an asker (Project, Task, By). Arguments: `Llm` (string); `Project` (string); `Task` (string); `By` (string): the account that pressed.
+- **`read_run`** `GET /api/runs/:id` — One run's whole record: what it was given, what it answered, its status. Arguments: `Id` (string, required): the run's id.
+- **`stop_run`** `POST /api/runs/:id/stop` — Stops a running or queued run; the one who pressed it, or the Administrator. Arguments: `Id` (string, required): the run's id.
+- **`delete_run`** `DELETE /api/runs/:id` — Removes a run's record; not a running one; the one who pressed it, or the Administrator. Arguments: `Id` (string, required): the run's id.
+- **`list_users`** `GET /api/users` — The server's accounts (the owner, the users, the Service accounts), their public part; whether you are the Administrator.
+- **`create_user`** `POST /api/users` (answers 201) — A new account: a user (Type user, with the email Clerk will match at the first sign-in) or a Service account (Type service); the Administrator's. Arguments: `Type` (string, required): user or service; `Login` (string, required); `Display` (string); `Email` (string).
+- **`read_user`** `GET /api/users/:id` — An account's page: its record with its token names; your own, or any for the Administrator. Arguments: `Id` (string, required): the account's id.
+- **`update_user`** `PUT /api/users/:id` — Changes an account: the Administrator its Login, Display and Email, an account its own Display. Arguments: `Id` (string, required): the account's id; `Login` (string); `Display` (string); `Email` (string).
+- **`delete_user`** `DELETE /api/users/:id` — Deletes an account, out of every project's role folders and its tokens with it; never the owner; the Administrator's. Arguments: `Id` (string, required): the account's id.
+- **`mint_token`** `POST /api/users/:id/tokens` (answers 201) — Mints a token named Name for an account, its value answered this once; an account mints its own, the Administrator a Service account's. Arguments: `Id` (string, required): the account's id; `Name` (string, required): the token's name, unique for the account.
+- **`revoke_token`** `DELETE /api/users/:id/tokens/:name` — Revokes an account's token by its name; your own, or any for the Administrator. Arguments: `Id` (string, required): the account's id; `Name` (string, required): the token's name.
+- **`activity`** `GET /api/users/:id/activity` — An account's activity on the server, newest first: the threads it opened, its replies, resolves, applies and revisions, each with its project and plan; your own, or any for the Administrator. Arguments: `Id` (string, required): the account's id.
+- **`set_roles`** `PUT /api/projects/:pid/roles` — A project's role folders, whole: Owners, Members, Service and Watchers, each a list of account ids, an account in one at most; a person needs the license the folder asks for; an Owner's or the Administrator's. Arguments: `Project` (string, required): the project's id; `Owners` (array); `Members` (array); `Service` (array); `Watchers` (array); `Version` (integer): the project version the change was made from.
+<!-- /operations -->
+
+Four routes are not operations: `GET /api/clerk` (everyone, before identify: `{ On, Required, PublishableKey, FrontendApi, Pricing }`, how people sign in through Clerk, never the secret), `POST /api/clerk/webhook` (Clerk's events, signed with svix-id, svix-timestamp and svix-signature over the raw body; the registry follows them), `GET /api/events` (below), and `POST /api/mcp` (below).
+
+## MCP
+
+The same operations as tools over the Model Context Protocol, for Codex, Cursor, Claude Desktop, Claude Code and any other client of it: `tools/list` describes every operation above with its arguments, `tools/call` performs one as the caller, checked against their role as a request is, posting with the same byline, and answers its JSON as text (a refusal as an error result with the sentence). Two transports, no library:
+
+- `POST /api/mcp`: a JSON-RPC 2.0 message, or a batch, in the body, with the same header a request carries (`X-Consensus-Service`, or `Authorization: Bearer <token>`); the reply as JSON, a notification answered 202 with nothing, a body that is not JSON the protocol's parse error. Nothing is server-initiated: `GET` answers 405.
+- `node bin/mcp.js --server <url or saved name> [--service <name> | --token <token>] [--project <id or name>]`: the stdio transport, a relay on the client's machine to a running server's `POST /api/mcp`, one message per line in and out. `--project` fills in the project for the tools that take one when the client leaves it out.
+
+A project is given by its id or its name wherever an operation takes one. [Working with an LLM](llm.html#through-mcp) says how a client is configured.
 ## The rules, in plain words
 
 - A thread is **contested** until its starter or an Owner of the project resolves it (a Member the threads they started; no vote). Resolving accepts the outcome the last reply states.

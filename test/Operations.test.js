@@ -12,6 +12,7 @@ const ROLES = require( '../src/Roles.js' );
 // The routes of the API as they were before the move, each the operation that serves it now.
 const ROUTES = [
 	[ 'GET', '/me', 'me' ],
+	[ 'GET', '/instructions', 'instructions' ],
 	[ 'GET', '/settings', 'read_settings' ],
 	[ 'PUT', '/settings', 'write_settings' ],
 	[ 'GET', '/plans', 'list_plans' ],
@@ -189,6 +190,22 @@ TEST( 'Perform runs an operation as a participant; a refusal is a Refusal with i
 	} );
 	ASSERT.equal( operations.Get( 'reply' ).Name, 'reply' );
 	ASSERT.equal( operations.Get( 'nothing' ), null );
+} );
+
+
+TEST( 'the API reference lists every operation, rendered from the definition between its markers (plan MCP Server, Step 3)', function ()
+{
+	let page = require( 'fs' ).readFileSync( require( 'path' ).join( __dirname, '..', 'docs', 'guide', 'api.md' ), 'utf8' );
+	let start = page.indexOf( '<!-- operations -->' );
+	let end = page.indexOf( '<!-- /operations -->' );
+	ASSERT.ok( start >= 0 && end > start, 'the page has the operations section' );
+	let section = page.slice( start, end );
+	for ( let operation of OPERATIONS.Definition() )
+	{
+		ASSERT.ok( section.includes( '**`' + operation.Name + '`**' ), operation.Name + ' is on the page' );
+		ASSERT.ok( section.includes( '`' + operation.Method + ' /api' + operation.Path + '`' ), operation.Name + '\'s route is on the page' );
+		ASSERT.ok( section.includes( operation.Description ), operation.Name + '\'s description is on the page' );
+	}
 } );
 
 

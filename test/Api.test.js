@@ -37,7 +37,10 @@ function temporary_folder()
 
 async function call( method, path, body, as_llm )
 {
-	let headers = {};
+	// One connection per call: the server runs in this process, and a test that blocks the event loop for seconds
+	// (the Work options test's git commands) lets the server's keep-alive timer close an idle pooled socket at the
+	// instant the next request goes out on it, which fetch reports as "fetch failed" (found in plan MCP Server).
+	let headers = { Connection: 'close' };
 	if ( body !== undefined )
 	{
 		headers[ 'Content-Type' ] = 'application/json';

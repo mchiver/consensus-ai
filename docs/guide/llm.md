@@ -18,6 +18,8 @@ How you hand the page over depends on what runs the LLM:
 
   Say "with curl": an agent's web-fetch tool often refuses a local or private address, and curl does not. "Load your context" has it read the project's Readme, the tree of plans and what waits on it, and report back in a few lines. From then on, "your turn in Consensus" is the whole prompt. Give the address the agent can reach: `127.0.0.1` for a server on the same machine, the server's name on your network otherwise.
 
+- **An MCP client** (Codex, Cursor, Claude Desktop, or Claude Code with an MCP server configured in place of curl): the server's operations are its tools, under the same names, and `instructions` among them serves this page. See [Through MCP](#through-mcp) below.
+
 - **A run from the page** (an LLM connection of the server): nothing to do. The packaged prompt starts with the same text, made for the run, with the token the server makes for it (when the task packages the instructions, as the shipped ones do), so the model is briefed on every run.
 
 - **A local model through Ollama**: the server swaps the page for its own tool instructions, because the model works through the server's tools rather than the API, and the token never enters its prompt.
@@ -44,8 +46,21 @@ When every thread of a plan is resolved and applied, you say "build it". The ses
 
 You accept by resolving the build log; the session applies it, commits the work in your repository, sets the plan to Finished and brings the project's Readme up to date. You send it back by replying instead: it fixes what the reply asks and reports again on the same thread. Nothing is committed until it is accepted, and nothing in Consensus ever branches, commits or pushes on its own: the two **Work options** on the LLM page, off unless you switch them on for a project, are the only git it does. **Auto-commit** commits the working tree when you resolve a build log posted by a run (the plan's title as the subject, the log as the message) and the thread shows what was committed; **Git sync** pulls before such a run and pushes after the commit. Both need the project's folder to be a git checkout, which the run reports when it is not.
 
-## Connections and runs
+## Through MCP
 
+Every operation of the API is a tool over the **Model Context Protocol**, so a client that speaks it reaches Consensus the way a curl session does, with nothing else changed: a tool is the operation under the same name (`waiting`, `read_plan`, `reply`, `apply`, `write_text`, `thread`, `set_state`, `create_plan` and the rest, every route of [the API](api.html#the-operations)), performed as the person the client acts for, checked against their role as a request is, posting with the same byline; `tools/list` describes each with its arguments. Your words mean the same ("check consensus", "your turn", "build it"), and a sidecar session over MCP works in one project as it does over curl. Two transports, written in the repository without a library:
+
+- **stdio**, a relay on your machine: `node <checkout>/bin/mcp.js --server http://127.0.0.1:3500 --service Claude-CLI`. It sends each message to the running server's `POST /api/mcp` with the header given and passes the reply back; it identifies nobody and holds no state, and it starts no server. `--token <token>` carries an account's token on a shared server; `--server <name>` names a saved server of the global config's Servers list (`~/.consensus/consensus.json`, the list the desktop keeps), whose address and token are taken; `--project <id or name>` fills in the project for the tools that take one when the client leaves it out, which is how the one-project rule is set for a client. For Claude Code, one line configures it:
+
+  > `claude mcp add consensus -- node <checkout>/bin/mcp.js --server http://127.0.0.1:3500 --service Claude-CLI --project <your project>`
+
+  Cursor, Codex and Claude Desktop take the same command in their own configuration files.
+
+- **HTTP**, for a client that connects to a URL: `http://<server>:<port>/api/mcp`, with the header the client would send to the API (`X-Consensus-Service: <name>`, or `Authorization: Bearer <token>`). A JSON-RPC message, or a batch, in the body; the reply as JSON; a notification answered with nothing. The server is stateless across calls and sends nothing of its own.
+
+A project is given by its id or its name wherever a tool takes one. A tool's answer is the operation's JSON as text; a refusal (a stale revision, a role that may not, an anchor not found) is an error result carrying the sentence the API would answer, so the client reads it as it reads a 409.
+
+## Connections and runs
 The server runs an LLM for you, once per click, in a project's folder on its own machine. Its **LLM connections** are kept in its settings and listed once, under the projects of that server in the sidebar; a run through a connection acts for you, and what it posts reads `<connection> by <you>`, such as `claude-cli by User`, on a token the server makes for that run and forgets when it ends, so every reply and every run says which connection posted it and for whom. The owner makes them (**New LLM** in the list's menu), renames them and deletes them; everyone sees them and starts runs.
 
 - An **LLM connection** is a model and how to run it: **Details** names it (letters, digits, dot, dash and colon; a name from before with other characters, such as "Claude CLI" from the desktop's old file, is brought up to date at the next start, the rest turned to dashes), picks the kind, `claude-cli` (a command run without a shell on the server's machine) or `ollama`, the command and its arguments, the model, a timeout, and for Ollama the context window and the most tool rounds a run takes. **Check** tries the connection as entered.

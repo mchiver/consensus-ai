@@ -36,7 +36,10 @@ listening beyond this machine acts as the owner, and reads the llm token at `/in
 An agent session in any repo is started with one line: "read the instructions at
 `http://<server>:<port>/instructions`" (with `curl`). That page is `.guides/build-with-consensus.md` with a
 **This server** section first: the API's address, as the request reached it, and the llm participant's token.
-
+An MCP client (plan MCP Server, 2026-10-23) gets the same operations as tools: `POST /api/mcp` in the server, or the
+stdio relay `node bin/mcp.js --server <url> [--service <name> | --token <token>] [--project <id or name>]` on its own
+machine; every operation of the API is defined once in `src/Operations.js`, which the REST routes, the MCP tools and
+a local model's tools are read from.
 	npm test
 
 runs every test, including the page in a headless Chrome or Edge (`test/Ui.test.js`, which needs one of
@@ -448,8 +451,9 @@ folder, `glob`, `grep` and `read` within its Include and Exclude, and when the t
 (one occurrence, or refused) and `run`, which executes one of the project's **Commands** (one per line in its
 Settings, none by default; a command exactly or with arguments after it; nothing that chains, pipes,
 redirects or substitutes, on the list or in a call); over the server itself, as the connection's participant
-with its Token, `list_project`, `read_plan`, `read_document`, `waiting`, `reply`, `apply` (the current
-revision supplied), `write_text` (the whole text as a revision), `thread` and `set_state`, each held to the project the run is on, a server's refusal
+with its Token, the operations of the definition it may call (plan MCP Server, Step 2: `list_projects`, `read_plan` (a document too),
+`list_threads`, `list_revisions`, `read_revision` and `waiting` to read; `thread`, `reply`, `reanchor`, `apply` (the current
+revision supplied), `write_text` (the whole text as a revision, the revision supplied), `set_state` and `create_plan` to write), each held to the project the run is on, a server's refusal
 going back to the model as the tool's result. The package is the same, except that the agent instructions
 (which say how to call the API with the token) are replaced by the server's tool instructions, so the token
 never enters a local model's prompt. The run keeps its `Transcript` as entries (a round's text, a call with
@@ -595,7 +599,9 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 	src/Server.js         Start( { Config, Port, Scope } )
 	src/Api.js            the routes
 	src/Instructions.js   GET /instructions: the agent guide with This server first
-	src/Rules.js          the consensus rules, pure functions
+	src/Operations.js     every operation defined once (plan MCP Server): name, description, parameters, action, the function; Route and Definition for a client
+	src/Mcp.js            the Model Context Protocol over the operations: initialize, ping, tools/list, tools/call; no transport in it
+	bin/mcp.js            the MCP stdio relay to a running server (consensus-mcp)	src/Rules.js          the consensus rules, pure functions
 	src/Tree.js           a project's tree, pure functions; the Context folder's rules
 	src/Anchors.js        visible-text anchors
 	src/Store.js          the config folder and the project folders, the archive, and the migrations (before Step 1, before Step 2)

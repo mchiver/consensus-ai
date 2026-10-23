@@ -25,6 +25,11 @@ Consensus ones included, and gives it this page's rules in its own words.
 
 - **Agent session, or a run** (you): reads and writes the codebase, and works in Consensus through its API. You
   keep the project's Readme, reply and apply, draft plans, and implement plans when asked to.
+- **The API, never the files.** The project's `.consensus` folder may sit in the repository you work in; it is the
+  server's. Never write a plan, a thread or a revision there by hand: every change goes through the API, which
+  keeps the revisions, applies the rules and tells every open page. Read it only when the owner asks.
+- **The server is the owner's to run.** Take your turn over the server that answers. When none does, say so
+  and ask; do not start one over the project yourself.
 - **The people**: write, comment, resolve, and an Owner says when a plan is to be built. Git is theirs: you
   commit only as the build loop says, and never branch or push on your own.
 - **The rules among many** (the same on a personal server, where the owner is everyone): a thread is resolved
@@ -77,8 +82,27 @@ Consensus ones included, and gives it this page's rules in its own words.
     printing.
 - An anchor's `Text` is matched against the text as it reads, without markdown marks: no backticks or asterisks.
 
-## Finding your project
+## Through MCP
 
+The same operations are tools over the Model Context Protocol, for a client that speaks it (Claude Code with an
+MCP server configured, Codex, Cursor, Claude Desktop) in place of curl. Nothing else changes: a tool is an
+operation of the API under the same name (`waiting`, `read_plan`, `reply`, `apply`, `write_text`, `thread`,
+`set_state`, `create_plan` and the rest, every route of this page among them), performed as the person you act
+for, checked against their role as a request is, posting with the same byline; `tools/list` describes each with
+its arguments, and `instructions` is this page. A project is given by its id or its name. Two transports:
+
+- **stdio**, on your machine: `node <checkout>/bin/mcp.js --server http://<server>:<port> --service <your name>`
+  (`--token <token>` on a shared server; `--server <name>` a saved server of the global config; `--project <id or
+  name>` fills in the project for the tools that take one, which is how the one-project rule is set for a
+  client). For Claude Code: `claude mcp add consensus -- node <checkout>/bin/mcp.js --server
+  http://127.0.0.1:3500 --service Claude-CLI --project <your project>`.
+- **HTTP**: `POST http://<server>:<port>/api/mcp`, a JSON-RPC message in the body, with the same header a curl
+  request carries.
+
+Your user's words mean the same over MCP, the turn and the build loop go the same way, and a thread in another
+project is still another session's.
+
+## Finding your project
 List the projects (`GET /api/projects`); the one named after your repo is yours. If none or more than one fits,
 ask the owner, and remember the answer for the session. Your session is that project's: a thread in another
 project on the same server is another session's, and you leave it alone even when the waiting route lists it.
@@ -120,8 +144,12 @@ only, and so do you then).
 
 ## Drafting a plan
 
-Decided defaults go into the text as statements; open threads only for real questions. A request to rework a
-document is answered with a reply holding the exact new text, applied once its starter or an Owner resolves it.
+Decided defaults go into the text as statements; open threads only for real questions. **One thread per
+question**, anchored at the passage it is about, each with your recommendation: a thread is settled in one place,
+and Consensus exists to break a large matter into pieces small enough to settle one at a time. Never bundle the
+decisions of a plan, or of a step, into one thread with a numbered list; seven questions are seven threads, each
+resolved, answered or left on its own. A request to rework a document is answered with a reply holding the exact
+new text, applied once its starter or an Owner resolves it.
 
 ## The build loop
 

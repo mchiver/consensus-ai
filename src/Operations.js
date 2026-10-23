@@ -39,6 +39,7 @@ const TASKS = require( './Tasks.js' );
 const ROLES = require( './Roles.js' );
 const LLM = require( './Llm.js' );
 const REPORT = require( './Report.js' );
+const INSTRUCTIONS = require( './Instructions.js' );
 const VERSION = require( '../package.json' ).version;
 
 const ACTIVITY_LIMIT = 200;	// the entries an account's activity page lists
@@ -477,6 +478,22 @@ function Operations( Context )
 		{
 			let account = ( users && participant.Id ) ? users.Public( users.Get( participant.Id ), false ) : null;
 			return { Me: PARTICIPANTS.Public( participant ), Account: account, Admin: is_admin( participant ), Roles: await roles_of( participant ), Participants: await speakers( null, [], participant ), States: states(), Version: VERSION, Server: settings.Name || null };
+		},
+	} );
+
+
+	// The instructions (plan MCP Server, Step 3): the page an agent session reads at /instructions, served here for a
+	// client that has the operations alone (an MCP client), with This server first when the server knows its address.
+	define( {
+		Name: 'instructions',
+		Method: 'GET',
+		Path: '/instructions',
+		Description: 'The instructions for an LLM working with this server: what Consensus is, how to call it, what your user\'s words mean ("check consensus", "your turn", "build it"), the turn and the build loop; This server first, with the API\'s address and how to say who you are. Read it first.',
+		Parameters: {},
+		Perform: async function ()
+		{
+			let base = ( typeof Context.Url === 'function' ) ? String( Context.Url() || '' ).replace( /\/+$/, '' ) : '';
+			return Answer( 200, INSTRUCTIONS.Make( settings, base || 'http://<server>:<port>', await INSTRUCTIONS.Guide() ), 'text/plain; charset=utf-8' );
 		},
 	} );
 
@@ -2719,7 +2736,7 @@ function Operations( Context )
 		Method: 'POST',
 		Path: '/runs',
 		Status: 201,
-		Description: 'Starts a run: the task pressed on a plan (or the project) through a connection, as you, in the project\'s folder; its record comes back at once, queued behind a run of the same plan or connection when there is one.',
+		Description: 'Starts a run: the task pressed on a plan (or the project) through a connection, as you, in the project\'s folder, on a token named after the task that carries its Writes; its record comes back at once (Status running), or queued behind a run of the same plan or connection when there is one (Status queued, Behind which run), to start when its turn comes, packaged afresh; a run that writes files pulls first when the project\'s GitSync is on.',
 		Parameters: {
 			Llm: { Type: 'string', Required: true, Description: 'the connection\'s id' },
 			Task: { Type: 'string', Required: true, Description: 'the task\'s id' },
