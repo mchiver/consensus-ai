@@ -12,7 +12,8 @@
 // (hotkeys.js). An unsaved edit is kept with the plan's tab (Tabs.SetDraft), so switching tabs and back brings it back.
 // In the CodeMirror editor the threads' passages are highlighted (Step 3): the server's positions in the plain text,
 // mapped onto the source by the anchor map when its plain text is the server's, set on the saved text and following
-// the text through edits until the next save; a mousedown on a mark selects its thread. The editor does the rest
+// the text through edits until the next save; a mousedown on a mark selects its thread, and a click off any mark
+// that leaves no selection deselects it (plan UI Tweaks X). The editor does the rest
 // of what the Read view does with the threads (plan Markdown Editor, Step 2): a thread selected elsewhere scrolls
 // to its passage and flashes it; a selection offers the selection-buttons (Copy always, Comment or Re-anchor here
 // and Start a new Subplan while the text is the saved one); a pending select, scroll or compose is settled here
@@ -123,7 +124,7 @@ angular.module( 'Consensus' ).component( 'editView', {
 			else
 			{
 				controller.Engine = wanted;
-				creating = factory_of( wanted ).Create( element, text, on_change, { OnAnchorClick: on_anchor_click, OnSelection: on_selection }, { Preview: !State.Source, ReadOnly: read_only } );
+				creating = factory_of( wanted ).Create( element, text, on_change, { OnAnchorClick: on_anchor_click, OnBlankClick: on_blank_click, OnSelection: on_selection }, { Preview: !State.Source, ReadOnly: read_only } );
 				instance = await creating;
 				creating = null;
 				if ( instance.View )
@@ -272,6 +273,21 @@ angular.module( 'Consensus' ).component( 'editView', {
 				{
 					card.scrollIntoView( { block: 'nearest', behavior: 'smooth' } );
 				}
+			} );
+		}
+
+
+		// A click in the editor off any mark that leaves the caret deselects the thread (plan UI Tweaks X), as the Read view's
+		// blank click does; not while a thread is being re-anchored. The editor has already skipped a click ending a drag.
+		function on_blank_click()
+		{
+			if ( State.Reanchoring || !State.Selected )
+			{
+				return;
+			}
+			$scope.$applyAsync( function ()
+			{
+				State.Select( null );
 			} );
 		}
 

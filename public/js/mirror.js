@@ -16,8 +16,8 @@
 // strikethrough, as the server renders them). Its anchors: SetAnchors
 // takes [ { From, To, Id, State } ] in source offsets and marks them (class anchor, the state, selected), the marks
 // following the text through edits; SetSelected restyles for the selected thread; a mousedown on a mark calls
-// Handlers.OnAnchorClick( ids ) with the threads under the pointer; Handlers.OnSelection() is called when the
-// selection changes. ScrollTo( From ) brings a position to the middle; Flash( From, To ) marks a range for a second
+// Handlers.OnAnchorClick( ids ) with the threads under the pointer, and a click off any mark that leaves no selection
+// calls Handlers.OnBlankClick() (plan UI Tweaks X); Handlers.OnSelection() is called when the selection changes. ScrollTo( From ) brings a position to the middle; Flash( From, To ) marks a range for a second
 // (plan Markdown Editor, Step 2). GetPlace and SetPlace (plan UI Tweaks IX): the scroll and the selection, kept per tab.
 // The keys (plan UI Tweaks IX): Ctrl+Up and Ctrl+Down scroll a line, Ctrl+B and Ctrl+I toggle bold (**) and italic (_)
 // around the selection or the word at the caret. The Live Preview's table widget marks the anchors within it with the
@@ -400,6 +400,20 @@ angular.module( 'Consensus.Mirror', [] ).factory( 'Mirror', [ '$q', 'Render', fu
 						{
 							Handlers.OnAnchorClick( ids );
 						}
+						return false;
+					},
+					// a click off any mark that leaves the caret (not one ending a drag) deselects the thread (plan UI Tweaks X)
+					click: function ( event, view )
+					{
+						if ( !Handlers || !Handlers.OnBlankClick || event.target.closest( '.anchor' ) )
+						{
+							return false;
+						}
+						if ( !view.state.selection.main.empty )
+						{
+							return false;
+						}
+						Handlers.OnBlankClick();
 						return false;
 					},
 				} ),

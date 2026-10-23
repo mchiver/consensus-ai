@@ -1170,6 +1170,13 @@ TEST( 'CodeMirror (plan UI Components, Step 3): the Editor setting switches the 
 	await click_first_line( '#editor .cm-content .anchor[data-threads="' + claim.Id + '"]' );
 	await page.WaitFor( count_of( '.thread.selected' ) + ' === 1 && document.querySelector( ".thread.selected" ).id === "thread-' + claim.Id + '"' );
 	await page.WaitFor( MARKS + ' === "bold claim:contested selected another one:resolved"' );
+	// a click in the text off any mark deselects (plan UI Tweaks X), as in the Read view; the mark again reselects
+	await click_line( 'A closing line.' );
+	await page.WaitFor( count_of( '.thread.selected' ) + ' === 0' );
+	await page.WaitFor( MARKS + ' === "bold claim:contested another one:resolved"' );
+	await click_first_line( '#editor .cm-content .anchor[data-threads="' + claim.Id + '"]' );
+	await page.WaitFor( count_of( '.thread.selected' ) + ' === 1' );
+	await page.WaitFor( MARKS + ' === "bold claim:contested selected another one:resolved"' );
 	// typing at the top: the marks follow their words; Ctrl+S saves, and the server finds them again
 	await page.Evaluate( 'document.querySelector( "#editor .cm-content" ).focus(); true' );
 	await page.Press( 'Home', [ 'Control' ] );

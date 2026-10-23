@@ -90,7 +90,7 @@ heading counting what is there; Empty Trash in its menu (the owner's) removes it
 
 The button at the right end of the tab strip hides or shows the threads pane (its mirror at the left end the
 tree; Ctrl+Shift+T and Ctrl+Shift+E too); each is remembered in the browser. A selected thread
-stays listed whatever the filter; Escape deselects it (in Monaco mode's Read view a click off any highlight does too), and after
+stays listed whatever the filter; Escape or a click in the text off any highlight deselects it, and after
 the owner's own reply or resolve the selection passes to the next thread in the pane (plan UI Tweaks VI).
 Selecting text offers Copy (the text as it reads), Comment and Start
 a new Subplan, in the editor as in Monaco mode's Read view. The owner deletes a thread with the × on its first line; a
