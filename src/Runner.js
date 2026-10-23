@@ -294,7 +294,7 @@ function Runner( Options )
 			Token: is_ollama ? null : Token,
 			Instructions: instructions,
 			InstructionsTitle: is_ollama ? 'Tool instructions' : 'Agent instructions',
-			DocumentsHint: is_ollama ? 'Read one with the read_document tool.' : undefined,
+			DocumentsHint: is_ollama ? 'Read one with the read_plan tool.' : undefined,
 			Readme: readme,
 			Documents: documents_of( project ).filter( function ( document ) { return !llm.Unchecked.Documents.includes( document.Id ); } ),
 			Threads: threads,

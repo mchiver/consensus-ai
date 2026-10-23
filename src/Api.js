@@ -5,7 +5,9 @@
 // as JSON (a Refusal as { Error } with its status). Nothing is decided here: every rule lives in Operations.js or
 // Rules.js, none in a client, so the page and the LLM's curl see the same API. What stays here is HTTP's own: the
 // JSON body, who is calling (identify) and whether the route's action is theirs (authorize), Clerk's two routes before
-// identify, the 404 and the error handler.
+// identify, the 404 and the error handler. POST /api/mcp (plan MCP Server, Step 2) is the Model Context Protocol's
+// network transport: a JSON-RPC message (or a batch) in the body, handled by Mcp.js as the request's participant, each
+// tool call checked against its own operation's action; a notification is answered 202 with nothing.
 //
 //   Attach( App, Context ) -> the operations (Operations.Operations( Context )), mounted under /api
 //     Context = { Store, Settings, Events, Runs?, Runner?, Git?, Tokens?, Users?, Clerk? }
@@ -20,12 +22,11 @@ const EXPRESS = require( 'express' );
 const PARTICIPANTS = require( './Participants.js' );
 const ROLES = require( './Roles.js' );
 const OPERATIONS = require( './Operations.js' );
+const MCP = require( './Mcp.js' );
 
 const BODY_LIMIT = '64mb';	// a project import is one json body, every revision of every plan in it
 const LOOPBACK = [ '127.0.0.1', '::1', '::ffff:127.0.0.1' ];
-
-// The path parameters by the names the operations take their arguments under.
-const PARAM_NAMES = { id: 'Id', pid: 'Project', fid: 'Folder', tid: 'Thread', n: 'Revision', name: 'Name' };
+const PARAM_NAMES = OPERATIONS.PARAM_NAMES;
 
 
 //---------------------------------------------------------------------
@@ -40,6 +41,7 @@ function Attach( App, Context )
 	let users = Context.Users || null;
 	let clerk = Context.Clerk || null;
 	let operations = OPERATIONS.Operations( Context );
+	let mcp = MCP.Mcp( { Operations: operations, Store: store, Authorize: authorize_operation } );
 	let router = EXPRESS.Router();
 	// Before identify (Step 4): what the page needs to sign in, and Clerk's events over the raw body.
 	router.get( '/clerk', function ( request, response )
@@ -47,6 +49,13 @@ function Attach( App, Context )
 		response.json( clerk ? clerk.Config() : { On: false, Required: false, PublishableKey: null, FrontendApi: null, Pricing: null } );
 	} );
 	router.post( '/clerk/webhook', EXPRESS.raw( { type: function () { return true; }, limit: '1mb' } ), clerk_webhook );
+	// The MCP transport reads its body as text, so that a body that is not JSON is answered the protocol's way.
+	router.post( '/mcp', EXPRESS.text( { type: function () { return true; }, limit: BODY_LIMIT } ), identify, authorize, mcp_route );
+	router.all( '/mcp', function ( request, response )
+	{
+		response.set( 'Allow', 'POST' );
+		fail( response, 405, 'POST a JSON-RPC message' );
+	} );
 	router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
 	router.use( identify );
 	router.use( authorize );
@@ -198,65 +207,80 @@ function Attach( App, Context )
 	}
 
 
+	//-----------------------------------------------------------------
 	// Authorization (plan User Management, Step 3): the owner account passes; anyone else is checked against the
 	// route's action (Roles.js) and their role in the route's project, found before the route runs; the server's own
 	// routes are the Administrator's; the list routes narrow themselves; an account's own page checks itself.
 	// request.Role is the role found, and the account carries it as ProjectRole for the rules and the operations.
+	// check() is the rule itself, over a method, a path and the arguments, so that the MCP transport asks it for each
+	// tool call (authorize_operation) as the middleware asks it for each request.
+
 	async function authorize( request, response, next )
 	{
-		let account = request.Participant;
-		request.Role = null;
+		let found = null;
+		try
+		{
+			found = await check( request.Participant, request.method, request.path, request.body, request.query );
+		}
+		catch ( error )
+		{
+			if ( OPERATIONS.IsRefusal( error ) )
+			{
+				return fail( response, error.Status, error.Error, error.Extra );
+			}
+			return fail( response, 500, 'internal error: ' + error.message );
+		}
+		request.Role = found.Role;
+		if ( found.ProjectId )
+		{
+			request.ProjectId = found.ProjectId;
+		}
+		next();
+	}
+
+
+	// { Role, ProjectId } when the account may, else a Refusal thrown; the account's ProjectRole set for the rules.
+	async function check( account, method, path, body, query )
+	{
 		if ( account.Role === 'owner' )
 		{
-			request.Role = 'Owners';
 			account.ProjectRole = 'Owners';
-			return next();
+			return { Role: 'Owners', ProjectId: null };
 		}
-		let rule = ROLES.Rule( request.method, request.path );
+		let rule = ROLES.Rule( method, path );
 		if ( rule.Action === 'open' || rule.Action === 'list' || rule.Action === 'self' )
 		{
-			return next();
+			return { Role: null, ProjectId: null };
 		}
 		if ( rule.Action === 'admin' )
 		{
 			if ( account.Admin )
 			{
-				return next();
+				return { Role: null, ProjectId: null };
 			}
-			return fail( response, 403, 'the Administrator\'s' );
+			throw new OPERATIONS.Refusal( 403, 'the Administrator\'s' );
 		}
-		let project = null;
-		try
-		{
-			project = await project_for( rule, request );
-		}
-		catch ( error )
-		{
-			return fail( response, 500, 'internal error: ' + error.message );
-		}
+		let project = await project_for( rule, body, query );
 		if ( !project )
 		{
-			return fail( response, 404, ( rule.Source === 'body' || rule.Source === 'query' ) ? 'a Project is needed' : 'no such project' );
+			throw new OPERATIONS.Refusal( 404, ( rule.Source === 'body' || rule.Source === 'query' ) ? 'a Project is needed' : 'no such project' );
 		}
 		let role = ROLES.RoleOf( project, account.Id );
 		if ( rule.Action === 'roles' && account.Admin )
 		{
-			request.Role = role;
-			return next();
+			return { Role: role, ProjectId: null };
 		}
 		if ( !role || !ROLES.Allows( role, rule.Action ) )
 		{
-			return fail( response, 403, ROLES.Reason( role, rule.Action ) );
+			throw new OPERATIONS.Refusal( 403, ROLES.Reason( role, rule.Action ) );
 		}
-		request.Role = role;
-		request.ProjectId = project.Id;
 		account.ProjectRole = role;
-		next();
+		return { Role: role, ProjectId: project.Id };
 	}
 
 
 	// The project a route is about: by its id, the plan's or the item's project, or the Project field of the body or the query.
-	async function project_for( rule, request )
+	async function project_for( rule, body, query )
 	{
 		if ( rule.Source === 'param' )
 		{
@@ -266,8 +290,16 @@ function Attach( App, Context )
 		{
 			return await store.ProjectOf( rule.Id );
 		}
-		let id = ( rule.Source === 'body' ) ? ( request.body || {} ).Project : request.query.Project;
+		let id = ( rule.Source === 'body' ) ? ( body || {} ).Project : ( query || {} ).Project;
 		return id ? await store.ReadProject( String( id ) ) : null;
+	}
+
+
+	// The MCP transport's check of one tool call: the operation's route with the arguments, as the API would see it.
+	async function authorize_operation( participant, operation, args )
+	{
+		let route = OPERATIONS.Route( operation, args );
+		await check( participant, route.Method, route.Path, args, args );
 	}
 
 
@@ -329,6 +361,36 @@ function Attach( App, Context )
 	function capitalized( key )
 	{
 		return key ? key.charAt( 0 ).toUpperCase() + key.slice( 1 ) : key;
+	}
+
+
+	// The MCP transport: the body a JSON-RPC message or a batch, the reply as JSON; a notification 202 with nothing;
+	// a body that is not JSON the protocol's parse error.
+	async function mcp_route( request, response, next )
+	{
+		let text = ( typeof request.body === 'string' ) ? request.body : ( Buffer.isBuffer( request.body ) ? request.body.toString( 'utf8' ) : '' );
+		let message = null;
+		try
+		{
+			message = JSON.parse( text );
+		}
+		catch ( error )
+		{
+			return response.json( { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'the body is not JSON' } } );
+		}
+		try
+		{
+			let answer = await mcp.Handle( message, request.Participant );
+			if ( answer === null || ( Array.isArray( answer ) && !answer.length ) )
+			{
+				return response.status( 202 ).end();
+			}
+			response.json( answer );
+		}
+		catch ( error )
+		{
+			next( error );
+		}
 	}
 
 

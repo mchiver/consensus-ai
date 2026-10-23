@@ -29,7 +29,8 @@
 		"monaco-editor": "0.56.0"
 	},
 	"bin": {
-		"consensus": "bin/consensus.js"
+		"consensus": "bin/consensus.js",
+		"consensus-mcp": "bin/mcp.js"
 	},
 	"devDependencies": {
 		"electron": "^44.5.1",

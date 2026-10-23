@@ -3221,10 +3221,58 @@ function Operations( Context )
 }
 
 
+//---------------------------------------------------------------------
+// For a client of the definition (plan MCP Server, Step 2: the MCP server, the stdio relay, the run's tools).
+
+// The path's parameters by the names the operations take their arguments under: Api.js maps a route's :id to Id on
+// the way in, and Route maps Id back onto the path on the way out.
+const PARAM_NAMES = { id: 'Id', pid: 'Project', fid: 'Folder', tid: 'Thread', n: 'Revision', name: 'Name' };
+
+
+// Route( Operation, Arguments ): the HTTP request a call of the operation is, for a client building it: the Method,
+// the Path with its :params filled from the arguments (encoded), and the other arguments as the Query of a GET or
+// the Body of anything else.
+function Route( Operation, Arguments )
+{
+	let args = Object.assign( {}, Arguments || {} );
+	let path = Operation.Path.replace( /:([a-z]+)/g, function ( whole, param )
+	{
+		let name = PARAM_NAMES[ param ] || param;
+		let value = args[ name ];
+		delete args[ name ];
+		return encodeURIComponent( ( value === undefined || value === null ) ? '' : String( value ) );
+	} );
+	if ( Operation.Method === 'GET' )
+	{
+		let query = {};
+		for ( let key of Object.keys( args ) )
+		{
+			if ( args[ key ] !== undefined && args[ key ] !== null )
+			{
+				query[ key ] = String( args[ key ] );
+			}
+		}
+		return { Method: Operation.Method, Path: path, Query: query, Body: null };
+	}
+	return { Method: Operation.Method, Path: path, Query: null, Body: args };
+}
+
+
+// Definition(): the list alone, with no store behind it: the names, descriptions, parameters and actions, for a
+// client that needs them without a server.
+function Definition()
+{
+	return Operations( {} ).List;
+}
+
+
 module.exports = {
 	Operations: Operations,
 	Refusal: Refusal,
 	Answer: Answer,
 	IsRefusal: IsRefusal,
 	IsAnswer: IsAnswer,
+	PARAM_NAMES: PARAM_NAMES,
+	Route: Route,
+	Definition: Definition,
 };

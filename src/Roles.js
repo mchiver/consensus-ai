@@ -49,6 +49,7 @@ const ACTION_WORDS = {
 // pattern is the project's (param), a plan's (plan) or an item's (item); body and query name the field Project.
 const RULES = [
 	[ 'GET', /^\/(me|tasks|llms|users|runs|runs\/run-[^/]+)$/, 'open', null ],
+	[ 'POST', /^\/mcp$/, 'open', null ],	// the MCP transport (plan MCP Server, Step 2): each operation is checked on its own action inside
 	[ 'GET', /^\/(projects|plans|waiting)$/, 'list', null ],
 	[ 'GET', /^\/trash$/, 'admin', null ],
 	[ 'GET|PUT', /^\/settings$/, 'admin', null ],

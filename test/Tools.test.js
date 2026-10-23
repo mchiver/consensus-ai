@@ -118,10 +118,10 @@ TEST( 'the file tools: glob, grep and read over the folder; write, edit and run 
 	ASSERT.equal( FS.existsSync( PATH.join( place.Path, 'x' ) ), false );
 	ASSERT.deepEqual( TOOLS.Tools( { Writes: 'consensus', Folder: null } ).Definitions, [] );
 	let read_only = TOOLS.Tools( { Writes: 'none', Folder: place, Server: { Url: 'http://127.0.0.1:1', Token: 't', Project: 'p' } } );
-	ASSERT.deepEqual( read_only.Definitions.map( function ( d ) { return d.function.name; } ), [ 'glob', 'grep', 'read', 'list_project', 'read_plan', 'read_document', 'waiting' ] );
+	ASSERT.deepEqual( read_only.Definitions.map( function ( d ) { return d.function.name; } ), [ 'glob', 'grep', 'read', 'list_projects', 'read_plan', 'list_threads', 'list_revisions', 'read_revision', 'waiting' ] );
 	ASSERT.match( read_only.Instructions(), /This run reads only/ );
 	ASSERT.equal( read_only.Instructions().includes( 'Your turn in Consensus' ), false );
-	ASSERT.match( await read_only.Call( 'reply', { Plan: 'p', Thread: 't', Text: 'x' } ), /no tool named reply/ );
+	ASSERT.match( await read_only.Call( 'reply', { Id: 'p', Thread: 't', Text: 'x' } ), /no tool named reply/ );
 	let consensus = TOOLS.Tools( { Writes: 'consensus', Folder: place, Server: { Url: 'http://127.0.0.1:1', Token: 't', Project: 'p' } } ).Instructions();
 	ASSERT.match( consensus, /Your turn in Consensus/ );
 	ASSERT.equal( consensus.includes( 'The build loop' ), false );
@@ -233,9 +233,9 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 
 		// the tools call the API on a run token the server made (plan User Management, Step 2)
 		let tools = TOOLS.Tools( { Writes: 'consensus', Folder: null, Server: { Url: url, Token: target.Tokens.Mint( { Service: 'llm', Name: 'Review run', Project: project.Id } ), Project: project.Id } } );
-		ASSERT.deepEqual( tools.Definitions.map( function ( d ) { return d.function.name; } ), [ 'list_project', 'read_plan', 'read_document', 'waiting', 'reply', 'apply', 'write_text', 'thread', 'set_state' ] );
+		ASSERT.deepEqual( tools.Definitions.map( function ( d ) { return d.function.name; } ), [ 'list_projects', 'read_plan', 'list_threads', 'list_revisions', 'read_revision', 'waiting', 'thread', 'reply', 'reanchor', 'apply', 'write_text', 'set_state', 'create_plan' ] );
 
-		let listed = await tools.Call( 'list_project', {} );
+		let listed = await tools.Call( 'list_projects', {} );
 		ASSERT.match( listed, new RegExp( '^Project ' + project.Name + ' \\(' + project.Id + '\\), its Readme is ' ) );
 		ASSERT.match( listed, new RegExp( '- plan The plan \\(' + plan.Id + ', Draft' ) );
 		ASSERT.match( listed, new RegExp( '  - document Notes \\(' + document.Id + '\\)' ) );
@@ -249,7 +249,7 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		ASSERT.match( await tools.Call( 'read_plan', { Id: elsewhere.Id } ), /is not in this project/ );
 		ASSERT.match( await tools.Call( 'read_plan', { Id: 'pln-no-such-one' } ), /read_plan failed: Consensus answered 404/ );
 		ASSERT.match( await tools.Call( 'read_plan', {} ), /an id is needed/ );
-		ASSERT.match( await tools.Call( 'read_document', { Id: document.Id } ), new RegExp( '^# Notes \\(' + document.Id + '\\)\n\n# Notes\n\nSome notes.$' ) );
+		ASSERT.match( await tools.Call( 'read_plan', { Id: document.Id } ), new RegExp( '^# Notes \\(' + document.Id + '\\), revision 1\n\n# Notes\n\nSome notes.$' ) );
 
 		let waiting = await tools.Call( 'waiting', {} );
 		ASSERT.match( waiting, new RegExp( '^## The plan \\(' + plan.Id + ', revision 1\\)' ) );
@@ -258,15 +258,15 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		ASSERT.doesNotMatch( waiting, /Elsewhere/ );
 		ASSERT.equal( await tools.Call( 'waiting', { Plan: elsewhere.Id } ), 'nothing waits on you in ' + elsewhere.Id );
 
-		ASSERT.equal( await tools.Call( 'reply', { Plan: plan.Id, Thread: contested.Id, Text: 'Because it comes first.' } ), 'replied on ' + contested.Id );
+		ASSERT.equal( await tools.Call( 'reply', { Id: plan.Id, Thread: contested.Id, Text: 'Because it comes first.' } ), 'replied on ' + contested.Id );
 		let after_reply = ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body;
 		let replied = after_reply.Threads.find( function ( t ) { return t.Id === contested.Id; } );
 		ASSERT.deepEqual( [ replied.Replies[ 1 ].By, replied.Replies[ 1 ].Service, replied.Replies[ 1 ].Token ], [ 'user', 'llm', 'Review run' ] );
 		ASSERT.equal( replied.Replies[ 1 ].Text, 'Because it comes first.' );
-		ASSERT.match( await tools.Call( 'reply', { Plan: elsewhere.Id, Thread: 'x', Text: 'no' } ), /not in this project/ );
+		ASSERT.match( await tools.Call( 'reply', { Id: elsewhere.Id, Thread: 'x', Text: 'no' } ), /not in this project/ );
 
 		// apply: the current revision is supplied; the anchor moves the thread
-		let applied = await tools.Call( 'apply', { Plan: plan.Id, Thread: resolved.Id, Outcome: 'Said third.', Text: '# The plan\n\nA first line.\n\nA third line.\n', Anchor: 'A third line.' } );
+		let applied = await tools.Call( 'apply', { Id: plan.Id, Thread: resolved.Id, Outcome: 'Said third.', Text: '# The plan\n\nA first line.\n\nA third line.\n', Anchor: 'A third line.' } );
 		ASSERT.equal( applied, 'applied ' + resolved.Id + ', the plan is at revision 2' );
 		let after_apply = ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body;
 		ASSERT.equal( after_apply.Plan.Revision, 2 );
@@ -274,28 +274,28 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		let moved = after_apply.Threads.find( function ( t ) { return t.Id === resolved.Id; } );
 		ASSERT.equal( moved.Anchor.Text, 'A third line.' );
 		ASSERT.equal( !!moved.Applied, true );
-		ASSERT.match( await tools.Call( 'apply', { Plan: plan.Id, Thread: resolved.Id, Outcome: 'again' } ), /apply failed: Consensus answered 409/ );
-		ASSERT.match( await tools.Call( 'apply', { Plan: plan.Id, Thread: contested.Id, Outcome: 'x', Text: 'y', Anchor: 'not in the text' } ), /Consensus answered/ );
+		ASSERT.match( await tools.Call( 'apply', { Id: plan.Id, Thread: resolved.Id, Outcome: 'again' } ), /apply failed: Consensus answered 409/ );
+		ASSERT.match( await tools.Call( 'apply', { Id: plan.Id, Thread: contested.Id, Outcome: 'x', Text: 'y', Anchor: 'not in the text' } ), /Consensus answered/ );
 
-		let posted = await tools.Call( 'thread', { Plan: plan.Id, Text: 'A point on the first line.', Anchor: 'A first line.' } );
+		let posted = await tools.Call( 'thread', { Id: plan.Id, Text: 'A point on the first line.', Anchor: 'A first line.' } );
 		ASSERT.match( posted, /^posted thread thr-\S+ on "A first line."$/ );
-		ASSERT.match( await tools.Call( 'thread', { Plan: plan.Id, Text: 'On the whole.' } ), /^posted thread thr-\S+ on the whole document$/ );
-		ASSERT.match( await tools.Call( 'thread', { Plan: plan.Id, Text: 'x', Anchor: 'nowhere at all' } ), /anchor text was not found/ );
+		ASSERT.match( await tools.Call( 'thread', { Id: plan.Id, Text: 'On the whole.' } ), /^posted thread thr-\S+ on the whole document$/ );
+		ASSERT.match( await tools.Call( 'thread', { Id: plan.Id, Text: 'x', Anchor: 'nowhere at all' } ), /anchor text was not found/ );
 		ASSERT.equal( ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body.Threads.length, 4 );
 
 		// write_text (plan LLM Tasks, Step 2): the whole text as a revision, the current revision supplied; the threads stay
-		ASSERT.equal( await tools.Call( 'write_text', { Plan: plan.Id, Text: '# The plan\n\nA first line.\n\nA third line.\n\nA fourth line.\n' } ), 'wrote ' + plan.Id + ', the plan is at revision 3' );
+		ASSERT.equal( await tools.Call( 'write_text', { Id: plan.Id, Text: '# The plan\n\nA first line.\n\nA third line.\n\nA fourth line.\n' } ), 'wrote ' + plan.Id + ', the plan is at revision 3' );
 		let after_write = ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body;
 		ASSERT.equal( after_write.Plan.Revision, 3 );
 		ASSERT.match( after_write.Text, /A fourth line\./ );
 		ASSERT.equal( after_write.Threads.length, 4 );
 		let revisions = ( await owner( url, 'GET', '/api/plans/' + plan.Id + '/revisions' ) ).Body.Revisions;
 		ASSERT.deepEqual( [ revisions[ 2 ].By, revisions[ 2 ].Service, revisions[ 2 ].Token, revisions[ 2 ].Reason ], [ 'user', 'llm', 'Review run', 'edit' ] );
-		ASSERT.match( await tools.Call( 'write_text', { Plan: elsewhere.Id, Text: 'x' } ), /not in this project/ );
-		ASSERT.equal( await tools.Call( 'set_state', { Plan: plan.Id, State: 'Working' } ), plan.Id + ' is now Working' );
+		ASSERT.match( await tools.Call( 'write_text', { Id: elsewhere.Id, Text: 'x' } ), /not in this project/ );
+		ASSERT.equal( await tools.Call( 'set_state', { Id: plan.Id, State: 'Working' } ), plan.Id + ' is now Working' );
 		ASSERT.equal( ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body.Plan.State, 'Working' );
-		ASSERT.match( await tools.Call( 'set_state', { Plan: plan.Id, State: 'Done' } ), /State must be one of/ );
-		ASSERT.match( await tools.Call( 'set_state', { Plan: elsewhere.Id, State: 'Working' } ), /not in this project/ );
+		ASSERT.match( await tools.Call( 'set_state', { Id: plan.Id, State: 'Done' } ), /State must be one of/ );
+		ASSERT.match( await tools.Call( 'set_state', { Id: elsewhere.Id, State: 'Working' } ), /not in this project/ );
 		ASSERT.match( await tools.Call( 'nothing', {} ), /no tool named nothing/ );
 	}
 	finally

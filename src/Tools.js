@@ -3,9 +3,15 @@
 // Tools - what a local model may do during a one-shot (plan Consensus Desktop, Step 4; in the server since plan Run
 // Shapes, Step 3): the file tools over the project's folder (glob, grep, read; write, edit and run when the task's
 // Writes is files), and the Consensus tools over this server's API, within the project the run is on, as the presser
-// through the connection (the writing ones, reply, apply, thread and set_state, when Writes is not none; plan LLM
-// Tasks, Step 1). Every tool is run here, in the server's process; a tool's result is text for the model, and a refusal
-// is a sentence it can read. A folder and a server are all it needs.
+// through the connection (plan LLM Tasks, Step 1: the writing ones when Writes is not none). Every tool is run here,
+// in the server's process; a tool's result is text for the model, and a refusal is a sentence it can read. A folder
+// and a server are all it needs.
+//
+// Since plan MCP Server, Step 2, the Consensus tools are the interface definition (Operations.js) in Ollama's form:
+// the operations a run may call (RUN_READS at every level, RUN_WRITES when the task's Writes is not none), named,
+// described and typed as the definition says, with the project fixed to the run's (Project is never asked, and a
+// plan named must be the project's), Revision supplied when left out and Anchor taken as plain words. Each call is
+// the operation's own route over the API as the run (Operations.Route), its answer rendered as text for the model.
 //
 //   Tools( { Writes: none | consensus | files, Folder: { Path, Include, Exclude, Commands } | null, Server: { Url, Token, Project } } )
 //     -> { Definitions, Call( Name, Arguments ), Describe( Name, Arguments ), Instructions() }
@@ -17,6 +23,7 @@ const FS = require( 'fs' );
 const PATH = require( 'path' );
 const CHILD_PROCESS = require( 'child_process' );
 const FILES = require( './Files.js' );
+const OPERATIONS = require( './Operations.js' );
 
 const GLOB_LIMIT = 500;
 const GREP_LIMIT = 200;
@@ -69,58 +76,87 @@ const FILE_TOOLS = [
 	},
 ];
 
-const CONSENSUS_TOOLS = [
+
+//---------------------------------------------------------------------
+// The Consensus tools: the operations a run may call, from the definition (plan MCP Server, Step 2).
+
+const RUN_READS = [ 'list_projects', 'read_plan', 'list_threads', 'list_revisions', 'read_revision', 'waiting' ];
+const RUN_WRITES = [ 'thread', 'reply', 'reanchor', 'apply', 'write_text', 'set_state', 'create_plan' ];
+const RUN_NOTES = {
+	list_projects: 'This run\'s project alone, as a tree with every id.',
+	waiting: 'Of this run\'s project; Plan narrows it to one plan.',
+	apply: 'Revision is supplied for you when left out.',
+	write_text: 'Revision is supplied for you when left out.',
+	create_plan: 'In this run\'s project.',
+};
+const RUN_EXTRA = { waiting: { Plan: { Type: 'string', Description: 'a plan\'s id' } } };
+const SUPPLIED_REVISION = [ 'apply', 'write_text' ];
+const TYPES = { string: 'string', integer: 'integer', boolean: 'boolean', object: 'object', array: 'array' };
+const DEFINITION = OPERATIONS.Definition();
+
+
+// The operation as a tool in Ollama's form: the definition's name, description and parameters, with Project left
+// out (fixed to the run's), Revision optional where it is supplied, Anchor plain words, and the run's notes.
+function run_tool( name )
+{
+	let operation = DEFINITION.find( function ( candidate ) { return candidate.Name === name; } );
+	if ( !operation )
 	{
-		name: 'list_project',
-		description: 'The project\'s tree: its folders, its plans with their states and the tally of their threads, and the documents of its Context folder, each with its id.',
-		parameters: { type: 'object', properties: {} },
-	},
+		throw new Error( 'the run tools name no operation ' + name );
+	}
+	let parameters = Object.assign( {}, operation.Parameters, RUN_EXTRA[ name ] || {} );
+	let properties = {};
+	let required = [];
+	for ( let field of Object.keys( parameters ) )
 	{
-		name: 'read_plan',
-		description: 'A plan of the project: its text at its current revision, and its threads with their status, anchor and replies.',
-		parameters: { type: 'object', properties: { Id: { type: 'string', description: 'the plan\'s id, pln-…' } }, required: [ 'Id' ] },
-	},
+		if ( field === 'Project' )
+		{
+			continue;
+		}
+		let parameter = parameters[ field ];
+		let property = { type: TYPES[ parameter.Type ] || 'string' };
+		if ( parameter.Type === 'array' )
+		{
+			property.items = { type: 'string' };
+		}
+		let description = parameter.Description || '';
+		let needed = !!parameter.Required;
+		if ( field === 'Anchor' )
+		{
+			property.type = 'string';
+			description = 'the passage: plain words of the text, no markdown marks' + ( needed ? '' : '; the whole document without it' );
+		}
+		if ( field === 'Revision' && SUPPLIED_REVISION.includes( name ) )
+		{
+			description = 'supplied for you when left out';
+			needed = false;
+		}
+		if ( description )
+		{
+			property.description = description;
+		}
+		properties[ field ] = property;
+		if ( needed )
+		{
+			required.push( field );
+		}
+	}
+	let schema = { type: 'object', properties: properties };
+	if ( required.length )
 	{
-		name: 'read_document',
-		description: 'A document of the project\'s Context folder, whole.',
-		parameters: { type: 'object', properties: { Id: { type: 'string', description: 'the document\'s id' } }, required: [ 'Id' ] },
-	},
-	{
-		name: 'waiting',
-		description: 'The threads waiting on you (the account you act for, through the connection): of one plan when Plan is given, else of the whole project.',
-		parameters: { type: 'object', properties: { Plan: { type: 'string', description: 'a plan\'s id' } } },
-	},
-	{
-		name: 'reply',
-		Writes: true,
-		description: 'A reply of yours on a thread of a plan.',
-		parameters: { type: 'object', properties: { Plan: { type: 'string' }, Thread: { type: 'string' }, Text: { type: 'string' } }, required: [ 'Plan', 'Thread', 'Text' ] },
-	},
-	{
-		name: 'apply',
-		Writes: true,
-		description: 'Applies a resolved thread of a plan: Outcome says what was decided; Text is the plan\'s whole new text when it changes (the current revision is supplied for you); Anchor moves the thread to a passage of the new text.',
-		parameters: { type: 'object', properties: { Plan: { type: 'string' }, Thread: { type: 'string' }, Outcome: { type: 'string' }, Text: { type: 'string' }, Anchor: { type: 'string' } }, required: [ 'Plan', 'Thread', 'Outcome' ] },
-	},
-	{
-		name: 'write_text',
-		Writes: true,
-		description: 'The plan\'s whole new text as a revision (the current revision is supplied for you), for a text of your own making, such as a detailed plan written from a sketch; the threads stay where they were, so re-anchor a detached one with apply.',
-		parameters: { type: 'object', properties: { Plan: { type: 'string' }, Text: { type: 'string' } }, required: [ 'Plan', 'Text' ] },
-	},
-	{
-		name: 'thread',
-		Writes: true,
-		description: 'A new thread of yours on a plan: on the passage Anchor (plain words of the text, no markdown marks), or on the whole document without it.',
-		parameters: { type: 'object', properties: { Plan: { type: 'string' }, Text: { type: 'string' }, Anchor: { type: 'string' } }, required: [ 'Plan', 'Text' ] },
-	},
-	{
-		name: 'set_state',
-		Writes: true,
-		description: 'Sets a plan\'s state, such as Working or Finished.',
-		parameters: { type: 'object', properties: { Plan: { type: 'string' }, State: { type: 'string' } }, required: [ 'Plan', 'State' ] },
-	},
-];
+		schema.required = required;
+	}
+	return {
+		name: name,
+		description: operation.Description + ( RUN_NOTES[ name ] ? ' ' + RUN_NOTES[ name ] : '' ),
+		parameters: schema,
+		Writes: RUN_WRITES.includes( name ),
+		Operation: operation,
+	};
+}
+
+
+const CONSENSUS_TOOLS = RUN_READS.concat( RUN_WRITES ).map( run_tool );
 
 
 //---------------------------------------------------------------------
@@ -185,6 +221,7 @@ function Tools( Options )
 	let writes = WRITES.includes( options.Writes ) ? options.Writes : 'consensus';
 	let definitions = [];
 	let handlers = {};
+	let tools_by_name = {};
 
 	if ( folder && folder.Path )
 	{
@@ -203,6 +240,7 @@ function Tools( Options )
 			if ( !tool.Writes || writes !== 'none' )
 			{
 				definitions.push( { type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.parameters } } );
+				tools_by_name[ tool.name ] = tool;
 			}
 		}
 	}
@@ -419,7 +457,7 @@ function Tools( Options )
 
 
 	//-----------------------------------------------------------------
-	// The Consensus tools
+	// The Consensus tools: each the operation's route over the API, as the run.
 
 	async function api( method, path, body )
 	{
@@ -442,6 +480,17 @@ function Tools( Options )
 			throw new Error( 'Consensus answered ' + response.status + ( json.Error ? ': ' + json.Error : '' ) );
 		}
 		return json;
+	}
+
+
+	function query_string( query )
+	{
+		let parts = [];
+		for ( let key of Object.keys( query || {} ) )
+		{
+			parts.push( encodeURIComponent( key ) + '=' + encodeURIComponent( query[ key ] ) );
+		}
+		return parts.length ? '?' + parts.join( '&' ) : '';
 	}
 
 
@@ -518,25 +567,31 @@ function Tools( Options )
 	}
 
 
-	handlers.list_project = async function ()
+	// The ids of the project's plans and documents, from its tree.
+	function ids_of( items, ids )
 	{
-		let found = await project();
-		let lines = [ 'Project ' + found.Name + ' (' + found.Id + ')' + ( found.Context ? ', its Readme is ' + found.Context.Id : '' ) ];
-		tree_lines( found.Items, 0, lines );
-		return lines.join( '\n' );
-	};
-
-
-	handlers.read_plan = async function ( input )
-	{
-		let answer = await plan_of( input.Id );
-		if ( answer.Error )
+		for ( let node of items || [] )
 		{
-			return answer.Error;
+			if ( node.Kind !== 'folder' )
+			{
+				ids.add( node.Id );
+			}
+			ids_of( node.Items, ids );
 		}
+		return ids;
+	}
+
+
+	// A plan's text as the model reads it: the title line, the text, and its threads (none for a document).
+	function plan_text( answer )
+	{
 		let plan = answer.Plan;
 		let lines = [ '# ' + plan.Title + ' (' + plan.Id + ')' + ( plan.State ? ', state ' + plan.State : '' ) + ', revision ' + plan.Revision, '' ];
 		lines.push( String( answer.Text || '' ).replace( /\s+$/, '' ) );
+		if ( plan.Kind === 'document' || plan.Kind === 'context' )
+		{
+			return lines.join( '\n' );
+		}
 		lines.push( '' );
 		lines.push( '## Threads (' + ( answer.Threads || [] ).length + ')' );
 		lines.push( '' );
@@ -545,129 +600,149 @@ function Tools( Options )
 			thread_lines( thread, lines );
 		}
 		return lines.join( '\n' );
-	};
+	}
 
 
-	handlers.read_document = async function ( input )
+	function anchor_of( value )
 	{
-		let answer = await plan_of( input.Id );
-		if ( answer.Error )
+		if ( value && typeof value === 'object' )
 		{
-			return answer.Error;
+			return value;
 		}
-		return '# ' + answer.Plan.Title + ' (' + answer.Plan.Id + ')\n\n' + String( answer.Text || '' ).replace( /\s+$/, '' );
-	};
+		let text = String( value || '' ).trim();
+		return text ? { Text: text } : null;
+	}
 
 
-	handlers.waiting = async function ( input )
+	// The operation's call as the run: the project fixed, a plan named checked to be the project's, the revision
+	// supplied, the anchor placed; then the route over the API and the answer rendered.
+	async function call_operation( tool, input )
 	{
-		let answer = await api( 'GET', '/api/waiting' );
-		let wanted = String( input.Plan || '' ).trim();
-		let ids = null;
-		if ( !wanted )
+		let args = Object.assign( {}, input );
+		let operation = tool.Operation;
+		if ( operation.Parameters.Project )
 		{
-			ids = new Set();
-			let lines = [];
-			tree_lines( ( await project() ).Items, 0, lines );
-			for ( let line of lines )
+			args.Project = server.Project;
+		}
+		let current = null;
+		if ( operation.Path.startsWith( '/plans/:id' ) )
+		{
+			current = await plan_of( args.Id );
+			if ( current.Error )
 			{
-				let match = /\((\S+?)[,)]/.exec( line );
-				if ( match )
+				return current.Error;
+			}
+			args.Id = String( args.Id ).trim();
+		}
+		if ( operation.Parameters.Anchor && args.Anchor !== undefined )
+		{
+			let anchor = anchor_of( args.Anchor );
+			if ( anchor )
+			{
+				args.Anchor = anchor;
+			}
+			else
+			{
+				delete args.Anchor;
+			}
+		}
+		if ( SUPPLIED_REVISION.includes( tool.name ) && ( args.Revision === undefined || args.Revision === null ) && current )
+		{
+			args.Revision = current.Plan.Revision;
+		}
+		let wanted_plan = null;
+		if ( tool.name === 'waiting' )
+		{
+			wanted_plan = String( args.Plan || '' ).trim();
+			delete args.Plan;
+		}
+		let route = OPERATIONS.Route( operation, args );
+		let answer = await api( route.Method, '/api' + route.Path + query_string( route.Query ), route.Body );
+		return render( tool.name, input, answer, wanted_plan );
+	}
+
+
+	// The answer as text for the model: the trees, the plans and the threads as lines, a write as a sentence.
+	async function render( name, input, answer, wanted_plan )
+	{
+		switch ( name )
+		{
+			case 'list_projects':
+			{
+				let found = ( answer.Projects || [] ).find( function ( one ) { return one.Id === server.Project; } );
+				if ( !found )
 				{
-					ids.add( match[ 1 ] );
+					return 'the project ' + server.Project + ' is not on the server';
 				}
+				let lines = [ 'Project ' + found.Name + ' (' + found.Id + ')' + ( found.Context ? ', its Readme is ' + found.Context.Id : '' ) ];
+				tree_lines( found.Items, 0, lines );
+				return lines.join( '\n' );
 			}
-		}
-		let lines = [];
-		for ( let entry of answer.Waiting || [] )
-		{
-			let in_scope = wanted ? ( entry.Plan.Id === wanted ) : ids.has( entry.Plan.Id );
-			if ( !in_scope )
+			case 'read_plan':
+				return plan_text( answer );
+			case 'list_threads':
 			{
-				continue;
+				let lines = [];
+				for ( let thread of answer.Threads || [] )
+				{
+					thread_lines( thread, lines );
+				}
+				return lines.length ? lines.join( '\n' ) : 'no threads';
 			}
-			lines.push( '## ' + entry.Plan.Title + ' (' + entry.Plan.Id + ', revision ' + entry.Plan.Revision + ')' );
-			lines.push( '' );
-			thread_lines( entry.Thread, lines );
+			case 'list_revisions':
+			{
+				let lines = ( answer.Revisions || [] ).map( function ( revision )
+				{
+					return 'revision ' + revision.Revision + ' by ' + revision.By + ( revision.At ? ' at ' + revision.At : '' ) + ( revision.Reason ? ' (' + revision.Reason + ( revision.Thread ? ', thread ' + revision.Thread : '' ) + ')' : '' );
+				} );
+				return lines.length ? lines.join( '\n' ) : 'no revisions';
+			}
+			case 'read_revision':
+			{
+				let revision = answer.Revision || {};
+				return 'revision ' + revision.Revision + ' by ' + revision.By + ( revision.At ? ' at ' + revision.At : '' ) + '\n\n' + String( revision.Text || '' ).replace( /\s+$/, '' );
+			}
+			case 'waiting':
+			{
+				let ids = wanted_plan ? null : ids_of( ( await project() ).Items, new Set() );
+				let lines = [];
+				for ( let entry of answer.Waiting || [] )
+				{
+					let in_scope = wanted_plan ? ( entry.Plan.Id === wanted_plan ) : ids.has( entry.Plan.Id );
+					if ( !in_scope )
+					{
+						continue;
+					}
+					lines.push( '## ' + entry.Plan.Title + ' (' + entry.Plan.Id + ', revision ' + entry.Plan.Revision + ')' );
+					lines.push( '' );
+					thread_lines( entry.Thread, lines );
+				}
+				return lines.length ? lines.join( '\n' ) : 'nothing waits on you' + ( wanted_plan ? ' in ' + wanted_plan : ' in this project' );
+			}
+			case 'thread':
+				return 'posted thread ' + ( answer.Thread ? answer.Thread.Id : '' ) + ( input.Anchor ? ' on "' + ( anchor_of( input.Anchor ) || {} ).Text + '"' : ' on the whole document' );
+			case 'reply':
+				return 'replied on ' + input.Thread;
+			case 'reanchor':
+				return 'moved ' + input.Thread + ' onto "' + ( anchor_of( input.Anchor ) || {} ).Text + '"';
+			case 'apply':
+			{
+				let revision = ( answer.Plan && answer.Plan.Revision ) ? ', the plan is at revision ' + answer.Plan.Revision : '';
+				return 'applied ' + input.Thread + revision;
+			}
+			case 'write_text':
+			{
+				let revision = ( answer.Plan && answer.Plan.Revision ) ? ', the plan is at revision ' + answer.Plan.Revision : '';
+				return 'wrote ' + input.Id + revision;
+			}
+			case 'set_state':
+				return input.Id + ' is now ' + input.State;
+			case 'create_plan':
+				return 'created ' + ( answer.Plan ? ( answer.Plan.Kind + ' ' + answer.Plan.Id + ' "' + answer.Plan.Title + '"' ) : 'nothing' );
+			default:
+				return JSON.stringify( answer, null, 1 );
 		}
-		return lines.length ? lines.join( '\n' ) : 'nothing waits on you' + ( wanted ? ' in ' + wanted : ' in this project' );
-	};
-
-
-	handlers.reply = async function ( input )
-	{
-		let answer = await plan_of( input.Plan );
-		if ( answer.Error )
-		{
-			return answer.Error;
-		}
-		await api( 'POST', '/api/plans/' + encodeURIComponent( input.Plan ) + '/threads/' + encodeURIComponent( String( input.Thread || '' ) ) + '/replies', { Text: String( input.Text || '' ) } );
-		return 'replied on ' + input.Thread;
-	};
-
-
-	handlers.apply = async function ( input )
-	{
-		let answer = await plan_of( input.Plan );
-		if ( answer.Error )
-		{
-			return answer.Error;
-		}
-		let body = { Outcome: String( input.Outcome || '' ), Revision: answer.Plan.Revision };
-		if ( typeof input.Text === 'string' )
-		{
-			body.Text = input.Text;
-		}
-		if ( input.Anchor )
-		{
-			body.Anchor = { Text: String( input.Anchor ) };
-		}
-		let applied = await api( 'POST', '/api/plans/' + encodeURIComponent( input.Plan ) + '/threads/' + encodeURIComponent( String( input.Thread || '' ) ) + '/apply', body );
-		let revision = ( applied.Plan && applied.Plan.Revision ) ? ', the plan is at revision ' + applied.Plan.Revision : '';
-		return 'applied ' + input.Thread + revision;
-	};
-
-
-	handlers.write_text = async function ( input )
-	{
-		let answer = await plan_of( input.Plan );
-		if ( answer.Error )
-		{
-			return answer.Error;
-		}
-		let written = await api( 'PUT', '/api/plans/' + encodeURIComponent( input.Plan ) + '/text', { Text: String( input.Text || '' ), Revision: answer.Plan.Revision } );
-		let revision = ( written.Plan && written.Plan.Revision ) ? ', the plan is at revision ' + written.Plan.Revision : '';
-		return 'wrote ' + input.Plan + revision;
-	};
-
-
-	handlers.thread = async function ( input )
-	{
-		let answer = await plan_of( input.Plan );
-		if ( answer.Error )
-		{
-			return answer.Error;
-		}
-		let body = { Text: String( input.Text || '' ) };
-		if ( input.Anchor )
-		{
-			body.Anchor = { Text: String( input.Anchor ) };
-		}
-		let posted = await api( 'POST', '/api/plans/' + encodeURIComponent( input.Plan ) + '/threads', body );
-		return 'posted thread ' + ( posted.Thread ? posted.Thread.Id : '' ) + ( input.Anchor ? ' on "' + input.Anchor + '"' : ' on the whole document' );
-	};
-
-
-	handlers.set_state = async function ( input )
-	{
-		let answer = await plan_of( input.Plan );
-		if ( answer.Error )
-		{
-			return answer.Error;
-		}
-		await api( 'PUT', '/api/plans/' + encodeURIComponent( input.Plan ) + '/state', { State: String( input.State || '' ) } );
-		return input.Plan + ' is now ' + input.State;
-	};
+	}
 
 
 	//-----------------------------------------------------------------
@@ -687,7 +762,11 @@ function Tools( Options )
 		}
 		try
 		{
-			return await handlers[ Name ]( input );
+			if ( handlers[ Name ] )
+			{
+				return await handlers[ Name ]( input );
+			}
+			return await call_operation( tools_by_name[ Name ], input );
 		}
 		catch ( error )
 		{
@@ -708,14 +787,19 @@ function Tools( Options )
 			case 'write': return 'write ' + input.Path + ' (' + String( input.Text || '' ).length + ' characters)';
 			case 'edit': return 'edit ' + input.Path;
 			case 'run': return 'run ' + input.Command;
-			case 'list_project': return 'list_project';
+			case 'list_projects': return 'list_projects';
 			case 'read_plan': return 'read_plan ' + input.Id;
-			case 'read_document': return 'read_document ' + input.Id;
+			case 'list_threads': return 'list_threads ' + input.Id;
+			case 'list_revisions': return 'list_revisions ' + input.Id;
+			case 'read_revision': return 'read_revision ' + input.Id + ' ' + input.Revision;
 			case 'waiting': return 'waiting' + ( input.Plan ? ' ' + input.Plan : '' );
 			case 'reply': return 'reply ' + input.Thread + ' "' + words_of( input.Text, 60 ) + '"';
+			case 'reanchor': return 'reanchor ' + input.Thread + ' onto "' + words_of( ( anchor_of( input.Anchor ) || {} ).Text, 60 ) + '"';
 			case 'apply': return 'apply ' + input.Thread + ' "' + words_of( input.Outcome, 60 ) + '"' + ( typeof input.Text === 'string' ? ' with new text' : '' );
-			case 'thread': return 'thread on ' + input.Plan + ' "' + words_of( input.Text, 60 ) + '"';
-			case 'set_state': return 'set_state ' + input.Plan + ' ' + input.State;
+			case 'write_text': return 'write_text ' + input.Id;
+			case 'thread': return 'thread on ' + input.Id + ' "' + words_of( input.Text, 60 ) + '"';
+			case 'set_state': return 'set_state ' + input.Id + ' ' + input.State;
+			case 'create_plan': return 'create_plan "' + words_of( input.Title, 60 ) + '"';
 			default: return Name + ' ' + JSON.stringify( input ).slice( 0, 100 );
 		}
 	}
@@ -744,7 +828,7 @@ function Tools( Options )
 		}
 		else
 		{
-			lines.push( 'Your turn in Consensus: find the threads waiting on you (waiting); on a contested one, reply with what you understood and the wording you would apply; on a resolved one, apply it, one revision each, with the plan\'s whole new text when the text changes (read_plan gives the current text); when a thread was resolved without answering your question, apply your own recommendation and say so in the Outcome; after changing a text, read the plan again and re-anchor any thread left detached (apply with Anchor). Put comments and questions in threads, not in your answer.' );
+			lines.push( 'Your turn in Consensus: find the threads waiting on you (waiting); on a contested one, reply with what you understood and the wording you would apply; on a resolved one, apply it, one revision each, with the plan\'s whole new text when the text changes (read_plan gives the current text); when a thread was resolved without answering your question, apply your own recommendation and say so in the Outcome; after changing a text, read the plan again and re-anchor any thread left detached (reanchor). Put comments and questions in threads, not in your answer.' );
 		}
 		if ( writes === 'files' )
 		{
@@ -769,6 +853,8 @@ module.exports = {
 	WRITES: WRITES,
 	FILE_TOOLS: FILE_TOOLS,
 	CONSENSUS_TOOLS: CONSENSUS_TOOLS,
+	RUN_READS: RUN_READS,
+	RUN_WRITES: RUN_WRITES,
 	SHELL_OPERATORS: SHELL_OPERATORS,
 	Allowed: Allowed,
 	Tools: Tools,
