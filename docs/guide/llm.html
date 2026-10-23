@@ -67,7 +67,7 @@
 </ul>
 <p>The page is the guide the repository keeps at <code>.guides/build-with-consensus.md</code>; the server only puts This server at the top. Keep it in mind when the server listens beyond your machine: a Public server without Clerk is a trusted network, where anyone who can reach it acts as the owner.</p>
 <h2 id="your-turn-in-consensus">Your turn in Consensus</h2>
-<p>The loop you will use most, with an agent session such as Claude Code open on your repository:</p>
+<p>The loop you will use most, in <strong>sidecar mode</strong>: an agent session such as Claude Code open on your repository beside Consensus, prompted with your words instead of the page&#39;s buttons, with every tool and all the context its harness keeps. A sidecar session is one project&#39;s, the one named after its repository: it plans in Consensus and implements in the session, and a thread waiting in another project on the same server is another session&#39;s, which the instructions tell it to leave alone. The loop:</p>
 <ol>
 <li>You comment on a plan, or resolve threads. The plan&#39;s row shows what waits on the llm.</li>
 <li>You tell the session &quot;your turn in Consensus&quot;. It fetches what waits on it, replies to the contested threads, and applies the resolved ones: one revision each, with the outcome recorded on the thread.</li>

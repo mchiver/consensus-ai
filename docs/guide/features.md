@@ -38,7 +38,7 @@
 ## Working with LLMs
 
 - **The LLM as a participant.** Every LLM takes part through the API as a participant of its own, so every reply and every applied change says who made it. See [Working with an LLM](llm.html).
-- **Agent sessions.** Point Claude Code or any agent at one address, `/instructions`, and it learns the rules, finds what waits on it, replies, applies and drafts plans.
+- **Sidecar mode.** Point Claude Code or any agent at one address, `/instructions`, and it learns the rules, finds what waits on it, replies, applies and drafts plans: an open LLM session beside an open Consensus, prompted with "check consensus" or "your turn" instead of the buttons, with every tool and all the context its harness keeps, on one project at a time. See [Ways of working](ways-of-working.html#sidecar-mode-the-agent-session).
 - **Your turn in Consensus.** The working loop: the owner comments and resolves, the agent replies and applies, in the plan, not in a chat scroll. See [Ways of working](ways-of-working.html).
 - **The build loop.** When every thread is applied, the agent builds exactly that plan and posts its build log as a thread, accepted the same way.
 - **LLM connections.** The server runs LLMs for you: Claude Code as a one-shot command, or a local model through Ollama, each posting as `<connection> by <owner>` on a token the server makes for the run.

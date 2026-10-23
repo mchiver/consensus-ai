@@ -1,10 +1,12 @@
 # Ways of working
 
-Consensus-AI is a place where you and an LLM settle a plan, thread by thread, and then have it carried out. The LLM can take part in two ways, and you will likely use both: an **agent session** open beside your editor, and a **connection** your server runs when you press a button. This page tells how each goes, and the loop you will use with either; [Working with an LLM](llm.html) is the reference behind it.
+Consensus-AI is a place where you and an LLM settle a plan, thread by thread, and then have it carried out. The LLM can take part in two ways, and you will likely use both: an **agent session** open beside Consensus, which is **sidecar mode**, and a **connection** your server runs when you press a button. This page tells how each goes, and the loop you will use with either; [Working with an LLM](llm.html) is the reference behind it.
 
-## The agent session
+## Sidecar mode: the agent session
 
-An agent session is a coding agent such as Claude Code, open in a terminal on your repository. It needs one thing from you: the address of your server's instructions page. One line starts it:
+Sidecar mode is an open LLM session, a coding agent such as Claude Code in a terminal on your repository, beside an open Consensus. Rather than pressing the task buttons in the page, you prompt the session with "check consensus" or "your turn", and it takes the LLM's turn through the API. It is the more powerful of the two ways: the session brings every tool and all the context its own harness keeps, your files, your shell, your tests and its memory of the conversation, where a run from the page starts from a packaged prompt alone. It is generally used on one project at a time: the plans are made in Consensus and carried out in the sidecar, and the session works in that project alone; the server's other projects are the business of sessions of their own.
+
+The session needs one thing from you: the address of your server's instructions page. One line starts it:
 
 > Read the instructions at `http://127.0.0.1:3500/instructions` with curl, then load your context.
 
@@ -12,7 +14,7 @@ The page tells the agent what Consensus is, how to call the API, and what your w
 
 ![The instructions page, shown from a project's menu: This server first, then the guide.](../images/instructions.png)
 
-Two things the agent never does. It never touches a thread you have not sent its way: what you do not say "your turn" to, it does not read. And it never commits, branches or pushes on its own; git stays yours. The session keeps the project's files as any coding agent does, and what it writes to Consensus appears in the page at once, with a byline that names the agent and you.
+Three things the agent never does. It never touches a thread you have not sent its way: what you do not say "your turn" to, it does not read. It never leaves its project: a thread waiting in another project on the same server is another session's, and the instructions say so. And it never commits, branches or pushes on its own; git stays yours. The session keeps the project's files as any coding agent does, and what it writes to Consensus appears in the page at once, with a byline that names the agent and you.
 
 The agent's own setup is nothing: no package, no key, no file in the repository. The instructions page is served by your server, so an agent on any machine that can reach it can take part. On a shared server the agent acts as you on a token from your account's page; see [Sharing a server](sharing.html).
 

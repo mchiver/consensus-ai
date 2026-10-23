@@ -28,7 +28,7 @@ The page is the guide the repository keeps at `.guides/build-with-consensus.md`;
 
 ## Your turn in Consensus
 
-The loop you will use most, with an agent session such as Claude Code open on your repository:
+The loop you will use most, in **sidecar mode**: an agent session such as Claude Code open on your repository beside Consensus, prompted with your words instead of the page's buttons, with every tool and all the context its harness keeps. A sidecar session is one project's, the one named after its repository: it plans in Consensus and implements in the session, and a thread waiting in another project on the same server is another session's, which the instructions tell it to leave alone. The loop:
 
 1. You comment on a plan, or resolve threads. The plan's row shows what waits on the llm.
 2. You tell the session "your turn in Consensus". It fetches what waits on it, replies to the contested threads, and applies the resolved ones: one revision each, with the outcome recorded on the thread.

@@ -7,7 +7,11 @@ shared one the people are a project's Owners, Members, Service accounts and Watc
 them: the one who runs your session or pressed the button (the plan Multiuser). What you contribute goes into
 Consensus through its API; the chat carries short summaries and the questions that need an answer before you act.
 
-For an agent session (Claude Code or similar) working on a repo whose plans live in Consensus. Read this with
+For an agent session (Claude Code or similar) working on a repo whose plans live in Consensus: **sidecar mode**,
+the session open beside an open Consensus, prompted with "check consensus" or "your turn" instead of the page's
+task buttons, with every tool and all the context the session's harness keeps. Sidecar mode is one project's:
+the plans are made in Consensus and carried out in the session, and the session works in that project alone, so
+the server's other projects, each the business of a session of its own, are not yours. Read this with
 `curl` (`curl -s http://<server>:<port>/instructions`): a session's web fetch tool may not reach a local or
 private address. The plan "Build Workflow" in the Consensus project is where the build loop was agreed, and
 "Agent Instructions" where this page was. Since the plan "Consensus Desktop" (Step 1), the server calls no LLM
@@ -76,7 +80,8 @@ Consensus ones included, and gives it this page's rules in its own words.
 ## Finding your project
 
 List the projects (`GET /api/projects`); the one named after your repo is yours. If none or more than one fits,
-ask the owner, and remember the answer for the session.
+ask the owner, and remember the answer for the session. Your session is that project's: a thread in another
+project on the same server is another session's, and you leave it alone even when the waiting route lists it.
 
 ## Loading your context
 
@@ -85,8 +90,9 @@ Context folder, its tree of plans with their states, and what waits on you; repo
 
 ## What your user's words mean
 
-- "check consensus", "check again": report what changed and what waits on you, and act on nothing.
-- "your turn": act on everything waiting on you (below). The Answer task of the page is the same turn, taken
+- "check consensus", "check again": report what changed and what waits on you in your project, and act on
+  nothing.
+- "your turn": act on everything waiting on you in your project (below). The Answer task of the page is the same turn, taken
   for the one who pressed it.
 - "build it", "implement it": the build loop (below), for the plan named or just discussed.
 - A message holding any question is answered only; its instructions wait for a message with no question.
@@ -97,8 +103,8 @@ You take it for the person you act for, as their byline: the one whose session t
 What you post is theirs, within what their role allows (an Owner or a Member applies; a Watcher's Explain reads
 only, and so do you then).
 
-1. Find what waits on you (`GET /api/waiting`): the contested threads whose last word is not yours, and the
-   resolved ones to apply.
+1. Find what waits on you (`GET /api/waiting`, which lists every project on the server: keep your own project's):
+   the contested threads whose last word is not yours, and the resolved ones to apply.
 2. Resolved threads: apply each one, one revision each. What resolving means:
    - **Reply and resolve** (the resolver's own reply is last): that reply is the outcome, read as the answer to
      the question before it. Apply it directly; no confirming round.
