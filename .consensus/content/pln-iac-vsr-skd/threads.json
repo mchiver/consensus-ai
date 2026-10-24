@@ -56,5 +56,121 @@
 				"Text": "One rule the read-through found wanting, with a recommendation; resolve with no reply to take it and I write it in.\n\n**Who counts as the last speaker when a run spoke.** A run is the presser's, so when Andre presses Enhance and the LLM opens a question thread, the thread's starter and last speaker is Andre. Under \"everyone who has replied, minus the last speaker\", the thread then waits on the Owners and anyone else, but not on Andre, who is the one the question was for. The same happens on every Answer run: the LLM's reply as Andre stops the thread waiting on Andre.\n\nRecommendation: for turn-taking, a speaker is the byline, not the account: \"Claude-CLI by Andre\" and \"Andre\" are two speakers. A thread a run opened for Andre waits on Andre; Andre's own reply waits on the others and on his connection, which Answer serves. Permissions stay the account's; only the waiting rule reads the pair. This keeps today's person-and-LLM back-and-forth working inside one account, which is what a single user on a Local server is.\n\nAlternative: a run's threads and replies count as the presser's for waiting too, and Enhance's questions are read in the plan rather than waited on. Simpler, but the waiting list goes quiet exactly when the person is wanted."
 			}
 		]
+	},
+	{
+		"Id": "thr-5ve-n9m-vj9",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-21T09:26:03.773Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-21T09:28:15.714Z",
+			"Revision": 11,
+			"RevisionId": "rev-8o7-szn-oii",
+			"Outcome": "Accepted as built, resolved with no reply (2026-10-21), the two readings with it: the LLM speakers are waited on while contested, and an account acting for a person serves the resolved threads waiting on that person. Committed as \"Multiuser Step 1\"; the plan stays Working for Steps 2 to 4; the Readme document brought to it."
+		},
+		"Created": "2026-10-21T09:21:15.260Z",
+		"Replies": [
+			{
+				"Id": "rep-h5s-9st-e4k",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-21T09:21:15.260Z",
+				"Text": "**Build log, Step 1** (Claude Fable 5.1, 2026-10-21). The rules in `src/Rules.js` as the plan says, each asserted in `test/Rules.test.js`, the API routes reading them; nothing committed. Resolve to accept, and on your turn I commit as \"Multiuser Step 1\" and bring the Readme document up to it. The local server runs the old rules until you restart it.\n\n**What was built.**\n- **Resolve by the starter or an Owner.** `CanResolve` passes the server's owner, an account in the project's Owners folder, and a Member for the threads they started (User Management Step 3 had this; the refusal now reads \"a thread is resolved by the one who started it, or an Owner\"). A Service account resolves nothing, as Accounts and Roles says.\n- **Who a thread waits on** (`Turn`). Contested: the starter, the Owners, everyone who has replied in it, and the LLM speakers, minus the one who replied last; a person who has not joined in is not waited on. Resolved, waiting to be applied: the starter and the Owners. Applied: nobody. The speakers of a plan (`Participants.SeenSpeakers`) now carry the Owners of the plan's project, read from its Owners folder through the registry, each marked `Owner`, and the server's owner is marked the same; a speaker seen in the threads is `llm` when its byline has a service in it (\"Claude-CLI by user\") and `user` when it is a bare name.\n- **Apply by write access.** `MayApply`: the owner, an Owner, a Member or a Service account; a Watcher is refused 403 with \"applying a thread takes write access\", before the 409s for a thread that is not resolved or already applied.\n- **The State by Owners.** `MaySetState`: the owner or an Owner; `PUT /plans/:id/state` and a `State` given on `POST /plans` answer 403 \"only an Owner sets a plan's State\" to anyone else. The value check (`CanSetState`) is unchanged.\n- **The API's views are async**: the speakers list takes the plan's project, so `present_threads` and `summarize` await it; `/api/me` lists the speakers with no plan.\n\n**Two readings I took, in the text's spirit; say if either is wrong.**\n1. *The LLM speakers are always waited on while a thread is contested.* The text says Andre's reply \"waits on the others and on his connection, which Answer serves\", so every llm speaker of the plan (a connection, an agent session, a service acting for a person) is a party from the start, as today; the narrower rule is for people. Without this, a fresh thread on a Local server would wait on nobody.\n2. *An account acting for a person serves the resolved threads waiting on that person.* \"Answer answers the threads waiting on the presser, as the presser: applies the resolved ones.\" So `/api/waiting`, the `mine` filter and `WaitingOnMe` list, for a run or an agent session, the threads waiting on its byline and the resolved ones waiting on its presser; the contested ones waiting on the presser stay the presser's own to answer (`WaitingOn`'s `Person`). It is what keeps the tools' `waiting` and my own turn working: a thread you resolve waits on you, and I apply it for you.\n\n**What you will see.** A thread you resolve now waits on you (to apply, through Answer or me) rather than on the LLM, so it counts in \"waiting on you\" at the top of the plan; the line still says \"N contested, waiting on you M\", and M now includes the resolved ones, which reads oddly. Step 2 (the page) should move \"waiting on you\" out of the contested part. Old threads whose records carry a bare service name as `By` (the `llm` participant from before User Management Step 2) now count as a person's speaker: waited on only in the threads it replied in; all of those are finished plans.\n\n**Left for the later steps.** Step 2: the Resolve button shown to the starter and the Owners, the State menu to Owners, the counts and filters over the new rules, the \"waiting on you\" wording. Step 3: the run queue. Step 4: the guide's rules page and the agent instructions, which still say \"only the owner resolves\" and describe the old waiting rule (`docs/guide/threads.md`, `api.md`, `llm.md`, `ways-of-working.md`, `src/Instructions.js`).\n\n**The checks.**\n\n| Run | Result |\n|---|---|\n| node --test test/Rules.test.js | 16 pass (the fixtures are now speakers and accounts with their project role) |\n| node --test, all but Ui, Docs, ClerkSmoke | 168 pass (Api: the Member applies, the Watcher is refused, a Member's plan takes no State, the Turn lists; Participants: the Owners among the speakers; Tools: a run serves the presser's resolved thread) |\n| node --test test/Ui.test.js | 42 pass (a thread the owner resolves waits on the owner) |\n\nFiles: `src/Rules.js`, `src/Participants.js`, `src/Api.js`, `test/Rules.test.js`, `test/Api.test.js`, `test/Participants.test.js`, `test/Runs.test.js`, `test/Ui.test.js`."
+			}
+		]
+	},
+	{
+		"Id": "thr-9pl-5e5-hgh",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-21T09:53:04.519Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-21T09:54:22.503Z",
+			"Revision": 11,
+			"RevisionId": "rev-8o7-szn-oii",
+			"Outcome": "Accepted as built, resolved with no reply (2026-10-21). Committed as \"Multiuser Step 2\"; the plan stays Working for Steps 3 and 4; the Readme document brought to it."
+		},
+		"Created": "2026-10-21T09:51:20.363Z",
+		"Replies": [
+			{
+				"Id": "rep-tps-0d3-sxy",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-21T09:51:20.363Z",
+				"Text": "**Build log, Step 2** (Claude Fable 5.1, 2026-10-21). The page over the new rules; nothing committed. Resolve to accept, and on your turn I commit as \"Multiuser Step 2\" and bring the Readme document up to it.\n\n**What was built.**\n- **The page says who may do what before the server does** (`public/js/threads.js`, the rules of `src/Rules.js` mirrored): my role in the open item's project is Owners for the server's owner, else the root's role folder for that project (`/api/me`'s Roles). An Owner resolves any thread, sets the State and deletes; a Member resolves the threads they started and may Comment and resolve (a thread posted resolved is the poster's own); a Watcher none of it. `Threads.IsOwner` now means an Owner of the project, not the server's owner alone; `CanStartResolved` and `CanSetState` are new.\n- **The Resolve button** (`thread-actions`) shows to the starter and the Owners; **Comment and resolve** (`thread-compose`) to Owners and Members.\n- **The State picker** (`editor-header`) is disabled for anyone but an Owner, its title saying \"only an Owner changes it\".\n- **The state line** (`Rules.StateLine`) leads with \"waiting on you N\" when anything does, then the counts: \"waiting on you 1 · 2 contested, 1 reopened · 1 resolved\", in place of \"2 contested, waiting on you 1, 1 reopened · 1 resolved\", since the count now holds the resolved threads you are to apply as well as the contested ones.\n- **The counts and filters** needed no page change: the tree's \"you N\" badge, the title bar's Waiting on you, the \"mine\" filter, the per-speaker \"Waiting on …\" filters and the About table read the server's Turn, WaitingOnMe and Tally, which Step 1 brought to the rules. The filter list now offers \"Waiting on Olga\" for an account in the Owners folder, since the Owners are among a plan's speakers.\n\n**What you will see.** A thread you resolve shows under the \"mine\" filter and in the title bar's count until it is applied. A fresh thread of your own on a Local server with no LLM connection waits on nobody, so the default \"mine\" filter hides it until someone replies: that is the rule, not a bug; \"all\" shows it.\n\n**Left for the later steps.** Step 3: the run queue. Step 4: the guide pages and the agent instructions.\n\n**The checks.**\n\n| Run | Result |\n|---|---|\n| node --test test/Rules.test.js | 16 pass |\n| node --test, all but Ui, Docs, ClerkSmoke | 168 pass (the state line's new order in the Api tests) |\n| node --test test/Ui.test.js | 43 pass: one new test puts the page in bob's, ann's and olga's shoes through the injector (a Member, a Watcher, an account in the Owners folder) and checks the Resolve button, the picker and the rules, then the owner's resolved thread leading the state line |\n\nFound on the way: the resolve test clicked the thread before the list had re-rendered under the \"all\" filter, which my new test exposed by timing; it now waits for the card.\n\nFiles: `src/Rules.js`, `public/js/threads.js`, `public/components/editor-header/editor-header.{js,html}`, `public/components/thread-compose/thread-compose.html`, `test/Rules.test.js`, `test/Api.test.js`, `test/Ui.test.js`."
+			}
+		]
+	},
+	{
+		"Id": "thr-f36-n0b-ihr",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-21T10:28:18.171Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-21T10:29:16.059Z",
+			"Revision": 11,
+			"RevisionId": "rev-8o7-szn-oii",
+			"Outcome": "Accepted as built, resolved with no reply (2026-10-21), the reading with it: the connection's one-at-a-time stays and the queue sits in front of both limits. Committed as \"Multiuser Step 3\"; the plan stays Working for Step 4; the Readme document brought to it."
+		},
+		"Created": "2026-10-21T10:26:29.075Z",
+		"Replies": [
+			{
+				"Id": "rep-r5k-4n5-uak",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-21T10:26:29.075Z",
+				"Text": "**Build log, Step 3** (Claude Fable 5.1, 2026-10-21). The run queue; nothing committed. Resolve to accept, and on your turn I commit as \"Multiuser Step 3\" and bring the Readme document up to it.\n\n**What was built.**\n- **One run per plan at a time, and one per connection** (`src/Runs.js`). A press while its plan or its connection has a run on is not refused (the 409 of Run Shapes is gone): its record is made at once with `Status queued`, `Queued` the time of the press and `Behind` the run it waits for (id, task, plan), answered 201 and told so. Runs on other plans through other connections go together. The line is in press order: a press waits behind an earlier queued one on the same plan or connection too.\n- **Its turn.** When a run ends, every queued run whose plan and connection are free starts. A queued run is **packaged again** then (`Runner` hands `Runs.Start` a `Prepare` that rebuilds the prompt and does the git pull), since the earlier run on the plan has changed it; the token minted at the press stays the run's. A package that fails then fails the run without starting it. Stop takes a queued run out of the line (stopped, \"stopped before it started\"); a queued run is not deleted; a run left queued by a server that stopped is closed at the next start. The runs list is in press order.\n- **The page.** The toast on the plan heading and the LLM page says \"Work queued on claude-cli behind Answer on The plan\"; a queued run's row reads queued with when it was pressed and \"queued since\"; its popup has a Queued line with what it waits for and a Stop that takes it out of the line; a queued event leaves the connection's running mark alone.\n- **The API guide, the README's API table and the LLM guide** say it; the docs are rebuilt.\n\n**One reading I took.** The connection's one-at-a-time stays (a connection is one command or one model) and the queue sits in front of both limits, so \"runs on different plans go together\" when they are on different connections; a second plan on the same connection waits behind the first. If a connection should run two plans at once, that is a connection setting for later.\n\n**Found on the way.** The smoke checked the tree's open rows with no wait; the plan lists come a moment later now that their summaries await the project's Owners (Step 1), so the check waits for the rows first. The browser suite's Escape-closes-Settings check failed twice under load and passed alone; nothing in this step touches it.\n\n**Left for Step 4.** The guide's rules page and the agent instructions.\n\n**The checks.**\n\n| Run | Result |\n|---|---|\n| node --test test/Runs.test.js | 7 pass, one new test over the queue (press order, Prepare, Stop, failure at the turn, the sweep at start) |\n| node --test, all but Ui, Docs, ClerkSmoke | 169 pass (Api: the second press queued and run after the first, both tokens dropped; Tools: a press on the same plan from another connection waits) |\n| node --test test/Ui.test.js | 43 pass |\n| npm run smoke | 51 ok |\n| node bin/docs.js build; test/Docs.test.js | 11 pages, 2 pass |\n\nFiles: `src/Runs.js`, `src/Runner.js`, `public/js/llm.js`, `public/components/editor-header/editor-header.js`, `public/components/llm-session/llm-session.{js,html,css}`, `bin/smoke.js`, `docs/guide/api.md`, `docs/guide/llm.md` (and their html), `README.md`, `test/Runs.test.js`, `test/Api.test.js`, `test/Tools.test.js`."
+			}
+		]
+	},
+	{
+		"Id": "thr-t66-mc2-nzm",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-21T10:43:30.199Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-21T10:45:28.830Z",
+			"Revision": 12,
+			"RevisionId": "rev-ckg-arj-vwm",
+			"Outcome": "Accepted as built, resolved with no reply (2026-10-22). Committed as \"Multiuser Step 4\" (1fc5661); the plan Finished, this being its last step; the Readme document brought to it."
+		},
+		"Created": "2026-10-21T10:42:38.446Z",
+		"Replies": [
+			{
+				"Id": "rep-d3g-9ok-9hc",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-21T10:42:38.446Z",
+				"Text": "**Build log, Step 4** (Claude Fable 5.1, 2026-10-22). The guide and the agent instructions brought to the rules among many; nothing committed. Resolve to accept, and on your turn I commit as \"Multiuser Step 4\", set the plan Finished, since this is its last step, and bring the Readme document up to it.\n\n**What was written.**\n- **Threads** (`docs/guide/threads.md`): the Resolved state is settled by the starter or an Owner; \"Resolving\" opens with who resolves (the starter or an Owner, no vote); a new section **Who does what in a team** gives the rules in one list (anyone starts, comments and presses within their role; resolve by the starter or an Owner; apply by anyone with write access, usually the LLM for you; the State an Owner's; one run per plan and per connection; delete an Owner's); \"Whose turn\" says whom a thread waits on, the parties minus the last speaker, and that a resolved thread waits on the LLM alone, so one you resolve is off your list; \"An Owner deletes\".\n- **The API's rules in plain words** (`api.md`): resolve, apply (403 for a Watcher), the parties, the Owners among a plan's speakers, a resolved thread waiting on the LLM speakers, the State an Owner's (403), the run queue.\n- **Features**: the three states and Reply and resolve without \"the owner\"; Whose turn says a reply or a resolve takes a thread off your list; a **Rules for a team** line linking the new section. **Sharing**: a Member applies any resolved thread; a Service account resolves nothing.\n- **The agent instructions** (`.guides/build-with-consensus.md`, served at `/instructions` and packaged into every run): the opening and \"Who does what\" written for whoever acts for a person, a session or a run, with the rules among many in one bullet; \"What your user's words mean\" notes that Answer is the same turn taken for the one who pressed; **\"Your turn in Consensus\"** is Answer's: you take it for the person you act for, as their byline, within their role; what waits on you; the three ways a thread is resolved, by whoever resolved it, applied as the person you act for; a reply hands the thread to its parties. The build loop: an Owner says build; the State is an Owner's, so a Work run pressed by a Member leaves it and says so; accepted by the one who pressed or an Owner.\n- **The local model's preamble** (`src/Tools.js`) says the same in its words: a thread resolved without an answer, and the State an Owner's.\n\n**Not changed.** The pictures: no screen changed in this step. The task prompts of `src/Tasks.js` already say \"take your turn as the instructions say\".\n\n**The checks.**\n\n| Run | Result |\n|---|---|\n| node --test test/Tools.test.js test/Tasks.test.js | 11 pass |\n| node bin/docs.js build; test/Docs.test.js | 11 pages, 2 pass |\n| GET /instructions on the running server | the new text is served (the guide is read on each request) |\n\nFiles: `docs/guide/threads.md`, `api.md`, `features.md`, `sharing.md` (and their html), `.guides/build-with-consensus.md`, `src/Tools.js`."
+			}
+		]
 	}
 ]

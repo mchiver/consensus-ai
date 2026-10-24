@@ -21,7 +21,7 @@ The consensus rules when more than two parties work a plan. Today the parties ar
 
 - **Contested:** the starter, the project's Owners, and everyone who has replied in it, minus the one who replied last. Bystanders are not waited on until they join in. (Today: everyone but the last speaker, which is right for two and noise for ten.)
 - **A speaker is the byline, not the account.** "Claude-CLI by Andre" and "Andre" are two speakers. A thread a run opened for Andre waits on Andre; Andre's own reply waits on the others and on his connection, which Answer serves. Permissions stay the account's; only the waiting rule reads the pair. It is what keeps a single person's back-and-forth with the LLM working on a Local server, where the owner is the only account.
-- **Resolved, waiting to be applied:** the starter and the Owners, so that someone who cares sees it through.
+- **Resolved, waiting to be applied:** the LLM speakers, the ones that apply it; never a person, so a thread you resolve is off your list, and the "resolved" count at the top says it is still to be applied. (Changed 2026-10-22 on the owner's word, from "the starter and the Owners, so that someone who cares sees it through": built that way in Step 1, a thread you resolved stayed on your list until applied, which read as still yours to do.)
 - **Applied:** nobody, as today.
 - The tally, the counts in the sidebar and the waiting list read from these rules, as they do today.
 

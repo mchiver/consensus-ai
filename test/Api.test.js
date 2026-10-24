@@ -125,19 +125,13 @@ TEST( 'start writes the settings with Scope Local and listens on 127.0.0.1; the 
 	ASSERT.equal( everywhere.Url, 'http://127.0.0.1:' + everywhere.Address.Port );
 	ASSERT.equal( ( await fetch( everywhere.Url + '/api/me' ) ).status, 401, 'Public: a bare request is refused (plan Clerk, Step 5)' );
 	await everywhere.Close();
-	// from the settings' Scope; and a file from before, its Host turned into a Scope
+	// from the settings' Scope
 	let folder = temporary_folder();
 	let settings = PARTICIPANTS.DefaultSettings( 0, 'Public' );
 	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( settings ) );
 	let from_settings = await SERVER.Start( { Config: folder, Port: 0 } );
 	ASSERT.deepEqual( [ from_settings.Scope, from_settings.Address.Host, from_settings.Address.Local ], [ 'Public', '0.0.0.0', false ] );
 	await from_settings.Close();
-	let older = temporary_folder();
-	FS.writeFileSync( PATH.join( older, 'consensus.json' ), JSON.stringify( { Port: 0, Host: '0.0.0.0', Owner: settings.Owner } ) );
-	let migrated = await SERVER.Start( { Config: older, Port: 0 } );
-	ASSERT.deepEqual( [ migrated.Scope, migrated.Settings.Scope, 'Host' in migrated.Settings, migrated.Settings.Name ], [ 'Public', 'Public', false, require( 'os' ).hostname() ] );
-	ASSERT.equal( JSON.parse( FS.readFileSync( PATH.join( older, 'consensus.json' ), 'utf8' ) ).Scope, 'Public' );
-	await migrated.Close();
 	// Scope None: the settings and the store, no server; the option overrides the file for this start only
 	let none = await SERVER.Start( { Config: folder, Port: 0, Scope: 'None' } );
 	ASSERT.deepEqual( [ none.Scope, none.Server, none.Address, none.Url, none.Settings.Scope ], [ 'None', null, null, null, 'Public' ] );
@@ -1392,46 +1386,6 @@ TEST( 'Enhance (plan LLM Tasks, Step 2) runs end to end: the box\'s text is pack
 	ASSERT.equal( running.Tokens.Count(), 0 );
 	ASSERT.deepEqual( ( await call( 'DELETE', '/api/llms/' + echo.Id ) ).Body, { Deleted: echo.Id } );
 } );
-
-TEST( 'the desktop\'s workspaces from before are moved into their projects at start, and the list dropped; a connection in the file gets its id and no token', async function ()
-{
-	let config = temporary_folder();
-	let repo = temporary_folder();
-	let first = await SERVER.Start( { Config: config, Port: 0 } );
-	let made = await ( await fetch( first.Url + '/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Name: 'repo', Path: repo } ) } ) ).json();
-	await first.Close();
-	let file = PATH.join( config, 'consensus.json' );
-	let settings = JSON.parse( FS.readFileSync( file, 'utf8' ) );
-	settings.Workspaces = [
-		{ Id: 'wks-1', Name: 'repo', Project: 'x', Path: repo.replace( /\\/g, '/' ).toUpperCase(), Include: [ 'src/**' ], Exclude: [], Commands: [ 'npm test' ] },
-		{ Id: 'wks-2', Name: 'gone', Project: 'x', Path: PATH.join( config, 'nowhere' ), Include: [], Exclude: [], Commands: [] },
-	];
-	settings.Llms = [ { Name: 'claude-cli', Kind: 'claude-cli' } ];
-	FS.writeFileSync( file, JSON.stringify( settings ) );
-	let second = await SERVER.Start( { Config: config, Port: 0 } );
-	try
-	{
-		let project = await second.Store.ReadProject( made.Project.Id );
-		ASSERT.deepEqual( [ project.Include, project.Exclude, project.Commands ], [ [ 'src/**' ], [], [ 'npm test' ] ] );
-		let written = JSON.parse( FS.readFileSync( file, 'utf8' ) );
-		ASSERT.equal( written.Workspaces, undefined );
-		ASSERT.equal( 'Token' in written.Llms[ 0 ], false );
-		ASSERT.match( written.Llms[ 0 ].Id, /^llm-/ );
-		ASSERT.equal( ( await ( await fetch( second.Url + '/api/me' ) ).json() ).Participants.some( function ( one ) { return one.Name === 'claude-cli by user'; } ), true );
-		// a project with lists of its own keeps them
-		let again = JSON.parse( FS.readFileSync( file, 'utf8' ) );
-		again.Workspaces = [ { Name: 'other', Path: repo, Include: [ 'docs/**' ], Exclude: [], Commands: [] } ];
-		FS.writeFileSync( file, JSON.stringify( again ) );
-		let lines = await SERVER.MigrateWorkspaces( second.Store, again );
-		ASSERT.match( lines[ 0 ], /has lists of its own/ );
-		ASSERT.deepEqual( ( await second.Store.ReadProject( made.Project.Id ) ).Include, [ 'src/**' ] );
-	}
-	finally
-	{
-		await second.Close();
-	}
-} );
-
 
 // A stand-in for a Work run (plan LLM Tasks, Step 3): it reads the package from its standard input, writes a file in
 // the project's folder (its working folder) and posts a build log, a whole-document thread, as the run.

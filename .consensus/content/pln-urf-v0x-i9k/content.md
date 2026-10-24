@@ -52,7 +52,7 @@ The choices in the Clerk dashboard, made once, in this order:
 
 ## Limits and prices
 
-As read on 2026-10-18, to be checked on clerk.com/pricing before the production step: Clerk's free tier covers 50,000 monthly retained users since February 2026, with Pro at 25 dollars a month. Older write-ups put the free tier at 100 active organizations of 5 members each, and 1 dollar an organization beyond that on Pro; a Clerk member cap matters only if it falls below what a customer's team needs, and is then our Clerk plan to raise. Phone numbers, passkeys and multi-factor are paid in production. Promotion and Monetization Steps 4 and 5 (the free image's three-member trial, Team as a licensed image with a seat price) predate the license model above and get a thread of their own.
+As read on 2026-10-18, to be checked on clerk.com/pricing before the production step: Clerk's free tier covers 50,000 monthly retained users since February 2026, with Pro at 25 dollars a month. Older write-ups put the free tier at 100 active organizations of 5 members each, and 1 dollar an organization beyond that on Pro; a Clerk member cap matters only if it falls below what a customer's team needs, and is then our Clerk plan to raise. Phone numbers, passkeys and multi-factor are paid in production. Promotion and Monetization Steps 4 and 5 were brought onto the license model above on 2026-10-21 (its reconciliation thread): User, Host and Site licenses sold through the store, whose webhook writes the License metadata; managed runs through a relay of ours; the free image counts nothing.
 
 
 ## Out of scope

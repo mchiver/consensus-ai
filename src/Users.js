@@ -14,7 +14,7 @@
 //     Update( Id, { Login?, Display?, Email?, Clerk?, Plan? } ) -> record,  Delete( Id ) -> true | false,
 //     MintToken( Id, Name ) -> value (throws when the name is taken),  RevokeToken( Id, Name ) -> true | false,
 //     Touch( Id, Name ): the token's LastUsed, written once a minute at most,
-//     Migrate( Settings ) -> lines: the owner's record made or brought up to the settings' Owner,
+//     Prepare( Settings ) -> lines: the owner's record made or brought up to the settings' Owner,
 //     IsAdmin( Settings, Record ), Public( Record ), Path() }
 
 const FS = require( 'fs' );
@@ -172,7 +172,7 @@ function Users( Options )
 	}
 
 
-	// Create( { Type, Login, Display?, Email? } ): a user (an email) or a Service account (none); the owner's record is Migrate's.
+	// Create( { Type, Login, Display?, Email? } ): a user (an email) or a Service account (none); the owner's record is Prepare's.
 	function Create( Fields )
 	{
 		let fields = Fields || {};
@@ -308,10 +308,10 @@ function Users( Options )
 
 
 	//-----------------------------------------------------------------
-	// Migrate( Settings ): the owner's record made at the first start, or its Login and Display brought up to the
+	// Prepare( Settings ): the owner's record made at the first start, or its Login and Display brought up to the
 	// settings' Owner. Returns the lines to log.
 
-	function Migrate( Settings )
+	function Prepare( Settings )
 	{
 		let lines = [];
 		let owner = PARTICIPANTS.Owner( Settings );
@@ -384,7 +384,7 @@ function Users( Options )
 		MintToken: MintToken,
 		RevokeToken: RevokeToken,
 		Touch: Touch,
-		Migrate: Migrate,
+		Prepare: Prepare,
 		IsAdmin: IsAdmin,
 		Public: Public,
 		Path: Path,

@@ -1,12 +1,9 @@
 'use strict';
 
 // Settings - the desktop's fields of the global config (plan Run Shapes, Step 1: consensus.json in the config folder,
-// shared with the server's Name, Port, Scope, States, Owner and Clerk; desktop.json before, moved in once by MoveIn):
-// the saved servers, the theme and scale the desktop applies to the page it hosts. The LLM connections and the
-// workspaces the desktop kept (plan Consensus Desktop, Step 3) are the server's since plan Run Shapes, Step 3
-// (src/Llms.js; a workspace's lists went into its project): MoveIn carries them from desktop.json once. Since plan Run
-// Shapes, Step 5, the page shows every server at once, so Last (what was open) and the theme per server (plan UI
-// Tweaks V) are gone: MoveIn drops them from a config that has them.
+// shared with the server's Name, Port, Scope, States, Owner and Clerk): the saved servers, the theme and scale the
+// desktop applies to the page it hosts. The LLM connections are the server's (src/Llms.js). Since plan Run Shapes,
+// Step 5, the page shows every server at once, in one theme.
 //
 //   {
 //     "Servers": [ { "Name": "cube4", "Url": "http://cube4:3500" } ],
@@ -18,14 +15,12 @@
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
-const LLMS = require( '../src/Llms.js' );
 
 // The palettes (plan UI Tweaks IV), as theme.js names them; the dark ones set the native bars dark.
 const THEMES = [ 'system', 'light', 'sepia', 'paper', 'solarized-light', 'dark', 'slate', 'solarized-dark', 'nord', 'midnight' ];
 const DARK_THEMES = [ 'dark', 'slate', 'solarized-dark', 'nord', 'midnight' ];
 const SCALES = [ 'small', 'normal', 'large' ];
 const DESKTOP_FIELDS = [ 'Servers', 'Theme', 'Scale', 'Remembered' ];
-const GONE_FIELDS = [ 'Local', 'Last' ];		// before plan Run Shapes, Step 5
 
 
 //---------------------------------------------------------------------
@@ -107,8 +102,7 @@ function Remember( Settings, Key, Value )
 
 
 //---------------------------------------------------------------------
-// Apply: the desktop's fields of Filled (Fill's shape) onto Settings, in place, the server's fields untouched; the
-// fields from before Step 5 (Local, Last) are dropped.
+// Apply: the desktop's fields of Filled (Fill's shape) onto Settings, in place, the server's fields untouched.
 
 function Apply( Settings, Filled )
 {
@@ -116,79 +110,33 @@ function Apply( Settings, Filled )
 	{
 		Settings[ field ] = Filled[ field ];
 	}
-	for ( let field of GONE_FIELDS )
-	{
-		delete Settings[ field ];
-	}
 	return Settings;
 }
 
 
-// Whether a config still carries what Step 5 dropped: Local, Last, or a theme on a saved server.
-function has_gone_fields( Settings )
-{
-	if ( GONE_FIELDS.some( function ( field ) { return Settings[ field ] !== undefined; } ) )
-	{
-		return true;
-	}
-	return ( Settings.Servers || [] ).some( function ( server ) { return server && typeof server === 'object' && server.Theme !== undefined; } );
-}
-
-
 //---------------------------------------------------------------------
-// MoveIn: the desktop's fields into the global config, once: a config with no Servers yet takes them from desktop.json
-// at Path when the file exists (renamed .moved afterwards), else from the defaults. Returns the lines to log. A
-// config that has its Servers already keeps them, and any of the desktop's fields it lacks (a file written by hand)
-// is filled in with its default. The LLM connections desktop.json held become the server's (its Llms, when it has
-// none yet), and its workspaces are handed to the server's migration (Settings.Workspaces, into their projects).
+// Prepare: the desktop's fields filled in on the global config, in place: a config with none yet starts with the
+// defaults, one written by hand gets the fields it lacks. Returns the lines to log.
 
-function MoveIn( Settings, Path )
+function Prepare( Settings )
 {
-	if ( Array.isArray( Settings.Servers ) )
-	{
-		let missing = DESKTOP_FIELDS.filter( function ( field ) { return Settings[ field ] === undefined; } );
-		let gone = has_gone_fields( Settings );
-		Apply( Settings, Fill( Settings ) );
-		let lines = [];
-		if ( missing.length )
-		{
-			lines.push( 'the desktop\'s settings filled in: ' + missing.join( ', ' ) );
-		}
-		if ( gone )
-		{
-			lines.push( 'Last and the themes per server dropped: the page shows every server at once, in one theme (plan Run Shapes, Step 5)' );
-		}
-		return lines;
-	}
+	let missing = DESKTOP_FIELDS.filter( function ( field ) { return Settings[ field ] === undefined; } );
+	Apply( Settings, Fill( Settings ) );
 	let lines = [];
-	let from = {};
-	if ( Path && FS.existsSync( Path ) )
-	{
-		from = JSON.parse( FS.readFileSync( Path, 'utf8' ) );
-		FS.renameSync( Path, Path + '.moved' );
-		lines.push( 'desktop.json moved into the config: ' + Path );
-		if ( Array.isArray( from.Llms ) && from.Llms.length && !( Array.isArray( Settings.Llms ) && Settings.Llms.length ) )
-		{
-			Settings.Llms = from.Llms.map( LLMS.Fill );
-			lines.push( Settings.Llms.length + ' LLM connection(s) moved in from desktop.json, each a participant of this server now' );
-		}
-		if ( Array.isArray( from.Workspaces ) && from.Workspaces.length )
-		{
-			Settings.Workspaces = ( Array.isArray( Settings.Workspaces ) ? Settings.Workspaces : [] ).concat( from.Workspaces );
-			lines.push( from.Workspaces.length + ' workspace(s) moved in from desktop.json, to go into their projects' );
-		}
-	}
-	else
+	if ( missing.length === DESKTOP_FIELDS.length )
 	{
 		lines.push( 'the desktop\'s settings start with the defaults' );
 	}
-	Apply( Settings, Fill( from ) );
+	else if ( missing.length )
+	{
+		lines.push( 'the desktop\'s settings filled in: ' + missing.join( ', ' ) );
+	}
 	return lines;
 }
 
 
 //---------------------------------------------------------------------
-// Read: a file in the desktop's shape (desktop.json), filled in; the defaults when there is no file.
+// Read: a file in the desktop's shape, filled in; the defaults when there is no file.
 
 function Read( Path )
 {
@@ -202,7 +150,7 @@ function Read( Path )
 
 
 //---------------------------------------------------------------------
-// Write: desktop.json, whole and atomic.
+// Write: a file in the desktop's shape, whole and atomic.
 
 function Write( Path, Settings )
 {
@@ -258,7 +206,7 @@ module.exports = {
 	Default: Default,
 	Fill: Fill,
 	Apply: Apply,
-	MoveIn: MoveIn,
+	Prepare: Prepare,
 	Read: Read,
 	Write: Write,
 	Problems: Problems,

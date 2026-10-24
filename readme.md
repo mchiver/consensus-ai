@@ -142,14 +142,7 @@ one plan or project never interleave; a tree change that names an older `Version
 settings list; a copy or a move between projects moves the item's folder; the `.consensus` is meant for source
 control, and holds nothing secret.
 
-A config folder with no project gets Default at its first start, and a new settings file its defaults. A settings
-file from before Run Shapes, with a `Host`, is brought up to date at the next start (a local address becomes Scope
-Local, any other Public; a missing Name becomes the machine's; the retired Corpus, Context and Workers keys are
-dropped). A config folder from before Step 2 (projects.json, projects/<id>/, proposals/<id>/ and trash/ in it) is
-migrated at the next start, once: each project moves into `<config>/projects/<name>/.consensus/` in the layout
-above, Default under a new prj- id (the desktop's workspaces follow it), items in no tree and the old trash into
-the first project's trash; a data folder from before Step 1 is migrated on the way (each project's context
-plan becomes its Readme in a new Context folder, corpora go to the trash, and the LLM's files are removed).
+A config folder with no project gets Default at its first start, and a new settings file its defaults.
 A listed folder that is missing is skipped with a line and kept in the list (`Missing`); a folder under
 `projects/` that the list lacks joins it. The console says what was done.
 
@@ -248,8 +241,7 @@ what the tree's Paste does (plan UI Tweaks V).
 **Import** (the sidebar's button; `POST /api/projects/import`) brings one in: a project not here comes in as
 it is, every id intact; one that is here is imported as a copy ("Copy of <name> (imported <date>)", every id
 new) or merged (revisions matched by id; a conflict gets a merge revision with the newer text; nothing here
-is removed). An export from before Step 1 is read too: its corpora and workers are dropped, its context
-becomes the Readme, and the Context folder is made.
+is removed). An export of another `Version` is refused.
 
 ## The desktop
 
@@ -284,9 +276,7 @@ root's base; a route carries its root as `#/s/<key>/p/<id>`, a browser's one roo
 server, which sends no CORS headers, is not changed for the app beyond `/api/me` saying its `Version` and `Name`. What needs
 the window stays behind `window.ConsensusDesktop` and `window.Desktop`: the native theme, the folder picker,
 the remembered view state. The desktop's settings are its fields of the global config, `consensus.json` in
-the config folder (`desktop.json` in Electron's user-data folder before Run Shapes; moved in once at the first
-start and renamed `.moved`): `Servers`, `Theme`, `Scale` and `Remembered` (`Local`, `Last` and a theme per server, from before Step 5, are
-dropped at the next start); the pages are handed those fields only, never the participants' tokens. `Theme` is
+the config folder: `Servers`, `Theme`, `Scale` and `Remembered`; the pages are handed those fields only, never the participants' tokens. `Theme` is
 the window's one theme, set from either screen's picker. The page remembers its tree state (the open project,
 the folds, the LLMs list folded, the root folded) per server, under the server's address, and the tabs, the
 sort and the look (hidden panes, widths) once per window, in the config's `Remembered` (`public/js/stored.js` through the preload's `Remember`:
@@ -465,11 +455,6 @@ its whole result, and the answer rendered; Source shows the markdown. The tools 
 gets the read tools only (no reply, apply, thread or set_state), consensus the read-only file tools and the
 Consensus writers, files every tool the project allows; without a folder, the Consensus tools only.
 
-At the first start after Step 3 a `desktop.json` from before hands its LLM connections to the server (its
-`Llms`, when it had none), and its workspaces to the server's migration (`Server.MigrateWorkspaces`): a
-workspace on a project's folder gives that project its Include, Exclude and Commands when it has none of its
-own, the others are dropped with a line, and the `Workspaces` list is gone from the settings.
-
 **LLM tasks** (plan LLM Tasks, Step 1) are what the buttons ask: a task is a record of the settings (`Tasks`),
 edited in the Settings popup, one row per task in the buttons' order (Add, Remove, up and down): a **Name**
 (what the button says and the run record carries), a **Package** of eight switches (the server's instructions,
@@ -490,10 +475,8 @@ Writes is the permission: the run token carries it, so a none run is refused eve
 run reads only") and a local model gets the read tools only; a task that packages the plan or the threads
 needs a plan picked, one that writes or packages files the project's folder on the server's machine. Tasks
 are defined per server and enabled per project: a project's Settings lists them with a checkbox each (`Tasks`
-in project.json, the enabled ids; absent means all, so a task added later is on everywhere). At the first
-start after the step a file from before gets the shipped set, a connection's own Review and Build prompts
-become Answer's and Work's (the first that differs from the old default wins) and the connections' Checks are
-dropped; a run record from before keeps its Kind and shows it as the name. `TasksVersion` in the settings (3
+in project.json, the enabled ids; absent means all, so a task added later is on everywhere). A file with no
+`Tasks` gets the shipped set at start. `TasksVersion` in the settings (3
 since Step 4) says which shipped tasks a file has been given: a file below it gets the shipped tasks that came
 after its version (each shipped task carries a Since), each after the nearest shipped one before it, once, so a
 task the owner removes stays removed. A local model gets
@@ -604,7 +587,7 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 	bin/mcp.js            the MCP stdio relay to a running server (consensus-mcp)	src/Rules.js          the consensus rules, pure functions
 	src/Tree.js           a project's tree, pure functions; the Context folder's rules
 	src/Anchors.js        visible-text anchors
-	src/Store.js          the config folder and the project folders, the archive, and the migrations (before Step 1, before Step 2)
+	src/Store.js          the config folder and the project folders, the archive
 	src/ProjectPort.js    export and import
 	src/Report.js         the report of a plan: Compose, Markdown, Html (plan Printing and Reporting)
 	src/Participants.js   who is calling, the States, and the settings' checks

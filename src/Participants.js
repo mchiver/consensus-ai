@@ -15,10 +15,9 @@
 // participants list; each is { Name, Display, Role: 'owner' | 'user' | 'llm', Owner? } (plan Multiuser: Owner marks
 // the server's owner and the project's Owners; a byline with a service in it is an llm speaker, a bare name a person's
 // or a Service account's own).
-// The settings (consensus.json) are checked here too: Name, Port, Scope, States, Owner ({ Name, Display }, the
-// owner participant of before; Migrate moves it in and drops the other participants and the connections' tokens),
+// The settings (consensus.json) are checked here too: Name, Port, Scope, States, Owner ({ Name, Display }),
 // and the optional Clerk section (Step 1: PublishableKey, SecretKey, WebhookSecret, AdminEmail; read by nothing yet);
-// the Tasks list (plan LLM Tasks, Step 1) is checked, cleaned and migrated by Tasks.js through the same calls, and a
+// the Tasks list (plan LLM Tasks, Step 1) is checked and cleaned by Tasks.js through the same calls, and a
 // run token carries its task's Writes, which Identify hands on as the account's Writes (null for any other request).
 // Scope (None, Local, Public) says whether the server listens and for whom; Trust says what a Scope comes to: local,
 // clerk (Public: people sign in through Clerk with a license, plan Clerk Step 5; a bare request is refused), or none.
@@ -29,11 +28,9 @@ const OS = require( 'os' );
 const TASKS = require( './Tasks.js' );
 
 const DEFAULT_STATES = [ 'Draft', 'Plan', 'Working', 'Finished' ];
-const RENAMED_STATE = { From: 'Proposal', To: 'Draft' };	// plan UI Tweaks V: the first state's new name, migrated at start
 const SCOPES = [ 'None', 'Local', 'Public' ];
 const DEFAULT_SCOPE = 'Local';
 const SCOPE_HOSTS = { None: null, Local: '127.0.0.1', Public: '0.0.0.0' };
-const LOCAL_HOSTS = [ '127.0.0.1', 'localhost', '::1' ];
 const SETTINGS_FIELDS = [ 'Name', 'Port', 'Scope', 'States', 'Owner', 'Clerk', 'Tasks' ];
 const DEFAULT_OWNER = { Name: 'user', Display: 'User' };
 const SERVICE_HEADER = 'X-Consensus-Service';
@@ -41,7 +38,6 @@ const SERVICE_PATTERN = /^[A-Za-z0-9.:-]{1,40}$/;
 const CLERK_FIELDS = [ 'PublishableKey', 'SecretKey', 'WebhookSecret', 'AdminEmail' ];
 const CLERK_PREFIXES = { PublishableKey: 'pk_', SecretKey: 'sk_', WebhookSecret: 'whsec_' };
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const RETIRED_FIELDS = [ 'Corpus', 'Context', 'Workers' ];	// from before plan Consensus Desktop, Step 1
 
 
 //---------------------------------------------------------------------
@@ -335,76 +331,6 @@ function HostOf( Scope_ )
 
 
 //---------------------------------------------------------------------
-// Migrate: a settings file from before, changed in place: Host becomes Scope (a local address Local, any other
-// Public), a missing Scope is Local, a missing Name is the machine's; the Participants list becomes Owner (its owner
-// entry's Name and Display), the other participants are dropped, and the connections lose their Token (plan User
-// Management, Step 2: the server makes one per run). Returns a line for each change.
-
-function Migrate( Settings )
-{
-	let lines = [];
-	if ( Settings.Host !== undefined )
-	{
-		let host = String( Settings.Host || '' ).trim();
-		Settings.Scope = ( !host || LOCAL_HOSTS.includes( host ) ) ? 'Local' : 'Public';
-		delete Settings.Host;
-		lines.push( 'Host ' + JSON.stringify( host ) + ' became Scope ' + Settings.Scope );
-	}
-	if ( !SCOPES.includes( Settings.Scope ) )
-	{
-		Settings.Scope = DEFAULT_SCOPE;
-		lines.push( 'Scope set to ' + DEFAULT_SCOPE );
-	}
-	if ( typeof Settings.Name !== 'string' || !Settings.Name.trim() )
-	{
-		Settings.Name = OS.hostname();
-		lines.push( 'Name set to ' + Settings.Name );
-	}
-	if ( Settings.Participants !== undefined )
-	{
-		let list = Array.isArray( Settings.Participants ) ? Settings.Participants.filter( function ( one ) { return one && typeof one === 'object'; } ) : [];
-		let owner = list.find( function ( one ) { return one.Role === 'owner'; } ) || null;
-		if ( !Settings.Owner || typeof Settings.Owner !== 'object' )
-		{
-			Settings.Owner = Owner( { Owner: owner ? { Name: owner.Name, Display: owner.Display } : null } );
-		}
-		let dropped = list.filter( function ( one ) { return one !== owner && one.Name; } ).map( function ( one ) { return one.Name; } );
-		delete Settings.Participants;
-		lines.push( 'Participants became Owner ' + JSON.stringify( Settings.Owner.Name ) + ( dropped.length ? '; ' + dropped.join( ', ' ) + ' dropped (an LLM is never a user; members come through Clerk)' : '' ) );
-	}
-	if ( !Settings.Owner || typeof Settings.Owner !== 'object' || typeof Settings.Owner.Name !== 'string' || !Settings.Owner.Name.trim() )
-	{
-		Settings.Owner = Owner( null );
-		lines.push( 'Owner set to ' + JSON.stringify( Settings.Owner.Name ) );
-	}
-	let llms = Array.isArray( Settings.Llms ) ? Settings.Llms : [];
-	let untokened = [];
-	for ( let llm of llms )
-	{
-		if ( llm && typeof llm === 'object' && llm.Token !== undefined )
-		{
-			delete llm.Token;
-			untokened.push( llm.Name || '?' );
-		}
-	}
-	if ( untokened.length )
-	{
-		lines.push( 'the Token of the LLM connection' + ( untokened.length > 1 ? 's ' : ' ' ) + untokened.join( ', ' ) + ' dropped: the server makes one per run' );
-	}
-	lines = lines.concat( TASKS.Migrate( Settings ) );
-	for ( let field of RETIRED_FIELDS )
-	{
-		if ( Settings[ field ] !== undefined )
-		{
-			delete Settings[ field ];
-			lines.push( field + ' dropped' );
-		}
-	}
-	return lines;
-}
-
-
-//---------------------------------------------------------------------
 // The Clerk section (plan User Management, Step 1): four texts, each may be empty; a key given starts with Clerk's
 // prefix, the Admin's email is an email. HasClerk: both keys given. Trust: what a Scope and the section come to.
 
@@ -620,7 +546,6 @@ function Clean( Settings )
 
 module.exports = {
 	DEFAULT_STATES: DEFAULT_STATES,
-	RENAMED_STATE: RENAMED_STATE,
 	SCOPES: SCOPES,
 	DEFAULT_SCOPE: DEFAULT_SCOPE,
 	SETTINGS_FIELDS: SETTINGS_FIELDS,
@@ -633,7 +558,6 @@ module.exports = {
 	Owner: Owner,
 	Scope: Scope,
 	HostOf: HostOf,
-	Migrate: Migrate,
 	NewToken: NewToken,
 	ServiceOf: ServiceOf,
 	RunTokens: RunTokens,

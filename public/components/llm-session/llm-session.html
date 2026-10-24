@@ -58,7 +58,7 @@
 		<div class="muted small" ng-show="Runs.length === 0">No runs yet.</div>
 		<div class="run-row" ng-repeat="run in Runs track by run.Id" ng-class="[ run.Status, { selected: RunPopup && RunPopup.Run.Id === run.Id } ]" ng-click="OpenRun( run )" title="open its output and prompt">
 			<span class="run-status">{{ run.Status }}</span>
-			<span class="run-kind">{{ run.Task ? run.Task.Name : run.Kind }}</span>
+			<span class="run-kind">{{ run.Task.Name }}</span>
 			<span class="run-plan">{{ run.Plan ? run.Plan.Title : '(no plan)' }}</span>
 			<span class="run-workspace muted">{{ run.Project ? run.Project.Name : '' }}{{ run.By ? ' · ' + ( run | byline ) : '' }}</span>
 			<span class="run-when muted">{{ ( run.Started || run.Queued ) | stamp }}</span>
@@ -156,7 +156,7 @@
 			<div class="subplan-head">Run <span class="muted small">{{ RunPopup.Run.Id }}</span><button class="popup-close" type="button" title="close (Escape)" ng-click="CloseRun()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 			<div class="run-row static" ng-class="RunPopup.Run.Status">
 				<span class="run-status">{{ RunPopup.Run.Status }}</span>
-				<span class="run-kind">{{ RunPopup.Run.Task ? RunPopup.Run.Task.Name : RunPopup.Run.Kind }}</span>
+				<span class="run-kind">{{ RunPopup.Run.Task.Name }}</span>
 				<span class="run-plan">{{ RunPopup.Run.Plan ? RunPopup.Run.Plan.Title : '(no plan)' }}</span>
 				<span class="run-workspace muted">{{ RunPopup.Run.Project ? RunPopup.Run.Project.Name : '' }}{{ RunPopup.Run.By ? ' · ' + ( RunPopup.Run | byline ) : '' }}</span>
 				<span class="run-when muted">{{ ( RunPopup.Run.Started || RunPopup.Run.Queued ) | stamp }}</span>

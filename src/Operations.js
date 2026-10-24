@@ -558,7 +558,7 @@ function Operations( Context )
 				delete settings[ field ];
 			}
 			Object.assign( settings, clean );
-			PARTICIPANTS.Migrate( settings );
+			TASKS.Prepare( settings );
 			let restart = ( settings.Scope !== before.Scope ) || ( settings.Port !== before.Port );
 			await store.WriteSettings( settings );
 			events.Send( { Settings: true, Kind: 'settings' } );

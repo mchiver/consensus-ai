@@ -1,0 +1,31 @@
+[
+	{
+		"Id": "thr-rle-0zm-2yi",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-23T09:41:52.619Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-23T09:42:15.689Z",
+			"Revision": 1,
+			"RevisionId": "rev-zgh-qz0-0h4",
+			"Outcome": "Accepted as built (resolved with no reply): the Through MCP section of the served instructions, the instructions operation at /api/instructions, the API reference rendered from the definition by the docs build, the guide pages, the readme, and the test fix (Connection: close in the API test's request helper) kept. Committed as MCP Server Step 3: The instructions and the docs; the plan Finished."
+		},
+		"Created": "2026-10-23T09:36:43.485Z",
+		"Replies": [
+			{
+				"Id": "rep-shm-43b-f7s",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T09:36:43.485Z",
+				"Text": "**Build log, MCP Server Step 3: The instructions and the docs** (Claude Fable 5.1, 2026-10-23).\n\n**What was built.**\n\n- **The served instructions** (`.guides/build-with-consensus.md`): a section **Through MCP** after Talking to Consensus: the same operations as tools for a client that speaks the protocol in place of curl, under the same names, performed as the person you act for, checked against their role, posting with the same byline; `tools/list` describes each, `instructions` is the page, a project by id or name; the two transports with their lines (the relay's `--server`, `--service`, `--token`, `--project` and the Claude Code `claude mcp add` line; the HTTP URL with the same header); the words, the turn, the build loop and the one-project rule the same. The three rule additions of this morning (the API never the files, the server is the owner's, one thread per question) are in the same file and go in with it.\n- **An `instructions` operation**, `GET /api/instructions` (`src/Operations.js`), so a client with the operations alone can read the page: the guide with This server first, the API's address from the server's own URL, which `src/Server.js` now hands the API (`Url` in the Attach context); `src/Roles.js` opens the route. Sixty-three operations now. The `start_run` description says what the reference said of the queue and the pull.\n- **The API reference** (`docs/guide/api.md`): the hand-written routes block is replaced by **The operations**, rendered from the definition when the docs are built: `bin/docs.js build` fills the list between `<!-- operations -->` and `<!-- /operations -->` (one line per operation: its name in bold, its route, 201 when it answers so, what it does, its arguments with their types and which are required) and writes the markdown back, so the published `.md` says the same as the page and the reference and the MCP tools are one text. The four routes that are not operations (`/api/clerk`, `/api/clerk/webhook`, `/api/events`, `/api/mcp`) are named apart, and a new **MCP** section describes the two transports.\n- **The guide**: `docs/guide/llm.md` lists the MCP client among the ways to hand the page over and gains a **Through MCP** section (what it is, the stdio relay with the Claude Code line and the saved-server, token and project options, the HTTP transport, how a refusal reads); `docs/guide/features.md` gains an MCP line under Working with LLMs; `readme.md` says how an MCP client takes part, names `src/Operations.js`, `src/Mcp.js` and `bin/mcp.js` in its file list, and its local-model tools follow the definition's names. Eleven pages rendered, the link check clean. The project's Readme in Consensus is updated on acceptance.\n- **Tests**: `test/Operations.test.js` checks every operation is on the reference page between the markers, with its route and its description; its route list gains `/instructions`. A probe on a temporary server showed `/api/instructions` answering the page with This server first over REST and as the `instructions` tool over MCP, and a bad token refused.\n- **One fix outside the plan**, `test/Api.test.js`: its request helper sends `Connection: close`, one connection per call, with a comment saying why. The Work options test's \"fetch failed\" of Steps 1 and 2 was the in-process server's five-second keep-alive timer closing an idle pooled socket at the instant the test's next request went out on it, after the test's nine synchronous git commands had blocked the event loop; under the suite's parallel load those commands take long enough that it failed in every full run of this step before the fix (four of four), and the users-and-roles API test failed with it, since the connection it expects deleted is deleted later in the same test. I said the fix waited on your word; with the suite failing every time, I applied it and say so here, for you to keep or send back.\n\n**How it was tested.** With the fix, `node --test`: 253 tests (one more), full run one 250 pass, 3 skipped, 0 fail; full run two 248 pass, two browser tests timed out under load (UI Tweaks IX's settings popup and the Users fold's token, each a ten-second wait that passes alone and in the first run). `test/Api.test.js` alone: 37 of 37. The operations, MCP, roles, tools and API tests together: 59 of 59. Nothing is committed."
+			}
+		]
+	}
+]

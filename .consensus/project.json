@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-19T02:22:24.836Z",
-	"Version": 49,
+	"Updated": "2026-10-24T10:14:50.073Z",
+	"Version": 64,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -41,7 +41,7 @@
 				},
 				{
 					"Kind": "plan",
-					"Id": "pln-rdh-yu5-a94"
+					"Id": "pln-qr1-aed-21x"
 				},
 				{
 					"Kind": "plan",
@@ -74,6 +74,14 @@
 							"Id": "pln-3qx-ajz-4wb"
 						}
 					]
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-lv9-2n4-kcc"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-gkn-zlj-42q"
 				}
 			]
 		},
@@ -299,6 +307,32 @@
 				{
 					"Kind": "plan",
 					"Id": "pln-j27-bzi-j77"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-rdh-yu5-a94"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-erj-oiy-ivc",
+					"Items": [
+						{
+							"Kind": "plan",
+							"Id": "pln-voy-wm0-7x9"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-g91-xat-1w5"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-b1e-r07-mvj"
+						}
+					]
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-hax-1ie-yqm"
 				}
 			]
 		}
@@ -316,5 +350,12 @@
 		"node_modules/**",
 		".git/**"
 	],
-	"Commands": []
+	"Commands": [],
+	"Roles": {
+		"Owners": [],
+		"Members": [],
+		"Service": [],
+		"Watchers": []
+	},
+	"Llm": "llm-yn1-ve3-2pi"
 }

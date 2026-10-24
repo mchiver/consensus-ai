@@ -2,8 +2,7 @@
 
 // The store over the config folder and the project folders (plan Run Shapes, Step 2), on temporary folders: create,
 // write, revisions, queueing, atomic writes, the trash and the archive per project, projects as folders in the
-// settings' order, items copied and moved between projects, missing folders, and the migration of a config folder
-// from before Step 2 (and of a data folder from before plan Consensus Desktop on the way).
+// settings' order, items copied and moved between projects, and missing folders.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -24,7 +23,7 @@ function temporary_folder()
 async function prepared()
 {
 	let store = STORE.Open( temporary_folder() );
-	let settings = { Name: 'test', Port: 0, Scope: 'Local', States: [ 'Draft', 'Plan', 'Working', 'Finished' ], Participants: [ { Name: 'user', Role: 'owner' } ] };
+	let settings = { Name: 'test', Port: 0, Scope: 'Local', States: [ 'Draft', 'Plan', 'Working', 'Finished' ], Owner: { Name: 'user', Display: 'User' } };
 	await store.WriteSettings( settings );
 	let lines = await store.Prepare( settings );
 	let home = ( await store.ListProjects() )[ 0 ];
@@ -369,119 +368,4 @@ TEST( 'plans list newest updated first', async function ()
 	await new Promise( function ( resolve ) { setTimeout( resolve, 5 ); } );
 	await store.UpdatePlan( first.Id, { Title: 'First again' } );
 	ASSERT.deepEqual( ( await store.ListPlans() ).slice( 0, 2 ).map( function ( p ) { return p.Id; } ), [ first.Id, second.Id ] );
-} );
-
-
-//---------------------------------------------------------------------
-// The migration
-
-// An old-layout plan in the config folder.
-function write_old_plan( folder, id, record, text, extra_files )
-{
-	FS.mkdirSync( PATH.join( folder, 'proposals', id, 'revisions' ), { recursive: true } );
-	FS.writeFileSync( PATH.join( folder, 'proposals', id, 'proposal.json' ), JSON.stringify( record ) );
-	FS.writeFileSync( PATH.join( folder, 'proposals', id, 'proposal.md' ), text );
-	FS.writeFileSync( PATH.join( folder, 'proposals', id, 'threads.json' ), '[]' );
-	FS.writeFileSync( PATH.join( folder, 'proposals', id, 'revisions', '0001.md' ), text );
-	FS.writeFileSync( PATH.join( folder, 'proposals', id, 'revisions', '0001.json' ), JSON.stringify( { Id: 'rev-000-000-' + id.slice( -3 ), Parent: null, Revision: 1, By: 'user', At: 't', Reason: 'create' } ) );
-	for ( let name of extra_files || [] )
-	{
-		FS.writeFileSync( PATH.join( folder, 'proposals', id, name ), '[]' );
-	}
-}
-
-
-TEST( 'migration: a config folder from before Step 2 moves each project into a folder of its own, under a prj- id, with its items; strays and the old trash go to the first project\'s trash', async function ()
-{
-	let folder = temporary_folder();
-	write_old_plan( folder, 'ctx-aaa-aaa-aaa', { Id: 'ctx-aaa-aaa-aaa', Title: 'Readme', Kind: 'document', State: null, Created: 't', Updated: 't', Revision: 1 }, '# Readme\n' );
-	write_old_plan( folder, 'pln-bbb-bbb-bbb', { Id: 'pln-bbb-bbb-bbb', Title: 'Plan', Kind: 'plan', State: 'Draft', Created: 't', Updated: 't', Revision: 1 }, '# Plan\n' );
-	write_old_plan( folder, 'doc-ccc-ccc-ccc', { Id: 'doc-ccc-ccc-ccc', Title: 'Readme', Kind: 'document', State: null, Created: 't', Updated: 't', Revision: 1 }, '# Other readme\n' );
-	write_old_plan( folder, 'pln-ddd-ddd-ddd', { Id: 'pln-ddd-ddd-ddd', Title: 'Elsewhere', Kind: 'plan', State: 'Plan', Created: 't', Updated: 't', Revision: 1 }, '# Elsewhere\n' );
-	write_old_plan( folder, 'pln-eee-eee-eee', { Id: 'pln-eee-eee-eee', Title: 'Stray', Kind: 'plan', State: 'Draft', Created: 't', Updated: 't', Revision: 1 }, '# Stray\n' );
-	FS.mkdirSync( PATH.join( folder, 'projects', 'default' ), { recursive: true } );
-	FS.writeFileSync( PATH.join( folder, 'projects', 'default', 'project.json' ), JSON.stringify( { Id: 'default', Context: 'ctx-aaa-aaa-aaa', ContextFolder: 'fld-ctx-ctx-ctx', Created: 't', Updated: 't', Version: 3, Items: [ { Kind: 'folder', Id: 'fld-ctx-ctx-ctx', Name: 'Context', Items: [ { Kind: 'document', Id: 'ctx-aaa-aaa-aaa' } ] }, { Kind: 'folder', Id: 'fld-ddd-ddd-ddd', Name: 'Drafts', Items: [ { Kind: 'plan', Id: 'pln-bbb-bbb-bbb' } ] } ] } ) );
-	FS.mkdirSync( PATH.join( folder, 'projects', 'prj-ooo-ooo-ooo' ), { recursive: true } );
-	FS.writeFileSync( PATH.join( folder, 'projects', 'prj-ooo-ooo-ooo', 'project.json' ), JSON.stringify( { Id: 'prj-ooo-ooo-ooo', Context: 'doc-ccc-ccc-ccc', ContextFolder: 'fld-oct-oct-oct', Created: 't', Updated: 't', Version: 1, Items: [ { Kind: 'folder', Id: 'fld-oct-oct-oct', Name: 'Context', Items: [ { Kind: 'document', Id: 'doc-ccc-ccc-ccc' } ] }, { Kind: 'plan', Id: 'pln-ddd-ddd-ddd' } ] } ) );
-	FS.writeFileSync( PATH.join( folder, 'projects.json' ), JSON.stringify( { Projects: [ { Id: 'prj-ooo-ooo-ooo', Name: 'Other' }, { Id: 'default', Name: 'Default' } ] } ) );
-	FS.mkdirSync( PATH.join( folder, 'trash', 'pln-fff-fff-fff' ), { recursive: true } );
-	FS.writeFileSync( PATH.join( folder, 'trash', 'pln-fff-fff-fff', 'proposal.json' ), JSON.stringify( { Id: 'pln-fff-fff-fff', Title: 'Trashed', Kind: 'plan', State: 'Draft', Created: 't', Updated: 't', Revision: 1 } ) );
-	FS.writeFileSync( PATH.join( folder, 'trash', 'pln-fff-fff-fff', 'proposal.md' ), '# Trashed\n' );
-	FS.writeFileSync( PATH.join( folder, 'usage.json' ), '{}' );
-
-	let settings = { Name: 'test', Port: 0, Scope: 'Local', States: [ 'Draft', 'Plan' ], Participants: [ { Name: 'user', Role: 'owner' } ], Workspaces: [ { Id: 'wks-1', Name: 'w', Project: 'default', Path: '/w' } ] };
-	let store = STORE.Open( folder );
-	let lines = await store.Prepare( settings );
-	ASSERT.equal( lines.length, 3, lines.join( '\n' ) );
-	ASSERT.equal( lines[ 0 ], 'project Other moved to ' + PATH.join( folder, 'projects', 'Other' ) + ' (2 items)' );
-	ASSERT.match( lines[ 1 ], /^project Default moved to .*Default \(2 items, its id now prj-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}\)$/ );
-	ASSERT.equal( lines[ 2 ], '1 items in no project went to the trash' );
-
-	let projects = await store.ListProjects();
-	ASSERT.deepEqual( projects.map( function ( p ) { return p.Name; } ), [ 'Other', 'Default' ] );
-	let other = projects[ 0 ];
-	let home = projects[ 1 ];
-	ASSERT.equal( other.Id, 'prj-ooo-ooo-ooo' );
-	ASSERT.match( home.Id, /^prj-/ );
-	ASSERT.equal( settings.Workspaces[ 0 ].Project, home.Id );
-	ASSERT.deepEqual( settings.Projects.map( function ( entry ) { return entry.Path; } ), [ other.Path, home.Path ] );
-	ASSERT.deepEqual( ( await store.ReadSettings() ).Projects, settings.Projects );
-	ASSERT.deepEqual( home.States, [ 'Draft', 'Plan' ] );
-	ASSERT.equal( home.Version, 3 );
-	ASSERT.deepEqual( home.Items[ 1 ], { Kind: 'folder', Id: 'fld-ddd-ddd-ddd', Name: 'Drafts', Items: [ { Kind: 'plan', Id: 'pln-bbb-bbb-bbb' } ] } );
-	for ( let name of [ 'content.json', 'content.md', 'threads.json', 'revisions/0001.md' ] )
-	{
-		ASSERT.equal( FS.existsSync( PATH.join( home.Path, '.consensus', 'content', 'pln-bbb-bbb-bbb', name ) ), true, name );
-	}
-	ASSERT.equal( FS.existsSync( PATH.join( home.Path, '.consensus', 'content', 'pln-bbb-bbb-bbb', 'proposal.json' ) ), false );
-	ASSERT.equal( ( await store.ReadPlan( 'pln-bbb-bbb-bbb' ) ).Text, '# Plan\n' );
-	ASSERT.equal( ( await store.ReadPlan( 'ctx-aaa-aaa-aaa' ) ).Plan.Title, 'Readme' );
-	ASSERT.equal( ( await store.ProjectOf( 'pln-ddd-ddd-ddd' ) ).Id, other.Id );
-	ASSERT.equal( ( await store.ReadPlan( 'doc-ccc-ccc-ccc' ) ).Text, '# Other readme\n' );
-	// strays and the old trash, in the first project's trash, in the new layout
-	let trash = await store.ListTrash();
-	ASSERT.deepEqual( trash.map( function ( item ) { return item.Id + '@' + item.Project; } ).sort(), [ 'pln-eee-eee-eee@' + other.Id, 'pln-fff-fff-fff@' + other.Id ] );
-	ASSERT.equal( FS.existsSync( PATH.join( other.Path, '.consensus', 'trash', 'pln-fff-fff-fff', 'content.md' ) ), true );
-	// the old layout is gone
-	// (projects/default and projects/Default are one folder on Windows: the old project.json is what must be gone)
-	for ( let name of [ 'projects.json', 'proposals', 'trash', 'usage.json', 'projects/default/project.json', 'projects/prj-ooo-ooo-ooo', '.migrating' ] )
-	{
-		ASSERT.equal( FS.existsSync( PATH.join( folder, name ) ), false, name );
-	}
-	// a second start does nothing more
-	ASSERT.deepEqual( await STORE.Open( folder ).Prepare( await store.ReadSettings() ), [] );
-} );
-
-
-TEST( 'migration: a data folder from before Consensus Desktop gets its Context folder, loses its corpora and the LLM\'s files, on the way into its folder', async function ()
-{
-	let folder = temporary_folder();
-	write_old_plan( folder, 'ctx-aaa-aaa-aaa', { Id: 'ctx-aaa-aaa-aaa', Title: 'Context', Kind: 'context', State: null, Created: 't', Updated: 't', Revision: 1 }, '# Context\n', [ 'index.json' ] );
-	write_old_plan( folder, 'pln-bbb-bbb-bbb', { Id: 'pln-bbb-bbb-bbb', Title: 'Plan', Kind: 'plan', State: 'Plan', Created: 't', Updated: 't', Revision: 1 }, '# Plan\n', [ 'runs.json' ] );
-	FS.mkdirSync( PATH.join( folder, 'projects', 'default', 'corpora', 'cor-ccc-ccc-ccc' ), { recursive: true } );
-	FS.writeFileSync( PATH.join( folder, 'projects', 'default', 'corpora', 'cor-ccc-ccc-ccc', 'corpus.json' ), JSON.stringify( { Id: 'cor-ccc-ccc-ccc', Kind: 'corpus', Name: 'repo', Updated: 't', Files: [] } ) );
-	FS.writeFileSync( PATH.join( folder, 'projects', 'default', 'project.json' ), JSON.stringify( {
-		Id: 'default', Context: 'ctx-aaa-aaa-aaa', Created: 't', Updated: 't', Version: 3, Workspace: { Worker: 'w', Name: 'x' },
-		Items: [ { Kind: 'folder', Id: 'fld-ddd-ddd-ddd', Name: 'Drafts', Items: [ { Kind: 'plan', Id: 'pln-bbb-bbb-bbb' }, { Kind: 'corpus', Id: 'cor-ccc-ccc-ccc' } ] } ],
-	} ) );
-	FS.writeFileSync( PATH.join( folder, 'usage.json' ), '{}' );
-
-	let store = STORE.Open( folder );
-	let lines = await store.Prepare( { States: [ 'Draft', 'Plan', 'Working', 'Finished' ] } );
-	ASSERT.equal( lines.length, 1, lines.join( '\n' ) );
-	let project = ( await store.ListProjects() )[ 0 ];
-	ASSERT.equal( project.Name, 'Default' );
-	ASSERT.equal( project.Context, 'ctx-aaa-aaa-aaa' );
-	ASSERT.equal( project.Items[ 0 ].Id, project.ContextFolder );
-	ASSERT.deepEqual( project.Items[ 0 ].Items, [ { Kind: 'document', Id: 'ctx-aaa-aaa-aaa' } ] );
-	ASSERT.deepEqual( project.Items[ 1 ], { Kind: 'folder', Id: 'fld-ddd-ddd-ddd', Name: 'Drafts', Items: [ { Kind: 'plan', Id: 'pln-bbb-bbb-bbb' } ] } );
-	ASSERT.equal( 'Workspace' in project, false );
-	ASSERT.equal( ( await store.ReadPlan( 'ctx-aaa-aaa-aaa' ) ).Plan.Kind, 'document' );
-	ASSERT.equal( ( await store.ReadPlan( 'ctx-aaa-aaa-aaa' ) ).Plan.Title, 'Readme' );
-	let home = PATH.join( project.Path, '.consensus' );
-	ASSERT.equal( FS.existsSync( PATH.join( home, 'trash', 'cor-ccc-ccc-ccc', 'corpus.json' ) ), true );
-	ASSERT.equal( FS.existsSync( PATH.join( home, 'content', 'ctx-aaa-aaa-aaa', 'index.json' ) ), false );
-	ASSERT.equal( FS.existsSync( PATH.join( home, 'content', 'pln-bbb-bbb-bbb', 'runs.json' ) ), false );
-	ASSERT.equal( FS.existsSync( PATH.join( folder, 'usage.json' ) ), false );
-	ASSERT.equal( ( await store.ListTrash() ).map( function ( item ) { return item.Kind; } ).join( ',' ), 'corpus' );
 } );

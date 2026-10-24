@@ -98,40 +98,6 @@ function Fill( Llm )
 
 
 //---------------------------------------------------------------------
-// Migrate( Settings ): the connections brought up to date at start, so a file from before does not stop the server:
-// a Name with other characters than letters, digits, dot, dash and colon (a desktop.json's "Claude CLI") has them
-// turned to dashes, one used twice gets a number. Returns the lines to log; none when nothing changed.
-
-function Migrate( Settings )
-{
-	let lines = [];
-	let llms = ( Settings && Array.isArray( Settings.Llms ) ) ? Settings.Llms : [];
-	let names = new Set();
-	for ( let llm of llms )
-	{
-		if ( !llm || typeof llm !== 'object' )
-		{
-			continue;
-		}
-		let before = text_of( llm.Name );
-		let name = before.replace( /[^A-Za-z0-9.:-]+/g, '-' ).replace( /^-+|-+$/g, '' ) || DefaultName( llm.Kind, llm.Model );
-		let base = name;
-		for ( let number = 2; names.has( name ); number++ )
-		{
-			name = base + '-' + number;
-		}
-		names.add( name );
-		if ( name !== before )
-		{
-			llm.Name = name;
-			lines.push( 'LLM connection "' + before + '" renamed "' + name + '": a Name is letters, digits, dot, dash and colon, used once' );
-		}
-	}
-	return lines;
-}
-
-
-//---------------------------------------------------------------------
 // Problems( Settings ): what is wrong with the settings' Llms, as sentences; none when they are usable. A name is
 // letters, digits, dot, dash and colon, used once.
 
@@ -241,7 +207,6 @@ module.exports = {
 	NAME_PATTERN: NAME_PATTERN,
 	DefaultName: DefaultName,
 	Fill: Fill,
-	Migrate: Migrate,
 	Problems: Problems,
 	SpeakerName: SpeakerName,
 	SpeakerDisplay: SpeakerDisplay,

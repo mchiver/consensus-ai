@@ -4,11 +4,11 @@ Consensus is at 0.5.1: MIT licensed, local-first, a desktop application and a Do
 
 1. The pitch is one sentence: *work the plan through with your AI, thread by thread, before any code is written.* Everything public leads with the loop (write, the agent comments in threads, resolve, apply, a revision trail), not with the feature list.
 2. The audience is people who already code with agents: Claude Code, Codex and Cursor users, solo developers first, small teams second. Consensus is distributed where they already are, inside the agent ecosystem, not on a landing page they have to find.
-3. The core stays MIT and free for a single user on their own machine with their own API key. Money comes from commercial desktop use, from LLM runs the server performs on the user's behalf, and from everything a team needs that a single user does not: accounts, shared projects, hosting, support.
-4. Nothing is sold before the server knows who is calling. Today a request without a token is the owner; plan User Management, with Clerk, closes that on any server that is sold, and every paid tier beyond the desktop license waits on it.
-5. Revenue comes in the order of least infrastructure first: the desktop license and run credits, then a licensed team image, then hosting. Services (support, workshops) run alongside from the start.
+3. The core stays MIT and free for a single user on their own machine with their own API key. Money comes from the licenses people hold: a User license for an Owner or a Member on any shared server, which is also the solo professional's commercial desktop license; a Host license to run a shared server; a Site license for a team; then from LLM runs performed on our key, and from hosting and support.
+4. Nothing is sold before the server knows who is calling. That is met: since Clerk Step 5 a Public server admits a Consensus-AI sign-in or an account's token and nothing else, and reads the person's license from their sign-in; only Clerk Step 6, the production instance, stands before the first sale.
+5. Revenue comes in the order of least infrastructure first: the per-person licenses, then managed runs, then hosting. Services (support, workshops) run alongside from the start.
 
-The steps below are in order. Steps 1 to 3 cost no infrastructure and start now; Step 4 is the first money; Steps 5 and 6 follow User Management.
+The steps below are in order; Steps 1 to 3 cost no infrastructure. The paid line, the managed runs and the hosted tier (Steps 4 to 6 as this plan had them, brought onto the per-person license model on 2026-10-21, with Services, Before any charge and the licensing measures) moved on 2026-10-23 into the plan **Monetization** (pln-qr1-aed-21x), to be taken up after Clerk Step 6; this plan was closed the same day, Steps 1 to 3 standing as written for whenever the launch is taken up.
 
 
 ## The name
@@ -55,62 +55,20 @@ Posted in one week, each with the recording and a link to the demo project:
 What counts: stars, npm and Docker pulls, desktop downloads, Discord members, and the number of public repositories with a `.consensus` folder (a GitHub code search), checked weekly in a document in the Context folder.
 
 
-## Step 4: The paid line
-
-The tiers, stated once, and the rule for which side of the line a feature falls on: a single person on their own machine with their own key pays nothing; a company, a team, or work the server does for you is paid.
-
-| Tier | Price | What it holds |
-|---|---|---|
-| Free | 0 | The whole application, local, one user, own API keys, MIT |
-| Pro | 99 one time, or 10 a month | Commercial desktop use, a monthly quota of managed runs, settings sync between machines |
-| Team | 15 a seat a month | Accounts, roles, shared projects, SSO, audit log, backups, Git sync of `.consensus`; as a licensed image or hosted |
-| Enterprise | by agreement | On-premises license, support with an SLA, training |
-
-The prices are a starting point to test against the first hundred users, not a decision; they are in US dollars.
-
-**The desktop license** is the first thing sold. Free is personal and evaluation use; commercial use after thirty days asks for a Pro key, Sublime style: the application never locks, About shows the license state, and a reminder appears on start once a week when unlicensed. The key is a signed token (Ed25519) that encodes the edition, the name and the expiry, checked offline; keys are sold through Lemon Squeezy or Paddle, which handle tax, and the webhook writes the key to the buyer's mail. The check lives in one module, `src/License.js`, read by the desktop and the server alike.
-
-**Managed runs** are the second. Bring-your-own-key runs stay free and unlimited. A Pro key carries a monthly quota of runs on a Consensus key, counted by the server in the run records it already keeps and shown in Settings; the quota is a number in the key, so this step has no cloud piece. Metering by tokens, at the provider's price plus a margin, comes only when the quota is being hit, and is a step of its own then.
-
-
-## Step 5: Team
-
-After User Management is built, the team features ship as a licensed build of the same image: a `License` setting whose key lifts the three-account limit on the role folders and enables SSO (OIDC), the audit log, scheduled backups and the Git sync of the `.consensus` folder. The free image keeps accounts and shared projects for up to three members so a small team can try it, the three counted by Consensus in the project role folders, not by Clerk (accounts are Clerk's, roles are Consensus's: plans User Management and Accounts and Roles); the key removes the limit. One codebase, one image, one key format from Step 4.
-
-
-## Step 6: Hosted
-
-Consensus-AI Cloud: the team image run by us, one server per customer, projects in a volume, the LLM connections on the customer's keys or on credits, billed per seat. It comes last because it carries the running cost and the on-call, and because by then the team image has told us what the customers are. The desktop and the hosted server are the same program, so a customer moves between them with an export.
-
-
-## Services and small money
-
-From the launch on, independent of the steps:
-
-- **Support contracts and on-premises licenses** for any company that asks, priced by agreement, with a page on the docs site that says so.
-- **Workshops**: a half-day on planning with an agent, Consensus as the medium, for engineering teams. The template plans of Step 1 are the material.
-- **GitHub Sponsors** linked from the readme, and a paid template pack (industry-specific plan sets) in the desktop's Templates, both expected to be small.
-
-
-## Before any charge
-
-What must be true before the first key is sold, in order:
-
-1. User Management is built, so a request is somebody; for the desktop license alone, the offline key check is enough.
-2. The installers are signed (plan Installer), because a paid download that the OS warns about is a refund.
-3. A privacy statement on the docs site: everything is local unless you turn on managed runs or sync; what leaves the machine, and to whom, is listed.
-4. Opt-in telemetry, off by default, counting starts, plans, threads and runs, with the question asked once on first start, so the prices and the tiers can be tested against use.
-5. Terms of sale and a refund policy on the docs site, written by a lawyer once; the store handles tax.
-
-
 ## Measures
 
-The plan is working when, six months after the launch: a thousand GitHub stars, a hundred public repositories with a `.consensus` folder, a hundred Pro keys sold, and five team licenses. If the Pro keys do not come but the stars do, the price is wrong or the commercial reminder is too soft, and Step 4 is revisited before Step 5 is started.
+The plan is working when, six months after the launch: a thousand GitHub stars and a hundred public repositories with a `.consensus` folder. The licensing measures went with the plan Monetization.
 
+## Marketing
+### Feature/Tag Lines
 
-## Feature Lines
+Sprinkled throughout the public docs and advertisements.
 
 - Consensus-AI uses less tokens. Rather then send all of the context, we send only the right context.
-- Stakholders can view and interrogate a Project's status.
-
+- Stakeholders can view and interrogate a Project's status.
+- "An AI Harness with style"
+- Build better, faster, and cheaper. (Explain)
+- "Would you buy a home without an inspection? No? Then why would you ship a mission critical system into production that nobody understands?"
+- Consensus-AI unleashes colaboration while enforcing accountability.
+- Keep track of the what, when, who, and why of everything built.
 

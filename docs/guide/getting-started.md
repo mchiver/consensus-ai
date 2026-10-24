@@ -45,7 +45,7 @@ The config folder holds the settings, and the projects that were made with no fo
 | `--scope none`, `local` or `public` | for this start, in place of the settings' Scope: `local` listens on this machine only, `public` on every interface, `none` starts no server (taken as `local` when a path is given: that project needs its server) |
 | `--headless` | accepted here and does nothing: this form never has a window |
 
-Listening beyond your own machine is a decision: anyone who can reach the server acts as the owner. Keep the Scope Local unless the network is yours. A settings file from before, with a `Host`, is brought up to date at the next start: a local address becomes Scope Local, any other Public.
+Listening beyond your own machine is a decision: anyone who can reach the server acts as the owner. Keep the Scope Local unless the network is yours.
 
 ## In Docker
 

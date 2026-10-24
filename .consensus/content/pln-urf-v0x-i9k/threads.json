@@ -140,11 +140,11 @@
 	{
 		"Id": "thr-c9j-tdb-yqx",
 		"Anchor": {
-			"Text": "The desktop never signs in through Clerk yet",
-			"Prefix": " only a browser refreshes them. ",
-			"Suffix": ": it opens the server in the sys"
+			"Text": "However Consensus is run, a person signed in with a Host license can set the Scope to Public",
+			"Prefix": "pdated. The sign-in everywhere. ",
+			"Suffix": " and anyone else gets Local and "
 		},
-		"Detached": true,
+		"Detached": false,
 		"Status": "resolved",
 		"Reopened": false,
 		"Resolved": {

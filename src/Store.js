@@ -20,11 +20,8 @@
 // Ids are global (Ids.js): pln-…, doc-… a plan (ctx-… a Readme made before plan Consensus Desktop), prj-… a project,
 // fld-… a folder, rev-… a revision. Every project has a prj- id: the Default project's id "default" ended with Step 2.
 //
-// Prepare, at start, migrates a config folder from before Step 2 (projects.json, projects/<id>/project.json, proposals/<id>/,
-// trash/, all in the config folder) into a folder per project under <config>/projects/<name>/, and a data folder from
-// before plan Consensus Desktop, Step 1, on the way (each project's context plan becomes its Readme in a Context
-// folder, corpora go to the trash, the LLM's files are removed). A project folder the settings list and the disk lacks
-// is skipped, with a line, and kept in the list (Missing). Prepare with { Project: path } (plan Run Shapes, Step 4:
+// Prepare, at start, registers the project folders the settings list. A project folder the settings list and the disk
+// lacks is skipped, with a line, and kept in the list (Missing). Prepare with { Project: path } (plan Run Shapes, Step 4:
 // `consensus <path>`) registers that folder's project alone, making its .consensus when missing, and puts it first in
 // the list (Isolated gives its id).
 
@@ -44,18 +41,10 @@ const PROJECTS_FOLDER = 'projects';
 const DEFAULT_PROJECT_NAME = 'Default';
 const CONTEXT_FOLDER_NAME = 'Context';
 const CONTEXT_TITLE = 'Readme';
-const OLD_CONTEXT_TITLE = 'Context';
 const DEFAULT_STATES = [ 'Draft', 'Plan', 'Working', 'Finished' ];
 const DEFAULT_EXCLUDE = [ '~*/**', 'node_modules/**', '.git/**' ];
 const RENAME_ATTEMPTS = 10;
 const RENAME_DELAY_MS = 20;
-
-// The layout before Step 2, inside the config folder.
-const OLD_MASTER_FILE = 'projects.json';
-const OLD_PROPOSALS_FOLDER = 'proposals';
-const OLD_CORPORA_FOLDER = 'corpora';
-const OLD_RETIRED_FILES = [ 'usage.json' ];
-const OLD_RETIRED_PROPOSAL_FILES = [ 'runs.json', 'index.json' ];
 
 
 //---------------------------------------------------------------------
@@ -1052,8 +1041,7 @@ function Open( Folder )
 
 
 	//-----------------------------------------------------------------
-	// Prepare: run at start with the settings. A config folder from before Step 2 is migrated into project folders
-	// (below); the settings' Projects are registered (a missing folder is skipped, with a line, and kept in the list);
+	// Prepare: run at start with the settings. The settings' Projects are registered (a missing folder is skipped, with a line, and kept in the list);
 	// a config with no project at all gets a Default one. With Options.Project (Step 4) that folder's project is the
 	// only one registered. Returns a line for each thing it did; the settings are written when the list changed.
 
@@ -1063,7 +1051,6 @@ function Open( Folder )
 		let options = Options || {};
 		let lines = [];
 		let before = JSON.stringify( projects_list() );
-		lines = lines.concat( await migrate_old_layout() );
 		missing = [];
 		isolated = null;
 		if ( options.Project )
@@ -1148,235 +1135,6 @@ function Open( Folder )
 		settings.Projects = list;
 		isolated = project.Id;
 		return lines;
-	}
-
-
-	//-----------------------------------------------------------------
-	// The migration from the layout before Step 2: every project of the config folder's projects/<id>/project.json
-	// moves, with its plans, into <config>/projects/<name>/.consensus/ (a project is named in projects.json, or
-	// in its project.json), under a prj- id when it had "default"; a plan in no tree goes to the first project's
-	// trash, as does the old trash. On the way, a project from before Consensus Desktop gets its Context folder, loses
-	// its corpora and the LLM's files. The settings' Workspaces follow the renamed project id.
-
-	function old_plan_folder( id )
-	{
-		return PATH.join( folder, OLD_PROPOSALS_FOLDER, id );
-	}
-
-
-	async function migrate_old_layout()
-	{
-		let lines = [];
-		let old_projects = PATH.join( folder, PROJECTS_FOLDER );
-		let candidates = [];
-		for ( let id of await folder_names( old_projects ) )
-		{
-			let file = PATH.join( old_projects, id, PROJECT_FILE );
-			if ( FS.existsSync( file ) )
-			{
-				candidates.push( { Id: id, Project: await read_json_or_null( file ) } );
-			}
-		}
-		let has_old = candidates.length || FS.existsSync( PATH.join( folder, OLD_MASTER_FILE ) ) || FS.existsSync( PATH.join( folder, OLD_PROPOSALS_FOLDER ) );
-		if ( !has_old )
-		{
-			return lines;
-		}
-		// The old project folders out of the way first: a new folder is named after the project, and "default" and
-		// "Default" are one folder on Windows.
-		let staging = PATH.join( folder, '.migrating' );
-		for ( let candidate of candidates )
-		{
-			await move_folder( PATH.join( old_projects, candidate.Id ), PATH.join( staging, candidate.Id ) );
-		}
-		let master = await read_json_or_null( PATH.join( folder, OLD_MASTER_FILE ) );
-		let listed = ( master && Array.isArray( master.Projects ) ) ? master.Projects : [];
-		// The old order: the master's, then the rest, Default first and by name.
-		let ordered = [];
-		for ( let entry of listed )
-		{
-			let candidate = candidates.find( function ( one ) { return one.Id === entry.Id; } );
-			if ( candidate )
-			{
-				candidate.Name = entry.Name;
-				ordered.push( candidate );
-			}
-		}
-		let rest = candidates.filter( function ( one ) { return !ordered.includes( one ); } );
-		rest.forEach( function ( one ) { one.Name = ( one.Project && one.Project.Name ) || ( ( one.Id === 'default' ) ? DEFAULT_PROJECT_NAME : one.Id ); } );
-		rest.sort( function ( a, b ) { return ( a.Id === 'default' ) ? -1 : ( b.Id === 'default' ) ? 1 : a.Name.localeCompare( b.Name ); } );
-		ordered = ordered.concat( rest );
-		let placed = new Set();
-		let first_home = null;
-		let id_map = {};
-		for ( let candidate of ordered )
-		{
-			let old = candidate.Project || {};
-			let id = ( candidate.Id === 'default' || !IDS.Is( candidate.Id, IDS.PROJECT ) ) ? IDS.New( IDS.PROJECT ) : candidate.Id;
-			id_map[ candidate.Id ] = id;
-			let path = default_project_path( candidate.Name );
-			let home = home_path( path );
-			await FS.promises.mkdir( PATH.join( home, CONTENT_FOLDER ), { recursive: true } );
-			await FS.promises.mkdir( PATH.join( home, TRASH_FOLDER ), { recursive: true } );
-			let items = Array.isArray( old.Items ) ? old.Items : [];
-			// From before Consensus Desktop: corpora out of the tree and into the trash, a Readme titled Context renamed.
-			for ( let corpus_id of strip_corpora( items ) )
-			{
-				let corpus_home = PATH.join( staging, candidate.Id, OLD_CORPORA_FOLDER, corpus_id );
-				if ( FS.existsSync( corpus_home ) )
-				{
-					await move_folder( corpus_home, PATH.join( home, TRASH_FOLDER, corpus_id ) );
-				}
-			}
-			let context_id = old.Context;
-			if ( !context_id || !FS.existsSync( old_plan_folder( context_id ) ) )
-			{
-				roots[ id ] = { Id: id, Path: path, Home: home };
-				context_id = ( await create_context( id ) ).Id;
-				lines.push( 'projects/' + candidate.Id + ': a new Readme, ' + context_id );
-			}
-			let context_folder = ensure_context_folder( items, context_id, old.ContextFolder );
-			let project = {
-				Id: id,
-				Name: candidate.Name,
-				Context: context_id,
-				ContextFolder: context_folder,
-				Created: old.Created || new Date().toISOString(),
-				Updated: old.Updated || new Date().toISOString(),
-				Version: old.Version || 1,
-				Items: items,
-				Archive: [],
-				States: default_states(),
-				Include: [],
-				Exclude: DEFAULT_EXCLUDE.slice(),
-				Commands: [],
-			};
-			let moved = 0;
-			let ids = TREE.ItemIds( items );
-			if ( !ids.includes( context_id ) )
-			{
-				ids.push( context_id );
-			}
-			for ( let plan_id of ids )
-			{
-				if ( placed.has( plan_id ) )
-				{
-					continue;
-				}
-				if ( await move_old_plan( plan_id, PATH.join( home, CONTENT_FOLDER, plan_id ) ) )
-				{
-					placed.add( plan_id );
-					moved++;
-				}
-			}
-			await write_json( PATH.join( home, PROJECT_FILE ), project );
-			roots[ id ] = { Id: id, Path: path, Home: home };
-			projects_list().push( { Path: path } );
-			first_home = first_home || home;
-			lines.push( 'project ' + candidate.Name + ' moved to ' + path + ' (' + moved + ' items' + ( ( id !== candidate.Id ) ? ', its id now ' + id : '' ) + ')' );
-		}
-		// Plans in no tree, and the old trash, into the first project's trash.
-		if ( first_home )
-		{
-			let strays = 0;
-			for ( let plan_id of await folder_names( PATH.join( folder, OLD_PROPOSALS_FOLDER ) ) )
-			{
-				if ( !placed.has( plan_id ) && await move_old_plan( plan_id, PATH.join( first_home, TRASH_FOLDER, plan_id ) ) )
-				{
-					strays++;
-				}
-			}
-			for ( let trashed_id of await folder_names( PATH.join( folder, TRASH_FOLDER ) ) )
-			{
-				let source = PATH.join( folder, TRASH_FOLDER, trashed_id );
-				if ( FS.existsSync( PATH.join( source, 'proposal.json' ) ) )
-				{
-					await move_old_plan( trashed_id, PATH.join( first_home, TRASH_FOLDER, trashed_id ), source );
-				}
-				else
-				{
-					await move_folder( source, PATH.join( first_home, TRASH_FOLDER, trashed_id ) );
-				}
-			}
-			if ( strays )
-			{
-				lines.push( strays + ' items in no project went to the trash' );
-			}
-		}
-		for ( let name of OLD_RETIRED_FILES.concat( [ OLD_MASTER_FILE ] ) )
-		{
-			await FS.promises.rm( PATH.join( folder, name ), { force: true } );
-		}
-		await FS.promises.rm( PATH.join( folder, OLD_PROPOSALS_FOLDER ), { recursive: true, force: true } );
-		await FS.promises.rm( PATH.join( folder, TRASH_FOLDER ), { recursive: true, force: true } );
-		await FS.promises.rm( staging, { recursive: true, force: true } );
-		// The settings' workspaces name their project by id.
-		if ( settings && Array.isArray( settings.Workspaces ) )
-		{
-			for ( let workspace of settings.Workspaces )
-			{
-				if ( workspace && id_map[ workspace.Project ] )
-				{
-					workspace.Project = id_map[ workspace.Project ];
-				}
-			}
-		}
-		// The roots made here are read again as the list is registered (register indexes the content).
-		for ( let id of Object.keys( roots ) )
-		{
-			await register( roots[ id ].Path );
-		}
-		return lines;
-	}
-
-
-	// An old plan folder (proposal.json, proposal.md, threads.json, revisions/, retired files) moved and renamed
-	// into the new layout at target. Returns false when there is no such plan.
-	async function move_old_plan( id, target, source )
-	{
-		let from = source || old_plan_folder( id );
-		let record = await read_json_or_null( PATH.join( from, 'proposal.json' ) );
-		if ( !record )
-		{
-			return false;
-		}
-		for ( let name of OLD_RETIRED_PROPOSAL_FILES )
-		{
-			await FS.promises.rm( PATH.join( from, name ), { force: true } );
-		}
-		if ( record.Kind === 'context' || record.Title === OLD_CONTEXT_TITLE )
-		{
-			record.Kind = 'document';
-			record.State = null;
-			record.Title = CONTEXT_TITLE;
-		}
-		await move_folder( from, target );
-		await FS.promises.rename( PATH.join( target, 'proposal.md' ), PATH.join( target, 'content.md' ) );
-		await FS.promises.rm( PATH.join( target, 'proposal.json' ), { force: true } );
-		await write_json( PATH.join( target, 'content.json' ), record );
-		return true;
-	}
-
-
-	// Takes every corpus node out of the tree, at any depth, and returns their ids.
-	function strip_corpora( items )
-	{
-		let ids = [];
-		for ( let index = items.length - 1; index >= 0; index-- )
-		{
-			let node = items[ index ];
-			if ( node.Kind === 'corpus' )
-			{
-				ids.push( node.Id );
-				items.splice( index, 1 );
-				continue;
-			}
-			if ( Array.isArray( node.Items ) )
-			{
-				ids = ids.concat( strip_corpora( node.Items ) );
-			}
-		}
-		return ids;
 	}
 
 

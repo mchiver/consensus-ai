@@ -67,4 +67,4 @@ The config folder, `.consensus` in your user folder by default or the one `--con
 <project>/.consensus/trash/<id>/           a deleted item, moved whole
 ```
 
-The `.consensus` folder is meant to go into source control with the repository, so the plans and threads travel with the source; nothing secret is written to it. Back a project up by copying its folder. A config folder from before project folders (every project in one data folder) is migrated at the next start, each project into a folder of its own under `projects/`; the console says what moved. A listed folder that is missing, or on a drive not mounted, is skipped with a line and kept in the list; the desktop's connect screen names it.
+The `.consensus` folder is meant to go into source control with the repository, so the plans and threads travel with the source; nothing secret is written to it. Back a project up by copying its folder. A listed folder that is missing, or on a drive not mounted, is skipped with a line and kept in the list; the desktop's connect screen names it.

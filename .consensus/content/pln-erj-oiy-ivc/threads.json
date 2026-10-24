@@ -1,0 +1,350 @@
+[
+	{
+		"Id": "thr-liy-8rr-qe6",
+		"Anchor": {
+			"Text": "The relay needs a running server, as a session does",
+			"Prefix": "nds it as the instructions say. ",
+			"Suffix": ": when the server does not answe"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-23T08:00:25.125Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-23T08:02:51.251Z",
+			"Revision": 3,
+			"RevisionId": "rev-d81-kvf-s8k",
+			"Outcome": "Resolved with no reply: the API is abstracted into one function per operation (src/Operations.js, Step 1), called by the REST routes, by the MCP handler in the server's process and by the run's tools; the stdio relay alone goes over HTTP since it runs on the client's machine, so it needs a running server and the store keeps one writer. The text said so at revision 2; no change."
+		},
+		"Created": "2026-10-23T07:42:57.483Z",
+		"Replies": [
+			{
+				"Id": "rep-g4c-4t0-bxn",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T07:42:57.483Z",
+				"Text": "**The stdio relay needs a running server.** The relay forwards every tool call to the server's API, so a client needs a Consensus running, as a session does. The alternative is a stdio server over the store directly, with no server at all, which would make the MCP process a second writer of the `.consensus` folder, outside the rules, the events and the open pages. Recommendation: the relay, and the server stays the owner's to run. Resolve with no reply to take it."
+			},
+			{
+				"Id": "rep-up2-3w0-9qj",
+				"By": "user",
+				"At": "2026-10-23T07:54:03.599Z",
+				"Text": "can we abstract the API into a set of functions that are called by both REST and MCP?"
+			},
+			{
+				"Id": "rep-t5o-i7j-518",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T07:57:33.693Z",
+				"Text": "Yes, and your answer on the tool set has already made it the plan's first statement. What it means in the code:\n\n- Today each of the sixty-four routes in `src/Api.js` has its whole logic inside the route (the checks, the store's queue, the write, the event), 2,879 lines in one file; nothing else can call that logic without going through HTTP.\n- The change: a new `src/Operations.js` holds one function per operation, `Operation( Participant, Arguments )`, with the route's body moved into it as it is. `Api.js` keeps the routing only: method and path to operation, the result sent as JSON. The MCP handler calls the same functions in the server's process; the run's tools can too.\n- The one place that still goes over HTTP is the stdio relay, because it runs on the client's machine, not in the server: it sends each message to `POST /api/mcp`, which calls the functions. So this thread's own question stands as decided: the relay needs a running server, and the store has one writer.\n\nWhat it costs: Step 1 is a move of every route body, mechanical but large, with `test/Api.test.js` as the net; nothing the server does changes. The plan text (revision 2) now says all of this under The interface definition. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-6ix-h7q-w5c",
+		"Anchor": {
+			"Text": "One interface, implemented once.",
+			"Prefix": ". Three statements it rests on: ",
+			"Suffix": " Every operation of Consensus is"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-23T07:47:14.672Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-23T07:57:00.070Z",
+			"Revision": 2,
+			"RevisionId": "rev-63r-jb6-0z8",
+			"Outcome": "All of them: the MCP server is over the whole API, from a single interface definition implemented once. The plan now rests on it (statement 1): src/Operations.js defines and performs every operation of the sixty-four routes, Api.js keeps the routing, Mcp.js lists every operation as a tool, and the run's tools become the same definition in Ollama's form; the tool table of fourteen is gone. Step 1 is the definition, Step 2 the MCP module and the transports, Step 3 the instructions and the docs."
+		},
+		"Created": "2026-10-23T07:42:57.495Z",
+		"Replies": [
+			{
+				"Id": "rep-cc5-r7c-lf8",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T07:42:57.495Z",
+				"Text": "**The tool set.** Fourteen tools, the person's whole API surface for plans and threads, rather than the run's nine. The five more are `instructions`, `projects`, `revisions`, `resolve` and `reanchor`, plus `create_plan`, each one route; resolve is yours by role, which `authorize` enforces. Recommendation: the fourteen; users, settings, runs and import stay with the REST API. Resolve with no reply to take it."
+			},
+			{
+				"Id": "rep-nt9-dwp-bcl",
+				"By": "user",
+				"At": "2026-10-23T07:47:14.672Z",
+				"Text": "include all of them. there should be a single interface definition that is implemented the same everywhere."
+			}
+		]
+	},
+	{
+		"Id": "thr-mmy-fsi-l5f",
+		"Anchor": {
+			"Text": "The Consensus tools a local model gets",
+			"Prefix": "header it uses. The run's tools ",
+			"Suffix": " (src/Tools.js) become the same "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-23T08:01:07.821Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-23T08:02:51.262Z",
+			"Revision": 3,
+			"RevisionId": "rev-d81-kvf-s8k",
+			"Outcome": "Resolved with no reply: superseded by the single interface definition. The local model's tool list, the MCP tools and the REST routes are all read from the one definition; there is no separate MCP table. The text said so at revision 2; no change."
+		},
+		"Created": "2026-10-23T07:42:57.507Z",
+		"Replies": [
+			{
+				"Id": "rep-hm1-3qe-2cu",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T07:42:57.507Z",
+				"Text": "**Its own table, not the run's.** The run's tools in `src/Tools.js` are bounded to one project and a Writes level and spoken in Ollama's form; the MCP table is in MCP's form with `Project` where the run had it implied, and the names match where the two overlap. The alternative, one table generated into both forms, saves nine definitions at the cost of a conversion layer in a module that should be plain. Recommendation: its own table. Resolve with no reply to take it."
+			},
+			{
+				"Id": "rep-h4a-oyt-38t",
+				"By": "user",
+				"At": "2026-10-23T07:48:48.640Z",
+				"Text": "i dont even know what you are talking about here. please speak more plainly."
+			},
+			{
+				"Id": "rep-hn1-p06-neq",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T07:57:33.707Z",
+				"Text": "Plainly: Consensus already has a list of tools, the nine a local model gets when it runs through Ollama (reply, apply, set_state and so on, in `src/Tools.js`). I had proposed giving the MCP server a second list of its own, written separately. Your answer on the tool set settles it the other way: there is one definition of every operation, and the local model's tools, the MCP tools and the REST routes are all read from it. So this question is gone; the plan's section The run's tools says the local model's list becomes that same definition, held to the task's Writes as today. Resolve with no reply to close it as superseded."
+			}
+		]
+	},
+	{
+		"Id": "thr-t79-puh-032",
+		"Anchor": {
+			"Text": "which is how sidecar mode's one-project rule is set for a client",
+			"Prefix": "that take one and leave it out, ",
+			"Suffix": "; without it the client names th"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-23T07:52:21.839Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-23T07:57:33.623Z",
+			"Revision": 2,
+			"RevisionId": "rev-63r-jb6-0z8",
+			"Outcome": "Resolved with no reply: the recommendation went in. The project is an argument (an id or a name) on the operations that take one, and the stdio relay's --project fills it when left out; one URL for the HTTP transport. The text said so already; no change."
+		},
+		"Created": "2026-10-23T07:42:57.519Z",
+		"Replies": [
+			{
+				"Id": "rep-jgc-m94-xg4",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T07:42:57.519Z",
+				"Text": "**The project is an argument, defaulted by `--project`.** Tools that need a project take `Project` (an id or a name); the stdio relay's `--project` fills it when left out. The alternative is one MCP endpoint per project (`/api/projects/:pid/mcp`). Recommendation: the argument, since the HTTP form then has one URL and the instructions' \"find your project\" holds for both transports. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-nz4-e0i-l20",
+		"Anchor": {
+			"Text": "The route sits under the API, so identify and authorize cover it",
+			"Prefix": "rver is stateless across calls. ",
+			"Suffix": " (POST /mcp allowed to every ide"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-23T07:54:50.295Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-23T07:57:33.653Z",
+			"Revision": 2,
+			"RevisionId": "rev-63r-jb6-0z8",
+			"Outcome": "Resolved with no reply: the recommendation went in. The HTTP transport is POST /api/mcp, under the API's identify and authorize. The text said so already; no change."
+		},
+		"Created": "2026-10-23T07:42:57.532Z",
+		"Replies": [
+			{
+				"Id": "rep-7yc-o65-u32",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T07:42:57.532Z",
+				"Text": "**The HTTP path is `/api/mcp`.** Under the API, so identify and authorize cover it with no new middleware, and a bare request on a Public server is refused as everywhere. The alternative, `/mcp` at the root, reads better in a client's configuration but needs the middleware mounted twice. Recommendation: `/api/mcp`. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-74t-slj-ncv",
+		"Anchor": {
+			"Text": "so the byline reads",
+			"Prefix": "header; MCP when none is given, ",
+			"Suffix": " \"MCP by User\") or --token <toke"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-23T07:51:44.367Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-23T07:57:33.664Z",
+			"Revision": 2,
+			"RevisionId": "rev-63r-jb6-0z8",
+			"Outcome": "Resolved with no reply: the recommendation went in. The relay's default service name is MCP; a Claude Code configuration passes --service Claude-CLI. The text said so already; no change."
+		},
+		"Created": "2026-10-23T07:42:57.546Z",
+		"Replies": [
+			{
+				"Id": "rep-l7v-le9-l2i",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T07:42:57.546Z",
+				"Text": "**The relay's default service name is `MCP`.** With no `--service`, what the client posts reads \"MCP by User\"; a Claude Code configuration passes `--service Claude-CLI` to keep the byline it has today. The alternative is to require `--service` and refuse to start without it. Recommendation: `MCP` as the default. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-sqr-qgr-9go",
+		"Anchor": {
+			"Text": "with its own build log and commit",
+			"Prefix": "n its subplan before its build, ",
+			"Suffix": " (decided 2026-10-23, the subpla"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-23T07:55:03.471Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-23T07:57:33.674Z",
+			"Revision": 2,
+			"RevisionId": "rev-63r-jb6-0z8",
+			"Outcome": "Resolved with no reply: the recommendation went in, one build in three checkpoints. Since then the tool-set thread made the plan larger (Step 1 is now the move of every route's body into src/Operations.js), so a new thread on the Steps line asks whether the three should be subplans instead; this one stands as resolved."
+		},
+		"Created": "2026-10-23T07:42:57.577Z",
+		"Replies": [
+			{
+				"Id": "rep-ufm-brh-m6m",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T07:42:57.577Z",
+				"Text": "**One build in three checkpoints**, not three step subplans: the module and the relay, the HTTP transport, the instructions and the docs; one build log, one commit titled \"MCP Server\". The alternative is a subplan per step with its own design thread and commit, as UI Components had. Recommendation: one build; the plan is one feature and its three parts are small. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-70w-zw5-g55",
+		"Anchor": {
+			"Text": "Three subplans, each designed on its subplan before its build",
+			"Prefix": "ing (the promotion work). Steps ",
+			"Suffix": ", with its own build log and com"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-23T08:01:25.061Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-23T08:02:51.243Z",
+			"Revision": 3,
+			"RevisionId": "rev-d81-kvf-s8k",
+			"Outcome": "Resolved with no reply: three subplans, each with its own design thread, build log and commit. Created under the plan as Step 1: The interface definition, Step 2: The MCP module and the two transports, Step 3: The instructions and the docs, each carrying its sections from the plan; the Steps section lists them."
+		},
+		"Created": "2026-10-23T07:57:33.722Z",
+		"Replies": [
+			{
+				"Id": "rep-3ue-ega-oi5",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T07:57:33.722Z",
+				"Text": "**Three subplans rather than one build?** You resolved one build in three checkpoints when Step 1 was a small module. With the single interface definition, Step 1 is now the move of every route's body out of `src/Api.js` into `src/Operations.js`, the largest refactor the code has had, and Step 2 is the MCP module, two transports and the run's tools over it. Each of the three could be a subplan with its own design thread, build log and commit, as UI Components had. Recommendation: three subplans, since a build log for the refactor alone is worth reading on its own and committing on its own, before any MCP code lands on it. Resolve with no reply to take it, or reply to keep the one build."
+			}
+		]
+	},
+	{
+		"Id": "thr-ag3-gzy-82g",
+		"Anchor": {
+			"Text": "A transport identifies nobody and holds no state.",
+			"Prefix": "hread, resolved with no reply): ",
+			"Suffix": " Authentication lives at the edg"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-23T08:20:29.930Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-23T08:21:05.800Z",
+			"Revision": 5,
+			"RevisionId": "rev-3vu-4ch-vox",
+			"Outcome": "Resolved with no reply: the plain explanation stands. A new section Other transports says that a transport identifies nobody and holds no state (authentication lives at the server's edge, identify and authorize, and an operation never asks who is calling), and that there is no session, only a credential: nothing on a Local server, an account token minted on the user page on a shared one, kept by name in the global config's Servers list where the desktop keeps its saved servers, sent in the Authorization header every time, revoked on the user page. The CLI itself is a later plan; the stdio relay takes a saved server's name the same way."
+		},
+		"Created": "2026-10-23T08:11:13.590Z",
+		"Replies": [
+			{
+				"Id": "rep-rhj-qab-84e",
+				"By": "user",
+				"At": "2026-10-23T08:11:13.590Z",
+				"Text": "Once we do that, we will be able to implement other transports. Like a CLI. Question is, where does the authentication live? And how do we store a session in between instances?"
+			},
+			{
+				"Id": "rep-bg4-jhe-ykb",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T08:12:46.215Z",
+				"Text": "Yes: once the operations take a participant, a transport is a thin thing, and a CLI (`consensus reply <plan> <thread> \"...\"`) is one more. The two questions, from how the code stands today:\n\n**Where authentication lives: at the edge of each transport, never in the operations.** Today `Participants.Identify` turns a request's two headers (`Authorization`, `X-Consensus-Service`) into the account, over the registry's tokens, the run tokens and Clerk; the API's identify middleware calls it, authorize checks the route's action against the account's role. After Step 1 that stays exactly where it is: an operation is `Operation( Participant, Arguments )` and never asks who is calling; the transport answers that question before it calls. The HTTP transport gets the participant from the headers as now; the stdio relay and a CLI run on the client's machine, so they do not identify anyone themselves: they carry a credential to the server's HTTP transport, which identifies as it does for curl. One place decides who you are, the server, whatever the client. The only in-process transports are the ones inside the server (the HTTP route, the run's tools), and they are given the participant the server already identified.\n\n**How a session is kept between instances: there is no session; there is a credential, kept where the desktop keeps its.** Consensus has no session state on the server (nothing to expire, nothing to renew): a request is identified by what it carries. For a person that is one of three things: nothing on a Local server (the owner), an account token minted on their user page (long-lived until revoked, hashed in the registry, `LastUsed` touched as it is used), or a Clerk session token in the browser (short-lived, renewed by ClerkJS; never something a CLI should hold). So a CLI or a relay that runs again and again stores an account token once and sends it every time. The desktop already has the place: the global config's `Servers` list (`~/.consensus/consensus.json`, `{ Name, Url }` per saved server), where User Management said each saved server holds its token. A CLI reads the same list: `--server cube4` names an entry, the entry carries the `Url` and the `Token` (or the `Service` name for a Local server), and `consensus login cube4` is the one command that writes an entry, taking a token the person minted in the page (not a Clerk sign-in, which a terminal cannot complete without a browser; that can come later as a device flow if ever wanted). The stdio relay of Step 2 takes `--server <url> --token <t>` as the plan says and, with this, also a saved server's name.\n\nWhat I would add to the plan on your resolve, as one short section \"Other transports\": a transport identifies nothing and holds no state; it carries a credential to the server's HTTP transport, or is given the participant the server identified; a client that runs repeatedly keeps an account token in the global config's `Servers` list, which a CLI and the relay read by name. The CLI itself is a later plan. Resolve with no reply to take it."
+			},
+			{
+				"Id": "rep-zv2-6wa-6nf",
+				"By": "user",
+				"At": "2026-10-23T08:17:06.147Z",
+				"Text": "plainly explain how would authentication work when using a CLI?"
+			},
+			{
+				"Id": "rep-ikr-xsi-826",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T08:17:39.752Z",
+				"Text": "Plainly, as you would use it.\n\n**On your own machine (a Local server).** Nothing. You run `consensus reply <plan> <thread> \"...\"`, the CLI sends the request to `http://127.0.0.1:3500`, and the server treats it as you, the owner, as it treats curl and the page today. The CLI says its name in the service header, so the thread shows \"CLI by User\".\n\n**On a shared server (cube4, or a hosted one), once, to set it up:**\n\n1. You open that server in the browser and sign in, as you do today.\n2. On your user page you press Create token, give it a name (\"laptop CLI\"), and copy the value it shows once.\n3. In the terminal you run `consensus login cube4 http://cube4:3500` and paste the token when it asks. The CLI writes one line into your config file (`~/.consensus/consensus.json`, under Servers: the name, the address and the token), the same list the desktop keeps its saved servers in.\n\n**Every time after that:** you run `consensus --server cube4 reply <plan> <thread> \"...\"`. The CLI looks up cube4 in that list, sends the request with the token in the Authorization header, and the server looks the token up in its registry, finds your account, and does what your role in the project allows. The thread shows \"CLI by Andre\". Nothing expires: the token works until you press Revoke on your user page, which is also what you do if the laptop is lost. There is no logging in each time and no session to keep, because the token is the session.\n\n**What never happens:** the CLI never opens a browser or talks to Clerk, never holds your password (there is none), and never reads the `.consensus` folder; it is a client of the server like any other. If one day a terminal-only sign-in is wanted (press a key, a browser opens, come back signed in), that is a small addition on the same list, not a different design.\n\nThat is the whole of it, and it is what the desktop's saved servers and the stdio relay of Step 2 do as well. Resolve with no reply and I will put the \"Other transports\" section into the plan in these words."
+			}
+		]
+	}
+]

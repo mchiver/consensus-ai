@@ -93,22 +93,7 @@ TEST( 'an LLM connection is filled in with an id and the defaults, no token, nam
 		'LLM connection "bad name": the Name is letters, digits, dot, dash and colon',
 		'an LLM connection has no Name',
 	] );
-	ASSERT.deepEqual( LLMS.Problems( { Llms: 'no' } ), [ 'Llms must be a list' ] );
-
-	// Migrate: a name from before with other characters is brought up to date rather than refused; one used twice
-	// gets a number; a usable list is left alone
-	let older = { Name: 'srv', Llms: [ LLMS.Fill( { Name: 'Claude CLI' } ), LLMS.Fill( { Name: ' my model / fast ', Kind: 'ollama', Model: 'm' } ), LLMS.Fill( { Name: 'Claude-CLI' } ), LLMS.Fill( { Name: 'x' } ), LLMS.Fill( { Name: '???', Kind: 'ollama', Model: 'llama3' } ) ] };
-	ASSERT.deepEqual( LLMS.Migrate( older ), [
-		'LLM connection "Claude CLI" renamed "Claude-CLI": a Name is letters, digits, dot, dash and colon, used once',
-		'LLM connection "my model / fast" renamed "my-model-fast": a Name is letters, digits, dot, dash and colon, used once',
-		'LLM connection "Claude-CLI" renamed "Claude-CLI-2": a Name is letters, digits, dot, dash and colon, used once',
-		'LLM connection "???" renamed "ollama-llama3": a Name is letters, digits, dot, dash and colon, used once',
-	] );
-	ASSERT.deepEqual( older.Llms.map( function ( llm ) { return llm.Name; } ), [ 'Claude-CLI', 'my-model-fast', 'Claude-CLI-2', 'x', 'ollama-llama3' ] );
-	ASSERT.deepEqual( LLMS.Problems( older ), [] );
-	ASSERT.deepEqual( LLMS.Migrate( older ), [] );
-	ASSERT.deepEqual( LLMS.Migrate( settings ), [] );
-} );
+	ASSERT.deepEqual( LLMS.Problems( { Llms: 'no' } ), [ 'Llms must be a list' ] );} );
 
 
 TEST( 'every connection is a speaker of its server: listed after the owner, its runs identified by a run token the server minted', function ()

@@ -46,7 +46,7 @@ function sign( Claims, Key, Header )
 function fresh_users()
 {
 	let users = USERS.Users( { Folder: FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-' ) ) } );
-	users.Migrate( { Owner: { Name: 'user', Display: 'User' } } );
+	users.Prepare( { Owner: { Name: 'user', Display: 'User' } } );
 	return users;
 }
 

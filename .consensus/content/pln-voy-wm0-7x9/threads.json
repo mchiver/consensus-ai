@@ -1,0 +1,31 @@
+[
+	{
+		"Id": "thr-hbp-8zl-l1v",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-23T08:49:22.813Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-23T08:49:47.274Z",
+			"Revision": 1,
+			"RevisionId": "rev-fzb-58i-v5s",
+			"Outcome": "Accepted as built (resolved with no reply): src/Operations.js defines and performs the sixty-two operations, src/Api.js is the routing, test/Operations.test.js pins the definition; the API unchanged, test/Api.test.js green. Committed as MCP Server Step 1: The interface definition."
+		},
+		"Created": "2026-10-23T08:48:14.196Z",
+		"Replies": [
+			{
+				"Id": "rep-m42-x6d-03n",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T08:48:14.196Z",
+				"Text": "**Build log, MCP Server Step 1: The interface definition** (Claude Fable 5.1, 2026-10-23).\n\n**What was built.**\n\n- `src/Operations.js` (new, 3,230 lines): every operation of the API defined once and performed by one function. `Operations( Context )` takes what `Api.Attach` took and answers `{ List, Get( Name ), Perform( Name, Participant, Arguments ), Shared }`. Sixty-two operations, each `{ Name, Method, Path, Description, Parameters, Action, Status, Perform }`: the name in lower_case (`read_plan`, `reply`, `apply`, `write_text`, `set_state`, `thread`, `waiting` where the run's tools had them; `create_project`, `export_item`, `mint_token`, `set_roles` and so on), a description a model can read, the parameters with their types and which are required, the action read from the route table in `src/Roles.js` over a sample of the path so the two cannot drift, the status a plain answer is sent with (201 for the creates), and the function `Perform( Participant, Arguments )`, the route's body as it was, moved with its helpers, the store's queue and the events kept inside. A refusal is thrown as a `Refusal` (an Error carrying `Status`, `Error` and `Extra`, so `{ Revision }`, `{ Problems }` and `{ Plan }` reach the client as before); the functions the operations share (`change_project`, `create_thread`, `add_reply`, `apply_outcome`, `copy_node`, `check_target`) still return `{ Refused }` values, turned into a throw at the operation's boundary by `sent()`. The two reports and the two answers with a status of their own (a project opened rather than created, an import preview) come back as an `Answer( Status, Body, Type )`. The path's parameters are arguments under their own names: `Id`, `Project` (`:pid`), `Folder`, `Thread`, `Revision` (`:n`), `Name`.\n- `src/Api.js` (370 lines, from 2,879): the routing only. Each operation is mounted at its method and path; the query (its keys capitalized, so `?state=` is `State`), the body and the path's parameters are folded into one arguments object, the path's winning; the answer is sent at the operation's status, an Answer at its own with its content type, a Refusal as `{ Error }` with its status, anything else to the error handler as before. Identify, authorize, `project_for`, the Clerk config route and webhook (before identify, no participant, so not operations), the 404 and the error handler stay as they were; identify and the webhook take `roles_of`, `needed_plan` and `clear_roles` from `Operations.Shared`. `POST /runs` reads the presser's role from `participant.ProjectRole`, which authorize sets beside `request.Role`. `Attach` returns the operations, for Step 2's MCP route.\n- `test/Operations.test.js` (new, five tests): every route the API had, listed by method and path, maps to its operation and nothing else is defined; every operation is whole (a lower_case name, a description, typed parameters, each path parameter declared and required, an action from the table, a status, a function); the actions are the table's (reads read, writes write, the server's own are the Administrator's, a run's record is open); `Perform` runs as a participant and refuses with a status, an unknown name is 404; a Refusal carries its extras and an Answer its type.\n\n**What did not change.** The API's behaviour: every route answers the same JSON, status and error as before; `test/Api.test.js` is untouched. `src/Server.js` calls `Attach` as before. The run's tools (`src/Tools.js`) are Step 2's.\n\n**How it was tested.** `node --test`: 246 tests (five more than the 241 at the start), 242 pass, 3 skipped (git-less and Clerk-less cases, as before), one failure per run, a different one each time: the Work options test once (\"fetch failed\" on its first call, after the test's git clone; it passed ten of ten runs alone on this code and six of six on the old, so a keep-alive race on the test's long pause, not the move), and the editor-threads browser test once (it fails alone on the old code too, two of two: order-dependent, known). The operations test and the API test together: 42 of 42 on the first run. Nothing is committed."
+			}
+		]
+	}
+]

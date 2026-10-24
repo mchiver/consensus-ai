@@ -1,0 +1,3 @@
+# UI Tweaks X
+
+- Clicking the plan page outside of any anchored text used to deseect the current thread it moved from my list if it is not waiting on me. It currently does not do that and the current thread remains.

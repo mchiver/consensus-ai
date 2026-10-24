@@ -1,0 +1,31 @@
+[
+	{
+		"Id": "thr-lk6-xnx-z8c",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-23T05:32:37.910Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-23T05:33:19.502Z",
+			"Revision": 2,
+			"RevisionId": "rev-avm-6uv-y4k",
+			"Outcome": "Accepted as built (resolved with no reply): the CodeMirror editor deselects the thread on a click off any mark, as the Read view does; the docs say so. Committed as UI Tweaks X."
+		},
+		"Created": "2026-10-23T05:15:01.374Z",
+		"Replies": [
+			{
+				"Id": "rep-wwg-aqy-w0y",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-23T05:15:01.374Z",
+				"Text": "**Build log, UI Tweaks X** (Claude Fable 5.1, 2026-10-23).\n\n**What was wrong.** The Read view (html-view) has had a blank-click deselect since UI Tweaks VI: a click in the text off any highlight clears the selected thread, which also takes it off the list when the filter would not show it. The CodeMirror editor, the one view since Markdown Editor Step 3, never got it; the docs even said so (\"in Monaco mode's Read view a click off any highlight clears it too\"). Escape still worked.\n\n**What was built.**\n- `public/js/mirror.js`: the editor's DOM handlers get a `click` beside the `mousedown` that selects a mark's thread. A click off any mark that leaves the caret (the editor's selection empty) calls the new `Handlers.OnBlankClick()`; a click that ends a drag selection is skipped, so the selection-buttons keep their chance. The header comment says so.\n- `public/components/edit-view/edit-view.js`: passes `OnBlankClick` and answers it as the Read view's blank click does: nothing while a thread is being re-anchored or none is selected, else `State.Select( null )` inside a digest. The selection then leaves the list when the filter does not show it, as before.\n- Docs: `docs/guide/threads.md` and `readme.md` now say Escape or a click in the text off any highlight deselects, with no Monaco-only aside; `docs/guide/threads.html` rebuilt with `node bin/docs.js build`.\n\n**How it was tested.** `test/Ui.test.js`, the CodeMirror test: after a mark's click selects its thread, a click into \"A closing line.\" deselects (no selected card, the mark loses its selected class), and the mark's click selects again; the rest of the test runs on from there. The full suite passes (43 of 43, twice); one earlier full run had a single failure that did not repeat and that I could not identify from the tail of its output. The CodeMirror test alone passed three times running. Nothing was committed."
+			}
+		]
+	}
+]

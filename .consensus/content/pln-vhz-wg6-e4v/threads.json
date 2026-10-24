@@ -398,5 +398,129 @@
 				"Text": "**Build log: LLM Tasks Step 4 (Explain), built by Claude Fable 5.1 on 2026-10-19.** The six points of the design thread, as decided. The plan stays Working until this log is accepted; nothing is committed.\n\n**Built**\n\n- `src/Tasks.js`: an eighth Package switch, `Project`, off unless set (as Box is); Explain shipped after Work (Instructions, Readme, Documents, Files, Project and Box on, Plan and Threads off, Writes none, a prompt that answers the question under \"Your instructions\" from the package and what the API or the tools let it read, in plain markdown, and posts nothing); TasksVersion 3. Each shipped task now carries a `Since` (the version that shipped it): a file below the version gets the shipped tasks that came after its version and it lacks, each after the nearest shipped one present, so a file at version 2 that removed Enhance keeps it removed and still gets Explain.\n- `src/Package.js`: \"## The project\" (every plan and document of the tree and the Archive but the Readme, as a title, id, state and tally, with how to read one) and \"## Runs\" (the last twenty run records a line each) when the task switches Project on, after the threads and before the task's prompt. `src/Runner.js` builds that shape from the store and the run records.\n- `src/Runs.js`: `List` takes a filter { Llm, Project, Task, By } (a connection's id still works); `Delete( Id )` removes a record's file, a running one refused. `src/Api.js`: GET /api/runs takes `Project=`, `Task=` and `By=`; DELETE /api/runs/:id (404 when gone, 409 while running); GET /api/tasks answers `Off`, the switches off unless set.\n- The page: a tab kind `x` with the route #/x/<project id> (under #/s/<root> too), titled \"Explain · <project>\", detachable like the others; the component `public/components/explain-pane/` (the exchange above: each question with who and when, each answer as markdown with its connection's name, \"answering…\" while it runs, the status and error when it fails; the question box with Ask and Ctrl+Enter; the connection picker remembered per project and server in the browser; Clear with a Yes/No, deleting the conversation's runs but one still running); Explain in the project's row menu after LLM Instructions; the Explain button on the LLM page opens the tab instead of running; the Settings popup's Add starts a task with the Off switches off.\n- Docs: the README (Explain and its tab, the Project switch, Since, the run routes), `docs/guide/llm.md` (the shipped five), `api.md`, `features.md`, `settings.md`; built with `node bin/docs.js build`.\n\n**Checked**\n\n- `test/Api.test.js`: Explain end to end with a stand-in command that reads the package, finds the project's shape, reads the first plan listed on its token, tries a write (refused 403) and answers from the plan: the preview carries the shape with the plan's state and tally, the runs and no plan at hand; the run record names the task, the question, Writes none, the token \"Explain run\" and the asker; the answer is the output; the plan's threads are untouched; no token is left; the conversation lists by project, task and asker, and Clear deletes the record once. The tasks test follows the shipped five (its own task renamed Describe).\n- `test/Tasks.test.js`: the shipped five, Explain's switches and prompt, Since stripped from a filled task, the migration by Since (a Step 1 file gets Enhance and Explain and keeps Session removed; a Step 2 file that removed Enhance keeps it removed and gets Explain; a file at version 3 is left alone). `test/Runs.test.js`: the Project section's shape and runs, and None when empty. `test/Participants.test.js` follows the five.\n- `test/Ui.test.js`: Explain in the project's menu opens the tab (its title, the empty exchange, one connection in the picker, Ask disabled until a question is typed); the LLM page's Explain button opens the tab and starts no run; the Settings and project popups count five tasks.\n- `node --test` without the browser tests: 153 pass, 0 fail. The UI test alone: 38 pass. The Docs test alone: 2 pass. `node bin/smoke.js`: one check failed on a first run straight after the Docs test, and SMOKE OK when run alone again.\n\n**Decided during the build**\n\n- `Since` on the shipped tasks, so that the version migration adds only what a file never had; the design said \"the shipped tasks it lacks\", which would have put back a task the owner removed at an earlier version.\n- The Explain button on the LLM page opens the tab by the task's id (`explain`), since the tab is the home of that one task's answers; a task of your own with Writes none still runs from the LLM page and shows its answer in the run popup.\n- The conversation reads each run whole (one request per run) for its answer; the list route stays light.\n- The Watcher's smoke check waits for User Management Step 3, as the design said: this step's checks are the owner's.\n\nResolve to accept: I apply this log, commit as \"LLM Tasks Step 4: Explain\", set the plan back to Plan, and update the Readme. Reply with what to fix instead."
 			}
 		]
+	},
+	{
+		"Id": "thr-145-ldm-9qp",
+		"Anchor": {
+			"Text": "The task buttons on the plan page, with a project's chosen LLM connection",
+			"Prefix": "he guide page and the pictures. ",
+			"Suffix": " (added 2026-10-19: Enhance \"on "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-20T17:26:56.840Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-20T17:29:36.298Z",
+			"Revision": 24,
+			"RevisionId": "rev-6nt-bek-uzf",
+			"Outcome": "All seven points taken as recommended: the project's connection as a field of the project, the plan-tasks on a plan's heading, one set of rules in the Llms service, the box as a popup, the toast after the press, the Explain tab on the project's connection, the checks and the docs. Written into Step 6 as \"Decided before the build\"."
+		},
+		"Created": "2026-10-20T17:10:29.127Z",
+		"Replies": [
+			{
+				"Id": "rep-0n9-bfk-yxi",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-20T17:10:29.127Z",
+				"Text": "**Design for Step 6, The task buttons on the plan page** (Claude Fable 5.1, 2026-10-20). What the step says: the task buttons on the plan at hand, run through a project's chosen LLM connection. What is there today: the LLM page (`llm-session`) is a connection's page, with the project and plan pickers, the buttons, the Box, the Work options and the log of runs; the plan's heading (`editor-header`) has the state picker, New Comment, Report and New subplan; the Explain tab picks its connection per project in the browser. Seven decisions, a recommendation each; resolving with no reply takes them all and I build.\n\n1. **The project's connection is a field of the project.** `Llm` in project.json, a connection's id, set through PUT /api/projects/:pid by an Owner as GitSync is (an unknown id refused 400, null clearing it, absent meaning none chosen), and picked in the project's Settings popup from a list of the server's connections with \"none\" first. On the project and not in the browser: on a Public server everyone pressing the plan's buttons runs the same connection, and the choice outlives the browser. A connection deleted since leaves the field pointing at nothing, which counts as none. *I recommend this.*\n\n2. **Which buttons, and where.** On a plan's heading (not a document's or the Readme's, not an archived plan's), one button per task the project enables whose Package has Plan on: Answer, Enhance and Work of the shipped set; Explain and Session package no plan and stay where they are (the LLM page, the project's menu). In the server's order, labelled by the task's Name with the play icon, in the heading's button row before New Comment. Shown when the server runs LLMs and has a connection; with none chosen for the project every button is disabled, its title saying \"choose the project's LLM connection in its settings\". A server with no connection shows nothing, so a Local server with no LLM looks as it does today. *I recommend this.*\n\n3. **One set of rules.** The reasons the LLM page already has (no server runs, no one signed in, a run going on that connection, the role may not press, no plan when the task packages one) move into the Llms service as `Llms.Reason( root, { Llm, Project, Plan, Task } )`, and both pages ask it, so the two never disagree. The plan page needs no pickers: the plan at hand is the open plan, the project is its project. *I recommend this.*\n\n4. **The box.** A task with a Box (Enhance) pressed on the plan page opens a small popup in the subplan popup's style: a text area with the text remembered per project in the browser (the same stored key as the LLM page's box, so the two share it), Run (Ctrl+Enter) and Cancel. A task without a Box runs at once. *I recommend this* over a text box on the heading, which has no room for one.\n\n5. **After the press.** The button is disabled while the connection has a run going, its title naming the run and who pressed it; a toast says \"Answer started on <connection>\", and when the run ends the plan reloads as it does today over the events, with a toast saying it ended, or failed with the error's first line. The log of runs, the run popup and Stop stay on the LLM page, which the toast links to. *I recommend this.*\n\n6. **The Explain tab** drops its own picker and runs the project's connection; with none chosen, Ask is disabled with the same reason as the buttons. The picker's remembered value in the browser is forgotten. *I recommend this.*\n\n7. **The checks and the docs.** The API test: PUT /api/projects/:pid with a valid Llm, an unknown one refused, null clearing it, the field read back. The UI test: a plan's heading counts the enabled plan-tasks, disabled with the reason until the project's settings choose the connection, then Enhance opens the box popup and a run starts on the stand-in command Step 2's test uses, and the Explain tab has no picker. The desktop smoke unchanged. The docs: llm.md (the buttons on the plan at hand, the connection in the project's settings), settings.md (the project's LLM connection), features.md, api.md and the readme. *I recommend this.*"
+			}
+		]
+	},
+	{
+		"Id": "thr-g60-99e-jh3",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-20T18:17:02.327Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-20T18:18:26.686Z",
+			"Revision": 24,
+			"RevisionId": "rev-6nt-bek-uzf",
+			"Outcome": "Accepted as built. Committed as \"LLM Tasks Step 6: The task buttons on the plan page\" (a320272); the plan back to Plan; the Readme updated."
+		},
+		"Created": "2026-10-20T17:41:51.840Z",
+		"Replies": [
+			{
+				"Id": "rep-ijk-pjv-fq6",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-20T17:41:51.840Z",
+				"Text": "**Build log for Step 6, The task buttons on the plan page** (Claude Fable 5.1, 2026-10-20). Built as decided; nothing committed. Resolve to accept, and on your turn I commit as \"LLM Tasks Step 6: The task buttons on the plan page\", set the plan to Plan, and bring the Readme document up to it.\n\n**What was built.**\n- `src/Api.js`, `src/Store.js`: project.json's `Llm`, the project's LLM connection. PUT /api/projects/:pid takes it as GitSync: a connection's id (one the server lacks is refused 400, \"Llm names no connection of this server\"), null clears it, absent means none. A connection deleted since counts as none on the page.\n- `public/js/llm.js`: the one set of rules. `Llms.Reason( root, { Llm, NoLlm, Project, Plan, Task } )` gives the reason a task cannot run, or '' (no connection, the server runs no LLMs, no one signed in, a run going on that connection, no project, no plan when the task packages one), with `TasksOf` (the tasks a project enables), `NeedsPlan` and `ProjectLlm` (the chosen connection while the server still has it). `llm-session.js` asks the service for its reasons and its tasks instead of keeping its own.\n- `public/components/editor-header/`: on a plan's heading (not a document's or the Readme's, not an archived plan's), one button per enabled task whose Package has Plan on (Answer, Enhance and Work of the shipped set), in the server's order, with the play icon, before New Comment; shown when the server runs LLMs and has a connection, every button disabled with \"choose the project's LLM connection in its settings\" until the project chose one. A task with a Box opens a popup in the subplan popup's style (the text is the LLM page's, remembered per project and shared; Run, Ctrl+Enter, Cancel, Escape); a task without one runs at once. After the press the running mark disables the buttons until the events say the run ended; a toast says \"<task> started on <connection>\" and, when it ends, that it ended, was stopped or failed with the error's first line; a refusal is shown beside the buttons until the next press. The plan reloads over the events as every change does; the log of runs, the run popup and Stop stay on the LLM page.\n- The project's Settings popup (`public/index.html`, `public/js/project.js`): an **LLM connection** picker, the server's connections with \"none\" first, saved with the rest.\n- `public/components/explain-pane/`: the picker is gone; the tab runs the project's connection, named beside Ask, and with none chosen Ask waits with the same words. The browser's remembered picker is read no more.\n\n**Two small departures from the design.** The toast is text and does not link to the LLM page (the Toast service has no links; the LLM page is a click away in the sidebar). A button disabled by a run says \"a run is going\" rather than naming the run and who pressed it: the running mark the events carry has neither, and I did not add a read for a title.\n\n**The checks.**\n- `test/Api.test.js`: a new case on PUT Llm (set and read back, an unknown id refused and the old one kept, null clearing it from the record and the file).\n- `test/Ui.test.js`: a new case on a plan's heading: no button on a server with no connection; three once there is one, Answer, Enhance and Work, disabled with the reason; the project's Settings popup choosing the connection, the project read back with it; Enhance enabled with its title, the popup, the instructions typed, Run; the plan reloading at revision 2 written by the stand-in command (the one Step 2's API test uses, posting a revision as the run), and the run record carrying the connection, the plan and the text. The Explain case now sets the project's connection and sees it named instead of a picker.\n- The desktop smoke unchanged, run green.\n\n| Run | Result |\n|---|---|\n| node --test, all but Ui, Docs, ClerkSmoke | 168 tests, 168 pass |\n| node --test test/Ui.test.js | 41 pass (one new) |\n| node --test test/Docs.test.js | 2 pass |\n| node bin/docs.js build | 9 pages |\n| node bin/smoke.js (with desktop) | SMOKE OK |\n\n**Docs.** `llm.md` (the buttons on a plan's heading, the project's connection), `projects.md` (the project's own settings: the tasks and the LLM connection), `settings.md` (the Box, on the LLM page or in the popup), `api.md` (Llm on PUT /api/projects/:pid), `features.md`, and the readme (a paragraph on the plan page's buttons; Explain on the project's connection); the HTML built.\n\n**Beside this step.** The Clerk section left the Settings popup on your word earlier today, committed on its own as \"Settings: the Clerk section removed from the popup\" (ed478a8): PUT /api/settings keeps the file's Clerk section when the body gives none, so a Save from the popup no longer wipes a server's keys or its Administrator."
+			}
+		]
+	},
+	{
+		"Id": "thr-2zf-d1r-272",
+		"Anchor": {
+			"Text": "The guide page and the pictures.",
+			"Prefix": "w, the guide page being Step 5. ",
+			"Suffix": " The task buttons on the plan pa"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-20T18:42:43.052Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-20T18:43:37.943Z",
+			"Revision": 25,
+			"RevisionId": "rev-bxc-zuy-tzc",
+			"Outcome": "All five points taken as recommended: one narrative page after Working with an LLM, three new pictures and one captured instructions page, the links, the agent's setup described, the Docs test and Finished on acceptance. Written into Step 5 as \"Decided before the build\"."
+		},
+		"Created": "2026-10-20T18:38:09.169Z",
+		"Replies": [
+			{
+				"Id": "rep-mk1-480-97t",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-20T18:38:09.169Z",
+				"Text": "**Design for Step 5, The guide page and the pictures** (Claude Fable 5.1, 2026-10-20). What the plan says: `docs/guide/ways-of-working.md`, the ways in prose, each a few paragraphs and one picture, linked from Getting started and the Features page. What is there: nine guide pages listed in `docs/guide/pages.json`; `llm.md` already holds the reference (who an LLM is, the instructions page, your turn, the build loop, the connections and the tasks); the pictures are made by `node bin/docs.js screenshots` from the seeded Recipe Box project, light and dark each. Five decisions, a recommendation each; resolving with no reply takes them all and I build.\n\n1. **One page, \"Ways of working\", after Working with an LLM** in pages.json, written as a narrative and not a reference: five sections, the **agent session** beside your editor (what to say, what it reads, what it never does), the **server's connections** (a button, a run that is yours), **plan building** (a sketch, Enhance, the threads, Enhance or Answer again, then Work), **Explain** (the conversation every role has), and **making your own tasks** with one example that is not software (a reading group: a Summarize task over the documents, Writes consensus). `llm.md` keeps the reference and loses nothing; the two link each other. *I recommend this.*\n\n2. **The pictures.** Three new ones from the seeded server, light and dark: `plan-tasks.png` (a plan's heading with the Answer, Enhance and Work buttons and the Enhance popup open), `explain.png` (the Explain tab with a question typed) and `tasks.png` (the Tasks section of the Settings popup). The agent-session section reuses the LLM Instructions popup picture if one exists, else the instructions page in the browser is captured as `instructions.png`; the connections section reuses `desktop-llm.png`. The seeding adds a connection to the seeded server with a command that is never run and sets it as the project's, so the buttons show enabled; no run is started. *I recommend this.*\n\n3. **The links.** Getting started's \"What to do first\" gets a fourth item pointing to the page; the Features page's \"Tasks as buttons\" and \"Your turn in Consensus\" lines link to it; `llm.md`'s opening paragraph names it as the place to read first. *I recommend this.*\n\n4. **The agent's own setup** is described, not shipped: the page says what to paste (the one line that reads `/instructions`) and what the words mean, as `llm.md` does, in fewer words and with the picture. No file is added to the repository for it. *I recommend this.*\n\n5. **The checks and the close.** `test/Docs.test.js` renders the ten pages and sees the new pictures; the screenshot run is made and the new images committed with the page; `features.md` and the readme follow; the plan is set **Finished** on acceptance, this being its last step. *I recommend this.*"
+			}
+		]
+	},
+	{
+		"Id": "thr-ob7-6g5-als",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-20T21:12:30.974Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-20T21:13:49.683Z",
+			"Revision": 25,
+			"RevisionId": "rev-bxc-zuy-tzc",
+			"Outcome": "Accepted as built. Committed with the other Step 5 as \"LLM Tasks Step 5 and User Management Step 5: the guide pages\" (f65a63e); the plan Finished; the Readme updated."
+		},
+		"Created": "2026-10-20T19:25:33.609Z",
+		"Replies": [
+			{
+				"Id": "rep-yil-p1d-4ec",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-20T19:25:33.609Z",
+				"Text": "**Build log for Step 5, The guide page and the pictures** (Claude Fable 5.1, 2026-10-20). Built as decided, together with User Management's Step 5 (its own log on that plan); nothing committed. Resolve to accept, and on your turn I commit the two steps as one commit, \"LLM Tasks Step 5 and User Management Step 5: the guide pages\", set this plan to Finished, and bring the Readme document up to it.\n\n**What was built.**\n- `docs/guide/ways-of-working.md`, \"Ways of working\", after Working with an LLM in `pages.json`: the agent session (the one line to paste, what \"your turn\" does, what the agent never does, that its setup is nothing), a run from the page (the connections, a run that is yours, the buttons on a plan's heading), building a plan (sketch, Enhance, the threads, Answer, Work, the build log), Explain, and your own tasks with a reading group's Summarize task as the example that is not software.\n- The pictures, from the seeded server in both themes: `instructions.png` (the LLM Instructions popup), `plan-tasks.png` (a plan's heading with Enhance asking for instructions), `explain.png` (the Explain tab with a question typed) and `tasks.png` (the Settings popup scrolled to its Tasks section); `desktop-llm.png` reused for the connections. `bin/docs.js` seeds the connection as the project's (the buttons show enabled), makes the four captures, and closes the tabs it opens so the pictures after them are as before.\n- The links: a fourth item under Getting started's \"What to do first\"; the Features page's \"Your turn in Consensus\" and \"Tasks as buttons\" lines; `llm.md`'s opening names the page as the story and itself as the reference.\n\n**The checks.**\n\n| Run | Result |\n|---|---|\n| node bin/docs.js screenshots | 48 pictures (twelve new files), the demo folder removed after |\n| node bin/docs.js build | 11 guide pages, no problem |\n| node --test test/Docs.test.js | 2 pass (the build, and the screenshot run over a copy writing every listed picture) |\n| node --test, all but Ui, Docs, ClerkSmoke | 168 pass |\n| node --test test/Ui.test.js | 41 pass |\n\nThe pictures were looked at: the popup, the heading's buttons, the tab and the Tasks rows show what the captions say. One note on `plan-tasks.png`: the Enhance popup sits over the heading, so the buttons behind it are partly covered; the caption says what it shows.\n\n**Docs.** `features.md` and `getting-started.md` as above; the readme follows on acceptance."
+			}
+		]
 	}
 ]

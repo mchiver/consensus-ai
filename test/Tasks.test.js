@@ -1,7 +1,7 @@
 'use strict';
 
-// The tasks (plan LLM Tasks, Step 1): the records filled, the shipped set, the migration of a settings file from
-// before, the problems named, enabling per project, and the settings' Clean and Validate through Participants.js.
+// The tasks (plan LLM Tasks, Step 1): the records filled, the shipped set, a settings file prepared at start, the
+// problems named, enabling per project, and the settings' Clean and Validate through Participants.js.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -39,56 +39,36 @@ TEST( 'a task is filled with an id, every switch (Project and Box off) and a lev
 } );
 
 
-TEST( 'a settings file from before: the Tasks list made, a connection\'s own Review and Build prompts moved onto Answer and Work, the Checks dropped', function ()
+TEST( 'Prepare: a settings file with no Tasks gets the shipped set; a list below TasksVersion gets the shipped tasks that came after it, once', function ()
 {
-	let settings = { Name: 's', Scope: 'Local', Owner: { Name: 'user' }, Llms: [
-		{ Id: 'llm-1', Name: 'a', Kind: 'claude-cli', Checks: { Readme: false }, Prompts: { Review: TASKS.OLD_PROMPTS.Review, Build: 'Build it my way.', Session: 'Be brief.' } },
-		{ Id: 'llm-2', Name: 'b', Kind: 'claude-cli', Prompts: { Review: 'Review it my way.', Build: 'Another build.' } },
-	] };
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( settings ), [
-		'Tasks set to the default set: Answer, Enhance, Work, Explain, Session',
-		'the Review prompt of the LLM connection "b" became the Answer task\'s',
-		'the Build prompt of the LLM connection "a" became the Work task\'s',
-		'the Checks and the Review and Build prompts of the LLM connections a, b dropped: the package and the prompt are the task\'s',
-	] );
-	ASSERT.equal( TASKS.ById( settings, 'answer' ).Prompt, 'Review it my way.' );
-	ASSERT.equal( TASKS.ById( settings, 'work' ).Prompt, 'Build it my way.' );
+	let settings = { Name: 's', Scope: 'Local', Owner: { Name: 'user' } };
+	ASSERT.deepEqual( TASKS.Prepare( settings ), [ 'Tasks set to the default set: Answer, Enhance, Work, Explain, Session' ] );
+	ASSERT.deepEqual( settings.Tasks.map( function ( task ) { return task.Id; } ), [ 'answer', 'enhance', 'work', 'explain', 'session' ] );
+	ASSERT.equal( settings.Tasks[ 0 ].Prompt, TASKS.PROMPTS.Answer );
 	ASSERT.equal( TASKS.ById( settings, 'session' ).Prompt, '' );
 	ASSERT.equal( settings.TasksVersion, TASKS.TASKS_VERSION );
-	ASSERT.deepEqual( settings.Llms[ 0 ].Prompts, { Session: 'Be brief.' } );
-	ASSERT.equal( 'Checks' in settings.Llms[ 0 ], false );
-	ASSERT.deepEqual( settings.Llms[ 1 ].Prompts, {} );
-	// filled by Llms: the Session prompt only, no Checks
-	let filled = LLMS.Fill( settings.Llms[ 1 ] );
-	ASSERT.deepEqual( filled.Prompts, { Session: '' } );
-	ASSERT.equal( 'Checks' in filled, false );
 	// a second start changes nothing; a list present at the version is kept, each filled
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( settings ), [] );
+	ASSERT.deepEqual( TASKS.Prepare( settings ), [] );
 	let kept = { Name: 's', Scope: 'Local', Owner: { Name: 'user' }, TasksVersion: TASKS.TASKS_VERSION, Tasks: [ { Id: 'mine', Name: 'Mine', Writes: 'none' } ] };
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( kept ), [] );
+	ASSERT.deepEqual( TASKS.Prepare( kept ), [] );
 	ASSERT.deepEqual( kept.Tasks[ 0 ].Package, { Instructions: true, Readme: true, Documents: true, Plan: true, Threads: true, Files: true, Project: false, Box: false } );
 	// a Step 1 file (no version): the tasks shipped since (Enhance after Answer, Explain after Work) are added, once; Session, shipped
 	// at version 1 and missing, was removed and stays removed
 	let older = { Name: 's', Scope: 'Local', Owner: { Name: 'user' }, Tasks: [ { Id: 'answer', Name: 'Answer' }, { Id: 'work', Name: 'Work' }, { Id: 'mine', Name: 'Mine' } ] };
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( older ), [ 'the shipped task Enhance added (Tasks version 2)', 'the shipped task Explain added (Tasks version 3)' ] );
+	ASSERT.deepEqual( TASKS.Prepare( older ), [ 'the shipped task Enhance added (Tasks version 2)', 'the shipped task Explain added (Tasks version 3)' ] );
 	ASSERT.deepEqual( older.Tasks.map( function ( task ) { return task.Id; } ), [ 'answer', 'enhance', 'work', 'explain', 'mine' ] );
 	ASSERT.equal( older.TasksVersion, 3 );
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( older ), [] );
+	ASSERT.deepEqual( TASKS.Prepare( older ), [] );
 	// a Step 2 file that removed Enhance keeps it removed and gets Explain, after the nearest shipped task present
 	let trimmed = { Name: 's', Scope: 'Local', Owner: { Name: 'user' }, TasksVersion: 2, Tasks: [ { Id: 'answer', Name: 'Answer' } ] };
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( trimmed ), [ 'the shipped task Explain added (Tasks version 3)' ] );
+	ASSERT.deepEqual( TASKS.Prepare( trimmed ), [ 'the shipped task Explain added (Tasks version 3)' ] );
 	ASSERT.deepEqual( trimmed.Tasks.map( function ( task ) { return task.Id; } ), [ 'answer', 'explain' ] );
 	let current = { Name: 's', Scope: 'Local', Owner: { Name: 'user' }, TasksVersion: 3, Tasks: [ { Id: 'answer', Name: 'Answer' } ] };
-	ASSERT.deepEqual( PARTICIPANTS.Migrate( current ), [] );
+	ASSERT.deepEqual( TASKS.Prepare( current ), [] );
 	ASSERT.equal( current.Tasks.length, 1 );
 	let empty = { Name: 's', Scope: 'Local', Owner: { Name: 'user' }, Tasks: [] };
-	ASSERT.equal( PARTICIPANTS.Migrate( empty ).length, 2 );
+	ASSERT.equal( TASKS.Prepare( empty ).length, 2 );
 	ASSERT.deepEqual( empty.Tasks.map( function ( task ) { return task.Id; } ), [ 'enhance', 'explain' ] );
-	// the defaults with no connections
-	let bare = { Name: 's', Scope: 'Local', Owner: { Name: 'user' } };
-	PARTICIPANTS.Migrate( bare );
-	ASSERT.equal( bare.Tasks.length, 5 );
-	ASSERT.equal( bare.Tasks[ 0 ].Prompt, TASKS.PROMPTS.Answer );
 } );
 
 

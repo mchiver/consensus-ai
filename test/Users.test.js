@@ -22,12 +22,12 @@ TEST( 'the owner\'s record is made at the first start and follows the settings\'
 {
 	let users = fresh();
 	ASSERT.deepEqual( users.List(), [] );
-	ASSERT.deepEqual( users.Migrate( { Owner: { Name: 'user', Display: 'User' } } ), [ 'Users.json made with the owner "user"' ] );
+	ASSERT.deepEqual( users.Prepare( { Owner: { Name: 'user', Display: 'User' } } ), [ 'Users.json made with the owner "user"' ] );
 	let owner = users.List()[ 0 ];
 	ASSERT.match( owner.Id, /^usr-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
 	ASSERT.deepEqual( [ owner.Type, owner.Login, owner.Display, owner.Email, owner.Clerk, owner.Tokens ], [ 'owner', 'user', 'User', null, null, [] ] );
-	ASSERT.deepEqual( users.Migrate( { Owner: { Name: 'user', Display: 'User' } } ), [] );
-	ASSERT.deepEqual( users.Migrate( { Owner: { Name: 'user', Display: 'Andre' } } ), [ 'the owner\'s record brought up to the settings: user, shown as Andre' ] );
+	ASSERT.deepEqual( users.Prepare( { Owner: { Name: 'user', Display: 'User' } } ), [] );
+	ASSERT.deepEqual( users.Prepare( { Owner: { Name: 'user', Display: 'Andre' } } ), [ 'the owner\'s record brought up to the settings: user, shown as Andre' ] );
 	ASSERT.equal( users.Get( owner.Id ).Display, 'Andre' );
 	// read back from the file by another instance
 	let again = USERS.Users( { Folder: PATH.dirname( users.Path() ) } );
@@ -40,7 +40,7 @@ TEST( 'the owner\'s record is made at the first start and follows the settings\'
 TEST( 'accounts: a user needs an email and a free login, a Service account a login; changed and deleted, the owner never', function ()
 {
 	let users = fresh();
-	users.Migrate( { Owner: { Name: 'user' } } );
+	users.Prepare( { Owner: { Name: 'user' } } );
 	let ann = users.Create( { Type: 'user', Login: ' ann ', Display: 'Ann', Email: 'ann@example.com' } );
 	ASSERT.deepEqual( [ ann.Type, ann.Login, ann.Display, ann.Email ], [ 'user', 'ann', 'Ann', 'ann@example.com' ] );
 	let bot = users.Create( { Type: 'service', Login: 'nightly' } );
@@ -71,7 +71,7 @@ TEST( 'accounts: a user needs an email and a free login, a Service account a log
 TEST( 'tokens: minted with a name and shown once, kept as a hash, matched, touched once a minute, revoked; the public shape shows no hash', function ()
 {
 	let users = fresh();
-	users.Migrate( { Owner: { Name: 'user' } } );
+	users.Prepare( { Owner: { Name: 'user' } } );
 	let ann = users.Create( { Type: 'user', Login: 'ann', Email: 'ann@example.com' } );
 	let value = users.MintToken( ann.Id, 'laptop' );
 	ASSERT.match( value, /^[0-9a-f]{48}$/ );

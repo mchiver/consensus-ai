@@ -7,7 +7,7 @@
 // None not at all, in which case Address, Url and Server are null and the settings and the store are still there for
 // the desktop. The settings are read once at start and changed in place by the settings routes (Api.js); Scope and
 // Port take effect at the next start. Step 3: the server runs the LLMs: the settings' Llms (Llms.js) are filled and
-// checked, the desktop's workspaces from before are moved into the projects, and the runs (Runs.js, their records in
+// checked, and the runs (Runs.js, their records in
 // <config>/runs/) and the Runner are attached to the API; a run's changes go out over the events. Step 4: Project
 // (a folder on the command line) loads that project alone, Scope None taken as Local for it; the configured port in
 // use (another instance) gives way to a free one, PortTaken saying which was taken. Plan User Management, Step 4: Clerk
@@ -28,8 +28,8 @@ const RUNS = require( './Runs.js' );
 const RUNNER = require( './Runner.js' );
 const GIT = require( './Git.js' );
 const USERS = require( './Users.js' );
+const TASKS = require( './Tasks.js' );
 const CLERK = require( './Clerk.js' );
-const ROLES = require( './Roles.js' );
 
 const DEFAULT_PORT = 3500;
 const DEFAULT_CONFIG = PATH.join( OS.homedir(), '.consensus' );
@@ -49,19 +49,15 @@ async function Start( Options )
 		await store.WriteSettings( settings );
 		settings_written = true;
 	}
-	let migrated = PARTICIPANTS.Migrate( settings );
-	if ( migrated.length )
+	// The Tasks list made at the first start (Tasks.js), and the connections filled in.
+	let prepared = TASKS.Prepare( settings );
+	for ( let line of prepared )
 	{
-		await store.WriteSettings( settings );
-		console.log( 'settings brought up to date: ' + migrated.join( '; ' ) );
+		console.log( 'settings prepared: ' + line );
 	}
 	let before = JSON.stringify( settings.Llms || [] );
 	settings.Llms = ( Array.isArray( settings.Llms ) ? settings.Llms : [] ).map( LLMS.Fill );
-	for ( let line of LLMS.Migrate( settings ) )
-	{
-		console.log( 'settings brought up to date: ' + line );
-	}
-	if ( JSON.stringify( settings.Llms ) !== before )
+	if ( prepared.length || JSON.stringify( settings.Llms ) !== before )
 	{
 		await store.WriteSettings( settings );
 	}
@@ -75,24 +71,11 @@ async function Start( Options )
 		console.log( 'prepared ' + line );
 	}
 	let project = store.Isolated() ? await store.ReadProject( store.Isolated() ) : null;
-	for ( let line of await migrate_workspaces( store, settings ) )
-	{
-		console.log( line );
-	}
-	let renamed = await rename_state( store, settings );
-	if ( renamed )
-	{
-		console.log( renamed );
-	}
-	// The users and the role folders (plan User Management, Step 3): the owner's record, and empty Roles in each project.
+	// The users (plan User Management, Step 3): the owner's record, made at the first start.
 	let users = USERS.Users( { Folder: store.Folder } );
-	for ( let line of users.Migrate( settings ) )
+	for ( let line of users.Prepare( settings ) )
 	{
-		console.log( 'users brought up to date: ' + line );
-	}
-	for ( let line of await migrate_roles( store ) )
-	{
-		console.log( line );
+		console.log( 'users prepared: ' + line );
 	}
 	// The Administrator from the environment (plan Clerk, Step 5: a Docker server nobody signed in to yet).
 	let admin_from_env = ( process.env.CONSENSUS_ADMIN || '' ).trim();
@@ -201,24 +184,6 @@ async function Start( Options )
 		Runner: runner,
 		Close: Close,
 	};
-}
-
-
-// Each project without role folders gets the four, empty (plan User Management, Step 3).
-async function migrate_roles( store )
-{
-	let lines = [];
-	for ( let project of await store.ListProjects() )
-	{
-		if ( project.Roles && typeof project.Roles === 'object' )
-		{
-			continue;
-		}
-		project.Roles = ROLES.Empty();
-		await store.WriteProject( project );
-		lines.push( 'project ' + project.Name + ': the role folders Owners, Members, Service and Watchers made, empty' );
-	}
-	return lines;
 }
 
 
@@ -337,112 +302,6 @@ function url_host( host )
 }
 
 
-// The first state's new name (plan UI Tweaks V): a settings list that still has the old name and not the new one is
-// changed in place and written back, and every plan in the old state is put in the new one, with no revision. A list
-// the owner named otherwise is left alone. Returns the line to log, or null when nothing was renamed.
-async function rename_state( store, settings )
-{
-	let from = PARTICIPANTS.RENAMED_STATE.From;
-	let to = PARTICIPANTS.RENAMED_STATE.To;
-	let states = Array.isArray( settings.States ) ? settings.States : [];
-	if ( !states.includes( from ) || states.includes( to ) )
-	{
-		return null;
-	}
-	settings.States = states.map( function ( state ) { return ( state === from ) ? to : state; } );
-	await store.WriteSettings( settings );
-	// Each project's own list too (plan Run Shapes, Step 2), when it still has the old name.
-	for ( let project of await store.ListProjects() )
-	{
-		if ( Array.isArray( project.States ) && project.States.includes( from ) && !project.States.includes( to ) )
-		{
-			project.States = project.States.map( function ( state ) { return ( state === from ) ? to : state; } );
-			await store.WriteProject( project );
-		}
-	}
-	let count = 0;
-	for ( let plan of await store.ListPlans() )
-	{
-		if ( plan.Kind === 'plan' && plan.State === from )
-		{
-			await store.UpdatePlan( plan.Id, { State: to } );
-			count += 1;
-		}
-	}
-	return 'renamed state ' + from + ' to ' + to + ' in the settings and ' + count + ' plan' + ( ( count === 1 ) ? '' : 's' );
-}
-
-
-// The desktop's workspaces (from before plan Run Shapes, Step 3) into the projects: a workspace on a project's folder
-// gives that project its Include, Exclude and Commands when the project has none of its own, and the list is then
-// dropped from the settings. Returns the lines to log; none when there is no list.
-async function migrate_workspaces( store, settings )
-{
-	if ( !Array.isArray( settings.Workspaces ) )
-	{
-		return [];
-	}
-	let lines = [];
-	let projects = await store.ListProjects();
-	for ( let workspace of settings.Workspaces )
-	{
-		let what = 'workspace "' + ( workspace.Name || '?' ) + '" (' + ( workspace.Path || '?' ) + ')';
-		let project = projects.find( function ( one ) { return same_folder( one.Path, workspace.Path ); } );
-		if ( !project )
-		{
-			lines.push( what + ' dropped: no project is on that folder' );
-			continue;
-		}
-		if ( !lists_empty( project ) )
-		{
-			lines.push( what + ' dropped: the project ' + project.Name + ' has lists of its own' );
-			continue;
-		}
-		project.Include = lines_of( workspace.Include );
-		project.Exclude = lines_of( workspace.Exclude );
-		project.Commands = lines_of( workspace.Commands );
-		await store.WriteProject( project );
-		lines.push( what + ': its Include, Exclude and Commands moved into the project ' + project.Name );
-	}
-	delete settings.Workspaces;
-	await store.WriteSettings( settings );
-	return lines;
-}
-
-
-function same_folder( one, other )
-{
-	if ( !one || !other )
-	{
-		return false;
-	}
-	let a = PATH.resolve( String( one ) ).replace( /\\/g, '/' ).replace( /\/+$/, '' );
-	let b = PATH.resolve( String( other ) ).replace( /\\/g, '/' ).replace( /\/+$/, '' );
-	if ( process.platform === 'win32' )
-	{
-		return a.toLowerCase() === b.toLowerCase();
-	}
-	return a === b;
-}
-
-
-function lists_empty( project )
-{
-	let exclude = Array.isArray( project.Exclude ) ? project.Exclude : [];
-	return !( project.Include || [] ).length && !( project.Commands || [] ).length && exclude.join( '\n' ) === STORE.DEFAULT_EXCLUDE.join( '\n' );
-}
-
-
-function lines_of( value )
-{
-	if ( !Array.isArray( value ) )
-	{
-		return [];
-	}
-	return value.map( function ( line ) { return String( line ).trim(); } ).filter( function ( line ) { return line; } );
-}
-
-
 function listen( app, host, port )
 {
 	return new Promise( function ( resolve, reject )
@@ -458,7 +317,6 @@ module.exports = {
 	Start: Start,
 	AttachVendor: attach_vendor,
 	CodeMirrorPackages: codemirror_packages,
-	MigrateWorkspaces: migrate_workspaces,
 	DEFAULT_PORT: DEFAULT_PORT,
 	DEFAULT_CONFIG: DEFAULT_CONFIG,
 };

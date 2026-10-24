@@ -16,9 +16,8 @@
 //            (Participants.js), the API refuses every write of a none run, and Tools.js gives a local model the tools
 //            of the level
 //   Prompt   the task's instructions, under "Your task: <Name>" in the package (Package.js)
-// Consensus ships Answer, Enhance (Step 2), Work, Explain (Step 4) and Session, the Review, Build and Session of
-// before; at the first start the connections' Review and Build prompts become Answer's and Work's when they differ
-// from the old defaults, and the connections' Checks are dropped (Migrate). TasksVersion in the settings says which
+// Consensus ships Answer, Enhance (Step 2), Work, Explain (Step 4) and Session; a settings file with no Tasks gets the
+// shipped set at start (Prepare). TasksVersion in the settings says which
 // shipped tasks a file has been given: a file below the version gets the shipped tasks that came after its version
 // (Since), once, each after the nearest shipped one before it, so one removed stays removed.
 
@@ -62,18 +61,6 @@ const PROMPTS = {
 		'people by their names, and say when you could not find something. Post nothing: your answer is your output.',
 	].join( '\n' ),
 	Session: '',
-};
-
-// The connections' default prompts of before (Package.js until plan LLM Tasks): a connection's prompt that differs
-// from these was the owner's own, and becomes the task's.
-const OLD_PROMPTS = {
-	Review: [
-		'Take the llm participant\'s turn on the plan at hand, as the agent instructions say under "Your turn in Consensus":',
-		'read the plan and the threads waiting on you through the API, reply on the contested ones, apply the resolved ones',
-		'one revision each, and re-anchor any thread left detached. Everything you contribute goes into Consensus through',
-		'the API; when you are done, print a short summary of what you did.',
-	].join( '\n' ),
-	Build: PROMPTS.Work,
 };
 
 // Since: the TasksVersion that shipped the task; a file below it lacks the task because it never had it.
@@ -128,86 +115,41 @@ function DefaultOf( Id )
 
 
 //---------------------------------------------------------------------
-// Migrate( Settings ): the Tasks list made at the first start, the connections' own Review and Build prompts moved
-// onto Answer and Work (the first connection whose prompt differs from the old default wins), and the connections'
-// Checks, Review and Build prompts dropped; a list below TasksVersion gets the shipped tasks that came after its
-// version and it lacks, each after the nearest shipped one before it (or first). Returns the lines to log; none when
-// nothing changed.
+// Prepare( Settings ): the Tasks list made at the first start; a list below TasksVersion gets the shipped tasks that
+// came after its version and it lacks, each after the nearest shipped one before it (or first). Returns the lines to
+// log; none when nothing changed.
 
-function Migrate( Settings )
+function Prepare( Settings )
 {
 	let lines = [];
-	let llms = ( Settings && Array.isArray( Settings.Llms ) ) ? Settings.Llms.filter( function ( llm ) { return llm && typeof llm === 'object'; } ) : [];
 	if ( !Array.isArray( Settings.Tasks ) )
 	{
 		Settings.Tasks = Defaults();
 		Settings.TasksVersion = TASKS_VERSION;
 		lines.push( 'Tasks set to the default set: ' + Settings.Tasks.map( function ( task ) { return task.Name; } ).join( ', ' ) );
-		let moved = { Review: 'answer', Build: 'work' };
-		for ( let name of Object.keys( moved ) )
+		return lines;
+	}
+	Settings.Tasks = Settings.Tasks.map( Fill );
+	let version = Number( Settings.TasksVersion ) || 1;
+	if ( version < TASKS_VERSION )
+	{
+		let before = null;
+		for ( let shipped of DEFAULT_TASKS )
 		{
-			let own = llms.find( function ( llm ) { return llm.Prompts && typeof llm.Prompts[ name ] === 'string' && llm.Prompts[ name ].trim() && llm.Prompts[ name ] !== OLD_PROMPTS[ name ]; } );
-			if ( own )
+			let present = Settings.Tasks.some( function ( task ) { return task.Id === shipped.Id; } );
+			if ( !present && ( shipped.Since || 1 ) > version )
 			{
-				let task = Settings.Tasks.find( function ( one ) { return one.Id === moved[ name ]; } );
-				task.Prompt = own.Prompts[ name ];
-				lines.push( 'the ' + name + ' prompt of the LLM connection "' + ( own.Name || '?' ) + '" became the ' + task.Name + ' task\'s' );
+				let at = before ? Settings.Tasks.findIndex( function ( task ) { return task.Id === before; } ) + 1 : 0;
+				Settings.Tasks.splice( at, 0, Fill( shipped ) );
+				lines.push( 'the shipped task ' + shipped.Name + ' added (Tasks version ' + shipped.Since + ')' );
+				present = true;
+			}
+			if ( present )
+			{
+				before = shipped.Id;
 			}
 		}
-	}
-	else
-	{
-		Settings.Tasks = Settings.Tasks.map( Fill );
-		let version = Number( Settings.TasksVersion ) || 1;
-		if ( version < TASKS_VERSION )
-		{
-			let before = null;
-			for ( let shipped of DEFAULT_TASKS )
-			{
-				let present = Settings.Tasks.some( function ( task ) { return task.Id === shipped.Id; } );
-				if ( !present && ( shipped.Since || 1 ) > version )
-				{
-					let at = before ? Settings.Tasks.findIndex( function ( task ) { return task.Id === before; } ) + 1 : 0;
-					Settings.Tasks.splice( at, 0, Fill( shipped ) );
-					lines.push( 'the shipped task ' + shipped.Name + ' added (Tasks version ' + shipped.Since + ')' );
-					present = true;
-				}
-				if ( present )
-				{
-					before = shipped.Id;
-				}
-			}
-			Settings.TasksVersion = TASKS_VERSION;
-		}
-	}
-	let stripped = [];
-	for ( let llm of llms )
-	{
-		let had = false;
-		if ( llm.Checks !== undefined )
-		{
-			delete llm.Checks;
-			had = true;
-		}
-		if ( llm.Prompts && typeof llm.Prompts === 'object' )
-		{
-			for ( let name of [ 'Review', 'Build' ] )
-			{
-				if ( llm.Prompts[ name ] !== undefined )
-				{
-					delete llm.Prompts[ name ];
-					had = true;
-				}
-			}
-		}
-		if ( had )
-		{
-			stripped.push( llm.Name || '?' );
-		}
-	}
-	if ( stripped.length )
-	{
-		lines.push( 'the Checks and the Review and Build prompts of the LLM connection' + ( stripped.length > 1 ? 's ' : ' ' ) + stripped.join( ', ' ) + ' dropped: the package and the prompt are the task\'s' );
+		Settings.TasksVersion = TASKS_VERSION;
 	}
 	return lines;
 }
@@ -313,12 +255,11 @@ module.exports = {
 	WRITES: WRITES,
 	DEFAULT_WRITES: DEFAULT_WRITES,
 	PROMPTS: PROMPTS,
-	OLD_PROMPTS: OLD_PROMPTS,
 	DEFAULT_TASKS: DEFAULT_TASKS,
 	Fill: Fill,
 	Defaults: Defaults,
 	DefaultOf: DefaultOf,
-	Migrate: Migrate,
+	Prepare: Prepare,
 	Problems: Problems,
 	Clean: Clean,
 	ById: ById,

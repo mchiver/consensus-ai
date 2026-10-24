@@ -1,1 +1,60 @@
-[]
+[
+	{
+		"Id": "thr-vmr-mzi-lq6",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-21T02:12:51.928Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-21T02:15:40.116Z",
+			"Revision": 18,
+			"RevisionId": "rev-m95-q79-cdk",
+			"Outcome": "Resolved with no reply: every recommendation taken (Margins 68rem Normal by default, one Resolve button, icon buttons in the thread header, Ctrl+B and Ctrl+I, Alt+W, the Users folder with its own icon placed last, 480px, the Actions menu, one commit). The text already says each; the introduction now says they are decided."
+		},
+		"Created": "2026-10-21T02:07:28.023Z",
+		"Replies": [
+			{
+				"Id": "rep-585-93n-udq",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-21T02:07:28.023Z",
+				"Text": "**The decisions** (Claude Fable 5.1, 2026-10-20). The plan is now sixteen sections, each with what was found in the code and the change; the decisions that are yours are here, each with a recommendation. Resolve with no reply to take them all; on your turn I apply them into the text as decided and build. Found on the way: the dim lists (1) are the editor's highlighter colouring the whole list muted, no design behind it, so they take the text colour.\n\n1. **Margins (2): the widths and the default.** Recommended: Narrow = no limit, Normal = 68rem, Wide = 52rem (today's width); the default Normal. Say other numbers, or Wide as the default to keep today's look until chosen.\n2. **Resolve with a reply typed (3).** Recommended: one Resolve button that posts the draft as the outcome when there is one, and the Reply and resolve button goes. The other way: keep both buttons and disable Resolve while a draft is in the box.\n3. **Re-anchor and Start a new Subplan (4).** Recommended: icon buttons at the right of the thread's header, beside the delete button, shown on the selected thread. The other way: with labels, as they are now, which widens the header.\n4. **Formatting keys (8).** Recommended: Ctrl+B bold and Ctrl+I italic only, in both editors. Say if you want more (Ctrl+K a link, Ctrl+` inline code).\n5. **Ctrl+F4's second key (12).** Recommended: Alt+W, following the Alt+PgUp pattern, since Chrome takes Ctrl+F4 and Ctrl+W for its own tabs. In the desktop Ctrl+F4 works as is.\n6. **The Users folder's flair (13).** Recommended: a people icon in the user icon's colour, the name muted, a hairline above it, and the folder moved to the end of the project after Archive and Trash. The other way: the icon and colour only, the folder where it is (before Archive).\n7. **The tree's default width (14).** Recommended: 480px (260px today). A browser that dragged the splitter keeps its own width.\n8. **The plan page's header (15).** Recommended: the task buttons stay as buttons and New Comment, Report and New subplan go under one Actions (⋯) menu. The other way: the tasks go under a Run ▾ menu as well, leaving the row with the state and two menus.\n9. **The build.** Recommended: one build and one commit, \"UI Tweaks IX\", in the plan's order with checkpoints; the Ui test and the desktop smoke extended where an item says so. The other way: two commits, the page items (1-5, 11-16) first and the editor items (6-10) after."
+			}
+		]
+	},
+	{
+		"Id": "thr-6ro-pux-dn0",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-21T07:57:59.795Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-21T07:59:45.713Z",
+			"Revision": 18,
+			"RevisionId": "rev-m95-q79-cdk",
+			"Outcome": "Accepted as built, resolved with no reply (2026-10-21). Committed as \"UI Tweaks IX\" (bin/smoke.js, docs/guide, docs/images, public, test/Ui.test.js); the plan Finished; the Readme document brought to it."
+		},
+		"Created": "2026-10-21T02:46:43.406Z",
+		"Replies": [
+			{
+				"Id": "rep-a6h-2w0-atb",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-21T02:46:43.406Z",
+				"Text": "**Build log** (Claude Fable 5.1, 2026-10-20). The sixteen built as the text says, every decision as recommended; nothing committed. Resolve to accept, and on your turn I commit as \"UI Tweaks IX\", set the plan Finished and bring the Readme document up to it.\n\n**What was built, by item.**\n1. `mirror.js` no longer colours the `list` tag: list text reads in the text colour, the marks stay muted.\n2. The Margins setting: `--text-width` on the root (68rem; `narrow` none, `wide` 52rem by `data-margins`), used by the Read view, the editor, the Revisions view, the re-anchor hint and the LLM page in place of their numbers; `State.Margins` and `SetMargins` (`app.js`, remembered as `margins`), a Margins select in the look popover.\n3. One **Resolve** in `thread-actions`: with a draft it posts it as the outcome (the former Reply and resolve), else it accepts the last reply; its title says which. Reply and resolve went.\n4. Re-anchor and Start a new Subplan are icon buttons in `thread-header`, before the delete, on the selected thread.\n5. The Live Preview's table widget takes the anchors within it from the editor's anchor field and wraps them with the Read view's own marks (`Render.Show`, over the table's own anchor map), a mousedown on a mark selecting the thread; the field rebuilds when the anchors change, and the anchor field now returns the same value when nothing of it changed. The options reach the preview as a facet of each editor's state: a first cut kept them in a module variable, and the revisions view's editor, made later, took the main editor's handler away, which the whole suite caught.\n6. The tab keys fire in the editor too; Ctrl+Home and Ctrl+End stay the editor's there (the Hotkeys page says so).\n7. Ctrl+Up and Ctrl+Down scroll one line in CodeMirror, the selection staying.\n8. Ctrl+B toggles `**`, Ctrl+I `_`, around the selection or the word at the caret, in CodeMirror and Monaco; already there, inside or just outside, it comes off. Italic takes `_` rather than `*` so that a bold word is told from an italic one.\n9. Each plan tab keeps a `Place` (`tabs.js`): the editor's scroll and selection (Monaco its view state), taken before another plan's text goes into the one instance and put back when the tab is shown again, the scroll re-applied after the editor's next measure; a tab with no place starts at the top; the Read view's scroll (Monaco mode) the same way through `document-editor`.\n10. While a menu is open the page carries `menu-open` and the desktop's title bar gives up its drag region (`title-bar.css`), so a click on it reaches the page and closes the menu. The cause found: Electron keeps every mouse event on a drag region. The desktop smoke now opens the menu, checks the region is off, clicks the bar and then the text, and finds the menu closed both times.\n11. Every popup has an × in its head (`popup-close`, one style), which does its Cancel: the twelve of the page, the LLM page's three, the box, the close prompt (its Cancel) and the sign-in box (not when the server requires the sign-in; on a Local server it forgets the ask and the refusal). Escape anywhere presses the open popup's ×, from `hotkeys.js`, outside a digest since the button's click runs one.\n12. Ctrl+F4 and Alt+W close the tab (`Tabs.Close`, the draft prompt as a click on the ×); the Hotkeys page and the guide note Ctrl+F4 as the browser's own. The Hotkeys page gained \"In the editor\" with the editor's own keys.\n13. The Users folder is last in a project, after Archive, with a people icon in the user colour, the name muted and a hairline above.\n14. `--sidebar-width` is 480px; a remembered width stays.\n15. The plan heading's third row: the task buttons as one group, then one **Actions** button (⋯) opening the page's menu with New Comment, Report and New subplan, each disabled by its rule; shown on a plan, or a document with threads.\n16. `task-buttons`: 0.75rem between the task buttons on the LLM page and the heading, Stop set apart.\n\n**The checks.**\n\n| Run | Result |\n|---|---|\n| node --test test/Ui.test.js | 42 pass (41 before; the new test walks items 2 to 16 in the browser) |\n| node --test, all but Ui, Docs, ClerkSmoke | 168 pass |\n| node bin/docs.js screenshots, build; test/Docs.test.js | 48 pictures, 11 pages, 2 pass |\n| npm run smoke | 51 ok, 0 FAIL (the page, then the desktop: the menu closed by a click on the bar and by one in the text) |\n\n**Docs.** `editing.md` (the hotkeys table with Ctrl+F4, the editor's keys, the tab keys in the editor, Escape and the ×, a tab's place), `threads.md` (the one Resolve, the thread's tools), `settings.md` (Margins), `sharing.md` (the Users folder last), `features.md` (Hotkeys; Themes, scale and margins). Every picture regenerated: the tree is wider in all of them."
+			}
+		]
+	}
+]

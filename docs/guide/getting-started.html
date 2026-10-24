@@ -95,7 +95,7 @@ no window: this is the headless form; open the address in a browser, or run the 
 <td>accepted here and does nothing: this form never has a window</td>
 </tr>
 </tbody></table>
-<p>Listening beyond your own machine is a decision: anyone who can reach the server acts as the owner. Keep the Scope Local unless the network is yours. A settings file from before, with a <code>Host</code>, is brought up to date at the next start: a local address becomes Scope Local, any other Public.</p>
+<p>Listening beyond your own machine is a decision: anyone who can reach the server acts as the owner. Keep the Scope Local unless the network is yours.</p>
 <h2 id="in-docker">In Docker</h2>
 <p>The repository holds a <code>Dockerfile</code> and a <code>compose.yaml</code>. From the checkout:</p>
 <pre><code>docker build -t consensus:latest .

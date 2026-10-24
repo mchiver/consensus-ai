@@ -1,8 +1,7 @@
 'use strict';
 
 // Project export and import (ProjectPort.js): a project on one server goes out as one json object and comes into
-// others. Merge is tried on its own; the rest through the API, over temporary folders. An export from before plan
-// Consensus Desktop (corpora, workers, a context plan of Kind context) is read too. Nothing here reads ~data.
+// others. Merge is tried on its own; the rest through the API, over temporary folders. Nothing here reads ~data.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -242,12 +241,13 @@ TEST( 'ids: a revision id is rev and three groups of three base36 characters', f
 } );
 
 
-TEST( 'check: a file that is not an export, or from a newer Consensus, is refused', function ()
+TEST( 'check: a file that is not an export, or of another version, is refused', function ()
 {
 	ASSERT.match( PORT.Check( null )[ 0 ], /not a json object/ );
 	ASSERT.match( PORT.Check( { Format: 'other' } )[ 0 ], /not a Consensus project export/ );
 	ASSERT.match( PORT.Check( { Format: PORT.FORMAT, Version: 99 } )[ 0 ], /newer Consensus/ );
-	let broken = { Format: PORT.FORMAT, Version: 1, Project: { Id: 'j1', Name: 'X', Context: 'p1', Items: [ { Kind: 'plan', Id: 'p2' } ] }, Plans: [] };
+	ASSERT.match( PORT.Check( { Format: PORT.FORMAT, Version: 1 } )[ 0 ], /older Consensus/ );
+	let broken = { Format: PORT.FORMAT, Version: 2, Project: { Id: 'j1', Name: 'X', Context: 'p1', Items: [ { Kind: 'plan', Id: 'p2' } ] }, Plans: [] };
 	let problems = PORT.Check( broken );
 	ASSERT.ok( problems.some( function ( problem ) { return /names plan p2/.test( problem ); } ) );
 	ASSERT.ok( problems.some( function ( problem ) { return /Project.Context/.test( problem ); } ) );
@@ -281,21 +281,6 @@ TEST( 'export: the whole project, every revision, no token, no corpora; the owne
 	ASSERT.deepEqual( PORT.Check( exported ), [] );
 } );
 
-
-TEST( 'a Version 1 export (Proposals / Proposal) is read as Version 2 by Check and Normalize; the file is left as it is', function ()
-{
-	let old = JSON.parse( JSON.stringify( exported ) );
-	old.Version = 1;
-	old.Proposals = old.Plans.map( function ( whole ) { let whole_v1 = Object.assign( {}, whole ); whole_v1.Proposal = whole.Plan; delete whole_v1.Plan; return whole_v1; } );
-	delete old.Plans;
-	ASSERT.deepEqual( PORT.Check( old ), [] );
-	let normalized = PORT.Normalize( old );
-	ASSERT.equal( normalized.Version, 2 );
-	ASSERT.deepEqual( normalized.Plans.map( function ( whole ) { return whole.Plan.Id; } ), exported.Plans.map( function ( whole ) { return whole.Plan.Id; } ) );
-	ASSERT.equal( normalized.Proposals, undefined );
-	ASSERT.equal( old.Version, 1 );
-	ASSERT.equal( old.Plans, undefined );
-} );
 
 TEST( 'import of a project that is not here: every id intact, the Context folder and document as they were', async function ()
 {
@@ -414,41 +399,6 @@ TEST( 'import as a copy: a new project named "Copy of …", every id new, the pr
 	let copied_plan = made.Items[ 1 ].Items.find( function ( node ) { return node.Items && node.Items.length; } );
 	ASSERT.equal( ( await text_of( copy, copied_plan.Id ) ).Plan.Title, 'Plan' );
 	ASSERT.deepEqual( shape( ( await project_of( copy, alpha.Id ) ).Items ), shape( before.Items ) );
-} );
-
-
-TEST( 'an export from before Consensus Desktop: corpora and workers dropped, the context a document, the Context folder made', async function ()
-{
-	let older = JSON.parse( JSON.stringify( exported ) );
-	// as the old server wrote it: no ContextFolder, the context of Kind context outside the tree, a corpus in it
-	delete older.Project.ContextFolder;
-	older.Project.Items = older.Project.Items.filter( function ( node ) { return node.Id !== alpha.ContextFolder; } );
-	older.Project.Items.push( { Kind: 'document', Id: ids.Document } );
-	older.Project.Items[ 0 ].Items.push( { Kind: 'corpus', Id: 'cor-old-old-old' } );
-	older.Corpora = [ { Id: 'cor-old-old-old', Name: 'code', Files: [ { Path: 'a.md', Size: 3 } ] } ];
-	older.Workers = [ { Name: 'Box', Workspaces: [ 'Docs' ], Inference: [] } ];
-	for ( let whole of older.Plans )
-	{
-		if ( whole.Plan.Id === alpha.Context )
-		{
-			whole.Plan.Kind = 'context';
-		}
-	}
-	ASSERT.deepEqual( PORT.Check( older ), [] );
-	let result = await import_into( bare, { Export: older } );
-	ASSERT.equal( result.Status, 201 );
-	let report = result.Body.Report;
-	ASSERT.equal( report.Project.Mode, 'new' );
-	ASSERT.equal( 'Corpora' in report, false );
-	ASSERT.equal( 'Workers' in report, false );
-	let here = await project_of( bare, alpha.Id );
-	ASSERT.equal( here.Items[ 0 ].Id, here.ContextFolder );
-	ASSERT.deepEqual( here.Items[ 0 ].Items.map( function ( node ) { return node.Id; } ), [ alpha.Context, ids.Document ] );
-	ASSERT.equal( JSON.stringify( here.Items ).includes( 'cor-old-old-old' ), false );
-	let context = await text_of( bare, alpha.Context );
-	ASSERT.equal( context.Plan.Kind, 'document' );
-	ASSERT.equal( context.Context, true );
-	ASSERT.equal( context.Text, '# Alpha\n\nThe context of Alpha.\n' );
 } );
 
 

@@ -7,10 +7,9 @@
 // connected to, and the connect screen is the servers' list (the Server menu's Servers…). Plan Run Shapes, Step 1: the app is the second entry
 // point over src/Start.js: it takes the command line's --config, --port, --scope and --headless, starts this
 // machine's server from the global config as the Scope says, and keeps its own settings (Settings.js) in that same
-// consensus.json, where desktop.json is moved in once. With --headless there is no window. A second server at the
+// consensus.json. With --headless there is no window. A second server at the
 // same time is a second instance (New window). Plan Run Shapes, Step 3: the LLM connections, the workspaces and
-// the runs the desktop kept (Consensus Desktop, Steps 3 and 4) are the server's: the page gets them from the API;
-// desktop.json's connections and workspaces are moved in once (Settings.js, then the server's migration). Plan Run
+// the runs the desktop kept (Consensus Desktop, Steps 3 and 4) are the server's: the page gets them from the API. Plan Run
 // Shapes, Step 4: a project folder on the command line (`consensus <path>`) opens the app on this machine's server
 // with that project alone, whatever was open last; Open folder in new window starts another instance that way; the
 // configured port in use leaves the server a free one (Server.js). Plan UI Components, Step 5: the window has no
@@ -29,7 +28,6 @@ const ELECTRON = require( 'electron' );
 const SETTINGS = require( './Settings.js' );
 const START = require( '../src/Start.js' );
 const PAGE = require( './Page.js' );
-const SERVER = require( '../src/Server.js' );
 
 const VERSION = require( '../package.json' ).version;
 const ICON = PATH.join( __dirname, 'icon.ico' );		// the windows' icon from the checkout; the packaged executable carries its own (plan Installer)
@@ -717,19 +715,14 @@ async function main()
 	}
 	isolated = !!options.Project;
 	await ELECTRON.app.whenReady();
-	let user_data = ELECTRON.app.getPath( 'userData' );
 	running = await start_server( options );
 	store = running.Store;
 	settings = running.Settings;
-	let moved = SETTINGS.MoveIn( settings, PATH.join( user_data, 'desktop.json' ) );
-	if ( moved.length )
+	let prepared = SETTINGS.Prepare( settings );
+	if ( prepared.length )
 	{
-		moved.forEach( function ( line ) { console.log( line ); } );
+		prepared.forEach( function ( line ) { console.log( line ); } );
 		await store.WriteSettings( settings );
-		for ( let line of await SERVER.MigrateWorkspaces( store, settings ) )
-		{
-			console.log( line );
-		}
 	}
 	apply_native_theme();
 	if ( options.Headless )

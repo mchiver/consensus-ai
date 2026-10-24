@@ -25,7 +25,7 @@ Settled in the chats of 2026-10-18 and 19 and written out in User Management, Th
 - **Multiuser**, its subplan, owns the consensus rules among many parties: a thread is resolved by its starter or an Owner, no vote, who a thread waits on, anyone with write access applies (Answer answers what waits on the presser, as the presser), the plan's State by Owners only, one run per plan at a time.
 - **Clerk**, its subplan, owns the sign-in: the Clerk application and its dashboard choices, the session JWT the server verifies, the ClerkJS page, the webhook that fills the registry, the production instance under consensus-ai.liquicode.com. Its Step 1 is the dashboard alone; Steps 2 to 5 are User Management's Step 4.
 - **LLM Tasks** owns how an LLM takes part once identity is settled: the LLM tasks as records the owner edits (a name, a package, a writes level that is the permission, a prompt), the default set (Answer, Enhance, Work, Explain, Session), the Work options for git sync and auto-commit, Explain (the read-only conversation with the project, the one task a Watcher has), and the ways-of-working guide page. It assumes a run is the presser's.
-- **Promotion and Monetization** owns what is free and what is sold, and the order of revenue. Its Steps 1 to 4 (ready to be seen, distribution, launch, the desktop license and run quota) need none of the above and start now; Steps 5 and 6 (the Team image, the hosted service) wait on User Management and Clerk.
+- **Promotion and Monetization** owns what is free and what is sold, and the order of revenue. Its Steps 1 to 3 (ready to be seen, distribution, launch) need none of the above and start now; Step 4 (the User, Host and Site licenses, sold through the store) waits on Clerk Step 6, the production instance; Steps 5 and 6 (managed runs, the hosted service) follow. Reconciled with the per-person license model on 2026-10-21.
 
 
 ## The order
@@ -33,9 +33,9 @@ Settled in the chats of 2026-10-18 and 19 and written out in User Management, Th
 1. Promotion and Monetization Steps 1 to 3, alongside everything below.
 2. User Management Step 1 (the Clerk settings section and the trusted-network wording; nothing else changes), then Step 2 (the identity change: participants and connection tokens out of consensus.json, run tokens, the byline as the speaker). Little a single user sees changes: a thread header may carry the byline "Claude-CLI by owner".
 3. LLM Tasks: the tasks as records, then Enhance and the Work options, which make the single-user loop better before any team exists; Explain, which is what a Watcher is for; the guide page with them. Multiuser Step 3, the run queue, with the tasks.
-4. Promotion and Monetization Step 4: the desktop license and the run quota, the first money.
+4. Promotion and Monetization Step 4: the User, Host and Site licenses, the first money, once Clerk Step 6 has the production instance.
 5. User Management Step 3, Multiuser Steps 1 and 2 and Clerk Steps 1 to 5: users, the roles of Accounts and Roles, the rules among many parties, sign-in, the production instance.
-6. User Management Step 5, then Promotion and Monetization Steps 5 and 6: the Team image, then hosting.
+6. User Management Step 5, then Promotion and Monetization Steps 5 and 6: managed runs, then hosting.
 
 
 ## What stays out

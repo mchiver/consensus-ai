@@ -27,7 +27,7 @@
 //   record  = { Id, Llm: { Id, Name }, Task, Writes, Text, Git, By, Service, Token, Project, Plan, Queued, Behind, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
 //             Queued the time of a press that waited (null for one that ran at once), Behind { Id, Task, Plan } the run it waited for.
 //             By the presser's account, Service the connection's name, Token the run token's name: the three fields of the plan.
-//             Task the button's task (plan LLM Tasks, Step 1; a record from before has Kind instead), Writes its level,
+//             Task the button's task (plan LLM Tasks, Step 1), Writes its level,
 //             Text the person's instructions from the task's box (Step 2), null without; Git the pull's words (Step 3), null without.
 //   Status  = 'queued' | 'running' | 'done' | 'failed' | 'stopped'
 

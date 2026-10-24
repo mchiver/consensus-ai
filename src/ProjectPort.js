@@ -6,12 +6,9 @@
 //              Project: { Id, Name, Created, Updated, Context, ContextFolder, Items },
 //              Plans: [ { Plan, Text, Threads, Revisions: [ { Revision, By, At, Reason, Thread?, Note?, Text } ] } ] }
 //
-// Version 1 (before plan Plan Nomenclature) said Proposals and Proposal for Plans and Plan: Upgrade reads it as 2.
+// Only Version 2 is read: a file of any other version is refused by Check.
 //
-// No token is ever written to an export; the trash stays behind. An export made before plan Consensus Desktop
-// (Step 1) may hold Corpora, Workers or ContextServers and a context plan of Kind 'context', and name corpus
-// nodes in its tree: an import drops the corpora and the workers, reads the context as the Readme, and
-// makes the Context folder when the tree lacks it.
+// No token is ever written to an export; the trash stays behind.
 //
 // An import depends only on whether the export's project Id is here:
 //   not here   the project comes in as it is, every id intact
@@ -80,25 +77,6 @@ function all_nodes_of( items, parent, list )
 function clone( value )
 {
 	return JSON.parse( JSON.stringify( value ) );
-}
-
-
-// Takes every corpus node out of a tree, at any depth (an export from before Step 1).
-function strip_corpora( items )
-{
-	for ( let index = items.length - 1; index >= 0; index-- )
-	{
-		let node = items[ index ];
-		if ( node && node.Kind === 'corpus' )
-		{
-			items.splice( index, 1 );
-			continue;
-		}
-		if ( node && Array.isArray( node.Items ) )
-		{
-			strip_corpora( node.Items );
-		}
-	}
 }
 
 
@@ -207,37 +185,12 @@ async function read_whole( Store, id )
 }
 
 
-//---------------------------------------------------------------------
-// Upgrade: a Version 1 export (Proposals / Proposal) as Version 2 (Plans / Plan), a copy; any other as it is.
-
-function Upgrade( Exported )
-{
-	if ( !Exported || typeof Exported !== 'object' || Exported.Version !== 1 || !Array.isArray( Exported.Proposals ) )
-	{
-		return Exported;
-	}
-	let upgraded = clone( Exported );
-	upgraded.Version = 2;
-	upgraded.Plans = upgraded.Proposals.map( function ( whole )
-	{
-		let plan = Object.assign( {}, whole );
-		plan.Plan = whole.Proposal;
-		delete plan.Proposal;
-		return plan;
-	} );
-	delete upgraded.Proposals;
-	return upgraded;
-}
-
-
 //=====================================================================
-// Check: the problems with an export, as sentences; none when it can be imported. The export is checked as
-// Normalize leaves it (corpus nodes gone).
+// Check: the problems with an export, as sentences; none when it can be imported.
 
 
-function Check( Given )
+function Check( Exported )
 {
-	let Exported = Upgrade( Given );
 	if ( !Exported || typeof Exported !== 'object' )
 	{
 		return [ 'the export is not a json object' ];
@@ -254,6 +207,10 @@ function Check( Given )
 	{
 		return [ 'Version ' + Exported.Version + ' was made by a newer Consensus; this one reads up to ' + VERSION ];
 	}
+	if ( Exported.Version < VERSION )
+	{
+		return [ 'Version ' + Exported.Version + ' was made by an older Consensus; this one reads Version ' + VERSION ];
+	}
 
 	let problems = [];
 	let project = Exported.Project;
@@ -269,11 +226,7 @@ function Check( Given )
 	{
 		problems.push( 'Project.Name is missing' );
 	}
-	let items = Array.isArray( project.Items ) ? clone( project.Items ) : project.Items;
-	if ( Array.isArray( items ) )
-	{
-		strip_corpora( items );
-	}
+	let items = project.Items;
 	let tree_problems = TREE.Validate( items );
 	for ( let problem of tree_problems )
 	{
@@ -347,24 +300,10 @@ function whole_problem( whole )
 }
 
 
-// Normalize: a copy of a checked export as this server keeps projects: corpus nodes out of the tree, no Corpora or
-// Workers, the context plan a document.
+// Normalize: a copy of a checked export, the one an import works on.
 function Normalize( Exported )
 {
-	let exported = clone( Upgrade( Exported ) );
-	strip_corpora( exported.Project.Items );
-	delete exported.Corpora;
-	delete exported.Workers;
-	delete exported.ContextServers;
-	for ( let whole of exported.Plans )
-	{
-		if ( whole.Plan.Id === exported.Project.Context && whole.Plan.Kind !== 'document' )
-		{
-			whole.Plan.Kind = 'document';
-			whole.Plan.State = null;
-		}
-	}
-	return exported;
+	return clone( Exported );
 }
 
 

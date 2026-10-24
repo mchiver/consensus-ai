@@ -8,7 +8,7 @@ A project travels as one JSON file: its Context folder and documents, folders, p
 
 A folder, a plan or a document exports the same way, from its menu or `GET /api/items/<id>/export`: the same format, holding that item and what is under it, with no Readme. Such a file imports as a project of its own (it gets an empty Readme) or, as any file does, into a project.
 
-An export says `Version: 2` since the plan Plan Nomenclature, its plans under `Plans`. A `Version: 1` file, from before, names them `Proposals` and still imports as it is.
+An export says `Version: 2`, its plans under `Plans`; a file of another version is refused.
 
 ![A project's menu, with Export.](../images/menu.png)
 
