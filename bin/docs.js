@@ -5,7 +5,7 @@
 // published as it is to the S3 bucket.
 //   node bin/docs.js build         renders guide/*.md into template.html, copies Bootstrap, checks every link and image
 //   node bin/docs.js screenshots   makes every picture of docs/images/ from a seeded server and the desktop
-//   node bin/docs.js publish       build, then `aws s3 sync docs/ s3://consensus-ai.liquicode.com --delete`
+//   node bin/docs.js publish       build, then `aws s3 sync docs/ s3://consensus-ai.mchiver.com --delete`
 // Build( { Folder } ) and Screenshots( { Folder } ) are exported for the test, which runs them over a copy of docs/.
 
 const FS = require( 'fs' );
@@ -17,7 +17,7 @@ const OPERATIONS = require( '../src/Operations.js' );
 
 const DOCS_FOLDER = PATH.join( __dirname, '..', 'docs' );
 const BOOTSTRAP_CSS = PATH.join( __dirname, '..', 'node_modules', 'bootstrap', 'dist', 'css', 'bootstrap.min.css' );
-const BUCKET = 's3://consensus-ai.liquicode.com';
+const BUCKET = 's3://consensus-ai.mchiver.com';
 
 // A link the check leaves alone: another site, mail, data, a fragment of the same page.
 const EXTERNAL = /^(https?:|mailto:|data:|javascript:|#)/i;

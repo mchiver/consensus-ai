@@ -92,7 +92,7 @@ angular.module( 'Consensus' ).factory( 'HelpPanel', [ 'Roots', function ( Roots 
 .controller( 'HelpController', [ '$scope', '$window', 'Roots', 'HelpPanel', 'Hotkeys', function ( $scope, $window, Roots, HelpPanel, Hotkeys )
 {
 	const SOURCE_URL = 'https://github.com/mchiver/consensus-ai';
-	const GUIDE_URL = 'http://consensus-ai.liquicode.com';
+	const GUIDE_URL = 'http://consensus-ai.mchiver.com';
 	$scope.Panel = HelpPanel;
 	$scope.Roots = Roots;
 	$scope.Hotkeys = Hotkeys;

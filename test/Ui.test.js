@@ -965,7 +965,7 @@ TEST( 'Help: About shows the version, the links and the project summary; Hotkeys
 	let me = await api( 'GET', '/api/me' );
 	await page.WaitFor( text_of( '#about-version' ) + ' === "version ' + me.Version + '"' );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "about-source" ).href' ), 'https://github.com/mchiver/consensus-ai' );
-	ASSERT.equal( await page.Evaluate( 'document.getElementById( "about-guide" ).href' ), 'http://consensus-ai.liquicode.com/' );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "about-guide" ).href' ), 'http://consensus-ai.mchiver.com/' );
 	ASSERT.equal( await page.Evaluate( text_of( '.help-server .view-heading' ) ), running.Settings.Name + ' version ' + me.Version );
 	let rows = await page.Evaluate( '[ ...document.querySelectorAll( ".about-table tbody tr" ) ].filter( function ( row ) { return getComputedStyle( row ).display !== "none"; } ).map( function ( row ) { return [ ...row.children ].map( function ( cell ) { return cell.textContent.trim(); } ); } )' );
 	ASSERT.ok( rows.length >= 2 );

@@ -562,7 +562,7 @@ revision or version (with the current `Revision` or `Version`).
 ## The website
 
 `docs/` is the public site, Consensus-AI's landing page and user guide (plan Documentation), published as it is to
-the S3 bucket `consensus-ai.liquicode.com` and served at http://consensus-ai.liquicode.com. The guide is markdown in
+the S3 bucket `consensus-ai.mchiver.com` and served at http://consensus-ai.mchiver.com. The guide is markdown in
 `docs/guide/`, one page each in `pages.json`'s order, rendered into `template.html` by the build, with the rendered
 pages committed beside their sources. The screenshots in `docs/images/` are made by a script, never by hand:
 

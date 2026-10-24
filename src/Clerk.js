@@ -48,7 +48,7 @@ const LOGIN_LIMIT = 40;
 const HOST = /^[a-z0-9.-]+$/i;
 const WEBHOOK_PREFIX = 'whsec_';
 const PUBLISHABLE_KEY = 'pk_test_YnVyc3RpbmctZWdyZXQtMjU5MS5jbGVyay5hY2NvdW50cy5kZXYk';	// our instance (plan Clerk, Step 5); the production key replaces it in Step 6
-const PRICING = 'http://consensus-ai.liquicode.com/pricing.html';
+const PRICING = 'http://consensus-ai.mchiver.com/pricing.html';
 
 
 function Clerk( Options )
