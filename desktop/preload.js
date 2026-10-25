@@ -27,6 +27,12 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	Project: BOOT.Project || null,
 	// The recent project folders (desktop.json), newest first, for the menu.
 	Recent: BOOT.Recent || [],
+	// The Desktop's tier (plan Rearchitecturation, Step 6): { Tier, Days, Line } from the cached license; SetLicense hands a
+	// sign-in's session token to the desktop, which verifies it, caches the license and answers the tier; ClearLicense
+	// forgets it (a sign-out).
+	License: BOOT.License || null,
+	SetLicense: function ( Token ) { return invoke( 'set-license', Token ); },
+	ClearLicense: function () { return invoke( 'clear-license' ); },
 	Reason: BOOT.Reason || null,
 	Remembered: BOOT.Remembered || {},
 	SetTheme: function ( Theme ) { ELECTRON.ipcRenderer.send( 'theme', { Theme: Theme } ); },

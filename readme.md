@@ -457,11 +457,16 @@ writes the member with no role, organizationMembership.deleted removes it, organ
 write sends { Kind: 'users' }. The production instance, our own OAuth applications and waitlist mode are dashboard
 work (Clerk Step 6); the guide pages are Step 5 of User Management.
 
-**The license** (the subplan Clerk, Step 5, 2026-10-20) belongs to a person, not to a server. Free is the Local
-server: no sign-in, the owner's typed name, the owner's and the Service accounts' tokens, unlimited installations.
-Paid is a single-user license on a Consensus-AI account, with a kind, its Plan: **Host** runs a Public server and is
-its Administrator, **User** is an Owner or a Member in projects; a Watcher needs an account and no license, and a
-Service account none, being a token. A site license is a Clerk organization carrying the license for its members,
+**The license** (the subplan Clerk, Step 5, 2026-10-20; the tiers of plan Rearchitecturation, Step 6, 2026-10-25)
+belongs to a person, not to a server. **Free** is no license: the Desktop on local folders and the sidecar, no
+sign-in, the owner's typed name, the owner's and the Service accounts' tokens, unlimited installations; the LLM task
+buttons are disabled with the reason, the sidecar being the free LLM path. Paid is a single-user license on a
+Consensus-AI account, with a kind, its Plan, lower case in the metadata: **personal** (the tier Personal) uses the
+LLM connections and tasks in the Desktop, connects the Desktop to a Host's project, runs the Server Host bound to
+localhost and manages its projects, connections and users; **professional** (Professional) binds the Host to the
+network and is the Administrator of a Public server; an Owner or a Member in projects needs personal; a Watcher
+needs an account and no license, and a Service account none, being a token. The old names Host and User are not
+read: nobody held a license under them. A site license is a Clerk organization carrying the license for its members,
 capped at the seats bought; the sign-in stays personal, the tie is Clerk's invitation, and the page makes the
 person's organization active at sign-in so the token carries its license. There is one Clerk instance, ours: its
 publishable key is a constant in `src/Clerk.js`, so a Public server needs no Clerk section (the section overrides
@@ -471,20 +476,30 @@ person's email, names and license come from the session token's claims, written 
 token template (`email`, `first`, `last`, `username`, `license` from the user's public metadata, `org_license` from
 the active organization's: `{ Plan, Until }` or the plan as a string, the higher valid one counting); the Backend
 API is asked only when a secret key is there and the claims lack an email. `src/Roles.js` ranks the plans
-(`PLANS`, `PlanRank`, `PlanFor`: Owners and Members need User). Three checks, each naming the plan it wants: at
-sign-in (`clerk_participant` in `src/Api.js`) the Administrator needs Host and an Owner or a Member of any project
-needs User, else 401 `{ Error: 'license', Plan, Has }`, a Watcher-only or unplaced person admitted free, the plan
-written on the record (`Plan`, shown by `GET /api/users` and `/api/me`); at `PUT /api/settings`, Scope Public is
-saved from a session with a Host plan alone (403 otherwise; a server configured Public from its file or
-environment starts and listens, and admits licensed sign-ins alone); at `PUT /api/projects/:pid/roles`, a person
-seen without a User plan stays out of Owners and Members (400). On a Public server with no AdminEmail the first
-sign-in with a Host plan becomes the Administrator, written to the settings; a Docker server takes
-`CONSENSUS_ADMIN` from the environment at start. The settings routes are the Administrator's (the owner on Local).
+(`PLANS`, `PlanRank`, `PlanFor`: Owners and Members need personal). Three checks, each naming the plan it wants: at
+sign-in (`clerk_participant` in `src/Api.js`) the Administrator needs professional and an Owner or a Member of any
+project needs personal, else 401 `{ Error: 'license', Plan, Has }`, a Watcher-only or unplaced person admitted free,
+the plan written on the record (`Plan`, shown by `GET /api/users` and `/api/me`); at `PUT /api/settings`, Scope
+Public is saved from a session with a professional plan alone (403 otherwise; a server configured Public from its
+file or environment starts and listens, and admits licensed sign-ins alone); at `PUT /api/projects/:pid/roles`, a
+person seen without a personal plan stays out of Owners and Members (400). A fourth, the Desktop's (Step 6):
+`Server.Start( { Tier } )` refuses Scope Public at bind time below professional with a line naming the tier, the
+Desktop passing its cached tier to the Host it starts and to its headless form. On a Public server with no
+AdminEmail the first sign-in with a professional plan becomes the Administrator, written to the settings; a Docker
+server takes `CONSENSUS_ADMIN` from the environment at start. The settings routes are the Administrator's (the owner on Local).
 The page (`public/js/session.js`) loads ClerkJS only when the server requires a sign-in, when this browser
 remembers one, or when the Settings popup's Sign in button asks, so a free Local server loads nothing from Clerk;
-the popup offers Public to a session with a Host plan alone; the sign-in box shows the license message with the
-pricing link and Clerk's sign-out on a 401 license. The production instance, the token template and the pricing
-page are Clerk Step 6.
+the popup offers Public to a session with a professional plan alone; the sign-in box shows the license message with
+the pricing link and Clerk's sign-out on a 401 license. **The Desktop signs in** (Rearchitecturation Step 6): Sign
+in… in the page's menu loads ClerkJS as the Settings popup's button does; a signed-in session's token goes to the
+desktop (`ConsensusDesktop.SetLicense`), which verifies it against the instance's keys (`desktop/License.js` over
+`src/Clerk.js`) and writes desktop.json's `License: { Plan, Until, Checked }`; the Desktop is at that tier while
+Checked is within 14 days and Until has not passed (`License.Tier`, read by the page through `Session.Tier()` and
+`Licensed()`, so it holds offline), asks again whenever the page loads signed in, falls back to Free with a line in
+About when the cache lapses (`License.Line`), and Sign out clears it. Free needs no account; Personal unlocks the
+task buttons, the chooser's Hosts and Start the Server Host (Scope Local); Professional lets the Host keep its
+file's Scope Public. The pricing page, `docs/pricing.html`, names the three tiers. The production instance and the
+token template are Clerk Step 6.
 
 An `ollama` one-shot (plan Consensus Desktop, Step 4: Local Models) runs in the server: a local model has no
 tools of its own, so `Ollama.js` runs the tool loop over Ollama's chat endpoint, one request per round with

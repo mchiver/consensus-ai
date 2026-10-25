@@ -14,7 +14,9 @@ const SETTINGS = require( '../desktop/Settings.js' );
 const PAGE = require( '../desktop/Page.js' );
 const PROJECTS = require( '../desktop/Projects.js' );
 const SERVER = require( '../src/Server.js' );
-const HOST = require( '../desktop/Host.js' );		// plan Rearchitecturation, Step 5: the Server Host from the Desktop
+const HOST = require( '../desktop/Host.js' );
+const LICENSE = require( '../desktop/License.js' );		// plan Rearchitecturation, Step 6: the tiers and the 14-day cache
+const CRYPTO = require( 'crypto' );		// plan Rearchitecturation, Step 5: the Server Host from the Desktop
 const NET = require( 'net' );
 
 const VERSION = require( '../package.json' ).version;
@@ -47,7 +49,7 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	let folder = temporary_folder( 'desktop-settings-' );
 	let path = SETTINGS.Path( folder );
 	ASSERT.equal( path, PATH.join( folder, 'desktop.json' ) );
-	ASSERT.deepEqual( SETTINGS.Read( path ), { Recent: [], Hosts: [], Theme: 'system', Scale: 'normal', Remembered: {} } );
+	ASSERT.deepEqual( SETTINGS.Read( path ), { Recent: [], Hosts: [], Theme: 'system', Scale: 'normal', Remembered: {}, License: null } );
 
 	let settings = SETTINGS.Fill( {
 		Hosts: [ { Name: ' cube4 ', Url: 'http://cube4:3500/', Token: 'secret' }, { Name: 'cube4', Url: 'http://cube4:3500', Project: 'prj-aaa-bbb-ccc', Title: ' Test ' } ],
@@ -65,6 +67,7 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 		Theme: 'dark',
 		Scale: 'normal',
 		Remembered: {},
+		License: null,
 	} );
 	SETTINGS.Write( path, settings );
 	ASSERT.deepEqual( SETTINGS.Read( path ), settings );
@@ -460,4 +463,68 @@ TEST( 'the Server Host from the Desktop: Start runs consensus serve detached ove
 	ASSERT.equal( after.Running, false );
 	ASSERT.deepEqual( HOST.Stop( config ), { Stopped: false, Error: 'no Server Host of this machine\'s is running' } );
 	ASSERT.equal( await HOST.Routed( config, folder ), null, 'the Host gone, the folder opens as a plain project' );
+} );
+
+
+//---------------------------------------------------------------------
+// The license (plan Rearchitecturation, Step 6)
+
+TEST( 'the license: a session token verified against the instance\'s keys gives the cached record, the Desktop is at its tier for 14 days from the check and free after, free when Until has passed, free when cleared or absent, the old plan names not read; the About line; desktop.json keeps the field', async function ()
+{
+	let pair = CRYPTO.generateKeyPairSync( 'rsa', { modulusLength: 2048 } );
+	let jwk = Object.assign( pair.publicKey.export( { format: 'jwk' } ), { kid: 'key-1', use: 'sig', alg: 'RS256' } );
+	let host = 'clerk.example.test';
+	let settings = { Clerk: { PublishableKey: 'pk_test_' + Buffer.from( host + '$' ).toString( 'base64' ) } };
+	function base64url( value )
+	{
+		return Buffer.from( value ).toString( 'base64' ).replace( /=+$/, '' ).replace( /\+/g, '-' ).replace( /\//g, '_' );
+	}
+	function token( claims, key )
+	{
+		let seconds = Math.floor( Date.now() / 1000 );
+		let payload = Object.assign( { iss: 'https://' + host, sub: 'user_1', exp: seconds + 60, nbf: seconds - 5, iat: seconds - 5 }, claims || {} );
+		let input = base64url( JSON.stringify( { alg: 'RS256', kid: 'key-1', typ: 'JWT' } ) ) + '.' + base64url( JSON.stringify( payload ) );
+		return input + '.' + base64url( CRYPTO.sign( 'RSA-SHA256', Buffer.from( input ), key || pair.privateKey ) );
+	}
+	let options = { Settings: settings, Jwks: function () { return [ jwk ]; } };
+	let now = Date.now();
+	let record = await LICENSE.Verify( token( { license: { Plan: 'personal' } } ), options );
+	ASSERT.deepEqual( [ record.Plan, record.Until, Math.abs( Date.parse( record.Checked ) - now ) < 5000 ], [ 'personal', null, true ] );
+	let professional = await LICENSE.Verify( token( { license: 'personal', org_license: { Plan: 'professional', Until: '2099-01-01' } } ), options );
+	ASSERT.deepEqual( [ professional.Plan, professional.Until ], [ 'professional', '2099-01-01T00:00:00.000Z' ] );
+	ASSERT.equal( await LICENSE.Verify( token( { license: 'Host' } ), options ), null, 'the old names are not read' );
+	ASSERT.equal( await LICENSE.Verify( token( {} ), options ), null, 'a sign-in with no license' );
+	let other = CRYPTO.generateKeyPairSync( 'rsa', { modulusLength: 2048 } );
+	ASSERT.equal( await LICENSE.Verify( token( { license: 'personal' }, other.privateKey ), options ), null, 'another key' );
+	ASSERT.equal( await LICENSE.Verify( 'not a token', options ), null );
+	// the tier from the cache: within 14 days, at the edge, past it; Until passed; nothing cached
+	let day = 24 * 60 * 60 * 1000;
+	let fresh = { Plan: 'personal', Until: null, Checked: new Date( now ).toISOString() };
+	ASSERT.deepEqual( LICENSE.Tier( fresh, now ), { Tier: 'personal', Plan: 'personal', Days: 14, Until: null, Checked: fresh.Checked, Lapsed: null } );
+	ASSERT.deepEqual( [ LICENSE.Tier( fresh, now + 13 * day ).Tier, LICENSE.Tier( fresh, now + 13 * day ).Days ], [ 'personal', 1 ] );
+	ASSERT.deepEqual( [ LICENSE.Tier( fresh, now + 14 * day ).Tier, LICENSE.Tier( fresh, now + 14 * day ).Lapsed ], [ 'free', 'checked' ] );
+	ASSERT.equal( LICENSE.Tier( fresh, now + 40 * day ).Tier, 'free' );
+	let ending = { Plan: 'professional', Until: new Date( now + 2 * day ).toISOString(), Checked: new Date( now ).toISOString() };
+	ASSERT.equal( LICENSE.Tier( ending, now + day ).Tier, 'professional' );
+	ASSERT.deepEqual( [ LICENSE.Tier( ending, now + 3 * day ).Tier, LICENSE.Tier( ending, now + 3 * day ).Lapsed ], [ 'free', 'until' ] );
+	ASSERT.deepEqual( LICENSE.Tier( null, now ), { Tier: 'free', Plan: null, Days: null, Until: null, Checked: null, Lapsed: null } );
+	ASSERT.equal( LICENSE.Tier( { Plan: 'Host', Checked: fresh.Checked }, now ).Tier, 'free', 'an old name cached is free' );
+	ASSERT.deepEqual( [ LICENSE.AtLeast( fresh, 'personal', now ), LICENSE.AtLeast( fresh, 'professional', now ), LICENSE.AtLeast( ending, 'professional', now ), LICENSE.AtLeast( null, 'free', now ), LICENSE.AtLeast( null, 'personal', now ) ], [ true, false, true, true, false ] );
+	ASSERT.deepEqual( LICENSE.TIERS, [ 'free', 'personal', 'professional' ] );
+	// the About line
+	ASSERT.equal( LICENSE.Line( fresh, now ), 'Personal, checked today: 14 days left offline' );
+	ASSERT.equal( LICENSE.Line( fresh, now + 3 * day + 1000 ), 'Personal, checked 3 days ago: 11 days left offline' );
+	ASSERT.equal( LICENSE.Line( ending, now + day ), 'Professional, checked a day ago: 13 days left offline, the license until ' + ending.Until.slice( 0, 10 ) );
+	ASSERT.equal( LICENSE.Line( fresh, now + 20 * day ), 'Free: the Personal license last checked on ' + fresh.Checked.slice( 0, 10 ) + ' is more than 14 days old; sign in again to renew it' );
+	ASSERT.equal( LICENSE.Line( ending, now + 3 * day ), 'Free: the Professional license ran out on ' + ending.Until.slice( 0, 10 ) );
+	ASSERT.equal( LICENSE.Line( null, now ), 'Free: no license; sign in with a Consensus-AI account that holds one' );
+	// desktop.json keeps the field, filled; a bad one is dropped; cleared is null
+	let file = SETTINGS.Path( temporary_folder( 'desktop-license-' ) );
+	SETTINGS.Write( file, SETTINGS.Fill( { License: fresh } ) );
+	ASSERT.deepEqual( SETTINGS.Read( file ).License, fresh );
+	ASSERT.equal( SETTINGS.Fill( { License: { Plan: 'Host', Checked: fresh.Checked } } ).License, null );
+	ASSERT.equal( SETTINGS.Fill( { License: { Plan: 'personal' } } ).License, null, 'no Checked, no cache' );
+	ASSERT.equal( SETTINGS.Fill( {} ).License, null );
+	SETTINGS.Write( file, SETTINGS.Fill( { License: null } ) );
+	ASSERT.equal( SETTINGS.Read( file ).License, null );
 } );

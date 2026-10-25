@@ -286,7 +286,7 @@ function Operations( Context )
 		}
 		if ( account.Admin )
 		{
-			return 'Host';
+			return 'professional';
 		}
 		let roles = await roles_of( account );
 		for ( let project_id of Object.keys( roles ) )
@@ -560,10 +560,10 @@ function Operations( Context )
 				refuse( 400, 'the settings have problems: ' + problems[ 0 ], { Problems: problems } );
 			}
 			let before = { Scope: PARTICIPANTS.Scope( settings ), Port: settings.Port };
-			// Plan Clerk, Step 5: a server goes Public from a session with a Host license alone.
-			if ( clean.Scope === 'Public' && before.Scope !== 'Public' && ROLES.PlanRank( participant.Plan ) < ROLES.PlanRank( 'Host' ) )
+			// Plan Clerk, Step 5: a server goes Public from a session with a Professional license alone (the tiers of plan Rearchitecturation, Step 6).
+			if ( clean.Scope === 'Public' && before.Scope !== 'Public' && ROLES.PlanRank( participant.Plan ) < ROLES.PlanRank( 'professional' ) )
 			{
-				refuse( 403, 'a Host license is required to run a Public server: sign in with one first', { Plan: 'Host' } );
+				refuse( 403, 'a Professional license is required to run a Public server: sign in with one first', { Plan: 'professional' } );
 			}
 			for ( let field of PARTICIPANTS.SETTINGS_FIELDS )
 			{
@@ -3266,7 +3266,7 @@ function Operations( Context )
 					let needed = ROLES.PlanFor( role );
 					if ( needed && record.Clerk && ROLES.PlanRank( record.Plan ) < ROLES.PlanRank( needed ) )
 					{
-						refuse( 400, record.Login + ' needs a ' + needed + ' license to be in ' + role, { Plan: needed } );
+						refuse( 400, record.Login + ' needs a ' + needed.charAt( 0 ).toUpperCase() + needed.slice( 1 ) + ' license to be in ' + role, { Plan: needed } );
 					}
 				}
 			}

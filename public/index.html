@@ -195,11 +195,11 @@
 				<label for="settings-name">Name</label>
 				<input class="form-control form-control-sm" id="settings-name" ng-model="Panel.Form.Name" placeholder="this server's name" title="the server's name, shown to its clients">
 				<label for="settings-scope">Scope</label>
-				<select class="form-select form-select-sm settings-scope" id="settings-scope" ng-model="Panel.Form.Scope" ng-options="scope disable when !ScopeAllowed( scope ) for scope in Scopes" title="at its next start: Local listens on this machine only, Public on every interface (people sign in with a license; saved from a sign-in with a Host license), None starts no server"></select>
+				<select class="form-select form-select-sm settings-scope" id="settings-scope" ng-model="Panel.Form.Scope" ng-options="scope disable when !ScopeAllowed( scope ) for scope in Scopes" title="at its next start: Local listens on this machine only, Public on every interface (people sign in with a license; saved from a sign-in with a Professional license), None starts no server"></select>
 				<label for="settings-port">Port</label>
 				<input class="form-control form-control-sm settings-port" id="settings-port" type="number" min="0" max="65535" ng-model="Panel.Form.Port" title="the port at its next start">
 			</div>
-			<div class="muted small settings-trust" id="settings-trust">{{ TrustNote() }} <button class="btn btn-sm btn-outline-secondary settings-sign-in" type="button" id="settings-sign-in" ng-show="CanSignIn()" ng-click="SignIn()" title="sign in with your Consensus-AI account; a Host license lets this server run as Public">Sign in</button></div>
+			<div class="muted small settings-trust" id="settings-trust">{{ TrustNote() }} <button class="btn btn-sm btn-outline-secondary settings-sign-in" type="button" id="settings-sign-in" ng-show="CanSignIn()" ng-click="SignIn()" title="sign in with your Consensus-AI account; a Professional license lets this server run as Public">Sign in</button></div>
 			<div class="settings-row top">
 				<label for="settings-states">States</label>
 				<textarea class="form-control form-control-sm" id="settings-states" rows="4" ng-model="Panel.Form.StatesText" placeholder="one state per line; a new plan starts in the first" title="the states a plan is picked from, one per line; one in use by a plan cannot be removed"></textarea>
@@ -351,6 +351,8 @@
 	<div class="subplan-popup settings-popup help-popup" id="help-popup" ng-controller="HelpController" ng-show="Panel.Open" ng-keydown="Key($event)">
 		<div class="subplan-form settings-form help-form" ng-if="Panel.Open === 'about'" tabindex="-1" auto-focus>
 			<div class="subplan-head"><img class="about-mark" src="/img/mark.svg" alt="">About Consensus <span class="muted small" id="about-version" ng-show="Version()">version {{ Version() }}</span><button class="popup-close" type="button" title="close (Escape)" ng-click="Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
+			<!-- the Desktop's tier (plan Rearchitecturation, Step 6): Free, Personal or Professional, and the days the cache has left -->
+			<div class="about-license muted small" id="about-license" ng-if="LicenseLine()">{{ LicenseLine() }}</div>
 			<div class="help-links">
 				<a ng-href="{{ SourceUrl }}" target="_blank" rel="noopener" id="about-source"><svg class="icon lead"><use href="#i-link"></use></svg>Source</a>
 				<a ng-href="{{ GuideUrl }}" target="_blank" rel="noopener" id="about-guide"><svg class="icon lead"><use href="#i-link"></use></svg>Online guide</a>

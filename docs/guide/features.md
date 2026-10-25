@@ -55,7 +55,7 @@
 - **Docker.** One image, one volume, port 3500, for a box on your network.
 - **Scope.** The server listens for this machine only, for the network, or not at all, as the settings say.
 - **Live updates.** Every change is a Server-Sent Event, so every open page, window and server row stays in step.
-- **Settings in the app.** Name, scope, port, states, the owner's display and the tasks, edited in a popup by the owner or the Administrator; Public is offered to a sign-in with a Host license. See [Settings and themes](settings.html).
+- **Settings in the app.** Name, scope, port, states, the owner's display and the tasks, edited in a popup by the owner or the Administrator; Public is offered to a sign-in with a Professional license. See [Settings and themes](settings.html).
 - **Themes, scale and margins.** System, light, dark and seven more palettes, three text sizes, and the width the text is held to, remembered in the browser.
 
 ## The API
@@ -63,6 +63,6 @@
 - **Everything over one REST API.** Projects, plans, threads, revisions, runs and settings, the same routes the page uses. See [The API](api.html).
 - **Users and roles.** The accounts of a server (the owner, the users the Administrator makes, the Service accounts), each with its page, its tokens made and revoked there, and its activity; a project's Users folder with Owners, Members, Service and Watchers, filled by drag; every request checked against the role, with the reason when refused. See [Sharing a server](sharing.html).
 - **Sign in through Consensus-AI.** A Public server signs people in through Consensus-AI's Clerk instance, in the page, in the browser and in the desktop alike, with no password of its own and nothing to configure; a first sign-in writes the account to the registry from the token, and Consensus holds the roles. See [Sharing a server](sharing.html).
-- **Licenses for people, not servers.** Free is the Local server. A Host license runs a Public server and is its Administrator, a User license is an Owner or a Member in projects, a Watcher needs none; a site license is an organization whose members carry it. The server checks the plan at sign-in, at the Scope and at the drag into a role, and says which plan it wants.
+- **Licenses for people, not servers.** Three tiers: Free is the desktop on local folders and the sidecar; Personal unlocks the LLM tasks, connecting to a Host and running the Server Host on this machine; Professional binds the Host to the network and is the Administrator of a Public server. A Watcher needs no license; a site license is an organization whose members carry it. The server checks the plan at sign-in, at the Scope and at the drag into a role, and says which plan it wants; the desktop keeps its tier for fourteen days offline. See [the licenses](../pricing.html).
 - **Events.** A stream of what changed, for anything that wants to follow along.
 - **MIT licensed.** The code is public and free to use, change and run anywhere.

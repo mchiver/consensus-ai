@@ -7,8 +7,10 @@
 // through the Host rather than opened as a plain project.
 //
 //   Status( Config, Port )                     src/Host.js's Status: { Running, Url, Pid, Started, Ours }
-//   Start( { Config, Command, Arguments } )    the Host spawned detached: Command with Arguments then serve --headless
-//                                              --config <Config> --scope local, the log file made; answers { Log }
+//   Start( { Config, Command, Arguments, Scope? } )  the Host spawned detached: Command with Arguments then serve --headless
+//                                              --config <Config> and --scope <Scope> (local unless given; null leaves the
+//                                              file's Scope: plan Rearchitecturation, Step 6, the Professional tier), the
+//                                              log file made; answers { Log, Pid }
 //   Stop( Config )                             the file's Host ended when its process is alive; answers { Stopped, Error? }
 //   WaitFor( Config, Port, TimeoutMs )         Status polled until the Host answers, or the time is up
 //   Routed( Config, Folder, Port )             { Url, Project: { Id, Name } } when the registry lists the folder as
@@ -50,7 +52,8 @@ function Start( Options )
 	FS.mkdirSync( logs, { recursive: true } );
 	let log = PATH.join( logs, 'host-' + new Date().toISOString().replace( /[:.]/g, '-' ) + '.log' );
 	let out = FS.openSync( log, 'a' );
-	let arguments_ = ( Options.Arguments || [] ).concat( [ 'serve', '--headless', '--config', config, '--scope', 'local' ] );
+	let scope = ( Options.Scope === undefined ) ? 'local' : Options.Scope;
+	let arguments_ = ( Options.Arguments || [] ).concat( [ 'serve', '--headless', '--config', config ], scope ? [ '--scope', scope ] : [] );
 	let child = CHILD_PROCESS.spawn( Options.Command || process.execPath, arguments_, { detached: true, stdio: [ 'ignore', out, out ], windowsHide: true } );
 	child.unref();
 	FS.closeSync( out );

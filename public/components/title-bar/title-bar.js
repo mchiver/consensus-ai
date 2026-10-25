@@ -126,6 +126,16 @@ angular.module( 'Consensus' ).component( 'titleBar', {
 				{
 					items.push( { Label: 'Settings', Icon: 'settings', Act: function () { Tree.OpenSettings( root ); } } );
 				}
+				// The account (plan Rearchitecturation, Step 6): Sign in loads Clerk's box, as the Settings popup's button does;
+				// signed in, Sign out; the tier the desktop is at is in About.
+				if ( Session.On && !Session.SignedIn() )
+				{
+					items.push( { Label: 'Sign in…', Icon: 'info', Act: function () { Session.Open(); } } );
+				}
+				else if ( Session.SignedIn() )
+				{
+					items.push( { Label: 'Sign out', Icon: 'info', Act: function () { Session.SignOut(); } } );
+				}
 				items.push( { Label: 'Reload', Icon: 'refresh', Act: function () { $window.location.reload(); } } );
 				// The Server Host (plan Rearchitecturation, Step 5): started detached, its page opened, stopped; the status
 				// as the desktop last saw it, refreshed for the next opening.

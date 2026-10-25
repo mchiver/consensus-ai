@@ -15,19 +15,24 @@
 // Step 7); the desktop's other servers hold tokens and never sign in this way, and a desktop window with no own
 // server has no session.
 //
+// In the Desktop (plan Rearchitecturation, Step 6) a sign-in's token goes to the desktop (ConsensusDesktop.SetLicense),
+// which verifies it and caches the license in desktop.json for 14 days; the Desktop's tier (Tier, free, personal or
+// professional) is read from that cache, so it holds offline, and a sign-out clears it.
+//
 //   Session { Key, Base (the own server's root key and base, null when there is none),
-//             On, Loaded, Required, Asked, Refusal, Error, Config, Pricing, Ready (a promise: loaded),
-//             Token(), SignedIn(), User(), Plan(), Licensed( plan ), Needed( body ), Open(), SignOut(),
+//             On, Loaded, Required, Asked, Refusal, Error, Config, Pricing, Ready (a promise: loaded), License (the
+//             Desktop's cached tier { Tier, Days, Line } or null),
+//             Token(), SignedIn(), User(), Plan(), Tier(), Licensed( plan ), Needed( body ), Open(), SignOut(),
 //             MountSignIn( element ), MountUserButton( element ), Unmount( element, kind ) }
 
 angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', function ( $rootScope )
 {
 	const SCRIPT = '/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
-	const PLANS = [ 'User', 'Host' ];	// Roles.js's PLANS: the rank is the index plus one
+	const PLANS = [ 'personal', 'professional' ];	// Roles.js's PLANS: the rank is the index plus one (plan Rearchitecturation, Step 6)
 	const REMEMBERED = 'consensus-signed-in';
 	const SESSION_WAIT = 4000;	// milliseconds given to a remembered session to arrive after ClerkJS loads
 	let own = own_root();
-	let session = { Key: own ? own.Key : null, Base: own ? own.Base : null, On: false, Loaded: false, Required: false, Asked: false, Refusal: null, Error: null, Config: null, Pricing: null, Ready: null };
+	let session = { Key: own ? own.Key : null, Base: own ? own.Base : null, On: false, Loaded: false, Required: false, Asked: false, Refusal: null, Error: null, Config: null, Pricing: null, Ready: null, License: ( window.ConsensusDesktop && window.ConsensusDesktop.License ) ? window.ConsensusDesktop.License : null };
 	let clerk = null;
 	let loading = null;
 	let was_signed_in = false;
@@ -179,6 +184,7 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 			remember( was_signed_in );
 			await activate_organization();
 			clerk.addListener( on_change );
+			await report_license();
 		}
 		catch ( error )
 		{
@@ -225,7 +231,8 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	}
 
 
-	// Clerk's resources changed: a sign-in while the page waited for one, or a sign-out, reloads the page.
+	// Clerk's resources changed: a sign-in while the page waited for one, or a sign-out, reloads the page; in the
+	// Desktop a sign-out clears the cached license first.
 	function on_change( resources )
 	{
 		let signed_in = !!( resources && resources.user );
@@ -233,7 +240,37 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		{
 			was_signed_in = signed_in;
 			remember( signed_in );
+			if ( !signed_in && window.ConsensusDesktop && typeof window.ConsensusDesktop.ClearLicense === 'function' )
+			{
+				Promise.resolve( window.ConsensusDesktop.ClearLicense() ).catch( function () {} ).then( function () { window.location.reload(); } );
+				return;
+			}
 			window.location.reload();
+		}
+	}
+
+
+	// The Desktop's license cache (plan Rearchitecturation, Step 6): a signed-in session's token goes to the desktop,
+	// which verifies it and answers the tier it is at now.
+	async function report_license()
+	{
+		if ( !window.ConsensusDesktop || typeof window.ConsensusDesktop.SetLicense !== 'function' || !clerk || !clerk.session )
+		{
+			return;
+		}
+		try
+		{
+			let token = await clerk.session.getToken();
+			let answer = token ? await window.ConsensusDesktop.SetLicense( token ) : null;
+			if ( answer && answer.Tier )
+			{
+				session.License = answer;
+				$rootScope.$applyAsync();
+			}
+		}
+		catch ( error )
+		{
+			console.error( error );
 		}
 	}
 
@@ -314,9 +351,20 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	}
 
 
+	// The tier: in the Desktop the cached license's (free when none), elsewhere the signed-in person's plan or free.
+	function Tier()
+	{
+		if ( window.ConsensusDesktop )
+		{
+			return ( session.License && session.License.Tier ) ? session.License.Tier : 'free';
+		}
+		return Plan() || 'free';
+	}
+
+
 	function Licensed( Wanted )
 	{
-		return PLANS.indexOf( Plan() ) >= PLANS.indexOf( Wanted ) && PLANS.includes( Wanted );
+		return PLANS.indexOf( Tier() ) >= PLANS.indexOf( Wanted ) && PLANS.includes( Wanted );
 	}
 
 
@@ -424,6 +472,7 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	session.SignedIn = SignedIn;
 	session.User = User;
 	session.Plan = Plan;
+	session.Tier = Tier;
 	session.Licensed = Licensed;
 	session.Needed = Needed;
 	session.Open = Open;

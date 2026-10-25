@@ -4,13 +4,13 @@ A Consensus-AI server on your own machine is yours alone: every request is the o
 
 ## Going Public
 
-A server listens for a team when its **Scope** is Public. Public is offered to a person holding a **Host license**: in the Settings popup, press **Sign in** beneath the Scope, sign in with your Consensus-AI account, and once the page holds a Host license the Public choice is enabled; save, and the server listens on every interface from its next start. A server started Public from its file or from the command line, the Docker image among them, listens at once and admits licensed sign-ins alone: nothing can be done on it until a person with a Host license signs in.
+A server listens for a team when its **Scope** is Public. Public is offered to a person holding a **Professional license**: in the Settings popup, press **Sign in** beneath the Scope, sign in with your Consensus-AI account, and once the page holds a Professional license the Public choice is enabled; save, and the server listens on every interface from its next start. A server started Public from its file or from the command line, the Docker image among them, listens at once and admits licensed sign-ins alone: nothing can be done on it until a person with a Professional license signs in.
 
 On a Public server a request with no session and no token is refused. The page shows Consensus-AI's sign-in box, and a person who has signed in is who they are everywhere on the server, in the browser and in the desktop alike. Consensus keeps no password: Consensus-AI's sign-in identifies people, and Consensus holds the roles.
 
 ## The Administrator
 
-Every Public server has one Administrator: the first person to sign in with a Host license, or the one a Docker server names with the environment variable `CONSENSUS_ADMIN`. The Administrator alone writes the server's settings, makes and deletes accounts, mints a Service account's tokens, defines the LLM tasks and connections, makes and deletes projects, and may place anyone in any project's roles. Inside a project the Administrator otherwise acts by the role folder they are in, like anyone.
+Every Public server has one Administrator: the first person to sign in with a Professional license, or the one a Docker server names with the environment variable `CONSENSUS_ADMIN`. The Administrator alone writes the server's settings, makes and deletes accounts, mints a Service account's tokens, defines the LLM tasks and connections, makes and deletes projects, and may place anyone in any project's roles. Inside a project the Administrator otherwise acts by the role folder they are in, like anyone.
 
 ## Accounts
 

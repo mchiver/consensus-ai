@@ -16,7 +16,10 @@
 // activates the window that has the folder. Step 5: the Project menu starts the Server Host (`consensus serve`,
 // detached, over the same config folder, its log in <config>/~logs/; desktop/Host.js), opens its page and stops it; a
 // Host already running is found by its port; Open folder on a folder the Host's registry lists as mounted, while the
-// Host runs, connects the window to the Host's project instead of opening the folder.
+// Host runs, connects the window to the Host's project instead of opening the folder. Step 6: the tiers: the page's sign-in
+// hands its token here (set-license), verified against Clerk's keys and cached in desktop.json for 14 days (License.js);
+// Free opens local folders and runs the sidecar, Personal unlocks the tasks, the Hosts and the Server Host with Scope
+// Local, Professional lets the Host keep its file's Scope Public.
 // Plan UI Components, Step 5: the window has no frame of its own: Electron draws the window buttons over the page's
 // title bar (titleBarStyle hidden with titleBarOverlay; the page sends the bar's colours and height over the chrome
 // message, so the buttons follow the palette), the bar is the drag region, and the native menu is not shown; it is
@@ -32,6 +35,7 @@ const ELECTRON = require( 'electron' );
 const SETTINGS = require( './Settings.js' );
 const PROJECTS = require( './Projects.js' );
 const HOST = require( './Host.js' );
+const LICENSE = require( './License.js' );
 const START = require( '../src/Start.js' );
 const PAGE = require( './Page.js' );
 const SERVER = require( '../src/Server.js' );
@@ -281,6 +285,10 @@ async function connect_host_here( Host )
 	{
 		return { Error: 'a Host needs a Name' };
 	}
+	if ( !LICENSE.AtLeast( desktop.License, 'personal' ) )
+	{
+		return { Error: 'a Personal license: connecting to a Host needs one; sign in from the page\'s menu' };
+	}
 	let tried = await try_server( Host.Url );
 	if ( !tried.Ok )
 	{
@@ -400,6 +408,7 @@ function boot_info()
 		Scale: desktop.Scale,
 		Remembered: desktop.Remembered,
 		Roots: roots_now(),
+		License: tier_now(),
 		Project: project_info(),
 		Recent: desktop_settings().Recent,
 		Reason: reason,
@@ -637,6 +646,51 @@ const HOST_NAME = 'Server Host';
 const HOST_START_WAIT = 15000;
 
 
+// The tier the Desktop is at now (plan Rearchitecturation, Step 6), for the page and the gates here.
+function tier_now()
+{
+	let tier = LICENSE.Tier( desktop ? desktop.License : null );
+	return { Tier: tier.Tier, Plan: tier.Plan, Days: tier.Days, Until: tier.Until, Checked: tier.Checked, Lapsed: tier.Lapsed, Line: LICENSE.Line( desktop ? desktop.License : null ) };
+}
+
+
+// A sign-in's session token: verified, the license cached; answers the tier, or { Error }.
+async function set_license( Token )
+{
+	let record = null;
+	try
+	{
+		record = await LICENSE.Verify( Token, { Settings: settings || {} } );
+	}
+	catch ( error )
+	{
+		return Object.assign( tier_now(), { Error: 'the sign-in could not be verified: ' + error.message } );
+	}
+	if ( !record )
+	{
+		// a verified sign-in with no license: the cache is cleared, the Desktop is Free
+		desktop.License = null;
+		save_settings();
+		build_menu();
+		return tier_now();
+	}
+	desktop.License = record;
+	save_settings();
+	build_menu();
+	console.log( 'license: ' + LICENSE.Line( desktop.License ) );
+	return tier_now();
+}
+
+
+function clear_license()
+{
+	desktop.License = null;
+	save_settings();
+	build_menu();
+	return tier_now();
+}
+
+
 function config_folder()
 {
 	return ( options && options.Config ) ? options.Config : SERVER.DEFAULT_CONFIG;
@@ -661,8 +715,14 @@ async function host_now()
 // executable is the app), then waited for; answers the status.
 async function start_host()
 {
+	// Personal starts the Host with Scope Local; Professional leaves its file's Scope (Public allowed); Free starts nothing.
+	let tier = tier_now().Tier;
+	if ( tier === 'free' )
+	{
+		return Object.assign( { Running: false }, { Error: 'a Personal license: Start the Server Host needs one; sign in from the page\'s menu' } );
+	}
 	let leading = ELECTRON.app.isPackaged ? [] : [ ELECTRON.app.getAppPath() ];
-	let started = HOST.Start( { Config: config_folder(), Command: process.execPath, Arguments: leading } );
+	let started = HOST.Start( { Config: config_folder(), Command: process.execPath, Arguments: leading, Scope: ( tier === 'professional' ) ? null : 'local' } );
 	console.log( 'Server Host started (pid ' + started.Pid + '), its log in ' + started.Log );
 	let status = await HOST.WaitFor( config_folder(), null, HOST_START_WAIT );
 	host_status = status;
@@ -706,7 +766,7 @@ function host_items()
 	}
 	else
 	{
-		items.push( { label: 'Start the Server Host', click: function () { start_host(); } } );
+		items.push( { label: 'Start the Server Host', enabled: tier_now().Tier !== 'free', click: function () { start_host(); } } );
 	}
 	return items;
 }
@@ -839,7 +899,7 @@ function attach_handlers()
 	// The chooser's lists, and the window's project when it has one.
 	ELECTRON.ipcMain.handle( 'settings', function ()
 	{
-		return { Settings: desktop_settings(), Path: desktop_path, Config: options.Config || SERVER.DEFAULT_CONFIG, Version: VERSION, Reason: reason, Project: project_info(), Local: local_running() };
+		return { Settings: desktop_settings(), Path: desktop_path, Config: options.Config || SERVER.DEFAULT_CONFIG, Version: VERSION, Reason: reason, Project: project_info(), Local: local_running(), License: tier_now() };
 	} );
 
 	// Open folder: the picker, then the folder in this window.
@@ -986,6 +1046,17 @@ function attach_handlers()
 		return open_host();
 	} );
 
+	// The license (plan Rearchitecturation, Step 6): the page's sign-in token verified and cached; a sign-out clears it.
+	ELECTRON.ipcMain.handle( 'set-license', function ( event, token )
+	{
+		return set_license( String( token || '' ) );
+	} );
+
+	ELECTRON.ipcMain.handle( 'clear-license', function ()
+	{
+		return clear_license();
+	} );
+
 	// The title bar's colours and height, from the page once its bar is drawn and after every change of theme or size
 	// (plan UI Components, Step 5): the window buttons follow the palette.
 	ELECTRON.ipcMain.on( 'chrome', function ( event, chrome )
@@ -1055,7 +1126,7 @@ async function main()
 	if ( options.Headless )
 	{
 		// No window: this machine's server from the config as the Scope says (every registered project, or the folder).
-		running = await START.Run( options, console.log );
+		running = await START.Run( Object.assign( {}, options, { Tier: tier_now().Tier } ), console.log );
 		if ( running.Open )
 		{
 			// the folder is open in a running sidecar: its address is printed above

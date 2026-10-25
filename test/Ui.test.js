@@ -1063,9 +1063,9 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "settings-scope" ).selectedOptions[ 0 ].textContent.trim()' ), 'Local' );
 	ASSERT.match( await page.Evaluate( 'document.getElementById( "settings-states" ).value' ), /^Draft\nPlan\nWorking\nFinished$/ );
 	// plan User Management, Step 1: the line beneath the Scope (the Clerk section left the popup on 2026-10-20)
-	ASSERT.match( await page.Evaluate( text_of( '#settings-trust' ) ), /^Local: this machine only\. A request is the owner\. Public needs a sign-in with a Host license\./ );
+	ASSERT.match( await page.Evaluate( text_of( '#settings-trust' ) ), /^Local: this machine only\. A request is the owner\. Public needs a sign-in with a Professional license\./ );
 	ASSERT.equal( await page.Evaluate( count_of( '.settings-clerk' ) ), 0 );
-	// plan Clerk, Step 5: Public is offered to a sign-in with a Host license alone; the Sign in button asks for one
+	// plan Clerk, Step 5: Public is offered to a sign-in with a Professional license alone; the Sign in button asks for one
 	ASSERT.equal( await page.Evaluate( '[ ...document.getElementById( "settings-scope" ).options ].find( function ( option ) { return option.textContent.trim() === "Public"; } ).disabled' ), true );
 	ASSERT.equal( await page.Evaluate( '[ ...document.getElementById( "settings-scope" ).options ].find( function ( option ) { return option.textContent.trim() === "Local"; } ).disabled' ), false );
 	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "settings-sign-in" ) ).display !== "none"' ), true );
@@ -1997,7 +1997,7 @@ TEST( 'Clerk on a Local server (plan User Management, Step 4; plan Clerk, Step 5
 	ASSERT.equal( await page.Evaluate( count_of( '#user-button' ) ), 0 );
 	ASSERT.equal( await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Token().then( function ( token ) { return token === null; } )' ), true );
 	ASSERT.equal( await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Plan()' ), null );
-	ASSERT.equal( await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Licensed( "Host" )' ), false );
+	ASSERT.equal( await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Licensed( "professional" )' ), false );
 	ASSERT.match( await page.Evaluate( text_of( '.root-head .me' ) ), /^you are User \(owner\)/ );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
@@ -2025,10 +2025,11 @@ TEST( 'the Host\'s page (plan Rearchitecturation, Step 5): one project-view per 
 	await menu_pick( row + ' > .project-head', 'Unmount' );
 	await page.WaitFor( count_of( row + ' .project-head .unmounted' ) + ' === 1' );
 	ASSERT.equal( ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === made.Id; } ).Mounted, false );
-	// collapsible: the head folds the project and opens it again
+	// collapsible: the head folds the project, or opens it, and the next click undoes that
+	let was_open = await page.Evaluate( count_of( row + '.open' ) + ' === 1' );
 	await page.Click( row + ' > .project-head' );
-	await page.WaitFor( count_of( row + '.open' ) + ' === 1' );
+	await page.WaitFor( count_of( row + '.open' ) + ' === ' + ( was_open ? 0 : 1 ) );
 	await page.Click( row + ' > .project-head' );
-	await page.WaitFor( count_of( row + '.open' ) + ' === 0' );
+	await page.WaitFor( count_of( row + '.open' ) + ' === ' + ( was_open ? 1 : 0 ) );
 	ASSERT.deepEqual( page.Errors, [] );
 } );

@@ -113,7 +113,7 @@ function Attach( App, Context )
 
 	// A Clerk session token (Step 4): the registry record of its subject as the account, written from the token's claims
 	// when the registry lacks it (on a Local server the owner's record); null when the token is no live session of this
-	// instance. Plan Clerk, Step 5: the account carries the session's Plan; the first sign-in with a Host license on a
+	// instance. Plan Clerk, Step 5: the account carries the session's Plan; the first sign-in with a Professional license on a
 	// Public server with no Administrator becomes it; a plan below what the person's roles need is a refusal
 	// ({ Refused: the plan wanted, Has }) that identify answers with 401 "license".
 	async function clerk_participant( value, service, host )
@@ -134,11 +134,11 @@ function Attach( App, Context )
 		let account = ( found.Record.Type === 'owner' ) ? PARTICIPANTS.Identify( settings, { Service: service }, tokens, users ) : PARTICIPANTS.UserAccount( settings, users, found.Record, PARTICIPANTS.ServiceOf( service ), null );
 		account.Plan = found.License ? found.License.Plan : null;
 		account.Session = true;
-		if ( account.Type !== 'owner' && !admin_email() && found.Record.Email && ROLES.PlanRank( account.Plan ) >= ROLES.PlanRank( 'Host' ) )
+		if ( account.Type !== 'owner' && !admin_email() && found.Record.Email && ROLES.PlanRank( account.Plan ) >= ROLES.PlanRank( 'professional' ) )
 		{
 			settings.Clerk = Object.assign( {}, settings.Clerk || {}, { AdminEmail: found.Record.Email } );
 			await store.WriteSettings( settings );
-			console.log( 'the Administrator is ' + found.Record.Email + ': the first sign-in with a Host license' );
+			console.log( 'the Administrator is ' + found.Record.Email + ': the first sign-in with a Professional license' );
 			events.Send( { Settings: true, Kind: 'settings' } );
 			account.Admin = true;
 		}

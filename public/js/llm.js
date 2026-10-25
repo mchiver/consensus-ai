@@ -175,7 +175,7 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State'
 		}
 		// Plan Rearchitecturation, Step 4 (the free tier): in the Desktop, this machine's project runs a task with a
 		// Personal license alone; the sidecar is the free LLM path. A Host's project is the Host's affair.
-		if ( window.ConsensusDesktop && items.Root.Kind !== 'server' && !Session.Licensed( 'User' ) )
+		if ( window.ConsensusDesktop && items.Root.Kind !== 'server' && !Session.Licensed( 'personal' ) )
 		{
 			return 'a Personal license';
 		}

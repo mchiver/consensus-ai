@@ -346,7 +346,8 @@ async function smoke_desktop()
 		await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
 		// the Server Host item (plan Rearchitecturation, Step 5) reads Start, or Open and Stop when a Host answers on this machine's port
 		let menu_items = await page.Evaluate( MENU_ITEMS );
-		check( 'menu: the desktop items', /^About\|Hotkeys\|New window\|Open folder in new window…\|Settings\|Reload\|(Start the Server Host|Open the Server Host\|Stop the Server Host)\|Quit$/.test( menu_items ), true );
+		// Sign in… sits before Reload when the window's server offers Clerk (plan Rearchitecturation, Step 6)
+		check( 'menu: the desktop items', /^About\|Hotkeys\|New window\|Open folder in new window…\|Settings\|(Sign in…\|)?Reload\|(Start the Server Host|Open the Server Host\|Stop the Server Host)\|Quit$/.test( menu_items ), true );
 		// while the menu is open the bar is no drag region, so a click on it closes the menu (plan UI Tweaks IX)
 		check( 'menu: the bar gives up the drag region while a menu is open', await page.Evaluate( 'getComputedStyle( document.querySelector( ".title-bar" ) ).webkitAppRegion' ), 'no-drag' );
 		let bar_spot = JSON.parse( await page.Evaluate( '( function () { let r = document.querySelector( ".title-bar" ).getBoundingClientRect(); return JSON.stringify( { x: r.left + r.width / 2, y: r.top + r.height / 2 } ); } )()' ) );

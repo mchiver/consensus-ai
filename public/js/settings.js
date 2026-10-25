@@ -4,7 +4,7 @@
 // Name, the Scope and Port (applied at the next start; plan Run Shapes, Step 1), the States one per line, the Owner
 // (its Name read-only, its Display; plan User Management, Step 2: the participants and their tokens are gone; the Clerk
 // section left the popup on 2026-10-20 and is the file's: the form sends none and the server keeps it), a line beneath
-// the Scope saying what the Scope comes to (plan Clerk, Step 5: Public is offered to a session with a Host license
+// the Scope saying what the Scope comes to (plan Clerk, Step 5: Public is offered to a session with a Professional license
 // alone, the Sign in button beside the line asking for one on a Local server), and the Tasks
 // (plan LLM Tasks, Step 1: one row per task, its Name, Writes, the Package switches (Box, Step 2, off for a new one) and its Prompt; Add, Remove,
 // up and down, Reset for a shipped one; the levels, the switches and the defaults come from GET /api/tasks). Saved
@@ -137,7 +137,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		}
 		if ( form.Scope === 'Local' )
 		{
-			return 'Local: this machine only. A request is the owner.' + ( $scope.ScopeAllowed( 'Public' ) ? '' : ' Public needs a sign-in with a Host license.' );
+			return 'Local: this machine only. A request is the owner.' + ( $scope.ScopeAllowed( 'Public' ) ? '' : ' Public needs a sign-in with a Professional license.' );
 		}
 		return 'Public: people sign in through Consensus-AI with a license and act by their roles. A request with no session and no token is refused.';
 	};
@@ -152,14 +152,14 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 	}
 
 
-	// Public is offered to a session with a Host license, and to a server that is Public already.
+	// Public is offered to a session with a Professional license, and to a server that is Public already.
 	$scope.ScopeAllowed = function ( scope )
 	{
 		if ( scope !== 'Public' || SettingsPanel.WasPublic )
 		{
 			return true;
 		}
-		return own_server() && Session.Licensed( 'Host' );
+		return own_server() && Session.Licensed( 'professional' );
 	};
 
 

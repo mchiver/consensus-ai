@@ -821,7 +821,8 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 	let settings = Object.assign( PARTICIPANTS.DefaultSettings( 3500, 'None' ), { Name: 'Recipe Box desktop' } );
 	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( settings, null, '\t' ) );
 	// The seeded project saved as a Host project (plan Rearchitecturation, Step 2: one entry per Host project).
-	let desktop = { Hosts: [ { Name: 'Recipe Box server', Url: Url, Project: Demo.Id, Title: 'Recipe Box' } ], Theme: 'light', Scale: 'normal' };
+	// a Personal license cached (plan Rearchitecturation, Step 6): the Hosts need one
+	let desktop = { Hosts: [ { Name: 'Recipe Box server', Url: Url, Project: Demo.Id, Title: 'Recipe Box' } ], Theme: 'light', Scale: 'normal', License: { Plan: 'personal', Until: null, Checked: new Date().toISOString() } };
 	FS.writeFileSync( PATH.join( config, 'desktop.json' ), JSON.stringify( desktop, null, '\t' ) );
 
 	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data, '--config', config ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Consensus-AI: the licenses</title>
+	<meta name="description" content="The three tiers of Consensus-AI: Free, Personal and Professional, and what each grants.">
+	<link rel="icon" href="images/mark.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="css/bootstrap.min.css">
+	<link rel="stylesheet" href="css/site.css">
+	<script src="js/site.js"></script>
+</head>
+<body>
+
+	<header class="site-header">
+		<div class="container site-header-row">
+			<a class="brand" href="index.html"><img class="brand-mark" src="images/mark.svg" alt="">Consensus-AI</a>
+			<nav class="site-nav">
+				<a href="guide/getting-started.html">Guide</a>
+				<a href="guide/features.html">Features</a>
+				<a href="guide/api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">GitHub</a>
+				<button class="theme-toggle" type="button" data-theme-toggle title="light or dark"><span class="theme-sun" aria-hidden="true">&#9728;</span><span class="theme-moon" aria-hidden="true">&#9790;</span></button>
+			</nav>
+		</div>
+	</header>
+
+	<!-- ============================================================= -->
+	<section class="hero">
+		<div class="container">
+			<h1>The licenses</h1>
+			<p class="lead">Three tiers, each granting what the one before it does and more. A license belongs to a person, on their Consensus-AI account, never to a server: sign in anywhere and it is there. The tiers are not roles: a project's roles (Owner, Member, Service, Watcher) stay as they are.</p>
+		</div>
+	</section>
+
+	<!-- ============================================================= -->
+	<section class="section">
+		<div class="container">
+			<div class="cards">
+				<div class="card-plain">
+					<span class="tag">Free</span>
+					<h3>The desktop and the sidecar</h3>
+					<ul>
+						<li>The freely available feature set, with no account and no sign-in.</li>
+						<li>Run the desktop to work with projects in local folders.</li>
+						<li>Run the sidecar on localhost: the API and MCP of the open project, for an agent session beside it.</li>
+						<li>Copy the sidecar instructions for the project in the desktop.</li>
+						<li>No LLM connections and no LLM tasks: the sidecar is the free tier's LLM path.</li>
+					</ul>
+				</div>
+				<div class="card-plain">
+					<span class="tag">Personal</span>
+					<h3>The LLM tasks and the Server Host on this machine</h3>
+					<ul>
+						<li>Use the LLM connections and all the LLM tasks in the desktop.</li>
+						<li>Connect the desktop to a project a Server Host serves.</li>
+						<li>Run the Server Host bound to localhost.</li>
+						<li>Use the Server Host to manage mounted projects, LLM connections and users.</li>
+					</ul>
+				</div>
+				<div class="card-plain">
+					<span class="tag">Professional</span>
+					<h3>The Server Host on the network</h3>
+					<ul>
+						<li>Everything Personal grants.</li>
+						<li>Bind the Server Host to the network, local network and remote alike; the trusted-network setting stays on the Host.</li>
+						<li>Be the Administrator of a Public server.</li>
+					</ul>
+				</div>
+			</div>
+			<p>Where the tiers are enforced: a Public server refuses a sign-in below what the person's roles need, naming the tier; the desktop reads its tier from the sign-in and keeps it for fourteen days offline, falling back to Free with a line in About when the cache lapses, and nothing a person saved is ever locked away. A site license is a Consensus-AI organization carrying the license for its members, capped at the seats bought.</p>
+			<p class="disambiguation">Prices are not set yet: the tiers are built, the store is not. Consensus-AI is not <a href="https://consensus.app">Consensus</a>, the research search engine at consensus.app, and has no connection to it.</p>
+		</div>
+	</section>
+
+	<!-- ============================================================= -->
+	<footer class="site-footer">
+		<div class="container site-footer-row">
+			<span>Consensus-AI is free software under the MIT license.</span>
+			<nav>
+				<a href="guide/getting-started.html">Guide</a>
+				<a href="guide/features.html">Features</a>
+				<a href="guide/api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">Repository</a>
+			</nav>
+		</div>
+	</footer>
+</body>
+</html>

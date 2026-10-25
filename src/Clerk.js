@@ -9,7 +9,8 @@
 // PUBLISHABLE_KEY below, so a server needs no Clerk section; the section, read live, overrides the key with another
 // instance's and adds the secret key and the webhook secret on our own servers. On() is whether the server listens.
 // The license (Step 5) is a claim of the session token, from the user's or the active organization's public metadata
-// through the instance's session token template ({ Plan: 'User' | 'Host', Until? }, or the plan as a string); the
+// through the instance's session token template ({ Plan: 'personal' | 'professional', Until? }, or the plan as a
+// string; plan Rearchitecturation, Step 6 renamed the plans outright, the old names are not read); the
 // template also carries the email and the names, so a person is written from the claims with no secret key.
 //
 //   Clerk( { Settings, Users, Jwks?, FetchUser?, Now? } ) -> {

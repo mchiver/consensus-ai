@@ -238,21 +238,25 @@ TEST( 'the license (plan Clerk, Step 5): the person written from the claims with
 	let made = clerk_of( { Users: users, Section: { SecretKey: '' }, FetchUser: function ( id ) { fetched.push( id ); return null; } } );
 	let clerk = made.Clerk;
 	// License reads the claims the template writes: an object, a string, the higher of the two, an expired one dropped
-	ASSERT.deepEqual( clerk.License( { license: { Plan: 'User' } } ), { Plan: 'User', Until: null } );
-	ASSERT.deepEqual( clerk.License( { license: 'Host' } ), { Plan: 'Host', Until: null } );
-	ASSERT.deepEqual( clerk.License( { license: { Plan: 'User' }, org_license: { Plan: 'Host', Until: '2099-01-01' } } ), { Plan: 'Host', Until: '2099-01-01T00:00:00.000Z' } );
-	ASSERT.deepEqual( clerk.License( { license: { Plan: 'Host', Until: '2001-01-01' }, org_license: { Plan: 'User' } } ), { Plan: 'User', Until: null } );
+	ASSERT.deepEqual( clerk.License( { license: { Plan: 'personal' } } ), { Plan: 'personal', Until: null } );
+	ASSERT.deepEqual( clerk.License( { license: 'professional' } ), { Plan: 'professional', Until: null } );
+	ASSERT.deepEqual( clerk.License( { license: { Plan: 'personal' }, org_license: { Plan: 'professional', Until: '2099-01-01' } } ), { Plan: 'professional', Until: '2099-01-01T00:00:00.000Z' } );
+	ASSERT.deepEqual( clerk.License( { license: { Plan: 'professional', Until: '2001-01-01' }, org_license: { Plan: 'personal' } } ), { Plan: 'personal', Until: null } );
 	ASSERT.equal( clerk.License( { license: { Plan: 'Gold' } } ), null );
-	ASSERT.equal( clerk.License( { license: { Plan: 'User', Until: 'soon' } } ), null );
+	// the old names (plan Rearchitecturation, Step 6 renamed the plans outright) are not read
+	ASSERT.equal( clerk.License( { license: 'Host' } ), null );
+	ASSERT.equal( clerk.License( { license: { Plan: 'User' } } ), null );
+	ASSERT.equal( clerk.License( { license: 'Professional' } ), null, 'the names are lower case' );
+	ASSERT.equal( clerk.License( { license: { Plan: 'personal', Until: 'soon' } } ), null );
 	ASSERT.equal( clerk.License( {} ), null );
 	ASSERT.equal( clerk.License( null ), null );
 	// a person from the claims: written with no fetch, the plan on the record
-	let ann = await clerk.Session( sign( { sub: 'user_ann', email: 'Ann@example.com', first: 'Ann', last: 'A.', license: { Plan: 'User' } } ) );
-	ASSERT.deepEqual( [ ann.Record.Login, ann.Record.Display, ann.Record.Email, ann.Record.Clerk, ann.Record.Plan, ann.License.Plan, ann.Claims.sub ], [ 'ann', 'Ann A.', 'Ann@example.com', 'user_ann', 'User', 'User', 'user_ann' ] );
+	let ann = await clerk.Session( sign( { sub: 'user_ann', email: 'Ann@example.com', first: 'Ann', last: 'A.', license: { Plan: 'personal' } } ) );
+	ASSERT.deepEqual( [ ann.Record.Login, ann.Record.Display, ann.Record.Email, ann.Record.Clerk, ann.Record.Plan, ann.License.Plan, ann.Claims.sub ], [ 'ann', 'Ann A.', 'Ann@example.com', 'user_ann', 'personal', 'personal', 'user_ann' ] );
 	ASSERT.deepEqual( fetched, [] );
-	ASSERT.equal( users.Get( ann.Record.Id ).Plan, 'User' );
+	ASSERT.equal( users.Get( ann.Record.Id ).Plan, 'personal' );
 	// the plan follows the token: an organization's Host, then none
-	ASSERT.equal( ( await clerk.Session( sign( { sub: 'user_ann', org_license: { Plan: 'Host' } } ) ) ).Record.Plan, 'Host' );
+	ASSERT.equal( ( await clerk.Session( sign( { sub: 'user_ann', org_license: { Plan: 'professional' } } ) ) ).Record.Plan, 'professional' );
 	let bare = await clerk.Session( sign( { sub: 'user_ann' } ) );
 	ASSERT.deepEqual( [ bare.Record.Id, bare.Record.Plan, bare.License ], [ ann.Record.Id, null, null ] );
 	// no email in the claims and no secret key: nobody, nothing written
@@ -263,8 +267,8 @@ TEST( 'the license (plan Clerk, Step 5): the person written from the claims with
 	// a Local server: the session is the owner's, whose record takes the Clerk id and the plan
 	let local_users = fresh_users();
 	let local = CLERK.Clerk( { Settings: { Scope: 'Local', Clerk: SECTION }, Users: local_users, Jwks: function () { return [ JWK ]; } } );
-	let owner = await local.Session( sign( { sub: 'user_owner', email: 'owner@example.com', license: 'Host' } ) );
-	ASSERT.deepEqual( [ owner.Record.Type, owner.Record.Login, owner.Record.Clerk, owner.Record.Plan, owner.License.Plan ], [ 'owner', 'user', 'user_owner', 'Host', 'Host' ] );
+	let owner = await local.Session( sign( { sub: 'user_owner', email: 'owner@example.com', license: 'professional' } ) );
+	ASSERT.deepEqual( [ owner.Record.Type, owner.Record.Login, owner.Record.Clerk, owner.Record.Plan, owner.License.Plan ], [ 'owner', 'user', 'user_owner', 'professional', 'professional' ] );
 	ASSERT.equal( local_users.List().length, 1, 'nothing else written' );
 	ASSERT.equal( ( await local.Session( sign( { sub: 'user_other', email: 'other@example.com' } ) ) ).Record.Type, 'owner', 'any session on Local is the owner' );
 	ASSERT.equal( local_users.List()[ 0 ].Plan, null );

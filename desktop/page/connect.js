@@ -44,6 +44,7 @@ angular.module( 'Connect', [] )
 			let answer = await window.Desktop.Settings();
 			$scope.Settings = answer.Settings;
 			$scope.Reason = answer.Reason;
+			$scope.License = answer.License || null;		// the tier (plan Rearchitecturation, Step 6): the Hosts need Personal
 		}
 		catch ( error )
 		{

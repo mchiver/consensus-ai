@@ -211,12 +211,17 @@ TEST( 'the desktop signs in the same way (plan Clerk, Step 7): the Settings popu
 			throw new Error( 'no user button after the code; Clerk says: ' + JSON.stringify( await clerk_error( reloaded ) ) + '; ' + error.message.slice( 0, 150 ) );
 		}
 		await reloaded.WaitFor( 'angular.element( document.body ).injector().get( "Session" ).SignedIn()', 20000 );
-		ASSERT.equal( await reloaded.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Plan()' ), 'User', 'the test user\'s metadata' );
-		ASSERT.equal( await reloaded.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Licensed( "Host" )' ), false );
+		ASSERT.equal( await reloaded.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Plan()' ), 'personal', 'the test user\'s metadata' );
+		ASSERT.equal( await reloaded.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Licensed( "professional" )' ), false );
 		await reloaded.Evaluate( 'angular.element( document.body ).scope().$broadcast( "settings-opened" ); true' );
 		await reloaded.WaitFor( count_of( '#settings-popup .settings-form' ) + ' === 1', 20000 );
-		ASSERT.equal( await reloaded.Evaluate( '[ ...document.getElementById( "settings-scope" ).options ].find( function ( option ) { return option.textContent.trim() === "Public"; } ).disabled' ), true, 'Public needs Host' );
+		ASSERT.equal( await reloaded.Evaluate( '[ ...document.getElementById( "settings-scope" ).options ].find( function ( option ) { return option.textContent.trim() === "Public"; } ).disabled' ), true, 'Public needs Professional' );
 		ASSERT.equal( await reloaded.Evaluate( 'getComputedStyle( document.getElementById( "settings-sign-in" ) ).display' ), 'none', 'signed in: no Sign in button' );
+		// The desktop cached the license (plan Rearchitecturation, Step 6): the tier in About and in desktop.json
+		await reloaded.WaitFor( '( function () { let session = angular.element( document.body ).injector().get( "Session" ); return !!( session.License && session.License.Tier === "personal" ); } )()', 20000 );
+		let cached = JSON.parse( FS.readFileSync( PATH.join( config, 'desktop.json' ), 'utf8' ) ).License;
+		ASSERT.equal( cached && cached.Plan, 'personal', 'desktop.json carries the license' );
+		ASSERT.ok( cached && Date.parse( cached.Checked ) > Date.now() - 60000, 'checked now' );
 		// The owner's record carries the Clerk id: a Local session is the owner's
 		let users = JSON.parse( FS.readFileSync( PATH.join( config, 'Users.json' ), 'utf8' ) ).Users;
 		ASSERT.ok( users.find( function ( one ) { return one.Type === 'owner' && one.Clerk; } ), 'the owner signed in' );

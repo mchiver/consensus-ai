@@ -18,13 +18,14 @@
 //   Reason( Role, Action )      the refusal, in plain words
 //   Rule( Method, Path )        { Action, Source: 'param' | 'plan' | 'item' | 'body' | 'query' | null, Id }: what a route
 //                               comes to and where its project is found (Id the captured id, when the path holds one)
-//   PLANS                       [ 'User', 'Host' ]: the license kinds, Host above User; a Watcher needs none
-//   PlanRank( Plan )            0 for none or an unknown plan, 1 for User, 2 for Host
-//   PlanFor( Role )             the plan a role needs: User for Owners and Members, null for the rest
+//   PLANS                       [ 'personal', 'professional' ]: the license kinds (plan Rearchitecturation, Step 6: the tiers
+//                               Personal and Professional, Free being no license), professional above personal; a Watcher needs none
+//   PlanRank( Plan )            0 for none or an unknown plan, 1 for personal, 2 for professional
+//   PlanFor( Role )             the plan a role needs: personal for Owners and Members, null for the rest
 
 const ROLES = [ 'Owners', 'Members', 'Service', 'Watchers' ];
-const PLANS = [ 'User', 'Host' ];
-const NEEDS_PLAN = { Owners: 'User', Members: 'User' };
+const PLANS = [ 'personal', 'professional' ];
+const NEEDS_PLAN = { Owners: 'personal', Members: 'personal' };
 
 const ALLOWED = {
 	Owners: [ 'read', 'write', 'resolve', 'state', 'manage', 'roles', 'press' ],

@@ -89,7 +89,7 @@ angular.module( 'Consensus' ).factory( 'HelpPanel', [ 'Roots', function ( Roots 
 //---------------------------------------------------------------------
 // HelpController: the popups' own scope, on the help popup element.
 
-.controller( 'HelpController', [ '$scope', '$window', 'Roots', 'HelpPanel', 'Hotkeys', function ( $scope, $window, Roots, HelpPanel, Hotkeys )
+.controller( 'HelpController', [ '$scope', '$window', 'Roots', 'HelpPanel', 'Hotkeys', 'Session', function ( $scope, $window, Roots, HelpPanel, Hotkeys, Session )
 {
 	const SOURCE_URL = 'https://github.com/mchiver/consensus-ai';
 	const GUIDE_URL = 'http://consensus-ai.mchiver.com';
@@ -109,6 +109,13 @@ angular.module( 'Consensus' ).factory( 'HelpPanel', [ 'Roots', function ( Roots 
 		}
 		let root = Roots.List[ 0 ];
 		return ( root && root.Version ) ? root.Version : '';
+	};
+
+
+	// The Desktop's tier (plan Rearchitecturation, Step 6): the cached license's line, or nothing in a browser.
+	$scope.LicenseLine = function ()
+	{
+		return ( $window.ConsensusDesktop && Session.License && Session.License.Line ) ? Session.License.Line : '';
 	};
 
 

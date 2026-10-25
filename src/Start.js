@@ -138,7 +138,7 @@ async function Run( Options, Log )
 			return running;
 		}
 	}
-	let running = await SERVER.Start( { Config: Options.Config, Port: Options.Port, Scope: Options.Scope, Project: Options.Project, Activate: Options.Activate, ReadOnly: Options.ReadOnly } );
+	let running = await SERVER.Start( { Config: Options.Config, Port: Options.Port, Scope: Options.Scope, Project: Options.Project, Activate: Options.Activate, ReadOnly: Options.ReadOnly, Tier: Options.Tier } );
 	for ( let line of await Lines( running ) )
 	{
 		log( line );
