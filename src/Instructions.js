@@ -6,6 +6,7 @@
 // (plan User Management, Step 2: no token is served; a request with none is the owner on this server, and the
 // header "X-Consensus-Service: <name>" names the service, so its posts read "<name> by <owner>"). A run's package
 // (plan Run Shapes, Step 3) makes the same text with the run's token and connection, with Guide() and Make( …, Run ).
+// A sidecar (plan Rearchitecturation, Step 3: a one-project server) names its project and the one-project rule.
 
 const PATH = require( 'path' );
 const FS = require( 'fs' );
@@ -16,13 +17,18 @@ const GUIDE_PATH = PATH.join( __dirname, '..', '.guides', 'build-with-consensus.
 
 
 //---------------------------------------------------------------------
-// Make( Settings, Base, Guide, Run? ): the page's text. Base is 'http://<host>:<port>' as the request reached us;
-// Run ({ Service, Token, Writes? }) is a run's connection, token and level, for its package; the public page has none.
+// Make( Settings, Base, Guide, Run?, Project? ): the page's text. Base is 'http://<host>:<port>' as the request reached
+// us; Run ({ Service, Token, Writes? }) is a run's connection, token and level, for its package; the public page has
+// none. Project ({ Id, Name, Path }) is a sidecar's one project.
 
-function Make( Settings, Base, Guide, Run )
+function Make( Settings, Base, Guide, Run, Project )
 {
 	let owner = PARTICIPANTS.Owner( Settings );
 	let lines = [ '# This server', '', '- API: ' + Base + '/api' ];
+	if ( Project )
+	{
+		lines.push( '- This is a sidecar over one project: ' + Project.Name + ' (' + Project.Id + ')' + ( Project.Path ? ' at ' + Project.Path : '' ) + '. It is the only project here; work in it alone, and give it where an operation takes a Project.' );
+	}
 	if ( Run && Run.Token )
 	{
 		lines.push( '- Your token, sent as "Authorization: Bearer <token>": ' + Run.Token );
@@ -38,7 +44,10 @@ function Make( Settings, Base, Guide, Run )
 	{
 		lines.push( '- No token: a request with none is the owner, ' + owner.Display + ', on this server.' );
 		lines.push( '- Say who you are: send the header "' + PARTICIPANTS.SERVICE_HEADER + ': <your name>" (letters, digits, dot, dash and colon) with every request; what you post then reads "<your name> by ' + owner.Display + '".' );
-		lines.push( '- A token minted on an account\'s page (Users in the sidebar), sent as "Authorization: Bearer <token>", makes the request that account instead, allowed what its role in the project allows.' );
+		if ( !Project )
+		{
+			lines.push( '- A token minted on an account\'s page (Users in the sidebar), sent as "Authorization: Bearer <token>", makes the request that account instead, allowed what its role in the project allows.' );
+		}
 	}
 	lines.push( '- These instructions: ' + Base + '/instructions', '', '' );
 	return lines.join( '\n' ) + Guide;
@@ -55,7 +64,7 @@ async function Guide()
 
 
 //---------------------------------------------------------------------
-// Attach( App, { Settings } ): the route.
+// Attach( App, { Settings, Project? } ): the route.
 
 function Attach( App, Options )
 {
@@ -71,7 +80,7 @@ function Attach( App, Options )
 			return response.status( 500 ).type( 'text/plain' ).send( 'the guide is missing: ' + GUIDE_PATH + '\n' );
 		}
 		let base = request.protocol + '://' + request.get( 'host' );
-		response.type( 'text/plain; charset=utf-8' ).send( Make( Options.Settings, base, guide ) );
+		response.type( 'text/plain; charset=utf-8' ).send( Make( Options.Settings, base, guide, null, Options.Project || null ) );
 	} );
 }
 

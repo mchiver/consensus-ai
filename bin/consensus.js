@@ -3,22 +3,38 @@
 
 // consensus - the headless entry point (plan Run Shapes, Step 1): starts the server from the command line, with no
 // window. The desktop's executable is the other entry point; both go through src/Start.js.
-//   node bin/consensus.js [<path> | --project <folder>] [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]
+//   node bin/consensus.js [serve | <path> | --project <folder>] [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]
+//   node bin/consensus.js mcp <folder> [--service <name>]
 // --headless is accepted here and does nothing: this form never has a window. A path (plan Run Shapes, Step 4) serves
-// that project alone, its .consensus made when missing.
+// that project alone, its .consensus made when missing; since plan Rearchitecturation, Step 3, that server is the
+// sidecar on a port hashed from the folder, and a folder a window has open prints the running sidecar's address and
+// exits. The word mcp hands the rest to bin/mcp.js, the MCP stdio shim over a folder's sidecar.
 
 const START = require( '../src/Start.js' );
+const MCP = require( './mcp.js' );
+
+const MCP_WORD = 'mcp';
 
 
 async function main()
 {
-	let options = START.Parse( process.argv.slice( 2 ) );
+	let argv = process.argv.slice( 2 );
+	if ( argv[ 0 ] === MCP_WORD )
+	{
+		return await MCP.Main( argv.slice( 1 ) );
+	}
+	let options = START.Parse( argv );
 	if ( options.Help )
 	{
 		console.log( START.USAGE );
 		return;
 	}
 	let running = await START.Run( options, console.log );
+	if ( running.Open )
+	{
+		// the folder is open in a running sidecar: its address is printed above, and there is nothing to run
+		return;
+	}
 	if ( !running.Server )
 	{
 		await running.Close();

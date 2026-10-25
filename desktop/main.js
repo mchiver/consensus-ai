@@ -10,6 +10,10 @@
 // opens another chooser; Open folder in new window and the recent folders start one on a folder). The desktop keeps its
 // own settings (Settings.js) in desktop.json beside consensus.json (Step 1), which is the Server Host's and never
 // written here. With --headless there is no window: this machine's server runs from the config as the Scope says.
+// Step 3: the window's server is the sidecar (src/Sidecar.js): its port hashed from the folder, its address in the
+// folder's .consensus/~sidecar.json; a folder already open in another window is not opened again: that window is
+// brought to the front (the sidecar's POST /api/desktop/activate, answered here) and a launch on it exits, as VS Code
+// activates the window that has the folder.
 // Plan UI Components, Step 5: the window has no frame of its own: Electron draws the window buttons over the page's
 // title bar (titleBarStyle hidden with titleBarOverlay; the page sends the bar's colours and height over the chrome
 // message, so the buttons follow the palette), the bar is the drag region, and the native menu is not shown; it is
@@ -206,12 +210,19 @@ async function open_folder_here( Folder )
 	let folder = PROJECTS.Normalize( Folder );
 	try
 	{
-		running = await START.Run( Object.assign( {}, options, { Project: folder } ), console.log );
+		running = await START.Run( Object.assign( {}, options, { Project: folder, Activate: activate_window } ), console.log );
 	}
 	catch ( error )
 	{
 		running = null;
 		return { Error: error.message };
+	}
+	if ( running.Open )
+	{
+		// open in another window already (plan Rearchitecturation, Step 3): that window was asked to the front
+		let open = running;
+		running = null;
+		return { Error: ( open.Open.Project ? open.Open.Project.Name : 'the project' ) + ' is open in another window' + ( open.Activated ? ', brought to the front' : '' ), Open: true };
 	}
 	store = running.Store;
 	settings = running.Settings;
@@ -267,6 +278,23 @@ async function connect_host_here( Host )
 	desktop.Hosts.push( { Name: name, Url: tried.Url, Project: project.Id, Title: project.Name } );
 	save_settings();
 	return { Ok: true, Project: project_info() };
+}
+
+
+// The sidecar's activate (plan Rearchitecturation, Step 3): this window to the front, for a launch on its folder.
+function activate_window()
+{
+	if ( !window || window.isDestroyed() )
+	{
+		return;
+	}
+	if ( window.isMinimized() )
+	{
+		window.restore();
+	}
+	window.show();
+	window.focus();
+	ELECTRON.app.focus( { steal: true } );
 }
 
 
@@ -576,7 +604,7 @@ function local_running()
 	{
 		return null;
 	}
-	return { Url: running.Url, Port: running.Address.Port, Scope: running.Scope, Config: store.Folder, Project: running.Project ? { Name: running.Project.Name, Path: running.Project.Path } : null };
+	return { Url: running.Url, Port: running.Address.Port, Scope: running.Scope, Config: store.Folder, Project: running.Project ? { Name: running.Project.Name, Path: running.Project.Path } : null, Sidecar: running.Sidecar ? running.Sidecar.Path : null };
 }
 
 
@@ -876,6 +904,12 @@ async function main()
 	{
 		// No window: this machine's server from the config as the Scope says (every registered project, or the folder).
 		running = await START.Run( options, console.log );
+		if ( running.Open )
+		{
+			// the folder is open in a running sidecar: its address is printed above
+			ELECTRON.app.exit( 0 );
+			return;
+		}
 		store = running.Store;
 		settings = running.Settings;
 		if ( !running.Server )
@@ -919,6 +953,13 @@ async function main()
 	{
 		reason = answer.Error;
 		console.error( reason );
+	}
+	if ( answer && answer.Open && options.Project )
+	{
+		// the folder on the command line is open in another window, brought to the front: this launch is done
+		await page.Close().catch( function () {} );
+		ELECTRON.app.exit( 0 );
+		return;
 	}
 	if ( opened )
 	{

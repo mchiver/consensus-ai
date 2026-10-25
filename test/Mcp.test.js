@@ -1,7 +1,8 @@
 'use strict';
 
 // The MCP server (plan MCP Server, Step 2): the protocol over the definition (Mcp.Handle with a fake definition),
-// the network transport (POST /api/mcp on a server started here) and the stdio relay (bin/mcp.js over pipes).
+// the network transport (POST /api/mcp on a server started here) and the stdio relay (bin/mcp.js over pipes). Plan
+// Rearchitecturation, Step 3: the shim over a folder's sidecar, and the missing-file message.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -14,6 +15,7 @@ const MCP = require( '../src/Mcp.js' );
 const OPERATIONS = require( '../src/Operations.js' );
 
 const RELAY = PATH.join( __dirname, '..', 'bin', 'mcp.js' );
+const CONSENSUS = PATH.join( __dirname, '..', 'bin', 'consensus.js' );
 
 
 function fake()
@@ -269,9 +271,9 @@ TEST( 'the network transport: POST /api/mcp takes a JSON-RPC message as the requ
 
 
 // The relay as a client runs it: lines in, lines out, over pipes.
-function relay( args )
+function relay( args, program )
 {
-	let child = CHILD_PROCESS.spawn( process.execPath, [ RELAY ].concat( args ), { stdio: [ 'pipe', 'pipe', 'pipe' ] } );
+	let child = CHILD_PROCESS.spawn( process.execPath, [ program || RELAY ].concat( args ), { stdio: [ 'pipe', 'pipe', 'pipe' ] } );
 	let out = '';
 	let err = '';
 	child.stdout.on( 'data', function ( chunk ) { out += chunk; } );
@@ -352,4 +354,63 @@ TEST( 'the stdio relay: each line goes to the server and its reply comes back on
 	ASSERT.match( lines[ 0 ].error.message, /^Consensus at http:\/\/127\.0\.0\.1:9: / );
 	ASSERT.match( dead.Errors(), /Consensus at http:\/\/127\.0\.0\.1:9: / );
 	ASSERT.equal( await relay( [] ).End(), 2 );
+} );
+
+
+//---------------------------------------------------------------------
+// The shim over a folder's sidecar (plan Rearchitecturation, Step 3)
+
+TEST( 'the shim over a folder: the sidecar\'s address read from the folder\'s address file at each message, its one project filled in, `consensus mcp <folder>` the same; a folder not open in Consensus answers each request with one message saying so; a folder and --server refused together', async function ()
+{
+	let folder = PATH.join( temporary_folder(), 'shimmed' );
+	FS.mkdirSync( folder );
+	// not open yet: the request is answered, the notification noted
+	let closed = relay( [ folder, '--service', 'Claude-CLI' ] );
+	closed.Send( request( 1, 'ping' ) );
+	closed.Send( { jsonrpc: '2.0', method: 'notifications/initialized' } );
+	await closed.Until( 1 );
+	ASSERT.equal( await closed.End(), 0 );
+	let lines = closed.Lines();
+	ASSERT.equal( lines.length, 1 );
+	ASSERT.equal( lines[ 0 ].error.code, -32000 );
+	ASSERT.equal( lines[ 0 ].error.message, 'the project at ' + folder + ' is not open in Consensus: open the folder in the Desktop, or run consensus ' + folder );
+	ASSERT.match( closed.Errors(), /is not open in Consensus/ );
+	// open: the messages go to the sidecar, the project filled in for a tool that takes one
+	let running = await SERVER.Start( { Config: temporary_folder(), Port: 0, Project: folder } );
+	try
+	{
+		let child = relay( [ folder, '--service', 'Claude-CLI' ] );
+		child.Send( request( 1, 'ping' ) );
+		child.Send( request( 2, 'tools/call', { name: 'create_plan', arguments: { Title: 'From the shim', Text: '# From the shim\n' } } ) );
+		await child.Until( 2 );
+		ASSERT.equal( await child.End(), 0, child.Errors() );
+		lines = child.Lines();
+		ASSERT.deepEqual( lines[ 0 ], { jsonrpc: '2.0', id: 1, result: {} } );
+		let plan = JSON.parse( lines[ 1 ].result.content[ 0 ].text ).Plan;
+		ASSERT.equal( plan.Title, 'From the shim' );
+		let read = ( await api( running.Url, 'GET', '/api/plans/' + plan.Id ) ).Body;
+		ASSERT.equal( read.Project.Id, running.Project.Id );
+		let revisions = ( await api( running.Url, 'GET', '/api/plans/' + plan.Id + '/revisions' ) ).Body.Revisions;
+		ASSERT.deepEqual( [ revisions[ 0 ].By, revisions[ 0 ].Service ], [ 'user', 'Claude-CLI' ] );
+		// the same through the headless entry point's word
+		let word = relay( [ 'mcp', folder ], CONSENSUS );
+		word.Send( request( 7, 'ping' ) );
+		await word.Until( 1 );
+		ASSERT.equal( await word.End(), 0, word.Errors() );
+		ASSERT.deepEqual( word.Lines(), [ { jsonrpc: '2.0', id: 7, result: {} } ] );
+	}
+	finally
+	{
+		await running.Close();
+	}
+	// closed again: the same entry, the same answer; the address file is gone
+	ASSERT.equal( FS.existsSync( PATH.join( folder, '.consensus', '~sidecar.json' ) ), false );
+	let after = relay( [ folder ] );
+	after.Send( request( 1, 'ping' ) );
+	await after.Until( 1 );
+	ASSERT.equal( await after.End(), 0 );
+	ASSERT.match( after.Lines()[ 0 ].error.message, /is not open in Consensus/ );
+	let both = relay( [ folder, '--server', 'http://127.0.0.1:9' ] );
+	ASSERT.equal( await both.End(), 2 );
+	ASSERT.match( both.Errors(), /a folder or --server, not both/ );
 } );

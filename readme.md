@@ -17,6 +17,7 @@ Shapes, Step 5).
 
 	npm install
 	node bin/consensus.js [serve | <path> | --project <folder>] [--config <folder>] [--port 3500] [--scope none|local|public] [--headless]
+	node bin/consensus.js mcp <folder> [--service <name>]
 
 One program, two entry points over one start module (`src/Start.js`, plan Run Shapes, Step 1): this one, headless,
 for a plain node install and the Docker image, and the desktop (below), which opens a window as well. The word
@@ -28,7 +29,15 @@ The server listens as the settings' `Scope` says: `Local` on 127.0.0.1, `Public`
 `--scope` overrides it for one start, and `--port` the port (the configured port in use gives way to a free one,
 plan Run Shapes, Step 4; a port given on the command line does not). A path, or `--project <folder>`, serves
 that project alone, the way an editor opens a folder (Step 4): its `.consensus` is made when missing, named
-after the folder, the folder goes first in the settings' `Projects`, and Scope None is taken as Local for it.
+after the folder, the folder goes first in the settings' `Projects`. That server is the **sidecar** (plan
+Rearchitecturation, Step 3; `src/Sidecar.js`): with no `--port` its port is hashed from the folder's absolute path into
+3600 to 3699, stepped up by one while taken and wrapping at the end; it listens on this machine alone (Scope Public is
+taken as Local, and Scope None keeps the server for the window and turns the sidecar off: no address file); while the
+project is open, `<folder>/.consensus/~sidecar.json` holds `{ Url, Port, Pid, Started, Project }`, written at start and
+removed at a clean exit, a stale file (its Pid gone) overwritten. A folder already open in a running sidecar is not
+opened again: `consensus <folder>` asks that sidecar to bring its window to the front (`POST /api/desktop/activate`,
+answered by a Desktop's sidecar alone), prints its address and exits. `consensus mcp <folder>` is the MCP shim over a
+folder's sidecar (below).
 It prints its address and scope, the config folder, the settings file and the projects loaded, and says that it
 opens no window: this form never does. Open `http://127.0.0.1:3500/` in a browser, or run the desktop (below).
 
@@ -40,7 +49,12 @@ An agent session in any repo is started with one line: "read the instructions at
 **This server** section first: the API's address, as the request reached it, and the llm participant's token.
 An MCP client (plan MCP Server, 2026-10-23) gets the same operations as tools: `POST /api/mcp` in the server, or the
 stdio relay `node bin/mcp.js --server <url or saved Host> [--service <name> | --token <token>] [--project <id or name>]` on its own
-machine (a saved Host is a Name from `desktop.json`'s Hosts, its Url taken); every operation of the API is defined once in `src/Operations.js`, which the REST routes, the MCP tools and
+machine (a saved Host is a Name from `desktop.json`'s Hosts, its Url taken), or the **shim** over a project's sidecar,
+`consensus mcp <folder>` (`node bin/mcp.js <folder>`; plan Rearchitecturation, Step 3): the sidecar's address is read
+from `<folder>/.consensus/~sidecar.json` at every message, so one MCP entry per project is fixed,
+`{ "command": "consensus", "args": [ "mcp", "<folder>" ] }`, and a folder not open in Consensus answers each request
+with one message saying so; the sidecar's one project is filled in for the tools that take one, and its `/instructions`
+page names the project and the one-project rule. Every operation of the API is defined once in `src/Operations.js`, which the REST routes, the MCP tools and
 a local model's tools are read from.
 	npm test
 
@@ -258,7 +272,11 @@ Since plan Run Shapes (Step 1) the app is the second entry point over `src/Start
 with a folder on the command line it starts **this machine's server** over that folder alone, as the headless
 `consensus <folder>` does (the folder's `.consensus` made when missing; the configured port in use gives way to a
 free one, a port asked for that is in use leaves the project unopened, with the reason on the chooser), and shows
-that project's tree; with `--connect <host name>` it opens a saved Host project (desktop.json's Hosts) as a **thin
+that project's tree; that server is the sidecar (Step 3, `src/Sidecar.js`: the port hashed from the folder into 3600 to
+3699, the address in the folder's `.consensus/~sidecar.json`), and a folder already open in another window is not opened
+again: that window is brought to the front (`POST /api/desktop/activate`, answered by the sidecar of a window) and a
+launch on the folder exits, as VS Code activates the window that has the folder; the chooser's Open folder and Recent
+do the same, the chooser saying so; with `--connect <host name>` it opens a saved Host project (desktop.json's Hosts) as a **thin
 client**, the page pointed at the Host's API through the app's own origin, signed in as the person or the owner over
 localhost on a Local Host, writing nothing locally; with neither it shows the **chooser**: **Recent projects** (Open,
 Forget), **Open folder…** (the folder picker), **New project** (a name and a parent folder; the folder is made
@@ -590,12 +608,13 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 
 	bin/consensus.js      the headless entry point
 	src/Start.js          the start module both entry points share: the arguments, Run, the lines
-	src/Server.js         Start( { Config, Port, Scope } )
+	src/Server.js         Start( { Config, Port, Scope, Project, Activate } ); a project's server is the sidecar
+	src/Sidecar.js        the sidecar's port (hashed from the folder into 3600 to 3699), its address file and Activate
 	src/Api.js            the routes
 	src/Instructions.js   GET /instructions: the agent guide with This server first
 	src/Operations.js     every operation defined once (plan MCP Server): name, description, parameters, action, the function; Route and Definition for a client
 	src/Mcp.js            the Model Context Protocol over the operations: initialize, ping, tools/list, tools/call; no transport in it
-	bin/mcp.js            the MCP stdio relay to a running server (consensus-mcp); --server takes a saved Host from desktop.json
+	bin/mcp.js            the MCP stdio relay to a running server (consensus-mcp); a folder is the shim over its sidecar, --server a Url or a saved Host from desktop.json
 	src/Rules.js          the consensus rules, pure functions
 	src/Tree.js           a project's tree, pure functions; the Context folder's rules
 	src/Anchors.js        visible-text anchors

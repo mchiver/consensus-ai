@@ -3,6 +3,8 @@
 // The one start module (plan Run Shapes, Step 1): the command line parsed, the server run from a config folder, the
 // lines it prints; and bin/consensus.js, the headless entry point, spawned once. Step 4: a project folder on the
 // command line, that project alone; the configured port in use. Plan Rearchitecturation, Step 1: the word serve.
+// Step 3: the sidecar: the port from the hash, the step on a taken port, the second open activating the first and
+// exiting, a stale address file overwritten.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -10,7 +12,9 @@ const FS = require( 'fs' );
 const OS = require( 'os' );
 const PATH = require( 'path' );
 const CHILD_PROCESS = require( 'child_process' );
+const NET = require( 'net' );
 const START = require( '../src/Start.js' );
+const SIDECAR = require( '../src/Sidecar.js' );
 
 let folders = [];
 
@@ -100,7 +104,11 @@ TEST( 'a project folder on the command line: its .consensus made when missing, t
 	let running = await START.Run( { Config: config, Port: 0, Scope: 'None', Project: folder }, function ( line ) { lines.push( line ); } );
 	ASSERT.ok( running.Server );
 	ASSERT.equal( running.Scope, 'Local' );
-	ASSERT.ok( lines.includes( 'Scope None taken as Local: a project on the command line needs this machine\'s server' ), lines.join( '\n' ) );
+	// Scope None (plan Rearchitecturation, Step 3): the server listens for the window, the sidecar is off: no address file
+	ASSERT.ok( lines.includes( 'Scope None: the server listens on this machine for the window alone; the sidecar is off, no address file written' ), lines.join( '\n' ) );
+	ASSERT.equal( running.SidecarOff, true );
+	ASSERT.equal( running.Sidecar, null );
+	ASSERT.equal( FS.existsSync( SIDECAR.FilePath( folder ) ), false );
 	ASSERT.ok( FS.existsSync( PATH.join( folder, '.consensus', 'project.json' ) ) );
 	ASSERT.equal( running.Project.Name, 'tic-tac-toe' );
 	ASSERT.equal( running.Project.Path, folder );
@@ -158,4 +166,158 @@ TEST( 'bin/consensus.js: --help prints the usage; an unknown argument fails; Sco
 	ASSERT.equal( none.status, 1 );
 	ASSERT.match( none.stdout, /Scope None: no server started/ );
 	ASSERT.match( none.stdout, /nothing to run without a window/ );
+} );
+
+
+//---------------------------------------------------------------------
+// The sidecar (plan Rearchitecturation, Step 3)
+
+TEST( 'the sidecar\'s port: hashed from the folder into 3600 to 3699, the same for the folder however it is spelled, stepped up by one while taken and wrapping at the end', function ()
+{
+	let folder = PATH.join( temporary_folder(), 'tic-tac-toe' );
+	let port = SIDECAR.Port( folder );
+	ASSERT.ok( port >= SIDECAR.RANGE_START && port < SIDECAR.RANGE_START + SIDECAR.RANGE_COUNT, String( port ) );
+	ASSERT.equal( SIDECAR.Port( folder + PATH.sep ), port );
+	ASSERT.equal( SIDECAR.Port( folder.replace( /\\/g, '/' ) ), port );
+	if ( process.platform === 'win32' )
+	{
+		ASSERT.equal( SIDECAR.Port( folder.toUpperCase() ), port );
+	}
+	ASSERT.notEqual( SIDECAR.Port( folder + '-2' ), port, 'two folders, two ports (almost always)' );
+	let ports = SIDECAR.Ports( folder );
+	ASSERT.equal( ports.length, SIDECAR.RANGE_COUNT );
+	ASSERT.equal( ports[ 0 ], port );
+	ASSERT.equal( ports[ 1 ], ( port === SIDECAR.RANGE_START + SIDECAR.RANGE_COUNT - 1 ) ? SIDECAR.RANGE_START : port + 1 );
+	ASSERT.equal( new Set( ports ).size, SIDECAR.RANGE_COUNT );
+	ASSERT.equal( SIDECAR.FilePath( folder ), PATH.join( folder, '.consensus', '~sidecar.json' ) );
+	ASSERT.equal( SIDECAR.Alive( process.pid ), true );
+	ASSERT.equal( SIDECAR.Alive( 0 ), false );
+} );
+
+
+TEST( 'a project\'s server is the sidecar: it listens on the folder\'s port, the next one when that is taken, and writes the address file, removed at Close; Scope Public is taken as Local', async function ()
+{
+	let config = temporary_folder();
+	let folder = PATH.join( temporary_folder(), 'sidecar' );
+	FS.mkdirSync( folder );
+	let port = SIDECAR.Port( folder );
+	// the folder's port held by something else: the sidecar steps up
+	let holder = NET.createServer();
+	await new Promise( function ( resolve, reject ) { holder.once( 'error', reject ); holder.listen( port, '127.0.0.1', resolve ); } );
+	let lines = [];
+	let running = null;
+	try
+	{
+		running = await START.Run( { Config: config, Scope: 'Public', Project: folder }, function ( line ) { lines.push( line ); } );
+	}
+	finally
+	{
+		await new Promise( function ( resolve ) { holder.close( resolve ); } );
+	}
+	try
+	{
+		ASSERT.equal( running.PortTaken, port );
+		ASSERT.notEqual( running.Address.Port, port );
+		ASSERT.ok( running.Address.Port >= SIDECAR.RANGE_START && running.Address.Port < SIDECAR.RANGE_START + SIDECAR.RANGE_COUNT );
+		ASSERT.equal( running.Address.Host, '127.0.0.1' );
+		ASSERT.equal( running.Scope, 'Local' );
+		ASSERT.ok( lines.includes( 'port ' + port + ' is in use: listening on ' + running.Address.Port + ' instead' ), lines.join( '\n' ) );
+		ASSERT.ok( lines.includes( 'Scope Public taken as Local: the sidecar never listens beyond this machine' ), lines.join( '\n' ) );
+		ASSERT.ok( lines.includes( 'sidecar address in ' + SIDECAR.FilePath( folder ) ), lines.join( '\n' ) );
+		let record = JSON.parse( FS.readFileSync( SIDECAR.FilePath( folder ), 'utf8' ) );
+		ASSERT.deepEqual( Object.keys( record ).sort(), [ 'Pid', 'Port', 'Project', 'Started', 'Url' ] );
+		ASSERT.equal( record.Url, running.Url );
+		ASSERT.equal( record.Port, running.Address.Port );
+		ASSERT.equal( record.Pid, process.pid );
+		ASSERT.deepEqual( record.Project, { Id: running.Project.Id, Name: 'sidecar' } );
+		ASSERT.deepEqual( SIDECAR.Running( folder ), record );
+		// the instructions name the one project
+		let instructions = await ( await fetch( running.Url + '/instructions' ) ).text();
+		ASSERT.match( instructions, new RegExp( '- This is a sidecar over one project: sidecar \\(' + running.Project.Id + '\\) at ' ) );
+	}
+	finally
+	{
+		await running.Close();
+	}
+	ASSERT.equal( FS.existsSync( SIDECAR.FilePath( folder ) ), false, 'the address file goes at Close' );
+	// the folder's own port free again: taken, with no port line
+	lines = [];
+	let again = await START.Run( { Config: config, Project: folder }, function ( line ) { lines.push( line ); } );
+	try
+	{
+		ASSERT.equal( again.Address.Port, port );
+		ASSERT.equal( again.PortTaken, null );
+		ASSERT.equal( lines[ 0 ], 'Consensus at http://127.0.0.1:' + port + '/ (Scope Local, listening on 127.0.0.1)' );
+	}
+	finally
+	{
+		await again.Close();
+	}
+} );
+
+
+TEST( 'a folder open in a running sidecar: the second open asks it to bring its window to the front and answers Open in place of a server; a stale address file (its process gone) is overwritten; bin/consensus.js prints the address and exits', async function ()
+{
+	let config = temporary_folder();
+	let folder = PATH.join( temporary_folder(), 'open-twice' );
+	FS.mkdirSync( folder );
+	// a stale file: a process that is not there
+	let dead = 4000000;
+	while ( SIDECAR.Alive( dead ) )
+	{
+		dead++;
+	}
+	SIDECAR.Write( folder, { Url: 'http://127.0.0.1:1', Port: 1, Pid: dead, Started: '2026-01-01T00:00:00.000Z', Project: { Id: 'prj-old', Name: 'old' } } );
+	ASSERT.equal( SIDECAR.Running( folder ), null );
+	let activated = 0;
+	let first = await START.Run( { Config: config, Port: 0, Project: folder, Activate: function () { activated++; } } );
+	try
+	{
+		let record = SIDECAR.Read( folder );
+		ASSERT.equal( record.Pid, process.pid, 'the stale file is overwritten' );
+		ASSERT.equal( record.Url, first.Url );
+		// the second open: no server, the first's window asked to the front
+		let lines = [];
+		let second = await START.Run( { Config: config, Project: folder }, function ( line ) { lines.push( line ); } );
+		ASSERT.equal( second.Server, null );
+		ASSERT.deepEqual( second.Open, record );
+		ASSERT.equal( second.Activated, true );
+		ASSERT.equal( activated, 1 );
+		ASSERT.deepEqual( lines, [ 'open-twice is open in Consensus at ' + first.Url + '/: its window brought to the front' ] );
+		await second.Close();
+		// the headless form on the open folder: the address printed, exit 0, nothing started (spawned without blocking:
+		// the sidecar it asks runs in this process)
+		let bin = PATH.join( __dirname, '..', 'bin', 'consensus.js' );
+		let printed = await new Promise( function ( resolve )
+		{
+			let child = CHILD_PROCESS.spawn( process.execPath, [ bin, folder, '--config', config ], { stdio: [ 'ignore', 'pipe', 'pipe' ] } );
+			let out = '';
+			let err = '';
+			child.stdout.on( 'data', function ( chunk ) { out += chunk; } );
+			child.stderr.on( 'data', function ( chunk ) { err += chunk; } );
+			child.on( 'exit', function ( code ) { resolve( { status: code, stdout: out, stderr: err } ); } );
+		} );
+		ASSERT.equal( printed.status, 0, printed.stderr );
+		ASSERT.equal( printed.stdout.trim(), 'open-twice is open in Consensus at ' + first.Url + '/: its window brought to the front' );
+		ASSERT.equal( activated, 2 );
+		ASSERT.equal( SIDECAR.Read( folder ).Pid, process.pid, 'the file is still the first\'s' );
+		// a sidecar with no window (no Activate) answers 404 to activate: the second open says so
+		await first.Close();
+		let headless = await START.Run( { Config: config, Port: 0, Project: folder } );
+		try
+		{
+			lines = [];
+			let third = await START.Run( { Config: config, Project: folder }, function ( line ) { lines.push( line ); } );
+			ASSERT.equal( third.Activated, false );
+			ASSERT.deepEqual( lines, [ 'open-twice is open in Consensus at ' + headless.Url + '/ (no window to bring to the front)' ] );
+		}
+		finally
+		{
+			await headless.Close();
+		}
+	}
+	finally
+	{
+		await first.Close();
+	}
 } );

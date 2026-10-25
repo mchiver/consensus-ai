@@ -311,6 +311,15 @@ async function smoke_desktop()
 		let page = await CDP.Attach( target.webSocketDebuggerUrl );
 		await page.WaitFor( 'window.ConsensusDesktop !== undefined && ' + count_of( 'title-bar .brand' ) + ' === 1 && document.querySelector( ".connection" ) !== null && document.querySelector( ".connection" ).classList.contains( "live" )', 30000 );
 		check( 'project: the .consensus is made in the folder', FS.existsSync( PATH.join( project_folder, '.consensus', 'project.json' ) ), true );
+		// the sidecar (plan Rearchitecturation, Step 3): the address file in the folder, the port the one listened on (the
+		// smoke passes --port 0, honoured as given, so the port is free-chosen here, not the folder's hashed one)
+		let sidecar_file = PATH.join( project_folder, '.consensus', '~sidecar.json' );
+		check( 'sidecar: the address file is written', FS.existsSync( sidecar_file ), true );
+		let sidecar = FS.existsSync( sidecar_file ) ? JSON.parse( FS.readFileSync( sidecar_file, 'utf8' ) ) : {};
+		check( 'sidecar: the port is a port', Number.isInteger( sidecar.Port ) && sidecar.Port > 0, true );
+		check( 'sidecar: the Url names the port', sidecar.Url, 'http://127.0.0.1:' + sidecar.Port );
+		check( 'sidecar: the project is named', sidecar.Project && sidecar.Project.Name, PATH.basename( project_folder ) );
+		check( 'sidecar: activate answers', ( await fetch( sidecar.Url + '/api/desktop/activate', { method: 'POST' } ) ).status, 200 );
 		check( 'project: the window knows its one project', await page.Evaluate( 'window.ConsensusDesktop.Project && window.ConsensusDesktop.Project.Name' ), 'smoke-project' );
 		await page.WaitFor( count_of( '.root' ) + ' === 1 && ' + count_of( '.project' ) + ' === 1', 30000 );
 		check( 'tree: one project view, open, and no root head', await page.Evaluate( count_of( '.project.single.open' ) + ' + "/" + ' + count_of( '.root-head' ) ), '1/0' );

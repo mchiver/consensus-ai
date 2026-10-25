@@ -1840,3 +1840,61 @@ TEST( 'Clerk (plan User Management, Step 4; plan Clerk, Step 5): the built-in ke
 		}
 	}
 } );
+
+
+//---------------------------------------------------------------------
+// The sidecar's address file (plan Rearchitecturation, Step 3)
+
+TEST( 'a project\'s server writes its address to the folder\'s .consensus/~sidecar.json and removes it at Close; the Host\'s server writes none; the activate route answers on a Desktop\'s sidecar alone', async function ()
+{
+	let folder = PATH.join( temporary_folder(), 'addressed' );
+	FS.mkdirSync( folder );
+	let file = PATH.join( folder, '.consensus', '~sidecar.json' );
+	let activated = 0;
+	let sidecar = await SERVER.Start( { Config: temporary_folder(), Port: 0, Project: folder, Activate: function () { activated++; } } );
+	try
+	{
+		ASSERT.equal( sidecar.Sidecar.Path, file );
+		let record = JSON.parse( FS.readFileSync( file, 'utf8' ) );
+		ASSERT.deepEqual( record, sidecar.Sidecar.Record );
+		ASSERT.equal( record.Url, sidecar.Url );
+		ASSERT.equal( record.Port, sidecar.Address.Port );
+		ASSERT.equal( record.Pid, process.pid );
+		ASSERT.deepEqual( record.Project, { Id: sidecar.Project.Id, Name: 'addressed' } );
+		ASSERT.ok( !Number.isNaN( Date.parse( record.Started ) ) );
+		let answer = await fetch( sidecar.Url + '/api/desktop/activate', { method: 'POST' } );
+		ASSERT.equal( answer.status, 200 );
+		ASSERT.deepEqual( await answer.json(), { Ok: true } );
+		ASSERT.equal( activated, 1 );
+		// the server's other routes are untouched
+		ASSERT.equal( ( await fetch( sidecar.Url + '/api/me' ) ).status, 200 );
+	}
+	finally
+	{
+		await sidecar.Close();
+	}
+	ASSERT.equal( FS.existsSync( file ), false );
+	// without Activate (the headless form) the route is no route
+	let headless = await SERVER.Start( { Config: temporary_folder(), Port: 0, Project: folder } );
+	try
+	{
+		ASSERT.equal( ( await fetch( headless.Url + '/api/desktop/activate', { method: 'POST' } ) ).status, 404 );
+		ASSERT.ok( FS.existsSync( file ) );
+	}
+	finally
+	{
+		await headless.Close();
+	}
+	ASSERT.equal( FS.existsSync( file ), false );
+	// the Host's server: no project of its own, no address file
+	let host = await SERVER.Start( { Config: temporary_folder(), Port: 0 } );
+	try
+	{
+		ASSERT.equal( host.Sidecar, null );
+		ASSERT.equal( ( await fetch( host.Url + '/api/desktop/activate', { method: 'POST' } ) ).status, 404 );
+	}
+	finally
+	{
+		await host.Close();
+	}
+} );

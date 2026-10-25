@@ -7,16 +7,21 @@
 // opens an instance on that project alone, its .consensus made when missing; the lines name the projects loaded. Plan
 // Rearchitecturation, Step 1: `consensus serve` is the Server Host, every registered project served, and the bare form
 // with no path means the same, so the Docker image and npm start are unchanged; a folder is the one-project server.
+// Step 3: that server is the sidecar (Sidecar.js): a folder already open in a running sidecar is not opened again;
+// Run asks that sidecar to bring its window to the front and answers { Open } in place of a server, as VS Code
+// activates the window that has the folder.
 //
 //   Parse( argv ) -> { Config?, Port?, Scope?, Project?, Headless, Help }   throws on an argument it does not know
-//   Run( options, log ) -> running (src/Server.js's), after log( line ) for each line about it
+//   Run( options, log ) -> running (src/Server.js's), after log( line ) for each line about it; for a folder already
+//                          open, { Server: null, Open: <the sidecar's record>, Activated, Close }
 //   Lines( running ) -> the lines a start prints
 //   USAGE: the usage line
 
 const SERVER = require( './Server.js' );
 const PARTICIPANTS = require( './Participants.js' );
+const SIDECAR = require( './Sidecar.js' );
 
-const USAGE = 'usage: consensus [serve | <path> | --project <folder>] [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]';
+const USAGE = 'usage: consensus [serve | <path> | --project <folder> | mcp <folder>] [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]';
 const SERVE = 'serve';
 const SCOPE_NAMES = { none: 'None', local: 'Local', public: 'Public' };
 
@@ -112,12 +117,28 @@ function value_after( argv, index, argument )
 
 
 //---------------------------------------------------------------------
-// Run: the server from the options, and what to say about it.
+// Run: the server from the options, and what to say about it. A folder whose sidecar runs (its address file there
+// and its process alive) is left to it: the sidecar is asked to bring its window to the front, and the answer carries
+// Open, the sidecar's record, in place of a server. Options.Activate is the Desktop's function for its own window.
 
 async function Run( Options, Log )
 {
 	let log = Log || function () {};
-	let running = await SERVER.Start( { Config: Options.Config, Port: Options.Port, Scope: Options.Scope, Project: Options.Project } );
+	if ( Options.Project )
+	{
+		let open = SIDECAR.Running( Options.Project );
+		if ( open )
+		{
+			let activated = await SIDECAR.Activate( open.Url );
+			let running = { Server: null, Open: open, Activated: activated.Ok, Url: open.Url, Close: async function () {} };
+			for ( let line of await Lines( running ) )
+			{
+				log( line );
+			}
+			return running;
+		}
+	}
+	let running = await SERVER.Start( { Config: Options.Config, Port: Options.Port, Scope: Options.Scope, Project: Options.Project, Activate: Options.Activate } );
 	for ( let line of await Lines( running ) )
 	{
 		log( line );
@@ -126,12 +147,19 @@ async function Run( Options, Log )
 }
 
 
-// Lines: what a start prints: the address and the scope (the port taken instead of one in use, Scope None taken as
-// Local for a project on the command line), a warning for Public, the config folder, the settings, and the projects
-// loaded, each with its folder (the one project of an isolated instance says so).
+// Lines: what a start prints: the address and the scope (the port taken instead of one in use, the Scope a project's
+// server takes), a warning for Public, the config folder, the settings, and the projects loaded, each with its
+// folder (the one project of an isolated instance says so, and where its address file is). A folder already open
+// says so in one line.
 async function Lines( Running )
 {
 	let lines = [];
+	if ( Running.Open )
+	{
+		let project = Running.Open.Project ? Running.Open.Project.Name : 'the project';
+		lines.push( project + ' is open in Consensus at ' + Running.Open.Url + '/' + ( Running.Activated ? ': its window brought to the front' : ' (no window to bring to the front)' ) );
+		return lines;
+	}
 	if ( Running.Server )
 	{
 		lines.push( 'Consensus at ' + Running.Url + '/ (Scope ' + Running.Scope + ', listening on ' + Running.Address.Host + ')' );
@@ -139,9 +167,13 @@ async function Lines( Running )
 		{
 			lines.push( 'port ' + Running.PortTaken + ' is in use: listening on ' + Running.Address.Port + ' instead' );
 		}
-		if ( Running.ScopeForced )
+		if ( Running.ScopeForced && Running.SidecarOff )
 		{
-			lines.push( 'Scope None taken as Local: a project on the command line needs this machine\'s server' );
+			lines.push( 'Scope None: the server listens on this machine for the window alone; the sidecar is off, no address file written' );
+		}
+		else if ( Running.ScopeForced )
+		{
+			lines.push( 'Scope Public taken as Local: the sidecar never listens beyond this machine' );
 		}
 		if ( Running.Scope === 'Public' )
 		{
@@ -157,6 +189,10 @@ async function Lines( Running )
 	if ( Running.Project )
 	{
 		lines.push( 'project ' + Running.Project.Name + ' at ' + Running.Project.Path + ' (this project only)' );
+		if ( Running.Sidecar )
+		{
+			lines.push( 'sidecar address in ' + Running.Sidecar.Path );
+		}
 		return lines;
 	}
 	for ( let project of await Running.Store.ListProjects() )

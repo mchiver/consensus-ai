@@ -91,11 +91,17 @@ operation of the API under the same name (`waiting`, `read_plan`, `reply`, `appl
 for, checked against their role as a request is, posting with the same byline; `tools/list` describes each with
 its arguments, and `instructions` is this page. A project is given by its id or its name. Two transports:
 
-- **stdio**, on your machine: `node <checkout>/bin/mcp.js --server http://<server>:<port> --service <your name>`
-  (`--token <token>` on a shared server; `--server <name>` a saved server of the global config; `--project <id or
-  name>` fills in the project for the tools that take one, which is how the one-project rule is set for a
-  client). For Claude Code: `claude mcp add consensus -- node <checkout>/bin/mcp.js --server
-  http://127.0.0.1:3500 --service Claude-CLI --project <your project>`.
+- **stdio**, on your machine. Over a project open in the Desktop, or in `consensus <folder>`, the shim:
+  `consensus mcp <folder>` (`node <checkout>/bin/mcp.js <folder> --service <your name>`). The one-project server
+  is the sidecar: its address sits in `<folder>/.consensus/~sidecar.json` while the project is open, the shim reads
+  it at every message, so the entry is fixed, `{ "command": "consensus", "args": [ "mcp", "<folder>" ] }`, and its
+  one project is filled in for the tools that take one; a folder not open in Consensus answers each request with
+  one message saying so. Against a Host: `node <checkout>/bin/mcp.js --server http://<server>:<port> --service
+  <your name>` (`--token <token>` on a shared server; `--server <name>` a saved Host of desktop.json; `--project <id
+  or name>` fills in the project for the tools that take one, which is how the one-project rule is set for a
+  client). For Claude Code: `claude mcp add consensus -- consensus mcp <folder>`, or against a Host `claude mcp add
+  consensus -- node <checkout>/bin/mcp.js --server http://127.0.0.1:3500 --service Claude-CLI --project <your
+  project>`.
 - **HTTP**: `POST http://<server>:<port>/api/mcp`, a JSON-RPC message in the body, with the same header a curl
   request carries.
 

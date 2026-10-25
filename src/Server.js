@@ -12,7 +12,11 @@
 // (a folder on the command line) loads that project alone, Scope None taken as Local for it; the configured port in
 // use (another instance) gives way to a free one, PortTaken saying which was taken. Plan User Management, Step 4: Clerk
 // (Clerk.js) over the settings' Clerk section and the registry; the option Clerk = { Jwks, FetchUser } is the tests'
-// way of standing in for the instance.
+// way of standing in for the instance. Plan Rearchitecturation, Step 3: a project's server is the sidecar (Sidecar.js):
+// with no --port its port is hashed from the folder into 3600 to 3699, stepped up while taken; it listens on 127.0.0.1
+// whatever the Scope says (None keeps the window's server and turns the sidecar off: no address file); while it runs,
+// <folder>/.consensus/~sidecar.json holds { Url, Port, Pid, Started, Project }, removed at Close; the option Activate
+// (a function, the Desktop's) answers POST /api/desktop/activate by bringing the window to the front.
 
 const PATH = require( 'path' );
 const OS = require( 'os' );
@@ -30,6 +34,7 @@ const GIT = require( './Git.js' );
 const USERS = require( './Users.js' );
 const TASKS = require( './Tasks.js' );
 const CLERK = require( './Clerk.js' );
+const SIDECAR = require( './Sidecar.js' );
 
 const DEFAULT_PORT = 3500;
 const DEFAULT_CONFIG = PATH.join( OS.homedir(), '.consensus' );
@@ -102,8 +107,12 @@ async function Start( Options )
 	let port = ( options.Port !== undefined ) ? options.Port : ( settings.Port || DEFAULT_PORT );
 	let scope = PARTICIPANTS.SCOPES.includes( options.Scope ) ? options.Scope : PARTICIPANTS.Scope( settings );
 	let scope_forced = false;
-	if ( project && scope === 'None' )
+	let sidecar_off = false;
+	if ( project && scope !== 'Local' )
 	{
+		// The sidecar listens on this machine alone: Public is taken as Local; None keeps the server for the window
+		// (the page reaches it through its address) and writes no address file, so nothing finds it.
+		sidecar_off = ( scope === 'None' );
 		scope = 'Local';
 		scope_forced = true;
 	}
@@ -122,8 +131,17 @@ async function Start( Options )
 	} );
 	let git = GIT.Git();
 	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Url: function () { return url; }, Tokens: tokens, Git: git } );
+	if ( project && typeof options.Activate === 'function' )
+	{
+		// A Desktop's sidecar brings its window to the front for a second launch on its folder (Sidecar.Activate).
+		app.post( SIDECAR.ACTIVATE_PATH, function ( request, response )
+		{
+			options.Activate();
+			response.json( { Ok: true } );
+		} );
+	}
 	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git, Users: users, Clerk: clerk, Url: function () { return url; } } );
-	INSTRUCTIONS.Attach( app, { Settings: settings } );
+	INSTRUCTIONS.Attach( app, { Settings: settings, Project: project } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
 	{
@@ -132,7 +150,32 @@ async function Start( Options )
 
 	let server = null;
 	let port_taken = null;
-	if ( host )
+	if ( host && project && options.Port === undefined )
+	{
+		// The sidecar's port: the folder's, stepped up by one while taken, wrapping at the range's end.
+		let ports = SIDECAR.Ports( project.Path );
+		for ( let candidate of ports )
+		{
+			try
+			{
+				server = await listen( app, host, candidate );
+				break;
+			}
+			catch ( error )
+			{
+				if ( error.code !== 'EADDRINUSE' )
+				{
+					throw error;
+				}
+				port_taken = ( port_taken === null ) ? candidate : port_taken;
+			}
+		}
+		if ( !server )
+		{
+			throw new Error( 'no free port for the sidecar: every port from ' + SIDECAR.RANGE_START + ' to ' + ( SIDECAR.RANGE_START + SIDECAR.RANGE_COUNT - 1 ) + ' is in use' );
+		}
+	}
+	else if ( host )
 	{
 		try
 		{
@@ -152,9 +195,20 @@ async function Start( Options )
 	}
 	let address = server ? server.address() : null;
 	url = server ? 'http://' + url_host( host ) + ':' + address.port : null;
+	// The address file, while the project is open (a stale one, its process gone, is overwritten here).
+	let sidecar = null;
+	if ( server && project && !sidecar_off )
+	{
+		let record = { Url: url, Port: address.port, Pid: process.pid, Started: new Date().toISOString(), Project: { Id: project.Id, Name: project.Name } };
+		sidecar = { Path: SIDECAR.Write( project.Path, record ), Record: record };
+	}
 
 	async function Close()
 	{
+		if ( sidecar )
+		{
+			SIDECAR.Remove( project.Path, process.pid );
+		}
 		await runs.Close();
 		events.Close();
 		if ( server )
@@ -173,6 +227,8 @@ async function Start( Options )
 		Project: project,
 		PortTaken: port_taken,
 		ScopeForced: scope_forced,
+		SidecarOff: sidecar_off,
+		Sidecar: sidecar,
 		Settings: settings,
 		Tokens: tokens,
 		Users: users,

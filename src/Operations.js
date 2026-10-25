@@ -493,7 +493,10 @@ function Operations( Context )
 		Perform: async function ()
 		{
 			let base = ( typeof Context.Url === 'function' ) ? String( Context.Url() || '' ).replace( /\/+$/, '' ) : '';
-			return Answer( 200, INSTRUCTIONS.Make( settings, base || 'http://<server>:<port>', await INSTRUCTIONS.Guide() ), 'text/plain; charset=utf-8' );
+			// a sidecar's one project (plan Rearchitecturation, Step 3), named first
+			let isolated = ( store && typeof store.Isolated === 'function' ) ? store.Isolated() : null;
+			let project = isolated ? await store.ReadProject( isolated ) : null;
+			return Answer( 200, INSTRUCTIONS.Make( settings, base || 'http://<server>:<port>', await INSTRUCTIONS.Guide(), null, project ), 'text/plain; charset=utf-8' );
 		},
 	} );
 
