@@ -1,7 +1,8 @@
 'use strict';
 
 // title-bar - the bar across the top of the page (plan UI Components, Step 5): the brand, the application menu
-// (About and Hotkeys; in the desktop also Servers…, New window, Open folder in new window…, Reload and Quit), the
+// (About and Hotkeys; in the desktop also New window, Open folder in new window…, the recent folders, Settings, Reload
+// and Quit: plan Rearchitecturation, Step 2), the
 // status (Waiting on you over every root, and Running while an LLM run is in progress on any root, each a link to
 // its view) and the look button, whose popover holds look-controls. In the desktop the bar is the window's title
 // bar: Electron draws the window buttons over its right end (titleBarOverlay, desktop/main.js), the bar is the drag
@@ -17,12 +18,13 @@
 
 angular.module( 'Consensus' ).component( 'titleBar', {
 	templateUrl: '/components/title-bar/title-bar.html',
-	controller: [ '$scope', '$element', '$window', 'State', 'Roots', 'Llms', 'Menus', 'HelpPanel', 'Session', function ( $scope, $element, $window, State, Roots, Llms, Menus, HelpPanel, Session )
+	controller: [ '$scope', '$element', '$window', 'State', 'Roots', 'Llms', 'Menus', 'HelpPanel', 'Session', 'Tree', function ( $scope, $element, $window, State, Roots, Llms, Menus, HelpPanel, Session, Tree )
 	{
 		const MENU_KEY = 'app';
+		const RECENT_SHOWN = 5;		// the recent folders the desktop's menu lists (plan Rearchitecturation, Step 2)
 		let controller = this;
 		controller.Session = Session;
-		let desktop = ( $window.Desktop && typeof $window.Desktop.Servers === 'function' ) ? $window.Desktop : null;
+		let desktop = ( $window.Desktop && typeof $window.Desktop.NewWindow === 'function' ) ? $window.Desktop : null;
 		controller.State = State;
 		controller.LookOpen = false;
 
@@ -104,12 +106,25 @@ angular.module( 'Consensus' ).component( 'titleBar', {
 			];
 			if ( desktop )
 			{
+				// A window is one project (plan Rearchitecturation, Step 2): New window opens the chooser in another instance,
+				// Open folder and the recent folders another instance on that folder; Settings is the window's server's.
 				items.push( { Separator: true } );
-				items.push( { Label: 'Servers…', Icon: 'link', Act: function () { desktop.Servers(); } } );
 				items.push( { Label: 'New window', Icon: 'detach', Act: function () { desktop.NewWindow(); } } );
 				if ( typeof desktop.OpenFolderWindow === 'function' )
 				{
 					items.push( { Label: 'Open folder in new window…', Icon: 'detach', Act: function () { desktop.OpenFolderWindow(); } } );
+				}
+				let recent = ( $window.ConsensusDesktop && Array.isArray( $window.ConsensusDesktop.Recent ) ) ? $window.ConsensusDesktop.Recent : [];
+				let current = ( $window.ConsensusDesktop && $window.ConsensusDesktop.Project ) ? $window.ConsensusDesktop.Project.Path : null;
+				for ( let entry of recent.filter( function ( one ) { return one.Path !== current; } ).slice( 0, RECENT_SHOWN ) )
+				{
+					items.push( { Label: 'Open ' + entry.Path.split( /[\\/]/ ).filter( Boolean ).pop() + ' in new window', Icon: 'detach', Act: function () { desktop.OpenRecent( entry.Path ); } } );
+				}
+				items.push( { Separator: true } );
+				let root = Roots.List[ 0 ] || null;
+				if ( root && root.Me && root.Me.Role === 'owner' )
+				{
+					items.push( { Label: 'Settings', Icon: 'settings', Act: function () { Tree.OpenSettings( root ); } } );
 				}
 				items.push( { Label: 'Reload', Icon: 'refresh', Act: function () { $window.location.reload(); } } );
 				if ( typeof desktop.Quit === 'function' )

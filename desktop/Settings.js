@@ -7,16 +7,18 @@
 //
 //   {
 //     "Recent": [ { "Path": "W:/code/tic-tac-toe", "Opened": "2026-10-25T10:00:00.000Z" } ],
-//     "Hosts": [ { "Name": "cube4", "Url": "http://cube4:3500", "Project": null } ],
+//     "Hosts": [ { "Name": "cube4", "Url": "http://cube4:3500", "Project": "prj-aaa-bbb-ccc", "Title": "Test" } ],
 //     "Theme": "system", "Scale": "normal",
 //     "Remembered": {}
 //   }
-//   Recent: the project folders opened, newest first. Hosts: one entry per Host project the Desktop has opened (Step 2
-//   fills Project), in place of the saved servers of before; no tokens: a Host with Scope Local is reached from its own
+//   Recent: the project folders opened, newest first. Hosts: one entry per Host project the Desktop has opened (Step 2:
+//   Project the project's id and Title its name as last seen; an entry with no Project is a Host saved before a project
+//   was picked), in place of the saved servers of before; no tokens: a Host with Scope Local is reached from its own
 //   machine, where a request is the owner, and any other Host is Public and signs the person in through Clerk (Step 6).
-//   Remembered holds the page's view state by key ("consensus.<server address>.<name>" per server, "consensus.<name>"
-//   shared: the open project, the folds, the tabs, the sort, the hidden panes, the widths), since the page's origin
-//   changes port at every start and its localStorage would not survive a restart.
+//   Remembered holds the page's view state by key ("consensus.<key>.<name>" per project, the key being the folder or the
+//   Host's address and the project id, "consensus.<name>" shared: the open item, the folds, the tabs, the sort, the
+//   hidden panes, the widths), since the page's origin changes port at every start and its localStorage would not
+//   survive a restart.
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -77,6 +79,7 @@ function Fill( Settings )
 				Name: String( one.Name || '' ).trim(),
 				Url: String( one.Url || '' ).trim().replace( /\/+$/, '' ),
 				Project: ( typeof one.Project === 'string' && one.Project.trim() ) ? one.Project.trim() : null,
+				Title: ( typeof one.Title === 'string' && one.Title.trim() ) ? one.Title.trim() : null,
 			};
 		} );
 	}
@@ -200,23 +203,25 @@ function Write( Path_, Settings )
 
 
 //---------------------------------------------------------------------
-// Problems: what is wrong with the settings, as sentences; none when they are usable.
+// Problems: what is wrong with the settings, as sentences; none when they are usable. A Host project is named once:
+// the Name and the Project together.
 
 function Problems( Settings )
 {
 	let problems = [];
-	let names = new Set();
+	let seen = new Set();
 	for ( let host of Settings.Hosts || [] )
 	{
+		let pair = host.Name + '/' + ( host.Project || '' );
 		if ( !host.Name )
 		{
 			problems.push( 'a host has no Name' );
 		}
-		else if ( names.has( host.Name ) )
+		else if ( seen.has( pair ) )
 		{
-			problems.push( 'host "' + host.Name + '" is named twice' );
+			problems.push( 'host "' + host.Name + '"' + ( host.Project ? ' with the project ' + host.Project : '' ) + ' is listed twice' );
 		}
-		names.add( host.Name );
+		seen.add( pair );
 		if ( !/^https?:\/\/\S+$/.test( host.Url || '' ) )
 		{
 			problems.push( 'host "' + ( host.Name || '?' ) + '": the Url must start with http:// or https://' );
@@ -227,11 +232,17 @@ function Problems( Settings )
 
 
 //---------------------------------------------------------------------
-// HostNamed: the saved host with that name, or null.
+// HostNamed: the first saved Host entry with that name, or null; HostEntry: the entry of that name and project.
 
 function HostNamed( Settings, Name )
 {
 	return ( Settings.Hosts || [] ).find( function ( host ) { return host.Name === Name; } ) || null;
+}
+
+
+function HostEntry( Settings, Name, Project )
+{
+	return ( Settings.Hosts || [] ).find( function ( host ) { return host.Name === Name && ( host.Project || null ) === ( Project || null ); } ) || null;
 }
 
 
@@ -253,4 +264,5 @@ module.exports = {
 	Write: Write,
 	Problems: Problems,
 	HostNamed: HostNamed,
+	HostEntry: HostEntry,
 };

@@ -5,7 +5,7 @@
 // UI Tweaks V, per root since plan Run Shapes, Step 5) and the sort and the stamps once per window; creating,
 // renaming and deleting with their inline forms; the menus and their actions; Move and the drops; Copy, Paste and
 // Export with the notice; Archive and Restore; the Trash; the Copy and Paste hotkeys; the header's reveal-node. The
-// components (project-tree, server-row, project-row, tree-node, llm-fold, name-form) are views over it. The drag
+// components (project-tree, server-row, project-view, tree-node, llm-fold, name-form) are views over it. The drag
 // directives (drag-item, drag-project, tree-drop) follow at the end.
 
 const DRAG_TYPE = 'application/x-consensus-item';
@@ -156,8 +156,8 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	};
 
 
-	// The root's menu: New Project and Import (here), Settings (the owner's), the servers (the desktop's connect
-	// screen), Reload.
+	// The root's menu: New Project and Import (here), Settings (the owner's), Reload. (The desktop's servers screen
+	// left it with plan Rearchitecturation, Step 2: a window is one project, and the chooser is a new window.)
 	function root_actions( root )
 	{
 		let actions = [
@@ -166,10 +166,6 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 			{ Separator: true },
 			action( 'Settings', 'settings', function () { tree.OpenSettings( root ); }, { Disabled: !is_owner( root ) } ),
 		];
-		if ( window.Desktop && typeof window.Desktop.Servers === 'function' )
-		{
-			actions.push( action( 'Servers…', 'link', function () { window.Desktop.Servers(); } ) );
-		}
 		actions.push( { Separator: true } );
 		actions.push( action( 'Reload', 'refresh', function () { tree.ReloadRoot( root ); } ) );
 		return actions;
@@ -179,7 +175,8 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	//-----------------------------------------------------------------
 	// The open project, settings
 
-	// The open project of a root (the current one when none is named).
+	// The open project of a root (the current one when none is named); the window's one project when there is one
+	// (plan Rearchitecturation, Step 2).
 	tree.OpenProject = function ( root )
 	{
 		let where = root || State.Root;
@@ -187,7 +184,7 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 		{
 			return null;
 		}
-		let id = of_root( where ).OpenProjectId;
+		let id = Roots.Project ? Roots.Project.Id : of_root( where ).OpenProjectId;
 		return where.Projects.find( function ( project ) { return project.Id === id; } ) || null;
 	};
 
@@ -348,6 +345,11 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 
 	tree.IsOpen = function ( project )
 	{
+		// the window's one project (plan Rearchitecturation, Step 2) is always open
+		if ( Roots.Project )
+		{
+			return project.Id === Roots.Project.Id;
+		}
 		return project.Id === of_root( root_of( project ) ).OpenProjectId;
 	};
 

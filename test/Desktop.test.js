@@ -11,6 +11,7 @@ const OS = require( 'os' );
 const PATH = require( 'path' );
 const SETTINGS = require( '../desktop/Settings.js' );
 const PAGE = require( '../desktop/Page.js' );
+const PROJECTS = require( '../desktop/Projects.js' );
 const SERVER = require( '../src/Server.js' );
 
 const VERSION = require( '../package.json' ).version;
@@ -46,17 +47,18 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	ASSERT.deepEqual( SETTINGS.Read( path ), { Recent: [], Hosts: [], Theme: 'system', Scale: 'normal', Remembered: {} } );
 
 	let settings = SETTINGS.Fill( {
-		Hosts: [ { Name: ' cube4 ', Url: 'http://cube4:3500/', Token: 'secret' }, { Name: 'cube4 Test', Url: 'http://cube4:3500', Project: 'prj-aaa-bbb-ccc' } ],
+		Hosts: [ { Name: ' cube4 ', Url: 'http://cube4:3500/', Token: 'secret' }, { Name: 'cube4', Url: 'http://cube4:3500', Project: 'prj-aaa-bbb-ccc', Title: ' Test ' } ],
 		Recent: [ { Path: ' W:/code/tic-tac-toe ', Opened: '2026-10-25T10:00:00.000Z' }, { Path: '' }, null ],
 		Servers: [ { Name: 'old', Url: 'http://old:1' } ],
 		Theme: 'dark',
 		Scale: 'huge',
 		Extra: true,
 	} );
-	// the saved servers of before, a token on a Host and anything else are not kept
+	// the saved servers of before, a token on a Host and anything else are not kept; a Host project (Step 2) carries its
+	// Title, the project's name as last seen
 	ASSERT.deepEqual( settings, {
 		Recent: [ { Path: 'W:/code/tic-tac-toe', Opened: '2026-10-25T10:00:00.000Z' } ],
-		Hosts: [ { Name: 'cube4', Url: 'http://cube4:3500', Project: null }, { Name: 'cube4 Test', Url: 'http://cube4:3500', Project: 'prj-aaa-bbb-ccc' } ],
+		Hosts: [ { Name: 'cube4', Url: 'http://cube4:3500', Project: null, Title: null }, { Name: 'cube4', Url: 'http://cube4:3500', Project: 'prj-aaa-bbb-ccc', Title: 'Test' } ],
 		Theme: 'dark',
 		Scale: 'normal',
 		Remembered: {},
@@ -83,8 +85,10 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	SETTINGS.Write( path, kept );
 	ASSERT.deepEqual( SETTINGS.Read( path ).Remembered, { 'consensus.a:1.project': 'default', 'consensus.a:1.tabs': { Tabs: [ { Key: 'p:x' } ], Active: 'p:x' } } );
 	ASSERT.deepEqual( SETTINGS.Fill( { Remembered: [ 1 ] } ).Remembered, {} );
-	ASSERT.deepEqual( SETTINGS.HostNamed( settings, 'cube4' ), { Name: 'cube4', Url: 'http://cube4:3500', Project: null } );
+	ASSERT.deepEqual( SETTINGS.HostNamed( settings, 'cube4' ), { Name: 'cube4', Url: 'http://cube4:3500', Project: null, Title: null } );
 	ASSERT.equal( SETTINGS.HostNamed( settings, 'nope' ), null );
+	ASSERT.deepEqual( SETTINGS.HostEntry( settings, 'cube4', 'prj-aaa-bbb-ccc' ), { Name: 'cube4', Url: 'http://cube4:3500', Project: 'prj-aaa-bbb-ccc', Title: 'Test' } );
+	ASSERT.equal( SETTINGS.HostEntry( settings, 'cube4', 'prj-zzz-zzz-zzz' ), null );
 
 	// Recent: a folder opened goes first, once; the newest RECENT_LIMIT are kept
 	ASSERT.equal( SETTINGS.Opened( settings, 'W:/code/other', '2026-10-25T11:00:00.000Z' ), true );
@@ -104,8 +108,9 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 TEST( 'settings: the problems are named', function ()
 {
 	ASSERT.deepEqual( SETTINGS.Problems( SETTINGS.Default() ), [] );
-	let problems = SETTINGS.Problems( SETTINGS.Fill( { Hosts: [ { Name: 'a', Url: 'http://a:1' }, { Name: 'a', Url: 'cube4:3500' }, { Name: '', Url: 'http://b:2' } ] } ) );
-	ASSERT.deepEqual( problems, [ 'host "a" is named twice', 'host "a": the Url must start with http:// or https://', 'a host has no Name' ] );
+	// a Host project is listed once: the Name and the Project together (Step 2), so one Host may hold several projects
+	let problems = SETTINGS.Problems( SETTINGS.Fill( { Hosts: [ { Name: 'a', Url: 'http://a:1' }, { Name: 'a', Url: 'cube4:3500' }, { Name: '', Url: 'http://b:2' }, { Name: 'a', Url: 'http://a:1', Project: 'prj-1' }, { Name: 'a', Url: 'http://a:1', Project: 'prj-1' } ] } ) );
+	ASSERT.deepEqual( problems, [ 'host "a" is listed twice', 'host "a": the Url must start with http:// or https://', 'a host has no Name', 'host "a" with the project prj-1 is listed twice' ] );
 } );
 
 
@@ -208,5 +213,60 @@ TEST( 'the page server serves the page, the connect screen and the vendor files,
 		await served.Close();
 	}
 	await ASSERT.rejects( PAGE.Serve( { Folder: temporary_folder( 'desktop-nopage-' ) } ), /the page is missing/ );
+} );
+
+
+//---------------------------------------------------------------------
+// The chooser's work without Electron (plan Rearchitecturation, Step 2)
+
+TEST( 'projects: a new project\'s folder is made under a parent and refused when it is not new; the key of a window\'s project', function ()
+{
+	let parent = temporary_folder( 'desktop-projects-' );
+	let folder = PROJECTS.NewFolder( parent, ' tic-tac-toe ' );
+	ASSERT.equal( folder, PROJECTS.Normalize( PATH.join( parent, 'tic-tac-toe' ) ) );
+	ASSERT.equal( FS.statSync( folder ).isDirectory(), true );
+	ASSERT.equal( folder.includes( '\\' ), false );
+	// an empty folder that is there already is taken; one holding anything is refused, as is a file, a bad name, a missing parent
+	ASSERT.equal( PROJECTS.NewFolder( parent, 'tic-tac-toe' ), folder );
+	FS.writeFileSync( PATH.join( folder, 'readme.md' ), '# T\n' );
+	ASSERT.throws( function () { PROJECTS.NewFolder( parent, 'tic-tac-toe' ); }, /holds something: open it instead/ );
+	ASSERT.throws( function () { PROJECTS.NewFolder( parent, 'tic-tac-toe/readme.md' ); }, /a project needs a folder name/ );
+	ASSERT.throws( function () { PROJECTS.NewFolder( parent, '..' ); }, /a project needs a folder name/ );
+	ASSERT.throws( function () { PROJECTS.NewFolder( parent, '' ); }, /a project needs a folder name/ );
+	ASSERT.throws( function () { PROJECTS.NewFolder( PATH.join( parent, 'nowhere' ), 'x' ); }, /the parent folder is not there/ );
+	FS.writeFileSync( PATH.join( parent, 'notes.md' ), '# N\n' );
+	ASSERT.throws( function () { PROJECTS.NewFolder( parent, 'notes.md' ); }, /a file is there already/ );
+	// the key: the folder with forward slashes, or the Host's address and the project id
+	ASSERT.equal( PROJECTS.Key( { Kind: 'folder', Path: 'W:\\code\\one' } ), 'W:/code/one' );
+	ASSERT.equal( PROJECTS.Key( { Kind: 'host', Host: { Name: 'cube4', Url: 'http://cube4:3500/' }, Project: { Id: 'prj-aaa-bbb-ccc' } } ), 'host:cube4:3500/prj-aaa-bbb-ccc' );
+	ASSERT.equal( PROJECTS.Key( null ), null );
+	// a project found among a Host's, by id first, else by name
+	let list = [ { Id: 'prj-1', Name: 'Alpha' }, { Id: 'prj-2', Name: 'prj-1' } ];
+	ASSERT.deepEqual( PROJECTS.FindProject( list, 'prj-1' ), { Id: 'prj-1', Name: 'Alpha' } );
+	ASSERT.deepEqual( PROJECTS.FindProject( list, 'Alpha' ), { Id: 'prj-1', Name: 'Alpha' } );
+	ASSERT.equal( PROJECTS.FindProject( list, 'Beta' ), null );
+	ASSERT.equal( PROJECTS.FindProject( list, '' ), null );
+} );
+
+
+TEST( 'projects: a Host\'s projects are listed from its API for the chooser to pick from; a Host that does not answer says so', async function ()
+{
+	let data = temporary_folder( 'desktop-host-' );
+	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( { Port: 0, Owner: { Name: 'user', Display: 'User' } } ) );
+	let host = await SERVER.Start( { Data: data, Port: 0 } );
+	try
+	{
+		let made = await host.Store.CreateProject( { Name: 'Second' } );
+		let listed = await PROJECTS.HostProjects( host.Url + '/' );
+		ASSERT.deepEqual( listed.map( function ( project ) { return project.Name; } ), [ 'Default', 'Second' ] );
+		ASSERT.equal( listed[ 1 ].Id, made.Id );
+		ASSERT.deepEqual( Object.keys( listed[ 0 ] ).sort(), [ 'Id', 'Name' ] );
+	}
+	finally
+	{
+		await host.Close();
+	}
+	await ASSERT.rejects( PROJECTS.HostProjects( 'http://127.0.0.1:9', 2000 ), /does not answer/ );
+	await ASSERT.rejects( PROJECTS.HostProjects( 'cube4:3500' ), /must start with http/ );
 } );
 

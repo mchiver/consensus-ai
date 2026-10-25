@@ -60,22 +60,24 @@ The image runs the server with `--config /data --scope public --port 3500 --head
 
 ## The desktop
 
-Consensus Desktop is the same page in a window of its own, with a Consensus server of its own inside. It is the other entry point of the one program: it takes the same path, `--config`, `--port`, `--scope` and `--headless`, starts the server from the config folder as its Scope says, and keeps its own settings (the saved servers, the theme, the remembered view) in that same settings file. From the checkout:
+Consensus Desktop is the same page in a window of its own, with a Consensus server of its own inside. A window is one project: the app opens a folder, as an editor does, and shows that project's tree. It is the other entry point of the one program, taking the same `--config`, `--port`, `--scope` and `--headless`, and it keeps its own settings (the recent folders, the saved Hosts, the theme, the remembered view) in `desktop.json` beside the server's `consensus.json`. From the checkout:
 
 ```
 npm run desktop
 npm run desktop -- W:\projects\tic-tac-toe
+npm run desktop -- --connect cube4
 npm run desktop -- --config W:\consensus --headless
 ```
 
-It opens on the page with every server it has, each a **root** of the tree: its own server first, when it runs, then every saved server; with a path it shows its own server with that project alone. The **servers screen** (Servers… in the title bar's Menu) keeps the list, and is where the app opens when it has no server to show.
+With a folder it starts its own server over that folder alone (a folder without a `.consensus` gets one, named after the folder) and shows the project. With `--connect` and the name of a saved Host it opens that Host's project as a thin client: the page works on the Host's server and writes nothing on your machine. With neither it opens on the **chooser**.
 
-![The servers screen: saved servers, Add server, and this machine.](../images/desktop-connect.png)
+![The chooser: recent projects, Open folder, New project, and the Hosts.](../images/desktop-connect.png)
 
-- **Servers** lists the servers you saved. **Add server** asks for a name and a URL, tries the address before saving it, and says which Consensus version answers.
-- **This machine** is the app's own server: it starts with the app, from the settings' Scope and Port, and stops with it; the page shows it first. With Scope None there is none, and the page shows the saved servers only; the configured port in use gives way to a free one, and a port asked for on the command line that is in use shows the reason here. With a path on the command line the line says which project the server is on alone. **Open the page** goes back to the page.
+- **Recent projects** lists the folders you opened, newest first; Open opens one here, Forget drops it from the list (the folder stays).
+- **Open folder…** picks a folder; **New project** asks for a name and the folder to put it in, makes the folder and opens it.
+- **Hosts** lists the Host projects you saved. **Add host** asks for a name and a URL, tries the address, lists the Host's projects to pick one, and connects; the pair is saved for next time, with the project's name.
 
-The page shows the servers at once: a row per server at the top of the tree, with its name, a dot that is green while its updates are live, who you are there, and a menu with New Project, Import, Settings, Servers… and Reload; beneath it that server's projects, LLM connections and Trash. A server that does not answer stays in the tree, offline, with the reason in its tooltip, and is read again when it answers. Every action goes to the server its row belongs to; an item moves within its server, and Copy and Paste carry a plan to another server, with new ids. The window has no frame of its own: the page's title bar is the window's, the minimize, maximize and close buttons sit over its right end in the palette's colours, and the bar drags the window. In the desktop its **Menu** also has Servers…, New window for a second instance, Open folder in new window, which starts one on a folder alone, as `consensus <path>` does (that window shows the folder's project and nothing else), Reload and Quit; Ctrl+N, Ctrl+Shift+O and Ctrl+R do the same, and F11 goes full screen. `--headless` runs the server with no window at all, printing what the command line prints. A desktop.json from before is moved into the settings file at the first start, its LLM connections becoming the server's and its workspaces going into their projects. The LLM connections are the server's, run by it; the page [Working with an LLM](llm.html) covers them.
+The page shows the one project: its tree, open, with the LLM connections, the Users and the Trash of its server beneath it. The window has no frame of its own: the page's title bar is the window's, the minimize, maximize and close buttons sit over its right end in the palette's colours, and the bar drags the window. The title bar's **Menu** has New window (another chooser), Open folder in new window and the recent folders (each starting another instance on that folder, as `consensus <path>` does; the app is one process per window), Settings (the server's), Reload and Quit; Ctrl+N, Ctrl+Shift+O and Ctrl+R do the same, and F11 goes full screen. `--headless` runs the server with no window at all, printing what the command line prints. The LLM connections are the server's, run by it; the page [Working with an LLM](llm.html) covers them.
 
 ## The installer
 

@@ -2,14 +2,17 @@
 
 // Roots - the servers the page shows (plan Run Shapes, Step 5), each a root of the tree with its own participants,
 // projects, LLM connections and events. In the desktop the roots are handed in window.ConsensusDesktop.Roots: this
-// machine's server (Key "local", named by the config's Name) and every saved server (Key its Name), each reached
+// machine's server (Key "local", named by the config's Name) or a Host (Key its Name), each reached
 // through the desktop's forwarding at /servers/<key>. In a browser there is one root, the page's own origin, Key ""
 // and today's routes. What is one at a time (the open item, the view, the selection) is State's, which names its root.
+// The Desktop's window shows one project (plan Rearchitecturation, Step 2): window.ConsensusDesktop.Project names it
+// ({ Id, Name, Path?, Key }), Single() is true, and the one root's StoredKey (the folder, or the Host's address and
+// the project id) keys the remembered state in place of the server's address, which changes port at every start.
 //
-//   root = { Key, Name, Url, Kind: 'local' | 'server' | 'browser', Version, Base, Me, Participants, States, Plans,
-//            Projects, Live, Error, Loaded }
-//   Roots  { List, Of( key ), HashFor( root, path ), Address( root ), LoadMe( root ), LoadList( root ),
-//            Listen( root, on_change, on_status ), ByProject( id ), ByPlan( id ), Several() }
+//   root = { Key, Name, Url, Kind: 'local' | 'server' | 'browser', Version, Base, StoredKey, Me, Participants, States,
+//            Plans, Projects, Live, Error, Loaded }
+//   Roots  { List, Project, Of( key ), HashFor( root, path ), Address( root ), LoadMe( root ), LoadList( root ),
+//            Listen( root, on_change, on_status ), ByProject( id ), ByPlan( id ), Several(), Single() }
 
 angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', function ( $rootScope, Client )
 {
@@ -26,6 +29,7 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 			Kind: info.Kind || ( key ? 'server' : 'browser' ),
 			Version: info.Version || null,
 			Base: key ? '/servers/' + encodeURIComponent( key ) : '',
+			StoredKey: info.StoredKey || null,
 			Me: null,
 			Participants: [],
 			States: [],
@@ -41,6 +45,8 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 
 	let given = ( window.ConsensusDesktop && Array.isArray( window.ConsensusDesktop.Roots ) ) ? window.ConsensusDesktop.Roots : [ { Key: '', Name: window.location.host, Url: '' } ];
 	roots.List = given.map( make );
+	// The window's one project (the Desktop), or null for a page of many.
+	roots.Project = ( window.ConsensusDesktop && window.ConsensusDesktop.Project && window.ConsensusDesktop.Project.Id ) ? window.ConsensusDesktop.Project : null;
 
 
 	function Of( Key )
@@ -57,9 +63,14 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 	}
 
 
-	// The root's address without its scheme: the per-server key of the remembered state (stored.js); '' in a browser.
+	// The root's address without its scheme: the per-server key of the remembered state (stored.js); '' in a browser;
+	// the root's StoredKey when it has one (the Desktop's one project).
 	function Address( Root )
 	{
+		if ( Root && Root.StoredKey )
+		{
+			return String( Root.StoredKey );
+		}
 		return String( ( Root && Root.Url ) || '' ).replace( /^https?:\/\//, '' ).replace( /\/+$/, '' );
 	}
 
@@ -67,6 +78,13 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 	function Several()
 	{
 		return roots.List.length > 1;
+	}
+
+
+	// One project in the window: the Desktop (plan Rearchitecturation, Step 2).
+	function Single()
+	{
+		return !!roots.Project;
 	}
 
 
@@ -157,6 +175,7 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 	roots.HashFor = HashFor;
 	roots.Address = Address;
 	roots.Several = Several;
+	roots.Single = Single;
 	roots.LoadMe = LoadMe;
 	roots.LoadList = LoadList;
 	roots.Listen = Listen;

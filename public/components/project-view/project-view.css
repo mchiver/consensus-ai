@@ -1,8 +1,16 @@
-/* project-row: the project head and body, the clipboard notice, the Archive fold. */
+/* project-view: the project head and body, the clipboard notice, the Archive fold (project-row until plan
+   Rearchitecturation, Step 2). */
 
 .project.open > .project-head
 {
 	background-color: rgba( 128, 128, 128, 0.08 );
+}
+
+/* The window's one project (the Desktop): the head is a heading, not a fold. */
+
+.project-head.single
+{
+	cursor: default;
 }
 
 /* A project (plan UI Tweaks VI): a folder with a tab, outlined when closed and filled when open, in its own colour so

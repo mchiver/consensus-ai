@@ -30,10 +30,16 @@
 	}
 
 
+	// A root with a StoredKey (the Desktop's one project, plan Rearchitecturation, Step 2: the folder, or the Host's
+	// address and the project id) is keyed by that in place of its address, which changes port at every start.
 	function key_of( name, per_server )
 	{
 		let server = '';
-		if ( per_server && typeof per_server === 'object' )
+		if ( per_server && typeof per_server === 'object' && per_server.StoredKey )
+		{
+			server = String( per_server.StoredKey );
+		}
+		else if ( per_server && typeof per_server === 'object' )
 		{
 			server = String( per_server.Url || '' ).replace( /^https?:\/\//, '' ).replace( /\/+$/, '' );
 		}

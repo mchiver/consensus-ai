@@ -819,7 +819,8 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 	FS.mkdirSync( config, { recursive: true } );
 	let settings = Object.assign( PARTICIPANTS.DefaultSettings( 3500, 'None' ), { Name: 'Recipe Box desktop' } );
 	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( settings, null, '\t' ) );
-	let desktop = { Hosts: [ { Name: 'Recipe Box server', Url: Url, Project: null } ], Theme: 'light', Scale: 'normal' };
+	// The seeded project saved as a Host project (plan Rearchitecturation, Step 2: one entry per Host project).
+	let desktop = { Hosts: [ { Name: 'Recipe Box server', Url: Url, Project: Demo.Id, Title: 'Recipe Box' } ], Theme: 'light', Scale: 'normal' };
 	FS.writeFileSync( PATH.join( config, 'desktop.json' ), JSON.stringify( desktop, null, '\t' ) );
 
 	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data, '--config', config ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );
@@ -828,18 +829,13 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 	let page = null;
 	try
 	{
-		// The app opens on the page (a server is saved; plan Run Shapes, Step 5); the servers screen is pictured first,
-		// reached as the Server menu's Servers… reaches it, then the page again.
-		let target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return Target.url.includes( '127.0.0.1' ) && !Target.url.includes( 'connect.html' ); }, 60000 );
-		page = await CDP.Attach( target.webSocketDebuggerUrl );
-		await page.WaitFor( count_of( '.tree-item' ) + ' > 0', 30000 );
-		await page.Evaluate( 'window.Desktop.Servers(); true' );
-		page.Close();
-		target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return Target.url.includes( 'connect.html' ); }, 30000 );
+		// With no folder the app opens on the chooser (plan Rearchitecturation, Step 2), pictured first with the saved Host
+		// project; then the Host project is opened in the window, and the page pictured.
+		let target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return Target.url.includes( 'connect.html' ); }, 60000 );
 		await wait( 500 );
 		page = await CDP.Attach( target.webSocketDebuggerUrl );
 		await page.Send( 'Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false } );
-		await page.WaitFor( count_of( '.server-row' ) + ' === 1', 20000 );
+		await page.WaitFor( count_of( '.host-row' ) + ' === 1 && document.body.textContent.indexOf( "{{" ) < 0', 20000 );
 		await wait( 500 );
 		for ( let theme of THEMES )
 		{
@@ -849,8 +845,8 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 		}
 		await set_theme( page, 'light' );
 
-		// The page again; the DevTools target is attached again after the navigation.
-		await page.Evaluate( 'window.Desktop.OpenPage(); true' );
+		// The Host project opened in this window; the DevTools target is attached again after the navigation.
+		await page.Evaluate( 'window.Desktop.ConnectHost( ' + JSON.stringify( desktop.Hosts[ 0 ] ) + ' ).then( function ( answer ) { if ( !answer.Ok ) { throw new Error( answer.Error ); } return true; } )' );
 		page.Close();
 		target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return Target.url.includes( '127.0.0.1' ) && !Target.url.includes( 'connect.html' ); }, 30000 );
 		await wait( 1000 );

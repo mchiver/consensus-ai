@@ -283,17 +283,38 @@ async function smoke_desktop()
 	let electron = require( 'electron' );
 	let config = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-config-' ) );
 	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-user-data-' ) );
+	// A window is one project (plan Rearchitecturation, Step 2): with no folder the app opens on the chooser, which is
+	// checked first; Open folder (here by its path, the picker being native) then opens a temporary project in the window.
+	let project_folder = PATH.join( FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-project-' ) ), 'smoke-project' );
+	FS.mkdirSync( project_folder );
 	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--config', config, '--port', '0', '--user-data-dir=' + user_data, '--remote-debugging-port=' + DESKTOP_PORT ], { cwd: ROOT, stdio: 'ignore' } );
 	let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
 	try
 	{
-		let target = await wait_target( function () { return true; } );
-		if ( /connect\.html/.test( target.url ) )
-		{
-			throw new Error( 'the desktop opened on the connect screen: its own server did not start' );
-		}
+		let chooser_target = await wait_target( function () { return true; } );
+		check( 'chooser: the app opens on it with no folder', /connect\.html/.test( chooser_target.url ), true );
+		let chooser = await CDP.Attach( chooser_target.webSocketDebuggerUrl );
+		await chooser.WaitFor( count_of( '.connect-head' ) + ' === 1 && document.body.textContent.indexOf( "{{" ) < 0 && ' + count_of( '#recent-empty' ) + ' === 1', 30000 );
+		await wait( 500 );
+		check( 'chooser: the overlay', await chooser.Evaluate( 'navigator.windowControlsOverlay.visible' ), true );
+		check( 'chooser: the header is the drag region', await chooser.Evaluate( 'getComputedStyle( document.querySelector( ".connect-head" ) ).webkitAppRegion' ), 'drag' );
+		let fit = JSON.parse( await chooser.Evaluate( '( function () { let r = navigator.windowControlsOverlay.getTitlebarAreaRect(); let c = document.querySelector( ".connect-controls" ).getBoundingClientRect(); return JSON.stringify( { Controls: c.right, Area: r.x + r.width, Height: r.height, Head: document.querySelector( ".connect-head" ).getBoundingClientRect().height } ); } )()' ) );
+		check( 'chooser: the controls stop before the buttons', fit.Controls <= fit.Area + 1 );
+		check( 'chooser: the overlay follows the header', Math.abs( fit.Height - fit.Head ) <= 1 );
+		check( 'chooser: Open folder, New project and Add host', await chooser.Evaluate( count_of( '#open-folder' ) + ' + ' + count_of( '#new-project' ) + ' + ' + count_of( '#add-host' ) ), 3 );
+		check( 'chooser: no recent project yet', await chooser.Evaluate( 'getComputedStyle( document.getElementById( "recent-empty" ) ).display !== "none"' ), true );
+		await capture_window( chooser, 'desktop-chooser' );
+		// a folder opened in this window: this machine's server over it alone, its .consensus made, the page shown
+		let answer = JSON.parse( await chooser.Evaluate( 'window.Desktop.OpenPath( ' + JSON.stringify( project_folder.replace( /\\\\/g, '/' ) ) + ' ).then( function ( a ) { return JSON.stringify( a ); } )' ) );
+		check( 'chooser: Open folder answers the project', answer.Ok === true && answer.Project && answer.Project.Name, 'smoke-project' );
+		let target = await wait_target( function ( candidate ) { return !/connect\.html/.test( candidate.url ); } );
 		let page = await CDP.Attach( target.webSocketDebuggerUrl );
 		await page.WaitFor( 'window.ConsensusDesktop !== undefined && ' + count_of( 'title-bar .brand' ) + ' === 1 && document.querySelector( ".connection" ) !== null && document.querySelector( ".connection" ).classList.contains( "live" )', 30000 );
+		check( 'project: the .consensus is made in the folder', FS.existsSync( PATH.join( project_folder, '.consensus', 'project.json' ) ), true );
+		check( 'project: the window knows its one project', await page.Evaluate( 'window.ConsensusDesktop.Project && window.ConsensusDesktop.Project.Name' ), 'smoke-project' );
+		await page.WaitFor( count_of( '.root' ) + ' === 1 && ' + count_of( '.project' ) + ' === 1', 30000 );
+		check( 'tree: one project view, open, and no root head', await page.Evaluate( count_of( '.project.single.open' ) + ' + "/" + ' + count_of( '.root-head' ) ), '1/0' );
+		check( 'recent: the folder is first in desktop.json', JSON.parse( FS.readFileSync( PATH.join( config, 'desktop.json' ), 'utf8' ) ).Recent[ 0 ].Path, project_folder.replace( /\\/g, '/' ) );
 		let roots = JSON.parse( await page.Evaluate( 'JSON.stringify( window.ConsensusDesktop.Roots )' ) );
 		let plan = await make_plan( roots[ 0 ].Url );
 		await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
@@ -314,7 +335,7 @@ async function smoke_desktop()
 		// the menu and the bridge
 		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
 		await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
-		check( 'menu: the desktop items', await page.Evaluate( MENU_ITEMS ), 'About|Hotkeys|Servers…|New window|Open folder in new window…|Reload|Quit' );
+		check( 'menu: the desktop items', await page.Evaluate( MENU_ITEMS ), 'About|Hotkeys|New window|Open folder in new window…|Settings|Reload|Quit' );
 		// while the menu is open the bar is no drag region, so a click on it closes the menu (plan UI Tweaks IX)
 		check( 'menu: the bar gives up the drag region while a menu is open', await page.Evaluate( 'getComputedStyle( document.querySelector( ".title-bar" ) ).webkitAppRegion' ), 'no-drag' );
 		let bar_spot = JSON.parse( await page.Evaluate( '( function () { let r = document.querySelector( ".title-bar" ).getBoundingClientRect(); return JSON.stringify( { x: r.left + r.width / 2, y: r.top + r.height / 2 } ); } )()' ) );
@@ -385,24 +406,13 @@ async function smoke_desktop()
 		await detached.Evaluate( 'window.close(); true' );
 		await wait( 500 );
 
-		// the connect screen
-		await page.Evaluate( 'window.Desktop.Servers(); true' );
-		let connect_target = await wait_target( function ( candidate ) { return /connect\.html/.test( candidate.url ); } );
-		let connect = await CDP.Attach( connect_target.webSocketDebuggerUrl );
-		await connect.WaitFor( count_of( '.connect-head' ) + ' === 1 && document.body.textContent.indexOf( "{{" ) < 0', 30000 );
-		await wait( 500 );
-		check( 'connect: the overlay', await connect.Evaluate( 'navigator.windowControlsOverlay.visible' ), true );
-		check( 'connect: the header is the drag region', await connect.Evaluate( 'getComputedStyle( document.querySelector( ".connect-head" ) ).webkitAppRegion' ), 'drag' );
-		let fit = JSON.parse( await connect.Evaluate( '( function () { let r = navigator.windowControlsOverlay.getTitlebarAreaRect(); let c = document.querySelector( ".connect-controls" ).getBoundingClientRect(); return JSON.stringify( { Controls: c.right, Area: r.x + r.width, Height: r.height, Head: document.querySelector( ".connect-head" ).getBoundingClientRect().height } ); } )()' ) );
-		check( 'connect: the controls stop before the buttons', fit.Controls <= fit.Area + 1 );
-		check( 'connect: the overlay follows the header', Math.abs( fit.Height - fit.Head ) <= 1 );
-		await capture_window( connect, 'desktop-connect' );
-
-		// back to the page, and Quit
-		await connect.Evaluate( 'window.Desktop.OpenPage(); true' );
-		let back_target = await wait_target( function ( candidate ) { return !/connect\.html/.test( candidate.url ); } );
-		let back = await CDP.Attach( back_target.webSocketDebuggerUrl );
-		await back.WaitFor( count_of( 'title-bar .brand' ) + ' === 1', 30000 );
+		// Quit, from the page reloaded (the chooser was checked first, where the app opened; the reload takes the detached
+		// tab back in, so a draft on it shows its dot)
+		let back = page;
+		await page.Send( 'Page.bringToFront' ).catch( function () {} );
+		await page.Evaluate( 'window.DocsOldDocument = true; location.reload(); true' );
+		await wait( 1000 );
+		await back.WaitFor( '!window.DocsOldDocument && ' + count_of( 'title-bar .brand' ) + ' === 1', 30000 );
 		// a dirty tab: Quit asks the page, Cancel keeps the app (plan Markdown Editor, Step 4); Confirm on close off, Quit ends it
 		await back.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
 		await back.WaitFor( text_of( '.header .title' ) + ' === ' + JSON.stringify( PLAN_TITLE ), 30000 );
@@ -428,6 +438,7 @@ async function smoke_desktop()
 		await wait( 1000 );
 		FS.rmSync( config, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
 		FS.rmSync( user_data, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
+		FS.rmSync( PATH.dirname( project_folder ), { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
 	}
 }
 

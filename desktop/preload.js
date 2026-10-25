@@ -1,9 +1,9 @@
 'use strict';
 
 // preload - what the desktop gives its pages (plan Consensus Desktop, Step 2). Before the page's scripts run it
-// asks the main process (main.js) what it shows; the Consensus page reads window.ConsensusDesktop for the roots (the
-// servers it shows, plan Run Shapes, Step 5), the API's base URL and the theme, and the connect screen calls
-// window.Desktop; the page calls it for the folder picker and the servers screen.
+// asks the main process (main.js) what it shows; the Consensus page reads window.ConsensusDesktop for the root (the
+// window's one server, plan Run Shapes, Step 5), the window's one project (plan Rearchitecturation, Step 2), the API's
+// base URL and the theme; the chooser calls window.Desktop, and the page calls it for the folder picker and its menu.
 
 const ELECTRON = require( 'electron' );
 
@@ -23,6 +23,10 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	Theme: BOOT.Theme,
 	Scale: BOOT.Scale,
 	Roots: BOOT.Roots || [],
+	// The window's one project (plan Rearchitecturation, Step 2): { Id, Name, Path, Host, Key }, or null on the chooser.
+	Project: BOOT.Project || null,
+	// The recent project folders (desktop.json), newest first, for the menu.
+	Recent: BOOT.Recent || [],
 	Reason: BOOT.Reason || null,
 	Remembered: BOOT.Remembered || {},
 	SetTheme: function ( Theme ) { ELECTRON.ipcRenderer.send( 'theme', { Theme: Theme } ); },
@@ -44,17 +48,22 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 } );
 
 
-// For the connect screen (the servers), the page's folder picker and the page's application menu (plan UI
-// Components, Step 5); Servers shows the servers screen, OpenPage the page.
+// For the chooser (plan Rearchitecturation, Step 2: the recent folders, Open folder, New project, the Hosts), the
+// page's folder picker and the page's application menu (plan UI Components, Step 5). What opens a project in this
+// window answers { Ok, Project } or { Error } (or { Cancelled } from a picker) and then shows the page.
 ELECTRON.contextBridge.exposeInMainWorld( 'Desktop', {
 	Settings: function () { return invoke( 'settings' ); },
-	Save: function ( Settings ) { return invoke( 'save', Settings ); },
+	OpenFolder: function () { return invoke( 'open-folder' ); },
+	OpenPath: function ( Path ) { return invoke( 'open-path', Path ); },
+	NewProject: function ( Fields ) { return invoke( 'new-project', Fields ); },
+	HostProjects: function ( Url ) { return invoke( 'host-projects', Url ); },
+	ConnectHost: function ( Entry ) { return invoke( 'connect-host', Entry ); },
+	Forget: function ( Path ) { return invoke( 'forget', Path ); },
+	RemoveHost: function ( Entry ) { return invoke( 'remove-host', Entry ); },
 	Try: function ( Url ) { return invoke( 'try', Url ); },
-	Servers: function () { return invoke( 'servers' ); },
-	OpenPage: function () { return invoke( 'page' ); },
-	LocalStatus: function () { return invoke( 'local-status' ); },
 	PickFolder: function ( Current ) { return invoke( 'folder', Current ); },
 	NewWindow: function () { return invoke( 'new-window' ); },
 	OpenFolderWindow: function () { return invoke( 'open-folder-window' ); },
+	OpenRecent: function ( Path ) { return invoke( 'open-recent', Path ); },
 	Quit: function () { return invoke( 'quit' ); },
 } );

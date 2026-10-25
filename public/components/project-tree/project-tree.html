@@ -9,8 +9,8 @@
 </div>
 
 <!-- The roots (plan Run Shapes, Step 5): a row per server, this machine's first, with its projects, its LLM
-     connections and its Trash beneath; folded like a project; its menu has New Project, Import, Settings, the
-     servers and Reload. -->
-<div class="roots">
-	<server-row class="root" ng-repeat="root in $ctrl.Roots.List track by root.Key" ng-class="{ closed: $ctrl.Tree.IsRootClosed( root ), offline: !root.Live, several: $ctrl.Roots.Several() }" data-root="{{ root.Key }}" server="root" first="$first"></server-row>
+     connections and its Trash beneath; folded like a project; its menu has New Project, Import, Settings and Reload.
+     The Desktop's page (plan Rearchitecturation, Step 2) shows one project: its one root single, with no root head. -->
+<div class="roots" ng-class="{ single: $ctrl.Roots.Single() }">
+	<server-row class="root" ng-repeat="root in $ctrl.Roots.List track by root.Key" ng-class="{ closed: !$ctrl.Roots.Single() && $ctrl.Tree.IsRootClosed( root ), offline: !root.Live, several: $ctrl.Roots.Several() }" data-root="{{ root.Key }}" server="root" first="$first" single="$ctrl.Roots.Single()"></server-row>
 </div>

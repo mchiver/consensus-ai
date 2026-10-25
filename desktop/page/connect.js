@@ -1,10 +1,11 @@
 'use strict';
 
-// The servers screen (plan Consensus Desktop, Step 2; the servers' list since plan Run Shapes, Step 5, the page
-// showing every server at once; the list is desktop.json's Hosts since plan Rearchitecturation, Step 1): the saved
-// servers with Edit and Remove; Add server, tried before it is saved; this
-// machine's server, the config's own, started with the app as its Scope says (plan Run Shapes, Step 1); and Open the
-// page. Everything goes through window.Desktop (preload.js) to the main process.
+// The chooser (plan Rearchitecturation, Step 2; the servers screen of plan Consensus Desktop, Step 2, until then): a
+// window with no project shows it. Recent projects (desktop.json, newest first; Open, Forget), Open folder (the folder
+// picker; a folder without a .consensus gets one), New project (a name and a parent folder), and the Hosts: the saved
+// Host projects (Open, Remove) and Add host (a Name and a Url tried first, then one of the Host's projects picked; the
+// pair is saved as an entry). Everything goes through window.Desktop (preload.js) to the main process, which opens the
+// project in this window and shows the page.
 
 angular.module( 'Connect', [] )
 
@@ -26,12 +27,11 @@ angular.module( 'Connect', [] )
 {
 	$scope.Version = window.ConsensusDesktop.Version;
 	$scope.Reason = window.ConsensusDesktop.Reason;
-	$scope.Settings = { Hosts: [] };
-	$scope.Local = null;
-	$scope.Missing = [];
-	$scope.Editing = null;
+	$scope.Settings = { Recent: [], Hosts: [] };
 	$scope.Error = null;
 	$scope.Busy = false;
+	$scope.Creating = null;		// { Name, Parent } while New project is open
+	$scope.Adding = null;		// { Name, Url, Tried, Projects, Project } while Add host is open
 	$scope.Theme = window.ConsensusTheme.Get().Theme;
 	$scope.Scale = window.ConsensusTheme.Get().Scale;
 	$scope.Palettes = window.ConsensusTheme.PALETTES;
@@ -43,8 +43,6 @@ angular.module( 'Connect', [] )
 		{
 			let answer = await window.Desktop.Settings();
 			$scope.Settings = answer.Settings;
-			$scope.Local = answer.Local;
-			$scope.Missing = answer.Missing || [];
 			$scope.Reason = answer.Reason;
 		}
 		catch ( error )
@@ -55,78 +53,38 @@ angular.module( 'Connect', [] )
 	}
 
 
+	// An answer from the main process: an error shows, Ok means the page is on its way.
+	function took( answer )
+	{
+		$scope.Busy = false;
+		if ( answer && answer.Error )
+		{
+			$scope.Error = answer.Error;
+		}
+		$scope.$applyAsync();
+		return !!( answer && answer.Ok );
+	}
+
+
 	//-----------------------------------------------------------------
-	// Servers
+	// Recent projects
 
-	$scope.StartAdd = function ()
+	$scope.NameOf = function ( path )
 	{
-		$scope.Editing = { Original: null, Name: '', Url: 'http://', Tried: null };
+		return String( path || '' ).split( /[\\/]/ ).filter( Boolean ).pop() || path;
 	};
 
 
-	$scope.StartEdit = function ( server )
+	$scope.OpenRecent = async function ( entry )
 	{
-		$scope.Editing = { Original: server, Name: server.Name, Url: server.Url, Tried: null };
-	};
-
-
-	$scope.CancelEdit = function ()
-	{
-		$scope.Editing = null;
-	};
-
-
-	$scope.Try = async function ()
-	{
-		if ( !$scope.Editing )
-		{
-			return;
-		}
 		$scope.Busy = true;
-		$scope.Editing.Tried = await window.Desktop.Try( $scope.Editing.Url );
-		$scope.Busy = false;
-		$scope.$applyAsync();
+		took( await window.Desktop.OpenPath( entry.Path ) );
 	};
 
 
-	// Save: the server is tried first; a server that does not answer is not saved.
-	$scope.Save = async function ()
+	$scope.Forget = async function ( entry )
 	{
-		let editing = $scope.Editing;
-		if ( !editing || !editing.Name || !editing.Url )
-		{
-			return;
-		}
-		$scope.Busy = true;
-		let tried = await window.Desktop.Try( editing.Url );
-		editing.Tried = tried;
-		if ( !tried.Ok )
-		{
-			$scope.Busy = false;
-			$scope.$applyAsync();
-			return;
-		}
-		let hosts = $scope.Settings.Hosts.filter( function ( host ) { return host !== editing.Original; } );
-		hosts.push( { Name: editing.Name.trim(), Url: tried.Url, Project: editing.Original ? editing.Original.Project : null } );
-		let answer = await window.Desktop.Save( { Hosts: hosts } );
-		if ( answer.Problems )
-		{
-			$scope.Error = answer.Problems.join( '; ' );
-			$scope.Busy = false;
-			$scope.$applyAsync();
-			return;
-		}
-		$scope.Settings = answer.Settings;
-		$scope.Editing = null;
-		$scope.Busy = false;
-		$scope.$applyAsync();
-	};
-
-
-	$scope.Remove = async function ( server )
-	{
-		let hosts = $scope.Settings.Hosts.filter( function ( candidate ) { return candidate !== server; } );
-		let answer = await window.Desktop.Save( { Hosts: hosts } );
+		let answer = await window.Desktop.Forget( entry.Path );
 		if ( answer.Settings )
 		{
 			$scope.Settings = answer.Settings;
@@ -136,20 +94,115 @@ angular.module( 'Connect', [] )
 
 
 	//-----------------------------------------------------------------
-	// The page: shown when there is a server to show, this machine's or a saved one.
+	// Open folder, New project
 
-	$scope.CanOpen = function ()
-	{
-		return !!$scope.Local || ( $scope.Settings.Hosts || [] ).length > 0;
-	};
-
-
-	$scope.OpenPage = function ()
+	$scope.OpenFolder = async function ()
 	{
 		$scope.Busy = true;
-		window.Desktop.OpenPage();
+		took( await window.Desktop.OpenFolder() );
 	};
 
+
+	$scope.StartCreate = function ()
+	{
+		$scope.Creating = { Name: '', Parent: '' };
+		$scope.Adding = null;
+	};
+
+
+	$scope.PickParent = async function ()
+	{
+		let picked = await window.Desktop.PickFolder( $scope.Creating ? $scope.Creating.Parent : null );
+		if ( picked && $scope.Creating )
+		{
+			$scope.Creating.Parent = picked;
+		}
+		$scope.$applyAsync();
+	};
+
+
+	$scope.Create = async function ()
+	{
+		if ( !$scope.Creating || !$scope.Creating.Name || !$scope.Creating.Parent )
+		{
+			return;
+		}
+		$scope.Busy = true;
+		took( await window.Desktop.NewProject( { Name: $scope.Creating.Name, Parent: $scope.Creating.Parent } ) );
+	};
+
+
+	$scope.CancelCreate = function ()
+	{
+		$scope.Creating = null;
+	};
+
+
+	//-----------------------------------------------------------------
+	// Hosts
+
+	$scope.OpenHost = async function ( entry )
+	{
+		$scope.Busy = true;
+		took( await window.Desktop.ConnectHost( { Name: entry.Name, Url: entry.Url, Project: entry.Project } ) );
+	};
+
+
+	$scope.RemoveHost = async function ( entry )
+	{
+		let answer = await window.Desktop.RemoveHost( { Name: entry.Name, Project: entry.Project } );
+		if ( answer.Settings )
+		{
+			$scope.Settings = answer.Settings;
+		}
+		$scope.$applyAsync();
+	};
+
+
+	$scope.StartAdd = function ()
+	{
+		$scope.Adding = { Name: '', Url: 'http://', Tried: null, Projects: [], Project: null };
+		$scope.Creating = null;
+	};
+
+
+	// Try: the Host answers, and its projects are listed to pick from.
+	$scope.TryHost = async function ()
+	{
+		if ( !$scope.Adding )
+		{
+			return;
+		}
+		$scope.Busy = true;
+		let tried = await window.Desktop.HostProjects( $scope.Adding.Url );
+		$scope.Adding.Tried = tried;
+		$scope.Adding.Projects = tried.Ok ? tried.Projects : [];
+		$scope.Adding.Project = ( tried.Ok && tried.Projects.length ) ? tried.Projects[ 0 ].Id : null;
+		$scope.Busy = false;
+		$scope.$applyAsync();
+	};
+
+
+	$scope.Connect = async function ()
+	{
+		let adding = $scope.Adding;
+		if ( !adding || !adding.Name || !adding.Tried || !adding.Tried.Ok || !adding.Project )
+		{
+			return;
+		}
+		$scope.Busy = true;
+		took( await window.Desktop.ConnectHost( { Name: adding.Name.trim(), Url: adding.Tried.Url, Project: adding.Project } ) );
+	};
+
+
+	$scope.CancelAdd = function ()
+	{
+		$scope.Adding = null;
+	};
+
+
+	//-----------------------------------------------------------------
+	// Another window
 
 	$scope.NewWindow = function ()
 	{

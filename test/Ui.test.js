@@ -1136,6 +1136,47 @@ TEST( 'folds: a folder another server remembers folded still folds and unfolds h
 } );
 
 
+TEST( 'one project in the window (plan Rearchitecturation, Step 2): the page shows one project view, open, with no root head; a page of many shows the server rows', async function ()
+{
+	// The Host page (a browser): the server rows, each an array of project views
+	ASSERT.equal( await page.Evaluate( count_of( '.root > .root-head' ) ), 1 );
+	ASSERT.equal( await page.Evaluate( count_of( 'project-view.project' ) ) >= 1, true );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.single' ) ), 0 );
+	// The Desktop's page: window.ConsensusDesktop names the window's one project before the page loads; the remembered
+	// state is keyed by the project's key, not the server's address
+	let single = await browser.OpenPage();
+	try
+	{
+		let before_load = 'window.ConsensusDesktop = { Roots: [ { Key: "", Name: "here", Url: "", Kind: "browser", StoredKey: "W:/code/one" } ], Project: { Id: ' + JSON.stringify( home ) + ', Name: "One", Path: "W:/code/one", Host: null, Key: "W:/code/one" }, Recent: [], Remembered: {} };';
+		await single.Send( 'Page.addScriptToEvaluateOnNewDocument', { source: before_load } );
+		await single.Navigate( running.Url + '/#/p/' + plan.Id );
+		await single.WaitFor( count_of( '.project.single.open' ) + ' === 1 && ' + count_of( '.header .title' ) + ' === 1', 30000 );
+		ASSERT.equal( await single.Evaluate( count_of( '.root-head' ) ), 0 );
+		ASSERT.equal( await single.Evaluate( count_of( 'project-view.project' ) ), 1 );
+		ASSERT.equal( await single.Evaluate( count_of( '.project.single > .project-head .chevron' ) ), 0 );
+		ASSERT.equal( await single.Evaluate( text_of( '.project.single .project-name' ) ), 'Default' );
+		ASSERT.equal( await single.Evaluate( 'angular.element( document.body ).injector().get( "Roots" ).Single()' ), true );
+		ASSERT.equal( await single.Evaluate( 'angular.element( document.body ).injector().get( "Tree" ).IsOpen( { Id: ' + JSON.stringify( home ) + ' } )' ), true );
+		// a fold is remembered under the project's key
+		let folder_chevron = '.project.single .folder-head .chevron';
+		await single.WaitFor( count_of( folder_chevron ) + ' >= 1' );
+		let was_folded = await single.Evaluate( 'document.querySelector( ' + JSON.stringify( folder_chevron ) + ' ).classList.contains( "folded" )' );
+		await single.Click( folder_chevron );
+		await single.WaitFor( 'document.querySelector( ' + JSON.stringify( folder_chevron ) + ' ).classList.contains( "folded" ) === ' + String( !was_folded ) );
+		ASSERT.equal( typeof await single.Evaluate( 'localStorage.getItem( "consensus.W:/code/one.folded" )' ), 'string' );
+		await single.Click( folder_chevron );
+		ASSERT.deepEqual( single.Errors, [] );
+	}
+	finally
+	{
+		// the tab is closed, not left behind: a page behind another gets no animation frames (the main page's tests follow)
+		await single.Send( 'Page.close' ).catch( function () {} );
+		single.Close();
+		await page.Send( 'Page.bringToFront' );
+	}
+} );
+
+
 // A click at the centre of an element's first line box: a mark that wraps onto two lines has its bounding box's centre
 // between them, where no text is.
 async function click_first_line( selector )

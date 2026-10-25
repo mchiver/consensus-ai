@@ -173,12 +173,15 @@ TEST( 'the desktop signs in the same way (plan Clerk, Step 7): the Settings popu
 	let config = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-desktop-config-' ) );
 	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-desktop-user-data-' ) );
 	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( { Port: 0, Scope: 'Local', Clerk: { PublishableKey: PUBLISHABLE, SecretKey: SECRET } } ) );
-	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--config', config, '--port', '0', '--user-data-dir=' + user_data, '--remote-debugging-port=' + DESKTOP_PORT ], { cwd: ROOT, stdio: 'ignore' } );
+	// A window is one project (plan Rearchitecturation, Step 2): the app opens on a folder, its .consensus made.
+	let project_folder = PATH.join( FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-desktop-project-' ) ), 'clerk-smoke' );
+	FS.mkdirSync( project_folder );
+	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', project_folder, '--config', config, '--port', '0', '--user-data-dir=' + user_data, '--remote-debugging-port=' + DESKTOP_PORT ], { cwd: ROOT, stdio: 'ignore' } );
 	let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
 	try
 	{
 		let target = await desktop_target();
-		ASSERT.doesNotMatch( target.url, /connect\.html/, 'the desktop opened on the connect screen: its own server did not start' );
+		ASSERT.doesNotMatch( target.url, /connect\.html/, 'the desktop opened on the chooser: its own server did not start on the folder' );
 		let page = await CDP.Attach( target.webSocketDebuggerUrl );
 		await page.WaitFor( 'window.ConsensusDesktop !== undefined && ' + count_of( 'title-bar .brand' ) + ' === 1 && document.querySelector( ".connection" ) !== null && document.querySelector( ".connection" ).classList.contains( "live" )', 30000 );
 		await page.WaitFor( '( function () { let session = angular.element( document.body ).injector().get( "Session" ); return session.Loaded && session.On && session.Base === "/servers/local"; } )()', 20000 );

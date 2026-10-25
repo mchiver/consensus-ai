@@ -80,7 +80,7 @@ with a tab, filled when the project is open (plan UI Tweaks VI). Each
 row's actions are in its menu: **⋯** at the row's end (on hover, and on the current row) or a right-click. New
 Project, Import and the owner's Settings are in a server row's menu; the title bar's **Menu** has About (the
 version, the links, and a summary of every project's threads), Hotkeys and, in the desktop, the window's commands
-(Servers…, New window, Open folder in new window, Reload, Quit). Click a folder to make it where new items go. Everything reorders by drag
+(New window, Open folder in new window, the recent folders, Settings, Reload, Quit). Click a folder to make it where new items go. Everything reorders by drag
 and drop: drop an item on the top or bottom edge of a row to put it just before or after that row, on the
 middle of a folder to move it inside, or on a project's heading to move it to that project's root (the
 Context folder stays first); drop a project's heading on another's to reorder the projects. Rename an item
@@ -249,26 +249,26 @@ is removed). An export of another `Version` is refused.
 
 ## The desktop
 
-Consensus Desktop (plan Consensus Desktop, Step 2) is an Electron client for any Consensus server, run from the
-checkout:
+Consensus Desktop (plan Consensus Desktop, Step 2) is an Electron client, run from the checkout:
 
-	npm run desktop
+	npm run desktop -- [<folder> | --connect <host name>] [--config <folder>] [--port <port>] [--scope ...] [--headless]
 
-Since plan Run Shapes (Step 1) the app is the second entry point over `src/Start.js`: it takes the command
-line's path, `--config`, `--port`, `--scope` and `--headless` (from the checkout, `npm run desktop -- --config …`),
-starts **this machine's server** from the global config as its Scope says (none with Scope None; the configured
-port in use gives way to a free one; a port asked for that is in use leaves the server unstarted, with the
-reason on the servers screen), and opens on the page with every server it has (plan Run Shapes, Step 5): this
-machine's server first, when it runs, then every saved server, each a **root** of the tree; with a project
-folder on the command line (Step 4) it shows this machine's server with that project alone. With `--headless`
-there is no window: the server runs and prints what the command line prints. The **servers screen** (the Server
-menu's Servers…, and where the app opens when it has no server to show) has the saved servers (Edit, Remove),
-**Add server** (a Name and a Url, tried before it is saved; the screen says which Consensus version answers and
-warns when it differs from the app's), **This machine**: the app's own server, with its address, scope and
-config folder, and **Open the page**. The **Server** menu has Servers…, The page, Reload, **New window**, which
-starts another instance of the app (over the same config, on a free port when the configured one is taken), and
-**Open folder in new window**, which starts one on a folder alone, as `consensus <path>` does. A tab's Detach
-opens a window of the app.
+Since plan Run Shapes (Step 1) the app is the second entry point over `src/Start.js`, taking the same arguments
+(from the checkout, `npm run desktop -- --config …`). **A window is one project** (plan Rearchitecturation, Step 2):
+with a folder on the command line it starts **this machine's server** over that folder alone, as the headless
+`consensus <folder>` does (the folder's `.consensus` made when missing; the configured port in use gives way to a
+free one, a port asked for that is in use leaves the project unopened, with the reason on the chooser), and shows
+that project's tree; with `--connect <host name>` it opens a saved Host project (desktop.json's Hosts) as a **thin
+client**, the page pointed at the Host's API through the app's own origin, signed in as the person or the owner over
+localhost on a Local Host, writing nothing locally; with neither it shows the **chooser**: **Recent projects** (Open,
+Forget), **Open folder…** (the folder picker), **New project** (a name and a parent folder; the folder is made
+empty and opened) and the **Hosts** (the saved Host projects with Open and Remove; **Add host**: a Name and a Url
+tried first, then one of the Host's projects picked from a list, the pair saved as an entry with the project's name
+as its Title), each opening in this window. Another project is another instance: the page's menu has **New window**
+(another chooser), **Open folder in new window…** and the recent folders, each starting one, and the chooser's New
+window link does the same; the app is one process per window. With `--headless` there is no window: this machine's
+server runs from the config as its Scope says and prints what the command line prints. A tab's Detach opens a
+window of the app. The desktop's own `--connect` is taken before `src/Start.js` parses the rest.
 
 The page the window shows is the server's `public/`, the one page since plan Run Shapes, Step 3 (the desktop's
 own copy, `desktop/page/`, developed on while `public/` was frozen, became `public/` again; `desktop/page/`
@@ -281,13 +281,15 @@ server, which sends no CORS headers, is not changed for the app beyond `/api/me`
 the window stays behind `window.ConsensusDesktop` and `window.Desktop`: the native theme, the folder picker,
 the remembered view state. The desktop's settings are its own file, `desktop.json` beside `consensus.json` in the
 config folder (plan Rearchitecturation, Step 1; they were fields of `consensus.json` before): `Recent` (the project
-folders opened from the command line, newest first), `Hosts` (the saved servers, one entry `{ Name, Url, Project }` per
-Host project, no tokens: a Host with Scope Local is reached from its own machine, where a request is the owner, and any
-other Host is Public and signs the person in through Clerk), `Theme`, `Scale` and `Remembered`. `desktop/Settings.js`
-reads and writes that file and nothing else: `consensus.json` is the Server Host's to write, and the desktop reads it
-for the server's Name. `Theme` is the window's one theme, set from either screen's picker. The page remembers its tree state (the open project,
-the folds, the LLMs list folded, the root folded) per server, under the server's address, and the tabs, the
-sort and the look (hidden panes, widths) once per window, in `desktop.json`'s `Remembered` (`public/js/stored.js` through the preload's `Remember`:
+folders opened, newest first), `Hosts` (the saved Host projects, one entry `{ Name, Url, Project, Title }` per Host
+project, Title the project's name as last seen, no tokens: a Host with Scope Local is reached from its own machine, where
+a request is the owner, and any other Host is Public and signs the person in through Clerk), `Theme`, `Scale` and
+`Remembered`. `desktop/Settings.js` reads and writes that file and nothing else: `consensus.json` is the Server Host's
+to write, and the desktop reads it for the server's Name; `desktop/Projects.js` makes a new project's folder, lists a
+Host's projects and keys a window's project. `Theme` is the window's one theme, set from either screen's picker. The
+page remembers its tree state (the folds, the LLMs list folded) per project, under the window's project key (the
+folder, or the Host's address and the project id: `StoredKey` on the root, Step 2; a browser's page keeps the server's
+address), and the tabs, the sort and the look (hidden panes, widths) once per window, in `desktop.json`'s `Remembered` (`public/js/stored.js` through the preload's `Remember`:
 the page's origin gets a new port at every start, so its localStorage would not survive a restart; in a
 browser the same keys are in localStorage); each root's row shows the server's name, a dot green while its
 updates are live, who you are there and, in the tooltip, its address, version and, offline, the reason; a
@@ -499,7 +501,8 @@ folder, which create in it.
 
 Layout: `desktop/main.js` the main process, `desktop/preload.js` its bridge, `desktop/Settings.js` the desktop's
 own file, desktop.json, `desktop/Page.js` the server for the page and the
-connect screen (`desktop/page/connect.html`, `connect.js`, `connect.css`); the runs are the server's:
+chooser (`desktop/page/connect.html`, `connect.js`, `connect.css`), `desktop/Projects.js` the chooser's work without
+Electron; the runs are the server's:
 `src/Llms.js` the connections, `src/Runner.js` the package and the start of a run over the store,
 `src/Runs.js` the runs and their records, `src/Package.js` the one-shot prompt, `src/Llm.js` a connection's
 check and command line, `src/Ollama.js` the tool loop, `src/Tools.js` the tools, `src/Files.js` the files of a

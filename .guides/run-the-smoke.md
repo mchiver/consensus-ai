@@ -69,11 +69,15 @@ The desktop:
   chrome handler in `main.js`.
 - **detached**: a detached window has the overlay, the bar and no frame. A failure is the window-open handler's
   options.
-- **connect**: the connect screen has the overlay, its header is the drag region, its controls stop before the
-  buttons, and the overlay follows the header's height. A failure is `connect.css` or `connect.js`.
+- **chooser, project** (plan Rearchitecturation, Step 2): the app opens on the chooser with no folder; the chooser has
+  the overlay, its header is the drag region, its controls stop before the buttons, the overlay follows the header's
+  height, and it offers Open folder, New project and Add host with no recent project yet; `Desktop.OpenPath` on a
+  temporary folder answers the project, makes its `.consensus`, puts the folder first in desktop.json's Recent, and
+  the page shows one project view, open, with no root head. A failure is `connect.css`, `connect.js`,
+  `open_folder_here` in `main.js` or the single mode of `server-row` and `project-view`.
 - **close, quit**: with a draft on the open tab, `Desktop.Quit` raises the close prompt naming the plan; Cancel keeps
   the app and the draft; with Confirm on close off, `Desktop.Quit` ends the app. A failure is `ask_page_to_close`
   in `main.js`, the preload's `OnCloseRequested` and `CloseDecided`, or `hook_window_close` in `tabs.js`.
 
-If the desktop opens on the connect screen the smoke stops: its own server did not start on the temporary config,
-which the desktop's console says more about (`npm run desktop -- --config <folder> --port 0`).
+If the folder does not open the smoke stops at the chooser: this machine's server did not start on the temporary
+config, which the desktop's console says more about (`npm run desktop -- <folder> --config <folder> --port 0`).

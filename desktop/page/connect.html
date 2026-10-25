@@ -11,8 +11,8 @@
 </head>
 <body ng-controller="ConnectController" ng-cloak>
 
-	<!-- The servers screen (plan Consensus Desktop, Step 2; the servers' list since plan Run Shapes, Step 5): the saved
-	     servers, one to add, and this machine's server; the page shows them all at once. -->
+	<!-- The chooser (plan Rearchitecturation, Step 2): a window with no project. Recent projects, Open folder, New
+	     project, and the Hosts with their projects; each opens the project in this window. -->
 
 	<header class="connect-head">
 		<div class="connect-title"><span class="connect-kind">Consensus</span> Desktop <span class="muted small">{{ Version }}</span></div>
@@ -27,62 +27,86 @@
 	</header>
 
 	<main class="connect-main">
-		<!-- The page shows every server at once (plan Run Shapes, Step 5): this machine's and the saved ones, each a root of
-		     the tree; this screen keeps the list, and the page opens from here or from the Server menu. -->
-		<div class="field-row page-row">
-			<button class="btn btn-sm btn-primary" id="open-page" ng-click="OpenPage()" ng-disabled="!CanOpen() || Busy">Open the page</button>
-			<span class="muted small" id="page-note">{{ CanOpen() ? 'the page shows this machine\'s server and every saved server, each a root of its tree' : 'nothing to show yet: add a server, or give this machine\'s a Scope of Local or Public in its settings' }}</span>
-		</div>
 		<div class="alert alert-warning py-2" id="reason" ng-show="Reason">{{ Reason }}</div>
-		<div class="alert alert-danger py-2" ng-show="Error">{{ Error }} <button class="btn btn-link btn-sm" ng-click="Error = null">dismiss</button></div>
+		<div class="alert alert-danger py-2" id="error" ng-show="Error">{{ Error }} <button class="btn btn-link btn-sm" ng-click="Error = null">dismiss</button></div>
 
-		<section class="block">
+		<section class="block" id="open-block">
 			<div class="block-head">
-				<h2>Servers</h2>
-				<button class="btn btn-sm btn-outline-primary" id="add-server" ng-click="StartAdd()" ng-hide="Editing">Add server</button>
-			</div>
-			<div class="muted small" ng-hide="Settings.Hosts.length || Editing">none yet: add the address of a Consensus server, such as http://cube4:3500</div>
-			<div class="server-row" ng-repeat="server in Settings.Hosts" ng-hide="Editing && Editing.Original === server">
-				<div class="server-name">{{ server.Name }}</div>
-				<div class="muted small server-url">{{ server.Url }}</div>
-				<span class="grow"></span>
-				<button class="btn btn-sm btn-outline-secondary" ng-click="StartEdit( server )" ng-disabled="Busy">Edit</button>
-				<button class="btn btn-sm btn-outline-danger" ng-click="Remove( server )" ng-disabled="Busy">Remove</button>
-			</div>
-			<form class="server-form" ng-if="Editing" ng-submit="Save()">
+				<h2>Open a project</h2>
 				<div class="field-row">
-					<label for="server-name">Name</label>
-					<input class="form-control form-control-sm" id="server-name" ng-model="Editing.Name" placeholder="cube4" auto-focus>
-					<label for="server-url">Url</label>
-					<input class="form-control form-control-sm" id="server-url" ng-model="Editing.Url" placeholder="http://cube4:3500">
-					<button class="btn btn-sm btn-outline-secondary" type="button" id="try-server" ng-click="Try()" ng-disabled="!Editing.Url || Busy">Try</button>
+					<button class="btn btn-sm btn-primary" id="open-folder" ng-click="OpenFolder()" ng-disabled="Busy">Open folder…</button>
+					<button class="btn btn-sm btn-outline-primary" id="new-project" ng-click="StartCreate()" ng-disabled="Busy" ng-hide="Creating">New project</button>
 				</div>
-				<div class="small tried" id="tried" ng-show="Editing.Tried">
-					<span ng-show="Editing.Tried.Ok">Consensus {{ Editing.Tried.Version || '(older than 0.2.0)' }} answers; you are {{ Editing.Tried.Me.Display }} ({{ Editing.Tried.Me.Role }}).<span class="text-warning" ng-show="Editing.Tried.Version !== Version"> Its version differs from this app's {{ Version }}.</span></span>
-					<span class="text-danger" ng-hide="Editing.Tried.Ok">{{ Editing.Tried.Error }}</span>
+			</div>
+			<div class="muted small">A window is one project: the folder, with a <code>.consensus</code> inside it, made when the folder has none.</div>
+			<form class="server-form" ng-if="Creating" ng-submit="Create()">
+				<div class="field-row">
+					<label for="project-name">Name</label>
+					<input class="form-control form-control-sm" id="project-name" ng-model="Creating.Name" placeholder="tic-tac-toe" auto-focus>
 				</div>
 				<div class="field-row">
-					<button class="btn btn-sm btn-primary" type="submit" id="save-server" ng-disabled="!Editing.Name || !Editing.Url || Busy">Save</button>
-					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelEdit()">Cancel</button>
+					<label for="project-parent">In</label>
+					<input class="form-control form-control-sm" id="project-parent" ng-model="Creating.Parent" placeholder="the folder the project's folder goes in">
+					<button class="btn btn-sm btn-outline-secondary" type="button" id="pick-parent" ng-click="PickParent()" ng-disabled="Busy">Pick…</button>
+				</div>
+				<div class="field-row">
+					<button class="btn btn-sm btn-primary" type="submit" id="create-project" ng-disabled="!Creating.Name || !Creating.Parent || Busy">Create</button>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelCreate()">Cancel</button>
 				</div>
 			</form>
 		</section>
 
-		<section class="block">
+		<section class="block" id="recent-block">
 			<div class="block-head">
-				<h2>This machine</h2>
-				<span class="muted small" id="local-status">{{ Local ? 'Consensus at ' + Local.Url + ' (Scope ' + Local.Scope + ') over ' + Local.Config + ( Local.Project ? ', on the project ' + Local.Project.Name + ' alone (' + Local.Project.Path + ')' : '' ) : 'no server on this machine: its Scope is None, or it could not start' }}</span>
+				<h2>Recent projects</h2>
 			</div>
-			<div class="field-row">
-				<span class="muted small" ng-show="Local">The server starts with the app, from its settings (Scope and Port), and stops with it; the page shows it first.</span>
-			</div>
-			<div class="alert alert-warning py-2 small" id="missing-folders" ng-show="Missing.length">
-				<div>Project folders the settings list and this machine lacks (kept in the list; skipped until they are back):</div>
-				<ul class="mb-0"><li ng-repeat="entry in Missing track by $index">{{ entry.Path }}: {{ entry.Error }}</li></ul>
+			<div class="muted small" id="recent-empty" ng-hide="Settings.Recent.length">none yet</div>
+			<div class="server-row recent-row" ng-repeat="entry in Settings.Recent track by entry.Path">
+				<div class="server-name">{{ NameOf( entry.Path ) }}</div>
+				<div class="muted small server-url">{{ entry.Path }}</div>
+				<span class="grow"></span>
+				<button class="btn btn-sm btn-outline-primary open-recent" ng-click="OpenRecent( entry )" ng-disabled="Busy">Open</button>
+				<button class="btn btn-sm btn-outline-secondary" ng-click="Forget( entry )" ng-disabled="Busy" title="leave the list; the folder stays">Forget</button>
 			</div>
 		</section>
 
-		<div class="muted small">Another server at the same time: <a href="" ng-click="NewWindow()">New window</a> starts another instance of the app; the Server menu's Open folder in new window starts one on a project folder alone, as <code>consensus &lt;path&gt;</code> does.</div>
+		<section class="block" id="hosts-block">
+			<div class="block-head">
+				<h2>Hosts</h2>
+				<button class="btn btn-sm btn-outline-primary" id="add-host" ng-click="StartAdd()" ng-hide="Adding" ng-disabled="Busy">Add host</button>
+			</div>
+			<div class="muted small" ng-hide="Settings.Hosts.length || Adding">none yet: a Server Host's address, such as http://cube4:3500, and one of its projects</div>
+			<div class="server-row host-row" ng-repeat="entry in Settings.Hosts track by ( entry.Name + '/' + entry.Project )">
+				<div class="server-name">{{ entry.Title || entry.Project || entry.Name }}</div>
+				<div class="muted small server-url">{{ entry.Name }} · {{ entry.Url }}</div>
+				<span class="grow"></span>
+				<button class="btn btn-sm btn-outline-primary open-host" ng-click="OpenHost( entry )" ng-disabled="Busy || !entry.Project">Open</button>
+				<button class="btn btn-sm btn-outline-danger" ng-click="RemoveHost( entry )" ng-disabled="Busy">Remove</button>
+			</div>
+			<form class="server-form" ng-if="Adding" ng-submit="Connect()">
+				<div class="field-row">
+					<label for="host-name">Name</label>
+					<input class="form-control form-control-sm" id="host-name" ng-model="Adding.Name" placeholder="cube4" auto-focus>
+					<label for="host-url">Url</label>
+					<input class="form-control form-control-sm" id="host-url" ng-model="Adding.Url" placeholder="http://cube4:3500">
+					<button class="btn btn-sm btn-outline-secondary" type="button" id="try-host" ng-click="TryHost()" ng-disabled="!Adding.Url || Busy">Try</button>
+				</div>
+				<div class="small tried" id="tried" ng-show="Adding.Tried">
+					<span ng-show="Adding.Tried.Ok">Consensus {{ Adding.Tried.Version || '(older than 0.2.0)' }} answers with {{ Adding.Projects.length }} project{{ Adding.Projects.length === 1 ? '' : 's' }}.<span class="text-warning" ng-show="Adding.Tried.Version !== Version"> Its version differs from this app's {{ Version }}.</span></span>
+					<span class="text-danger" ng-hide="Adding.Tried.Ok">{{ Adding.Tried.Error }}</span>
+				</div>
+				<div class="field-row" ng-show="Adding.Tried.Ok && Adding.Projects.length">
+					<label for="host-project">Project</label>
+					<select class="form-select form-select-sm" id="host-project" ng-model="Adding.Project" ng-options="project.Id as project.Name for project in Adding.Projects"></select>
+				</div>
+				<div class="field-row">
+					<button class="btn btn-sm btn-primary" type="submit" id="connect-host" ng-disabled="!Adding.Name || !Adding.Tried.Ok || !Adding.Project || Busy">Connect</button>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelAdd()">Cancel</button>
+				</div>
+			</form>
+		</section>
+
+		<div class="muted small">Another project at the same time: <a href="" ng-click="NewWindow()">New window</a> opens another chooser; the page's menu has Open folder in new window and the recent folders, as <code>consensus &lt;path&gt;</code> does.</div>
 	</main>
 
 	<script src="/vendor/angular.min.js"></script>

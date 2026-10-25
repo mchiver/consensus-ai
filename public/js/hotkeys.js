@@ -440,7 +440,7 @@ angular.module( 'Consensus' ).factory( 'Hotkeys', [ '$rootScope', '$window', 'St
 		Rows: rows,
 		EditorRows: EDITOR_ROWS,
 		DesktopRows: DESKTOP_ROWS,
-		Desktop: !!( $window.Desktop && typeof $window.Desktop.Servers === 'function' ),
+		Desktop: !!( $window.Desktop && typeof $window.Desktop.NewWindow === 'function' ),
 		Provide: Provide,
 		Display: Display,
 	};
