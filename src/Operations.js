@@ -221,6 +221,8 @@ function Operations( Context )
 
 	// The projects an account sees: every one for the owner and the Administrator, else those with a role; and the
 	// ids of the plans in them (null when every plan).
+	// The projects an account sees: every one for the Administrator; for anyone else the mounted ones (plan
+	// Rearchitecturation, Step 5: the registry entry's switch) they hold a role in.
 	async function visible_projects( account )
 	{
 		let projects = await store.ListProjects();
@@ -228,7 +230,7 @@ function Operations( Context )
 		{
 			return projects;
 		}
-		return projects.filter( function ( project ) { return !!ROLES.RoleOf( project, account.Id ); } );
+		return projects.filter( function ( project ) { return project.Mounted === true && !!ROLES.RoleOf( project, account.Id ); } );
 	}
 
 
@@ -1122,6 +1124,38 @@ function Operations( Context )
 		{
 			let projects = await visible_projects( participant );
 			return { Projects: await present_projects( projects, participant ) };
+		},
+	} );
+
+
+	// Mount and unmount (plan Rearchitecturation, Step 5): the registry entry's switch, the Administrator's; an unmounted
+	// project is the Administrator's alone, every other account sees the mounted ones.
+	define( {
+		Name: 'mount_project',
+		Method: 'PUT',
+		Path: '/projects/:pid/mount',
+		Description: 'Mounts or unmounts a project on this Server Host ({ Mounted: true | false }); the Administrator\'s. An unmounted project is read and written by the Administrator alone; every other account sees the mounted ones only.',
+		Parameters: {
+			Project: { Type: 'string', Required: true, Description: 'the project\'s id' },
+			Mounted: { Type: 'boolean', Required: true },
+		},
+		Perform: async function ( participant, args )
+		{
+			if ( !is_admin( participant ) )
+			{
+				refuse( 403, 'the Administrator\'s' );
+			}
+			if ( typeof args.Mounted !== 'boolean' )
+			{
+				refuse( 400, 'Mounted must be true or false' );
+			}
+			let project = await store.SetMounted( string_of( args.Project ), args.Mounted );
+			if ( !project )
+			{
+				refuse( 404, 'no such project' );
+			}
+			events.Send( { Kind: 'projects', Project: project.Id } );
+			return { Project: { Id: project.Id, Name: project.Name, Mounted: project.Mounted } };
 		},
 	} );
 

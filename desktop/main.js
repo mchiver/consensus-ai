@@ -13,7 +13,10 @@
 // Step 3: the window's server is the sidecar (src/Sidecar.js): its port hashed from the folder, its address in the
 // folder's .consensus/~sidecar.json; a folder already open in another window is not opened again: that window is
 // brought to the front (the sidecar's POST /api/desktop/activate, answered here) and a launch on it exits, as VS Code
-// activates the window that has the folder.
+// activates the window that has the folder. Step 5: the Project menu starts the Server Host (`consensus serve`,
+// detached, over the same config folder, its log in <config>/~logs/; desktop/Host.js), opens its page and stops it; a
+// Host already running is found by its port; Open folder on a folder the Host's registry lists as mounted, while the
+// Host runs, connects the window to the Host's project instead of opening the folder.
 // Plan UI Components, Step 5: the window has no frame of its own: Electron draws the window buttons over the page's
 // title bar (titleBarStyle hidden with titleBarOverlay; the page sends the bar's colours and height over the chrome
 // message, so the buttons follow the palette), the bar is the drag region, and the native menu is not shown; it is
@@ -28,6 +31,7 @@ const CHILD_PROCESS = require( 'child_process' );
 const ELECTRON = require( 'electron' );
 const SETTINGS = require( './Settings.js' );
 const PROJECTS = require( './Projects.js' );
+const HOST = require( './Host.js' );
 const START = require( '../src/Start.js' );
 const PAGE = require( './Page.js' );
 const SERVER = require( '../src/Server.js' );
@@ -49,6 +53,7 @@ let opened = null;		// the window's project: { Kind: 'folder', Path, Project: { 
 let page = null;
 let window = null;
 let reason = null;		// why the project asked for could not open, for the chooser
+let host_status = null;	// the Server Host's { Running, Url, Pid, Started, Ours } as last seen (plan Rearchitecturation, Step 5)
 let closing = false;
 const CLOSE_ANSWER_WAIT = 3000;		// the page's answer to a close, before the window closes anyway
 
@@ -182,8 +187,9 @@ function project_info()
 	return {
 		Id: opened.Project.Id,
 		Name: opened.Project.Name,
-		Path: ( opened.Kind === 'folder' ) ? opened.Path : null,
+		Path: ( opened.Kind === 'folder' || opened.Host.Routed ) ? opened.Path : null,
 		Host: ( opened.Kind === 'host' ) ? opened.Host.Name : null,
+		Routed: !!( opened.Kind === 'host' && opened.Host.Routed ),		// a mounted folder served by the Server Host (plan Rearchitecturation, Step 5)
 		Key: PROJECTS.Key( opened ),
 	};
 }
@@ -208,6 +214,26 @@ async function open_folder_here( Folder )
 		return { Error: 'this window has a project open: open another in a new window' };
 	}
 	let folder = PROJECTS.Normalize( Folder );
+	// A folder the Server Host serves (plan Rearchitecturation, Step 5): the window connects to the Host's project.
+	let routed = null;
+	try
+	{
+		routed = await HOST.Routed( config_folder(), folder );
+	}
+	catch ( error )
+	{
+		routed = null;
+	}
+	if ( routed )
+	{
+		opened = { Kind: 'host', Host: { Name: HOST_NAME, Url: routed.Url, Project: routed.Project.Id, Routed: true }, Project: routed.Project, Path: folder };
+		if ( SETTINGS.Opened( desktop, folder ) )
+		{
+			save_settings();
+		}
+		console.log( 'folder ' + folder + ' is mounted on the Server Host at ' + routed.Url + ': connected to its project ' + routed.Project.Name );
+		return { Ok: true, Project: project_info() };
+	}
 	try
 	{
 		// the Host's file read-only (plan Rearchitecturation, Step 4): its connections and tasks read, never written here
@@ -349,6 +375,7 @@ function show_connect()
 		window.loadURL( page.Url + '/connect.html' );
 	}
 	build_menu();
+	refresh_host_menu();
 }
 
 
@@ -360,6 +387,7 @@ function show_page()
 		window.loadURL( page.Url + '/' );
 	}
 	build_menu();
+	refresh_host_menu();
 }
 
 
@@ -575,10 +603,13 @@ function build_menu()
 			submenu: [
 				{ label: 'New window', accelerator: 'CmdOrCtrl+N', click: function () { new_window(); } },
 				{ label: 'Open folder in new window…', accelerator: 'CmdOrCtrl+Shift+O', click: function () { open_folder_window(); } },
+				{ type: 'separator' },
+			].concat( host_items(), [
+				{ type: 'separator' },
 				{ label: 'Reload', accelerator: 'CmdOrCtrl+R', click: function () { if ( window ) { window.webContents.reload(); } } },
 				{ type: 'separator' },
 				{ role: 'quit' },
-			],
+			] ),
 		},
 		{
 			label: 'View',
@@ -593,6 +624,105 @@ function build_menu()
 		},
 	];
 	ELECTRON.Menu.setApplicationMenu( ELECTRON.Menu.buildFromTemplate( template ) );
+}
+
+
+//---------------------------------------------------------------------
+// The Server Host from the Desktop (plan Rearchitecturation, Step 5): Start the Server Host runs `consensus serve`
+// detached over the same config folder (a Personal license starts it with Scope Local; Public is Step 6's), Open the
+// Server Host opens its page in the system browser while it runs, Stop ends the one this machine's file names; a Host
+// started any other way is found by its port and shown as running, not stoppable from here.
+
+const HOST_NAME = 'Server Host';
+const HOST_START_WAIT = 15000;
+
+
+function config_folder()
+{
+	return ( options && options.Config ) ? options.Config : SERVER.DEFAULT_CONFIG;
+}
+
+
+async function host_now()
+{
+	try
+	{
+		host_status = await HOST.Status( config_folder() );
+	}
+	catch ( error )
+	{
+		host_status = { Running: false, Url: null, Pid: null, Started: null, Ours: false, Error: error.message };
+	}
+	return host_status;
+}
+
+
+// The Host started as the command line would (from the checkout, electron takes the app folder; installed, the
+// executable is the app), then waited for; answers the status.
+async function start_host()
+{
+	let leading = ELECTRON.app.isPackaged ? [] : [ ELECTRON.app.getAppPath() ];
+	let started = HOST.Start( { Config: config_folder(), Command: process.execPath, Arguments: leading } );
+	console.log( 'Server Host started (pid ' + started.Pid + '), its log in ' + started.Log );
+	let status = await HOST.WaitFor( config_folder(), null, HOST_START_WAIT );
+	host_status = status;
+	build_menu();
+	return Object.assign( { Log: started.Log }, status, status.Running ? {} : { Error: 'the Server Host did not answer within ' + ( HOST_START_WAIT / 1000 ) + ' seconds: see ' + started.Log } );
+}
+
+
+async function stop_host()
+{
+	let stopped = HOST.Stop( config_folder() );
+	if ( stopped.Stopped )
+	{
+		await new Promise( function ( resolve ) { setTimeout( resolve, 500 ); } );
+	}
+	let status = await host_now();
+	build_menu();
+	return Object.assign( {}, status, stopped.Error ? { Error: stopped.Error } : {} );
+}
+
+
+function open_host()
+{
+	if ( host_status && host_status.Running && host_status.Url )
+	{
+		ELECTRON.shell.openExternal( host_status.Url + '/' );
+		return { Ok: true };
+	}
+	return { Error: 'the Server Host is not running' };
+}
+
+
+// The Project menu's Host items, from the status as last seen; the status is looked up again after the menu is built.
+function host_items()
+{
+	let items = [];
+	if ( host_status && host_status.Running )
+	{
+		items.push( { label: 'Open the Server Host', click: function () { open_host(); } } );
+		items.push( { label: 'Stop the Server Host', enabled: !!host_status.Ours, click: function () { stop_host(); } } );
+	}
+	else
+	{
+		items.push( { label: 'Start the Server Host', click: function () { start_host(); } } );
+	}
+	return items;
+}
+
+
+// The status refreshed and the menu rebuilt when it changed; called once a window shows.
+function refresh_host_menu()
+{
+	let before = JSON.stringify( host_status );
+	host_now().then( function ()
+	{
+		if ( JSON.stringify( host_status ) !== before )
+		{
+			build_menu();
+		}
+	} );
 }
 
 
@@ -833,6 +963,27 @@ function attach_handlers()
 	{
 		ELECTRON.app.quit();
 		return {};
+	} );
+
+	// The Server Host from the page's menu and the chooser (plan Rearchitecturation, Step 5).
+	ELECTRON.ipcMain.handle( 'host-status', function ()
+	{
+		return host_now();
+	} );
+
+	ELECTRON.ipcMain.handle( 'host-start', function ()
+	{
+		return start_host();
+	} );
+
+	ELECTRON.ipcMain.handle( 'host-stop', function ()
+	{
+		return stop_host();
+	} );
+
+	ELECTRON.ipcMain.handle( 'host-open', function ()
+	{
+		return open_host();
 	} );
 
 	// The title bar's colours and height, from the page once its bar is drawn and after every change of theme or size

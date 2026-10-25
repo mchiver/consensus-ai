@@ -24,4 +24,4 @@ EXPOSE 3500
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 	CMD wget -q -O /dev/null http://127.0.0.1:3500/api/clerk || exit 1
 
-CMD [ "node", "bin/consensus.js", "--config", "/data", "--scope", "public", "--port", "3500", "--headless" ]
+CMD [ "node", "bin/consensus.js", "serve", "--config", "/data", "--scope", "public", "--port", "3500", "--headless" ]

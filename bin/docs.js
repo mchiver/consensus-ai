@@ -409,6 +409,7 @@ async function demo_project( Url, Folder, Log )
 	let maria = ( await api( Url, 'POST', '/api/users', { Type: 'user', Login: 'maria', Display: 'Maria', Email: 'maria@example.com' } ) ).User;
 	let sam = ( await api( Url, 'POST', '/api/users', { Type: 'user', Login: 'sam', Display: 'Sam', Email: 'sam@example.com' } ) ).User;
 	await api( Url, 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ maria.Id ], Watchers: [ sam.Id ] } );
+	await api( Url, 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: true } );		// mounted for the accounts (plan Rearchitecturation, Step 5)
 	let owner = ( await api( Url, 'GET', '/api/users' ) ).Users.find( function ( One ) { return One.Type === 'owner'; } );
 	await api( Url, 'POST', '/api/users/' + owner.Id + '/tokens', { Name: 'laptop-agent' } );
 	return { Id: project.Id, Context: project.Context.Id || project.Context, Plans: plans, Owner: owner.Id };

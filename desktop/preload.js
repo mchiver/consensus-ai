@@ -66,4 +66,10 @@ ELECTRON.contextBridge.exposeInMainWorld( 'Desktop', {
 	OpenFolderWindow: function () { return invoke( 'open-folder-window' ); },
 	OpenRecent: function ( Path ) { return invoke( 'open-recent', Path ); },
 	Quit: function () { return invoke( 'quit' ); },
+	// The Server Host (plan Rearchitecturation, Step 5): its status { Running, Url, Ours }, started detached, stopped,
+	// its page opened in the system browser.
+	HostStatus: function () { return invoke( 'host-status' ); },
+	StartHost: function () { return invoke( 'host-start' ); },
+	StopHost: function () { return invoke( 'host-stop' ); },
+	OpenHost: function () { return invoke( 'host-open' ); },
 } );

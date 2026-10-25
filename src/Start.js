@@ -195,9 +195,20 @@ async function Lines( Running )
 		}
 		return lines;
 	}
+	let unmounted = 0;
 	for ( let project of await Running.Store.ListProjects() )
 	{
-		lines.push( 'project ' + project.Name + ' at ' + project.Path );
+		lines.push( 'project ' + project.Name + ' at ' + project.Path + ( project.Mounted === true ? '' : ' (unmounted)' ) );
+		unmounted += ( project.Mounted === true ) ? 0 : 1;
+	}
+	// The Host serves accounts the mounted projects alone (plan Rearchitecturation, Step 5); the Administrator mounts.
+	if ( Running.Server && unmounted > 0 )
+	{
+		lines.push( unmounted + ( unmounted === 1 ? ' project is' : ' projects are' ) + ' unmounted: accounts see mounted projects alone; the Administrator mounts a project in its menu on the Host\'s page' );
+	}
+	if ( Running.HostFile )
+	{
+		lines.push( 'host address in ' + Running.HostFile );
 	}
 	return lines;
 }

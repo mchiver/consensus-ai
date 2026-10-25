@@ -265,6 +265,11 @@ function Attach( App, Context )
 		{
 			throw new OPERATIONS.Refusal( 404, ( rule.Source === 'body' || rule.Source === 'query' ) ? 'a Project is needed' : 'no such project' );
 		}
+		// An unmounted project (plan Rearchitecturation, Step 5) is the Administrator's alone: to anyone else it is not there.
+		if ( project.Mounted !== true && !account.Admin )
+		{
+			throw new OPERATIONS.Refusal( 404, 'no such project' );
+		}
 		let role = ROLES.RoleOf( project, account.Id );
 		if ( rule.Action === 'roles' && account.Admin )
 		{

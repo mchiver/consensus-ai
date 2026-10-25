@@ -37,7 +37,14 @@ project is open, `<folder>/.consensus/~sidecar.json` holds `{ Url, Port, Pid, St
 removed at a clean exit, a stale file (its Pid gone) overwritten. A folder already open in a running sidecar is not
 opened again: `consensus <folder>` asks that sidecar to bring its window to the front (`POST /api/desktop/activate`,
 answered by a Desktop's sidecar alone), prints its address and exits. `consensus mcp <folder>` is the MCP shim over a
-folder's sidecar (below).
+folder's sidecar (below). The **Server Host** (plan Rearchitecturation, Step 5) serves accounts the **mounted** projects
+alone: the registry entry's `Mounted` switch, set with `PUT /api/projects/:pid/mount { Mounted }` (the Administrator's;
+Mount and Unmount in the project's menu on the Host's page, an unmounted project marked there), sends `{ Kind: "projects" }`;
+an unmounted project is read and written by the Administrator alone, and to anyone else it is not there, in the lists,
+the tree and every route (404). A project registered on the Host starts unmounted, as do the entries of a server
+upgraded to this version, so a Host serves nothing to accounts until the Administrator mounts; the start log marks each
+unmounted project and counts them. While it runs the Host writes `<config>/~host.json` (`{ Url, Port, Pid, Started }`,
+`src/Host.js`), removed at a clean exit, so the Desktop finds it and can stop the one it started.
 It prints its address and scope, the config folder, the settings file and the projects loaded, and says that it
 opens no window: this form never does. Open `http://127.0.0.1:3500/` in a browser, or run the desktop (below).
 
@@ -288,7 +295,14 @@ that project's tree; that server is the sidecar (Step 3, `src/Sidecar.js`: the p
 again: that window is brought to the front (`POST /api/desktop/activate`, answered by the sidecar of a window) and a
 launch on the folder exits, as VS Code activates the window that has the folder; the chooser's Open folder and Recent
 do the same, the chooser saying so; the window's server reads the Server Host's consensus.json read-only for the
-connections and tasks (Step 4, the Settings section above) and the runs it starts are its own; with `--connect <host name>` it opens a saved Host project (desktop.json's Hosts) as a **thin
+connections and tasks (Step 4, the Settings section above) and the runs it starts are its own; the Project menu and the
+page's menu start the **Server Host** (Step 5, `desktop/Host.js`): `consensus serve` detached over the same config
+folder with Scope Local (Public is Step 6's), its log in `<config>/~logs/host-<stamp>.log`, outliving the window; while
+it runs the items read Open the Server Host (its page in the system browser) and Stop the Server Host (the one this
+machine's `~host.json` names; a Host started any other way is found by its port and shown as running, not stoppable);
+Open folder on a folder the Host's registry lists as mounted, while the Host runs, connects the window to the Host's
+project instead of opening the folder (Routed on the window's project, the root named Server Host), and a plain project
+when the Host is not running; with `--connect <host name>` it opens a saved Host project (desktop.json's Hosts) as a **thin
 client**, the page pointed at the Host's API through the app's own origin, signed in as the person or the owner over
 localhost on a Local Host, writing nothing locally; with neither it shows the **chooser**: **Recent projects** (Open,
 Forget), **Open folder…** (the folder picker), **New project** (a name and a parent folder; the folder is made
@@ -531,7 +545,8 @@ folder, which create in it.
 
 Layout: `desktop/main.js` the main process, `desktop/preload.js` its bridge, `desktop/Settings.js` the desktop's
 own file, desktop.json, `desktop/Page.js` the server for the page and the
-chooser (`desktop/page/connect.html`, `connect.js`, `connect.css`), `desktop/Projects.js` the chooser's work without
+chooser (`desktop/page/connect.html`, `connect.js`, `connect.css`), `desktop/Host.js` the Server Host from the Desktop
+(Start detached, Status, Stop, Routed: plan Rearchitecturation, Step 5), `desktop/Projects.js` the chooser's work without
 Electron; the runs are the server's:
 `src/Llms.js` the connections, `src/Runner.js` the package and the start of a run over the store,
 `src/Runs.js` the runs and their records, `src/Package.js` the one-shot prompt, `src/Llm.js` a connection's
@@ -622,6 +637,7 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 	src/Start.js          the start module both entry points share: the arguments, Run, the lines
 	src/Server.js         Start( { Config, Port, Scope, Project, Activate } ); a project's server is the sidecar
 	src/Sidecar.js        the sidecar's port (hashed from the folder into 3600 to 3699), its address file and Activate
+	src/Host.js           the Server Host's address file (<config>/~host.json), Probe and Status (plan Rearchitecturation, Step 5)
 	src/Api.js            the routes
 	src/Instructions.js   GET /instructions: the agent guide with This server first
 	src/Operations.js     every operation defined once (plan MCP Server): name, description, parameters, action, the function; Route and Definition for a client

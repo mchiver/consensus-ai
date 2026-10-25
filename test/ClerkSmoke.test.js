@@ -299,6 +299,7 @@ TEST( 'a Watcher and a Member (plan User Management, Step 5): as a Watcher the p
 		ASSERT.equal( made.Status, 201, JSON.stringify( made.Body ).slice( 0, 200 ) );
 		let person = made.Body.User;
 		ASSERT.equal( ( await json( 'PUT', running.Url + '/api/projects/' + project.Id + '/roles', { Watchers: [ person.Id ] }, as_owner ) ).Status, 200 );
+		ASSERT.equal( ( await json( 'PUT', running.Url + '/api/projects/' + project.Id + '/mount', { Mounted: true }, as_owner ) ).Status, 200 );		// mounted for the accounts (plan Rearchitecturation, Step 5)
 		// The Watcher: signed in, the project in the tree, the plan open, the buttons held, a comment refused.
 		browser = await CDP.StartBrowser();
 		let page = await browser.OpenPage( 'http://localhost:' + running.Address.Port + '/' );

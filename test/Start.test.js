@@ -69,13 +69,18 @@ TEST( 'Run starts the server from the config folder and says where; Scope None s
 	let config = temporary_folder();
 	let lines = [];
 	let running = await START.Run( { Config: config, Port: 0 }, function ( line ) { lines.push( line ); } );
-	ASSERT.equal( lines.length, 4 );
+	ASSERT.equal( lines.length, 6 );
 	ASSERT.equal( lines[ 0 ], 'Consensus at ' + running.Url + '/ (Scope Local, listening on 127.0.0.1)' );
 	ASSERT.equal( lines[ 1 ], 'config folder ' + running.Store.Folder );
 	ASSERT.equal( lines[ 2 ], 'settings written to ' + PATH.join( config, 'consensus.json' ) );
-	ASSERT.equal( lines[ 3 ], 'project Default at ' + PATH.join( config, 'projects', 'Default' ) );
+	// a registered project starts unmounted and the Host says how many are (plan Rearchitecturation, Step 5), and where its address file is
+	ASSERT.equal( lines[ 3 ], 'project Default at ' + PATH.join( config, 'projects', 'Default' ) + ' (unmounted)' );
+	ASSERT.equal( lines[ 4 ], '1 project is unmounted: accounts see mounted projects alone; the Administrator mounts a project in its menu on the Host\'s page' );
+	ASSERT.equal( lines[ 5 ], 'host address in ' + PATH.join( config, '~host.json' ) );
+	ASSERT.deepEqual( Object.keys( JSON.parse( FS.readFileSync( PATH.join( config, '~host.json' ), 'utf8' ) ) ).sort(), [ 'Pid', 'Port', 'Started', 'Url' ] );
 	ASSERT.equal( ( await fetch( running.Url + '/api/me' ) ).status, 200 );
 	await running.Close();
+	ASSERT.equal( FS.existsSync( PATH.join( config, '~host.json' ) ), false, 'the Host\'s address file goes at Close' );
 
 	lines = [];
 	let everywhere = await START.Run( { Config: config, Port: 0, Scope: 'Public' }, function ( line ) { lines.push( line ); } );
@@ -127,8 +132,9 @@ TEST( 'a project folder on the command line: its .consensus made when missing, t
 	lines = [];
 	let plain = await START.Run( { Config: config, Port: 0 }, function ( line ) { lines.push( line ); } );
 	ASSERT.deepEqual( ( await plain.Store.ListProjects() ).map( function ( project ) { return project.Name; } ), [ 'tic-tac-toe', 'Default' ] );
-	ASSERT.ok( lines.includes( 'project tic-tac-toe at ' + folder ) );
-	ASSERT.ok( lines.includes( 'project Default at ' + PATH.join( config, 'projects', 'Default' ) ) );
+	ASSERT.ok( lines.includes( 'project tic-tac-toe at ' + folder + ' (unmounted)' ) );
+	ASSERT.ok( lines.includes( 'project Default at ' + PATH.join( config, 'projects', 'Default' ) + ' (unmounted)' ) );
+	ASSERT.ok( lines.includes( '2 projects are unmounted: accounts see mounted projects alone; the Administrator mounts a project in its menu on the Host\'s page' ), lines.join( '\n' ) );
 	await plain.Close();
 	await ASSERT.rejects( START.Run( { Config: config, Port: 0, Project: PATH.join( folder, 'nowhere' ) } ), /no such folder/ );
 } );

@@ -2001,3 +2001,34 @@ TEST( 'Clerk on a Local server (plan User Management, Step 4; plan Clerk, Step 5
 	ASSERT.match( await page.Evaluate( text_of( '.root-head .me' ) ), /^you are User \(owner\)/ );
 	ASSERT.deepEqual( page.Errors, [] );
 } );
+
+
+//---------------------------------------------------------------------
+// The Host's page (plan Rearchitecturation, Step 5): the array of project views, the Mount switch
+
+TEST( 'the Host\'s page (plan Rearchitecturation, Step 5): one project-view per registered project in the one sidebar, each collapsible; a new project is marked unmounted for the Administrator, Mount in its menu lifts the mark and Unmount brings it back', async function ()
+{
+	let before = ( await api( 'GET', '/api/projects' ) ).Projects.length;
+	let made = ( await api( 'POST', '/api/projects', { Name: 'Mounting' } ) ).Project;
+	ASSERT.equal( made.Mounted, false );
+	let row = '.project[data-project="' + made.Id + '"]';
+	await page.WaitFor( count_of( row ) + ' === 1' );
+	// the array: one project view per project, none the single kind, each with its head
+	ASSERT.equal( await page.Evaluate( count_of( 'project-view.project' ) ), before + 1 );
+	ASSERT.equal( await page.Evaluate( count_of( '.project.single' ) ), 0 );
+	ASSERT.equal( await page.Evaluate( count_of( 'project-view.project > .project-head' ) ), before + 1 );
+	// the mark: the owner of a Local server is its Administrator
+	ASSERT.equal( await page.Evaluate( text_of( row + ' .project-head .unmounted' ) ), 'unmounted' );
+	await menu_pick( row + ' > .project-head', 'Mount' );
+	await page.WaitFor( count_of( row + ' .project-head .unmounted' ) + ' === 0' );
+	ASSERT.equal( ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === made.Id; } ).Mounted, true );
+	await menu_pick( row + ' > .project-head', 'Unmount' );
+	await page.WaitFor( count_of( row + ' .project-head .unmounted' ) + ' === 1' );
+	ASSERT.equal( ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === made.Id; } ).Mounted, false );
+	// collapsible: the head folds the project and opens it again
+	await page.Click( row + ' > .project-head' );
+	await page.WaitFor( count_of( row + '.open' ) + ' === 1' );
+	await page.Click( row + ' > .project-head' );
+	await page.WaitFor( count_of( row + '.open' ) + ' === 0' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );

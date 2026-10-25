@@ -73,6 +73,7 @@ const ROUTES = [
 	[ 'POST', '/users/:id/tokens', 'mint_token' ],
 	[ 'DELETE', '/users/:id/tokens/:name', 'revoke_token' ],
 	[ 'GET', '/users/:id/activity', 'activity' ],
+	[ 'PUT', '/projects/:pid/mount', 'mount_project' ],	// plan Rearchitecturation, Step 5
 	[ 'PUT', '/projects/:pid/roles', 'set_roles' ],
 ];
 

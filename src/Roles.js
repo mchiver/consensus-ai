@@ -63,6 +63,7 @@ const RULES = [
 	[ 'POST', /^\/users$/, 'admin', null ],
 	[ 'DELETE', /^\/users\/([^/]+)$/, 'admin', null ],
 	[ 'GET|PUT|POST|DELETE', /^\/users\/([^/]+)(\/.*)?$/, 'self', null ],
+	[ 'PUT', /^\/projects\/([^/]+)\/mount$/, 'admin', null ],	// the registry entry's switch (plan Rearchitecturation, Step 5)
 	[ 'PUT', /^\/projects\/([^/]+)\/roles$/, 'roles', 'param' ],
 	[ 'GET', /^\/projects\/([^/]+)\/export$/, 'read', 'param' ],
 	[ 'PUT|POST|DELETE', /^\/projects\/([^/]+)(\/.*)?$/, 'manage', 'param' ],

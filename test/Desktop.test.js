@@ -14,6 +14,8 @@ const SETTINGS = require( '../desktop/Settings.js' );
 const PAGE = require( '../desktop/Page.js' );
 const PROJECTS = require( '../desktop/Projects.js' );
 const SERVER = require( '../src/Server.js' );
+const HOST = require( '../desktop/Host.js' );		// plan Rearchitecturation, Step 5: the Server Host from the Desktop
+const NET = require( 'net' );
 
 const VERSION = require( '../package.json' ).version;
 
@@ -390,4 +392,72 @@ TEST( 'the window\'s server reads the Host\'s consensus.json read-only: its conn
 		await bare.Close();
 	}
 	ASSERT.equal( FS.existsSync( PATH.join( empty, 'consensus.json' ) ), false );
+} );
+
+
+//---------------------------------------------------------------------
+// The Server Host from the Desktop (plan Rearchitecturation, Step 5)
+
+async function free_port()
+{
+	let holder = NET.createServer();
+	await new Promise( function ( resolve, reject ) { holder.once( 'error', reject ); holder.listen( 0, '127.0.0.1', resolve ); } );
+	let port = holder.address().port;
+	await new Promise( function ( resolve ) { holder.close( resolve ); } );
+	return port;
+}
+
+
+TEST( 'the Server Host from the Desktop: Start runs consensus serve detached over a temporary folder with its log in ~logs, Status finds it by its file and by its port, a mounted folder is routed through it and an unmounted one is not, Stop ends it', async function ()
+{
+	let config = temporary_folder( 'desktop-host-' );
+	let port = await free_port();
+	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( { Port: port, Owner: { Name: 'user', Display: 'User' } } ) );
+	let before = await HOST.Status( config );
+	ASSERT.deepEqual( before, { Running: false, Url: 'http://127.0.0.1:' + port, Pid: null, Started: null, Ours: false } );
+	ASSERT.equal( await HOST.HostPort( config ), port );
+	let folder = PATH.join( temporary_folder( 'desktop-host-project-' ), 'served' );
+	FS.mkdirSync( folder );
+	ASSERT.equal( await HOST.Routed( config, folder ), null, 'no Host, nothing routed' );
+	let started = HOST.Start( { Config: config, Command: process.execPath, Arguments: [ PATH.join( __dirname, '..', 'bin', 'consensus.js' ) ] } );
+	ASSERT.match( started.Log, /[\\/]~logs[\\/]host-.*\.log$/ );
+	ASSERT.ok( Number.isInteger( started.Pid ) );
+	try
+	{
+		let status = await HOST.WaitFor( config, port, 20000 );
+		ASSERT.equal( status.Running, true, FS.existsSync( started.Log ) ? FS.readFileSync( started.Log, 'utf8' ) : 'no log' );
+		ASSERT.deepEqual( [ status.Url, status.Pid, status.Ours ], [ 'http://127.0.0.1:' + port, started.Pid, true ] );
+		ASSERT.ok( FS.existsSync( PATH.join( config, '~host.json' ) ) );
+		ASSERT.match( FS.readFileSync( started.Log, 'utf8' ), /Consensus at http:\/\/127\.0\.0\.1:/ );
+		// found by its port alone when the file is not this machine's: the file set aside
+		FS.renameSync( PATH.join( config, '~host.json' ), PATH.join( config, '~host.json.aside' ) );
+		let by_port = await HOST.Status( config );
+		ASSERT.deepEqual( [ by_port.Running, by_port.Url, by_port.Ours ], [ true, 'http://127.0.0.1:' + port, false ] );
+		FS.renameSync( PATH.join( config, '~host.json.aside' ), PATH.join( config, '~host.json' ) );
+		// the folder registered on the Host: unmounted, not routed; mounted, routed to the Host's project
+		let headers = { 'Content-Type': 'application/json', 'X-Consensus-Service': 'Test' };
+		let made = await ( await fetch( status.Url + '/api/projects', { method: 'POST', headers: headers, body: JSON.stringify( { Name: 'served', Path: folder } ) } ) ).json();
+		ASSERT.equal( made.Project.Mounted, false );
+		ASSERT.equal( await HOST.Routed( config, folder ), null, 'unmounted: opened as a plain project' );
+		let mounted = await ( await fetch( status.Url + '/api/projects/' + made.Project.Id + '/mount', { method: 'PUT', headers: headers, body: JSON.stringify( { Mounted: true } ) } ) ).json();
+		ASSERT.equal( mounted.Project.Mounted, true );
+		let routed = await HOST.Routed( config, folder.toUpperCase() );
+		ASSERT.deepEqual( routed, { Url: status.Url, Project: { Id: made.Project.Id, Name: 'served' } } );
+		ASSERT.equal( await HOST.Routed( config, PATH.join( folder, '..', 'elsewhere' ) ), null );
+	}
+	finally
+	{
+		let stopped = HOST.Stop( config );
+		ASSERT.equal( stopped.Stopped, true, stopped.Error );
+		let waited = 0;
+		while ( waited < 10000 && ( await HOST.Status( config, port ) ).Running )
+		{
+			await new Promise( function ( resolve ) { setTimeout( resolve, 200 ); } );
+			waited += 200;
+		}
+	}
+	let after = await HOST.Status( config, port );
+	ASSERT.equal( after.Running, false );
+	ASSERT.deepEqual( HOST.Stop( config ), { Stopped: false, Error: 'no Server Host of this machine\'s is running' } );
+	ASSERT.equal( await HOST.Routed( config, folder ), null, 'the Host gone, the folder opens as a plain project' );
 } );

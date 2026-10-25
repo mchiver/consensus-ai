@@ -39,6 +39,7 @@ const USERS = require( './Users.js' );
 const TASKS = require( './Tasks.js' );
 const CLERK = require( './Clerk.js' );
 const SIDECAR = require( './Sidecar.js' );
+const HOST = require( './Host.js' );
 
 const DEFAULT_PORT = 3500;
 const REREAD_DELAY = 300;		// the debounce on the Host's file changing (plan Rearchitecturation, Step 4)
@@ -274,6 +275,13 @@ async function Start( Options )
 		let record = { Url: url, Port: address.port, Pid: process.pid, Started: new Date().toISOString(), Project: { Id: project.Id, Name: project.Name } };
 		sidecar = { Path: SIDECAR.Write( project.Path, record ), Record: record };
 	}
+	// The Host's address file (plan Rearchitecturation, Step 5): the Server Host, `consensus serve`, says where it is
+	// in <config>/~host.json while it runs, so the Desktop finds it and can stop the one it started.
+	let host_file = null;
+	if ( server && !project && !read_only )
+	{
+		host_file = HOST.Write( store.Folder, { Url: url, Port: address.port, Pid: process.pid, Started: new Date().toISOString() } );
+	}
 
 	async function Close()
 	{
@@ -286,6 +294,10 @@ async function Start( Options )
 		if ( sidecar )
 		{
 			SIDECAR.Remove( project.Path, process.pid );
+		}
+		if ( host_file )
+		{
+			HOST.Remove( store.Folder, process.pid );
 		}
 		await runs.Close();
 		events.Close();
@@ -309,6 +321,7 @@ async function Start( Options )
 		Sidecar: sidecar,
 		ReadOnly: read_only,
 		RereadSettings: RereadSettings,
+		HostFile: host_file,
 		Settings: settings,
 		Tokens: tokens,
 		Users: users,

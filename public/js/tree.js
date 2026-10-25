@@ -660,8 +660,38 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 
 	// Project: New Folder, New Draft, ---, Copy, Paste, Rename, Export, Settings, LLM Instructions, Explain (plan LLM
 	// Tasks, Step 4: the project's conversation tab), ---, Delete.
+	// Mount and Unmount (plan Rearchitecturation, Step 5): the registry entry's switch on a Server Host, the
+	// Administrator's; an unmounted project is served to nobody else. The switch is in the project's menu, and
+	// project-view marks an unmounted project.
+	tree.SetMounted = async function ( project, mounted )
+	{
+		let root = root_of( project );
+		let answer = await State.Act( function () { return Client.Put( root, '/api/projects/' + encodeURIComponent( project.Id ) + '/mount', { Mounted: !!mounted } ); } );
+		if ( answer )
+		{
+			await Roots.LoadList( root );
+		}
+	};
+
+
+	function mount_action( project )
+	{
+		let root = root_of( project );
+		if ( !root || !root.Admin || root.Kind === 'local' )
+		{
+			return null;
+		}
+		if ( project.Mounted === true )
+		{
+			return action( 'Unmount', 'eye', function () { tree.SetMounted( project, false ); } );
+		}
+		return action( 'Mount', 'eye', function () { tree.SetMounted( project, true ); } );
+	}
+
+
 	function project_actions( project )
 	{
+		let mount = mount_action( project );
 		return [
 			action( 'New Folder', 'plus', create_in( 'folder', project ) ),
 			action( new_plan_label( project ), 'plus', create_in( 'plan', project ) ),
@@ -673,9 +703,10 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 			action( 'Settings', 'settings', function () { tree.OpenProjectSettings( project ); } ),
 			action( 'LLM Instructions', 'info', function () { tree.OpenInstructions( project ); } ),
 			action( 'Explain', 'eye', function () { $window.location.hash = Roots.HashFor( root_of( project ), '/x/' + encodeURIComponent( project.Id ) ); } ),
+		].concat( mount ? [ { Separator: true }, mount ] : [] ).concat( [
 			{ Separator: true },
 			action( 'Delete', 'trash', function () { tree.StartDelete( project, QUIET ); }, { Danger: true, Disabled: root_of( project ).Projects.length <= 1 || !only_context( project ) || ( project.Archive || [] ).length > 0 } ),
-		];
+		] );
 	}
 
 

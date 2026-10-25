@@ -1578,6 +1578,10 @@ TEST( 'users and roles (plan User Management, Step 3): accounts made by the Admi
 	ASSERT.deepEqual( project.Roles, { Owners: [], Members: [], Service: [], Watchers: [] } );
 	let plan = ( await call( 'POST', '/api/plans', { Title: 'Shared plan', Text: '# Shared plan\n\nA line to discuss.\n', Project: project.Id } ) ).Body.Plan;
 	let asked = ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: { Text: 'A line' }, Text: 'The owner asks.' } ) ).Body.Thread;
+	// unmounted (plan Rearchitecturation, Step 5): the project is the Administrator's alone, not there for anyone else
+	let unmounted = await call( 'GET', '/api/plans/' + plan.Id, undefined, ann_token );
+	ASSERT.deepEqual( [ unmounted.Status, unmounted.Body.Error ], [ 404, 'no such project' ] );
+	ASSERT.deepEqual( ( await call( 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: true } ) ).Body.Project, { Id: project.Id, Name: 'Shared', Mounted: true } );
 	let outside = await call( 'GET', '/api/plans/' + plan.Id, undefined, ann_token );
 	ASSERT.deepEqual( [ outside.Status, outside.Body.Error ], [ 403, 'no role in this project' ] );
 	let placed = await call( 'PUT', '/api/projects/' + project.Id + '/roles', { Watchers: [ ann.Id ], Members: [ bob.Id ], Service: [ bot.Id ] } );
@@ -1767,6 +1771,7 @@ TEST( 'Clerk (plan User Management, Step 4; plan Clerk, Step 5): the built-in ke
 		let bob = listed.find( function ( one ) { return one.Login === 'bob'; } );
 		let carl = listed.find( function ( one ) { return one.Login === 'carl'; } );
 		ASSERT.deepEqual( [ bob.Plan, carl.Plan ], [ 'User', null ] );
+		ASSERT.equal( ( await on( shared, 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: true }, ann ) ).Status, 200 );		// the Administrator mounts it (plan Rearchitecturation, Step 5)
 		ASSERT.equal( ( await on( shared, 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ bob.Id ] }, ann ) ).Status, 200 );
 		let refused = await on( shared, 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ bob.Id ], Owners: [ carl.Id ] }, ann );
 		ASSERT.deepEqual( [ refused.Status, refused.Body.Error, refused.Body.Plan ], [ 400, 'carl needs a User license to be in Owners', 'User' ] );
@@ -1897,4 +1902,47 @@ TEST( 'a project\'s server writes its address to the folder\'s .consensus/~sidec
 	{
 		await host.Close();
 	}
+} );
+
+
+//---------------------------------------------------------------------
+// Mounting (plan Rearchitecturation, Step 5)
+
+TEST( 'mount and unmount (plan Rearchitecturation, Step 5): the Administrator\'s switch on the registry entry; a Member sees and reads a project once it is mounted and loses it when unmounted, the Administrator alone keeps it; a new project starts unmounted; the projects event', async function ()
+{
+	let project = ( await call( 'POST', '/api/projects', { Name: 'Mountable' } ) ).Body.Project;
+	ASSERT.equal( project.Mounted, false, 'a new project starts unmounted' );
+	let plan = ( await call( 'POST', '/api/plans', { Title: 'Mounted plan', Text: '# Mounted plan\n', Project: project.Id } ) ).Body.Plan;
+	let mia = ( await call( 'POST', '/api/users', { Type: 'user', Login: 'mia', Display: 'Mia', Email: 'mia@example.com' } ) ).Body.User;
+	let mia_token = 'Bearer ' + ( await call( 'POST', '/api/users/' + mia.Id + '/tokens', { Name: 'laptop' } ) ).Body.Token;
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ mia.Id ] } ) ).Status, 200 );
+	// a Member of an unmounted project: not there for her
+	ASSERT.deepEqual( ( await call( 'GET', '/api/projects', undefined, mia_token ) ).Body.Projects.map( function ( one ) { return one.Id; } ), [] );
+	let hidden = await call( 'GET', '/api/plans/' + plan.Id, undefined, mia_token );
+	ASSERT.deepEqual( [ hidden.Status, hidden.Body.Error ], [ 404, 'no such project' ] );
+	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/text', { Text: '# Changed\n', Revision: 1 }, mia_token ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans', undefined, mia_token ) ).Body.Plans.some( function ( one ) { return one.Id === plan.Id; } ), false );
+	// the switch is the Administrator's, true or false
+	let refused = await call( 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: true }, mia_token );
+	ASSERT.deepEqual( [ refused.Status, refused.Body.Error ], [ 403, 'the Administrator\'s' ] );
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: 'yes' } ) ).Status, 400 );
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/prj-none/mount', { Mounted: true } ) ).Status, 404 );
+	let events = listen_events();
+	await new Promise( function ( resolve ) { setTimeout( resolve, 100 ); } );
+	let mounted = await call( 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: true } );
+	ASSERT.deepEqual( [ mounted.Status, mounted.Body.Project ], [ 200, { Id: project.Id, Name: 'Mountable', Mounted: true } ] );
+	await new Promise( function ( resolve ) { setTimeout( resolve, 200 ); } );
+	events.Stop();
+	ASSERT.match( events.Text(), /"Kind":"projects"/ );
+	ASSERT.equal( ( await call( 'GET', '/api/projects' ) ).Body.Projects.find( function ( one ) { return one.Id === project.Id; } ).Mounted, true );
+	// mounted: the Member reads and writes as her role allows
+	ASSERT.deepEqual( ( await call( 'GET', '/api/projects', undefined, mia_token ) ).Body.Projects.map( function ( one ) { return one.Id; } ), [ project.Id ] );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id, undefined, mia_token ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'A Member asks.' }, mia_token ) ).Status, 201 );
+	// unmounted again: gone for her, kept for the Administrator; the registry keeps the switch
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: false } ) ).Body.Project.Mounted, false );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id, undefined, mia_token ) ).Status, 404 );
+	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id ) ).Status, 200 );
+	let registry = JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).Projects;
+	ASSERT.equal( registry.find( function ( entry ) { return PATH.resolve( entry.Path ) === PATH.resolve( project.Path ); } ).Mounted, false );
 } );
