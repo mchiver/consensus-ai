@@ -261,10 +261,18 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	}
 
 
+	// The connections are edited where they are kept: not in the Desktop, which reads the Server Host's file (plan
+	// Rearchitecturation, Step 4), so New LLM, Rename and Delete leave its menus.
+	function edits_connections( root )
+	{
+		return is_owner( root ) && !root.ReadOnly;
+	}
+
+
 	function llm_actions( root, llm )
 	{
 		let actions = [ action( 'Open', 'eye', function () { $window.location.hash = Roots.HashFor( root, '/llm/' + encodeURIComponent( llm.Id ) ); } ) ];
-		if ( is_owner( root ) )
+		if ( edits_connections( root ) )
 		{
 			actions.push( action( 'Rename', 'pencil', function () { tree.StartRename( 'llm', root, llm, QUIET ); } ) );
 			actions.push( { Separator: true } );
@@ -283,7 +291,7 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 			tree.Renaming = null;
 			tree.Deleting = null;
 			tree.Creating = { Kind: 'llm', Name: '', Root: root.Key };
-		}, { Disabled: !is_owner( root ) } ) ];
+		}, { Disabled: !edits_connections( root ) } ) ];
 	}
 
 

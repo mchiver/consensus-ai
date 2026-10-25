@@ -40,6 +40,9 @@ const ROLES = require( './Roles.js' );
 const LLM = require( './Llm.js' );
 const REPORT = require( './Report.js' );
 const INSTRUCTIONS = require( './Instructions.js' );
+
+const CONNECTIONS_HOST_LINE = 'Connections are managed by the Server Host';		// plan Rearchitecturation, Step 4
+const SETTINGS_HOST_LINE = 'The settings are managed by the Server Host';
 const VERSION = require( '../package.json' ).version;
 
 const ACTIVITY_LIMIT = 200;	// the entries an account's activity page lists
@@ -477,7 +480,9 @@ function Operations( Context )
 		Perform: async function ( participant )
 		{
 			let account = ( users && participant.Id ) ? users.Public( users.Get( participant.Id ), false ) : null;
-			return { Me: PARTICIPANTS.Public( participant ), Account: account, Admin: is_admin( participant ), Roles: await roles_of( participant ), Participants: await speakers( null, [], participant ), States: states(), Version: VERSION, Server: settings.Name || null };
+			// ReadOnly and Host (plan Rearchitecturation, Step 4): the Desktop reads the Server Host's file, whose page is at Host.
+			let read_only = !!( store && store.ReadOnly );
+			return { Me: PARTICIPANTS.Public( participant ), Account: account, Admin: is_admin( participant ), Roles: await roles_of( participant ), Participants: await speakers( null, [], participant ), States: states(), Version: VERSION, Server: settings.Name || null, ReadOnly: read_only, Host: read_only ? 'http://127.0.0.1:' + ( settings.Port || 3500 ) : null };
 		},
 	} );
 
@@ -539,6 +544,7 @@ function Operations( Context )
 			{
 				refuse( 403, 'only the Administrator writes the settings' );
 			}
+			host_only( SETTINGS_HOST_LINE );
 			let body = args || {};
 			let clean = PARTICIPANTS.Clean( body.Settings || body );
 			// The Clerk section is the file's since 2026-10-20 (it left the Settings popup): a body without one keeps it.
@@ -2515,10 +2521,21 @@ function Operations( Context )
 	}
 
 
+	// The Desktop reads the Server Host's file and never writes it (plan Rearchitecturation, Step 4): a write is refused.
+	function host_only( line )
+	{
+		if ( store && store.ReadOnly )
+		{
+			refuse( 403, line || CONNECTIONS_HOST_LINE );
+		}
+	}
+
+
 	// A connection saved: the given fields over the record (a new one: over the defaults, with a new id),
 	// filled and checked with the rest; a new one goes to the end of the list.
 	async function save_llm( participant, given, existing )
 	{
+		host_only();
 		let filled = existing ? LLMS.Fill( Object.assign( {}, existing, given, { Id: existing.Id } ) ) : LLMS.Fill( Object.assign( {}, given, { Id: undefined } ) );
 		let kept = ( settings.Llms || [] ).filter( function ( one ) { return one.Id !== filled.Id; } );
 		let index = ( settings.Llms || [] ).findIndex( function ( one ) { return one.Id === filled.Id; } );
@@ -2651,6 +2668,7 @@ function Operations( Context )
 		Perform: async function ( participant, args )
 		{
 			owner_only( participant );
+			host_only();
 			let llm = llm_of( string_of( args.Id ) );
 			if ( llm_running( llm ) )
 			{

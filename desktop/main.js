@@ -210,7 +210,8 @@ async function open_folder_here( Folder )
 	let folder = PROJECTS.Normalize( Folder );
 	try
 	{
-		running = await START.Run( Object.assign( {}, options, { Project: folder, Activate: activate_window } ), console.log );
+		// the Host's file read-only (plan Rearchitecturation, Step 4): its connections and tasks read, never written here
+		running = await START.Run( Object.assign( {}, options, { Project: folder, Activate: activate_window, ReadOnly: true } ), console.log );
 	}
 	catch ( error )
 	{

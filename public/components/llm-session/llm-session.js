@@ -200,6 +200,28 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		};
 
 
+		// The Desktop reads the Server Host's file (plan Rearchitecturation, Step 4): the popups show a connection and
+		// save nothing; the Host's page is where it is edited (starting the Host from here is Step 5's).
+		$scope.HostManaged = function ()
+		{
+			return !!current_root().ReadOnly;
+		};
+
+		$scope.HostUrl = function ()
+		{
+			return current_root().Host || '';
+		};
+
+		$scope.OpenHost = function ()
+		{
+			let url = $scope.HostUrl();
+			if ( url )
+			{
+				$window.open( url, '_blank' );
+			}
+		};
+
+
 		$scope.MayRun = function ()
 		{
 			return !!current_root().Me;

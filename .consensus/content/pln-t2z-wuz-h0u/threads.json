@@ -31,5 +31,34 @@
 				"Text": "Run records could instead live with the project, in `.consensus/~runs/`, so a project carries its history and the Host's folder is the Host's alone. **Recommendation:** keep `~/.consensus/runs/` for now: the LLM page lists a connection's runs across projects, and moving them is a plan of its own. Resolve with no reply to take the recommendation."
 			}
 		]
+	},
+	{
+		"Id": "thr-acz-sai-abk",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T14:47:53.146Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T14:49:07.160Z",
+			"Revision": 1,
+			"RevisionId": "rev-9xi-7l4-vaa",
+			"Outcome": "Accepted by the owner: Step 4 built as logged; committed as Rearchitecturation Step 4: LLM connections and tasks in the Desktop; the Subplan back to Plan."
+		},
+		"Created": "2026-10-25T14:32:39.771Z",
+		"Replies": [
+			{
+				"Id": "rep-pz7-jlm-jij",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T14:32:39.771Z",
+				"Text": "**Build log, Step 4: LLM connections and tasks in the Desktop** (built by Claude Fable 5.1 as Claude-CLI, 2026-10-25; nothing committed).\n\n**What was built**\n\n- **Read from the Host's file** (`src/Server.js`): `Start( { ReadOnly: true } )` opens the config read-only (`Store.Open( …, { ReadOnly: true } )`, Step 1's): consensus.json is read for its Llms and Tasks and never written: no settings write at start (a missing file is the defaults in memory, `SettingsWritten` false), no `users.json` made, no CONSENSUS_ADMIN write, no registry write (the project's own `.consensus` is still made). The file's folder is watched (`fs.watch`, a 300 ms debounce) and `RereadSettings()` re-reads it: the connections filled (one left without an id keeps the id it had here, by Name, so the pages' ids hold) and checked with the tasks; a sound file replaces `settings.Llms` and `settings.Tasks` in place and sends the `llms` and `settings` events; one with problems, or none, leaves them as they were. The Desktop's `open_folder_here` passes `ReadOnly: true` (`src/Start.js` passes it through); the headless `consensus <folder>` stays read-write.\n- **Read-only on the page**: `/api/me` answers `ReadOnly` and `Host` (the Host's page, `http://127.0.0.1:<Port>` from the file's Port); `roots.js` keeps them on the root. The LLM page's Details and Packaging popups (`llm-session`) show the connection, hide Save and carry the line \"Connections are managed by the Server Host\" with a button **Open the Host's page** (the system browser; its title says to start the Host with `consensus serve` when it does not answer); Check and Preview still work. New LLM, Rename and Delete leave the Desktop's LLMs menus (`tree.js` `edits_connections`: the owner, and not read-only). The server refuses the writes too: `create_llm`, `update_llm` and `delete_llm` answer 403 \"Connections are managed by the Server Host\", `write_settings` 403 \"The settings are managed by the Server Host\" (`src/Operations.js` `host_only`). The tasks list is the file's; the project's own switches stay in project.json.\n- **Runs stay the Desktop's**: unchanged: the window's server starts a run in the project's folder with the connection as the file has it, and the record goes under `<config>/runs/` with its global id.\n- **The free tier** (`public/js/llm.js` `Reason`): in the Desktop, on a project of this machine (a root that is not a Host's), with no license at the User level, every task button is disabled with the reason \"a Personal license\"; a Host's project is the Host's affair. The tiers map onto the license kinds: Personal is the User plan, Professional the Host plan.\n\n**Decided during the build**\n\n- The Host's page button opens the page; starting the Host from the Desktop is Step 5's (there is no `consensus serve` to start yet).\n- New LLM stays in the LLMs heading's menu, disabled, rather than leaving an empty menu; Rename and Delete are gone from a connection's menu.\n- The watcher is on the folder, not the file: the Host writes consensus.json by a temporary file renamed into place, which a file watch loses.\n- A re-read keeps a connection's id by Name when the file has none, so the open LLM page and the project's chosen connection survive a hand edit.\n- The headless one-project server (`consensus <folder>`) keeps writing the registry as before; only the Desktop opens read-only.\n\n**Tests**\n\n- `test/Desktop.test.js`: the window's server over a prepared consensus.json read-only: the connections and tasks listed, `/api/me` with ReadOnly and Host, the four writes refused with the lines, the file byte-equal after, no users.json; a change in the file reaching `/api/llms` and `/api/tasks` and the events (`llms`, `settings`); a file with a problem kept out; a missing file the defaults, unwritten.\n- `test/Runs.test.js`: a read-only store's server runs the file's connection (an echo) on a plan in the project's folder, the run done, its record under `<config>/runs/`, consensus.json untouched.\n- Results: the non-browser suite 186 pass, 0 fail, 3 skipped (the Clerk smokes without keys); the browser UI test 44 pass; the Docs test 2 pass; npm run smoke SMOKE OK with 64 checks.\n\n**Docs**: the readme's Settings paragraph says where connections are edited and how the Desktop reads the file; its desktop section points there; `docs/guide/llm.md` says so for the desktop; the guide rebuilt.\n\nResolve to accept; I then apply this thread, commit as \"Rearchitecturation Step 4: LLM connections and tasks in the Desktop\" and set the Subplan to Plan. A reply means fix and report again."
+			}
+		]
 	}
 ]

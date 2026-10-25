@@ -16,7 +16,11 @@
 // with no --port its port is hashed from the folder into 3600 to 3699, stepped up while taken; it listens on 127.0.0.1
 // whatever the Scope says (None keeps the window's server and turns the sidecar off: no address file); while it runs,
 // <folder>/.consensus/~sidecar.json holds { Url, Port, Pid, Started, Project }, removed at Close; the option Activate
-// (a function, the Desktop's) answers POST /api/desktop/activate by bringing the window to the front.
+// (a function, the Desktop's) answers POST /api/desktop/activate by bringing the window to the front. Step 4: ReadOnly
+// (the Desktop's) opens the config read-only (Store.Open): consensus.json is the Server Host's, read for its Llms and
+// Tasks and never written (no settings, users or registry write; a missing file is the defaults in memory); it is
+// watched and re-read on a change (RereadSettings, a short debounce), the connections and tasks replaced in place and
+// told over the events; the connection and settings writes are refused in Operations.js with the Host's line.
 
 const PATH = require( 'path' );
 const OS = require( 'os' );
@@ -37,6 +41,7 @@ const CLERK = require( './Clerk.js' );
 const SIDECAR = require( './Sidecar.js' );
 
 const DEFAULT_PORT = 3500;
+const REREAD_DELAY = 300;		// the debounce on the Host's file changing (plan Rearchitecturation, Step 4)
 const DEFAULT_CONFIG = PATH.join( OS.homedir(), '.consensus' );
 const PUBLIC_FOLDER = PATH.join( __dirname, '..', 'public' );
 
@@ -45,14 +50,18 @@ async function Start( Options )
 {
 	let options = Options || {};
 
-	let store = STORE.Open( options.Config || options.Data || DEFAULT_CONFIG );
+	let read_only = !!options.ReadOnly;
+	let store = STORE.Open( options.Config || options.Data || DEFAULT_CONFIG, { ReadOnly: read_only } );
 	let settings = await store.ReadSettings();
 	let settings_written = false;
 	if ( !settings )
 	{
 		settings = PARTICIPANTS.DefaultSettings( DEFAULT_PORT, options.Scope );
-		await store.WriteSettings( settings );
-		settings_written = true;
+		if ( !read_only )
+		{
+			await store.WriteSettings( settings );
+			settings_written = true;
+		}
 	}
 	// The Tasks list made at the first start (Tasks.js), and the connections filled in.
 	let prepared = TASKS.Prepare( settings );
@@ -62,7 +71,7 @@ async function Start( Options )
 	}
 	let before = JSON.stringify( settings.Llms || [] );
 	settings.Llms = ( Array.isArray( settings.Llms ) ? settings.Llms : [] ).map( LLMS.Fill );
-	if ( prepared.length || JSON.stringify( settings.Llms ) !== before )
+	if ( ( prepared.length || JSON.stringify( settings.Llms ) !== before ) && !read_only )
 	{
 		await store.WriteSettings( settings );
 	}
@@ -78,13 +87,13 @@ async function Start( Options )
 	let project = store.Isolated() ? await store.ReadProject( store.Isolated() ) : null;
 	// The users (plan User Management, Step 3): the owner's record, made at the first start.
 	let users = USERS.Users( { Folder: store.Folder } );
-	for ( let line of users.Prepare( settings ) )
+	for ( let line of ( read_only ? [] : users.Prepare( settings ) ) )
 	{
 		console.log( 'users prepared: ' + line );
 	}
 	// The Administrator from the environment (plan Clerk, Step 5: a Docker server nobody signed in to yet).
 	let admin_from_env = ( process.env.CONSENSUS_ADMIN || '' ).trim();
-	if ( admin_from_env && !( settings.Clerk && settings.Clerk.AdminEmail ) )
+	if ( admin_from_env && !read_only && !( settings.Clerk && settings.Clerk.AdminEmail ) )
 	{
 		let with_admin = Object.assign( {}, settings, { Clerk: Object.assign( {}, settings.Clerk || {}, { AdminEmail: admin_from_env } ) } );
 		if ( PARTICIPANTS.Validate( with_admin ).length === 0 )
@@ -195,6 +204,69 @@ async function Start( Options )
 	}
 	let address = server ? server.address() : null;
 	url = server ? 'http://' + url_host( host ) + ':' + address.port : null;
+
+
+	// The Host's file re-read (plan Rearchitecturation, Step 4): the connections and the tasks replaced in place when the
+	// file reads whole and sound, and the pages told; a file with problems, or none, leaves them as they were. Answers
+	// whether anything changed.
+	async function RereadSettings()
+	{
+		let fresh = await store.ReadSettings();
+		if ( !fresh )
+		{
+			return false;
+		}
+		// a connection the file leaves without an id keeps the id it had here, by its Name, so the pages' ids hold
+		let listed = ( Array.isArray( fresh.Llms ) ? fresh.Llms : [] ).map( function ( one )
+		{
+			if ( one && typeof one === 'object' && !one.Id )
+			{
+				let known = ( settings.Llms || [] ).find( function ( had ) { return had.Name === String( one.Name || '' ).trim(); } );
+				return known ? Object.assign( {}, one, { Id: known.Id } ) : one;
+			}
+			return one;
+		} );
+		let filled = Object.assign( {}, fresh, { Llms: listed.map( LLMS.Fill ) } );
+		TASKS.Prepare( filled );
+		let troubles = PARTICIPANTS.Validate( filled ).concat( LLMS.Problems( filled ) );
+		if ( troubles.length )
+		{
+			console.log( 'settings re-read from ' + store.SettingsPath() + ': ' + troubles.join( '; ' ) + ': kept as they were' );
+			return false;
+		}
+		let same = JSON.stringify( [ settings.Llms, settings.Tasks ] ) === JSON.stringify( [ filled.Llms, filled.Tasks ] );
+		settings.Llms = filled.Llms;
+		settings.Tasks = filled.Tasks;
+		if ( !same )
+		{
+			events.Send( { Kind: 'llms', Llm: null } );
+			events.Send( { Settings: true, Kind: 'settings' } );
+		}
+		return !same;
+	}
+
+	let watcher = null;
+	let reread_timer = null;
+	if ( read_only && FS.existsSync( store.Folder ) )
+	{
+		try
+		{
+			watcher = FS.watch( store.Folder, function ( kind, name )
+			{
+				if ( name && name !== PATH.basename( store.SettingsPath() ) )
+				{
+					return;
+				}
+				clearTimeout( reread_timer );
+				reread_timer = setTimeout( function () { RereadSettings().catch( function ( error ) { console.log( 'settings re-read failed: ' + error.message ); } ); }, REREAD_DELAY );
+			} );
+			watcher.on( 'error', function () {} );
+		}
+		catch ( error )
+		{
+			console.log( 'the settings file is not watched: ' + error.message );
+		}
+	}
 	// The address file, while the project is open (a stale one, its process gone, is overwritten here).
 	let sidecar = null;
 	if ( server && project && !sidecar_off )
@@ -205,6 +277,12 @@ async function Start( Options )
 
 	async function Close()
 	{
+		clearTimeout( reread_timer );
+		if ( watcher )
+		{
+			watcher.close();
+			watcher = null;
+		}
 		if ( sidecar )
 		{
 			SIDECAR.Remove( project.Path, process.pid );
@@ -229,6 +307,8 @@ async function Start( Options )
 		ScopeForced: scope_forced,
 		SidecarOff: sidecar_off,
 		Sidecar: sidecar,
+		ReadOnly: read_only,
+		RereadSettings: RereadSettings,
 		Settings: settings,
 		Tokens: tokens,
 		Users: users,

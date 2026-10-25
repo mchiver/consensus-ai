@@ -13,7 +13,7 @@
 //               ask); and the current root's Loaded, Available, Llms, Tasks, Running, Kinds, DefaultPrompts }
 //   route     #/llm/<llm id>, under #/s/<root> for a named root (plan Run Shapes, Step 5)
 
-angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State', 'Roots', function ( $rootScope, Client, State, Roots )
+angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State', 'Roots', 'Session', function ( $rootScope, Client, State, Roots, Session )
 {
 	let per_root = {};		// root key -> the root's connections
 
@@ -172,6 +172,12 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State'
 		if ( !items.Root || !items.Root.Me )
 		{
 			return 'no one is signed in';
+		}
+		// Plan Rearchitecturation, Step 4 (the free tier): in the Desktop, this machine's project runs a task with a
+		// Personal license alone; the sidecar is the free LLM path. A Host's project is the Host's affair.
+		if ( window.ConsensusDesktop && items.Root.Kind !== 'server' && !Session.Licensed( 'User' ) )
+		{
+			return 'a Personal license';
 		}
 		// Plan User Management, Step 5: what the role may press, as src/Roles.js MayPress has it, said before the server says it.
 		if ( items.Root.Me.Role !== 'owner' && Pick.Project )

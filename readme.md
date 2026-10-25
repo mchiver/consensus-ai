@@ -196,7 +196,18 @@ one per line, and the participants with their display names, roles and tokens (N
 it). Saving writes these fields, the desktop's untouched, and applies them at once, Scope and Port excepted,
 which take effect at the next start (the popup says so). The server's own checks apply: no owner, a name used twice, a state still
 used by a plan, and the rest are shown, and nothing is saved while there are problems. The settings are read
-once at start, so an edit of the file by hand needs a restart.
+once at start, so an edit of the file by hand needs a restart. **In the Desktop** (plan Rearchitecturation, Step 4)
+the file is the Server Host's: the window's server opens it read-only (`Server.Start( { ReadOnly: true } )`,
+`Store.Open( …, { ReadOnly: true } )`), reads its `Llms` and `Tasks`, re-reads them when the file changes (a watcher
+with a short debounce; the pages hear `llms` and `settings` events) and never writes it, nor `users.json`, nor the
+registry; a missing file is the defaults in memory. The LLM connections are edited on the Host: in the Desktop the
+LLM page's Details and Packaging popups show a connection, hide Save and say "Connections are managed by the Server
+Host" with a button to the Host's page (`/api/me` answers `ReadOnly` and `Host`); New LLM, Rename and Delete leave
+the LLMs menu; a connection or settings write answers 403 with that line. Runs stay the window's: its server starts
+them in the project's folder with the connection as the file has it and writes the record under `<config>/runs/`,
+the ids being global. With no Personal license the Desktop's task buttons on this machine's project are disabled
+with the reason "a Personal license" (`Llms.Reason`): the sidecar is the free LLM path; a Host's project is the
+Host's affair.
 
 Theme and size are not settings: the page keeps them in the browser's storage, per user and per server.
 The first state was called Proposal before plan UI Tweaks V: a settings list that still names Proposal and
@@ -276,7 +287,8 @@ that project's tree; that server is the sidecar (Step 3, `src/Sidecar.js`: the p
 3699, the address in the folder's `.consensus/~sidecar.json`), and a folder already open in another window is not opened
 again: that window is brought to the front (`POST /api/desktop/activate`, answered by the sidecar of a window) and a
 launch on the folder exits, as VS Code activates the window that has the folder; the chooser's Open folder and Recent
-do the same, the chooser saying so; with `--connect <host name>` it opens a saved Host project (desktop.json's Hosts) as a **thin
+do the same, the chooser saying so; the window's server reads the Server Host's consensus.json read-only for the
+connections and tasks (Step 4, the Settings section above) and the runs it starts are its own; with `--connect <host name>` it opens a saved Host project (desktop.json's Hosts) as a **thin
 client**, the page pointed at the Host's API through the app's own origin, signed in as the person or the owner over
 localhost on a Local Host, writing nothing locally; with neither it shows the **chooser**: **Recent projects** (Open,
 Forget), **Open folder…** (the folder picker), **New project** (a name and a parent folder; the folder is made

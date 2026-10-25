@@ -2,7 +2,8 @@
 
 // The desktop (plan Consensus Desktop, Step 2), without Electron: its settings module (desktop.json, the desktop's own
 // file beside the Server Host's consensus.json: plan Rearchitecturation, Step 1), and the page server that serves its
-// copy of the Consensus page and the vendor files.
+// copy of the Consensus page and the vendor files. Plan Rearchitecturation, Step 4: the window's server over the Host's
+// consensus.json read-only: the connections read, a change in the file reaching it, a save refused with the Host's line.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -270,3 +271,123 @@ TEST( 'projects: a Host\'s projects are listed from its API for the chooser to p
 	await ASSERT.rejects( PROJECTS.HostProjects( 'cube4:3500' ), /must start with http/ );
 } );
 
+
+//---------------------------------------------------------------------
+// The Host's file read-only (plan Rearchitecturation, Step 4)
+
+async function until( Check, TimeoutMs )
+{
+	let waited = 0;
+	while ( waited < ( TimeoutMs || 5000 ) )
+	{
+		if ( await Check() )
+		{
+			return true;
+		}
+		await new Promise( function ( resolve ) { setTimeout( resolve, 100 ); } );
+		waited += 100;
+	}
+	return false;
+}
+
+
+TEST( 'the window\'s server reads the Host\'s consensus.json read-only: its connections and tasks listed, a change in the file reaching the server and its events, a connection or settings save refused with the Host\'s line, the file never written; a missing file is the defaults, unwritten', async function ()
+{
+	let config = temporary_folder( 'desktop-readonly-' );
+	let folder = PATH.join( temporary_folder( 'desktop-readonly-project-' ), 'thing' );
+	FS.mkdirSync( folder );
+	let file = PATH.join( config, 'consensus.json' );
+	let written = JSON.stringify( { Port: 3977, Owner: { Name: 'user', Display: 'User' }, Llms: [ { Name: 'first', Kind: 'claude-cli', Command: process.execPath } ], Tasks: [ { Id: 'answer', Name: 'Answer', Prompt: 'Answer what waits on you.' } ] }, null, '\t' );
+	FS.writeFileSync( file, written );
+	let running = await SERVER.Start( { Config: config, Port: 0, Project: folder, ReadOnly: true } );
+	let service = { 'X-Consensus-Service': 'Test', 'Content-Type': 'application/json' };
+	async function api( method, path, body )
+	{
+		let response = await fetch( running.Url + path, { method: method, headers: service, body: body ? JSON.stringify( body ) : undefined } );
+		return { Status: response.status, Body: await response.json() };
+	}
+	try
+	{
+		ASSERT.equal( running.ReadOnly, true );
+		ASSERT.equal( running.Store.ReadOnly, true );
+		ASSERT.equal( FS.readFileSync( file, 'utf8' ), written, 'the start wrote nothing' );
+		ASSERT.equal( FS.existsSync( PATH.join( config, 'users.json' ) ), false, 'no users file made' );
+		ASSERT.ok( FS.existsSync( PATH.join( folder, '.consensus', 'project.json' ) ), 'the project\'s own folder is made' );
+		let me = ( await api( 'GET', '/api/me' ) ).Body;
+		ASSERT.equal( me.ReadOnly, true );
+		ASSERT.equal( me.Host, 'http://127.0.0.1:3977' );
+		let llms = ( await api( 'GET', '/api/llms' ) ).Body;
+		ASSERT.deepEqual( llms.Llms.map( function ( llm ) { return llm.Name; } ), [ 'first' ] );
+		ASSERT.equal( llms.Runs, true, 'the window\'s server runs the LLMs' );
+		let tasks = ( await api( 'GET', '/api/tasks' ) ).Body;
+		ASSERT.ok( tasks.Tasks.some( function ( task ) { return task.Id === 'answer' && task.Prompt === 'Answer what waits on you.'; } ), JSON.stringify( tasks.Tasks ) );
+		// the writes refused with the Host's line
+		let first = llms.Llms[ 0 ];
+		ASSERT.deepEqual( await api( 'PUT', '/api/llms/' + first.Id, { Name: 'renamed' } ), { Status: 403, Body: { Error: 'Connections are managed by the Server Host' } } );
+		ASSERT.deepEqual( await api( 'POST', '/api/llms', { Name: 'second' } ), { Status: 403, Body: { Error: 'Connections are managed by the Server Host' } } );
+		ASSERT.deepEqual( await api( 'DELETE', '/api/llms/' + first.Id ), { Status: 403, Body: { Error: 'Connections are managed by the Server Host' } } );
+		ASSERT.deepEqual( await api( 'PUT', '/api/settings', { Name: 'Renamed' } ), { Status: 403, Body: { Error: 'The settings are managed by the Server Host' } } );
+		ASSERT.equal( FS.readFileSync( file, 'utf8' ), written, 'still untouched' );
+		// a change in the file reaches the server: the events say llms, the list has the new connection
+		let seen = [];
+		let controller = new AbortController();
+		let events = fetch( running.Url + '/api/events', { signal: controller.signal, headers: { 'X-Consensus-Service': 'Test' } } ).then( async function ( response )
+		{
+			let reader = response.body.getReader();
+			let decoder = new TextDecoder();
+			while ( true )
+			{
+				let chunk = await reader.read();
+				if ( chunk.done ) { break; }
+				seen.push( decoder.decode( chunk.value ) );
+			}
+		} ).catch( function () {} );
+		await new Promise( function ( resolve ) { setTimeout( resolve, 200 ); } );
+		let changed = JSON.parse( written );
+		changed.Llms.push( { Name: 'second', Kind: 'claude-cli', Command: process.execPath } );
+		changed.Tasks[ 0 ].Prompt = 'Answer briefly.';
+		FS.writeFileSync( file, JSON.stringify( changed, null, '\t' ) );
+		let reached = await until( async function ()
+		{
+			let listed = ( await api( 'GET', '/api/llms' ) ).Body.Llms;
+			return listed.length === 2;
+		}, 8000 );
+		ASSERT.equal( reached, true, 'the watcher re-read the file' );
+		ASSERT.deepEqual( ( await api( 'GET', '/api/llms' ) ).Body.Llms.map( function ( llm ) { return llm.Name; } ), [ 'first', 'second' ] );
+		ASSERT.ok( ( await api( 'GET', '/api/tasks' ) ).Body.Tasks.some( function ( task ) { return task.Prompt === 'Answer briefly.'; } ) );
+		await until( async function () { return seen.join( '' ).includes( '"llms"' ); }, 3000 );
+		ASSERT.match( seen.join( '' ), /"Kind":"llms"/ );
+		ASSERT.match( seen.join( '' ), /"Kind":"settings"/ );
+		controller.abort();
+		await events;
+		// a file with a problem leaves the connections as they were; RereadSettings says nothing changed
+		FS.writeFileSync( file, JSON.stringify( Object.assign( {}, changed, { Llms: [ { Name: 'bad name!', Kind: 'claude-cli' } ] } ) ) );
+		await new Promise( function ( resolve ) { setTimeout( resolve, 700 ); } );
+		ASSERT.equal( await running.RereadSettings(), false );
+		ASSERT.equal( ( await api( 'GET', '/api/llms' ) ).Body.Llms.length, 2 );
+		// the same again: nothing changed
+		FS.writeFileSync( file, JSON.stringify( changed, null, '\t' ) );
+		await new Promise( function ( resolve ) { setTimeout( resolve, 700 ); } );
+		ASSERT.equal( await running.RereadSettings(), false );
+	}
+	finally
+	{
+		await running.Close();
+	}
+	// a missing file: the defaults in memory, nothing written, the folder's project still opens
+	let empty = temporary_folder( 'desktop-readonly-empty-' );
+	let bare = await SERVER.Start( { Config: empty, Port: 0, Project: folder, ReadOnly: true } );
+	try
+	{
+		ASSERT.equal( FS.existsSync( PATH.join( empty, 'consensus.json' ) ), false );
+		ASSERT.equal( bare.SettingsWritten, false );
+		let llms = await ( await fetch( bare.Url + '/api/llms', { headers: { 'X-Consensus-Service': 'Test' } } ) ).json();
+		ASSERT.deepEqual( llms.Llms, [] );
+		ASSERT.equal( bare.Project.Name, 'thing' );
+	}
+	finally
+	{
+		await bare.Close();
+	}
+	ASSERT.equal( FS.existsSync( PATH.join( empty, 'consensus.json' ) ), false );
+} );
