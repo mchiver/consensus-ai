@@ -9,14 +9,15 @@
 //
 //   node bin/mcp.js --server <url or saved name> [--service <name> | --token <token>] [--project <id or name>] [--config <folder>]
 //
-//   --server   the server's address (http://127.0.0.1:3500), or the Name of a saved server in the global config's
-//              Servers list (<config>/consensus.json, the list the desktop keeps), whose Url and Token are taken
+//   --server   the server's address (http://127.0.0.1:3500), or the Name of a saved Host in the desktop's own file
+//              (<config>/desktop.json, its Hosts list; plan Rearchitecturation, Step 1), whose Url is taken; a Host's
+//              entry carries no token, so a shared server takes --token
 //   --service  how the relay says who it is, the X-Consensus-Service header ("MCP" when neither this nor a token
 //              is given); a Claude Code configuration passes --service Claude-CLI to keep its byline
 //   --token    an account's token, minted on the person's user page, for a shared server
 //   --project  the project (an id or a name) filled in for the tools that take one when the client leaves it out:
 //              sidecar mode's one-project rule, set for a client
-//   --config   the config folder the saved servers are read from (~/.consensus)
+//   --config   the config folder the saved Hosts are read from (~/.consensus)
 //
 // A client's configuration, for Claude Code: claude mcp add consensus -- node <checkout>/bin/mcp.js --server http://127.0.0.1:3500 --service Claude-CLI
 
@@ -28,7 +29,7 @@ const OS = require( 'os' );
 const MCP_PATH = '/api/mcp';
 const DEFAULT_SERVICE = 'MCP';
 const CONFIG_FOLDER = '.consensus';
-const SETTINGS_FILE = 'consensus.json';
+const DESKTOP_FILE = 'desktop.json';
 const FETCH_TIMEOUT = 10 * 60 * 1000;	// a tool call may run long (a report of a large plan)
 const SERVER_ERROR = -32000;
 const PARSE_ERROR = -32700;
@@ -40,7 +41,7 @@ function usage()
 		'node bin/mcp.js --server <url or saved name> [--service <name> | --token <token>] [--project <id or name>] [--config <folder>]',
 		'',
 		'The MCP stdio transport for Consensus: a relay to a running server\'s POST /api/mcp. --server takes the server\'s address or',
-		'the Name of a saved server in <config>/consensus.json; --service names the relay (MCP by default) and --token carries an',
+		'the Name of a saved Host in <config>/desktop.json; --service names the relay (MCP by default) and --token carries an',
 		'account\'s token instead; --project fills in the project for the tools that take one when the client leaves it out.',
 	].join( '\n' );
 }
@@ -74,11 +75,11 @@ function parse_arguments( argv )
 }
 
 
-// A saved server by its Name, from the global config's Servers list: { Url, Token?, Service? }.
+// A saved Host by its Name, from the desktop's Hosts list: { Url, Token: null, Service: null }.
 function saved_server( name, config_folder )
 {
 	let folder = config_folder || PATH.join( OS.homedir(), CONFIG_FOLDER );
-	let file = PATH.join( folder, SETTINGS_FILE );
+	let file = PATH.join( folder, DESKTOP_FILE );
 	let settings = null;
 	try
 	{
@@ -86,14 +87,14 @@ function saved_server( name, config_folder )
 	}
 	catch ( error )
 	{
-		throw new Error( 'no saved servers: ' + file + ' cannot be read (' + error.message + ')' );
+		throw new Error( 'no saved Hosts: ' + file + ' cannot be read (' + error.message + ')' );
 	}
-	let found = ( Array.isArray( settings.Servers ) ? settings.Servers : [] ).find( function ( server ) { return server && server.Name === name; } );
+	let found = ( Array.isArray( settings.Hosts ) ? settings.Hosts : [] ).find( function ( host ) { return host && host.Name === name; } );
 	if ( !found || typeof found.Url !== 'string' )
 	{
 		throw new Error( 'no saved server named ' + name + ' in ' + file );
 	}
-	return { Url: found.Url, Token: ( typeof found.Token === 'string' ) ? found.Token : null, Service: ( typeof found.Service === 'string' ) ? found.Service : null };
+	return { Url: found.Url, Token: null, Service: null };
 }
 
 

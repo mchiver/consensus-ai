@@ -813,16 +813,14 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 	const PARTICIPANTS = require( '../src/Participants.js' );
 	let electron = require( 'electron' );
 	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-docs-desktop-' ) );
-	// The desktop's global config (plan Run Shapes): its own server not started (Scope None), the seeded one saved.
+	// The desktop's config folder (plan Run Shapes): its own server not started (Scope None), and the seeded one saved as
+	// a Host in the desktop's own file, desktop.json (plan Rearchitecturation, Step 1).
 	let config = PATH.join( DEMO_ROOT, 'desktop-config' );
 	FS.mkdirSync( config, { recursive: true } );
-	let settings = Object.assign( PARTICIPANTS.DefaultSettings( 3500, 'None' ), {
-		Name: 'Recipe Box desktop',
-		Servers: [ { Name: 'Recipe Box server', Url: Url } ],
-		Theme: 'light',
-		Scale: 'normal',
-	} );
+	let settings = Object.assign( PARTICIPANTS.DefaultSettings( 3500, 'None' ), { Name: 'Recipe Box desktop' } );
 	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( settings, null, '\t' ) );
+	let desktop = { Hosts: [ { Name: 'Recipe Box server', Url: Url, Project: null } ], Theme: 'light', Scale: 'normal' };
+	FS.writeFileSync( PATH.join( config, 'desktop.json' ), JSON.stringify( desktop, null, '\t' ) );
 
 	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data, '--config', config ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );
 	let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );

@@ -41,8 +41,8 @@
 				<h2>Servers</h2>
 				<button class="btn btn-sm btn-outline-primary" id="add-server" ng-click="StartAdd()" ng-hide="Editing">Add server</button>
 			</div>
-			<div class="muted small" ng-hide="Settings.Servers.length || Editing">none yet: add the address of a Consensus server, such as http://cube4:3500</div>
-			<div class="server-row" ng-repeat="server in Settings.Servers" ng-hide="Editing && Editing.Original === server">
+			<div class="muted small" ng-hide="Settings.Hosts.length || Editing">none yet: add the address of a Consensus server, such as http://cube4:3500</div>
+			<div class="server-row" ng-repeat="server in Settings.Hosts" ng-hide="Editing && Editing.Original === server">
 				<div class="server-name">{{ server.Name }}</div>
 				<div class="muted small server-url">{{ server.Url }}</div>
 				<span class="grow"></span>

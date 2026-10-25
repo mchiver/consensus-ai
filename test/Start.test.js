@@ -2,7 +2,7 @@
 
 // The one start module (plan Run Shapes, Step 1): the command line parsed, the server run from a config folder, the
 // lines it prints; and bin/consensus.js, the headless entry point, spawned once. Step 4: a project folder on the
-// command line, that project alone; the configured port in use.
+// command line, that project alone; the configured port in use. Plan Rearchitecturation, Step 1: the word serve.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -32,9 +32,15 @@ TEST.after( function ()
 } );
 
 
-TEST( 'the arguments: a path or --project, --config (and --data, its older name), --port, --scope, --headless, --help; the rest refused with a reason', function ()
+TEST( 'the arguments: serve, a path or --project, --config (and --data, its older name), --port, --scope, --headless, --help; the rest refused with a reason', function ()
 {
 	ASSERT.deepEqual( START.Parse( [] ), { Headless: false, Help: false } );
+	// serve (plan Rearchitecturation, Step 1) is the Host's word: the same as no path at all, and no folder with it
+	ASSERT.deepEqual( START.Parse( [ 'serve' ] ), START.Parse( [] ) );
+	ASSERT.deepEqual( START.Parse( [ 'serve', '--config', '/data', '--scope', 'public', '--port', '3500', '--headless' ] ), START.Parse( [ '--config', '/data', '--scope', 'public', '--port', '3500', '--headless' ] ) );
+	ASSERT.throws( function () { START.Parse( [ 'serve', 'W:/x' ] ); }, /serve takes no project folder/ );
+	ASSERT.throws( function () { START.Parse( [ 'W:/x', 'serve' ] ); }, /serve takes no project folder/ );
+	ASSERT.match( START.USAGE, /[serve | <path> | --project <folder>]/ );
 	ASSERT.deepEqual( START.Parse( [ '--config', 'W:/x', '--port', '3501', '--scope', 'PUBLIC', '--headless' ] ), { Config: 'W:/x', Port: 3501, Scope: 'Public', Headless: true, Help: false } );
 	ASSERT.deepEqual( START.Parse( [ '--data', '/data', '--scope', 'none' ] ), { Config: '/data', Scope: 'None', Headless: false, Help: false } );
 	ASSERT.equal( START.Parse( [ '-h' ] ).Help, true );

@@ -16,10 +16,12 @@ Shapes, Step 5).
 ## Starting it
 
 	npm install
-	node bin/consensus.js [<path> | --project <folder>] [--config <folder>] [--port 3500] [--scope none|local|public] [--headless]
+	node bin/consensus.js [serve | <path> | --project <folder>] [--config <folder>] [--port 3500] [--scope none|local|public] [--headless]
 
 One program, two entry points over one start module (`src/Start.js`, plan Run Shapes, Step 1): this one, headless,
-for a plain node install and the Docker image, and the desktop (below), which opens a window as well. Both read
+for a plain node install and the Docker image, and the desktop (below), which opens a window as well. The word
+`serve` (plan Rearchitecturation, Step 1) names the **Server Host**, every registered project served; the bare form
+with no path means the same, so the Docker image and `npm start` are unchanged, and `serve` takes no folder. Both read
 the global config, `consensus.json` in the config folder: `.consensus` in the user's folder by default, or the
 `--config` folder (`--data` is its older name, kept for one release); the projects live there too until Step 2.
 The server listens as the settings' `Scope` says: `Local` on 127.0.0.1, `Public` on 0.0.0.0, `None` not at all;
@@ -37,8 +39,8 @@ An agent session in any repo is started with one line: "read the instructions at
 `http://<server>:<port>/instructions`" (with `curl`). That page is `.guides/build-with-consensus.md` with a
 **This server** section first: the API's address, as the request reached it, and the llm participant's token.
 An MCP client (plan MCP Server, 2026-10-23) gets the same operations as tools: `POST /api/mcp` in the server, or the
-stdio relay `node bin/mcp.js --server <url> [--service <name> | --token <token>] [--project <id or name>]` on its own
-machine; every operation of the API is defined once in `src/Operations.js`, which the REST routes, the MCP tools and
+stdio relay `node bin/mcp.js --server <url or saved Host> [--service <name> | --token <token>] [--project <id or name>]` on its own
+machine (a saved Host is a Name from `desktop.json`'s Hosts, its Url taken); every operation of the API is defined once in `src/Operations.js`, which the REST routes, the MCP tools and
 a local model's tools are read from.
 	npm test
 
@@ -121,8 +123,12 @@ outcome, or the recommendation, in the last reply. On a resolved or applied thre
 folder of its own with a `.consensus` sub-folder that is the project (plan Run Shapes, Step 2), under
 `<config>/projects/<name>/` when none was named. Plain files:
 
-	<config>/consensus.json                        settings: Name, Port, Scope, States, Participants, the desktop's fields, and
-	                                               Projects: [ { Path } ], the project folders in display order
+	<config>/consensus.json                        settings: Name, Port, Scope, States, Owner, Llms, Tasks, Clerk, and the registry
+	                                               Projects: [ { Path, Mounted } ], the project folders in display order, Mounted
+	                                               (plan Rearchitecturation, Step 1) saying whether a Server Host exposes it; the
+	                                               Server Host's file, which the desktop reads and never writes
+	<config>/desktop.json                          the desktop's own file (Step 1): Recent, Hosts, Theme, Scale, Remembered
+	<config>/Users.json                            the accounts: the owner, the users and the Service accounts, with their hashed tokens
 	<project>/.consensus/project.json              { Id, Name, Context, ContextFolder, Created, Updated, Version, Items: [ node ],
 	                                               Archive: [ node ], States, Include, Exclude, Commands }
 	<project>/.consensus/content/<id>/content.json { Id, Title, Kind: plan | document, State, Created, Updated, Revision, Head }
@@ -159,10 +165,8 @@ keeps its `ctx-…` id.
 		"Port": 3500,
 		"Scope": "Local",
 		"States": [ "Draft", "Plan", "Working", "Finished" ],
-		"Participants": [
-			{ "Name": "user", "Display": "User", "Role": "owner" },
-			{ "Name": "llm", "Display": "LLM", "Role": "llm" }
-		]
+		"Owner": { "Name": "user", "Display": "User" },
+		"Projects": [ { "Path": "C:/Users/you/.consensus/projects/Default", "Mounted": false } ]
 	}
 
 `Name` is the server's, shown to clients in `/api/me`; `Scope` says whether and for whom it listens (see Starting
@@ -275,11 +279,15 @@ its root (`public/js/roots.js` holds each root's participants, projects and even
 root's base; a route carries its root as `#/s/<key>/p/<id>`, a browser's one root keeping `#/p/<id>`), and the
 server, which sends no CORS headers, is not changed for the app beyond `/api/me` saying its `Version` and `Name`. What needs
 the window stays behind `window.ConsensusDesktop` and `window.Desktop`: the native theme, the folder picker,
-the remembered view state. The desktop's settings are its fields of the global config, `consensus.json` in
-the config folder: `Servers`, `Theme`, `Scale` and `Remembered`; the pages are handed those fields only, never the participants' tokens. `Theme` is
-the window's one theme, set from either screen's picker. The page remembers its tree state (the open project,
+the remembered view state. The desktop's settings are its own file, `desktop.json` beside `consensus.json` in the
+config folder (plan Rearchitecturation, Step 1; they were fields of `consensus.json` before): `Recent` (the project
+folders opened from the command line, newest first), `Hosts` (the saved servers, one entry `{ Name, Url, Project }` per
+Host project, no tokens: a Host with Scope Local is reached from its own machine, where a request is the owner, and any
+other Host is Public and signs the person in through Clerk), `Theme`, `Scale` and `Remembered`. `desktop/Settings.js`
+reads and writes that file and nothing else: `consensus.json` is the Server Host's to write, and the desktop reads it
+for the server's Name. `Theme` is the window's one theme, set from either screen's picker. The page remembers its tree state (the open project,
 the folds, the LLMs list folded, the root folded) per server, under the server's address, and the tabs, the
-sort and the look (hidden panes, widths) once per window, in the config's `Remembered` (`public/js/stored.js` through the preload's `Remember`:
+sort and the look (hidden panes, widths) once per window, in `desktop.json`'s `Remembered` (`public/js/stored.js` through the preload's `Remember`:
 the page's origin gets a new port at every start, so its localStorage would not survive a restart; in a
 browser the same keys are in localStorage); each root's row shows the server's name, a dot green while its
 updates are live, who you are there and, in the tooltip, its address, version and, offline, the reason; a
@@ -395,8 +403,8 @@ mounts Clerk's user button (sign out is in its menu), and a sign-in or sign-out 
 own server signs in the same way since Clerk Step 7 (2026-10-20): the session knows the page's own server (the
 browser's one root, or the desktop's own under /servers/local), the desktop's page server forwards the window's
 host as X-Forwarded-Host, which the API takes from the loopback so the token's azp still matches, and the page
-server's port is remembered in desktop.json so the sign-in survives a restart; the desktop's saved servers stay on
-tokens. `POST /api/clerk/webhook`, before identify and verified the Svix way (HMAC-SHA256 over id, timestamp and
+server's port is remembered in desktop.json so the sign-in survives a restart; the desktop's saved Hosts carry no
+tokens (Rearchitecturation, Step 1): a Local Host is the owner from its own machine, a Public one signs in. `POST /api/clerk/webhook`, before identify and verified the Svix way (HMAC-SHA256 over id, timestamp and
 the raw body with the whsec_ secret, five minutes' window), keeps the registry following Clerk: user.created and
 user.updated write or bring up the record, user.deleted removes it and its roles, organizationMembership.created
 writes the member with no role, organizationMembership.deleted removes it, organization.created is logged; each
@@ -490,7 +498,7 @@ past the end of the text. In the tree a click on a folder folds it, and a folder
 folder, which create in it.
 
 Layout: `desktop/main.js` the main process, `desktop/preload.js` its bridge, `desktop/Settings.js` the desktop's
-fields of the config (and the move-in of desktop.json), `desktop/Page.js` the server for the page and the
+own file, desktop.json, `desktop/Page.js` the server for the page and the
 connect screen (`desktop/page/connect.html`, `connect.js`, `connect.css`); the runs are the server's:
 `src/Llms.js` the connections, `src/Runner.js` the package and the start of a run over the store,
 `src/Runs.js` the runs and their records, `src/Package.js` the one-shot prompt, `src/Llm.js` a connection's
@@ -584,10 +592,11 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 	src/Instructions.js   GET /instructions: the agent guide with This server first
 	src/Operations.js     every operation defined once (plan MCP Server): name, description, parameters, action, the function; Route and Definition for a client
 	src/Mcp.js            the Model Context Protocol over the operations: initialize, ping, tools/list, tools/call; no transport in it
-	bin/mcp.js            the MCP stdio relay to a running server (consensus-mcp)	src/Rules.js          the consensus rules, pure functions
+	bin/mcp.js            the MCP stdio relay to a running server (consensus-mcp); --server takes a saved Host from desktop.json
+	src/Rules.js          the consensus rules, pure functions
 	src/Tree.js           a project's tree, pure functions; the Context folder's rules
 	src/Anchors.js        visible-text anchors
-	src/Store.js          the config folder and the project folders, the archive
+	src/Store.js          the config folder and the project folders, the archive; Open( Folder, { ReadOnly } ) for the desktop's reading of the Host's config
 	src/ProjectPort.js    export and import
 	src/Report.js         the report of a plan: Compose, Markdown, Html (plan Printing and Reporting)
 	src/Participants.js   who is calling, the States, and the settings' checks

@@ -369,3 +369,59 @@ TEST( 'plans list newest updated first', async function ()
 	await store.UpdatePlan( first.Id, { Title: 'First again' } );
 	ASSERT.deepEqual( ( await store.ListPlans() ).slice( 0, 2 ).map( function ( p ) { return p.Id; } ), [ first.Id, second.Id ] );
 } );
+
+
+TEST( 'the registry entry keeps Mounted (plan Rearchitecturation, Step 1): through a start, a folder on the command line, a move and SetMounted; the projects carry it', async function ()
+{
+	let ready = await prepared();
+	let store = ready.Store;
+	ASSERT.equal( ready.Home.Mounted, false );
+	let zebra = await store.CreateProject( { Name: 'Zebra' } );
+	ASSERT.equal( zebra.Mounted, false );
+	let mounted = await store.SetMounted( zebra.Id, true );
+	ASSERT.equal( mounted.Mounted, true );
+	ASSERT.equal( ( await store.ReadProject( zebra.Id ) ).Mounted, true );
+	ASSERT.equal( await store.SetMounted( 'prj-nope', true ), null );
+	ASSERT.deepEqual( ( await store.ReadSettings() ).Projects, [ { Path: ready.Home.Path }, { Path: zebra.Path, Mounted: true } ] );
+	// a start again keeps it; the folder on the command line goes first with its switch
+	let again = STORE.Open( store.Folder );
+	let settings = await again.ReadSettings();
+	await again.Prepare( settings, { Project: zebra.Path } );
+	ASSERT.deepEqual( settings.Projects, [ { Path: zebra.Path, Mounted: true }, { Path: ready.Home.Path } ] );
+	ASSERT.equal( ( await again.ListProjects() )[ 0 ].Mounted, true );
+	// a move keeps the entry whole; the switch goes back off
+	let plain = STORE.Open( store.Folder );
+	let plain_settings = await plain.ReadSettings();
+	await plain.Prepare( plain_settings );
+	await plain.MoveProject( zebra.Id, null );
+	ASSERT.deepEqual( ( await plain.ReadSettings() ).Projects, [ { Path: ready.Home.Path }, { Path: zebra.Path, Mounted: true } ] );
+	ASSERT.equal( ( await plain.SetMounted( zebra.Id, false ) ).Mounted, false );
+	ASSERT.deepEqual( ( await plain.ReadSettings() ).Projects, [ { Path: ready.Home.Path }, { Path: zebra.Path, Mounted: false } ] );
+} );
+
+
+TEST( 'a read-only store (the Desktop reading the Host config) reads the settings and the projects and writes nothing; a folder with no settings gives empty lists', async function ()
+{
+	let ready = await prepared();
+	let zebra = await ready.Store.CreateProject( { Name: 'Zebra' } );
+	await ready.Store.SetMounted( zebra.Id, true );
+	let before = FS.readFileSync( ready.Store.SettingsPath(), 'utf8' );
+	let reader = STORE.Open( ready.Store.Folder, { ReadOnly: true } );
+	ASSERT.equal( reader.ReadOnly, true );
+	ASSERT.equal( ready.Store.ReadOnly, false );
+	let settings = await reader.ReadSettings();
+	ASSERT.deepEqual( await reader.Prepare( settings ), [] );
+	ASSERT.deepEqual( ( await reader.ListProjects() ).map( function ( project ) { return [ project.Name, project.Mounted ]; } ), [ [ 'Default', false ], [ 'Zebra', true ] ] );
+	await ASSERT.rejects( reader.WriteSettings( settings ), /the settings are read-only: consensus.json is written by the Server Host alone/ );
+	// the registry writes are skipped: the list in memory changes, the file does not
+	ASSERT.equal( await reader.MoveProject( zebra.Id, ready.Home.Id ), true );
+	ASSERT.equal( ( await reader.SetMounted( zebra.Id, false ) ).Mounted, false );
+	ASSERT.equal( FS.readFileSync( ready.Store.SettingsPath(), 'utf8' ), before );
+	// a folder that is not there: no folder made, no settings, no Default project
+	let nowhere = PATH.join( temporary_folder(), 'nowhere' );
+	let empty = STORE.Open( nowhere, { ReadOnly: true } );
+	ASSERT.equal( await empty.ReadSettings(), null );
+	ASSERT.deepEqual( await empty.Prepare( {} ), [] );
+	ASSERT.deepEqual( await empty.ListProjects(), [] );
+	ASSERT.equal( FS.existsSync( nowhere ), false );
+} );

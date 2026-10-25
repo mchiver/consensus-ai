@@ -1,0 +1,35 @@
+[
+	{
+		"Id": "thr-sou-n85-mqq",
+		"Anchor": {
+			"Text": "Sharing a server stays its own page",
+			"Prefix": "ions and consensus serve, while ",
+			"Suffix": " after it in the pages order, re"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T04:53:18.544Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T04:54:19.742Z",
+			"Revision": 2,
+			"RevisionId": "rev-p5l-xzm-7hz",
+			"Outcome": "Sharing a server stays its own page, under The Server Host in the pages order, rewritten for mounting, so its links hold."
+		},
+		"Created": "2026-10-25T03:38:05.906Z",
+		"Replies": [
+			{
+				"Id": "rep-o7q-nte-mml",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.906Z",
+				"Text": "Sharing a server is a page of its own today. Folding it into The Server Host makes one long page; keeping it makes two short ones. **Recommendation:** keep Sharing a server as its own page under The Server Host in the pages order, rewritten for mounting, so its links hold. Resolve with no reply to take the recommendation."
+			}
+		]
+	}
+]

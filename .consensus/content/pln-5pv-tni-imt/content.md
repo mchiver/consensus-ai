@@ -1,0 +1,15 @@
+# Step 2: The Desktop opens one project
+
+The Desktop becomes the one-project application: a window is a project, and the many-project tree with its server rows leaves it.
+
+## What is built
+
+- **The chooser.** A window with no project always shows the chooser in place of today's servers screen, never reopening the last project on its own: Recent projects (from desktop.json), Open folder (the folder picker; a folder without a `.consensus` gets one made, named after the folder, as `consensus <folder>` does today), New project (a name and a parent folder), and Connect to Host (a saved Host project from desktop.json's Hosts, or a Name and a Url tried before it is saved; then one of the Host's projects, the pair saved as a Hosts entry). The command line `consensus-desktop <folder>` opens the folder straight away.
+- **One window, one project.** The window runs this machine's server over the one folder alone, as the headless `consensus <folder>` does (the sidecar, Step 3), and the page shows that project's tree. Open in new window starts another instance on another folder; the Server menu loses Servers and gains Recent, Open folder, New project, Connect to Host and Open in new window.
+- **The tree as a component.** The project's tree becomes a component of its own, `project-view` under `public/components/`, taking the project through a binding and holding what `project-row` and `tree-node` show today under one project: the Context folder, the folders, the plans with their Subplans, the archive and the trash. `project-tree` (the server rows) is built from an array of them, so the Host's page (Step 5) shows one per project and the Desktop's page shows one. The Tree service stays the state the views share.
+- **A Host's project in the Desktop.** Connected to a Host, the window is a thin client: the page is pointed at the Host's API through the app's own origin (`/servers/<key>/api`, as today), signed in as the person through Clerk (Step 6), or the owner over localhost on a Host with Scope Local, and writes nothing locally. The Host runs the LLMs. Paste between windows goes through the clipboard as today.
+- **Remembered state** (the open item, the folds, the tabs, the look) is kept per project folder in desktop.json's `Remembered`, keyed by the folder or the Host's address and project id.
+
+## Checks
+
+`test/Desktop.test.js` over the Electron smoke with its own user data: the chooser, Open folder on a temporary project, Recent after a reopen, New project, Connect to a test server's project, Open in new window. `test/Ui.test.js`: the one-project page shows one project-view, the Host page an array of them. The readme's desktop section is rewritten.

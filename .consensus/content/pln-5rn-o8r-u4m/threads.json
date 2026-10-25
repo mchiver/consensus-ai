@@ -1,0 +1,94 @@
+[
+	{
+		"Id": "thr-c7r-xaa-wo8",
+		"Anchor": {
+			"Text": "The sidecar range is 3600 to 3699.",
+			"Prefix": "orking. What is built The port. ",
+			"Suffix": " The port is the range's start p"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T04:35:41.179Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T04:37:57.189Z",
+			"Revision": 2,
+			"RevisionId": "rev-jjp-p06-jmt",
+			"Outcome": "The range is 3600 to 3699, to be written into the sidecar definition; --port on the command line overrides it for one start."
+		},
+		"Created": "2026-10-25T03:38:05.713Z",
+		"Replies": [
+			{
+				"Id": "rep-813-hyc-bhy",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.713Z",
+				"Text": "The range is a guess: 3600 to 3699 sits above the Host's 3500 and below most development servers. A hundred ports means a hundred open projects on one machine, more than enough. **Recommendation:** 3600 to 3699, written into the definition; a `--port` on the command line still overrides it for one start. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-9bn-58p-ew9",
+		"Anchor": {
+			"Text": "asks that sidecar to bring its window to the front",
+			"Prefix": "ile and, when its Pid is alive, ",
+			"Suffix": " (POST /api/desktop/activate, an"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T05:20:09.174Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T05:20:51.874Z",
+			"Revision": 3,
+			"RevisionId": "rev-abz-4kq-6rd",
+			"Outcome": "The owner decided one process per window; a second launch on an open folder asks that sidecar to bring its window to the front and exits, as VS Code does; a dead Pid is a stale file. Step 2 stays as written."
+		},
+		"Created": "2026-10-25T03:38:05.722Z",
+		"Replies": [
+			{
+				"Id": "rep-4vq-ciz-frk",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.722Z",
+				"Text": "Two windows on the same folder would write the same files from two processes, so the second open is refused. The alternative is to let the second window attach to the first's sidecar as a client, like a Host's project. **Recommendation:** refuse now with a line naming the other window, and leave attaching for later if anyone misses it. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-6nq-oqj-lem",
+				"By": "user",
+				"At": "2026-10-25T04:37:06.973Z",
+				"Text": "vs code simply activates the existing window if a folder is already open. we should do the same."
+			},
+			{
+				"Id": "rep-d8s-i2f-ftg",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T04:37:57.198Z",
+				"Text": "Understood: a folder already open brings its window to the front, as VS Code does. **Recommendation** for how: the Desktop takes Electron's single-instance lock, so there is one Desktop process holding every window, each window with its own sidecar server; a second launch hands its folder to the running process, which focuses the window that has it or opens a new window for it, and the chooser's Open folder and Recent do the same. Open in new window (Step 2) then means a new window of the one process, not another instance; I will amend that line when applying. The headless `consensus <folder>` on a folder a window has open prints the running sidecar's address and exits. Resolve with no reply to take it."
+			},
+			{
+				"Id": "rep-vtf-pfw-ol0",
+				"By": "user",
+				"At": "2026-10-25T04:46:58.780Z",
+				"Text": "the application should be one process per window."
+			},
+			{
+				"Id": "rep-hs4-r84-ala",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T04:54:19.747Z",
+				"Text": "Understood: one process per window, no single-instance lock. **Recommendation** for the activation then: a second launch on a folder reads `.consensus/~sidecar.json`, and when its Pid is alive asks that sidecar to come to the front (`POST /api/desktop/activate`, answered on localhost by a Desktop's sidecar alone, which focuses its window) and exits; a dead Pid means a stale file and the folder opens as usual. The chooser's Open folder and Recent do the same from a running window. Step 2 stays as written: Open in new window starts another instance. Resolve with no reply to take it."
+			}
+		]
+	}
+]

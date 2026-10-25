@@ -1,0 +1,16 @@
+# Step 1: The two files and the registry
+
+The foundation the split stands on: which program writes which file, and the registry with its mount switch. Nothing visible changes yet; the Desktop and the Host both still run as they do today, over the new files.
+
+## What is built
+
+- **consensus.json is the Host's.** The settings in the machine's user folder (`~/.consensus/consensus.json`, or the `--config` folder) keep Name, Port, Scope, States, Owner, Llms, Tasks, Users (Users.json beside it), the trust settings and the registry `Projects`. Only the Host writes them. The desktop fields (`Servers`, `Theme`, `Scale`, `Remembered`) leave the file.
+- **desktop.json is the Desktop's.** A file beside consensus.json, `~/.consensus/desktop.json`, holds what is the Desktop's alone: `Recent` (the project folders opened, newest first, with each one's last window), `Hosts: [ { Name, Url, Project } ]` (one entry per Host project the Desktop has opened, in place of today's `Servers`; no tokens anywhere: a Host with Scope Local is reached from its own machine, where a request is the owner, and any other Host is Public and signs the person in through Clerk, Step 6), `Theme`, `Scale`, `Remembered` and, from Step 6, the cached license. `desktop/Settings.js` reads and writes this file and nothing else.
+- **The Desktop reads consensus.json without writing it.** `src/Store.js` gains a read-only opening (`Store( { Folder, ReadOnly: true } )`) that refuses every settings write with a plain error; the Desktop opens the global config this way for the LLM connections and the tasks (Step 4). A machine with no consensus.json gives the Desktop empty lists, not a new file: the Host alone makes the file at its first start.
+- **The registry entry gains Mounted.** `Projects: [ { Path, Mounted } ]`, false when absent. Mounting is Step 5's; here the field is read, written by the API and kept by `Store.WriteSettings`.
+- **The command line.** `consensus serve [--config] [--port] [--scope]` is the Host, and a bare `consensus` with no path means the same, so the Docker image and `npm start` are unchanged. `consensus <folder>` stays the headless one-project server (the sidecar's shape, Step 3). `src/Start.js` parses the word.
+- **Scope keeps its names.** `Local` is the bind to localhost and `Public` the bind to the network; the plan's words localhost, local network and remote are the docs' names for them. `None` stays for a Desktop that wants no sidecar.
+
+## Checks
+
+`test/Store.test.js`: the read-only store refuses a write and reads the lists; a registry entry keeps Mounted. `test/Desktop.test.js`: desktop.json read and written with the five fields, consensus.json untouched by the desktop. `test/Start.test.js`: `serve`, the bare form and a folder parse as the same three shapes. The readme's config-folder section lists both files.

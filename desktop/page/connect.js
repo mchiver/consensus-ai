@@ -1,7 +1,8 @@
 'use strict';
 
 // The servers screen (plan Consensus Desktop, Step 2; the servers' list since plan Run Shapes, Step 5, the page
-// showing every server at once): the saved servers with Edit and Remove; Add server, tried before it is saved; this
+// showing every server at once; the list is desktop.json's Hosts since plan Rearchitecturation, Step 1): the saved
+// servers with Edit and Remove; Add server, tried before it is saved; this
 // machine's server, the config's own, started with the app as its Scope says (plan Run Shapes, Step 1); and Open the
 // page. Everything goes through window.Desktop (preload.js) to the main process.
 
@@ -25,7 +26,7 @@ angular.module( 'Connect', [] )
 {
 	$scope.Version = window.ConsensusDesktop.Version;
 	$scope.Reason = window.ConsensusDesktop.Reason;
-	$scope.Settings = { Servers: [] };
+	$scope.Settings = { Hosts: [] };
 	$scope.Local = null;
 	$scope.Missing = [];
 	$scope.Editing = null;
@@ -105,9 +106,9 @@ angular.module( 'Connect', [] )
 			$scope.$applyAsync();
 			return;
 		}
-		let servers = $scope.Settings.Servers.filter( function ( server ) { return server !== editing.Original; } );
-		servers.push( { Name: editing.Name.trim(), Url: tried.Url } );
-		let answer = await window.Desktop.Save( { Servers: servers } );
+		let hosts = $scope.Settings.Hosts.filter( function ( host ) { return host !== editing.Original; } );
+		hosts.push( { Name: editing.Name.trim(), Url: tried.Url, Project: editing.Original ? editing.Original.Project : null } );
+		let answer = await window.Desktop.Save( { Hosts: hosts } );
 		if ( answer.Problems )
 		{
 			$scope.Error = answer.Problems.join( '; ' );
@@ -124,8 +125,8 @@ angular.module( 'Connect', [] )
 
 	$scope.Remove = async function ( server )
 	{
-		let servers = $scope.Settings.Servers.filter( function ( candidate ) { return candidate !== server; } );
-		let answer = await window.Desktop.Save( { Servers: servers } );
+		let hosts = $scope.Settings.Hosts.filter( function ( candidate ) { return candidate !== server; } );
+		let answer = await window.Desktop.Save( { Hosts: hosts } );
 		if ( answer.Settings )
 		{
 			$scope.Settings = answer.Settings;
@@ -139,7 +140,7 @@ angular.module( 'Connect', [] )
 
 	$scope.CanOpen = function ()
 	{
-		return !!$scope.Local || ( $scope.Settings.Servers || [] ).length > 0;
+		return !!$scope.Local || ( $scope.Settings.Hosts || [] ).length > 0;
 	};
 
 

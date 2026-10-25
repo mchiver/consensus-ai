@@ -324,9 +324,9 @@ TEST( 'the stdio relay: each line goes to the server and its reply comes back on
 		ASSERT.equal( read.Project.Id, project.Id );
 		let revisions = ( await api( url, 'GET', '/api/plans/' + plan.Id + '/revisions' ) ).Body.Revisions;
 		ASSERT.deepEqual( [ revisions[ 0 ].By, revisions[ 0 ].Service ], [ 'user', 'Claude-CLI' ] );
-		// a saved server by its name, from a config folder of the relay's own
+		// a saved Host by its name, from the desktop's own file (plan Rearchitecturation, Step 1) in a config folder of the relay's own
 		let config = temporary_folder();
-		FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( { Servers: [ { Name: 'here', Url: url } ] } ) );
+		FS.writeFileSync( PATH.join( config, 'desktop.json' ), JSON.stringify( { Hosts: [ { Name: 'here', Url: url, Project: null } ] } ) );
 		let named = relay( [ '--server', 'here', '--config', config ] );
 		named.Send( request( 1, 'ping' ) );
 		await named.Until( 1 );

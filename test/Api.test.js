@@ -247,9 +247,10 @@ TEST( 'settings: the owner reads and writes consensus.json; problems are refused
 
 	// written: the states, the owner's display; the file and the running server follow at once
 	let member_token = PARTICIPANTS.NewToken();
-	// the desktop's fields in the same file (plan Run Shapes) are not the modal's to write: they stay
-	await running.Store.WriteSettings( Object.assign( {}, read.Body.Settings, { Servers: [ { Name: 'cube4', Url: 'http://cube4:3500' } ] } ) );
-	running.Settings.Servers = [ { Name: 'cube4', Url: 'http://cube4:3500' } ];
+	// the registry in the same file (its Projects, each entry's Mounted switch: plan Rearchitecturation, Step 1) is not the modal's to write: it stays
+	let registry = read.Body.Settings.Projects.map( function ( entry, index ) { return Object.assign( {}, entry, { Mounted: index === 0 } ); } );
+	await running.Store.WriteSettings( Object.assign( {}, read.Body.Settings, { Projects: registry } ) );
+	running.Settings.Projects = registry;
 	let fresh = {
 		Port: read.Body.Settings.Port,
 		Scope: read.Body.Settings.Scope,
@@ -262,7 +263,8 @@ TEST( 'settings: the owner reads and writes consensus.json; problems are refused
 	ASSERT.equal( written.Status, 200 );
 	ASSERT.equal( written.Body.Restart, false );
 	ASSERT.equal( 'Workers' in written.Body.Settings, false );
-	ASSERT.deepEqual( written.Body.Settings.Servers, [ { Name: 'cube4', Url: 'http://cube4:3500' } ] );
+	ASSERT.deepEqual( written.Body.Settings.Projects, registry );
+	ASSERT.equal( ( await call( 'GET', '/api/projects' ) ).Body.Projects[ 0 ].Mounted, true );
 	ASSERT.equal( ( await call( 'GET', '/api/me' ) ).Body.Server, 'renamed' );
 	ASSERT.deepEqual( ( await call( 'GET', '/api/me' ) ).Body.States, fresh.States );
 	let renamed_me = ( await call( 'GET', '/api/me' ) ).Body.Me;
@@ -271,7 +273,7 @@ TEST( 'settings: the owner reads and writes consensus.json; problems are refused
 	let on_disk = JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) );
 	ASSERT.deepEqual( on_disk.States, fresh.States );
 	ASSERT.deepEqual( on_disk.Owner, { Name: 'user', Display: 'Owner' } );
-	ASSERT.deepEqual( on_disk.Servers, [ { Name: 'cube4', Url: 'http://cube4:3500' } ] );
+	ASSERT.deepEqual( on_disk.Projects, registry );
 	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Shelved' } ) ).Status, 400 );
 	let project_states = await call( 'PUT', '/api/projects/' + home, { States: fresh.States } );
 	ASSERT.equal( project_states.Status, 200 );

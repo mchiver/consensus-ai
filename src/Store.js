@@ -4,7 +4,8 @@
 // and a queue per plan so two requests never interleave their writes. The config folder holds the settings; each
 // project is a folder of its own (a repository, as a rule) with a .consensus sub-folder that is the project:
 //
-//   <config>/consensus.json                            settings; its Projects: [ { Path } ] lists the project folders, in display order
+//   <config>/consensus.json                            settings; its Projects: [ { Path, Mounted } ] lists the project folders, in display
+//                                                      order, Mounted (plan Rearchitecturation, Step 1) saying whether a Server Host exposes it
 //   <project>/.consensus/project.json                  { Id, Name, Context, ContextFolder, Created, Updated, Version, Items: [ node ],
 //                                                      Archive: [ node ], States, Include, Exclude, Commands, Tasks, GitSync, AutoCommit, Llm,
 //                                                      Roles: { Owners, Members, Service, Watchers } (account ids, plan User Management, Step 3) }  (see Tree.js)
@@ -24,6 +25,10 @@
 // lacks is skipped, with a line, and kept in the list (Missing). Prepare with { Project: path } (plan Run Shapes, Step 4:
 // `consensus <path>`) registers that folder's project alone, making its .consensus when missing, and puts it first in
 // the list (Isolated gives its id).
+//
+// Open( Folder, { ReadOnly: true } ) (plan Rearchitecturation, Step 1) is the Desktop's opening of the Server Host's config:
+// the settings and the registry are read and never written (WriteSettings refuses with a plain error, Prepare registers
+// the listed folders, makes no Default project and writes nothing); a folder with no consensus.json gives empty lists.
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -50,10 +55,14 @@ const RENAME_DELAY_MS = 20;
 //---------------------------------------------------------------------
 // Open: a store over a config folder, created if missing. The project folders join at Prepare.
 
-function Open( Folder )
+function Open( Folder, Options )
 {
 	let folder = PATH.resolve( Folder );
-	FS.mkdirSync( folder, { recursive: true } );
+	let read_only = !!( Options && Options.ReadOnly );
+	if ( !read_only )
+	{
+		FS.mkdirSync( folder, { recursive: true } );
+	}
 	let queues = {};
 	let roots = {};		// project id -> { Id, Path, Home }
 	let homes = {};		// plan id -> { Project, Archived }
@@ -228,6 +237,10 @@ function Open( Folder )
 
 	async function WriteSettings( Settings )
 	{
+		if ( read_only )
+		{
+			throw new Error( 'the settings are read-only: ' + SETTINGS_FILE + ' is written by the Server Host alone' );
+		}
 		await write_json( PATH.join( folder, SETTINGS_FILE ), Settings );
 	}
 
@@ -255,10 +268,18 @@ function Open( Folder )
 
 	async function write_projects_list()
 	{
-		if ( settings )
+		if ( settings && !read_only )
 		{
 			await WriteSettings( settings );
 		}
+	}
+
+
+	// The registry entry of a project folder, or null.
+	function entry_at( Path )
+	{
+		let resolved = PATH.resolve( String( Path || '' ) );
+		return projects_list().find( function ( entry ) { return PATH.resolve( String( entry.Path || '' ) ) === resolved; } ) || null;
 	}
 
 
@@ -713,7 +734,29 @@ function Open( Folder )
 	function with_path( project )
 	{
 		let root = roots[ project.Id ];
-		return Object.assign( {}, project, { Path: root ? root.Path : null } );
+		let entry = root ? entry_at( root.Path ) : null;
+		return Object.assign( {}, project, { Path: root ? root.Path : null, Mounted: !!( entry && entry.Mounted === true ) } );
+	}
+
+
+	// SetMounted (plan Rearchitecturation, Step 1): the registry entry's switch, kept in the settings; the project after,
+	// or null when Id is not a project. Mounting a project for accounts is Step 5's.
+	async function SetMounted( Id, Mounted )
+	{
+		let root = roots[ Id ];
+		if ( !root )
+		{
+			return null;
+		}
+		let entry = entry_at( root.Path );
+		if ( !entry )
+		{
+			entry = { Path: root.Path };
+			projects_list().push( entry );
+		}
+		entry.Mounted = ( Mounted === true );
+		await write_projects_list();
+		return await read_project( Id );
 	}
 
 
@@ -1095,7 +1138,7 @@ function Open( Folder )
 				}
 			}
 		}
-		if ( !Object.keys( roots ).length )
+		if ( !Object.keys( roots ).length && !read_only )
 		{
 			let made = await CreateProject( { Name: DEFAULT_PROJECT_NAME } );
 			lines.push( 'project ' + made.Name + ' created at ' + made.Path );
@@ -1130,8 +1173,9 @@ function Open( Folder )
 			project = await CreateProject( { Name: PATH.basename( path ) || 'project', Path: path } );
 			lines.push( 'project ' + project.Name + ' created at ' + path );
 		}
-		let list = projects_list().filter( function ( entry ) { return PATH.resolve( String( entry.Path || '' ) ) !== path; } );
-		list.unshift( { Path: path } );
+		let existing = entry_at( path ) || { Path: path };
+		let list = projects_list().filter( function ( entry ) { return entry !== existing; } );
+		list.unshift( existing );
 		settings.Projects = list;
 		isolated = project.Id;
 		return lines;
@@ -1142,6 +1186,7 @@ function Open( Folder )
 
 	return {
 		Folder: folder,
+		ReadOnly: read_only,
 		Queue: Queue,
 		ReadSettings: ReadSettings,
 		WriteSettings: WriteSettings,
@@ -1166,6 +1211,7 @@ function Open( Folder )
 		WriteProject: WriteProject,
 		DeleteProject: DeleteProject,
 		MoveProject: MoveProject,
+		SetMounted: SetMounted,
 		ProjectOf: ProjectOf,
 		Roots: Roots,
 		Missing: Missing,

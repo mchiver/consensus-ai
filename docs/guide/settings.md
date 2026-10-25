@@ -54,9 +54,11 @@ The gear at the right end of the title bar opens the look: the theme (light, dar
 
 ## The config folder and the project folders
 
-The config folder, `.consensus` in your user folder by default or the one `--config` names, holds the settings, `consensus.json`, whose `Projects` list the project folders in display order (a folder opened from the command line goes to the top). Each project is a folder of its own, a repository as a rule, with a `.consensus` sub-folder that is the project; a project made with no folder named goes under `projects/` in the config folder. Everything is plain files:
+The config folder, `.consensus` in your user folder by default or the one `--config` names, holds two files. `consensus.json` is the server's (the Server Host's): its settings, and the registry `Projects`, which lists the project folders in display order (a folder opened from the command line goes to the top), each entry with a `Mounted` switch that says whether the Host exposes it. `desktop.json` is the desktop's own: the recent project folders, the saved Hosts (name, address and project, no tokens), the theme, the size and the remembered view state; the desktop writes this file and never `consensus.json`. Each project is a folder of its own, a repository as a rule, with a `.consensus` sub-folder that is the project; a project made with no folder named goes under `projects/` in the config folder. Everything is plain files:
 
 ```
+<config>/consensus.json                    the server's settings and the registry: Projects: [ { Path, Mounted } ]
+<config>/desktop.json                      the desktop's own: Recent, Hosts, Theme, Scale, Remembered
 <config>/Users.json                        the accounts of the server (User Management Step 3): the owner, the users and the Service accounts, each with its hashed tokens
 <project>/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands, its Tasks, its Work options GitSync and AutoCommit, and its Roles (the four role folders, account ids)
 <project>/.consensus/content/<id>/content.md    a plan's or document's text

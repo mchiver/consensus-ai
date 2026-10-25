@@ -4,7 +4,9 @@
 // server started from the config folder, and the lines that say what was started. bin/consensus.js is the headless
 // form, for a plain node install and the Docker image; the desktop (desktop/main.js) runs the same and then opens
 // its window, unless --headless. Step 4: a project folder on the command line (`consensus <path>`, or --project)
-// opens an instance on that project alone, its .consensus made when missing; the lines name the projects loaded.
+// opens an instance on that project alone, its .consensus made when missing; the lines name the projects loaded. Plan
+// Rearchitecturation, Step 1: `consensus serve` is the Server Host, every registered project served, and the bare form
+// with no path means the same, so the Docker image and npm start are unchanged; a folder is the one-project server.
 //
 //   Parse( argv ) -> { Config?, Port?, Scope?, Project?, Headless, Help }   throws on an argument it does not know
 //   Run( options, log ) -> running (src/Server.js's), after log( line ) for each line about it
@@ -14,21 +16,28 @@
 const SERVER = require( './Server.js' );
 const PARTICIPANTS = require( './Participants.js' );
 
-const USAGE = 'usage: consensus [<path> | --project <folder>] [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]';
+const USAGE = 'usage: consensus [serve | <path> | --project <folder>] [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]';
+const SERVE = 'serve';
 const SCOPE_NAMES = { none: 'None', local: 'Local', public: 'Public' };
 
 
 //---------------------------------------------------------------------
 // Parse: the arguments after the program's. --data is --config's older name, kept for one release; --host is gone,
-// Scope took its place, and the message says so. A bare path is --project's folder; one at a time.
+// Scope took its place, and the message says so. A bare path is --project's folder; one at a time. The word serve is
+// the Host's form, the same as no path at all, and takes no folder.
 
 function Parse( argv )
 {
 	let options = { Headless: false, Help: false };
+	let serve = false;
 	for ( let index = 0; index < argv.length; index++ )
 	{
 		let argument = argv[ index ];
-		if ( argument === '--config' || argument === '--data' )
+		if ( argument === SERVE )
+		{
+			serve = true;
+		}
+		else if ( argument === '--config' || argument === '--data' )
 		{
 			options.Config = value_after( argv, index, argument );
 			index++;
@@ -82,6 +91,10 @@ function Parse( argv )
 		{
 			throw new Error( 'unknown argument "' + argument + '"' );
 		}
+	}
+	if ( serve && options.Project !== undefined )
+	{
+		throw new Error( 'serve takes no project folder: consensus serve serves every registered project, consensus <path> one' );
 	}
 	return options;
 }

@@ -1,0 +1,68 @@
+[
+	{
+		"Id": "thr-tvq-gw1-0ku",
+		"Anchor": {
+			"Text": "The server reads the new names only",
+			"Prefix": "n template carries it as today. ",
+			"Suffix": ": no license has been sold under"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T04:52:22.681Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T04:54:19.706Z",
+			"Revision": 2,
+			"RevisionId": "rev-4rm-v2z-hu9",
+			"Outcome": "The plan values are renamed outright to personal and professional, the old ones not read; the readme and the Clerk subplan change in this step; a test account with an old value is edited by hand."
+		},
+		"Created": "2026-10-25T03:38:05.873Z",
+		"Replies": [
+			{
+				"Id": "rep-uui-0hf-8eu",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.873Z",
+				"Text": "The readme says Host and User today; nobody holds a license under those names yet. **Recommendation:** rename the values outright (personal, professional) with no reading of the old ones, and change the readme and the Clerk subplan in this step. If a test account on the development instance carries an old value, it is edited by hand. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-7m3-617-ri0",
+		"Anchor": {
+			"Text": "falls back to Free with a line in About",
+			"Prefix": "en the cache lapses the Desktop ",
+			"Suffix": ", and nothing a person saved is "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T04:52:55.113Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T04:54:19.724Z",
+			"Revision": 3,
+			"RevisionId": "rev-obv-z0p-kue",
+			"Outcome": "14 days; when the cache lapses the Desktop falls back to Free with a line in About, and nothing saved is locked away."
+		},
+		"Created": "2026-10-25T03:38:05.882Z",
+		"Replies": [
+			{
+				"Id": "rep-67r-zyh-imb",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.882Z",
+				"Text": "A Desktop used only offline would lose its tier after 14 days. Is 14 days right, and should the Desktop keep working in Free when the cache lapses, or refuse to open? **Recommendation:** 14 days, and the Desktop falls back to Free with a line in About; nothing a person saved is ever locked away. Resolve with no reply to take the recommendation."
+			}
+		]
+	}
+]

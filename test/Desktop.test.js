@@ -1,8 +1,8 @@
 'use strict';
 
-// The desktop (plan Consensus Desktop, Step 2), without Electron: its settings module (the desktop's fields of the
-// global config, filled, applied and prepared at start: plan Run Shapes, Step 1), and the page server
-// that serves its copy of the Consensus page and the vendor files.
+// The desktop (plan Consensus Desktop, Step 2), without Electron: its settings module (desktop.json, the desktop's own
+// file beside the Server Host's consensus.json: plan Rearchitecturation, Step 1), and the page server that serves its
+// copy of the Consensus page and the vendor files.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -38,24 +38,25 @@ TEST.after( function ()
 //---------------------------------------------------------------------
 // Settings
 
-TEST( 'settings: a missing desktop.json reads as the defaults, and a written one reads back filled in', function ()
+TEST( 'settings: a missing desktop.json reads as the defaults, and a written one reads back filled in; Recent and the Hosts', function ()
 {
 	let folder = temporary_folder( 'desktop-settings-' );
-	let path = PATH.join( folder, 'desktop.json' );
-	let read = SETTINGS.Read( path );
-	ASSERT.deepEqual( read, { Servers: [], Theme: 'system', Scale: 'normal', Remembered: {} } );
+	let path = SETTINGS.Path( folder );
+	ASSERT.equal( path, PATH.join( folder, 'desktop.json' ) );
+	ASSERT.deepEqual( SETTINGS.Read( path ), { Recent: [], Hosts: [], Theme: 'system', Scale: 'normal', Remembered: {} } );
 
 	let settings = SETTINGS.Fill( {
-		Servers: [ { Name: ' cube4 ', Url: 'http://cube4:3500/' } ],
-		Local: { Data: folder, Port: 3500 },
-		Last: { Kind: 'server', Name: 'cube4' },
+		Hosts: [ { Name: ' cube4 ', Url: 'http://cube4:3500/', Token: 'secret' }, { Name: 'cube4 Test', Url: 'http://cube4:3500', Project: 'prj-aaa-bbb-ccc' } ],
+		Recent: [ { Path: ' W:/code/tic-tac-toe ', Opened: '2026-10-25T10:00:00.000Z' }, { Path: '' }, null ],
+		Servers: [ { Name: 'old', Url: 'http://old:1' } ],
 		Theme: 'dark',
 		Scale: 'huge',
 		Extra: true,
 	} );
-	// Last and the theme per server (before plan Run Shapes, Step 5) are not kept
+	// the saved servers of before, a token on a Host and anything else are not kept
 	ASSERT.deepEqual( settings, {
-		Servers: [ { Name: 'cube4', Url: 'http://cube4:3500' } ],
+		Recent: [ { Path: 'W:/code/tic-tac-toe', Opened: '2026-10-25T10:00:00.000Z' } ],
+		Hosts: [ { Name: 'cube4', Url: 'http://cube4:3500', Project: null }, { Name: 'cube4 Test', Url: 'http://cube4:3500', Project: 'prj-aaa-bbb-ccc' } ],
 		Theme: 'dark',
 		Scale: 'normal',
 		Remembered: {},
@@ -63,8 +64,7 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	SETTINGS.Write( path, settings );
 	ASSERT.deepEqual( SETTINGS.Read( path ), settings );
 	ASSERT.equal( FS.readdirSync( folder ).some( function ( name ) { return name.endsWith( '.tmp' ); } ), false );
-	ASSERT.equal( 'Last' in SETTINGS.Fill( { Last: { Kind: 'local' } } ), false );
-	ASSERT.equal( 'Theme' in SETTINGS.Fill( { Servers: [ { Name: 'a', Url: 'http://a:1', Theme: 'nord' } ] } ).Servers[ 0 ], false );
+	ASSERT.deepEqual( Object.keys( SETTINGS.Fill( {} ) ).sort(), SETTINGS.DESKTOP_FIELDS.slice().sort() );
 	// the palettes (plan UI Tweaks IV): any of them is a Theme; the dark ones are named
 	ASSERT.equal( SETTINGS.Fill( { Theme: 'nord' } ).Theme, 'nord' );
 	ASSERT.equal( SETTINGS.Fill( { Theme: 'neon' } ).Theme, 'system' );
@@ -83,16 +83,57 @@ TEST( 'settings: a missing desktop.json reads as the defaults, and a written one
 	SETTINGS.Write( path, kept );
 	ASSERT.deepEqual( SETTINGS.Read( path ).Remembered, { 'consensus.a:1.project': 'default', 'consensus.a:1.tabs': { Tabs: [ { Key: 'p:x' } ], Active: 'p:x' } } );
 	ASSERT.deepEqual( SETTINGS.Fill( { Remembered: [ 1 ] } ).Remembered, {} );
-	ASSERT.deepEqual( SETTINGS.ServerNamed( settings, 'cube4' ), { Name: 'cube4', Url: 'http://cube4:3500' } );
-	ASSERT.equal( SETTINGS.ServerNamed( settings, 'nope' ), null );
+	ASSERT.deepEqual( SETTINGS.HostNamed( settings, 'cube4' ), { Name: 'cube4', Url: 'http://cube4:3500', Project: null } );
+	ASSERT.equal( SETTINGS.HostNamed( settings, 'nope' ), null );
+
+	// Recent: a folder opened goes first, once; the newest RECENT_LIMIT are kept
+	ASSERT.equal( SETTINGS.Opened( settings, 'W:/code/other', '2026-10-25T11:00:00.000Z' ), true );
+	ASSERT.equal( SETTINGS.Opened( settings, 'W:/code/tic-tac-toe', '2026-10-25T12:00:00.000Z' ), true );
+	ASSERT.deepEqual( settings.Recent, [ { Path: 'W:/code/tic-tac-toe', Opened: '2026-10-25T12:00:00.000Z' }, { Path: 'W:/code/other', Opened: '2026-10-25T11:00:00.000Z' } ] );
+	ASSERT.equal( SETTINGS.Opened( settings, '' ), false );
+	for ( let index = 0; index < SETTINGS.RECENT_LIMIT + 5; index++ )
+	{
+		SETTINGS.Opened( settings, 'W:/many/' + index );
+	}
+	ASSERT.equal( settings.Recent.length, SETTINGS.RECENT_LIMIT );
+	ASSERT.equal( settings.Recent[ 0 ].Path, 'W:/many/' + ( SETTINGS.RECENT_LIMIT + 4 ) );
+	ASSERT.match( settings.Recent[ 0 ].Opened, /^20[0-9][0-9]-/ );
 } );
 
 
 TEST( 'settings: the problems are named', function ()
 {
 	ASSERT.deepEqual( SETTINGS.Problems( SETTINGS.Default() ), [] );
-	let problems = SETTINGS.Problems( SETTINGS.Fill( { Servers: [ { Name: 'a', Url: 'http://a:1' }, { Name: 'a', Url: 'cube4:3500' }, { Name: '', Url: 'http://b:2' } ] } ) );
-	ASSERT.deepEqual( problems, [ 'server "a" is named twice', 'server "a": the Url must start with http:// or https://', 'a server has no Name' ] );
+	let problems = SETTINGS.Problems( SETTINGS.Fill( { Hosts: [ { Name: 'a', Url: 'http://a:1' }, { Name: 'a', Url: 'cube4:3500' }, { Name: '', Url: 'http://b:2' } ] } ) );
+	ASSERT.deepEqual( problems, [ 'host "a" is named twice', 'host "a": the Url must start with http:// or https://', 'a host has no Name' ] );
+} );
+
+
+TEST( 'settings: Load reads the desktop\'s file from the config folder and says so; the desktop writes desktop.json and never consensus.json', function ()
+{
+	let folder = temporary_folder( 'desktop-two-files-' );
+	let host_file = PATH.join( folder, 'consensus.json' );
+	let host_text = JSON.stringify( { Name: 'host', Port: 3500, Scope: 'Local', Owner: { Name: 'user' }, Projects: [ { Path: 'W:/p', Mounted: true } ], Theme: 'dark', Servers: [ { Name: 'old', Url: 'http://old:1' } ] }, null, '\t' );
+	FS.writeFileSync( host_file, host_text );
+	let loaded = SETTINGS.Load( folder );
+	ASSERT.equal( loaded.Path, PATH.join( folder, 'desktop.json' ) );
+	// the Host's file is not the desktop's: its Theme and its old Servers are not read
+	ASSERT.deepEqual( loaded.Settings, SETTINGS.Default() );
+	ASSERT.deepEqual( loaded.Lines, [ 'desktop settings start with the defaults (' + loaded.Path + ' is written at the first change)' ] );
+	loaded.Settings.Theme = 'nord';
+	SETTINGS.Opened( loaded.Settings, 'W:/p', '2026-10-25T10:00:00.000Z' );
+	SETTINGS.Write( loaded.Path, loaded.Settings );
+	let again = SETTINGS.Load( folder );
+	ASSERT.deepEqual( again.Lines, [ 'desktop settings from ' + loaded.Path ] );
+	ASSERT.equal( again.Settings.Theme, 'nord' );
+	ASSERT.deepEqual( again.Settings.Recent, [ { Path: 'W:/p', Opened: '2026-10-25T10:00:00.000Z' } ] );
+	ASSERT.deepEqual( Object.keys( JSON.parse( FS.readFileSync( loaded.Path, 'utf8' ) ) ).sort(), SETTINGS.DESKTOP_FIELDS.slice().sort() );
+	ASSERT.equal( FS.readFileSync( host_file, 'utf8' ), host_text );
+	// Apply: in place, every field replaced
+	let same = loaded.Settings;
+	SETTINGS.Apply( loaded.Settings, SETTINGS.Fill( { Theme: 'sepia' } ) );
+	ASSERT.equal( same, loaded.Settings );
+	ASSERT.deepEqual( loaded.Settings, SETTINGS.Fill( { Theme: 'sepia' } ) );
 } );
 
 
@@ -169,32 +210,3 @@ TEST( 'the page server serves the page, the connect screen and the vendor files,
 	await ASSERT.rejects( PAGE.Serve( { Folder: temporary_folder( 'desktop-nopage-' ) } ), /the page is missing/ );
 } );
 
-
-//---------------------------------------------------------------------
-// The desktop's fields in the global config (plan Run Shapes, Step 1)
-
-TEST( 'Prepare fills the desktop\'s fields in on the global config, once; Apply puts them on in place', function ()
-{
-	let config = { Name: 'here', Port: 3500, Scope: 'Local', States: [ 'Draft' ], Owner: { Name: 'user', Display: 'User' } };
-	// a config with none yet: the defaults, with a line; a second start changes nothing
-	ASSERT.deepEqual( SETTINGS.Prepare( config ), [ 'the desktop\'s settings start with the defaults' ] );
-	ASSERT.deepEqual( [ config.Servers, config.Theme, config.Scale, config.Remembered ], [ [], 'system', 'normal', {} ] );
-	ASSERT.deepEqual( [ config.Name, config.Scope, config.Owner.Name ], [ 'here', 'Local', 'user' ] );
-	ASSERT.deepEqual( Object.keys( config ).sort(), [ 'Name', 'Port', 'Scope', 'States', 'Owner' ].concat( SETTINGS.DESKTOP_FIELDS ).sort() );
-	ASSERT.deepEqual( SETTINGS.Prepare( config ), [] );
-	// one written by hand gets the fields it lacks, the rest kept and filled
-	let by_hand = { Name: 'h', Scope: 'None', Owner: { Name: 'user' }, Servers: [ { Name: 's', Url: 'http://s:1/' } ], Theme: 'light' };
-	ASSERT.deepEqual( SETTINGS.Prepare( by_hand ), [ 'the desktop\'s settings filled in: Scale, Remembered' ] );
-	ASSERT.deepEqual( [ by_hand.Servers[ 0 ], by_hand.Theme, by_hand.Scale, by_hand.Remembered, by_hand.Scope ], [ { Name: 's', Url: 'http://s:1' }, 'light', 'normal', {}, 'None' ] );
-	ASSERT.deepEqual( SETTINGS.Prepare( by_hand ), [] );
-	ASSERT.equal( SETTINGS.Remember( {}, 'k', 1 ), true );
-	// Apply: in place, the server's fields untouched, the desktop's all replaced
-	let same = config;
-	SETTINGS.Apply( config, SETTINGS.Fill( Object.assign( {}, config, { Theme: 'sepia', Servers: [] } ) ) );
-	ASSERT.equal( same, config );
-	ASSERT.equal( config.Theme, 'sepia' );
-	ASSERT.deepEqual( config.Servers, [] );
-	ASSERT.equal( config.Name, 'here' );
-	// Fill gives the pages the desktop's fields only: no owner, no server fields
-	ASSERT.equal( 'Owner' in SETTINGS.Fill( config ), false );
-} );

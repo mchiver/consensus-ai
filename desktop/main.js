@@ -6,8 +6,9 @@
 // server at once, each a root of its tree: this machine's server when it runs and every saved server; nothing is
 // connected to, and the connect screen is the servers' list (the Server menu's Servers…). Plan Run Shapes, Step 1: the app is the second entry
 // point over src/Start.js: it takes the command line's --config, --port, --scope and --headless, starts this
-// machine's server from the global config as the Scope says, and keeps its own settings (Settings.js) in that same
-// consensus.json. With --headless there is no window. A second server at the
+// machine's server from the global config as the Scope says, and keeps its own settings (Settings.js) in desktop.json
+// beside it (plan Rearchitecturation, Step 1: consensus.json is the Server Host's, and the Desktop never writes it;
+// the desktop reads it for the server's Name). With --headless there is no window. A second server at the
 // same time is a second instance (New window). Plan Run Shapes, Step 3: the LLM connections, the workspaces and
 // the runs the desktop kept (Consensus Desktop, Steps 3 and 4) are the server's: the page gets them from the API. Plan Run
 // Shapes, Step 4: a project folder on the command line (`consensus <path>`) opens the app on this machine's server
@@ -37,7 +38,9 @@ const ELECTRON_SWITCH = /^--(remote-debugging-port|user-data-dir|inspect|enable-
 
 let running = null;		// src/Server.js's, from START.Run: this machine's server, or none with Scope None
 let store = null;
-let settings = null;
+let settings = null;		// this machine's server's settings (consensus.json): read, never written here
+let desktop = null;		// the desktop's own (desktop.json, Settings.js)
+let desktop_path = null;
 let page = null;
 let window = null;
 let reason = null;		// why this machine's server could not start, for the connect screen
@@ -51,17 +54,21 @@ let isolated = false;	// a project on the command line: this machine's server, t
 
 function save_settings()
 {
-	store.WriteSettings( settings ).catch( function ( error )
+	try
 	{
-		console.error( 'the settings could not be written: ' + error.message );
-	} );
+		SETTINGS.Write( desktop_path, desktop );
+	}
+	catch ( error )
+	{
+		console.error( 'the desktop settings could not be written: ' + error.message );
+	}
 }
 
 
-// The settings as the pages see them: the desktop's fields, never the participants' tokens.
+// The settings as the pages see them: the desktop's own, filled.
 function desktop_settings()
 {
-	return SETTINGS.Fill( settings );
+	return SETTINGS.Fill( desktop );
 }
 
 
@@ -85,7 +92,7 @@ function save_settings_soon()
 // The theme in use: the window's one theme (the theme per server went with plan Run Shapes, Step 5).
 function theme_in_use()
 {
-	return settings.Theme;
+	return desktop.Theme;
 }
 
 
@@ -148,7 +155,7 @@ async function try_server( url )
 
 //---------------------------------------------------------------------
 // The roots the page shows (plan Run Shapes, Step 5): this machine's server when it runs, named by the config's Name,
-// then the saved servers in their order; a project on the command line (Step 4) shows this machine's alone.
+// then the saved Hosts in their order; a project on the command line (Step 4) shows this machine's alone.
 
 function roots_now()
 {
@@ -160,9 +167,9 @@ function roots_now()
 	}
 	if ( !isolated )
 	{
-		for ( let server of settings.Servers || [] )
+		for ( let host of desktop.Hosts || [] )
 		{
-			list.push( { Key: server.Name, Name: server.Name, Url: server.Url, Kind: 'server' } );
+			list.push( { Key: host.Name, Name: host.Name, Url: host.Url, Kind: 'server' } );
 		}
 	}
 	return list;
@@ -186,7 +193,7 @@ function apply_roots()
 
 async function serve_page()
 {
-	let remembered = ( settings.Remembered && Number.isInteger( settings.Remembered[ 'page-port' ] ) ) ? settings.Remembered[ 'page-port' ] : 0;
+	let remembered = ( desktop.Remembered && Number.isInteger( desktop.Remembered[ 'page-port' ] ) ) ? desktop.Remembered[ 'page-port' ] : 0;
 	if ( remembered > 0 )
 	{
 		try
@@ -199,7 +206,7 @@ async function serve_page()
 		}
 	}
 	let served = await PAGE.Serve();
-	if ( SETTINGS.Remember( settings, 'page-port', Number( new URL( served.Url ).port ) ) )
+	if ( SETTINGS.Remember( desktop, 'page-port', Number( new URL( served.Url ).port ) ) )
 	{
 		save_settings();
 	}
@@ -237,8 +244,8 @@ function boot_info()
 		Base: '',		// the page's own origin: Page.js forwards /api to the connected server
 		Version: VERSION,
 		Theme: theme_in_use(),
-		Scale: settings.Scale,
-		Remembered: settings.Remembered,
+		Scale: desktop.Scale,
+		Remembered: desktop.Remembered,
 		Roots: roots_now(),
 		Reason: reason,
 		Local: local_running(),
@@ -269,7 +276,7 @@ function is_report_url( Url )
 async function print_to_pdf( sender, Name )
 {
 	let owner = ELECTRON.BrowserWindow.fromWebContents( sender );
-	let remembered = settings.Remembered && settings.Remembered[ 'report-folder' ];
+	let remembered = desktop.Remembered && desktop.Remembered[ 'report-folder' ];
 	let folder = ( typeof remembered === 'string' && remembered ) ? remembered : ELECTRON.app.getPath( 'documents' );
 	let name = String( Name || 'report' ).replace( /[\\/:*?"<>|\u0000-\u001f]+/g, ' ' ).trim() || 'report';
 	let picked = await ELECTRON.dialog.showSaveDialog( owner, { defaultPath: PATH.join( folder, name + '.pdf' ), filters: [ { name: 'PDF', extensions: [ 'pdf' ] } ] } );
@@ -286,7 +293,7 @@ async function print_to_pdf( sender, Name )
 	{
 		return { Error: 'not written: ' + ( error && error.message || error ) };
 	}
-	if ( SETTINGS.Remember( settings, 'report-folder', PATH.dirname( picked.filePath ) ) )
+	if ( SETTINGS.Remember( desktop, 'report-folder', PATH.dirname( picked.filePath ) ) )
 	{
 		save_settings_soon();
 	}
@@ -557,7 +564,7 @@ function attach_handlers()
 	// The page's remembered state (stored.js): a value by key, into desktop.json.
 	ELECTRON.ipcMain.on( 'remember', function ( event, change )
 	{
-		if ( change && SETTINGS.Remember( settings, change.Key, change.Value ) )
+		if ( change && SETTINGS.Remember( desktop, change.Key, change.Value ) )
 		{
 			save_settings_soon();
 		}
@@ -568,11 +575,11 @@ function attach_handlers()
 	{
 		if ( change && SETTINGS.THEMES.includes( change.Theme ) )
 		{
-			settings.Theme = change.Theme;
+			desktop.Theme = change.Theme;
 		}
 		if ( change && SETTINGS.SCALES.includes( change.Scale ) )
 		{
-			settings.Scale = change.Scale;
+			desktop.Scale = change.Scale;
 		}
 		save_settings();
 		apply_native_theme();
@@ -580,18 +587,18 @@ function attach_handlers()
 
 	ELECTRON.ipcMain.handle( 'settings', function ()
 	{
-		return { Settings: desktop_settings(), Path: store.SettingsPath(), Version: VERSION, Roots: roots_now(), Reason: reason, Local: local_running(), Missing: store.Missing() };
+		return { Settings: desktop_settings(), Path: desktop_path, Config: store.Folder, Version: VERSION, Roots: roots_now(), Reason: reason, Local: local_running(), Missing: store.Missing() };
 	} );
 
 	ELECTRON.ipcMain.handle( 'save', function ( event, fresh )
 	{
-		let filled = SETTINGS.Fill( Object.assign( {}, settings, fresh || {} ) );
+		let filled = SETTINGS.Fill( Object.assign( {}, desktop, fresh || {} ) );
 		let problems = SETTINGS.Problems( filled );
 		if ( problems.length )
 		{
 			return { Problems: problems };
 		}
-		SETTINGS.Apply( settings, filled );
+		SETTINGS.Apply( desktop, filled );
 		save_settings();
 		apply_roots();
 		build_menu();
@@ -718,11 +725,14 @@ async function main()
 	running = await start_server( options );
 	store = running.Store;
 	settings = running.Settings;
-	let prepared = SETTINGS.Prepare( settings );
-	if ( prepared.length )
+	// The desktop's own file (plan Rearchitecturation, Step 1); a project folder on the command line goes first in Recent.
+	let loaded = SETTINGS.Load( store.Folder );
+	desktop = loaded.Settings;
+	desktop_path = loaded.Path;
+	loaded.Lines.forEach( function ( line ) { console.log( line ); } );
+	if ( running.Project && SETTINGS.Opened( desktop, running.Project.Path ) )
 	{
-		prepared.forEach( function ( line ) { console.log( line ); } );
-		await store.WriteSettings( settings );
+		save_settings();
 	}
 	apply_native_theme();
 	if ( options.Headless )

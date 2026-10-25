@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-24T10:14:50.073Z",
-	"Version": 64,
+	"Updated": "2026-10-25T03:38:05.896Z",
+	"Version": 71,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -81,7 +81,37 @@
 				},
 				{
 					"Kind": "plan",
-					"Id": "pln-gkn-zlj-42q"
+					"Id": "pln-gkn-zlj-42q",
+					"Items": [
+						{
+							"Kind": "plan",
+							"Id": "pln-dys-jgy-09u"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-5pv-tni-imt"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-5rn-o8r-u4m"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-t2z-wuz-h0u"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-6ir-npt-fcu"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-xz2-kec-wta"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-kjf-5qo-2ue"
+						}
+					]
 				}
 			]
 		},

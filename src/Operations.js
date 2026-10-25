@@ -501,7 +501,8 @@ function Operations( Context )
 	//-----------------------------------------------------------------
 	// Settings: consensus.json, read whole and written by the Administrator (the settings modal; the owner on a Local
 	// server): the server's fields (Name, Port, Scope, States, Owner, Clerk, Tasks) replace what the file has, and any
-	// other field (the desktop's, plan Run Shapes) stays as it is. Everything applies at once but Scope and Port, which
+	// other field (the registry Projects with each entry's Mounted, the Llms) stays as it is; the desktop's fields left the
+	// file for desktop.json with plan Rearchitecturation, Step 1. Everything applies at once but Scope and Port, which
 	// take effect at the next start; the answer says when a restart is needed.
 
 	define( {

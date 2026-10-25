@@ -1,0 +1,110 @@
+[
+	{
+		"Id": "thr-vv9-kus-l7r",
+		"Anchor": {
+			"Text": "A machine with no consensus.json gives the Desktop empty lists, not a new file",
+			"Prefix": "ections and the tasks (Step 4). ",
+			"Suffix": ": the Host alone makes the file "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:56:30.074Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:57:21.381Z",
+			"Revision": 1,
+			"RevisionId": "rev-hdg-dl1-pbw",
+			"Outcome": "The Desktop never writes consensus.json; a Free Desktop needs no connections and a Personal one starts the Server Host, which makes the file. The text already says so."
+		},
+		"Created": "2026-10-25T03:38:05.624Z",
+		"Replies": [
+			{
+				"Id": "rep-zwc-0s7-h3i",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.624Z",
+				"Text": "A fresh machine that only ever runs the Desktop would have no consensus.json and so no LLM connections until a Host runs once. Is that the wanted shape, or should the Desktop make the file with the defaults when it is missing? **Recommendation:** the Desktop never writes it; a Free Desktop needs no connections, and a Personal one offers \"Start the Server Host\" (Step 5), which makes the file. One writer keeps the rule simple. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-nm5-ii4-hyy",
+		"Anchor": {
+			"Text": "one entry per Host project the Desktop has opened",
+			"Prefix": "ts: [ { Name, Url, Project } ] (",
+			"Suffix": ", in place of today's Servers; n"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T04:04:54.538Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T04:05:56.310Z",
+			"Revision": 2,
+			"RevisionId": "rev-uz9-tsv-4on",
+			"Outcome": "Hosts is a list of { Name, Url, Project } entries, one per Host project opened, with no tokens: a Local Host is the owner from its own machine, any other Host signs in through Clerk. Step 2 amended to match."
+		},
+		"Created": "2026-10-25T03:38:05.633Z",
+		"Replies": [
+			{
+				"Id": "rep-qsl-ml4-dob",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.633Z",
+				"Text": "The saved servers list is renamed Hosts in desktop.json. Should the entries also drop the per-server token now that the Desktop signs in through Clerk (Step 6), or keep a token for a Host with no Clerk? **Recommendation:** keep an optional Token per Host for the Local-scope case, and prefer the session when the Host answers that it has Clerk. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-hco-62e-smq",
+				"By": "user",
+				"At": "2026-10-25T03:55:35.658Z",
+				"Text": "since desktop connects to hosted projects, the saved servers/hosts list should be a list of server:project entries.\nwe should get rid of the fabricated tokens and use clerk only."
+			},
+			{
+				"Id": "rep-yxs-lv4-3de",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:57:21.389Z",
+				"Text": "Understood on both counts. desktop.json keeps `Hosts: [ { Name, Url, Project } ]`, one entry per Host project the Desktop has opened, no Token on any of them; the fabricated per-server tokens go. **Recommendation** for the one case Clerk does not cover: a Host with Scope Local (no sign-in) is reached from the same machine only, and a request from localhost is the owner there as it is today, so a Desktop on that machine needs nothing; any Host beyond the machine is Public and the Desktop signs in through Clerk (Step 6). When applied I will write the entry shape here and amend Step 2 so Connect to Host picks the project into the entry and its thin-client line loses \"or with the Host's saved token\". Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-yi8-bvx-78e",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T05:43:08.767Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T05:43:52.763Z",
+			"Revision": 2,
+			"RevisionId": "rev-uz9-tsv-4on",
+			"Outcome": "Accepted by the owner: Step 1 built as logged; committed as Rearchitecturation Step 1: The two files and the registry; the Subplan back to Plan."
+		},
+		"Created": "2026-10-25T05:41:04.441Z",
+		"Replies": [
+			{
+				"Id": "rep-ogc-6r4-pzs",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T05:41:04.441Z",
+				"Text": "**Build log, Step 1: The two files and the registry** (built by Claude Fable 5.1 as Claude-CLI, 2026-10-25; nothing committed).\n\n**What was built**\n\n- **desktop.json, the Desktop's file** (`desktop/Settings.js`, rewritten): `Path( Folder )`, `Load( Folder )` returning the settings, the path and a line saying where they came from, `Read`, `Write` (whole and atomic), `Fill` with the five fields `Recent`, `Hosts`, `Theme`, `Scale`, `Remembered`, `Opened( Settings, Folder )` putting a folder first in Recent (the newest 20 kept), `HostNamed`, `Problems`. A Hosts entry is `{ Name, Url, Project }`; a Token on one is dropped at Fill, as is the old `Servers` field. `Prepare` and `Apply` on the global config are gone.\n- **The desktop writes it and nothing else** (`desktop/main.js`): the desktop's fields are read from and written to desktop.json (`save_settings` writes the file; the roots come from Hosts; the theme, the scale, the remembered state and the page port live there); `consensus.json` is read for the server's Name only and never written by the desktop. A project folder on the command line goes first in Recent. The connect screen (`desktop/page/connect.js`, `connect.html`) keeps the Hosts list under the same Servers heading, Step 2 being its replacement. The `settings` bridge call answers `Path` (desktop.json) and `Config` (the folder).\n- **The read-only store** (`src/Store.js`): `Open( Folder, { ReadOnly: true } )` makes no folder, refuses `WriteSettings` with \"the settings are read-only: consensus.json is written by the Server Host alone\", skips the registry writes (a move or a mount changes the list in memory only), and `Prepare` registers the listed folders without making a Default project or writing; a folder with no consensus.json gives null settings and empty lists. `ReadOnly` is on the store.\n- **Mounted on the registry entry** (`src/Store.js`): every project the store answers carries `Mounted` (false when the entry lacks it), so `GET /api/projects` reads it; `SetMounted( Id, Mounted )` writes the switch; a folder on the command line keeps its entry whole when it goes first (it was rewritten as `{ Path }` before), and a move keeps it as it did.\n- **The command line** (`src/Start.js`): `consensus serve` parses as the bare form and refuses a folder with it; the usage line names it; `bin/consensus.js`, the Dockerfile and `npm start` are unchanged.\n- **The MCP relay** (`bin/mcp.js`): `--server <name>` is a Host from `<config>/desktop.json`'s Hosts, its Url taken and no token; `bin/docs.js` writes the seeded server into desktop.json for the desktop pictures.\n\n**Decided during the build**\n\n- The settings write operation keeps any field it does not own, as before, which is how the registry and Mounted survive a save from the Settings popup; its comment says so (`src/Operations.js`).\n- `Recent` entries are `{ Path, Opened }`; the window geometry the plan mentions waits for Step 2, where the window becomes the project's.\n- The MCP relay keeps `--server <url>`; a saved Host's entry gives the Url alone, so a shared server takes `--token` on the command line.\n- The Settings section of the readme had the sample settings from before User Management (Participants); the sample now shows Owner and a Projects entry with Mounted. The rest of that section is untouched.\n\n**Tests**\n\n- `test/Store.test.js`: two new tests, Mounted kept through a start, a folder on the command line, a move and SetMounted; the read-only store reads, refuses the settings write, writes nothing, and a missing folder gives empty lists without being made.\n- `test/Desktop.test.js`: the settings tests rewritten for desktop.json (the five fields, Recent, Hosts without tokens, Load's lines, consensus.json byte for byte untouched by the desktop's write); the Prepare test is gone with Prepare.\n- `test/Start.test.js`: serve equals the bare form, with the options, and refuses a folder. `test/Api.test.js`: the registry with Mounted survives a settings write and the API answers Mounted. `test/Mcp.test.js`: the saved Host read from desktop.json.\n- Results: the non-browser suite 179 pass, 0 fail (test/ClerkSmoke.test.js left out, it needs the Clerk keys); test/Ui.test.js 43 pass; npm run smoke, the page and the desktop on temporary folders, every check ok, the desktop keeping its theme in desktop.json.\n\n**Docs**: the readme's Starting it (serve), the config-folder list (both files, Mounted), the settings sample, the desktop paragraph, the relay line and the code layout; `docs/guide/settings.md`'s config-folder section lists both files; the guide rebuilt.\n\nResolve to accept; I then apply this thread, commit as \"Rearchitecturation Step 1: The two files and the registry\" and set the Subplan to Plan. A reply means fix and report again."
+			}
+		]
+	}
+]

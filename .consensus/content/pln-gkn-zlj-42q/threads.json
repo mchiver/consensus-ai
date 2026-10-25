@@ -1,1 +1,610 @@
-[]
+[
+	{
+		"Id": "thr-abk-6v7-axh",
+		"Anchor": {
+			"Text": "One codebase, two modes",
+			"Prefix": " the LLM's session. Server Host ",
+			"Suffix": ": consensus serve is the Server "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:05:16.195Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:23.646Z",
+			"Revision": 5,
+			"RevisionId": "rev-kyn-8qb-u0x",
+			"Outcome": "One codebase, two modes: consensus serve is the Server Host, the desktop app is the Desktop, which can start the Host mode from a menu. The spellings singe and Manage fixed in the same revision."
+		},
+		"Created": "2026-10-24T18:05:46.011Z",
+		"Replies": [
+			{
+				"Id": "rep-ffd-4pf-qoj",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.011Z",
+				"Text": "Separate application or a mode? The code today is one server (bin/consensus.js) that the desktop wraps, so the cheapest split is one codebase with two entry points: `consensus serve` is the Server Host (headless, the registry, users, LLMs, the web UI), and the desktop app is the Desktop. The desktop can also start the Host mode from a menu for a Member on the same machine. **Recommendation:** one codebase, two modes, no second application. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-qpy-p4e-71s",
+		"Anchor": {
+			"Text": "owns the per-user machine config",
+			"Prefix": "s to a network. The Server Host ",
+			"Suffix": ", which declares the users and t"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T02:59:10.315Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:23.669Z",
+			"Revision": 6,
+			"RevisionId": "rev-yno-2ba-xzb",
+			"Outcome": "The owner decided: the Host owns the per-user machine config, which declares the users and the LLM connections; the Desktop reads that same config and never writes it. Written into the split."
+		},
+		"Created": "2026-10-24T18:05:46.045Z",
+		"Replies": [
+			{
+				"Id": "rep-i30-tuq-zd1",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.045Z",
+				"Text": "If the Host owns all LLMs, where does a Desktop working on a local folder get its connections for the LLM Tasks a Member may press? **Recommendation:** each side keeps its own list. The Desktop keeps connections in its own settings file (the machine's user folder, one list for every project it opens); the Host keeps its own in consensus.json and a project mounted on a Host runs on the Host's connections. Tasks likewise: the shipped defaults on both, each side editing its own list. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-574-9cl-w5t",
+				"By": "user",
+				"At": "2026-10-25T02:59:10.315Z",
+				"Text": "The Host owns the per-user machine config which declares users and lms.\nThe Desktop reads that same config. Desktop does not update that config."
+			}
+		]
+	},
+	{
+		"Id": "thr-trr-ml5-saj",
+		"Anchor": {
+			"Text": "the Desktop is a thin client",
+			"Prefix": "rver Host. Connected to a Host, ",
+			"Suffix": ": the same page pointed at the H"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:01:57.797Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:23.715Z",
+			"Revision": 7,
+			"RevisionId": "rev-60y-nru-0oa",
+			"Outcome": "Connected to a Host, the Desktop is a thin client of its API: the same page, signed in as the account, nothing written locally, the Host running the LLMs."
+		},
+		"Created": "2026-10-24T18:05:46.053Z",
+		"Replies": [
+			{
+				"Id": "rep-r20-23q-vx3",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.053Z",
+				"Text": "What is the Desktop when it connects to a mounted project: a thin client of the Host's API, or a local copy kept in sync? **Recommendation:** a thin client. The Desktop page is the same web UI pointed at the Host's API, signed in as the person's account, and nothing is written locally; the Host does the LLM runs. Syncing a copy brings merge problems this plan should not take on. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-5ai-mhy-6h8",
+		"Anchor": {
+			"Text": "chosen by a hash of the project folder",
+			"Prefix": "e. The port comes from a range, ",
+			"Suffix": " and stepped up when taken, so c"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:03:14.996Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:23.737Z",
+			"Revision": 8,
+			"RevisionId": "rev-9sa-ibp-n7o",
+			"Outcome": "The port is hashed from the project folder within the range and stepped up when taken; the address is written to .consensus/~sidecar.json; a stdio MCP shim (consensus mcp <folder>) reads it so a fixed MCP entry keeps working."
+		},
+		"Created": "2026-10-24T18:05:46.063Z",
+		"Replies": [
+			{
+				"Id": "rep-4qf-0tt-fdb",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.063Z",
+				"Text": "A port from a range means the LLM's MCP configuration (a .mcp.json in the project, say) cannot name a fixed address. **Recommendation:** pick the port from the range by a hash of the project folder, stepping up when it is taken, and write the chosen address to `.consensus/~sidecar.json` (tilde, so never committed). The copied instructions carry the address of the moment, and a stdio MCP shim (`consensus mcp <folder>`) reads the file, so a fixed MCP entry per project keeps working across restarts. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-3dw-fl3-zxx",
+		"Anchor": {
+			"Text": "listen the whole time the project is open",
+			"Prefix": "starts. The sidecar API and MCP ",
+			"Suffix": ". Copying the LLM Instructions i"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:03:39.451Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:23.956Z",
+			"Revision": 9,
+			"RevisionId": "rev-tfs-jym-z2m",
+			"Outcome": "The sidecar API and MCP listen the whole time the project is open; copying the instructions is how a person starts a session by hand."
+		},
+		"Created": "2026-10-24T18:05:46.076Z",
+		"Replies": [
+			{
+				"Id": "rep-7ep-0es-tpk",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.076Z",
+				"Text": "Does the sidecar API start listening only when the instructions are copied, or is it always up while the project is open and the copy just hands over the address? **Recommendation:** always up while the project is open (an MCP client may connect before anyone copies anything); the copy is how a person starts a session by hand, and the served instructions carry the address and the one-project rule. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-vgy-8x9-5te",
+		"Anchor": {
+			"Text": "Three reaches, used with these words throughout",
+			"Prefix": " granting additional privleges. ",
+			"Suffix": ": localhost is this machine alon"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:12:43.706Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:23.978Z",
+			"Revision": 10,
+			"RevisionId": "rev-9wj-ehr-q80",
+			"Outcome": "Three reaches defined once under Licensing: localhost, local network, remote. The free line now reads: the sidecar on localhost. The Host lines wait on the open thread about local connections."
+		},
+		"Created": "2026-10-24T18:05:46.085Z",
+		"Replies": [
+			{
+				"Id": "rep-u49-b3e-xa9",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.085Z",
+				"Text": "Is this local server the sidecar itself (localhost, already listed under None) or a server other machines on the network can reach? **Recommendation:** define the three reaches once in the plan and use the words throughout: *localhost* (the sidecar, None), *local network* (the LAN, Member), *remote* (the Internet, Host). Then this line reads \"the sidecar on localhost\" and the two Member lines name the local network. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-xg5-f98-fvn",
+		"Anchor": {
+			"Text": "Can run the Server Host bound to localhost",
+			"Prefix": "top to a Server Hosted project. ",
+			"Suffix": ". Can use Server Host to manage "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:29:52.487Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:31:17.561Z",
+			"Revision": 17,
+			"RevisionId": "rev-0jj-aj8-d7p",
+			"Outcome": "Personal runs the Server Host bound to localhost; Professional binds it to the network, local network and remote alike; the trusted-network setting stays on the Host."
+		},
+		"Created": "2026-10-24T18:05:46.096Z",
+		"Replies": [
+			{
+				"Id": "rep-fu3-8ky-x5j",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.096Z",
+				"Text": "What counts as a local connection here, and how is it told from a remote one? Today the server has Scope Local or Public and a trusted-network setting. **Recommendation:** local means the Host binds to the machine's LAN address and accepts the trusted network's ranges; remote means a public address. A Member's Host refuses to bind publicly, so the tier is enforced at bind time and not per request. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-z1k-460-k7r",
+				"By": "user",
+				"At": "2026-10-25T03:19:46.713Z",
+				"Text": "This means that Member/Personal license allows you to run the Host and bind to localhost."
+			},
+			{
+				"Id": "rep-927-a5s-vcf",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:27:24.206Z",
+				"Text": "Understood: a Personal license runs the Server Host bound to localhost, and only Professional binds it to the network. **Recommendation** for the wording when applied: the Personal line reads \"Can run the Server Host bound to localhost\", the Professional line \"Can bind the Server Host to the network, local network and remote alike\", and the trusted-network setting stays as it is on the Host. The paragraph on the three reaches is in the plan now. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-8ud-dms-goo",
+		"Anchor": {
+			"Text": "the sidecar is the free tier's LLM path",
+			"Prefix": "M connections and no LLM Tasks: ",
+			"Suffix": ". Member Can use the LLM connect"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:14:19.266Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:23.999Z",
+			"Revision": 11,
+			"RevisionId": "rev-suy-0e6-ufu",
+			"Outcome": "The free tier gets the sidecar alone, no LLM connections and no pressed tasks; the paid tier unlocks the connections and the whole task list."
+		},
+		"Created": "2026-10-24T18:05:46.124Z",
+		"Replies": [
+			{
+				"Id": "rep-61m-9mk-jzo",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.124Z",
+				"Text": "If every LLM Task is a Member privilege, what does None get from an LLM besides the sidecar? **Recommendation:** None gets the sidecar alone (the LLM drives itself through the API and MCP) and no LLM connections or pressed tasks; Member unlocks connections and the whole task list. That keeps the free tier useful without running a model for free users. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-f7d-vrs-oh6",
+		"Anchor": {
+			"Text": "a registered project is known to the machine",
+			"Prefix": "ject registry for this machine: ",
+			"Suffix": ", a mounted one is exposed to ac"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:09:02.322Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:24.021Z",
+			"Revision": 12,
+			"RevisionId": "rev-t2l-sll-rqy",
+			"Outcome": "Two states, registered and mounted, mounting a switch on the entry; a Desktop opening a folder the local Host has mounted connects through the Host, so one process writes the files."
+		},
+		"Created": "2026-10-24T18:05:46.134Z",
+		"Replies": [
+			{
+				"Id": "rep-sij-yz4-vlp",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.134Z",
+				"Text": "Two things to settle about mounting. Is a mounted project the same as a registered one, or is the registry wider (known to the machine) and mounting a switch on an entry (exposed to accounts)? And may a Desktop open a mounted project by its folder while the Host serves it, writing the same files? **Recommendation:** two states, registered and mounted; and a Desktop that opens a folder the local Host has mounted connects through the Host instead (it reads the registry in the user folder), so one process writes the files. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-810-asw-uyp",
+		"Anchor": {
+			"Text": "the Host alone writes it",
+			"Prefix": "sks and the trust settings, and ",
+			"Suffix": ". The Desktop reads it for the c"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:06:04.002Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:24.042Z",
+			"Revision": 13,
+			"RevisionId": "rev-mrk-mi1-qt8",
+			"Outcome": "The Host alone writes consensus.json (registry, users, LLM connections, tasks, trust settings); the Desktop reads it for the connections and tasks, as the owner decided on the LLMs thread, and keeps what is its own in a file of its own beside it."
+		},
+		"Created": "2026-10-24T18:05:46.162Z",
+		"Replies": [
+			{
+				"Id": "rep-06a-21m-f63",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.162Z",
+				"Text": "The Desktop and a Host on the same machine would both use the user folder. Do they share one consensus.json? **Recommendation:** no. The Host keeps consensus.json (registry, users, LLMs, tasks, the trust settings) and the Desktop keeps its own file in the same folder (recent projects, theme, its LLM connections and tasks), each file read by one program only. Note the words: today \"Local\" is a scope and \"local\" a reach, so the plan would do well to say \"the machine's user folder\" here. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-dpj-rxf-3pb",
+		"Anchor": {
+			"Text": "the tree is a component",
+			"Prefix": "ime and shows one project tree: ",
+			"Suffix": " (project-tree under public/comp"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:29:38.664Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:31:17.583Z",
+			"Revision": 18,
+			"RevisionId": "rev-3i6-o0f-621",
+			"Outcome": "The project tree becomes a component; the Desktop shows one instance, the Host an array of them stacked in the one sidebar, each collapsible, with the mount switch on each."
+		},
+		"Created": "2026-10-24T18:05:46.193Z",
+		"Replies": [
+			{
+				"Id": "rep-4h4-d0t-lrr",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.193Z",
+				"Text": "One project per instance means the project tree and the folders of several projects leave the Desktop. **Recommendation:** the Desktop shows one project's tree, a Recent projects menu (Open folder, New project, Connect to Host) and Open in new window; the Host's web UI keeps the many-project tree for the Administrator. Say so in the plan so the UI work is scoped. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-hfh-6mq-bll",
+				"By": "user",
+				"At": "2026-10-25T03:01:46.452Z",
+				"Text": "The Desktop shows one project's tree. Componentize the project tree. Desktop uses a single instance of it, while Host uses an array of them."
+			},
+			{
+				"Id": "rep-7e7-k1g-gph",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:27:24.219Z",
+				"Text": "Understood: the project tree becomes a component (`project-tree` under public/components, taking the project through a binding), the Desktop shows one instance, the Host an array of them, one per registered project. **Recommendation** for the Host: the instances stack in the one sidebar as the tree does today, each collapsible, with the Administrator's mount switch on each. I will write both into the Desktop and Host sections when applied. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-zv6-avd-0f5",
+		"Anchor": {
+			"Text": "Free, Personal and Professional",
+			"Prefix": "sing Licensing has three tiers, ",
+			"Suffix": ", each granting what the one bef"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:10:54.354Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:24.064Z",
+			"Revision": 14,
+			"RevisionId": "rev-fjp-81y-cfn",
+			"Outcome": "The owner named the tiers Free, Personal and Professional; the headings follow, and the plan says the tiers are not roles."
+		},
+		"Created": "2026-10-24T18:05:46.203Z",
+		"Replies": [
+			{
+				"Id": "rep-k11-vjs-oba",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.203Z",
+				"Text": "Member is already a project role (Owner, Member, Service, Watcher), and the readme names the paid plans Host and User. Using Member for a tier will confuse the role tables and the guide. **Recommendation:** tiers Free, Personal and Host (or keep the readme's User for the middle tier); roles stay as they are. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-d0u-7wc-goz",
+				"By": "user",
+				"At": "2026-10-25T03:10:54.354Z",
+				"Text": "License Tiers: Free, Personal, and Professional."
+			}
+		]
+	},
+	{
+		"Id": "thr-3h3-f3c-4z1",
+		"Anchor": {
+			"Text": "cached for a grace period of 14 days",
+			"Prefix": "e account menu). The license is ",
+			"Suffix": " so the Desktop works offline, a"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:15:19.186Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:24.167Z",
+			"Revision": 15,
+			"RevisionId": "rev-iuj-nsc-0pc",
+			"Outcome": "The Desktop signs in through Clerk, caches the license for 14 days to work offline, shows the tier in About; Free needs no account; a Host connection reuses the session."
+		},
+		"Created": "2026-10-24T18:05:46.214Z",
+		"Replies": [
+			{
+				"Id": "rep-hhi-gsh-xh8",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.214Z",
+				"Text": "How does a Desktop learn its tier? Today the license sits on the Clerk account and the desktop has no sign-in. **Recommendation:** the Desktop signs in through Clerk (Sign in under the account menu), caches the license for a grace period (say 14 days) so it works offline, and shows the tier in About; None needs no account. Connecting to a Host then reuses the same session. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-thh-1xw-ne5",
+		"Anchor": {
+			"Text": "This plan supersedes",
+			"Prefix": "ns. Relation to the other plans ",
+			"Suffix": " the readme's license section (F"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:20:44.480Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:24.189Z",
+			"Revision": 16,
+			"RevisionId": "rev-f8f-4a1-7np",
+			"Outcome": "This plan supersedes the readme's license section, Monetization, Accounts and Roles and Teams for the shape; Monetization's pricing folds in here and that draft is archived; Accounts and Roles stays the roles reference; the readme follows the first step."
+		},
+		"Created": "2026-10-24T18:05:46.224Z",
+		"Replies": [
+			{
+				"Id": "rep-hbg-01x-ohd",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.224Z",
+				"Text": "How does this plan sit with what exists? The readme's license section (Free, Host, User), the Monetization draft (pln-qr1-aed-21x), Accounts and Roles and Teams all describe the one-server shape. **Recommendation:** this plan supersedes them for the shape; the Monetization draft folds its pricing into this plan's Licensing section and is archived; Accounts and Roles stays as the roles reference since roles are unchanged; the readme is brought up to date when the first step is built. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-3pn-vxb-u8f",
+		"Anchor": {
+			"Text": "a Mounted switch on each registry entry",
+			"Prefix": "th two changes this plan names, ",
+			"Suffix": " and the Desktop reading the fil"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:30:20.631Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:31:17.612Z",
+			"Revision": 19,
+			"RevisionId": "rev-tio-1rc-ied",
+			"Outcome": "The project data does not change and the Desktop opens any .consensus folder as it is; the Host keeps consensus.json with a Mounted switch per registry entry and the Desktop reading it without writing; the rest is the first step's design."
+		},
+		"Created": "2026-10-24T18:05:46.236Z",
+		"Replies": [
+			{
+				"Id": "rep-pnf-667-alr",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.236Z",
+				"Text": "Existing installs: the config folder today holds many projects and one owner, which is the Server Host's shape, and the desktop opens that same folder. With the migration code just removed, what happens to a person's present folder? **Recommendation:** the Host reads today's consensus.json as it is (the registry is its Projects list), and the Desktop starts fresh with Recent projects empty, offering the registered projects to open by folder. No converter. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-muw-9l4-8f0",
+				"By": "user",
+				"At": "2026-10-25T03:24:09.719Z",
+				"Text": "i dont think the project data structures change for Desktop. It should be able to be used as-is.\nthe user's config for Host might beed some work."
+			},
+			{
+				"Id": "rep-yy4-v7n-pq8",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:27:24.230Z",
+				"Text": "Understood: the project data (the .consensus folder) does not change, and the Desktop opens any such folder as it is. For the Host's config, **recommendation:** today's consensus.json stays the file, with two changes this plan names: a Mounted switch on each registry entry, and the Desktop reading it without writing. Anything more is left to the first step's design. I will write that under Server Host when applied. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-3n9-ho1-2ht",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:24:24.353Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:27:24.198Z",
+			"Revision": 16,
+			"RevisionId": "rev-f8f-4a1-7np",
+			"Outcome": "Fixed in the revisions above: single, Manages, owns (the line rewritten), initializes (rewritten), privileges (rewritten)."
+		},
+		"Created": "2026-10-24T18:05:46.246Z",
+		"Replies": [
+			{
+				"Id": "rep-w49-n3n-12k",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-24T18:05:46.246Z",
+				"Text": "Spelling to fix when the decisions are applied: \"singe\" (single), \"initiaizes\" (initializes), \"privleges\" (privileges), \"also own\" (owns), \"Manage LLM connections\" (Manages). I will fix them in the same revision as the first apply. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-8qw-jhv-jff",
+		"Anchor": {
+			"Text": "Seven steps, each a Subplan of this plan, built in this order",
+			"Prefix": " the first step is built. Steps ",
+			"Suffix": ", each with its tests and its re"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T03:42:14.258Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T03:57:21.352Z",
+			"Revision": 20,
+			"RevisionId": "rev-072-7hs-1pn",
+			"Outcome": "The breakdown accepted as it stands: seven Subplans in this order; a step that proves too large is split at its design turn."
+		},
+		"Created": "2026-10-25T03:38:05.931Z",
+		"Replies": [
+			{
+				"Id": "rep-ulz-i7p-fb7",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.931Z",
+				"Text": "The breakdown: seven Subplans in this order, the files first so every later step has its two files to stand on, the Desktop before the sidecar it runs, the LLM reading before the Host that writes the file, licensing once the things it gates exist, the guide last. Each Subplan carries its own questions as threads. **Recommendation:** take the breakdown as it stands; a step that proves too large is split at its design turn. Resolve with no reply to take the recommendation."
+			}
+		]
+	}
+]

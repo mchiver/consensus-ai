@@ -1,0 +1,108 @@
+[
+	{
+		"Id": "thr-m35-q08-z4i",
+		"Anchor": {
+			"Text": "always shows the chooser",
+			"Prefix": "ooser. A window with no project ",
+			"Suffix": " in place of today's servers scr"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T04:09:33.928Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T04:34:52.641Z",
+			"Revision": 3,
+			"RevisionId": "rev-88b-3l0-2dw",
+			"Outcome": "The owner decided: always the chooser; the Desktop never reopens the last project on its own. Written into the chooser line."
+		},
+		"Created": "2026-10-25T03:38:05.678Z",
+		"Replies": [
+			{
+				"Id": "rep-d1g-vpc-9o3",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.678Z",
+				"Text": "When the Desktop starts with no folder on the command line, should it show the chooser, or reopen the last project when its folder still exists? **Recommendation:** reopen the last project, with the chooser one click away in the Server menu; the chooser shows when there is no last project or its folder is gone. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-bf3-yy7-257",
+				"By": "user",
+				"At": "2026-10-25T04:09:33.928Z",
+				"Text": "always use the chooser"
+			}
+		]
+	},
+	{
+		"Id": "thr-yya-19z-0ol",
+		"Anchor": {
+			"Text": "then one of the Host's projects",
+			"Prefix": "a Url tried before it is saved; ",
+			"Suffix": "). The command line consensus-de"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T04:33:56.676Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T04:34:52.649Z",
+			"Revision": 3,
+			"RevisionId": "rev-88b-3l0-2dw",
+			"Outcome": "One project per window on a Host too; the Host's whole tree is its own web page. The text already says so."
+		},
+		"Created": "2026-10-25T03:38:05.689Z",
+		"Replies": [
+			{
+				"Id": "rep-9sn-415-t0g",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.689Z",
+				"Text": "Connect to Host ends in picking one of the Host's projects, so a window still holds one project, remote or not. The alternative is a Host window showing the Host's whole tree as today. **Recommendation:** one project per window on a Host too; the whole tree is the Host's own web page, a browser away. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-epk-h7x-0vi",
+		"Anchor": {
+			"Text": "the pair saved as a Hosts entry",
+			"Prefix": "hen one of the Host's projects, ",
+			"Suffix": "). The command line consensus-de"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T04:05:56.323Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T04:05:56.339Z",
+			"Revision": 2,
+			"RevisionId": "rev-fil-mea-v7e",
+			"Outcome": "Connect to Host saves a Hosts entry of Name, Url and Project; the thin-client line names Clerk or the owner over localhost; the saved-token wording is gone."
+		},
+		"Created": "2026-10-25T04:05:56.323Z",
+		"Replies": [
+			{
+				"Id": "rep-uxt-5qt-9cj",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T04:05:56.323Z",
+				"Text": "Amended to match Step 1's decision on the Hosts list: Connect to Host saves the Host and the project as one entry, and the thin client signs in through Clerk or is the owner over localhost on a Local Host; no saved tokens."
+			}
+		]
+	}
+]

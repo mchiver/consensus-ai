@@ -1,0 +1,68 @@
+[
+	{
+		"Id": "thr-swf-kg7-g97",
+		"Anchor": {
+			"Text": "the first start of this version leaves today's entries as they are",
+			"Prefix": "d folder) starts unmounted, and ",
+			"Suffix": ", unmounted, so a Host serves no"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T04:48:30.513Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T04:54:19.671Z",
+			"Revision": 2,
+			"RevisionId": "rev-v7m-dfg-8v0",
+			"Outcome": "A registered project starts unmounted; the first start of this version leaves today's entries unmounted and the start log counts them."
+		},
+		"Created": "2026-10-25T03:38:05.840Z",
+		"Replies": [
+			{
+				"Id": "rep-q18-p50-48v",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.840Z",
+				"Text": "Should a project start unmounted (the Administrator exposes it on purpose) or mounted (today's behaviour, where every registered project is served)? **Recommendation:** unmounted, and the first start of this version leaves today's entries as they are, so a Host with projects in it serves nothing to accounts until the Administrator mounts them; the start log says how many are unmounted. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-zr1-zhl-ajg",
+		"Anchor": {
+			"Text": "is found by its port and shown as running",
+			"Prefix": "machine, started any other way, ",
+			"Suffix": ". A Personal license starts it w"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T04:51:44.313Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T04:54:19.690Z",
+			"Revision": 3,
+			"RevisionId": "rev-122-268-udw",
+			"Outcome": "The Host runs detached, outliving the window; Stop ends it; a Host already running on the machine is found by its port and shown as running."
+		},
+		"Created": "2026-10-25T03:38:05.849Z",
+		"Replies": [
+			{
+				"Id": "rep-t0p-0yh-9mn",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.849Z",
+				"Text": "The Host started from the Desktop could run in the Desktop's own process instead of detached, dying with the window. **Recommendation:** detached, so it outlives the window and other machines keep their connection; Stop in the menu ends it, and a Host already running on the machine is found by its port and shown as running. Resolve with no reply to take the recommendation."
+			}
+		]
+	}
+]

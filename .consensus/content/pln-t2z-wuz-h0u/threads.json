@@ -1,0 +1,35 @@
+[
+	{
+		"Id": "thr-y1n-5gg-8rq",
+		"Anchor": {
+			"Text": "its record goes to ~/.consensus/runs/<id>.json as today",
+			"Prefix": "on's record read from the file; ",
+			"Suffix": ", the ids being global, so the H"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-25T04:47:39.681Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-25T04:54:19.632Z",
+			"Revision": 1,
+			"RevisionId": "rev-9xi-7l4-vaa",
+			"Outcome": "Run records stay in ~/.consensus/runs/; moving them to the project is a plan of its own. The text already says so."
+		},
+		"Created": "2026-10-25T03:38:05.802Z",
+		"Replies": [
+			{
+				"Id": "rep-h6n-ocn-6if",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T03:38:05.802Z",
+				"Text": "Run records could instead live with the project, in `.consensus/~runs/`, so a project carries its history and the Host's folder is the Host's alone. **Recommendation:** keep `~/.consensus/runs/` for now: the LLM page lists a connection's runs across projects, and moving them is a plan of its own. Resolve with no reply to take the recommendation."
+			}
+		]
+	}
+]

@@ -1,0 +1,15 @@
+# Step 3: The sidecar
+
+The one-project server the Desktop runs becomes the sidecar the plan describes: a known address on localhost, found by the LLM without a copy and paste, and the MCP shim that keeps a fixed entry working.
+
+## What is built
+
+- **The port.** The sidecar range is 3600 to 3699. The port is the range's start plus a hash of the project folder's absolute path (lower-cased on Windows) modulo 100, stepped up by one while the port is taken, wrapping at the end; a `--port` on the command line overrides it for one start. The application is one process per window. A second launch on a folder reads the address file and, when its Pid is alive, asks that sidecar to bring its window to the front (`POST /api/desktop/activate`, answered on localhost by a Desktop's sidecar alone) and exits, as VS Code activates the window that has the folder; a dead Pid is a stale file and the folder opens as usual. The chooser's Open folder and Recent do the same from a running window. The headless `consensus <folder>` takes its port the same way and, on a folder a window has open, prints the running sidecar's address and exits.
+- **The address file.** While the project is open, `.consensus/~sidecar.json` holds `{ Url, Port, Pid, Started }`, written at start and removed at a clean exit; a stale file (its Pid gone) is overwritten. The tilde keeps it out of source control, as the project's rules say.
+- **The MCP shim.** `consensus mcp <folder>` (bin/mcp.js) reads the address file and relays stdio to the sidecar's `POST /api/mcp`, as the relay does today for `--server <url>`, which stays. A folder whose file is missing answers the client with one message saying the project is not open in Consensus. An MCP entry per project is then fixed: `{ "command": "consensus", "args": [ "mcp", "<folder>" ] }`.
+- **Always listening.** The sidecar listens the whole time the project is open; Scope None in the Desktop turns it off for the window. Copying the LLM Instructions (the Desktop's Copy instructions button, the `/instructions` page) is how a person starts a session by hand; the page names the address and the one-project rule, and sidecar mode's definition says the rest.
+- **Who a request is.** On the sidecar a request is the owner, with the `X-Consensus-Service` header naming the agent as today; no users, no tokens, no Clerk. The sidecar never binds beyond localhost.
+
+## Checks
+
+`test/Start.test.js`: the port from the hash, the step on a taken port, the second open activating the first and exiting, a stale file overwritten. `test/Mcp.test.js`: the shim over a folder, the missing-file message. `test/Api.test.js`: the address file written and removed. `.definitions/sidecar-mode.md`, the served instructions and the readme follow.
