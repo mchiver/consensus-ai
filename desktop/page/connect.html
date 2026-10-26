@@ -81,7 +81,7 @@
 				<div class="server-name">{{ entry.Title || entry.Project || entry.Name }}</div>
 				<div class="muted small server-url">{{ entry.Name }} · {{ entry.Url }}</div>
 				<span class="grow"></span>
-				<button class="btn btn-sm btn-outline-primary open-host" ng-click="OpenHost( entry )" ng-disabled="Busy || !entry.Project || !License || License.Rank < 1" title="{{ ( !License || License.Rank < 1 ) ? 'a sign-in: connecting to a Server needs one (Registered is free)' : 'open this Server project in this window' }}">Open</button>
+				<button class="btn btn-sm btn-outline-primary open-host" ng-click="OpenHost( entry )" ng-disabled="Busy || !License || License.Rank < 1" title="{{ ( !License || License.Rank < 1 ) ? 'a sign-in: connecting to a Server needs one (Registered is free)' : 'open this Server project in this window' }}">Open</button>
 				<button class="btn btn-sm btn-outline-danger" ng-click="RemoveHost( entry )" ng-disabled="Busy">Remove</button>
 			</div>
 			<form class="server-form" ng-if="Adding" ng-submit="Connect()">
@@ -93,7 +93,8 @@
 					<button class="btn btn-sm btn-outline-secondary" type="button" id="try-host" ng-click="TryHost()" ng-disabled="!Adding.Url || Busy">Try</button>
 				</div>
 				<div class="small tried" id="tried" ng-show="Adding.Tried">
-					<span ng-show="Adding.Tried.Ok">Consensus {{ Adding.Tried.Version || '(older than 0.2.0)' }} answers with {{ Adding.Projects.length }} project{{ Adding.Projects.length === 1 ? '' : 's' }}.<span class="text-warning" ng-show="Adding.Tried.Version !== Version"> Its version differs from this app's {{ Version }}.</span></span>
+					<span ng-show="Adding.Tried.Ok && Adding.Tried.SignIn">The Server answers and asks for a sign-in: Connect opens it in this window, where you sign in and pick a project.</span>
+					<span ng-show="Adding.Tried.Ok && !Adding.Tried.SignIn">Consensus {{ Adding.Tried.Version || '(older than 0.2.0)' }} answers with {{ Adding.Projects.length }} project{{ Adding.Projects.length === 1 ? '' : 's' }}.<span class="text-warning" ng-show="Adding.Tried.Version !== Version"> Its version differs from this app's {{ Version }}.</span></span>
 					<span class="text-danger" ng-hide="Adding.Tried.Ok">{{ Adding.Tried.Error }}</span>
 				</div>
 				<div class="field-row" ng-show="Adding.Tried.Ok && Adding.Projects.length">
@@ -101,7 +102,7 @@
 					<select class="form-select form-select-sm" id="host-project" ng-model="Adding.Project" ng-options="project.Id as project.Name for project in Adding.Projects"></select>
 				</div>
 				<div class="field-row">
-					<button class="btn btn-sm btn-primary" type="submit" id="connect-host" ng-disabled="!Adding.Name || !Adding.Tried.Ok || !Adding.Project || Busy">Connect</button>
+					<button class="btn btn-sm btn-primary" type="submit" id="connect-host" ng-disabled="!Adding.Name || !Adding.Tried.Ok || ( !Adding.Project && !Adding.Tried.SignIn ) || Busy">Connect</button>
 					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelAdd()">Cancel</button>
 				</div>
 			</form>

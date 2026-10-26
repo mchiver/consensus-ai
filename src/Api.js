@@ -46,6 +46,7 @@ function Attach( App, Context )
 	let users = Context.Users || null;
 	let clerk = Context.Clerk || null;
 	let gate = Context.Gate || null;
+	let people = !!Context.People;		// plan The Server, Step 5: a Server tells people apart whatever its Scope
 	let operations = OPERATIONS.Operations( Context );
 	let mcp = MCP.Mcp( { Operations: operations, Store: store, Authorize: authorize_operation } );
 	let router = EXPRESS.Router();
@@ -79,6 +80,8 @@ function Attach( App, Context )
 	// whose task writes nothing (plan LLM Tasks, Step 1: Writes none) is refused every request but a read.
 	// Step 4: a Bearer value that is no token of ours is tried as a Clerk session token, its user the account; on a
 	// Public server a bare request is refused with "sign in" (on Local it stays the owner, and a session is the owner's).
+	// Plan The Server, Step 5: a Server (People) is as a Public one whatever its Scope: a bare request is refused, a
+	// session is its person, the Administrator's being the owner's record.
 	// Plan Clerk, Step 5: a session whose license is below what the person's roles need is refused with "license" and
 	// the plan wanted: Personal for the Administrator; no project role needs one (plan The Server, Step 4).
 
@@ -109,7 +112,7 @@ function Attach( App, Context )
 	{
 		let authorization = ( request.get( 'Authorization' ) || '' ).trim();
 		let service = request.get( PARTICIPANTS.SERVICE_HEADER );
-		if ( !authorization && PARTICIPANTS.Trust( settings ) === 'clerk' )
+		if ( !authorization && PARTICIPANTS.Trust( settings, people ) === 'clerk' )
 		{
 			return fail( response, 401, 'sign in' );
 		}
@@ -164,7 +167,7 @@ function Attach( App, Context )
 		let account = ( found.Record.Type === 'owner' ) ? PARTICIPANTS.Identify( settings, { Service: service }, tokens, users ) : PARTICIPANTS.UserAccount( settings, users, found.Record, PARTICIPANTS.ServiceOf( service ), null );
 		account.Plan = found.License ? found.License.Plan : null;
 		account.Session = true;
-		if ( account.Type !== 'owner' && !admin_email() && found.Record.Email && ROLES.PlanRank( account.Plan ) >= ROLES.PlanRank( 'personal' ) )
+		if ( ( account.Type !== 'owner' || people ) && !admin_email() && found.Record.Email && ROLES.PlanRank( account.Plan ) >= ROLES.PlanRank( 'personal' ) )
 		{
 			settings.Clerk = Object.assign( {}, settings.Clerk || {}, { AdminEmail: found.Record.Email } );
 			await store.WriteSettings( settings );

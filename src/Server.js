@@ -118,8 +118,11 @@ async function Start( Options )
 			console.log( 'CONSENSUS_ADMIN is not an email address: ignored' );
 		}
 	}
-	let clerk = CLERK.Clerk( { Settings: settings, Users: users, Jwks: options.Clerk ? options.Clerk.Jwks : null } );
-	if ( clerk.On() && PARTICIPANTS.Trust( settings ) === 'clerk' )
+	// People (plan The Server, Step 5): a Server over every registered project tells people apart by their sign-in
+	// whatever its Scope; the same servers the gate covers (a project's own server and the tests' do not).
+	let people = !!options.Gate && !project && !read_only;
+	let clerk = CLERK.Clerk( { Settings: settings, Users: users, People: people, Jwks: options.Clerk ? options.Clerk.Jwks : null } );
+	if ( clerk.On() && PARTICIPANTS.Trust( settings, people ) === 'clerk' )
 	{
 		let admin_email = ( settings.Clerk && settings.Clerk.AdminEmail ) ? settings.Clerk.AdminEmail : null;
 		console.log( 'Clerk: people sign in through ' + ( clerk.FrontendApi() || 'an instance the publishable key does not name' ) + ' with a license; ' + ( admin_email ? ( 'the Administrator is ' + admin_email ) : 'no Administrator yet: the first sign-in with a Personal or Professional license becomes it' ) );
@@ -176,8 +179,8 @@ async function Start( Options )
 			response.json( { Ok: true } );
 		} );
 	}
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git, Users: users, Clerk: clerk, Gate: gate, Url: function () { return url; } } );
-	INSTRUCTIONS.Attach( app, { Settings: settings, Project: project } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git, Users: users, Clerk: clerk, Gate: gate, People: people, Url: function () { return url; } } );
+	INSTRUCTIONS.Attach( app, { Settings: settings, Project: project, People: people } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
 	{
@@ -284,6 +287,7 @@ async function Start( Options )
 		Users: users,
 		Clerk: clerk,
 		Gate: gate,
+		People: people,
 		SettingsWritten: settings_written,
 		Store: store,
 		Events: events,

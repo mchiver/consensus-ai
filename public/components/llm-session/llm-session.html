@@ -6,8 +6,8 @@
 			<span class="item-head-name" id="llm-head-name">{{ Llm.Name }}</span>
 			<span class="muted small" id="llm-head-line">{{ Llm.Speaker }}{{ Llm.Kind ? ' · ' + Llm.Kind : '' }}{{ Llm.Model ? ' · ' + Llm.Model : '' }}{{ Llm.Command ? ' · ' + Llm.Command : ( Llm.Url ? ' · ' + Llm.Url : '' ) }}</span>
 			<span class="grow"></span>
-			<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-details" ng-show="IsOwner()" ng-click="OpenDetails()"><svg class="icon lead"><use href="#i-pencil"></use></svg>Details…</button>
-			<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-packaging" ng-show="IsOwner()" ng-click="OpenPackaging()"><svg class="icon lead"><use href="#i-threads"></use></svg>Packaging…</button>
+			<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-details" ng-show="Manages()" ng-click="OpenDetails()"><svg class="icon lead"><use href="#i-pencil"></use></svg>Details…</button>
+			<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-packaging" ng-show="Manages()" ng-click="OpenPackaging()"><svg class="icon lead"><use href="#i-threads"></use></svg>Packaging…</button>
 		</div>
 
 		<div class="view-heading">Run <span class="muted small" ng-show="Project">in the folder {{ Project.Path }}</span></div>

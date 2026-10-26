@@ -22,6 +22,8 @@
 // run token carries its task's Writes, which Identify hands on as the account's Writes (null for any other request).
 // Scope (None, Local, Public) says whether the server listens and for whom; Trust says what a Scope comes to: local,
 // clerk (Public: people sign in through Clerk with a license, plan Clerk Step 5; a bare request is refused), or none.
+// Plan The Server, Step 5: a Server (People: the application, consensus serve, the image) is clerk whatever its Scope
+// but None; Local and Public differ only in the address. A project's own server (the sidecar) keeps local.
 // An account carries its Plan (User or Host, plan Clerk Step 5), the license its last sign-in showed.
 
 const CRYPTO = require( 'crypto' );
@@ -371,14 +373,14 @@ function validate_clerk( Clerk )
 }
 
 
-function Trust( Settings )
+function Trust( Settings, People )
 {
 	let scope = Scope( Settings );
 	if ( scope === 'None' )
 	{
 		return 'none';
 	}
-	if ( scope === 'Local' )
+	if ( scope === 'Local' && !People )
 	{
 		return 'local';
 	}

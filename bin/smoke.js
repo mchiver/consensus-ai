@@ -513,12 +513,13 @@ async function smoke_server_app()
 		page.Close();
 		child.kill();
 		await wait( 1500 );
-		// a Personal current user: open at the next start, the whole tree
+		// a Personal current user: open at the next start; the window's page signs its person in, as on any Server (plan The
+		// Server, Step 5), which a smoke with no Clerk session cannot: the sign-in shows, with no closed reason
 		LICENSE.Write( config, { Email: 'smoke@example.com', Clerk: 'user_smoke', Display: 'Smoke', Plan: 'personal', Until: null, Checked: new Date().toISOString() } );
 		child = CHILD_PROCESS.spawn( electron, launch, { cwd: ROOT, stdio: 'ignore' } );
 		page = await CDP.Attach( ( await server_app_page() ).webSocketDebuggerUrl );
-		await page.WaitFor( count_of( '.project' ) + ' >= 1 && ' + count_of( '#users-list .user-row' ) + ' >= 1', 30000 );
-		check( 'open: no sign-in', await page.Evaluate( count_of( '#sign-in-popup' ) ), 0 );
+		await page.WaitFor( count_of( '#sign-in-popup' ) + ' === 1 && document.getElementById( "sign-in-mount" ) !== null', 30000 );
+		check( 'open: the sign-in, no closed reason', await page.Evaluate( count_of( '#sign-in-closed' ) ), 0 );
 		check( 'open: the Administrator recorded', JSON.parse( FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' ) ).Clerk.AdminEmail, 'smoke@example.com' );
 		check( 'open: the server is the Server', await page.Evaluate( 'location.protocol + "//" + location.hostname' ), 'http://127.0.0.1' );
 		await screenshot( page, 'server-app' );
@@ -527,7 +528,9 @@ async function smoke_server_app()
 		check( '--open: the second launch hands over and ends', second.status, 0 );
 		await page.WaitFor( 'Array.from( document.querySelectorAll( ".project" ) ).some( function ( one ) { return one.textContent.indexOf( "handed-over" ) >= 0; } )', 30000 ).catch( function () {} );
 		check( '--open: the folder is a project', FS.existsSync( PATH.join( project_folder, '.consensus', 'project.json' ) ), true );
-		check( '--open: the window shows it', await page.Evaluate( 'location.hash.indexOf( "#/p/" ) === 0' ), true );
+		// the window is sent to the project's page; with no Clerk session here the page stays on its sign-in, so the
+		// registry is what is checked
+		check( '--open: the Server lists it', JSON.parse( FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' ) ).Projects.some( function ( one ) { return /handed-over$/.test( String( one.Path ).replace( /[\/]+$/, '' ) ); } ), true );
 		page.Close();
 	}
 	finally

@@ -7,6 +7,8 @@
 // header "X-Consensus-Service: <name>" names the service, so its posts read "<name> by <owner>"). A run's package
 // (plan Run Shapes, Step 3) makes the same text with the run's token and connection, with Guide() and Make( …, Run ).
 // A sidecar (plan Rearchitecturation, Step 3: a one-project server) names its project and the one-project rule.
+// Plan The Server, Step 5: on a Server (People) a request needs a token; the text says so, and the page's LLM
+// Instructions popup puts a token minted for the person at its top.
 
 const PATH = require( 'path' );
 const FS = require( 'fs' );
@@ -17,11 +19,11 @@ const GUIDE_PATH = PATH.join( __dirname, '..', '.guides', 'build-with-consensus.
 
 
 //---------------------------------------------------------------------
-// Make( Settings, Base, Guide, Run?, Project? ): the page's text. Base is 'http://<host>:<port>' as the request reached
-// us; Run ({ Service, Token, Writes? }) is a run's connection, token and level, for its package; the public page has
-// none. Project ({ Id, Name, Path }) is a sidecar's one project.
+// Make( Settings, Base, Guide, Run?, Project?, People? ): the page's text. Base is 'http://<host>:<port>' as the request
+// reached us; Run ({ Service, Token, Writes? }) is a run's connection, token and level, for its package; the public
+// page has none. Project ({ Id, Name, Path }) is a sidecar's one project. People: a Server, where a request needs a token.
 
-function Make( Settings, Base, Guide, Run, Project )
+function Make( Settings, Base, Guide, Run, Project, People )
 {
 	let owner = PARTICIPANTS.Owner( Settings );
 	let lines = [ '# This server', '', '- API: ' + Base + '/api' ];
@@ -39,6 +41,12 @@ function Make( Settings, Base, Guide, Run, Project )
 		{
 			lines.push( '- Writes: ' + TASKS.WritesLine( Run.Writes ) );
 		}
+	}
+	else if ( People )
+	{
+		lines.push( '- Sign in: this server tells people apart, and a request with no token is refused.' );
+		lines.push( '- Send "Authorization: Bearer <token>" with every request: the token at the top of this text when it came from a project\'s LLM Instructions, or one minted on your account\'s page (Users in the sidebar). You act as that account, allowed what its role in each project allows.' );
+		lines.push( '- Say who you are: send the header "' + PARTICIPANTS.SERVICE_HEADER + ': <your name>" (letters, digits, dot, dash and colon) with every request; what you post then reads "<your name> by <the account>".' );
 	}
 	else
 	{
@@ -64,7 +72,7 @@ async function Guide()
 
 
 //---------------------------------------------------------------------
-// Attach( App, { Settings, Project? } ): the route.
+// Attach( App, { Settings, Project?, People? } ): the route.
 
 function Attach( App, Options )
 {
@@ -80,7 +88,7 @@ function Attach( App, Options )
 			return response.status( 500 ).type( 'text/plain' ).send( 'the guide is missing: ' + GUIDE_PATH + '\n' );
 		}
 		let base = request.protocol + '://' + request.get( 'host' );
-		response.type( 'text/plain; charset=utf-8' ).send( Make( Options.Settings, base, guide, null, Options.Project || null ) );
+		response.type( 'text/plain; charset=utf-8' ).send( Make( Options.Settings, base, guide, null, Options.Project || null, !!Options.People ) );
 	} );
 }
 

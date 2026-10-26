@@ -372,9 +372,16 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		}
 
 
+		// The Administrator and the Managers edit a connection (the fix after plan The Server, Step 4).
+		$scope.Manages = function ()
+		{
+			return current_root().Manage === true;
+		};
+
+
 		$scope.OpenDetails = function ()
 		{
-			if ( $scope.Llm && $scope.IsOwner() )
+			if ( $scope.Llm && $scope.Manages() )
 			{
 				$scope.Details = { Form: details_form( $scope.Llm ), Problems: [], Checked: null, Busy: false };
 			}
@@ -455,7 +462,7 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 
 		$scope.OpenPackaging = async function ()
 		{
-			if ( !$scope.Llm || !$scope.IsOwner() )
+			if ( !$scope.Llm || !$scope.Manages() )
 			{
 				return;
 			}

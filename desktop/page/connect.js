@@ -146,7 +146,7 @@ angular.module( 'Connect', [] )
 	$scope.OpenHost = async function ( entry )
 	{
 		$scope.Busy = true;
-		took( await window.Desktop.ConnectHost( { Name: entry.Name, Url: entry.Url, Project: entry.Project } ) );
+		took( await window.Desktop.ConnectHost( { Name: entry.Name, Url: entry.Url, Project: entry.Project, Title: entry.Title } ) );
 	};
 
 

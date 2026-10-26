@@ -84,7 +84,9 @@ TEST( 'consensus-server --headless: consensus serve behind the gate: closed with
 	try
 	{
 		ASSERT.ok( open.Lines.some( function ( line ) { return line === 'open under the Administrator ann@example.com (personal)'; } ), open.Lines.join( '\n' ) );
-		ASSERT.equal( ( await fetch( open.Url + '/api/me' ) ).status, 200 );
+		// open, and as any Server it tells people apart (plan The Server, Step 5): a bare request signs in
+		let bare = await fetch( open.Url + '/api/me' );
+		ASSERT.deepEqual( [ bare.status, ( await bare.json() ).Closed ], [ 401, undefined ] );
 		ASSERT.equal( JSON.parse( FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' ) ).Clerk.AdminEmail, 'ann@example.com' );
 	}
 	finally

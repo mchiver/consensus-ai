@@ -137,7 +137,9 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		}
 		if ( form.Scope === 'Local' )
 		{
-			return 'Local: this machine only. A request is the owner.' + ( $scope.ScopeAllowed( 'Public' ) ? '' : ' Public needs a sign-in with a Professional license.' );
+			// a Server tells people apart whatever its Scope (plan The Server, Step 5); a project's own server is the owner's
+			let people = !!( SettingsPanel.Root && SettingsPanel.Root.People );
+			return 'Local: this machine only. ' + ( people ? 'People sign in and act by their roles; a request with no session and no token is refused.' : 'A request is the owner.' ) + ( $scope.ScopeAllowed( 'Public' ) ? '' : ' Public needs a sign-in with a Professional license.' );
 		}
 		return 'Public: people sign in through Consensus-AI with a license and act by their roles. A request with no session and no token is refused.';
 	};

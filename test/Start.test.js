@@ -86,7 +86,9 @@ TEST( 'Run starts the server from the config folder and says where; Scope None s
 	// a Personal current user on the machine opens it, recorded as the Administrator
 	LICENSE.Write( config, { Email: 'ann@example.com', Clerk: 'user_ann', Display: 'Ann', Plan: 'personal', Until: null, Checked: new Date().toISOString() } );
 	ASSERT.equal( ( await running.Gate.Check() ).Open, true );
-	ASSERT.equal( ( await fetch( running.Url + '/api/me' ) ).status, 200 );
+	// open, and as any Server it tells people apart (plan The Server, Step 5): a bare request is asked to sign in
+	let bare = await ( await fetch( running.Url + '/api/me' ) ).json();
+	ASSERT.deepEqual( [ bare.Error, bare.Closed ], [ 'sign in', undefined ] );
 	await running.Close();
 	ASSERT.equal( FS.existsSync( PATH.join( config, '~host.json' ) ), false, 'the Host\'s address file goes at Close' );
 
@@ -162,7 +164,7 @@ TEST( 'the configured port in use: a second instance takes a free one and says s
 	ASSERT.equal( second.PortTaken, port );
 	ASSERT.notEqual( second.Address.Port, port );
 	ASSERT.equal( lines[ 1 ], 'port ' + port + ' is in use: listening on ' + second.Address.Port + ' instead' );
-	ASSERT.equal( ( await fetch( second.Url + '/api/me' ) ).status, 200 );
+	ASSERT.equal( ( await fetch( second.Url + '/api/me' ) ).status, 401, 'it answers, asking for a sign-in' );
 	await second.Close();
 	await ASSERT.rejects( START.Run( { Config: config, Port: port } ), /EADDRINUSE/ );
 	await first.Close();

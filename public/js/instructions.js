@@ -3,7 +3,10 @@
 // Instructions (plan UI Tweaks VII) - "LLM Instructions" in a project row's menu: the server's /instructions page
 // (what an agent session needs: the API's address, how to say who it is, the guide) shown in a popup to read and
 // copy, for seeding an LLM by hand. A section naming the project and its Readme is put first, so the LLM knows
-// which project is its own. In a browser, Open shows the page itself; the desktop has no Open.
+// which project is its own. In a browser, Open shows the page itself; the desktop has no Open. Plan The Server, Step 5:
+// on a Server (root.People) a token is minted for the person and the project (POST /api/instructions/token, named
+// "LLM session: <project name>", replacing the last one) and put first, so the copied text signs the session in; it is
+// never written anywhere else, and the account's page lists and revokes it.
 //   Instructions = { Open, Root, Project, Text, Url, InBrowser, Busy, Copied, Error, Start( Project, Root ), Copy(), Close() }
 
 angular.module( 'Consensus' )
@@ -41,6 +44,22 @@ angular.module( 'Consensus' )
 	}
 
 
+	// The token section (plan The Server, Step 5): the session's token, the header to send, whose it is.
+	function token_section( Minted, Root )
+	{
+		let me = ( Root && Root.Me ) ? ( Root.Me.Display || Root.Me.Name ) : 'you';
+		let lines = [
+			'# Your token',
+			'',
+			'- Send "Authorization: Bearer ' + Minted.Token + '" with every request: you act as ' + me + ', allowed what their role in each project allows.',
+			'- It is the token "' + Minted.Name + '" on ' + me + '\'s account page, where it is revoked; opening these instructions again replaces it. Keep it out of the project\'s files.',
+			'',
+			'',
+		];
+		return lines.join( '\n' );
+	}
+
+
 	// Start( Project, Root ): the popup over the project's server, the page fetched as text.
 	async function Start( Project, Root )
 	{
@@ -56,7 +75,13 @@ angular.module( 'Consensus' )
 			{
 				throw new Error( 'the server refused: ' + response.status );
 			}
-			instructions.Text = project_section( instructions.Project ) + text;
+			let token_part = '';
+			if ( instructions.Root && instructions.Root.People )
+			{
+				let minted = await Client.Post( instructions.Root, '/api/instructions/token', { Project: Project.Id } );
+				token_part = token_section( minted, instructions.Root );
+			}
+			instructions.Text = project_section( instructions.Project ) + token_part + text;
 		}
 		catch ( error )
 		{

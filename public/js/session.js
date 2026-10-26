@@ -12,8 +12,8 @@
 // page, so every list is read again as the new account. The person's organization is made active at sign-in when
 // none is, so the token carries the organization's license. The page's own server is the browser's one root (Base
 // ''), or in the desktop the desktop's own server, reached through the page server under /servers/local (plan Clerk,
-// Step 7); the desktop's other servers hold tokens and never sign in this way, and a desktop window with no own
-// server has no session.
+// Step 7); since plan The Server, Step 5, a desktop window connected to a Server (client mode) signs in to that
+// Server the same way, and a desktop window with no server has no session.
 //
 // In the Desktop (plan Rearchitecturation, Step 6) a sign-in's token goes to the desktop (ConsensusDesktop.SetLicense),
 // at every load while signed in, which verifies it and writes it as the machine's current user (plan The Server,
@@ -49,7 +49,9 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		}
 		let roots = Array.isArray( window.ConsensusDesktop.Roots ) ? window.ConsensusDesktop.Roots : [];
 		let local = roots.find( function ( root ) { return root && root.Kind === 'local' && root.Key; } );
-		return local ? { Key: String( local.Key ), Base: '/servers/' + encodeURIComponent( String( local.Key ) ) } : null;
+		// a window connected to a Server (plan The Server, Step 5: client mode) signs in to that Server
+		let own = local || ( ( roots.length === 1 && roots[ 0 ] && roots[ 0 ].Kind === 'server' && roots[ 0 ].Key ) ? roots[ 0 ] : null );
+		return own ? { Key: String( own.Key ), Base: '/servers/' + encodeURIComponent( String( own.Key ) ) } : null;
 	}
 
 

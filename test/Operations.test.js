@@ -13,6 +13,7 @@ const ROLES = require( '../src/Roles.js' );
 const ROUTES = [
 	[ 'GET', '/me', 'me' ],
 	[ 'GET', '/instructions', 'instructions' ],
+	[ 'POST', '/instructions/token', 'instructions_token' ],
 	[ 'GET', '/settings', 'read_settings' ],
 	[ 'PUT', '/settings', 'write_settings' ],
 	[ 'GET', '/plans', 'list_plans' ],

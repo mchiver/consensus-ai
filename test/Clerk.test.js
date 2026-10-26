@@ -122,6 +122,9 @@ TEST( 'a session token is verified: the signature, exp and nbf with a minute\'s 
 	ASSERT.equal( await clerk.Verify( sign( { nbf: seconds + 120 } ) ), null, 'not yet' );
 	ASSERT.equal( await clerk.Verify( sign( { iss: 'https://other.example.test' } ) ), null, 'another issuer' );
 	ASSERT.equal( await clerk.Verify( sign( { azp: 'http://evil.example' } ), 'localhost:3500' ), null, 'another azp' );
+	// a session made on this machine's own page (plan The Server, Step 5: the Desktop's window connected to a Server)
+	ASSERT.notEqual( await clerk.Verify( sign( { azp: 'http://127.0.0.1:4123' } ), 'cube4:3500' ), null, 'a loopback azp' );
+	ASSERT.equal( await clerk.Verify( sign( { azp: 'http://127.0.0.2.evil.example' } ), 'cube4:3500' ), null, 'not loopback' );
 	ASSERT.notEqual( await clerk.Verify( sign( { azp: 'http://evil.example' } ) ), null, 'azp unchecked without a host' );
 	ASSERT.notEqual( await clerk.Verify( sign( {} ), 'localhost:3500' ), null, 'no azp claim' );
 	ASSERT.equal( await clerk.Verify( sign( {}, OTHER.privateKey ) ), null, 'another key under the same key id' );

@@ -101,6 +101,7 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 			let answer = await Client.Get( Root, '/api/me' );
 			Root.Me = answer.Me;
 			Root.Sidecar = !!answer.Sidecar;		// plan The Server, Step 4: the Desktop's sidecar mode: no LLMs, Users or roles
+			Root.People = !!answer.People;		// plan The Server, Step 5: a Server: people sign in whatever its Scope
 			Root.Admin = !!answer.Admin;			// plan User Management, Step 3: the Administrator, and the account's roles by project
 			Root.Manage = !!( answer.Manage || answer.Admin );	// plan The Server, Step 2: the Administrator or a Manager
 			Root.Roles = answer.Roles || {};

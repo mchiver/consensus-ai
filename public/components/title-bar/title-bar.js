@@ -122,7 +122,7 @@ angular.module( 'Consensus' ).component( 'titleBar', {
 				}
 				items.push( { Separator: true } );
 				let root = Roots.List[ 0 ] || null;
-				if ( root && root.Me && root.Me.Role === 'owner' )
+				if ( root && root.Manage === true )
 				{
 					items.push( { Label: 'Settings', Icon: 'settings', Act: function () { Tree.OpenSettings( root ); } } );
 				}

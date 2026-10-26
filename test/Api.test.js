@@ -1837,6 +1837,41 @@ TEST( 'Clerk (plan User Management, Step 4; plan Clerk, Step 5): the built-in ke
 		// open: the server as any Public one
 		ASSERT.equal( ( await on( gated, 'GET', '/api/me' ) ).Body.Error, 'sign in' );
 		ASSERT.equal( ( await on( gated, 'GET', '/api/me' ) ).Body.Closed, undefined );
+		// a Server on Local tells people apart as on Public (plan The Server, Step 5): the first licensed sign-in takes the
+		// owner's record and is the Administrator; anyone else is a Member by email; a bare request is refused; an LLM
+		// session's token minted per person and project, replaced when asked again
+		let local_folder = temporary_folder();
+		FS.writeFileSync( PATH.join( local_folder, 'consensus.json' ), JSON.stringify( Object.assign( PARTICIPANTS.DefaultSettings( 0, 'Local' ), { Clerk: Object.assign( {}, SECTION, { AdminEmail: '' } ) } ) ) );
+		let local = await SERVER.Start( { Config: local_folder, Port: 0, Clerk: clerk_options, Gate: { Mode: 'headless' } } );
+		others.push( local );
+		ASSERT.equal( local.People, true );
+		ASSERT.equal( ( await on( local, 'GET', '/api/clerk' ) ).Body.Required, true, 'the page asks for a sign-in on Local too' );
+		let kim = { Authorization: session( { sub: 'user_kim', email: 'kim@example.com', license: 'personal' } ) };
+		let as_kim = await on( local, 'GET', '/api/me', undefined, kim );
+		ASSERT.deepEqual( [ as_kim.Status, as_kim.Body.Me.Role, as_kim.Body.Admin, as_kim.Body.People, local.Settings.Clerk.AdminEmail ], [ 200, 'owner', true, true, 'kim@example.com' ] );
+		let owner_record = local.Users.List().find( function ( one ) { return one.Type === 'owner'; } );
+		ASSERT.deepEqual( [ owner_record.Clerk, owner_record.Email ], [ 'user_kim', 'kim@example.com' ], 'the owner\'s record is the Administrator\'s' );
+		let local_bare = await on( local, 'GET', '/api/me' );
+		ASSERT.deepEqual( [ local_bare.Status, local_bare.Body.Error, local_bare.Body.Closed ], [ 401, 'sign in', undefined ] );
+		ASSERT.equal( ( await on( local, 'GET', '/api/me', undefined, { 'X-Consensus-Service': 'Claude-CLI' } ) ).Status, 401, 'an agent with no token is refused' );
+		let lee = { Authorization: session( { sub: 'user_lee', email: 'lee@example.com' } ) };
+		let as_lee = await on( local, 'GET', '/api/me', undefined, lee );
+		ASSERT.deepEqual( [ as_lee.Status, as_lee.Body.Me.Type, as_lee.Body.Admin, as_lee.Body.Manage ], [ 200, 'user', false, false ], 'a Member, with no license' );
+		ASSERT.equal( ( await on( local, 'GET', '/api/settings', undefined, lee ) ).Status, 403 );
+		let local_project = ( await on( local, 'POST', '/api/projects', { Name: 'Kim\'s notes' }, kim ) ).Body.Project;
+		ASSERT.equal( ( await on( local, 'PUT', '/api/projects/' + local_project.Id + '/mount', { Mounted: true }, kim ) ).Status, 200 );
+		ASSERT.equal( ( await on( local, 'POST', '/api/instructions/token', { Project: local_project.Id }, lee ) ).Status, 403, 'no role in the project, no token' );
+		ASSERT.equal( ( await on( local, 'PUT', '/api/projects/' + local_project.Id + '/roles', { Members: [ as_lee.Body.Me.Id ] }, kim ) ).Status, 200 );
+		let minted = await on( local, 'POST', '/api/instructions/token', { Project: local_project.Id }, lee );
+		ASSERT.deepEqual( [ minted.Status, minted.Body.Name ], [ 201, 'LLM session: Kim s notes' ] );
+		let as_session = await on( local, 'GET', '/api/me', undefined, { Authorization: 'Bearer ' + minted.Body.Token, 'X-Consensus-Service': 'Claude-CLI' } );
+		ASSERT.deepEqual( [ as_session.Status, as_session.Body.Me.Name, as_session.Body.Me.Speaker, as_session.Body.Roles[ local_project.Id ] ], [ 200, 'lee', 'Claude-CLI by lee', 'Members' ] );
+		let again = await on( local, 'POST', '/api/instructions/token', { Project: local_project.Id }, lee );
+		ASSERT.equal( ( await on( local, 'GET', '/api/me', undefined, { Authorization: 'Bearer ' + minted.Body.Token } ) ).Body.Error, 'unknown token', 'asked again: the last one replaced' );
+		ASSERT.equal( ( await on( local, 'GET', '/api/me', undefined, { Authorization: 'Bearer ' + again.Body.Token } ) ).Status, 200 );
+		ASSERT.deepEqual( ( await on( local, 'GET', '/api/users/' + as_lee.Body.Me.Id, undefined, lee ) ).Body.User.Tokens.map( function ( one ) { return one.Name; } ), [ 'LLM session: Kim s notes' ] );
+		let instructions = await ( await fetch( local.Url + '/instructions' ) ).text();
+		ASSERT.match( instructions, /a request with no token is refused/ );
 		// the Administrator from the environment
 		process.env.CONSENSUS_ADMIN = 'gina@example.com';
 		let from_env = null;
@@ -1945,6 +1980,8 @@ TEST( 'Managers (plan The Server, Step 2): the Administrator makes a user a Mana
 	ASSERT.equal( ( await call( 'GET', '/api/settings', undefined, nina.Token ) ).Status, 403 );
 	let as_member = ( await call( 'GET', '/api/me', undefined, nina.Token ) ).Body;
 	ASSERT.deepEqual( [ as_member.Admin, as_member.Manager, as_member.Manage ], [ false, false, false ] );
+	let member_llm = await call( 'POST', '/api/llms', { Name: 'nina-llm', Kind: 'claude-cli', Command: process.execPath }, nina.Token );
+	ASSERT.deepEqual( [ member_llm.Status, member_llm.Body.Error ], [ 403, 'the Administrator\'s and the Managers\'' ] );
 	// the Administrator makes nina a Manager; a Service account cannot be one
 	let assigned = await call( 'PUT', '/api/users/' + nina.User.Id, { Manager: true } );
 	ASSERT.deepEqual( [ assigned.Status, assigned.Body.User.Manager ], [ 200, true ] );
@@ -1962,6 +1999,14 @@ TEST( 'Managers (plan The Server, Step 2): the Administrator makes a user a Mana
 	ASSERT.match( project.Id, /^prj-/ );
 	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: true }, nina.Token ) ).Status, 200 );
 	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ omar.User.Id ] }, nina.Token ) ).Status, 200 );
+	// the LLM connections are hers to make, change and delete (the fix after plan The Server, Step 4), whole records shown
+	let managed_llm = await call( 'POST', '/api/llms', { Name: 'nina-llm', Kind: 'claude-cli', Command: process.execPath }, nina.Token );
+	ASSERT.equal( managed_llm.Status, 201, JSON.stringify( managed_llm.Body ) );
+	let llm_id = managed_llm.Body.Llm.Id;
+	ASSERT.equal( ( await call( 'PUT', '/api/llms/' + llm_id, { Name: 'nina-llm-2' }, nina.Token ) ).Status, 200 );
+	let listed_llm = ( await call( 'GET', '/api/llms', undefined, nina.Token ) ).Body.Llms.find( function ( one ) { return one.Id === llm_id; } );
+	ASSERT.deepEqual( [ listed_llm.Name, listed_llm.Command ], [ 'nina-llm-2', process.execPath ] );
+	ASSERT.equal( ( await call( 'DELETE', '/api/llms/' + llm_id, undefined, nina.Token ) ).Status, 200 );
 	// a Member's details are hers to change; a new account too
 	ASSERT.equal( ( await call( 'PUT', '/api/users/' + omar.User.Id, { Email: 'omar.n@example.com' }, nina.Token ) ).Body.User.Email, 'omar.n@example.com' );
 	// assigning Managers is the Administrator's alone

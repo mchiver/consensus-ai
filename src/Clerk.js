@@ -56,6 +56,7 @@ function Clerk( Options )
 	let options = Options || {};
 	let settings = options.Settings || {};
 	let users = options.Users || null;
+	let people = !!options.People;		// plan The Server, Step 5: a Server tells people apart whatever its Scope
 	let jwks = ( typeof options.Jwks === 'function' ) ? options.Jwks : null;
 	let now = ( typeof options.Now === 'function' ) ? options.Now : Date.now;
 	let keys = {};			// key id -> KeyObject
@@ -100,7 +101,7 @@ function Clerk( Options )
 	function Config()
 	{
 		let on = On();
-		return { On: on, Required: on && PARTICIPANTS.Trust( settings ) === 'clerk', PublishableKey: on ? PublishableKey() : null, FrontendApi: on ? FrontendApi() : null, Pricing: PRICING };
+		return { On: on, Required: on && PARTICIPANTS.Trust( settings, people ) === 'clerk', PublishableKey: on ? PublishableKey() : null, FrontendApi: on ? FrontendApi() : null, Pricing: PRICING };
 	}
 
 
@@ -254,11 +255,27 @@ function Clerk( Options )
 		{
 			return null;
 		}
-		if ( claims.azp && Host && !same_host( claims.azp, Host ) )
+		if ( claims.azp && Host && !same_host( claims.azp, Host ) && !loopback_origin( claims.azp ) )
 		{
 			return null;
 		}
 		return claims;
+	}
+
+
+	// A session made on this machine's own page (plan The Server, Step 5): the Desktop's window, on 127.0.0.1, signs in
+	// to a Server it connects to, whose Host header is the Server's own; the token is still our instance's, verified.
+	function loopback_origin( origin )
+	{
+		try
+		{
+			let hostname = new URL( origin ).hostname.toLowerCase();
+			return hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]';
+		}
+		catch ( error )
+		{
+			return false;
+		}
 	}
 
 
@@ -453,7 +470,7 @@ function Clerk( Options )
 			return null;
 		}
 		let license = License( claims );
-		if ( PARTICIPANTS.Trust( settings ) === 'local' )
+		if ( PARTICIPANTS.Trust( settings, people ) === 'local' )
 		{
 			// The owner signed in, to go Public with a license: the owner's record takes the Clerk id and the plan.
 			let owner = users.List().find( function ( one ) { return one.Type === 'owner'; } ) || null;
@@ -480,6 +497,10 @@ function Clerk( Options )
 			return { Record: with_plan( owner, license ), Claims: claims, License: license };
 		}
 		let record = by_clerk( claims.sub );
+		if ( !record && people )
+		{
+			record = owner_of_claims( claims, license );
+		}
 		if ( record )
 		{
 			return { Record: with_plan( record, license ), Claims: claims, License: license };
@@ -495,6 +516,33 @@ function Clerk( Options )
 			return null;
 		}
 		return { Record: with_plan( adopted.Record, license ), Claims: claims, License: license };
+	}
+
+
+	// A Server's Administrator is its owner's record (plan The Server, Step 5): a session whose email is the
+	// AdminEmail, or the owner record's own email, or, with no Administrator yet, the first licensed session while the
+	// owner's record has no Clerk id, takes the owner's record (its Clerk id and email written); null otherwise.
+	function owner_of_claims( claims, license )
+	{
+		let owner = users.List().find( function ( one ) { return one.Type === 'owner'; } ) || null;
+		let email = ( typeof claims.email === 'string' && claims.email.trim() ) ? claims.email.trim() : null;
+		if ( !owner || !email )
+		{
+			return null;
+		}
+		let wanted = email.toLowerCase();
+		let admin_email = ( settings.Clerk && settings.Clerk.AdminEmail ) ? String( settings.Clerk.AdminEmail ).toLowerCase() : '';
+		let owner_email = owner.Email ? String( owner.Email ).toLowerCase() : '';
+		let first = !admin_email && !owner.Clerk && !!license;
+		if ( wanted !== admin_email && wanted !== owner_email && !first )
+		{
+			return null;
+		}
+		if ( admin_email && wanted !== admin_email )
+		{
+			return null;
+		}
+		return users.Update( owner.Id, { Clerk: claims.sub, Email: email } );
 	}
 
 

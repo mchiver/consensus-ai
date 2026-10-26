@@ -154,6 +154,11 @@ async function try_server( url )
 	{
 		let response = await fetch( base + '/api/me', { signal: AbortSignal.timeout( TRY_TIMEOUT ) } );
 		let json = await response.json().catch( function () { return {}; } );
+		if ( response.status === 401 && json.Error === 'sign in' )
+		{
+			// a Server (plan The Server, Step 5): it answers and asks for a sign-in, which the window's page makes
+			return { Ok: true, SignIn: true, Version: null, Url: base };
+		}
 		if ( !response.ok )
 		{
 			return { Ok: false, Error: base + ' answered ' + response.status + ( json.Error ? ': ' + json.Error : '' ) };
@@ -186,10 +191,11 @@ function roots_now()
 }
 
 
-// The project as the page and the chooser see it, or null.
+// The project as the page and the chooser see it, or null (and null for a window on a whole Server, plan The Server,
+// Step 5: the page then shows the Server's projects).
 function project_info()
 {
-	if ( !opened )
+	if ( !opened || !opened.Project )
 	{
 		return null;
 	}
@@ -300,6 +306,17 @@ async function connect_host_here( Host )
 	if ( !tried.Ok )
 	{
 		return { Error: tried.Error };
+	}
+	if ( tried.SignIn || !Host.Project )
+	{
+		// A Server that asks for a sign-in (plan The Server, Step 5), or no project named: the window shows the whole
+		// Server, its page signs in and lists the projects the person may see; a project named opens on it.
+		let named = Host.Project ? { Id: String( Host.Project ), Name: String( Host.Title || Host.Project ) } : null;
+		opened = { Kind: 'host', Host: { Name: name, Url: tried.Url, Project: named ? named.Id : null }, Project: named };
+		desktop.Hosts = SETTINGS.Fill( { Hosts: desktop.Hosts } ).Hosts.filter( function ( entry ) { return !( entry.Name === name && ( entry.Project || null ) === ( named ? named.Id : null ) ); } );
+		desktop.Hosts.push( { Name: name, Url: tried.Url, Project: named ? named.Id : null, Title: named ? named.Name : null } );
+		save_settings();
+		return { Ok: true, Project: project_info() };
 	}
 	let projects = [];
 	try
@@ -859,6 +876,11 @@ function attach_handlers()
 		let tried = await try_server( url );
 		if ( !tried.Ok )
 		{
+			return tried;
+		}
+		if ( tried.SignIn )
+		{
+			tried.Projects = [];		// listed once signed in, in the window
 			return tried;
 		}
 		try

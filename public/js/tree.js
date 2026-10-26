@@ -164,7 +164,7 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 			action( 'New Project', 'plus', function () { tree.StartCreate( 'project', null, QUIET, null, root ); } ),
 			action( 'Import', 'upload', function () { tree.StartImport( root ); } ),
 			{ Separator: true },
-			action( 'Settings', 'settings', function () { tree.OpenSettings( root ); }, { Disabled: !is_owner( root ) } ),
+			action( 'Settings', 'settings', function () { tree.OpenSettings( root ); }, { Disabled: !manages( root ) } ),
 		];
 		actions.push( { Separator: true } );
 		actions.push( action( 'Reload', 'refresh', function () { tree.ReloadRoot( root ); } ) );
@@ -261,11 +261,19 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	}
 
 
+	// The Administrator and the Managers (the owner of a Local server is the Administrator): the settings, the LLM
+	// connections and the tasks are theirs (plan The Server, Step 2 and the fix after Step 4).
+	function manages( root )
+	{
+		return !!root && root.Manage === true;
+	}
+
+
 	// The connections are edited where they are kept: on a Server, not in the Desktop's sidecar mode (plan The Server,
 	// Step 4), which has none.
 	function edits_connections( root )
 	{
-		return is_owner( root ) && !root.Sidecar;
+		return manages( root ) && !root.Sidecar;
 	}
 
 

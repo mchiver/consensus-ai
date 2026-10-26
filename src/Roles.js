@@ -51,6 +51,7 @@ const RULES = [
 	[ 'GET', /^\/(me|tasks|llms|users|runs|runs\/run-[^/]+)$/, 'open', null ],
 	[ 'POST', /^\/mcp$/, 'open', null ],	// the MCP transport (plan MCP Server, Step 2): each operation is checked on its own action inside
 	[ 'GET', /^\/instructions$/, 'open', null ],	// the instructions as an operation (Step 3)
+	[ 'POST', /^\/instructions\/token$/, 'read', 'body' ],	// an LLM session's token (plan The Server, Step 5): a role in the project
 	[ 'GET', /^\/(projects|plans|waiting)$/, 'list', null ],
 	[ 'GET', /^\/trash$/, 'admin', null ],
 	[ 'GET|PUT', /^\/settings$/, 'admin', null ],

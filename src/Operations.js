@@ -43,6 +43,7 @@ const INSTRUCTIONS = require( './Instructions.js' );
 
 const CONNECTIONS_HOST_LINE = 'Connections are managed by the Server';		// plan Rearchitecturation, Step 4
 const SETTINGS_HOST_LINE = 'The settings are managed by the Server';
+const SESSION_TOKEN_PREFIX = 'LLM session: ';		// plan The Server, Step 5
 const VERSION = require( '../package.json' ).version;
 
 const ACTIVITY_LIMIT = 200;	// the entries an account's activity page lists
@@ -493,7 +494,7 @@ function Operations( Context )
 			// Sidecar (plan The Server, Step 4): the Desktop's sidecar mode, over the Server's file read-only: no
 			// connections, no tasks, and the page shows no LLMs, Users or roles.
 			let sidecar = !!( store && store.ReadOnly );
-			return { Me: PARTICIPANTS.Public( participant ), Account: account, Admin: is_administrator( participant ), Manager: !is_administrator( participant ) && participant.Manager === true, Manage: may_manage( participant ), Roles: await roles_of( participant ), Participants: await speakers( null, [], participant ), States: states(), Version: VERSION, Server: settings.Name || null, Sidecar: sidecar };
+			return { Me: PARTICIPANTS.Public( participant ), Account: account, Admin: is_administrator( participant ), Manager: !is_administrator( participant ) && participant.Manager === true, Manage: may_manage( participant ), Roles: await roles_of( participant ), Participants: await speakers( null, [], participant ), States: states(), Version: VERSION, Server: settings.Name || null, Sidecar: sidecar, People: !!Context.People };
 		},
 	} );
 
@@ -512,9 +513,48 @@ function Operations( Context )
 			// a sidecar's one project (plan Rearchitecturation, Step 3), named first
 			let isolated = ( store && typeof store.Isolated === 'function' ) ? store.Isolated() : null;
 			let project = isolated ? await store.ReadProject( isolated ) : null;
-			return Answer( 200, INSTRUCTIONS.Make( settings, base || 'http://<server>:<port>', await INSTRUCTIONS.Guide(), null, project ), 'text/plain; charset=utf-8' );
+			return Answer( 200, INSTRUCTIONS.Make( settings, base || 'http://<server>:<port>', await INSTRUCTIONS.Guide(), null, project, !!Context.People ), 'text/plain; charset=utf-8' );
 		},
 	} );
+
+
+	// The LLM session's token (plan The Server, Step 5): the LLM Instructions popup asks for one for the person and the
+	// project, named "LLM session: <project name>"; asked again, the token of that name is replaced. Its value is
+	// answered this once and goes into the copied text; it is listed and revoked on the account's page.
+	define( {
+		Name: 'instructions_token',
+		Method: 'POST',
+		Path: '/instructions/token',
+		Status: 201,
+		Description: 'Mints a token for you for an LLM session in a project, named "LLM session: <project name>", replacing the one of that name; its value answered this once, for the LLM Instructions\' copied text.',
+		Parameters: {
+			Project: { Type: 'string', Required: true, Description: 'the project\'s id' },
+		},
+		Perform: async function ( participant, args )
+		{
+			if ( !users || !participant.Id || !users.Get( participant.Id ) )
+			{
+				refuse( 400, 'this request has no account to mint a token for' );
+			}
+			let project = await store.ReadProject( string_of( object_of( args ).Project ) );
+			if ( !project )
+			{
+				refuse( 404, 'no project with the id ' + string_of( object_of( args ).Project ) );
+			}
+			let name = session_token_name( project );
+			users.RevokeToken( participant.Id, name );
+			let value = users.MintToken( participant.Id, name );
+			return { Name: name, Token: value };
+		},
+	} );
+
+
+	// "LLM session: " and the project's name in the letters a token name takes, up to 40 in all.
+	function session_token_name( project )
+	{
+		let kept = String( project.Name || '' ).replace( /[^A-Za-z0-9 ._:-]+/g, ' ' ).replace( /\s+/g, ' ' ).trim();
+		return ( SESSION_TOKEN_PREFIX + ( kept || project.Id ) ).slice( 0, 40 ).trim();
+	}
 
 
 	//-----------------------------------------------------------------
@@ -2540,17 +2580,19 @@ function Operations( Context )
 
 	function present_llm( llm, participant )
 	{
-		let shown = LLMS.Public( llm, settings, participant.Role === 'owner' );
+		let shown = LLMS.Public( llm, settings, may_manage( participant ) );
 		shown.Running = llm_running( llm );
 		return shown;
 	}
 
 
-	function owner_only( participant )
+	// The LLM connections are managed by the Administrator and the Managers (the owner of a Local server is the
+	// Administrator), as the settings are (plan The Server: the fix after Step 4).
+	function manages_llms( participant )
 	{
-		if ( participant.Role !== 'owner' )
+		if ( !may_manage( participant ) )
 		{
-			refuse( 403, 'only the owner changes the LLM connections' );
+			refuse( 403, 'only the Administrator and the Managers change the LLM connections' );
 		}
 	}
 
@@ -2629,7 +2671,7 @@ function Operations( Context )
 		Name: 'list_llms',
 		Method: 'GET',
 		Path: '/llms',
-		Description: 'The server\'s LLM connections (their public part; the whole records for the owner), each with its running run; the kinds and the default prompts; whether this server runs LLMs at all.',
+		Description: 'The server\'s LLM connections (their public part; the whole records for the Administrator and the Managers), each with its running run; the kinds and the default prompts; whether this server runs LLMs at all.',
 		Parameters: {},
 		Perform: async function ( participant )
 		{
@@ -2644,14 +2686,14 @@ function Operations( Context )
 		Method: 'POST',
 		Path: '/llms',
 		Status: 201,
-		Description: 'A new LLM connection from the fields given (Name, Kind, Command or Model and Url, the prompts), filled with the defaults and checked; the owner\'s.',
+		Description: 'A new LLM connection from the fields given (Name, Kind, Command or Model and Url, the prompts), filled with the defaults and checked; the Administrator\'s and the Managers\'.',
 		Parameters: {
 			Name: { Type: 'string' },
 			Kind: { Type: 'string', Description: 'one of the kinds list_llms names' },
 		},
 		Perform: async function ( participant, args )
 		{
-			owner_only( participant );
+			manages_llms( participant );
 			return await save_llm( participant, object_of( args ), null );
 		},
 	} );
@@ -2662,13 +2704,13 @@ function Operations( Context )
 		Name: 'check_llm',
 		Method: 'POST',
 		Path: '/llms/check',
-		Description: 'Checks a connection as given, saved or not: runs its command or asks its Ollama once; the owner\'s.',
+		Description: 'Checks a connection as given, saved or not: runs its command or asks its Ollama once; the Administrator\'s and the Managers\'.',
 		Parameters: {
 			Kind: { Type: 'string' },
 		},
 		Perform: async function ( participant, args )
 		{
-			owner_only( participant );
+			manages_llms( participant );
 			return await LLM.Check( LLMS.Fill( object_of( args ) ) );
 		},
 	} );
@@ -2678,13 +2720,13 @@ function Operations( Context )
 		Name: 'update_llm',
 		Method: 'PUT',
 		Path: '/llms/:id',
-		Description: 'A saved LLM connection changed: the fields given over its record, filled and checked; the owner\'s.',
+		Description: 'A saved LLM connection changed: the fields given over its record, filled and checked; the Administrator\'s and the Managers\'.',
 		Parameters: {
 			Id: { Type: 'string', Required: true, Description: 'the connection\'s id' },
 		},
 		Perform: async function ( participant, args )
 		{
-			owner_only( participant );
+			manages_llms( participant );
 			let llm = llm_of( string_of( args.Id ) );
 			return await save_llm( participant, object_of( args ), llm );
 		},
@@ -2695,13 +2737,13 @@ function Operations( Context )
 		Name: 'check_saved_llm',
 		Method: 'POST',
 		Path: '/llms/:id/check',
-		Description: 'Checks a saved connection, the fields given over its record (the popup\'s unsaved ones); the owner\'s.',
+		Description: 'Checks a saved connection, the fields given over its record (the popup\'s unsaved ones); the Administrator\'s and the Managers\'.',
 		Parameters: {
 			Id: { Type: 'string', Required: true, Description: 'the connection\'s id' },
 		},
 		Perform: async function ( participant, args )
 		{
-			owner_only( participant );
+			manages_llms( participant );
 			let llm = llm_of( string_of( args.Id ) );
 			return await LLM.Check( LLMS.Fill( Object.assign( {}, llm, object_of( args ), { Id: llm.Id } ) ) );
 		},
@@ -2712,13 +2754,13 @@ function Operations( Context )
 		Name: 'delete_llm',
 		Method: 'DELETE',
 		Path: '/llms/:id',
-		Description: 'Deletes a saved LLM connection; not while it is running; the owner\'s.',
+		Description: 'Deletes a saved LLM connection; not while it is running; the Administrator\'s and the Managers\'.',
 		Parameters: {
 			Id: { Type: 'string', Required: true, Description: 'the connection\'s id' },
 		},
 		Perform: async function ( participant, args )
 		{
-			owner_only( participant );
+			manages_llms( participant );
 			host_only();
 			let llm = llm_of( string_of( args.Id ) );
 			if ( llm_running( llm ) )

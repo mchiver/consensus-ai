@@ -19,7 +19,9 @@
 //              entry carries no token, so a shared server takes --token
 //   --service  how the relay says who it is, the X-Consensus-Service header ("MCP" when neither this nor a token
 //              is given); a Claude Code configuration passes --service Claude-CLI to keep its byline
-//   --token    an account's token, minted on the person's user page, for a shared server
+//   --token    an account's token, minted on the person's user page, for a shared server; with none given, the
+//              environment's CONSENSUS_TOKEN (plan The Server, Step 5: a Server needs a token whatever its Scope, such
+//              as the one a project's LLM Instructions mint); --service then still names the relay in the byline
 //   --project  the project (an id or a name) filled in for the tools that take one when the client leaves it out:
 //              sidecar mode's one-project rule, set for a client
 //   --config   the config folder the saved Hosts are read from (~/.consensus)
@@ -149,7 +151,7 @@ async function Main( argv )
 		throw new Error( 'a folder or --server is required\n' + usage() );
 	}
 	let fixed_url = null;
-	let token = options.Token;
+	let token = options.Token || ( process.env.CONSENSUS_TOKEN || '' ).trim() || null;
 	let service = options.Service;
 	if ( options.Server )
 	{
@@ -169,7 +171,7 @@ async function Main( argv )
 	{
 		headers.Authorization = 'Bearer ' + token;
 	}
-	else
+	if ( !token || service )
 	{
 		headers[ 'X-Consensus-Service' ] = service || DEFAULT_SERVICE;
 	}
