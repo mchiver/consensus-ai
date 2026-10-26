@@ -47,6 +47,7 @@ function Users( Options )
 {
 	let folder = ( Options || {} ).Folder;
 	let path = PATH.join( folder, FILE );
+	let read_only = !!( Options || {} ).ReadOnly;	// the Desktop over the Host's config (plan Rearchitecturation, Step 4): the registry is read, kept in memory and never written
 	let users = null;		// the list, read once and kept
 
 
@@ -71,6 +72,10 @@ function Users( Options )
 
 	function save()
 	{
+		if ( read_only )
+		{
+			return;		// kept in memory: the Host's registry is not the Desktop's to write
+		}
 		FS.mkdirSync( folder, { recursive: true } );
 		let temporary = path + '.' + process.pid + '.tmp';
 		FS.writeFileSync( temporary, JSON.stringify( { Users: users }, null, '\t' ) + '\n' );
@@ -321,7 +326,7 @@ function Users( Options )
 			record = fill( { Type: 'owner', Login: owner.Name, Display: owner.Display, Email: null } );
 			users.unshift( record );
 			save();
-			lines.push( 'Users.json made with the owner ' + JSON.stringify( owner.Name ) );
+			lines.push( ( read_only ? 'the owner record kept in memory, the Host registry not written here: ' : 'Users.json made with the owner ' ) + JSON.stringify( owner.Name ) );
 		}
 		else if ( record.Login !== owner.Name || record.Display !== owner.Display )
 		{

@@ -222,10 +222,11 @@ TEST( 'the desktop signs in the same way (plan Clerk, Step 7): the Settings popu
 		let cached = JSON.parse( FS.readFileSync( PATH.join( config, 'desktop.json' ), 'utf8' ) ).License;
 		ASSERT.equal( cached && cached.Plan, 'personal', 'desktop.json carries the license' );
 		ASSERT.ok( cached && Date.parse( cached.Checked ) > Date.now() - 60000, 'checked now' );
-		// The owner's record carries the Clerk id: a Local session is the owner's
-		let users = JSON.parse( FS.readFileSync( PATH.join( config, 'Users.json' ), 'utf8' ) ).Users;
-		ASSERT.ok( users.find( function ( one ) { return one.Type === 'owner' && one.Clerk; } ), 'the owner signed in' );
-		ASSERT.equal( users.length, 1, 'nothing else written on Local' );
+		// A Local session is the owner's, whose record takes the Clerk id in memory: the window's server reads the Host's
+		// config and writes none of it (plan Rearchitecturation, Step 4), so no Users.json appears; the cached license
+		// above is the proof the session was taken as the owner's.
+		ASSERT.equal( FS.existsSync( PATH.join( config, 'Users.json' ) ), false, 'the Desktop writes no registry' );
+		ASSERT.equal( FS.existsSync( PATH.join( config, 'consensus.json' ) ), true, 'the Host\'s file as the test wrote it' );
 	}
 	finally
 	{
@@ -274,9 +275,14 @@ async function sign_in( Page )
 }
 
 
+// New Comment sits in the header's Actions menu (plan UI Tweaks IX); the server, not the page, refuses a Watcher's.
 async function comment( Page, Text )
 {
-	await Page.Evaluate( 'document.getElementById( "new-comment" ).click(); true' );
+	await Page.WaitFor( 'document.getElementById( "header-actions" ) !== null', 10000 );
+	await Page.Evaluate( 'document.getElementById( "header-actions" ).click(); true' );
+	let entry = '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( one ) { return one.textContent.trim().startsWith( "New Comment" ); } )';
+	await Page.WaitFor( '!!' + entry, 10000 );
+	await Page.Evaluate( entry + '.click(); true' );
 	await Page.WaitFor( 'document.activeElement && document.activeElement.closest( "#compose-text" ) !== null', 10000 );
 	await Page.Type( Text );
 	await Page.WaitFor( '!document.getElementById( "compose-post" ).disabled', 10000 );

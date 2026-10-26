@@ -317,6 +317,7 @@ TEST( 'the window\'s server reads the Host\'s consensus.json read-only: its conn
 		ASSERT.equal( running.Store.ReadOnly, true );
 		ASSERT.equal( FS.readFileSync( file, 'utf8' ), written, 'the start wrote nothing' );
 		ASSERT.equal( FS.existsSync( PATH.join( config, 'users.json' ) ), false, 'no users file made' );
+		ASSERT.equal( running.Users.List().some( function ( one ) { return one.Type === 'owner'; } ), true, 'the owner record kept in memory, so a sign-in on the window\'s server is the owner\'s' );
 		ASSERT.ok( FS.existsSync( PATH.join( folder, '.consensus', 'project.json' ) ), 'the project\'s own folder is made' );
 		let me = ( await api( 'GET', '/api/me' ) ).Body;
 		ASSERT.equal( me.ReadOnly, true );

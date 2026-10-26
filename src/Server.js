@@ -88,8 +88,10 @@ async function Start( Options )
 	}
 	let project = store.Isolated() ? await store.ReadProject( store.Isolated() ) : null;
 	// The users (plan User Management, Step 3): the owner's record, made at the first start.
-	let users = USERS.Users( { Folder: store.Folder } );
-	for ( let line of ( read_only ? [] : users.Prepare( settings ) ) )
+	// Read-only (the Desktop over the Host's config): the owner's record is kept in memory, never written, so a Clerk
+	// session on the window's server is the owner's as on any Local server.
+	let users = USERS.Users( { Folder: store.Folder, ReadOnly: read_only } );
+	for ( let line of users.Prepare( settings ) )
 	{
 		console.log( 'users prepared: ' + line );
 	}
