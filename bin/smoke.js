@@ -382,6 +382,16 @@ async function smoke_desktop()
 		await page.WaitFor( '!!document.activeElement && !!document.activeElement.closest( ".help-form" )', 5000 );
 		await page.Press( 'Escape' );
 		await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
+		// About names the Desktop and lists the window's project alone, not the rest of its server
+		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
+		await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
+		await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( button ) { return button.textContent.trim() === "About"; } ).click(); true' );
+		await page.WaitFor( count_of( '.about-table' ) + ' === 1' );
+		check( 'about: names Consensus Desktop', /^About Consensus Desktop/.test( await page.Evaluate( text_of( '.help-form .subplan-head' ) ) ), true );
+		check( 'about: the window\'s project alone', await page.Evaluate( '[ ...document.querySelectorAll( ".about-table tbody tr" ) ].filter( function ( row ) { return getComputedStyle( row ).display !== "none"; } ).length' ), 1 );
+		await page.WaitFor( '!!document.activeElement && !!document.activeElement.closest( ".help-form" )', 5000 );
+		await page.Press( 'Escape' );
+		await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
 
 		// the sign-in (plan Clerk, Step 7): the Settings popup of the desktop's own server offers Sign in, Public greyed
 		// out, and nothing is loaded from Clerk until the button is pressed

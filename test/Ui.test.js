@@ -964,6 +964,8 @@ TEST( 'Help: About shows the version, the links and the project summary; Hotkeys
 	await menu_pick( '', 'About', '#app-menu' );
 	let me = await api( 'GET', '/api/me' );
 	await page.WaitFor( text_of( '#about-version' ) + ' === "version ' + me.Version + '"' );
+	// a browser's About names plain Consensus; the Desktop's names Consensus Desktop (the smoke)
+	ASSERT.equal( await page.Evaluate( text_of( '.help-form .subplan-head' ) ), 'About Consensus version ' + me.Version );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "about-source" ).href' ), 'https://github.com/mchiver/consensus-ai' );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "about-guide" ).href' ), 'http://consensus-ai.mchiver.com/' );
 	ASSERT.equal( await page.Evaluate( text_of( '.help-server .view-heading' ) ), running.Settings.Name + ' version ' + me.Version );

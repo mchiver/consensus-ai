@@ -5,7 +5,8 @@
 // (the table in hotkeys.js). They open from the application menu in the title bar (public/components/title-bar,
 // plan UI Components, Step 5) through HelpPanel.Show. The summary is made when About opens, from the tallies the
 // tree already holds: each server's projects, their plans and Subplans, archived plans left out; "waiting on LLMs"
-// counts every participant whose Role is llm.
+// counts every participant whose Role is llm. A window of one project (the Desktop's) shows that project alone, not
+// the rest of the server it is on; the heading names the application: Consensus Desktop, Consensus Server or Consensus.
 //
 //   HelpPanel = { Open: null | 'about' | 'hotkeys', Summary: [ { Root, Rows: [ { Id, Name, Total, Contested, Mine, Llms } ] } ],
 //                 Show( which ), Close() }
@@ -46,6 +47,10 @@ angular.module( 'Consensus' ).factory( 'HelpPanel', [ 'Roots', function ( Roots 
 		let rows = [];
 		for ( let project of root.Projects || [] )
 		{
+			if ( Roots.Project && project.Id !== Roots.Project.Id )
+			{
+				continue;
+			}
 			let row = { Id: project.Id, Name: project.Name, Total: 0, Contested: 0, Mine: 0, Llms: 0 };
 			for ( let tally of tallies_of( project.Items, [] ) )
 			{
@@ -98,6 +103,21 @@ angular.module( 'Consensus' ).factory( 'HelpPanel', [ 'Roots', function ( Roots 
 	$scope.Hotkeys = Hotkeys;
 	$scope.SourceUrl = SOURCE_URL;
 	$scope.GuideUrl = GUIDE_URL;
+
+
+	// The application's name for the About heading.
+	$scope.Product = function ()
+	{
+		if ( $window.ConsensusDesktop )
+		{
+			return 'Consensus Desktop';
+		}
+		if ( $window.ConsensusServer )
+		{
+			return 'Consensus Server';
+		}
+		return 'Consensus';
+	};
 
 
 	// The page's own version: the desktop's, or the server's as /api/me gave it.
