@@ -10,7 +10,9 @@
 //   Running( Config )           the record when the file is there and its Pid alive, else null
 //   Write( Config, Record )     the file written whole
 //   Remove( Config, Pid? )      the file removed; with Pid, only when the file is that process's
-//   Probe( Url, TimeoutMs? )    GET <Url>/api/me: { Ok, Version, Name } or { Ok: false, Error }
+//   Probe( Url, TimeoutMs? )    GET <Url>/api/me: { Ok, Version, Name, Closed? } or { Ok: false, Error }; a Server that
+//                               answers 401 with an Error (its gate closed, or a sign-in asked) is running (plan The
+//                               Server, Step 3)
 //   Status( Config, Port )      { Running, Url, Pid, Started, Ours }: the file's Host when alive, else the port probed
 
 const FS = require( 'fs' );
@@ -97,6 +99,10 @@ async function Probe( Url, TimeoutMs )
 	{
 		let response = await fetch( base + '/api/me', { signal: AbortSignal.timeout( TimeoutMs || PROBE_TIMEOUT ) } );
 		let json = await response.json().catch( function () { return {}; } );
+		if ( response.status === 401 && json && json.Error )
+		{
+			return { Ok: true, Version: null, Name: null, Closed: !!json.Closed };
+		}
 		if ( !response.ok )
 		{
 			return { Ok: false, Error: base + ' answered ' + response.status };

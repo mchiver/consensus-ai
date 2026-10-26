@@ -21,7 +21,7 @@
 // are unlicensed (no sign-in), registered (a sign-in with no license), personal and professional.
 //
 //   Session { Key, Base (the own server's root key and base, null when there is none),
-//             On, Loaded, Required, Asked, Refusal, Error, Config, Pricing, Ready (a promise: loaded), License (the
+//             On, Loaded, Required, Asked, Refusal, Closed (a Server's closed gate: its reason), Error, Config, Pricing, Ready (a promise: loaded), License (the
 //             Desktop's cached tier { Tier, Days, Line } or null),
 //             Token(), SignedIn(), User(), Plan(), Tier(), Licensed( plan ), Needed( body ), Open(), SignOut(),
 //             MountSignIn( element ), MountUserButton( element ), Unmount( element, kind ) }
@@ -33,7 +33,7 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	const REMEMBERED = 'consensus-signed-in';
 	const SESSION_WAIT = 4000;	// milliseconds given to a remembered session to arrive after ClerkJS loads
 	let own = own_root();
-	let session = { Key: own ? own.Key : null, Base: own ? own.Base : null, On: false, Loaded: false, Required: false, Asked: false, Refusal: null, Error: null, Config: null, Pricing: null, Ready: null, License: ( window.ConsensusDesktop && window.ConsensusDesktop.License ) ? window.ConsensusDesktop.License : null };
+	let session = { Key: own ? own.Key : null, Base: own ? own.Base : null, On: false, Loaded: false, Required: false, Asked: false, Refusal: null, Closed: null, Error: null, Config: null, Pricing: null, Ready: null, License: ( window.ConsensusDesktop && window.ConsensusDesktop.License ) ? window.ConsensusDesktop.License : null };
 	let clerk = null;
 	let loading = null;
 	let was_signed_in = false;
@@ -241,9 +241,10 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		{
 			was_signed_in = signed_in;
 			remember( signed_in );
-			if ( !signed_in && window.ConsensusDesktop && typeof window.ConsensusDesktop.ClearLicense === 'function' )
+			let bridge = license_bridge();
+			if ( !signed_in && bridge && typeof bridge.ClearLicense === 'function' )
 			{
-				Promise.resolve( window.ConsensusDesktop.ClearLicense() ).catch( function () {} ).then( function () { window.location.reload(); } );
+				Promise.resolve( bridge.ClearLicense() ).catch( function () {} ).then( function () { window.location.reload(); } );
 				return;
 			}
 			window.location.reload();
@@ -253,16 +254,25 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 
 	// The Desktop's license cache (plan Rearchitecturation, Step 6): a signed-in session's token goes to the desktop,
 	// which verifies it and answers the tier it is at now.
+	// The application the page runs in, which keeps the machine's current user: the Desktop, or the Server application
+	// (plan The Server, Step 3: window.ConsensusServer), null in a plain browser.
+	function license_bridge()
+	{
+		return window.ConsensusDesktop || window.ConsensusServer || null;
+	}
+
+
 	async function report_license()
 	{
-		if ( !window.ConsensusDesktop || typeof window.ConsensusDesktop.SetLicense !== 'function' || !clerk || !clerk.session )
+		let bridge = license_bridge();
+		if ( !bridge || typeof bridge.SetLicense !== 'function' || !clerk || !clerk.session )
 		{
 			return;
 		}
 		try
 		{
 			let token = await clerk.session.getToken();
-			let answer = token ? await window.ConsensusDesktop.SetLicense( token ) : null;
+			let answer = token ? await bridge.SetLicense( token ) : null;
 			if ( answer && answer.Tier )
 			{
 				session.License = answer;
@@ -383,14 +393,17 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		}
 		// Refused while Clerk holds a session: the call went out before the token was there. Once per page, the page
 		// reads everything again (app.js listens), instead of asking a signed-in person to sign in.
-		if ( clerk && clerk.user && clerk.session && !retried && !( Body && Body.Error === 'license' ) )
+		if ( clerk && clerk.user && clerk.session && !retried && !( Body && ( Body.Error === 'license' || Body.Error === 'closed' ) ) )
 		{
 			retried = true;
 			$rootScope.$broadcast( 'session-ready' );
 			return;
 		}
 		session.Required = true;
-		session.Refusal = ( Body && Body.Error === 'license' ) ? Body : null;
+		// a refusal shown with Sign out: a license below what is needed, or a Server's gate closed to this person
+		session.Refusal = ( Body && ( Body.Error === 'license' || Body.Error === 'closed' ) ) ? Body : null;
+		// the Server's gate (plan The Server, Step 3): why it is closed, said above the sign-in
+		session.Closed = ( Body && Body.Closed && Body.Reason ) ? Body.Reason : null;
 		load_clerk();
 		$rootScope.$applyAsync();
 	}

@@ -1817,6 +1817,25 @@ TEST( 'Clerk (plan User Management, Step 4; plan Clerk, Step 5): the built-in ke
 		ASSERT.equal( JSON.parse( FS.readFileSync( fresh.Store.SettingsPath(), 'utf8' ) ).Clerk.AdminEmail, 'frank@example.com' );
 		ASSERT.equal( ( await on( fresh, 'GET', '/api/me', undefined, eve ) ).Body.Admin, false );
 		ASSERT.equal( ( await on( fresh, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_hank', email: 'hank@example.com', license: 'professional' } ) } ) ).Body.Admin, false, 'the second Host is not' );
+		// the gate of a headless Public Server (plan The Server, Step 3): closed until its Administrator signs in with
+		// Professional; a bare request asks for the sign-in, a sign-in that does not open it is told why
+		let gated_folder = temporary_folder();
+		FS.writeFileSync( PATH.join( gated_folder, 'consensus.json' ), JSON.stringify( Object.assign( PARTICIPANTS.DefaultSettings( 0, 'Public' ), { Clerk: Object.assign( {}, SECTION, { AdminEmail: '' } ) } ) ) );
+		let gated = await SERVER.Start( { Config: gated_folder, Port: 0, Clerk: clerk_options, Gate: { Mode: 'headless' } } );
+		others.push( gated );
+		let bare = await on( gated, 'GET', '/api/me' );
+		ASSERT.deepEqual( [ bare.Status, bare.Body.Error, bare.Body.Closed, bare.Body.Reason ], [ 401, 'sign in', true, 'the Server waits for its first sign-in: a Professional license makes the Administrator' ] );
+		ASSERT.equal( ( await on( gated, 'GET', '/api/clerk' ) ).Status, 200 );
+		let registered = await on( gated, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_ivy', email: 'ivy@example.com' } ) } );
+		ASSERT.deepEqual( [ registered.Status, registered.Body.Error ], [ 403, 'closed' ] );
+		let ivy_personal = await on( gated, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_ivy', email: 'ivy@example.com', license: 'personal' } ) } );
+		ASSERT.deepEqual( [ ivy_personal.Status, ivy_personal.Body.Reason ], [ 403, 'a Public Server needs the Administrator\'s Professional license: ivy@example.com signs in with one' ] );
+		ASSERT.equal( gated.Settings.Clerk.AdminEmail, 'ivy@example.com', 'the first Personal sign-in is the Administrator' );
+		let ivy_professional = await on( gated, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_ivy', email: 'ivy@example.com', license: 'professional' } ) } );
+		ASSERT.deepEqual( [ ivy_professional.Status, ivy_professional.Body.Admin, gated.Gate.Open() ], [ 200, true, true ] );
+		// open: the server as any Public one
+		ASSERT.equal( ( await on( gated, 'GET', '/api/me' ) ).Body.Error, 'sign in' );
+		ASSERT.equal( ( await on( gated, 'GET', '/api/me' ) ).Body.Closed, undefined );
 		// the Administrator from the environment
 		process.env.CONSENSUS_ADMIN = 'gina@example.com';
 		let from_env = null;

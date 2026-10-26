@@ -7,12 +7,15 @@
 // both engines, no console errors. Then the desktop on a temporary config (--config, --port 0) and its own
 // --user-data-dir, over its own DevTools port: the window controls overlay, the title bar as the drag region, the
 // menu's desktop items, the overlay following the theme and the size, a detached window, the connect screen, Quit.
+// Then the Server application (plan The Server, Step 3) on a temporary config and its own --user-data-dir: its gate
+// closed with no current user (the sign-in with the reason), open for a Personal one (the whole tree, the Users fold),
+// and a second launch with --open handed to the first, which registers the folder.
 // Each check prints ok or FAIL; the exit code is 1 when any failed. Pictures go to ~smoke/ in the checkout (a tilde
 // keeps the folder out of source control): the page in both themes, and captures of the desktop window's top, from
 // the screen, since the window buttons are not part of the page.
 //
 //   npm run smoke                     the page, then the desktop
-//   npm run smoke -- --no-desktop     the page alone
+//   npm run smoke -- --no-desktop     the page alone (no desktop, no Server application)
 //
 // Nothing of the real config folder or the real user data is touched: both are temporary and removed after.
 
@@ -27,6 +30,7 @@ const CDP = require( '../test/support/Cdp.js' );
 const ROOT = PATH.join( __dirname, '..' );
 const OUT = PATH.join( ROOT, '~smoke' );
 const DESKTOP_PORT = 9337;
+const SERVER_APP_PORT = 9338;
 const WIDTH = 1400;
 const HEIGHT = 900;
 const PLAN_TITLE = 'Smoke plan';
@@ -456,6 +460,87 @@ async function smoke_desktop()
 
 
 //---------------------------------------------------------------------
+// The Server application (plan The Server, Step 3), over its own DevTools port.
+
+async function server_app_page( TimeoutMs )
+{
+	let limit = Date.now() + ( TimeoutMs || 30000 );
+	while ( Date.now() < limit )
+	{
+		try
+		{
+			let list = await ( await fetch( 'http://127.0.0.1:' + SERVER_APP_PORT + '/json/list' ) ).json();
+			let found = list.find( function ( target ) { return target.type === 'page' && /^http:\/\/127\.0\.0\.1:\d+\//.test( target.url ); } );
+			if ( found )
+			{
+				return found;
+			}
+		}
+		catch ( error )
+		{
+			// not listening yet
+		}
+		await wait( 300 );
+	}
+	throw new Error( 'the Server application showed no page within ' + ( ( TimeoutMs || 30000 ) / 1000 ) + ' seconds' );
+}
+
+
+async function smoke_server_app()
+{
+	console.log( '== the Server application' );
+	let electron = require( 'electron' );
+	let LICENSE = require( '../src/License.js' );
+	let config = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-server-config-' ) );
+	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-server-user-data-' ) );
+	let project_folder = PATH.join( FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-server-project-' ) ), 'handed-over' );
+	FS.mkdirSync( project_folder );
+	let launch = [ 'server', '--config', config, '--port', '0', '--user-data-dir=' + user_data, '--remote-debugging-port=' + SERVER_APP_PORT ];
+	let child = null;
+	try
+	{
+		// no current user: the gate closed, the window on the sign-in with the reason
+		child = CHILD_PROCESS.spawn( electron, launch, { cwd: ROOT, stdio: 'ignore' } );
+		let page = await CDP.Attach( ( await server_app_page() ).webSocketDebuggerUrl );
+		await page.WaitFor( 'document.getElementById( "sign-in-closed" ) !== null', 30000 );
+		check( 'closed: the sign-in says why', await page.Evaluate( 'document.getElementById( "sign-in-closed" ).textContent.trim()' ), 'the Server needs a Personal or Professional sign-in; the first one becomes its Administrator.' );
+		check( 'closed: the window\'s bridge', await page.Evaluate( 'JSON.stringify( [ typeof window.ConsensusServer, typeof window.ConsensusDesktop, typeof window.Desktop.PickFolder ] )' ), '["object","undefined","function"]' );
+		check( 'closed: the window\'s title', await page.Evaluate( 'document.title.length > 0' ), true );
+		page.Close();
+		child.kill();
+		await wait( 1500 );
+		// a Personal current user: open at the next start, the whole tree
+		LICENSE.Write( config, { Email: 'smoke@example.com', Clerk: 'user_smoke', Display: 'Smoke', Plan: 'personal', Until: null, Checked: new Date().toISOString() } );
+		child = CHILD_PROCESS.spawn( electron, launch, { cwd: ROOT, stdio: 'ignore' } );
+		page = await CDP.Attach( ( await server_app_page() ).webSocketDebuggerUrl );
+		await page.WaitFor( count_of( '.project' ) + ' >= 1 && ' + count_of( '#users-list .user-row' ) + ' >= 1', 30000 );
+		check( 'open: no sign-in', await page.Evaluate( count_of( '#sign-in-popup' ) ), 0 );
+		check( 'open: the Administrator recorded', JSON.parse( FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' ) ).Clerk.AdminEmail, 'smoke@example.com' );
+		check( 'open: the server is the Server', await page.Evaluate( 'location.protocol + "//" + location.hostname' ), 'http://127.0.0.1' );
+		await screenshot( page, 'server-app' );
+		// a second launch with --open: handed to the first, the folder registered and shown
+		let second = CHILD_PROCESS.spawnSync( electron, [ 'server', '--config', config, '--user-data-dir=' + user_data, '--open', project_folder ], { cwd: ROOT, encoding: 'utf8', timeout: 30000 } );
+		check( '--open: the second launch hands over and ends', second.status, 0 );
+		await page.WaitFor( 'Array.from( document.querySelectorAll( ".project" ) ).some( function ( one ) { return one.textContent.indexOf( "handed-over" ) >= 0; } )', 30000 ).catch( function () {} );
+		check( '--open: the folder is a project', FS.existsSync( PATH.join( project_folder, '.consensus', 'project.json' ) ), true );
+		check( '--open: the window shows it', await page.Evaluate( 'location.hash.indexOf( "#/p/" ) === 0' ), true );
+		page.Close();
+	}
+	finally
+	{
+		if ( child && child.exitCode === null )
+		{
+			child.kill();
+		}
+		await wait( 1000 );
+		FS.rmSync( config, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
+		FS.rmSync( user_data, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
+		FS.rmSync( PATH.dirname( project_folder ), { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
+	}
+}
+
+
+//---------------------------------------------------------------------
 
 async function main()
 {
@@ -464,6 +549,7 @@ async function main()
 	if ( !process.argv.includes( '--no-desktop' ) )
 	{
 		await smoke_desktop();
+		await smoke_server_app();
 	}
 	console.log( failed ? 'SMOKE FAILED: ' + failed + ' check(s)' : 'SMOKE OK' );
 	process.exit( failed ? 1 : 0 );

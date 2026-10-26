@@ -15,6 +15,7 @@ const PAGE = require( '../desktop/Page.js' );
 const PROJECTS = require( '../desktop/Projects.js' );
 const SERVER = require( '../src/Server.js' );
 const HOST = require( '../desktop/Host.js' );
+const LICENSE = require( '../src/License.js' );
 const CRYPTO = require( 'crypto' );		// plan Rearchitecturation, Step 5: the Server Host from the Desktop
 const NET = require( 'net' );
 
@@ -417,6 +418,8 @@ TEST( 'the Server Host from the Desktop: Start runs consensus serve detached ove
 	let config = temporary_folder( 'desktop-host-' );
 	let port = await free_port();
 	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( { Port: port, Owner: { Name: 'user', Display: 'User' } } ) );
+	// the Desktop's signed-in Personal user, whose sign-in opens the Server's gate (plan The Server, Step 3)
+	LICENSE.Write( config, { Email: 'ann@example.com', Clerk: 'user_ann', Display: 'Ann', Plan: 'personal', Until: null, Checked: new Date().toISOString() } );
 	let before = await HOST.Status( config );
 	ASSERT.deepEqual( before, { Running: false, Url: 'http://127.0.0.1:' + port, Pid: null, Started: null, Ours: false } );
 	ASSERT.equal( await HOST.HostPort( config ), port );

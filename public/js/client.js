@@ -69,7 +69,8 @@ angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope'
 		}
 		if ( !response.ok )
 		{
-			if ( response.status === 401 && own )
+			// a Server's closed gate (plan The Server, Step 3) answers a signed-in person who is not its Administrator 403 "closed"
+			if ( own && ( response.status === 401 || ( response.status === 403 && json && json.Closed ) ) )
 			{
 				Session.Needed( json );
 			}

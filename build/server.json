@@ -1,0 +1,30 @@
+{
+	"appId": "com.mchiver.consensus-server",
+	"productName": "Consensus Server",
+	"artifactName": "Consensus-Server-Setup-${version}.${ext}",
+	"extraMetadata": {
+		"name": "consensus-server",
+		"main": "server/main.js"
+	},
+	"directories": {
+		"output": "~dist/server"
+	},
+	"files": [
+		"server/main.js",
+		"server/preload.js",
+		"desktop/icon.ico",
+		"src/**",
+		"public/**",
+		".guides/build-with-consensus.md",
+		"package.json"
+	],
+	"win": {
+		"target": "nsis",
+		"icon": "desktop/icon.ico"
+	},
+	"nsis": {
+		"oneClick": false,
+		"allowToChangeInstallationDirectory": true,
+		"include": "build/server-installer.nsh"
+	}
+}

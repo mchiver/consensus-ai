@@ -15,6 +15,7 @@ const CHILD_PROCESS = require( 'child_process' );
 const NET = require( 'net' );
 const START = require( '../src/Start.js' );
 const SIDECAR = require( '../src/Sidecar.js' );
+const LICENSE = require( '../src/License.js' );
 
 let folders = [];
 
@@ -69,15 +70,22 @@ TEST( 'Run starts the server from the config folder and says where; Scope None s
 	let config = temporary_folder();
 	let lines = [];
 	let running = await START.Run( { Config: config, Port: 0 }, function ( line ) { lines.push( line ); } );
-	ASSERT.equal( lines.length, 6 );
+	ASSERT.equal( lines.length, 7 );
 	ASSERT.equal( lines[ 0 ], 'Consensus at ' + running.Url + '/ (Scope Local, listening on 127.0.0.1)' );
-	ASSERT.equal( lines[ 1 ], 'config folder ' + running.Store.Folder );
-	ASSERT.equal( lines[ 2 ], 'settings written to ' + PATH.join( config, 'consensus.json' ) );
+	// the Server's gate (plan The Server, Step 3): closed until a licensed sign-in stands behind it
+	ASSERT.equal( lines[ 1 ], 'closed: the Server waits for its first sign-in: a Personal or Professional license makes the Administrator; the page at ' + running.Url + '/ signs in' );
+	ASSERT.equal( lines[ 2 ], 'config folder ' + running.Store.Folder );
+	ASSERT.equal( lines[ 3 ], 'settings written to ' + PATH.join( config, 'consensus.json' ) );
 	// a registered project starts unmounted and the Host says how many are (plan Rearchitecturation, Step 5), and where its address file is
-	ASSERT.equal( lines[ 3 ], 'project Default at ' + PATH.join( config, 'projects', 'Default' ) + ' (unmounted)' );
-	ASSERT.equal( lines[ 4 ], '1 project is unmounted: accounts see mounted projects alone; the Administrator mounts a project in its menu on the Host\'s page' );
-	ASSERT.equal( lines[ 5 ], 'host address in ' + PATH.join( config, '~host.json' ) );
+	ASSERT.equal( lines[ 4 ], 'project Default at ' + PATH.join( config, 'projects', 'Default' ) + ' (unmounted)' );
+	ASSERT.equal( lines[ 5 ], '1 project is unmounted: accounts see mounted projects alone; the Administrator mounts a project in its menu on the Host\'s page' );
+	ASSERT.equal( lines[ 6 ], 'host address in ' + PATH.join( config, '~host.json' ) );
 	ASSERT.deepEqual( Object.keys( JSON.parse( FS.readFileSync( PATH.join( config, '~host.json' ), 'utf8' ) ) ).sort(), [ 'Pid', 'Port', 'Started', 'Url' ] );
+	let closed = await fetch( running.Url + '/api/me' );
+	ASSERT.deepEqual( [ closed.status, ( await closed.json() ).Closed ], [ 401, true ] );
+	// a Personal current user on the machine opens it, recorded as the Administrator
+	LICENSE.Write( config, { Email: 'ann@example.com', Clerk: 'user_ann', Display: 'Ann', Plan: 'personal', Until: null, Checked: new Date().toISOString() } );
+	ASSERT.equal( ( await running.Gate.Check() ).Open, true );
 	ASSERT.equal( ( await fetch( running.Url + '/api/me' ) ).status, 200 );
 	await running.Close();
 	ASSERT.equal( FS.existsSync( PATH.join( config, '~host.json' ) ), false, 'the Host\'s address file goes at Close' );
@@ -86,7 +94,8 @@ TEST( 'Run starts the server from the config folder and says where; Scope None s
 	let everywhere = await START.Run( { Config: config, Port: 0, Scope: 'Public' }, function ( line ) { lines.push( line ); } );
 	ASSERT.match( lines[ 0 ], /Scope Public, listening on 0\.0\.0\.0/ );
 	ASSERT.match( lines[ 1 ], /^warning: listening beyond this machine/ );
-	ASSERT.equal( lines[ 3 ], 'settings from ' + PATH.join( config, 'consensus.json' ) );
+	ASSERT.equal( lines[ 2 ].startsWith( 'closed: a Public Server needs the Administrator' ), true, 'Personal does not open a Public Server' );
+	ASSERT.equal( lines[ 4 ], 'settings from ' + PATH.join( config, 'consensus.json' ) );
 	await everywhere.Close();
 
 	lines = [];
@@ -143,6 +152,7 @@ TEST( 'a project folder on the command line: its .consensus made when missing, t
 TEST( 'the configured port in use: a second instance takes a free one and says so; a port asked for on the command line is not given up', async function ()
 {
 	let config = temporary_folder();
+	LICENSE.Write( config, { Email: 'ann@example.com', Clerk: 'user_ann', Display: 'Ann', Plan: 'personal', Until: null, Checked: new Date().toISOString() } );
 	let first = await START.Run( { Config: config, Port: 0 } );
 	let port = first.Address.Port;
 	first.Settings.Port = port;

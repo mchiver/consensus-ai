@@ -10,7 +10,8 @@
 		"test": "node --test",
 		"desktop": "electron desktop",
 		"smoke": "node bin/smoke.js",
-		"dist": "electron-builder --win nsis"
+		"dist": "electron-builder --win nsis -c build/desktop.json && electron-builder --win nsis -c build/server.json",
+		"server": "electron server"
 	},
 	"engines": {
 		"node": ">=22"
@@ -30,37 +31,11 @@
 	},
 	"bin": {
 		"consensus": "bin/consensus.js",
-		"consensus-mcp": "bin/mcp.js"
+		"consensus-mcp": "bin/mcp.js",
+		"consensus-server": "bin/consensus-server.js"
 	},
 	"devDependencies": {
 		"electron": "^44.5.1",
 		"electron-builder": "^26.15.3"
-	},
-	"build": {
-		"appId": "com.mchiver.consensus",
-		"productName": "Consensus",
-		"artifactName": "${productName}-Setup-${version}.${ext}",
-		"extraMetadata": {
-			"main": "desktop/main.js"
-		},
-		"directories": {
-			"output": "~dist"
-		},
-		"files": [
-			"desktop/**",
-			"src/**",
-			"public/**",
-			".guides/build-with-consensus.md",
-			"package.json"
-		],
-		"win": {
-			"target": "nsis",
-			"icon": "desktop/icon.ico"
-		},
-		"nsis": {
-			"oneClick": false,
-			"allowToChangeInstallationDirectory": true,
-			"include": "build/installer.nsh"
-		}
 	}
 }

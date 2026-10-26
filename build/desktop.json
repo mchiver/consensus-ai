@@ -1,0 +1,27 @@
+{
+	"appId": "com.mchiver.consensus",
+	"productName": "Consensus Desktop",
+	"artifactName": "Consensus-Desktop-Setup-${version}.${ext}",
+	"extraMetadata": {
+		"main": "desktop/main.js"
+	},
+	"directories": {
+		"output": "~dist/desktop"
+	},
+	"files": [
+		"desktop/**",
+		"src/**",
+		"public/**",
+		".guides/build-with-consensus.md",
+		"package.json"
+	],
+	"win": {
+		"target": "nsis",
+		"icon": "desktop/icon.ico"
+	},
+	"nsis": {
+		"oneClick": false,
+		"allowToChangeInstallationDirectory": true,
+		"include": "build/installer.nsh"
+	}
+}

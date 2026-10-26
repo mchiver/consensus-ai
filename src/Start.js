@@ -138,7 +138,10 @@ async function Run( Options, Log )
 			return running;
 		}
 	}
-	let running = await SERVER.Start( { Config: Options.Config, Port: Options.Port, Scope: Options.Scope, Project: Options.Project, Activate: Options.Activate, ReadOnly: Options.ReadOnly, Tier: Options.Tier } );
+	// The Server's gate (plan The Server, Step 3): every registered project served is the Server, headless unless the
+	// caller says otherwise (the Server application's window); a project's own server is not gated.
+	let gate = Options.Project ? null : ( Options.Gate || { Mode: 'headless' } );
+	let running = await SERVER.Start( { Config: Options.Config, Port: Options.Port, Scope: Options.Scope, Project: Options.Project, Activate: Options.Activate, ReadOnly: Options.ReadOnly, Tier: Options.Tier, Gate: gate } );
 	for ( let line of await Lines( running ) )
 	{
 		log( line );
@@ -178,6 +181,11 @@ async function Lines( Running )
 		if ( Running.Scope === 'Public' )
 		{
 			lines.push( 'warning: listening beyond this machine; people sign in through Clerk with a license, and a bare request is refused' );
+		}
+		if ( Running.Gate )
+		{
+			let state = Running.Gate.State();
+			lines.push( state.Open ? ( 'open under the Administrator ' + ( state.Administrator || '' ) + ' (' + state.Tier + ')' ) : ( 'closed: ' + state.Reason + '; the page at ' + Running.Url + '/ signs in' ) );
 		}
 	}
 	else

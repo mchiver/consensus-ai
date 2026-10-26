@@ -42,6 +42,7 @@ const SIDECAR = require( './Sidecar.js' );
 const HOST = require( './Host.js' );
 const ROLES = require( './Roles.js' );
 const LICENSE = require( './License.js' );
+const GATE = require( './Gate.js' );
 
 const DEFAULT_PORT = 3500;
 const REREAD_DELAY = 300;		// the debounce on the Host's file changing (plan Rearchitecturation, Step 4)
@@ -116,7 +117,7 @@ async function Start( Options )
 	if ( clerk.On() && PARTICIPANTS.Trust( settings ) === 'clerk' )
 	{
 		let admin_email = ( settings.Clerk && settings.Clerk.AdminEmail ) ? settings.Clerk.AdminEmail : null;
-		console.log( 'Clerk: people sign in through ' + ( clerk.FrontendApi() || 'an instance the publishable key does not name' ) + ' with a license; ' + ( admin_email ? ( 'the Administrator is ' + admin_email ) : 'no Administrator yet: the first sign-in with a Host license becomes it' ) );
+		console.log( 'Clerk: people sign in through ' + ( clerk.FrontendApi() || 'an instance the publishable key does not name' ) + ' with a license; ' + ( admin_email ? ( 'the Administrator is ' + admin_email ) : 'no Administrator yet: the first sign-in with a Personal or Professional license becomes it' ) );
 	}
 	let port = ( options.Port !== undefined ) ? options.Port : ( settings.Port || DEFAULT_PORT );
 	let scope = PARTICIPANTS.SCOPES.includes( options.Scope ) ? options.Scope : PARTICIPANTS.Scope( settings );
@@ -150,6 +151,15 @@ async function Start( Options )
 	{
 		events.Send( { Kind: 'run', Run: summary.Id, Llm: summary.Llm ? summary.Llm.Id : null, Status: summary.Status } );
 	} );
+	// The gate (plan The Server, Step 3): a Server serving every registered project runs under its Administrator's
+	// authority (Gate.js); Options.Gate = { Mode: 'window' | 'headless' } turns it on (Start.js for consensus serve,
+	// the Server application for its window). Nothing else is gated: a project's own server, the tests.
+	let gate = null;
+	if ( options.Gate && !project && !read_only )
+	{
+		gate = GATE.Gate( { Config: store.Folder, Settings: settings, Users: users, Store: store, Scope: scope, Mode: options.Gate.Mode, Events: events } );
+		await gate.Check();
+	}
 	let git = GIT.Git();
 	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Url: function () { return url; }, Tokens: tokens, Git: git } );
 	if ( project && typeof options.Activate === 'function' )
@@ -161,7 +171,7 @@ async function Start( Options )
 			response.json( { Ok: true } );
 		} );
 	}
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git, Users: users, Clerk: clerk, Url: function () { return url; } } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git, Users: users, Clerk: clerk, Gate: gate, Url: function () { return url; } } );
 	INSTRUCTIONS.Attach( app, { Settings: settings, Project: project } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
@@ -337,6 +347,7 @@ async function Start( Options )
 		Tokens: tokens,
 		Users: users,
 		Clerk: clerk,
+		Gate: gate,
 		SettingsWritten: settings_written,
 		Store: store,
 		Events: events,

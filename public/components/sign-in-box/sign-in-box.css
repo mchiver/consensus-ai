@@ -35,3 +35,10 @@ sign-in-box
 	width: 100%;
 	padding: 0.5rem 0;
 }
+
+/* why a Server's gate is closed (plan The Server, Step 3), above the sign-in */
+.sign-in-closed
+{
+	width: 100%;
+	margin-bottom: 0.5rem;
+}

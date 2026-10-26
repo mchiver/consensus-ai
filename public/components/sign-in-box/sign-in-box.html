@@ -1,8 +1,9 @@
 <div class="subplan-popup settings-popup sign-in-popup" id="sign-in-popup" ng-if="$ctrl.Shown()">
 	<div class="subplan-form sign-in-form">
 		<div class="subplan-head">Sign in to {{ $ctrl.Name() }}<button class="popup-close" type="button" title="close (Escape)" ng-if="$ctrl.CanClose()" ng-click="$ctrl.Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
+		<div class="sign-in-closed" id="sign-in-closed" ng-if="$ctrl.Session.Closed">{{ $ctrl.Session.Closed }}.</div>
 		<div class="sign-in-license" id="sign-in-license" ng-if="$ctrl.Session.Refusal">
-			<div>This account has no Consensus-AI <b>{{ $ctrl.Session.Refusal.Plan === 'professional' ? 'Professional' : 'Personal' }}</b> license, which {{ $ctrl.Session.Refusal.Plan === 'professional' ? 'the Administrator of a server' : 'an Owner or a Member of a project' }} needs.<span ng-if="$ctrl.Session.Refusal.Has"> It holds a {{ $ctrl.Session.Refusal.Has }} license.</span></div>
+			<div ng-if="$ctrl.Session.Refusal.Error !== 'closed'">This account has no Consensus-AI <b>{{ $ctrl.Session.Refusal.Plan === 'professional' ? 'Professional' : 'Personal' }}</b> license, which {{ $ctrl.Session.Refusal.Plan === 'professional' ? 'the Administrator of a server' : 'an Owner or a Member of a project' }} needs.<span ng-if="$ctrl.Session.Refusal.Has"> It holds a {{ $ctrl.Session.Refusal.Has }} license.</span></div>
 			<div class="small"><a ng-href="{{ $ctrl.Session.Pricing }}" target="_blank" rel="noopener">The licenses and their prices</a></div>
 			<button class="btn btn-sm btn-outline-secondary" type="button" id="sign-in-sign-out" ng-click="$ctrl.SignOut()">Sign out</button>
 		</div>

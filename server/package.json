@@ -1,0 +1,8 @@
+{
+	"name": "consensus-server",
+	"productName": "Consensus Server",
+	"version": "0.5.1",
+	"description": "Consensus Server: every registered project served under its Administrator, with the management parts (plan The Server, Step 3). Run from the checkout with npm run server.",
+	"private": true,
+	"main": "main.js"
+}

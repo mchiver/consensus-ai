@@ -10,7 +10,12 @@
 // tool call checked against its own operation's action; a notification is answered 202 with nothing.
 //
 //   Attach( App, Context ) -> the operations (Operations.Operations( Context )), mounted under /api
-//     Context = { Store, Settings, Events, Runs?, Runner?, Git?, Tokens?, Users?, Clerk? }
+//     Context = { Store, Settings, Events, Runs?, Runner?, Git?, Tokens?, Users?, Clerk?, Gate? }
+//
+// The gate (plan The Server, Step 3; Gate.js): while a Server's gate is closed every route but Clerk's two answers
+// 401 "sign in" with the gate's Reason (Closed: true), so the page shows its sign-in; a Clerk session is let through
+// to be identified (its sign-in may record the Administrator and write the plan on the record), the gate is checked
+// again, and the request goes on when it opened, else 403 "closed" with the Reason.
 //
 // Clerk (plan User Management, Step 4): the sign-in of a shared server; a Clerk session token is its user's account, a
 // bare request on a Public server with Clerk keys is refused, and GET /clerk and POST /clerk/webhook serve the page and
@@ -40,6 +45,7 @@ function Attach( App, Context )
 	let tokens = Context.Tokens || null;
 	let users = Context.Users || null;
 	let clerk = Context.Clerk || null;
+	let gate = Context.Gate || null;
 	let operations = OPERATIONS.Operations( Context );
 	let mcp = MCP.Mcp( { Operations: operations, Store: store, Authorize: authorize_operation } );
 	let router = EXPRESS.Router();
@@ -50,13 +56,14 @@ function Attach( App, Context )
 	} );
 	router.post( '/clerk/webhook', EXPRESS.raw( { type: function () { return true; }, limit: '1mb' } ), clerk_webhook );
 	// The MCP transport reads its body as text, so that a body that is not JSON is answered the protocol's way.
-	router.post( '/mcp', EXPRESS.text( { type: function () { return true; }, limit: BODY_LIMIT } ), identify, authorize, mcp_route );
+	router.post( '/mcp', EXPRESS.text( { type: function () { return true; }, limit: BODY_LIMIT } ), gated, identify, authorize, mcp_route );
 	router.all( '/mcp', function ( request, response )
 	{
 		response.set( 'Allow', 'POST' );
 		fail( response, 405, 'POST a JSON-RPC message' );
 	} );
 	router.use( EXPRESS.json( { limit: BODY_LIMIT } ) );
+	router.use( gated );
 	router.use( identify );
 	router.use( authorize );
 	for ( let operation of operations.List )
@@ -74,6 +81,29 @@ function Attach( App, Context )
 	// Public server a bare request is refused with "sign in" (on Local it stays the owner, and a session is the owner's).
 	// Plan Clerk, Step 5: a session whose license is below what the person's roles need is refused with "license" and
 	// the plan wanted (Host for the Administrator, User for an Owner or a Member; a Watcher needs none).
+
+	// The gate, before identify (plan The Server, Step 3).
+	async function gated( request, response, next )
+	{
+		if ( !gate || gate.Open() )
+		{
+			return next();
+		}
+		let reason = gate.State().Reason;
+		let match = /^Bearer\s+(.+)$/i.exec( ( request.get( 'Authorization' ) || '' ).trim() );
+		if ( !match || !clerk || !clerk.On() || !clerk.Looks( match[ 1 ].trim() ) )
+		{
+			return fail( response, 401, 'sign in', { Reason: reason, Closed: true } );
+		}
+		await clerk_participant( match[ 1 ].trim(), request.get( PARTICIPANTS.SERVICE_HEADER ), page_host( request ) );
+		let state = await gate.Check();
+		if ( !state.Open )
+		{
+			return fail( response, 403, 'closed', { Reason: state.Reason, Closed: true } );
+		}
+		next();
+	}
+
 
 	async function identify( request, response, next )
 	{
