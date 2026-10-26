@@ -412,7 +412,7 @@ TEST( 'a read-only store (the Desktop reading the Host config) reads the setting
 	let settings = await reader.ReadSettings();
 	ASSERT.deepEqual( await reader.Prepare( settings ), [] );
 	ASSERT.deepEqual( ( await reader.ListProjects() ).map( function ( project ) { return [ project.Name, project.Mounted ]; } ), [ [ 'Default', false ], [ 'Zebra', true ] ] );
-	await ASSERT.rejects( reader.WriteSettings( settings ), /the settings are read-only: consensus.json is written by the Server Host alone/ );
+	await ASSERT.rejects( reader.WriteSettings( settings ), /the settings are read-only: consensus.json is written by the Server alone/ );
 	// the registry writes are skipped: the list in memory changes, the file does not
 	ASSERT.equal( await reader.MoveProject( zebra.Id, ready.Home.Id ), true );
 	ASSERT.equal( ( await reader.SetMounted( zebra.Id, false ) ).Mounted, false );

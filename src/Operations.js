@@ -41,8 +41,8 @@ const LLM = require( './Llm.js' );
 const REPORT = require( './Report.js' );
 const INSTRUCTIONS = require( './Instructions.js' );
 
-const CONNECTIONS_HOST_LINE = 'Connections are managed by the Server Host';		// plan Rearchitecturation, Step 4
-const SETTINGS_HOST_LINE = 'The settings are managed by the Server Host';
+const CONNECTIONS_HOST_LINE = 'Connections are managed by the Server';		// plan Rearchitecturation, Step 4
+const SETTINGS_HOST_LINE = 'The settings are managed by the Server';
 const VERSION = require( '../package.json' ).version;
 
 const ACTIVITY_LIMIT = 200;	// the entries an account's activity page lists
@@ -291,9 +291,9 @@ function Operations( Context )
 	}
 
 
-	// The plan a person's roles need (plan Clerk, Step 5): Personal for the Administrator (plan The Server, Step 2;
-	// Professional before), Personal for an Owner or a Member
-	// of any project, none for a Watcher or someone placed nowhere; the owner of a Local server needs none.
+	// The plan a person needs (plan Clerk, Step 5): Personal for the Administrator (plan The Server, Step 2;
+	// Professional before), none for anyone else whatever their roles (plan The Server, Step 4: the Server runs under
+	// the Administrator's license); the owner of a Local server needs none.
 	async function needed_plan( account )
 	{
 		if ( account.Type === 'owner' )
@@ -303,14 +303,6 @@ function Operations( Context )
 		if ( account.Admin )
 		{
 			return 'personal';
-		}
-		let roles = await roles_of( account );
-		for ( let project_id of Object.keys( roles ) )
-		{
-			if ( ROLES.PlanFor( roles[ project_id ] ) )
-			{
-				return ROLES.PlanFor( roles[ project_id ] );
-			}
 		}
 		return null;
 	}
@@ -498,9 +490,10 @@ function Operations( Context )
 		Perform: async function ( participant )
 		{
 			let account = ( users && participant.Id ) ? users.Public( users.Get( participant.Id ), false ) : null;
-			// ReadOnly and Host (plan Rearchitecturation, Step 4): the Desktop reads the Server Host's file, whose page is at Host.
-			let read_only = !!( store && store.ReadOnly );
-			return { Me: PARTICIPANTS.Public( participant ), Account: account, Admin: is_administrator( participant ), Manager: !is_administrator( participant ) && participant.Manager === true, Manage: may_manage( participant ), Roles: await roles_of( participant ), Participants: await speakers( null, [], participant ), States: states(), Version: VERSION, Server: settings.Name || null, ReadOnly: read_only, Host: read_only ? 'http://127.0.0.1:' + ( settings.Port || 3500 ) : null };
+			// Sidecar (plan The Server, Step 4): the Desktop's sidecar mode, over the Server's file read-only: no
+			// connections, no tasks, and the page shows no LLMs, Users or roles.
+			let sidecar = !!( store && store.ReadOnly );
+			return { Me: PARTICIPANTS.Public( participant ), Account: account, Admin: is_administrator( participant ), Manager: !is_administrator( participant ) && participant.Manager === true, Manage: may_manage( participant ), Roles: await roles_of( participant ), Participants: await speakers( null, [], participant ), States: states(), Version: VERSION, Server: settings.Name || null, Sidecar: sidecar };
 		},
 	} );
 
@@ -1158,7 +1151,7 @@ function Operations( Context )
 		Name: 'mount_project',
 		Method: 'PUT',
 		Path: '/projects/:pid/mount',
-		Description: 'Mounts or unmounts a project on this Server Host ({ Mounted: true | false }); the Administrator\'s. An unmounted project is read and written by the Administrator alone; every other account sees the mounted ones only.',
+		Description: 'Mounts or unmounts a project on this Server ({ Mounted: true | false }); the Administrator\'s. An unmounted project is read and written by the Administrator alone; every other account sees the mounted ones only.',
 		Parameters: {
 			Project: { Type: 'string', Required: true, Description: 'the project\'s id' },
 			Mounted: { Type: 'boolean', Required: true },
@@ -2579,7 +2572,7 @@ function Operations( Context )
 	}
 
 
-	// The Desktop reads the Server Host's file and never writes it (plan Rearchitecturation, Step 4): a write is refused.
+	// The Desktop reads the Server's file and never writes it (plan Rearchitecturation, Step 4): a write is refused.
 	function host_only( line )
 	{
 		if ( store && store.ReadOnly )
@@ -3301,12 +3294,6 @@ function Operations( Context )
 					if ( ( record.Type === 'service' ) !== ( role === 'Service' ) )
 					{
 						refuse( 400, ( record.Type === 'service' ) ? 'a Service account goes in the Service folder only' : 'the Service folder takes Service accounts only' );
-					}
-					// Plan Clerk, Step 5: a person seen without the plan the folder needs stays out of it.
-					let needed = ROLES.PlanFor( role );
-					if ( needed && record.Clerk && ROLES.PlanRank( record.Plan ) < ROLES.PlanRank( needed ) )
-					{
-						refuse( 400, record.Login + ' needs a ' + needed.charAt( 0 ).toUpperCase() + needed.slice( 1 ) + ' license to be in ' + role, { Plan: needed } );
 					}
 				}
 			}

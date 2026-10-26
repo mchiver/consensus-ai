@@ -1,7 +1,7 @@
 'use strict';
 
-// Host - the Server Host's address on this machine (plan Rearchitecturation, Step 5). `consensus serve` (the bare
-// form, the Docker image, the Desktop's Start the Server Host) writes <config>/~host.json while it runs, so the
+// Host - the Server's address on this machine (plan Rearchitecturation, Step 5). `consensus serve` (the bare
+// form, the Docker image, the Server application) writes <config>/~host.json while it runs, so the
 // Desktop finds the Host it started, or one started any other way, and can stop the one it started; a Host is also
 // found by its port (Probe), whoever started it.
 //

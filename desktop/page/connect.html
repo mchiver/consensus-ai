@@ -12,7 +12,8 @@
 <body ng-controller="ConnectController" ng-cloak>
 
 	<!-- The chooser (plan Rearchitecturation, Step 2): a window with no project. Recent projects, Open folder, New
-	     project, and the Hosts with their projects; each opens the project in this window. -->
+	     project, and the Servers with their projects (plan The Server, Step 4: Connect to Server, for Registered and
+	     above); each opens the project in this window. -->
 
 	<header class="connect-head">
 		<div class="connect-title"><span class="connect-kind">Consensus</span> Desktop <span class="muted small">{{ Version }}</span></div>
@@ -72,15 +73,15 @@
 
 		<section class="block" id="hosts-block">
 			<div class="block-head">
-				<h2>Hosts</h2>
-				<button class="btn btn-sm btn-outline-primary" id="add-host" ng-click="StartAdd()" ng-hide="Adding" ng-disabled="Busy || !License || License.Rank < 2" title="{{ ( !License || License.Rank < 2 ) ? 'a Personal license: connecting to a Host needs one; sign in from a project page\'s menu' : 'a Host by its address, then one of its projects' }}">Add host</button>
+				<h2>Servers</h2>
+				<button class="btn btn-sm btn-outline-primary" id="add-host" ng-click="StartAdd()" ng-hide="Adding" ng-disabled="Busy || !License || License.Rank < 1" title="{{ ( !License || License.Rank < 1 ) ? 'a sign-in: connecting to a Server needs one (Registered is free); sign in from a project page\'s menu' : 'a Server by its address, then one of its projects' }}">Connect to Server</button>
 			</div>
-			<div class="muted small" ng-hide="Settings.Hosts.length || Adding">none yet: a Server Host's address, such as http://cube4:3500, and one of its projects</div>
+			<div class="muted small" ng-hide="Settings.Hosts.length || Adding">none yet: a Server's address, such as http://cube4:3500, and one of its projects</div>
 			<div class="server-row host-row" ng-repeat="entry in Settings.Hosts track by ( entry.Name + '/' + entry.Project )">
 				<div class="server-name">{{ entry.Title || entry.Project || entry.Name }}</div>
 				<div class="muted small server-url">{{ entry.Name }} · {{ entry.Url }}</div>
 				<span class="grow"></span>
-				<button class="btn btn-sm btn-outline-primary open-host" ng-click="OpenHost( entry )" ng-disabled="Busy || !entry.Project || !License || License.Rank < 2" title="{{ ( !License || License.Rank < 2 ) ? 'a Personal license: connecting to a Host needs one' : 'open this Host project in this window' }}">Open</button>
+				<button class="btn btn-sm btn-outline-primary open-host" ng-click="OpenHost( entry )" ng-disabled="Busy || !entry.Project || !License || License.Rank < 1" title="{{ ( !License || License.Rank < 1 ) ? 'a sign-in: connecting to a Server needs one (Registered is free)' : 'open this Server project in this window' }}">Open</button>
 				<button class="btn btn-sm btn-outline-danger" ng-click="RemoveHost( entry )" ng-disabled="Busy">Remove</button>
 			</div>
 			<form class="server-form" ng-if="Adding" ng-submit="Connect()">

@@ -845,7 +845,7 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 	// The seeded project saved as a Host project (plan Rearchitecturation, Step 2: one entry per Host project).
 	let desktop = { Hosts: [ { Name: 'Recipe Box server', Url: Url, Project: Demo.Id, Title: 'Recipe Box' } ], Theme: 'light', Scale: 'normal' };
 	FS.writeFileSync( PATH.join( config, 'desktop.json' ), JSON.stringify( desktop, null, '\t' ) );
-	// a Personal user signed in (plan Rearchitecturation, Step 6; plan The Server, Step 1: user.json): the Hosts need one
+	// a Personal user signed in (plan Rearchitecturation, Step 6; plan The Server, Step 1: user.json): connecting to a Server needs a sign-in
 	demo_user( config );
 
 	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data, '--config', config ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );
@@ -929,7 +929,7 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 
 
 // A folder open in the desktop (plan Rearchitecturation, Step 7): the app started on a temporary folder, the one project
-// pictured, then its menu (Sign in…, the Server Host items).
+// pictured, then its menu (Sign in…).
 async function desktop_folder_pictures( Folder, Log )
 {
 	const CDP = require( '../test/support/Cdp.js' );

@@ -137,22 +137,7 @@ angular.module( 'Consensus' ).component( 'titleBar', {
 					items.push( { Label: 'Sign out', Icon: 'info', Act: function () { Session.SignOut(); } } );
 				}
 				items.push( { Label: 'Reload', Icon: 'refresh', Act: function () { $window.location.reload(); } } );
-				// The Server Host (plan Rearchitecturation, Step 5): started detached, its page opened, stopped; the status
-				// as the desktop last saw it, refreshed for the next opening.
-				if ( typeof desktop.HostStatus === 'function' )
-				{
-					items.push( { Separator: true } );
-					if ( host_status && host_status.Running )
-					{
-						items.push( { Label: 'Open the Server Host', Icon: 'eye', Act: function () { desktop.OpenHost(); } } );
-						items.push( { Label: 'Stop the Server Host', Icon: 'x', Disabled: !host_status.Ours, Act: function () { desktop.StopHost().then( refresh_host ); } } );
-					}
-					else
-					{
-						items.push( { Label: 'Start the Server Host', Icon: 'plus', Act: function () { desktop.StartHost().then( refresh_host ); } } );
-					}
-					refresh_host();
-				}
+				// The Desktop starts no Server (plan The Server, Step 4): the Server is an application of its own.
 				if ( typeof desktop.Quit === 'function' )
 				{
 					items.push( { Separator: true } );
@@ -161,19 +146,6 @@ angular.module( 'Consensus' ).component( 'titleBar', {
 			}
 			Menus.Show( items, event, MENU_KEY );
 		};
-
-
-		let host_status = null;
-
-		function refresh_host()
-		{
-			if ( desktop && typeof desktop.HostStatus === 'function' )
-			{
-				desktop.HostStatus().then( function ( status ) { host_status = status; } ).catch( function () {} );
-			}
-		}
-
-		refresh_host();
 
 
 		controller.MenuOpen = function ()

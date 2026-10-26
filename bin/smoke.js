@@ -305,7 +305,9 @@ async function smoke_desktop()
 		let fit = JSON.parse( await chooser.Evaluate( '( function () { let r = navigator.windowControlsOverlay.getTitlebarAreaRect(); let c = document.querySelector( ".connect-controls" ).getBoundingClientRect(); return JSON.stringify( { Controls: c.right, Area: r.x + r.width, Height: r.height, Head: document.querySelector( ".connect-head" ).getBoundingClientRect().height } ); } )()' ) );
 		check( 'chooser: the controls stop before the buttons', fit.Controls <= fit.Area + 1 );
 		check( 'chooser: the overlay follows the header', Math.abs( fit.Height - fit.Head ) <= 1 );
-		check( 'chooser: Open folder, New project and Add host', await chooser.Evaluate( count_of( '#open-folder' ) + ' + ' + count_of( '#new-project' ) + ' + ' + count_of( '#add-host' ) ), 3 );
+		check( 'chooser: Open folder, New project and Connect to Server', await chooser.Evaluate( count_of( '#open-folder' ) + ' + ' + count_of( '#new-project' ) + ' + ' + count_of( '#add-host' ) ), 3 );
+		check( 'chooser: the Servers', await chooser.Evaluate( text_of( '#hosts-block h2' ) + ' + "/" + ' + text_of( '#add-host' ) ), 'Servers/Connect to Server' );
+		check( 'chooser: Connect to Server needs a sign-in', await chooser.Evaluate( 'document.getElementById( "add-host" ).disabled' ), true );
 		check( 'chooser: no recent project yet', await chooser.Evaluate( 'getComputedStyle( document.getElementById( "recent-empty" ) ).display !== "none"' ), true );
 		await capture_window( chooser, 'desktop-chooser' );
 		// a folder opened in this window: this machine's server over it alone, its .consensus made, the page shown
@@ -327,6 +329,8 @@ async function smoke_desktop()
 		check( 'project: the window knows its one project', await page.Evaluate( 'window.ConsensusDesktop.Project && window.ConsensusDesktop.Project.Name' ), 'smoke-project' );
 		await page.WaitFor( count_of( '.root' ) + ' === 1 && ' + count_of( '.project' ) + ' === 1', 30000 );
 		check( 'tree: one project view, open, and no root head', await page.Evaluate( count_of( '.project.single.open' ) + ' + "/" + ' + count_of( '.root-head' ) ), '1/0' );
+		// sidecar mode (plan The Server, Step 4): no LLMs, no Users and no role folders
+		check( 'sidecar mode: no LLMs, Users or roles', await page.Evaluate( count_of( 'llm-fold' ) + ' + "/" + ' + count_of( 'users-fold' ) + ' + "/" + ' + count_of( 'roles-folder' ) ), '0/0/0' );
 		check( 'recent: the folder is first in desktop.json', JSON.parse( FS.readFileSync( PATH.join( config, 'desktop.json' ), 'utf8' ) ).Recent[ 0 ].Path, project_folder.replace( /\\/g, '/' ) );
 		let roots = JSON.parse( await page.Evaluate( 'JSON.stringify( window.ConsensusDesktop.Roots )' ) );
 		let plan = await make_plan( roots[ 0 ].Url );
@@ -348,10 +352,10 @@ async function smoke_desktop()
 		// the menu and the bridge
 		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
 		await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
-		// the Server Host item (plan Rearchitecturation, Step 5) reads Start, or Open and Stop when a Host answers on this machine's port
 		let menu_items = await page.Evaluate( MENU_ITEMS );
-		// Sign in… sits before Reload when the window's server offers Clerk (plan Rearchitecturation, Step 6)
-		check( 'menu: the desktop items', /^About\|Hotkeys\|New window\|Open folder in new window…\|Settings\|(Sign in…\|)?Reload\|(Start the Server Host|Open the Server Host\|Stop the Server Host)\|Quit$/.test( menu_items ), true );
+		// Sign in… sits before Reload when the window's server offers Clerk (plan Rearchitecturation, Step 6); no Server
+		// items (plan The Server, Step 4)
+		check( 'menu: the desktop items', /^About\|Hotkeys\|New window\|Open folder in new window…\|Settings\|(Sign in…\|)?Reload\|Quit$/.test( menu_items ), true );
 		// while the menu is open the bar is no drag region, so a click on it closes the menu (plan UI Tweaks IX)
 		check( 'menu: the bar gives up the drag region while a menu is open', await page.Evaluate( 'getComputedStyle( document.querySelector( ".title-bar" ) ).webkitAppRegion' ), 'no-drag' );
 		let bar_spot = JSON.parse( await page.Evaluate( '( function () { let r = document.querySelector( ".title-bar" ).getBoundingClientRect(); return JSON.stringify( { x: r.left + r.width / 2, y: r.top + r.height / 2 } ); } )()' ) );

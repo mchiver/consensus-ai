@@ -80,7 +80,7 @@ function Attach( App, Context )
 	// Step 4: a Bearer value that is no token of ours is tried as a Clerk session token, its user the account; on a
 	// Public server a bare request is refused with "sign in" (on Local it stays the owner, and a session is the owner's).
 	// Plan Clerk, Step 5: a session whose license is below what the person's roles need is refused with "license" and
-	// the plan wanted (Host for the Administrator, User for an Owner or a Member; a Watcher needs none).
+	// the plan wanted: Personal for the Administrator; no project role needs one (plan The Server, Step 4).
 
 	// The gate, before identify (plan The Server, Step 3).
 	async function gated( request, response, next )

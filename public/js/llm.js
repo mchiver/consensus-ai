@@ -173,12 +173,6 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State'
 		{
 			return 'no one is signed in';
 		}
-		// Plan Rearchitecturation, Step 4 (the free tier): in the Desktop, this machine's project runs a task with a
-		// Personal license alone; the sidecar is the free LLM path. A Host's project is the Host's affair.
-		if ( window.ConsensusDesktop && items.Root.Kind !== 'server' && !Session.Licensed( 'personal' ) )
-		{
-			return 'a Personal license';
-		}
 		// Plan User Management, Step 5: what the role may press, as src/Roles.js MayPress has it, said before the server says it.
 		if ( items.Root.Me.Role !== 'owner' && Pick.Project )
 		{

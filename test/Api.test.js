@@ -1763,26 +1763,27 @@ TEST( 'Clerk (plan User Management, Step 4; plan Clerk, Step 5): the built-in ke
 		let ann_personal = await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_ann', license: 'personal' } ) } );
 		ASSERT.deepEqual( [ ann_personal.Status, ann_personal.Body.Admin ], [ 200, true ] );
 		ASSERT.deepEqual( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_ann' } ) } ) ).Body, { Error: 'license', Plan: 'personal', Has: null } );
-		// the drag: a person seen without a User license stays out of Owners and Members; Watchers take anyone
+		// the roles take any signed-in account, licensed or not (plan The Server, Step 4: the Server runs under the
+		// Administrator's license; Owners and Members needed Personal before)
 		let listed = ( await on( shared, 'GET', '/api/users', undefined, ann ) ).Body.Users;
 		let bob = listed.find( function ( one ) { return one.Login === 'bob'; } );
 		let carl = listed.find( function ( one ) { return one.Login === 'carl'; } );
 		ASSERT.deepEqual( [ bob.Plan, carl.Plan ], [ 'personal', null ] );
 		ASSERT.equal( ( await on( shared, 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: true }, ann ) ).Status, 200 );		// the Administrator mounts it (plan Rearchitecturation, Step 5)
 		ASSERT.equal( ( await on( shared, 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ bob.Id ] }, ann ) ).Status, 200 );
-		let refused = await on( shared, 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ bob.Id ], Owners: [ carl.Id ] }, ann );
-		ASSERT.deepEqual( [ refused.Status, refused.Body.Error, refused.Body.Plan ], [ 400, 'carl needs a Personal license to be in Owners', 'personal' ] );
+		ASSERT.equal( ( await on( shared, 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ bob.Id ], Owners: [ carl.Id ] }, ann ) ).Status, 200, 'an Owner with no license' );
+		ASSERT.deepEqual( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_carl' } ) } ) ).Body.Roles[ project.Id ], 'Owners' );
 		ASSERT.equal( ( await on( shared, 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ bob.Id ], Watchers: [ carl.Id ] }, ann ) ).Status, 200 );
 		ASSERT.deepEqual( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_carl' } ) } ) ).Body.Roles[ project.Id ], 'Watchers', 'a Watcher needs no license' );
-		// a Member whose license lapsed is refused with the plan wanted
+		// a Member whose license lapsed is a Member still, with no plan on the record
 		let bob_lapsed = await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_bob' } ) } );
-		ASSERT.deepEqual( [ bob_lapsed.Status, bob_lapsed.Body ], [ 401, { Error: 'license', Plan: 'personal', Has: null } ] );
-		ASSERT.equal( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_bob', license: { Plan: 'personal', Until: '2001-01-01' } } ) } ) ).Body.Error, 'license', 'expired' );
+		ASSERT.deepEqual( [ bob_lapsed.Status, bob_lapsed.Body.Roles[ project.Id ], bob_lapsed.Body.Me.Plan ], [ 200, 'Members', undefined ] );
+		ASSERT.equal( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_bob', license: { Plan: 'personal', Until: '2001-01-01' } } ) } ) ).Status, 200, 'expired' );
 		ASSERT.equal( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_bob', org_license: { Plan: 'personal' } } ) } ) ).Status, 200, 'the organization\'s license' );
 		// a hand-made record placed before its first sign-in: placed freely, checked at the sign-in, completed by email
 		let dee = ( await on( shared, 'POST', '/api/users', { Type: 'user', Login: 'dee', Email: 'dee@example.com' }, ann ) ).Body.User;
 		ASSERT.equal( ( await on( shared, 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ bob.Id, dee.Id ], Watchers: [ carl.Id ] }, ann ) ).Status, 200 );
-		ASSERT.deepEqual( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_dee', email: 'DEE@example.com' } ) } ) ).Body, { Error: 'license', Plan: 'personal', Has: null } );
+		ASSERT.deepEqual( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_dee', email: 'DEE@example.com' } ) } ) ).Body.Roles[ project.Id ], 'Members', 'no license needed' );
 		let as_dee = await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_dee', email: 'DEE@example.com', license: 'personal' } ) } );
 		ASSERT.deepEqual( [ as_dee.Status, as_dee.Body.Me.Id, as_dee.Body.Account.Clerk, as_dee.Body.Roles[ project.Id ] ], [ 200, dee.Id, true, 'Members' ] );
 		// no email in the claims for someone unknown: nobody (plan The Server, Step 2: no Backend API, no secret key)
@@ -2042,9 +2043,9 @@ TEST( 'mount and unmount (plan Rearchitecturation, Step 5): the Administrator\'s
 
 TEST( 'Scope Public is refused at bind time below the Professional tier when the Desktop\'s tier is given, with a line naming the tier; without a tier (the headless form, the image) a Public server starts as before', async function ()
 {
-	await ASSERT.rejects( SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public', Tier: 'personal' } ), /Scope Public needs a Professional license: this Desktop is at the Personal tier/ );
-	await ASSERT.rejects( SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public', Tier: 'unlicensed' } ), /this Desktop is at the Unlicensed tier/ );
-	await ASSERT.rejects( SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public', Tier: 'registered' } ), /this Desktop is at the Registered tier/ );
+	await ASSERT.rejects( SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public', Tier: 'personal' } ), /Scope Public needs a Professional license: the current user is at the Personal tier/ );
+	await ASSERT.rejects( SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public', Tier: 'unlicensed' } ), /the current user is at the Unlicensed tier/ );
+	await ASSERT.rejects( SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public', Tier: 'registered' } ), /the current user is at the Registered tier/ );
 	let professional = await SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public', Tier: 'professional' } );
 	ASSERT.equal( professional.Scope, 'Public' );
 	await professional.Close();

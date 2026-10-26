@@ -3,22 +3,24 @@
 // main - the desktop's main process (plan Consensus Desktop, Step 2): one window that shows the Consensus page (served
 // by Page.js on 127.0.0.1, which forwards the page's API calls to the server the page shows). A window is one project
 // (plan Rearchitecturation, Step 2): a folder on the command line (`consensus-desktop <folder>`) opens on this machine's
-// server over that folder alone, as the headless `consensus <folder>` does; `--connect <host name>` opens a saved Host
-// project (desktop.json's Hosts) as a thin client, the page pointed at the Host's API through the app's own origin
+// server over that folder alone, as the headless `consensus <folder>` does; `--connect <server name>` opens a saved Server
+// project (desktop.json's Hosts) as a thin client, the page pointed at the Server's API through the app's own origin
 // (/servers/<key>); with neither the window shows the chooser (desktop/page/connect.html): the recent folders, Open
 // folder, New project and the Hosts, each opening in this window. Another project is another instance (New window
 // opens another chooser; Open folder in new window and the recent folders start one on a folder). The desktop keeps its
-// own settings (Settings.js) in desktop.json beside consensus.json (Step 1), which is the Server Host's and never
-// written here. With --headless there is no window: this machine's server runs from the config as the Scope says.
+// own settings (Settings.js) in desktop.json beside consensus.json (Step 1), which is the Server's and never
+// written here.
 // Step 3: the window's server is the sidecar (src/Sidecar.js): its port hashed from the folder, its address in the
 // folder's .consensus/~sidecar.json; a folder already open in another window is not opened again: that window is
 // brought to the front (the sidecar's POST /api/desktop/activate, answered here) and a launch on it exits, as VS Code
-// activates the window that has the folder. Step 5: the Project menu starts the Server Host (`consensus serve`,
-// detached, over the same config folder, its log in <config>/~logs/; desktop/Host.js), opens its page and stops it; a
-// Host already running is found by its port; Open folder on a folder the Host's registry lists as mounted, while the
-// Host runs, connects the window to the Host's project instead of opening the folder. Step 6: the tiers: the page's sign-in
-// hands its token here (set-license), verified against Clerk's keys; Personal unlocks the tasks, the Hosts and the
-// Server Host with Scope Local, Professional lets the Host keep its file's Scope Public. Plan The Server, Step 1: the
+// activates the window that has the folder. Step 5: Open folder on a folder the Server's registry lists as mounted,
+// while the Server runs (found by its address file or its port, desktop/Host.js), connects the window to the Server's
+// project instead of opening the folder, so one folder never has two writers. Step 6: the tiers: the page's sign-in
+// hands its token here (set-license), verified against Clerk's keys. Plan The Server, Step 4: the Desktop's split: it
+// no longer starts, opens or stops a Server (the Server is an application of its own) and has no --headless form; its
+// sidecar reads no connections or tasks from the Server's file, so a folder opened here has no LLMs, no users and no
+// roles (sidecar mode); Connect to Server (the Hosts of before) needs a sign-in, Registered and above, and a Server's
+// project in client mode runs the Server's tasks. Plan The Server, Step 1: the
 // sign-in is the machine's current user, <config>/user.json (src/License.js), shared with the Server and read at each
 // use, so a sign-in in another window or application counts here; the tiers are Unlicensed (no sign-in, the sidecar),
 // Registered (a sign-in with no license), Personal and Professional; after 14 days with no check the user is signed out.
@@ -28,7 +30,7 @@
 // still set, for its accelerators, and the page's application menu (public/components/title-bar) has New window, Open
 // folder in new window, the recent folders, Settings, Reload and Quit, over the bridge.
 //
-//   npm run desktop -- [<folder> | --connect <host name>] [--config <folder>] [--port <port>] [--scope ...] [--headless]
+//   npm run desktop -- [<folder> | --connect <server name>] [--config <folder>] [--port <port>]
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -45,21 +47,22 @@ const SERVER = require( '../src/Server.js' );
 const VERSION = require( '../package.json' ).version;
 const ICON = PATH.join( __dirname, 'icon.ico' );		// the windows' icon from the checkout; the packaged executable carries its own (plan Installer)
 const TRY_TIMEOUT = 5000;
-const CONNECT_ARGUMENT = '--connect';		// the desktop's own argument: a saved Host project to open
+const DESKTOP_USAGE = 'usage: consensus-desktop [<folder> | --connect <server name>] [--config <folder>] [--port <port>]';
+const CONNECT_ARGUMENT = '--connect';		// the desktop's own argument: a saved Server project to open
+const SERVER_NAME = 'Server';				// the name a folder routed to this machine's Server goes by
 // Electron's own switches, which stay on the command line the app parses.
 const ELECTRON_SWITCH = /^--(remote-debugging-port|user-data-dir|inspect|enable-logging|no-sandbox|disable-gpu|trace-warnings)/;
 
 let options = null;		// the command line's (src/Start.js), kept for the server a folder opened later needs
 let running = null;		// src/Server.js's, from START.Run: this machine's server over the window's folder, or none
 let store = null;
-let settings = null;		// this machine's server's settings (consensus.json): read, never written here
+let settings = null;		// the window's server's settings (the Server's consensus.json): read, never written here
 let desktop = null;		// the desktop's own (desktop.json, Settings.js)
 let desktop_path = null;
 let opened = null;		// the window's project: { Kind: 'folder', Path, Project: { Id, Name } } or { Kind: 'host', Host: { Name, Url, Project }, Project: { Id, Name } }
 let page = null;
 let window = null;
 let reason = null;		// why the project asked for could not open, for the chooser
-let host_status = null;	// the Server Host's { Running, Url, Pid, Started, Ours } as last seen (plan Rearchitecturation, Step 5)
 let closing = false;
 const CLOSE_ANSWER_WAIT = 3000;		// the page's answer to a close, before the window closes anyway
 
@@ -167,7 +170,7 @@ async function try_server( url )
 //---------------------------------------------------------------------
 // The window's project (plan Rearchitecturation, Step 2): the one root the page shows, and what the page is told.
 
-// The root: this machine's server over the folder, or the Host; none on the chooser.
+// The root: this machine's server over the folder, or the Server; none on the chooser.
 function roots_now()
 {
 	if ( !opened )
@@ -195,7 +198,7 @@ function project_info()
 		Name: opened.Project.Name,
 		Path: ( opened.Kind === 'folder' || opened.Host.Routed ) ? opened.Path : null,
 		Host: ( opened.Kind === 'host' ) ? opened.Host.Name : null,
-		Routed: !!( opened.Kind === 'host' && opened.Host.Routed ),		// a mounted folder served by the Server Host (plan Rearchitecturation, Step 5)
+		Routed: !!( opened.Kind === 'host' && opened.Host.Routed ),		// a mounted folder served by the Server (plan Rearchitecturation, Step 5)
 		Key: PROJECTS.Key( opened ),
 	};
 }
@@ -220,7 +223,8 @@ async function open_folder_here( Folder )
 		return { Error: 'this window has a project open: open another in a new window' };
 	}
 	let folder = PROJECTS.Normalize( Folder );
-	// A folder the Server Host serves (plan Rearchitecturation, Step 5): the window connects to the Host's project.
+	// A folder the Server serves (plan Rearchitecturation, Step 5): the window connects to the Server's project; no
+	// tier is asked, since the Server's own sign-in decides.
 	let routed = null;
 	try
 	{
@@ -232,17 +236,18 @@ async function open_folder_here( Folder )
 	}
 	if ( routed )
 	{
-		opened = { Kind: 'host', Host: { Name: HOST_NAME, Url: routed.Url, Project: routed.Project.Id, Routed: true }, Project: routed.Project, Path: folder };
+		opened = { Kind: 'host', Host: { Name: SERVER_NAME, Url: routed.Url, Project: routed.Project.Id, Routed: true }, Project: routed.Project, Path: folder };
 		if ( SETTINGS.Opened( desktop, folder ) )
 		{
 			save_settings();
 		}
-		console.log( 'folder ' + folder + ' is mounted on the Server Host at ' + routed.Url + ': connected to its project ' + routed.Project.Name );
+		console.log( 'folder ' + folder + ' is mounted on the Server at ' + routed.Url + ': connected to its project ' + routed.Project.Name );
 		return { Ok: true, Project: project_info() };
 	}
 	try
 	{
-		// the Host's file read-only (plan Rearchitecturation, Step 4): its connections and tasks read, never written here
+		// the Server's file read-only (plan Rearchitecturation, Step 4), never written here; its connections and tasks
+		// are not read (plan The Server, Step 4: sidecar mode)
 		running = await START.Run( Object.assign( {}, options, { Project: folder, Activate: activate_window, ReadOnly: true } ), console.log );
 	}
 	catch ( error )
@@ -274,8 +279,8 @@ async function open_folder_here( Folder )
 }
 
 
-// A Host's project opened in this window: the Host tried, the project found among its projects (by id, else by name),
-// the pair saved as a Hosts entry. Answers { Ok, Project } or { Error }.
+// A Server's project opened in this window (Connect to Server, client mode): the Server tried, the project found
+// among its projects (by id, else by name), the pair saved as a Hosts entry. Answers { Ok, Project } or { Error }.
 async function connect_host_here( Host )
 {
 	if ( opened )
@@ -285,11 +290,11 @@ async function connect_host_here( Host )
 	let name = String( ( Host && Host.Name ) || '' ).trim();
 	if ( !name )
 	{
-		return { Error: 'a Host needs a Name' };
+		return { Error: 'a Server needs a Name' };
 	}
-	if ( !LICENSE.AtLeast( current_user(), 'personal' ) )
+	if ( !LICENSE.AtLeast( current_user(), 'registered' ) )
 	{
-		return { Error: 'a Personal license: connecting to a Host needs one; sign in from the page\'s menu' };
+		return { Error: 'a sign-in: connecting to a Server needs one (Registered is free); sign in from a project page\'s menu' };
 	}
 	let tried = await try_server( Host.Url );
 	if ( !tried.Ok )
@@ -385,7 +390,6 @@ function show_connect()
 		window.loadURL( page.Url + '/connect.html' );
 	}
 	build_menu();
-	refresh_host_menu();
 }
 
 
@@ -397,7 +401,6 @@ function show_page()
 		window.loadURL( page.Url + '/' );
 	}
 	build_menu();
-	refresh_host_menu();
 }
 
 
@@ -615,12 +618,10 @@ function build_menu()
 				{ label: 'New window', accelerator: 'CmdOrCtrl+N', click: function () { new_window(); } },
 				{ label: 'Open folder in new window…', accelerator: 'CmdOrCtrl+Shift+O', click: function () { open_folder_window(); } },
 				{ type: 'separator' },
-			].concat( host_items(), [
-				{ type: 'separator' },
 				{ label: 'Reload', accelerator: 'CmdOrCtrl+R', click: function () { if ( window ) { window.webContents.reload(); } } },
 				{ type: 'separator' },
 				{ role: 'quit' },
-			] ),
+			],
 		},
 		{
 			label: 'View',
@@ -639,14 +640,7 @@ function build_menu()
 
 
 //---------------------------------------------------------------------
-// The Server Host from the Desktop (plan Rearchitecturation, Step 5): Start the Server Host runs `consensus serve`
-// detached over the same config folder (a Personal license starts it with Scope Local; Public is Step 6's), Open the
-// Server Host opens its page in the system browser while it runs, Stop ends the one this machine's file names; a Host
-// started any other way is found by its port and shown as running, not stoppable from here.
-
-const HOST_NAME = 'Server Host';
-const HOST_START_WAIT = 15000;
-
+// The machine's current user.
 
 // The machine's current user (plan The Server, Step 1): <config>/user.json, read at each use since another window or
 // the Server may sign someone in; a record with no check for 14 days is removed, the user signed out.
@@ -711,95 +705,6 @@ function config_folder()
 }
 
 
-async function host_now()
-{
-	try
-	{
-		host_status = await HOST.Status( config_folder() );
-	}
-	catch ( error )
-	{
-		host_status = { Running: false, Url: null, Pid: null, Started: null, Ours: false, Error: error.message };
-	}
-	return host_status;
-}
-
-
-// The Host started as the command line would (from the checkout, electron takes the app folder; installed, the
-// executable is the app), then waited for; answers the status.
-async function start_host()
-{
-	// Personal starts the Host with Scope Local; Professional leaves its file's Scope (Public allowed); Free starts nothing.
-	let tier = tier_now().Tier;
-	if ( LICENSE.Rank( tier ) < LICENSE.Rank( 'personal' ) )
-	{
-		return Object.assign( { Running: false }, { Error: 'a Personal license: Start the Server Host needs one; sign in from the page\'s menu' } );
-	}
-	let leading = ELECTRON.app.isPackaged ? [] : [ ELECTRON.app.getAppPath() ];
-	let started = HOST.Start( { Config: config_folder(), Command: process.execPath, Arguments: leading, Scope: ( tier === 'professional' ) ? null : 'local' } );
-	console.log( 'Server Host started (pid ' + started.Pid + '), its log in ' + started.Log );
-	let status = await HOST.WaitFor( config_folder(), null, HOST_START_WAIT );
-	host_status = status;
-	build_menu();
-	return Object.assign( { Log: started.Log }, status, status.Running ? {} : { Error: 'the Server Host did not answer within ' + ( HOST_START_WAIT / 1000 ) + ' seconds: see ' + started.Log } );
-}
-
-
-async function stop_host()
-{
-	let stopped = HOST.Stop( config_folder() );
-	if ( stopped.Stopped )
-	{
-		await new Promise( function ( resolve ) { setTimeout( resolve, 500 ); } );
-	}
-	let status = await host_now();
-	build_menu();
-	return Object.assign( {}, status, stopped.Error ? { Error: stopped.Error } : {} );
-}
-
-
-function open_host()
-{
-	if ( host_status && host_status.Running && host_status.Url )
-	{
-		ELECTRON.shell.openExternal( host_status.Url + '/' );
-		return { Ok: true };
-	}
-	return { Error: 'the Server Host is not running' };
-}
-
-
-// The Project menu's Host items, from the status as last seen; the status is looked up again after the menu is built.
-function host_items()
-{
-	let items = [];
-	if ( host_status && host_status.Running )
-	{
-		items.push( { label: 'Open the Server Host', click: function () { open_host(); } } );
-		items.push( { label: 'Stop the Server Host', enabled: !!host_status.Ours, click: function () { stop_host(); } } );
-	}
-	else
-	{
-		items.push( { label: 'Start the Server Host', enabled: tier_now().Rank >= LICENSE.Rank( 'personal' ), click: function () { start_host(); } } );
-	}
-	return items;
-}
-
-
-// The status refreshed and the menu rebuilt when it changed; called once a window shows.
-function refresh_host_menu()
-{
-	let before = JSON.stringify( host_status );
-	host_now().then( function ()
-	{
-		if ( JSON.stringify( host_status ) !== before )
-		{
-			build_menu();
-		}
-	} );
-}
-
-
 //---------------------------------------------------------------------
 // This machine's server: over the window's folder, started by START.Run (plan Run Shapes), or none.
 
@@ -814,7 +719,7 @@ function local_running()
 
 
 // The app's own arguments: after the executable (and, from the checkout, the app folder), Electron's switches left
-// out, and the desktop's own --connect <host name> taken: { Arguments, Connect }.
+// out, and the desktop's own --connect <server name> taken: { Arguments, Connect }.
 function own_arguments( argv )
 {
 	let list = argv.slice( ELECTRON.app.isPackaged ? 1 : 2 ).filter( function ( argument ) { return !ELECTRON_SWITCH.test( argument ); } );
@@ -825,7 +730,7 @@ function own_arguments( argv )
 		connect = list[ at + 1 ];
 		if ( connect === undefined || connect.startsWith( '--' ) )
 		{
-			throw new Error( CONNECT_ARGUMENT + ' needs the Name of a saved Host' );
+			throw new Error( CONNECT_ARGUMENT + ' needs the Name of a saved Server' );
 		}
 		list.splice( at, 2 );
 	}
@@ -948,7 +853,7 @@ function attach_handlers()
 		return open_then_show( function () { return open_folder_here( folder ); } );
 	} );
 
-	// A Host tried, and its projects listed for the chooser to pick from.
+	// A Server tried, and its projects listed for the chooser to pick from.
 	ELECTRON.ipcMain.handle( 'host-projects', async function ( event, url )
 	{
 		let tried = await try_server( url );
@@ -967,7 +872,7 @@ function attach_handlers()
 		return tried;
 	} );
 
-	// A Host's project, in this window, saved as a Hosts entry.
+	// A Server's project, in this window, saved as a Hosts entry.
 	ELECTRON.ipcMain.handle( 'connect-host', function ( event, entry )
 	{
 		return open_then_show( function () { return connect_host_here( entry || {} ); } );
@@ -1039,27 +944,6 @@ function attach_handlers()
 		return {};
 	} );
 
-	// The Server Host from the page's menu and the chooser (plan Rearchitecturation, Step 5).
-	ELECTRON.ipcMain.handle( 'host-status', function ()
-	{
-		return host_now();
-	} );
-
-	ELECTRON.ipcMain.handle( 'host-start', function ()
-	{
-		return start_host();
-	} );
-
-	ELECTRON.ipcMain.handle( 'host-stop', function ()
-	{
-		return stop_host();
-	} );
-
-	ELECTRON.ipcMain.handle( 'host-open', function ()
-	{
-		return open_host();
-	} );
-
 	// The license (plan Rearchitecturation, Step 6): the page's sign-in token verified and cached; a sign-out clears it.
 	ELECTRON.ipcMain.handle( 'set-license', function ( event, token )
 	{
@@ -1120,47 +1004,29 @@ async function main()
 	catch ( error )
 	{
 		console.error( error.message );
-		console.error( START.USAGE );
-		fail_to_start( error.message + '\n\n' + START.USAGE, false );
+		console.error( DESKTOP_USAGE );
+		fail_to_start( error.message + '\n\n' + DESKTOP_USAGE, false );
 		return;
 	}
 	if ( options.Help )
 	{
-		console.log( START.USAGE );
+		console.log( DESKTOP_USAGE );
 		ELECTRON.app.exit( 0 );
 		return;
 	}
+	if ( options.Headless )
+	{
+		// The Desktop serves nothing on its own (plan The Server, Step 4): the Server is an application of its own.
+		fail_to_start( 'the Desktop has no headless form: consensus-server --headless runs a Server, consensus <folder> a project\'s server alone', true );
+		return;
+	}
 	await ELECTRON.app.whenReady();
-	// The desktop's own file (plan Rearchitecturation, Step 1), beside the Server Host's consensus.json.
+	// The desktop's own file (plan Rearchitecturation, Step 1), beside the Server's consensus.json.
 	let loaded = SETTINGS.Load( options.Config || SERVER.DEFAULT_CONFIG );
 	desktop = loaded.Settings;
 	desktop_path = loaded.Path;
 	loaded.Lines.forEach( function ( line ) { console.log( line ); } );
 	apply_native_theme();
-	if ( options.Headless )
-	{
-		// No window: this machine's server from the config as the Scope says (every registered project, or the folder).
-		running = await START.Run( Object.assign( {}, options, { Tier: tier_now().Tier } ), console.log );
-		if ( running.Open )
-		{
-			// the folder is open in a running sidecar: its address is printed above
-			ELECTRON.app.exit( 0 );
-			return;
-		}
-		store = running.Store;
-		settings = running.Settings;
-		if ( !running.Server )
-		{
-			console.log( 'nothing to run without a window: --scope local or public starts the server' );
-			await running.Close();
-			ELECTRON.app.exit( 1 );
-			return;
-		}
-		console.log( 'no window (--headless); Ctrl+C stops the server' );
-		process.on( 'SIGINT', quit_headless );
-		process.on( 'SIGTERM', quit_headless );
-		return;
-	}
 	page = await serve_page();
 	attach_handlers();
 	create_window();
@@ -1174,7 +1040,7 @@ async function main()
 		}
 		page.Close().catch( function () {} ).then( function () { return running ? running.Close() : null; } ).catch( function () {} ).then( function () { ELECTRON.app.quit(); } );
 	} );
-	// The window's project: the folder on the command line, or the saved Host project --connect names; the chooser
+	// The window's project: the folder on the command line, or the saved Server project --connect names; the chooser
 	// when there is neither, or when the one asked for could not open (the reason shown on it).
 	let answer = null;
 	if ( options.Project )
@@ -1184,7 +1050,7 @@ async function main()
 	else if ( connect )
 	{
 		let entry = SETTINGS.HostNamed( desktop, connect );
-		answer = entry ? await connect_host_here( entry ) : { Error: 'no saved Host named "' + connect + '" in ' + desktop_path };
+		answer = entry ? await connect_host_here( entry ) : { Error: 'no saved Server named "' + connect + '" in ' + desktop_path };
 	}
 	if ( answer && answer.Error )
 	{
@@ -1209,17 +1075,15 @@ async function main()
 }
 
 
-function quit_headless()
-{
-	running.Close().catch( function () {} ).then( function () { ELECTRON.app.exit( 0 ); } );
-}
-
-
 // A start that fails (the settings refused, a folder that is not there, a port in use with --port): the message on
-// the console, and, since an icon has no console, in a dialog unless --headless.
-function fail_to_start( message, headless )
+// the console, and, since an icon has no console, in a dialog unless Quiet.
+function fail_to_start( message, quiet )
 {
-	if ( !headless )
+	if ( quiet )
+	{
+		console.error( message );
+	}
+	else
 	{
 		ELECTRON.dialog.showErrorBox( 'Consensus could not start', message );
 	}
@@ -1230,5 +1094,5 @@ function fail_to_start( message, headless )
 main().catch( function ( error )
 {
 	console.error( error.message );
-	fail_to_start( error.message, process.argv.includes( '--headless' ) );
+	fail_to_start( error.message, false );
 } );

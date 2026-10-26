@@ -1,6 +1,6 @@
 'use strict';
 
-// Settings - the desktop's own file, desktop.json, beside the Server Host's consensus.json in the machine's user folder
+// Settings - the desktop's own file, desktop.json, beside the Server's consensus.json in the machine's user folder
 // (plan Rearchitecturation, Step 1; the desktop's fields lived in consensus.json from plan Run Shapes, Step 1, until
 // then). The Desktop reads and writes this file and nothing else: consensus.json is the Host's to write, and the
 // Desktop reads it for the LLM connections and the tasks (Step 4) without writing it.

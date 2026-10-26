@@ -2,9 +2,10 @@
 
 // The chooser (plan Rearchitecturation, Step 2; the servers screen of plan Consensus Desktop, Step 2, until then): a
 // window with no project shows it. Recent projects (desktop.json, newest first; Open, Forget), Open folder (the folder
-// picker; a folder without a .consensus gets one), New project (a name and a parent folder), and the Hosts: the saved
-// Host projects (Open, Remove) and Add host (a Name and a Url tried first, then one of the Host's projects picked; the
-// pair is saved as an entry). Everything goes through window.Desktop (preload.js) to the main process, which opens the
+// picker; a folder without a .consensus gets one), New project (a name and a parent folder), and the Servers (plan The
+// Server, Step 4; the Hosts until then, kept as Hosts in desktop.json): the saved Server projects (Open, Remove) and
+// Connect to Server (a Name and a Url tried first, then one of the Server's projects picked; the pair is saved as an
+// entry), for Registered and above. Everything goes through window.Desktop (preload.js) to the main process, which opens the
 // project in this window and shows the page.
 
 angular.module( 'Connect', [] )
@@ -44,7 +45,7 @@ angular.module( 'Connect', [] )
 			let answer = await window.Desktop.Settings();
 			$scope.Settings = answer.Settings;
 			$scope.Reason = answer.Reason;
-			$scope.License = answer.License || null;		// the tier (plan Rearchitecturation, Step 6): the Hosts need Personal
+			$scope.License = answer.License || null;		// the tier (plan Rearchitecturation, Step 6): the Servers need Registered (plan The Server, Step 4)
 		}
 		catch ( error )
 		{
@@ -140,7 +141,7 @@ angular.module( 'Connect', [] )
 
 
 	//-----------------------------------------------------------------
-	// Hosts
+	// Servers
 
 	$scope.OpenHost = async function ( entry )
 	{
@@ -167,7 +168,7 @@ angular.module( 'Connect', [] )
 	};
 
 
-	// Try: the Host answers, and its projects are listed to pick from.
+	// Try: the Server answers, and its projects are listed to pick from.
 	$scope.TryHost = async function ()
 	{
 		if ( !$scope.Adding )

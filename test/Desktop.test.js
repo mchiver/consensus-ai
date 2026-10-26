@@ -1,9 +1,9 @@
 'use strict';
 
 // The desktop (plan Consensus Desktop, Step 2), without Electron: its settings module (desktop.json, the desktop's own
-// file beside the Server Host's consensus.json: plan Rearchitecturation, Step 1), and the page server that serves its
-// copy of the Consensus page and the vendor files. Plan Rearchitecturation, Step 4: the window's server over the Host's
-// consensus.json read-only: the connections read, a change in the file reaching it, a save refused with the Host's line.
+// file beside the Server's consensus.json: plan Rearchitecturation, Step 1), and the page server that serves its copy of
+// the Consensus page and the vendor files. Plan The Server, Step 4: sidecar mode (the window's server over the Server's
+// consensus.json read-only, none of its connections or tasks) and the Server found and routed to, never started here.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -15,8 +15,6 @@ const PAGE = require( '../desktop/Page.js' );
 const PROJECTS = require( '../desktop/Projects.js' );
 const SERVER = require( '../src/Server.js' );
 const HOST = require( '../desktop/Host.js' );
-const LICENSE = require( '../src/License.js' );
-const CRYPTO = require( 'crypto' );		// plan Rearchitecturation, Step 5: the Server Host from the Desktop
 const NET = require( 'net' );
 
 const VERSION = require( '../package.json' ).version;
@@ -279,25 +277,10 @@ TEST( 'projects: a Host\'s projects are listed from its API for the chooser to p
 
 
 //---------------------------------------------------------------------
-// The Host's file read-only (plan Rearchitecturation, Step 4)
+// Sidecar mode (plan The Server, Step 4): the window's server over the Server's file read-only, with no connections or
+// tasks of its own.
 
-async function until( Check, TimeoutMs )
-{
-	let waited = 0;
-	while ( waited < ( TimeoutMs || 5000 ) )
-	{
-		if ( await Check() )
-		{
-			return true;
-		}
-		await new Promise( function ( resolve ) { setTimeout( resolve, 100 ); } );
-		waited += 100;
-	}
-	return false;
-}
-
-
-TEST( 'the window\'s server reads the Host\'s consensus.json read-only: its connections and tasks listed, a change in the file reaching the server and its events, a connection or settings save refused with the Host\'s line, the file never written; a missing file is the defaults, unwritten', async function ()
+TEST( 'sidecar mode: the window\'s server reads the Server\'s consensus.json read-only and takes none of its connections or tasks: /api/me says Sidecar, nothing to run, a connection or settings save refused with the Server\'s line, the file never written; a missing file is the defaults, unwritten', async function ()
 {
 	let config = temporary_folder( 'desktop-readonly-' );
 	let folder = PATH.join( temporary_folder( 'desktop-readonly-project-' ), 'thing' );
@@ -321,61 +304,19 @@ TEST( 'the window\'s server reads the Host\'s consensus.json read-only: its conn
 		ASSERT.equal( running.Users.List().some( function ( one ) { return one.Type === 'owner'; } ), true, 'the owner record kept in memory, so a sign-in on the window\'s server is the owner\'s' );
 		ASSERT.ok( FS.existsSync( PATH.join( folder, '.consensus', 'project.json' ) ), 'the project\'s own folder is made' );
 		let me = ( await api( 'GET', '/api/me' ) ).Body;
-		ASSERT.equal( me.ReadOnly, true );
-		ASSERT.equal( me.Host, 'http://127.0.0.1:3977' );
-		let llms = ( await api( 'GET', '/api/llms' ) ).Body;
-		ASSERT.deepEqual( llms.Llms.map( function ( llm ) { return llm.Name; } ), [ 'first' ] );
-		ASSERT.equal( llms.Runs, true, 'the window\'s server runs the LLMs' );
-		let tasks = ( await api( 'GET', '/api/tasks' ) ).Body;
-		ASSERT.ok( tasks.Tasks.some( function ( task ) { return task.Id === 'answer' && task.Prompt === 'Answer what waits on you.'; } ), JSON.stringify( tasks.Tasks ) );
-		// the writes refused with the Host's line
-		let first = llms.Llms[ 0 ];
-		ASSERT.deepEqual( await api( 'PUT', '/api/llms/' + first.Id, { Name: 'renamed' } ), { Status: 403, Body: { Error: 'Connections are managed by the Server Host' } } );
-		ASSERT.deepEqual( await api( 'POST', '/api/llms', { Name: 'second' } ), { Status: 403, Body: { Error: 'Connections are managed by the Server Host' } } );
-		ASSERT.deepEqual( await api( 'DELETE', '/api/llms/' + first.Id ), { Status: 403, Body: { Error: 'Connections are managed by the Server Host' } } );
-		ASSERT.deepEqual( await api( 'PUT', '/api/settings', { Name: 'Renamed' } ), { Status: 403, Body: { Error: 'The settings are managed by the Server Host' } } );
+		ASSERT.equal( me.Sidecar, true );
+		ASSERT.equal( me.Host, undefined );
+		// none of the Server's connections or tasks
+		ASSERT.deepEqual( ( await api( 'GET', '/api/llms' ) ).Body.Llms, [] );
+		ASSERT.deepEqual( ( await api( 'GET', '/api/tasks' ) ).Body.Tasks, [] );
+		let plan = ( await api( 'POST', '/api/plans', { Title: 'Run me', Text: '# Run me\n', Project: running.Project.Id } ) ).Body.Plan;
+		let run = await api( 'POST', '/api/runs', { Llm: 'llm-aaa-bbb-ccc', Task: 'answer', Project: running.Project.Id, Plan: plan.Id } );
+		ASSERT.ok( run.Status >= 400, 'nothing to run: ' + JSON.stringify( run ) );
+		// the writes refused with the Server's line
+		ASSERT.deepEqual( await api( 'POST', '/api/llms', { Name: 'second' } ), { Status: 403, Body: { Error: 'Connections are managed by the Server' } } );
+		ASSERT.deepEqual( await api( 'PUT', '/api/settings', { Name: 'Renamed' } ), { Status: 403, Body: { Error: 'The settings are managed by the Server' } } );
 		ASSERT.equal( FS.readFileSync( file, 'utf8' ), written, 'still untouched' );
-		// a change in the file reaches the server: the events say llms, the list has the new connection
-		let seen = [];
-		let controller = new AbortController();
-		let events = fetch( running.Url + '/api/events', { signal: controller.signal, headers: { 'X-Consensus-Service': 'Test' } } ).then( async function ( response )
-		{
-			let reader = response.body.getReader();
-			let decoder = new TextDecoder();
-			while ( true )
-			{
-				let chunk = await reader.read();
-				if ( chunk.done ) { break; }
-				seen.push( decoder.decode( chunk.value ) );
-			}
-		} ).catch( function () {} );
-		await new Promise( function ( resolve ) { setTimeout( resolve, 200 ); } );
-		let changed = JSON.parse( written );
-		changed.Llms.push( { Name: 'second', Kind: 'claude-cli', Command: process.execPath } );
-		changed.Tasks[ 0 ].Prompt = 'Answer briefly.';
-		FS.writeFileSync( file, JSON.stringify( changed, null, '\t' ) );
-		let reached = await until( async function ()
-		{
-			let listed = ( await api( 'GET', '/api/llms' ) ).Body.Llms;
-			return listed.length === 2;
-		}, 8000 );
-		ASSERT.equal( reached, true, 'the watcher re-read the file' );
-		ASSERT.deepEqual( ( await api( 'GET', '/api/llms' ) ).Body.Llms.map( function ( llm ) { return llm.Name; } ), [ 'first', 'second' ] );
-		ASSERT.ok( ( await api( 'GET', '/api/tasks' ) ).Body.Tasks.some( function ( task ) { return task.Prompt === 'Answer briefly.'; } ) );
-		await until( async function () { return seen.join( '' ).includes( '"llms"' ); }, 3000 );
-		ASSERT.match( seen.join( '' ), /"Kind":"llms"/ );
-		ASSERT.match( seen.join( '' ), /"Kind":"settings"/ );
-		controller.abort();
-		await events;
-		// a file with a problem leaves the connections as they were; RereadSettings says nothing changed
-		FS.writeFileSync( file, JSON.stringify( Object.assign( {}, changed, { Llms: [ { Name: 'bad name!', Kind: 'claude-cli' } ] } ) ) );
-		await new Promise( function ( resolve ) { setTimeout( resolve, 700 ); } );
-		ASSERT.equal( await running.RereadSettings(), false );
-		ASSERT.equal( ( await api( 'GET', '/api/llms' ) ).Body.Llms.length, 2 );
-		// the same again: nothing changed
-		FS.writeFileSync( file, JSON.stringify( changed, null, '\t' ) );
-		await new Promise( function ( resolve ) { setTimeout( resolve, 700 ); } );
-		ASSERT.equal( await running.RereadSettings(), false );
+		ASSERT.equal( running.RereadSettings, undefined, 'the file is not watched' );
 	}
 	finally
 	{
@@ -401,7 +342,8 @@ TEST( 'the window\'s server reads the Host\'s consensus.json read-only: its conn
 
 
 //---------------------------------------------------------------------
-// The Server Host from the Desktop (plan Rearchitecturation, Step 5)
+// The Server on this machine as the Desktop sees it (plan Rearchitecturation, Step 5; plan The Server, Step 4: found,
+// never started or stopped from the Desktop)
 
 async function free_port()
 {
@@ -413,39 +355,33 @@ async function free_port()
 }
 
 
-TEST( 'the Server Host from the Desktop: Start runs consensus serve detached over a temporary folder with its log in ~logs, Status finds it by its file and by its port, a mounted folder is routed through it and an unmounted one is not, Stop ends it', async function ()
+TEST( 'the Server from the Desktop: Status finds a running Server by its file and by its port, a mounted folder is routed through it and an unmounted one is not, and nothing is routed once it ends', async function ()
 {
 	let config = temporary_folder( 'desktop-host-' );
 	let port = await free_port();
 	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( { Port: port, Owner: { Name: 'user', Display: 'User' } } ) );
-	// the Desktop's signed-in Personal user, whose sign-in opens the Server's gate (plan The Server, Step 3)
-	LICENSE.Write( config, { Email: 'ann@example.com', Clerk: 'user_ann', Display: 'Ann', Plan: 'personal', Until: null, Checked: new Date().toISOString() } );
 	let before = await HOST.Status( config );
 	ASSERT.deepEqual( before, { Running: false, Url: 'http://127.0.0.1:' + port, Pid: null, Started: null, Ours: false } );
 	ASSERT.equal( await HOST.HostPort( config ), port );
 	let folder = PATH.join( temporary_folder( 'desktop-host-project-' ), 'served' );
 	FS.mkdirSync( folder );
-	ASSERT.equal( await HOST.Routed( config, folder ), null, 'no Host, nothing routed' );
-	let started = HOST.Start( { Config: config, Command: process.execPath, Arguments: [ PATH.join( __dirname, '..', 'bin', 'consensus.js' ) ] } );
-	ASSERT.match( started.Log, /[\\/]~logs[\\/]host-.*\.log$/ );
-	ASSERT.ok( Number.isInteger( started.Pid ) );
+	ASSERT.equal( await HOST.Routed( config, folder ), null, 'no Server, nothing routed' );
+	// the Server as its application runs it: every registered project, in process (the gate is the Server's affair)
+	let server = await SERVER.Start( { Config: config } );
 	try
 	{
-		let status = await HOST.WaitFor( config, port, 20000 );
-		ASSERT.equal( status.Running, true, FS.existsSync( started.Log ) ? FS.readFileSync( started.Log, 'utf8' ) : 'no log' );
-		ASSERT.deepEqual( [ status.Url, status.Pid, status.Ours ], [ 'http://127.0.0.1:' + port, started.Pid, true ] );
-		ASSERT.ok( FS.existsSync( PATH.join( config, '~host.json' ) ) );
-		ASSERT.match( FS.readFileSync( started.Log, 'utf8' ), /Consensus at http:\/\/127\.0\.0\.1:/ );
+		let status = await HOST.Status( config );
+		ASSERT.deepEqual( [ status.Running, status.Url, status.Pid, status.Ours ], [ true, 'http://127.0.0.1:' + port, process.pid, true ] );
 		// found by its port alone when the file is not this machine's: the file set aside
 		FS.renameSync( PATH.join( config, '~host.json' ), PATH.join( config, '~host.json.aside' ) );
 		let by_port = await HOST.Status( config );
 		ASSERT.deepEqual( [ by_port.Running, by_port.Url, by_port.Ours ], [ true, 'http://127.0.0.1:' + port, false ] );
 		FS.renameSync( PATH.join( config, '~host.json.aside' ), PATH.join( config, '~host.json' ) );
-		// the folder registered on the Host: unmounted, not routed; mounted, routed to the Host's project
+		// the folder registered on the Server: unmounted, not routed; mounted, routed to the Server's project
 		let headers = { 'Content-Type': 'application/json', 'X-Consensus-Service': 'Test' };
 		let made = await ( await fetch( status.Url + '/api/projects', { method: 'POST', headers: headers, body: JSON.stringify( { Name: 'served', Path: folder } ) } ) ).json();
 		ASSERT.equal( made.Project.Mounted, false );
-		ASSERT.equal( await HOST.Routed( config, folder ), null, 'unmounted: opened as a plain project' );
+		ASSERT.equal( await HOST.Routed( config, folder ), null, 'unmounted: opened as a sidecar' );
 		let mounted = await ( await fetch( status.Url + '/api/projects/' + made.Project.Id + '/mount', { method: 'PUT', headers: headers, body: JSON.stringify( { Mounted: true } ) } ) ).json();
 		ASSERT.equal( mounted.Project.Mounted, true );
 		let routed = await HOST.Routed( config, folder.toUpperCase() );
@@ -454,22 +390,10 @@ TEST( 'the Server Host from the Desktop: Start runs consensus serve detached ove
 	}
 	finally
 	{
-		let stopped = HOST.Stop( config );
-		ASSERT.equal( stopped.Stopped, true, stopped.Error );
-		let waited = 0;
-		while ( waited < 10000 && ( await HOST.Status( config, port ) ).Running )
-		{
-			await new Promise( function ( resolve ) { setTimeout( resolve, 200 ); } );
-			waited += 200;
-		}
+		await server.Close();
 	}
-	let after = await HOST.Status( config, port );
-	ASSERT.equal( after.Running, false );
-	ASSERT.deepEqual( HOST.Stop( config ), { Stopped: false, Error: 'no Server Host of this machine\'s is running' } );
-	ASSERT.equal( await HOST.Routed( config, folder ), null, 'the Host gone, the folder opens as a plain project' );
+	ASSERT.equal( ( await HOST.Status( config, port ) ).Running, false );
+	ASSERT.equal( await HOST.Routed( config, folder ), null, 'the Server gone, the folder opens as a sidecar' );
+	ASSERT.equal( HOST.Start, undefined, 'the Desktop starts no Server' );
+	ASSERT.equal( HOST.Stop, undefined, 'nor stops one' );
 } );
-
-
-//---------------------------------------------------------------------
-// The license (plan Rearchitecturation, Step 6)
-

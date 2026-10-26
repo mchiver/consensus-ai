@@ -239,7 +239,7 @@ function Open( Folder, Options )
 	{
 		if ( read_only )
 		{
-			throw new Error( 'the settings are read-only: ' + SETTINGS_FILE + ' is written by the Server Host alone' );
+			throw new Error( 'the settings are read-only: ' + SETTINGS_FILE + ' is written by the Server alone' );
 		}
 		await write_json( PATH.join( folder, SETTINGS_FILE ), Settings );
 	}

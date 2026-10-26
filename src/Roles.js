@@ -19,13 +19,12 @@
 //   Rule( Method, Path )        { Action, Source: 'param' | 'plan' | 'item' | 'body' | 'query' | null, Id }: what a route
 //                               comes to and where its project is found (Id the captured id, when the path holds one)
 //   PLANS                       [ 'personal', 'professional' ]: the license kinds (plan Rearchitecturation, Step 6: the tiers
-//                               Personal and Professional, Free being no license), professional above personal; a Watcher needs none
+//                               Personal and Professional), professional above personal; no role needs one (plan The Server,
+//                               Step 4: the Server runs under its Administrator's license)
 //   PlanRank( Plan )            0 for none or an unknown plan, 1 for personal, 2 for professional
-//   PlanFor( Role )             the plan a role needs: personal for Owners and Members, null for the rest
 
 const ROLES = [ 'Owners', 'Members', 'Service', 'Watchers' ];
 const PLANS = [ 'personal', 'professional' ];
-const NEEDS_PLAN = { Owners: 'personal', Members: 'personal' };
 
 const ALLOWED = {
 	Owners: [ 'read', 'write', 'resolve', 'state', 'manage', 'roles', 'press' ],
@@ -144,12 +143,6 @@ function PlanRank( Plan )
 }
 
 
-function PlanFor( Role )
-{
-	return NEEDS_PLAN[ Role ] || null;
-}
-
-
 // Which tasks a role may press is read from the task's Writes level: none is every role's, consensus and files are
 // Owners' and Members'; a Service account presses none.
 function MayPress( Role, Writes )
@@ -209,7 +202,6 @@ module.exports = {
 	ALLOWED: ALLOWED,
 	PLANS: PLANS,
 	PlanRank: PlanRank,
-	PlanFor: PlanFor,
 	Empty: Empty,
 	Clean: Clean,
 	RoleOf: RoleOf,

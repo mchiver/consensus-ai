@@ -261,11 +261,11 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	}
 
 
-	// The connections are edited where they are kept: not in the Desktop, which reads the Server Host's file (plan
-	// Rearchitecturation, Step 4), so New LLM, Rename and Delete leave its menus.
+	// The connections are edited where they are kept: on a Server, not in the Desktop's sidecar mode (plan The Server,
+	// Step 4), which has none.
 	function edits_connections( root )
 	{
-		return is_owner( root ) && !root.ReadOnly;
+		return is_owner( root ) && !root.Sidecar;
 	}
 
 
@@ -660,7 +660,7 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 
 	// Project: New Folder, New Draft, ---, Copy, Paste, Rename, Export, Settings, LLM Instructions, Explain (plan LLM
 	// Tasks, Step 4: the project's conversation tab), ---, Delete.
-	// Mount and Unmount (plan Rearchitecturation, Step 5): the registry entry's switch on a Server Host, the
+	// Mount and Unmount (plan Rearchitecturation, Step 5): the registry entry's switch on a Server, the
 	// Administrator's; an unmounted project is served to nobody else. The switch is in the project's menu, and
 	// project-view marks an unmounted project.
 	tree.SetMounted = async function ( project, mounted )

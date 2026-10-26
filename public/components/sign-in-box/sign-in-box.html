@@ -3,13 +3,13 @@
 		<div class="subplan-head">Sign in to {{ $ctrl.Name() }}<button class="popup-close" type="button" title="close (Escape)" ng-if="$ctrl.CanClose()" ng-click="$ctrl.Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 		<div class="sign-in-closed" id="sign-in-closed" ng-if="$ctrl.Session.Closed">{{ $ctrl.Session.Closed }}.</div>
 		<div class="sign-in-license" id="sign-in-license" ng-if="$ctrl.Session.Refusal">
-			<div ng-if="$ctrl.Session.Refusal.Error !== 'closed'">This account has no Consensus-AI <b>{{ $ctrl.Session.Refusal.Plan === 'professional' ? 'Professional' : 'Personal' }}</b> license, which {{ $ctrl.Session.Refusal.Plan === 'professional' ? 'the Administrator of a server' : 'an Owner or a Member of a project' }} needs.<span ng-if="$ctrl.Session.Refusal.Has"> It holds a {{ $ctrl.Session.Refusal.Has }} license.</span></div>
+			<div ng-if="$ctrl.Session.Refusal.Error !== 'closed'">This account has no Consensus-AI <b>{{ $ctrl.Session.Refusal.Plan === 'professional' ? 'Professional' : 'Personal' }}</b> license, which the Administrator of {{ $ctrl.Session.Refusal.Plan === 'professional' ? 'a Public server' : 'a server' }} needs.<span ng-if="$ctrl.Session.Refusal.Has"> It holds a {{ $ctrl.Session.Refusal.Has }} license.</span></div>
 			<div class="small"><a ng-href="{{ $ctrl.Session.Pricing }}" target="_blank" rel="noopener">The licenses and their prices</a></div>
 			<button class="btn btn-sm btn-outline-secondary" type="button" id="sign-in-sign-out" ng-click="$ctrl.SignOut()">Sign out</button>
 		</div>
 		<div ng-if="!$ctrl.Session.Refusal">
 			<div class="muted small" ng-if="$ctrl.Session.Required">This server signs people in through Consensus-AI. Once signed in you see the projects you have a role in; an account new to the server sees the Users folder alone until an Owner or the Administrator places it in a project.</div>
-			<div class="muted small" ng-if="!$ctrl.Session.Required">Sign in with your Consensus-AI account. A Personal license unlocks the LLM tasks and the Server Host in the desktop; a Professional license lets a server run as Public, where people sign in and act by their roles.</div>
+			<div class="muted small" ng-if="!$ctrl.Session.Required">Sign in with your Consensus-AI account. Signed in (Registered, free), the Desktop connects to Servers; a Personal license runs the Server on this machine, a Professional license on public addresses, where people sign in and act by their roles.</div>
 			<div class="sign-in-mount" id="sign-in-mount" clerk-mount="sign-in"></div>
 		</div>
 		<div class="sign-in-error small" ng-if="$ctrl.Session.Error">{{ $ctrl.Session.Error }}</div>

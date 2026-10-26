@@ -54,7 +54,7 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 } );
 
 
-// For the chooser (plan Rearchitecturation, Step 2: the recent folders, Open folder, New project, the Hosts), the
+// For the chooser (plan Rearchitecturation, Step 2: the recent folders, Open folder, New project, the Servers), the
 // page's folder picker and the page's application menu (plan UI Components, Step 5). What opens a project in this
 // window answers { Ok, Project } or { Error } (or { Cancelled } from a picker) and then shows the page.
 ELECTRON.contextBridge.exposeInMainWorld( 'Desktop', {
@@ -72,10 +72,4 @@ ELECTRON.contextBridge.exposeInMainWorld( 'Desktop', {
 	OpenFolderWindow: function () { return invoke( 'open-folder-window' ); },
 	OpenRecent: function ( Path ) { return invoke( 'open-recent', Path ); },
 	Quit: function () { return invoke( 'quit' ); },
-	// The Server Host (plan Rearchitecturation, Step 5): its status { Running, Url, Ours }, started detached, stopped,
-	// its page opened in the system browser.
-	HostStatus: function () { return invoke( 'host-status' ); },
-	StartHost: function () { return invoke( 'host-start' ); },
-	StopHost: function () { return invoke( 'host-stop' ); },
-	OpenHost: function () { return invoke( 'host-open' ); },
 } );

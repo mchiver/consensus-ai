@@ -17,10 +17,10 @@
 // whatever the Scope says (None keeps the window's server and turns the sidecar off: no address file); while it runs,
 // <folder>/.consensus/~sidecar.json holds { Url, Port, Pid, Started, Project }, removed at Close; the option Activate
 // (a function, the Desktop's) answers POST /api/desktop/activate by bringing the window to the front. Step 4: ReadOnly
-// (the Desktop's) opens the config read-only (Store.Open): consensus.json is the Server Host's, read for its Llms and
-// Tasks and never written (no settings, users or registry write; a missing file is the defaults in memory); it is
-// watched and re-read on a change (RereadSettings, a short debounce), the connections and tasks replaced in place and
-// told over the events; the connection and settings writes are refused in Operations.js with the Host's line.
+// (the Desktop's) opens the config read-only (Store.Open): consensus.json is the Server's and never written (no
+// settings, users or registry write; a missing file is the defaults in memory); the connection and settings writes are
+// refused in Operations.js with the Server's line. Plan The Server, Step 4: the Desktop's sidecar mode: a ReadOnly
+// server reads no connections or tasks from the file (none in memory, so no runs), and /api/me says Sidecar.
 
 const PATH = require( 'path' );
 const OS = require( 'os' );
@@ -45,7 +45,6 @@ const LICENSE = require( './License.js' );
 const GATE = require( './Gate.js' );
 
 const DEFAULT_PORT = 3500;
-const REREAD_DELAY = 300;		// the debounce on the Host's file changing (plan Rearchitecturation, Step 4)
 const DEFAULT_CONFIG = PATH.join( OS.homedir(), '.consensus' );
 const PUBLIC_FOLDER = PATH.join( __dirname, '..', 'public' );
 
@@ -83,6 +82,12 @@ async function Start( Options )
 	if ( problems.length )
 	{
 		throw new Error( 'settings ' + store.SettingsPath() + ': ' + problems.join( '; ' ) );
+	}
+	if ( read_only )
+	{
+		// sidecar mode (plan The Server, Step 4): the Server's connections and tasks are the Server's alone
+		settings.Llms = [];
+		settings.Tasks = [];
 	}
 	for ( let line of await store.Prepare( settings, { Project: options.Project } ) )
 	{
@@ -136,7 +141,7 @@ async function Start( Options )
 	// and admits licensed sign-ins alone.
 	if ( scope === 'Public' && options.Tier !== undefined && options.Tier !== null && ROLES.PlanRank( options.Tier ) < ROLES.PlanRank( 'professional' ) )
 	{
-		throw new Error( 'Scope Public needs a Professional license: this Desktop is at the ' + ( LICENSE.TITLES[ options.Tier ] || 'Unlicensed' ) + ' tier; sign in with one, or run the Server Host with Scope Local' );
+		throw new Error( 'Scope Public needs a Professional license: the current user is at the ' + ( LICENSE.TITLES[ options.Tier ] || 'Unlicensed' ) + ' tier; sign in with one, or run the Server with Scope Local' );
 	}
 	let host = PARTICIPANTS.HostOf( scope );
 
@@ -227,68 +232,6 @@ async function Start( Options )
 	let address = server ? server.address() : null;
 	url = server ? 'http://' + url_host( host ) + ':' + address.port : null;
 
-
-	// The Host's file re-read (plan Rearchitecturation, Step 4): the connections and the tasks replaced in place when the
-	// file reads whole and sound, and the pages told; a file with problems, or none, leaves them as they were. Answers
-	// whether anything changed.
-	async function RereadSettings()
-	{
-		let fresh = await store.ReadSettings();
-		if ( !fresh )
-		{
-			return false;
-		}
-		// a connection the file leaves without an id keeps the id it had here, by its Name, so the pages' ids hold
-		let listed = ( Array.isArray( fresh.Llms ) ? fresh.Llms : [] ).map( function ( one )
-		{
-			if ( one && typeof one === 'object' && !one.Id )
-			{
-				let known = ( settings.Llms || [] ).find( function ( had ) { return had.Name === String( one.Name || '' ).trim(); } );
-				return known ? Object.assign( {}, one, { Id: known.Id } ) : one;
-			}
-			return one;
-		} );
-		let filled = Object.assign( {}, fresh, { Llms: listed.map( LLMS.Fill ) } );
-		TASKS.Prepare( filled );
-		let troubles = PARTICIPANTS.Validate( filled ).concat( LLMS.Problems( filled ) );
-		if ( troubles.length )
-		{
-			console.log( 'settings re-read from ' + store.SettingsPath() + ': ' + troubles.join( '; ' ) + ': kept as they were' );
-			return false;
-		}
-		let same = JSON.stringify( [ settings.Llms, settings.Tasks ] ) === JSON.stringify( [ filled.Llms, filled.Tasks ] );
-		settings.Llms = filled.Llms;
-		settings.Tasks = filled.Tasks;
-		if ( !same )
-		{
-			events.Send( { Kind: 'llms', Llm: null } );
-			events.Send( { Settings: true, Kind: 'settings' } );
-		}
-		return !same;
-	}
-
-	let watcher = null;
-	let reread_timer = null;
-	if ( read_only && FS.existsSync( store.Folder ) )
-	{
-		try
-		{
-			watcher = FS.watch( store.Folder, function ( kind, name )
-			{
-				if ( name && name !== PATH.basename( store.SettingsPath() ) )
-				{
-					return;
-				}
-				clearTimeout( reread_timer );
-				reread_timer = setTimeout( function () { RereadSettings().catch( function ( error ) { console.log( 'settings re-read failed: ' + error.message ); } ); }, REREAD_DELAY );
-			} );
-			watcher.on( 'error', function () {} );
-		}
-		catch ( error )
-		{
-			console.log( 'the settings file is not watched: ' + error.message );
-		}
-	}
 	// The address file, while the project is open (a stale one, its process gone, is overwritten here).
 	let sidecar = null;
 	if ( server && project && !sidecar_off )
@@ -306,12 +249,6 @@ async function Start( Options )
 
 	async function Close()
 	{
-		clearTimeout( reread_timer );
-		if ( watcher )
-		{
-			watcher.close();
-			watcher = null;
-		}
 		if ( sidecar )
 		{
 			SIDECAR.Remove( project.Path, process.pid );
@@ -341,7 +278,6 @@ async function Start( Options )
 		SidecarOff: sidecar_off,
 		Sidecar: sidecar,
 		ReadOnly: read_only,
-		RereadSettings: RereadSettings,
 		HostFile: host_file,
 		Settings: settings,
 		Tokens: tokens,

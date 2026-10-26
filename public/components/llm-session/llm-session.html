@@ -71,8 +71,6 @@
 	<div class="subplan-popup settings-popup" ng-show="Details">
 		<form class="subplan-form settings-form" ng-if="Details" ng-submit="SaveDetails()">
 			<div class="subplan-head">Details <span class="muted small">kept in the server's consensus.json; its runs post as {{ Llm.Speaker }}</span><button class="popup-close" type="button" title="close (Escape)" ng-click="CloseDetails()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
-			<!-- the Desktop reads the Server Host's file (plan Rearchitecturation, Step 4): shown, not saved here -->
-			<div class="port-error host-managed" ng-show="HostManaged()">Connections are managed by the Server Host. <button class="btn btn-sm btn-outline-secondary" type="button" ng-click="OpenHost()" title="the Server Host's page at {{ HostUrl() }}; start the Host with consensus serve when it does not answer">Open the Host's page</button></div>
 			<div class="port-error" id="llm-problems" ng-show="Details.Problems.length">
 				<div>Not saved. Fix these first:</div>
 				<ul class="mb-0"><li ng-repeat="problem in Details.Problems track by $index">{{ problem }}</li></ul>
@@ -108,7 +106,7 @@
 				<input class="form-control form-control-sm settings-port" id="llm-rounds" type="number" min="1" ng-model="Details.Form.Rounds" title="the most tool rounds a run may take">
 			</div>
 			<div class="thread-buttons">
-				<button class="btn btn-sm btn-primary" type="submit" id="llm-save" ng-disabled="Details.Busy" ng-hide="HostManaged()"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+				<button class="btn btn-sm btn-primary" type="submit" id="llm-save" ng-disabled="Details.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
 				<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-cancel" ng-click="CloseDetails()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 				<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-check" ng-click="CheckDetails()" ng-disabled="Details.Busy" title="does it answer, as entered here? claude-cli: the command's --version; ollama: its models, and whether the Model calls tools"><svg class="icon lead"><use href="#i-check"></use></svg>Check</button>
 				<span class="small" id="llm-checked" ng-show="Details.Checked" ng-class="Details.Checked.Ok ? 'text-success' : 'text-danger'">{{ Details.Checked.Ok ? Details.Checked.Result : Details.Checked.Error }}</span>
@@ -120,8 +118,6 @@
 	<div class="subplan-popup settings-popup packaging-popup" ng-show="Packaging">
 		<form class="subplan-form settings-form" ng-if="Packaging" ng-submit="SavePackaging()">
 			<div class="subplan-head">Packaging <span class="muted small">what this connection leaves out of a package, and its own prompt; what a task packages is the task's (Settings)</span><button class="popup-close" type="button" title="close (Escape)" ng-click="ClosePackaging()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
-			<!-- the Desktop reads the Server Host's file (plan Rearchitecturation, Step 4): shown, not saved here -->
-			<div class="port-error host-managed" ng-show="HostManaged()">Connections are managed by the Server Host. <button class="btn btn-sm btn-outline-secondary" type="button" ng-click="OpenHost()" title="the Server Host's page at {{ HostUrl() }}; start the Host with consensus serve when it does not answer">Open the Host's page</button></div>
 			<div class="port-error" id="packaging-problems" ng-show="Packaging.Problems.length">
 				<ul class="mb-0"><li ng-repeat="problem in Packaging.Problems track by $index">{{ problem }}</li></ul>
 			</div>
@@ -139,7 +135,7 @@
 				<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="ResetPrompt( 'Session' )" title="empty">Reset</button>
 			</div>
 			<div class="thread-buttons">
-				<button class="btn btn-sm btn-primary" type="submit" id="packaging-save" ng-disabled="Packaging.Busy" ng-hide="HostManaged()"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
+				<button class="btn btn-sm btn-primary" type="submit" id="packaging-save" ng-disabled="Packaging.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
 				<button class="btn btn-sm btn-outline-secondary" type="button" id="packaging-cancel" ng-click="ClosePackaging()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
 				<span class="muted small">Preview:</span>
 				<button class="btn btn-sm btn-outline-secondary llm-task-preview" type="button" id="preview-{{ task.Id }}" ng-repeat="task in Tasks() track by task.Id" ng-click="Preview( task )" ng-disabled="Packaging.Busy || ( NeedsPlan( task ) && !Pick.Plan )" title="the {{ task.Name }} package for the project and plan picked in Run, as this form stands"><svg class="icon lead"><use href="#i-eye"></use></svg>{{ task.Name }}</button>
