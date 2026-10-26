@@ -12,8 +12,8 @@ const OS = require( 'os' );
 const PATH = require( 'path' );
 const DOCS = require( '../bin/docs.js' );
 
-const PAGE_PICTURES = [ 'first-start', 'plan', 'threads', 'tree', 'menu', 'comment', 'edit', 'source', 'revisions', 'tabs', 'close-prompt', 'build-log', 'waiting', 'instructions', 'plan-tasks', 'explain', 'settings', 'tasks', 'users', 'roles', 'title-bar' ];
-const DESKTOP_PICTURES = [ 'desktop-connect', 'desktop-llm', 'desktop-run' ];
+const PAGE_PICTURES = [ 'first-start', 'plan', 'threads', 'tree', 'menu', 'comment', 'edit', 'source', 'revisions', 'tabs', 'close-prompt', 'build-log', 'waiting', 'instructions', 'plan-tasks', 'explain', 'settings', 'tasks', 'users', 'roles', 'title-bar', 'host-mount' ];
+const DESKTOP_PICTURES = [ 'desktop-connect', 'desktop-llm', 'desktop-run', 'desktop-project', 'desktop-menu' ];
 
 let copy = null;
 

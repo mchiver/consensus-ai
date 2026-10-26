@@ -58,7 +58,8 @@ The config folder, `.consensus` in your user folder by default or the one `--con
 
 ```
 <config>/consensus.json                    the server's settings and the registry: Projects: [ { Path, Mounted } ]
-<config>/desktop.json                      the desktop's own: Recent, Hosts, Theme, Scale, Remembered
+<config>/desktop.json                      the desktop's own: Recent, Hosts, Theme, Scale, Remembered, License (the sign-in's license as last checked)
+<config>/~host.json                        the Server Host's address while it runs; <project>/.consensus/~sidecar.json the sidecar's
 <config>/Users.json                        the accounts of the server (User Management Step 3): the owner, the users and the Service accounts, each with its hashed tokens
 <project>/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands, its Tasks, its Work options GitSync and AutoCommit, and its Roles (the four role folders, account ids)
 <project>/.consensus/content/<id>/content.md    a plan's or document's text

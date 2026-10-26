@@ -31,5 +31,34 @@
 				"Text": "Sharing a server is a page of its own today. Folding it into The Server Host makes one long page; keeping it makes two short ones. **Recommendation:** keep Sharing a server as its own page under The Server Host in the pages order, rewritten for mounting, so its links hold. Resolve with no reply to take the recommendation."
 			}
 		]
+	},
+	{
+		"Id": "thr-8wc-6x6-utc",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T03:07:32.753Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T03:08:58.451Z",
+			"Revision": 2,
+			"RevisionId": "rev-p5l-xzm-7hz",
+			"Outcome": "Accepted by the owner: Step 7 built as logged; committed as Rearchitecturation Step 7: The guide and the close-out; the Subplan back to Plan. The plan is set Finished when the guide is published, on the owner's word."
+		},
+		"Created": "2026-10-25T20:39:43.046Z",
+		"Replies": [
+			{
+				"Id": "rep-n72-oz5-326",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T20:39:43.046Z",
+				"Text": "**Build log, Step 7: The guide and the close-out** (built by Claude Fable 5.1 as Claude-CLI, 2026-10-25; nothing committed).\n\n**What was built**\n\n- **The guide.** Getting started is rewritten around the Desktop: the two modes in its opening, then The desktop (the chooser, one window one project, the single project view), The sidecar (the address in the folder, LLM Instructions with its Copy button, the fixed MCP entry `consensus mcp <folder>`), The menu, the account and the tiers (Sign in…, the tier in About, what Personal and Professional unlock), then The installer, then The Server Host from the checkout (the `serve` word, the start lines with the unmounted count and `~host.json`, the options table with serve, a path and mcp), then Docker (`serve` in the image's command). A new page, **The Server Host** (`docs/guide/host.md`, before Sharing a server in `pages.json`): starting it (serve, from the desktop's menu, in Docker), the registry and mounting, who manages what, the desktop and the Host (Connect to Host, a mounted folder routed, the agent's `--server` form). Sharing a server gains a Mounting section after the Administrator, its intro names the Host, the roles table and the license line say Personal and Professional, and What each role sees is one sentence again, so its links hold. Features' Running it says the desktop, the sidecar, the Server Host, Open a folder and the three tiers. Settings and themes lists `License` in desktop.json and the two address files. The LLM page already says where connections are edited (Step 4); the pricing page is Step 6's.\n- **New pictures** from the seeded Desktop and Host, light and dark: `host-mount` (the Host's page, the demo project's menu with Unmount), `desktop-project` (a folder open in the desktop, the one project with its folds) and `desktop-menu` (the desktop's menu with Sign in… and the Server Host items); `bin/docs.js` gains the page picture and a second desktop launch on a temporary folder with a Personal license cached; `test/Docs.test.js` lists them.\n- **The readme.** Starting it opens with the two modes; The desktop names its mode; The API says it is one API in both modes, the owner on a sidecar and an account on the Host; the license paragraph names the three tiers (Step 6); Layout lists `src/Host.js`, `src/Sidecar.js`, `desktop/Host.js`, `desktop/Projects.js` and the shim's folder form (Steps 2 to 5); `desktop.json` is in The config folder (Step 1).\n- **The instructions.** `.guides/build-with-consensus.md` (the served page) says sidecar first: the Desktop's one project, its address file and the fixed MCP entry, the one-project rule; then the Server Host, a token minted on the account's page and the Host's other projects not yours.\n- **The plans.** Monetization (pln-qr1-aed-21x) got a closing thread pointing here and is archived; Teams and the Clerk subplan carry a note that the shape is this plan's; Accounts and Roles stays the roles reference. This plan is set Finished when the guide is published, on the owner's word.\n\n**Decided during the build**\n\n- Getting started leads with the Desktop and keeps the Host as a section with the checkout and Docker beneath it, the new Host page carrying the detail; the four-ways opening became the two modes.\n- The desktop pictures of a folder come from a second launch of the app on a temporary folder, since a window holds one project and the first launch is the Host project's.\n- Sharing a server keeps its Going Public and Administrator sections first, Mounting third, as the order a person meets them in.\n- The plan is not set Finished here: the step says when the guide is published, which is the owner's word.\n\n**Tests**\n\n- `test/Docs.test.js` over the new page and the three new pictures (24 page pictures and 5 desktop pictures, both themes); `node bin/docs.js build` clean; `node bin/docs.js screenshots` regenerated every picture.\n- Results: node bin/docs.js screenshots wrote all 54 pictures (both themes), node bin/docs.js build rendered the 12 guide pages clean, and test/Docs.test.js passed 2 of 2 over a copy with the new page and pictures; no code outside bin/docs.js changed, so the rest of the suite was not rerun. The local Host on 3500 was down; this log and the plans' close-out went through the Consensus project's sidecar at http://127.0.0.1:3640, the new shape at work.\n\nResolve to accept; I then apply this thread, commit as \"Rearchitecturation Step 7: The guide and the close-out\", set the Subplan to Plan, and publish the docs and set the plan Finished on your word. A reply means fix and report again."
+			}
+		]
 	}
 ]

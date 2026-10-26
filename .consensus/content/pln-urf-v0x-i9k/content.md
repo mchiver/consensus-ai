@@ -2,6 +2,8 @@
 
 Clerk (clerk.com) is the sign-in of Consensus: User Management (rewritten 2026-10-18) keeps no passwords and no sign-in of its own, Clerk identifies people once, and Consensus manages the roles and permissions. This subplan says which parts of Consensus Clerk takes over, which it never touches, how the Clerk application is configured, and how it meets the code. It was drafted on 2026-10-18 while the Clerk application was being created; the decisions were settled the same day (the decisions thread, resolved with no reply): Clerk for network servers only, email code with GitHub and Google, Consensus tokens for machines, Clerk Billing off, the liquicode.com subdomain below, waitlist at launch, and the order of the steps. Steps 2 to 4 were built as User Management Step 4 on 2026-10-19. On 2026-10-20 the model was turned around (the license thread, resolved with two changes): licenses belong to people, not to servers, our one Clerk instance signs in every Consensus server, and the trusted network is gone; the sections below read as the model stands now.
 
+*Note (2026-10-25): the shape of the application is plan Rearchitecturation's (pln-gkn-zlj-42q): the Desktop signs in through the page and caches the license for 14 days (its Step 6), the tiers are Free, Personal and Professional with the plans personal and professional in the metadata, and the Server Host is where people sign in; the production instance (Step 6 below) stays this subplan's.*
+
 
 ## The license
 

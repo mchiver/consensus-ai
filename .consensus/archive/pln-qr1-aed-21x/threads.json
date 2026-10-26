@@ -1,0 +1,21 @@
+[
+	{
+		"Id": "thr-ig8-ya1-95a",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "contested",
+		"Reopened": false,
+		"Resolved": null,
+		"Applied": null,
+		"Created": "2026-10-25T20:39:42.840Z",
+		"Replies": [
+			{
+				"Id": "rep-5i2-2j3-a5p",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-25T20:39:42.840Z",
+				"Text": "Closed on 2026-10-25 by plan Rearchitecturation (pln-gkn-zlj-42q), Step 7: its pricing and the paid line fold into that plan's Licensing section (the tiers Free, Personal and Professional, built in its Step 6 with the pricing page docs/pricing.html), and this draft is archived as the plan says. Managed runs, hosting and the services stay as written here for whenever they are taken up, under the new names."
+			}
+		]
+	}
+]

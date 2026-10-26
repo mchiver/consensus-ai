@@ -1,6 +1,6 @@
 # Sharing a server
 
-A Consensus-AI server on your own machine is yours alone: every request is the owner, and nobody signs in. A server for a team listens beyond the machine, signs people in through Consensus-AI, and gives each of them a role in each project. This page is the order you meet it in: going Public, the Administrator, the accounts, the roles, the tokens, and what each role sees. [Settings and themes](settings.html) has the settings themselves.
+A Consensus-AI server on your own machine is yours alone: every request is the owner, and nobody signs in. A server for a team listens beyond the machine, signs people in through Consensus-AI, and gives each of them a role in each project. The server is the [Server Host](host.html), and a project reaches a team once the Administrator has mounted it. This page is the order you meet it in: going Public, the Administrator, mounting, the accounts, the roles, the tokens, and what each role sees. [Settings and themes](settings.html) has the settings themselves.
 
 ## Going Public
 
@@ -11,6 +11,10 @@ On a Public server a request with no session and no token is refused. The page s
 ## The Administrator
 
 Every Public server has one Administrator: the first person to sign in with a Professional license, or the one a Docker server names with the environment variable `CONSENSUS_ADMIN`. The Administrator alone writes the server's settings, makes and deletes accounts, mints a Service account's tokens, defines the LLM tasks and connections, makes and deletes projects, and may place anyone in any project's roles. Inside a project the Administrator otherwise acts by the role folder they are in, like anyone.
+
+## Mounting
+
+The Host's registry lists its projects with a **Mounted** switch each. A project registered on the Host starts unmounted: read and written by the Administrator alone, marked "unmounted" in its row, and not there for anyone else. **Mount** in the project's menu opens it to the accounts with a role in it; **Unmount** takes it back and leaves the roles as they are. Place the people first, then mount, and the project appears for them at once.
 
 ## Accounts
 
@@ -30,12 +34,12 @@ A role is what an account may see and do in one project. Every project has a fix
 
 | Role | May | License |
 |---|---|---|
-| Owner | everything in the project: read, write, comment and reply, resolve any thread, set the plan states, create, rename, move, archive and export, manage the Users folder, enable the server's tasks for the project, press any task | User |
-| Member | read and write: edit, create, comment and reply, resolve the threads they started, apply any resolved thread, press the tasks that write to Consensus or to files | User |
+| Owner | everything in the project: read, write, comment and reply, resolve any thread, set the plan states, create, rename, move, archive and export, manage the Users folder, enable the server's tasks for the project, press any task | Personal |
+| Member | read and write: edit, create, comment and reply, resolve the threads they started, apply any resolved thread, press the tasks that write to Consensus or to files | Personal |
 | Service | read and write the project through the API as a Member does, resolve nothing; press no task, so no run is ever started under it | none (a token) |
 | Watcher | read the project and its threads; press the tasks that read only, Explain among them | none |
 
-The license is the person's, not the server's: a **User** license is needed to be an Owner or a Member, and the server says so when someone is dragged into those folders without one. A Watcher needs an account and nothing more. A site license is an organization in Consensus-AI whose members carry it.
+The license is the person's, not the server's: a **Personal** license is needed to be an Owner or a Member, and the server says so when someone is dragged into those folders without one; the Administrator of a Public server holds a **Professional** one ([the licenses](../pricing.html)). A Watcher needs an account and nothing more. A site license is an organization in Consensus-AI whose members carry it.
 
 Which task a role may press is read from the task's **Writes** level, never from its name: a task that writes nothing is every role's, a task that writes to Consensus or to files is Owners' and Members', and a Service account presses none. A task you make next year is governed the same way the day you make it.
 
@@ -51,4 +55,4 @@ The agent then acts as you, allowed what your role allows, and what it posts rea
 
 ## What each role sees
 
-A project is shown to those with a role in it once the Administrator has **mounted** it: a project registered on the server starts unmounted, read and written by the Administrator alone, and **Mount** in its menu (the project row carries an "unmounted" mark until then) opens it to the accounts with a role in it; **Unmount** takes it back without touching the roles. A project is shown to those with a role in it, and to the Administrator. The server's Users fold is shown to every signed-in account; an account's page to that account and to the Administrator. A person with no role in any project sees the Users fold alone, until an Owner or the Administrator places them. A request outside what a role allows is refused with the reason in plain words, in the page and over the API alike: "a Watcher reads only", "no role in this project".
+A mounted project is shown to those with a role in it, and to the Administrator; an unmounted one to the Administrator alone. The server's Users fold is shown to every signed-in account; an account's page to that account and to the Administrator. A person with no role in any project sees the Users fold alone, until an Owner or the Administrator places them. A request outside what a role allows is refused with the reason in plain words, in the page and over the API alike: "a Watcher reads only", "no role in this project".

@@ -3,6 +3,8 @@
 Consensus for more than one person. Four plans were found on 2026-10-18 (LLM Tasks was Usage Scenarios then) to be answering one question from different angles: who is acting on a server, where from, on whose behalf, and what follows from the answer for the product and for what is sold. This plan is their master: it states the question and the model once, names each part and what it owns, and gives the order. The parts are its subplans; nothing is built from this page itself. The name, the place of Promotion and Monetization inside it and the order were settled on 2026-10-18 (the decisions thread, resolved with no reply).
 
 
+*Note (2026-10-25): the shape of the application, the Desktop with its sidecar and the Server Host with mounting, the tiers Free, Personal and Professional, is plan Rearchitecturation's (pln-gkn-zlj-42q), built in its seven Steps; this plan and its subplans keep the model of accounts and roles, which that plan leaves as it is.*
+
 ## The question
 
 A server on one machine with one owner needs no answer: a request is the owner, and the owner's agent session is the owner's delegate. The moment a server listens for others, three things have to be known about every request: the account behind it, what that account may do in the project at hand, and, when an LLM made it, which person it acted for. The Free tier never asks the question; the Team and hosted tiers cannot ship without it, and Promotion and Monetization says nothing is sold until it is answered.

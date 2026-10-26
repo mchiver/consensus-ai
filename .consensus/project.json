@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-25T03:38:05.896Z",
-	"Version": 71,
+	"Updated": "2026-10-25T20:39:42.862Z",
+	"Version": 72,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -38,10 +38,6 @@
 				{
 					"Kind": "plan",
 					"Id": "pln-7rj-c79-kh8"
-				},
-				{
-					"Kind": "plan",
-					"Id": "pln-qr1-aed-21x"
 				},
 				{
 					"Kind": "plan",
@@ -367,7 +363,12 @@
 			]
 		}
 	],
-	"Archive": [],
+	"Archive": [
+		{
+			"Kind": "plan",
+			"Id": "pln-qr1-aed-21x"
+		}
+	],
 	"States": [
 		"Draft",
 		"Plan",
@@ -387,5 +388,6 @@
 		"Service": [],
 		"Watchers": []
 	},
-	"Llm": "llm-yn1-ve3-2pi"
+	"Llm": "llm-yn1-ve3-2pi",
+	"Mounted": false
 }

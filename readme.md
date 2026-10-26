@@ -19,7 +19,10 @@ Shapes, Step 5).
 	node bin/consensus.js [serve | <path> | --project <folder>] [--config <folder>] [--port 3500] [--scope none|local|public] [--headless]
 	node bin/consensus.js mcp <folder> [--service <name>]
 
-One program, two entry points over one start module (`src/Start.js`, plan Run Shapes, Step 1): this one, headless,
+Two modes (plan Rearchitecturation, 2026-10-25): the **Desktop**, one project per window with the **sidecar**, that
+project's server, inside, for a person and the agent beside them; and the **Server Host**, one server holding a registry
+of projects and serving the mounted ones to accounts, with the users, roles, LLM connections and tasks managed on its
+page. One program, two entry points over one start module (`src/Start.js`, plan Run Shapes, Step 1): this one, headless,
 for a plain node install and the Docker image, and the desktop (below), which opens a window as well. The word
 `serve` (plan Rearchitecturation, Step 1) names the **Server Host**, every registered project served; the bare form
 with no path means the same, so the Docker image and `npm start` are unchanged, and `serve` takes no folder. Both read
@@ -281,7 +284,8 @@ is removed). An export of another `Version` is refused.
 
 ## The desktop
 
-Consensus Desktop (plan Consensus Desktop, Step 2) is an Electron client, run from the checkout:
+Consensus Desktop (plan Consensus Desktop, Step 2; the Desktop mode of plan Rearchitecturation) is an Electron client,
+run from the checkout:
 
 	npm run desktop -- [<folder> | --connect <host name>] [--config <folder>] [--port <port>] [--scope ...] [--headless]
 
@@ -572,6 +576,9 @@ and the runs; `test/Tools.test.js` the tools and the Ollama loop; `test/Api.test
 `test/Start.test.js` the start module and the headless entry point.
 
 ## The API
+
+One API in both modes: a sidecar serves it for its one project, every request the owner, the header naming the agent;
+the Server Host serves it for every mounted project, each request an account with a role (plan Rearchitecturation).
 
 	GET    /api/me                                   who this request is, the participants, the States, the server's Name and Version
 	GET    /api/settings                             owner; the settings as they are, and the file's path

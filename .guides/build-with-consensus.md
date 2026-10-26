@@ -9,11 +9,15 @@ Consensus through its API; the chat carries short summaries and the questions th
 
 For an agent session (Claude Code or similar) working on a repo whose plans live in Consensus: **sidecar mode**,
 the session open beside an open Consensus, prompted with "check consensus" or "your turn" instead of the page's
-task buttons, with every tool and all the context the session's harness keeps. Sidecar mode is one project's:
-the plans are made in Consensus and carried out in the session, and the session works in that project alone, so
-the server's other projects, each the business of a session of its own, are not yours. Read this with
-`curl` (`curl -s http://<server>:<port>/instructions`): a session's web fetch tool may not reach a local or
-private address. The plan "Build Workflow" in the Consensus project is where the build loop was agreed, and
+task buttons, with every tool and all the context the session's harness keeps. The usual case is the Desktop
+(plan Rearchitecturation): a window holds one project, and the server inside it, the **sidecar**, is that project's
+API and MCP on this machine, its address in the folder's `.consensus/~sidecar.json` while the project is open; the
+fixed MCP entry is `consensus mcp <folder>`, and the instructions page names the one project. Sidecar mode is one
+project's: the plans are made in Consensus and carried out in the session, and the session works in that project
+alone. The other case is a **Server Host**, one server holding several projects for several people: there you act
+for an account, with a token minted on its page (below), and the Host's other projects, each the business of a
+session of its own, are not yours. Read this with `curl` (`curl -s http://<server>:<port>/instructions`): a
+session's web fetch tool may not reach a local or private address. The plan "Build Workflow" in the Consensus project is where the build loop was agreed, and
 "Agent Instructions" where this page was. Since the plan "Consensus Desktop" (Step 1), the server calls no LLM
 and reads no code: every LLM takes part through the API, as you do. Consensus Desktop (Step 3) can run a model
 once, with this page, the project's Readme and the plan at hand packaged as its prompt: such a one-shot works

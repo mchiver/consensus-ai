@@ -37,6 +37,7 @@
 				<a class="guide-link" href="llm.html">Working with an LLM</a>
 				<a class="guide-link" href="ways-of-working.html">Ways of working</a>
 				<a class="guide-link" href="settings.html">Settings and themes</a>
+				<a class="guide-link" href="host.html">The Server Host</a>
 				<a class="guide-link" href="sharing.html">Sharing a server</a>
 				<a class="guide-link" href="export-import.html">Export and import</a>
 				<a class="guide-link" href="api.html">The API</a>
@@ -94,9 +95,11 @@
 </ul>
 <h2 id="running-it">Running it</h2>
 <ul>
-<li><strong>The browser.</strong> A small Node and Express server and one page; start it and open it. See <a href="getting-started.html">Getting started</a>.</li>
-<li><strong>The desktop.</strong> The same page in its own window, with a server of its own inside, every saved server beside it, each a root of the tree.</li>
-<li><strong>Open a folder.</strong> Start Consensus on one project folder from the command line, the way an editor opens a folder, and its <code>.consensus</code> is made for you.</li>
+<li><strong>The desktop.</strong> One project in one window, opened as an editor opens a folder, with a server of its own inside; a chooser for the recent folders, a new project and the saved Hosts; another window for another project. See <a href="getting-started.html">Getting started</a>.</li>
+<li><strong>The sidecar.</strong> The window&#39;s server is the open project&#39;s API and MCP on this machine, on a known port with its address in the folder: one fixed MCP entry per project, <code>consensus mcp &lt;folder&gt;</code>, and a Copy button for the instructions.</li>
+<li><strong>The Server Host.</strong> One server for a team: a registry of projects, each mounted for its accounts by the Administrator or kept to the Administrator alone, the users, roles, connections and tasks managed on its page; started from the desktop&#39;s menu or as <code>consensus serve</code>. See <a href="host.html">The Server Host</a>.</li>
+<li><strong>Open a folder.</strong> Start Consensus on one project folder from the command line, the way an editor opens a folder, and its <code>.consensus</code> is made for you; a folder the Host serves opens as the Host&#39;s project.</li>
+<li><strong>Three tiers.</strong> Free is the desktop and the sidecar; Personal the LLM tasks, the Hosts and a Server Host on this machine; Professional the Host on the network. See <a href="../pricing.html">the licenses</a>.</li>
 <li><strong>Docker.</strong> One image, one volume, port 3500, for a box on your network.</li>
 <li><strong>Scope.</strong> The server listens for this machine only, for the network, or not at all, as the settings say.</li>
 <li><strong>Live updates.</strong> Every change is a Server-Sent Event, so every open page, window and server row stays in step.</li>

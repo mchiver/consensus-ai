@@ -49,9 +49,11 @@
 
 ## Running it
 
-- **The browser.** A small Node and Express server and one page; start it and open it. See [Getting started](getting-started.html).
-- **The desktop.** The same page in its own window, with a server of its own inside, every saved server beside it, each a root of the tree.
-- **Open a folder.** Start Consensus on one project folder from the command line, the way an editor opens a folder, and its `.consensus` is made for you.
+- **The desktop.** One project in one window, opened as an editor opens a folder, with a server of its own inside; a chooser for the recent folders, a new project and the saved Hosts; another window for another project. See [Getting started](getting-started.html).
+- **The sidecar.** The window's server is the open project's API and MCP on this machine, on a known port with its address in the folder: one fixed MCP entry per project, `consensus mcp <folder>`, and a Copy button for the instructions.
+- **The Server Host.** One server for a team: a registry of projects, each mounted for its accounts by the Administrator or kept to the Administrator alone, the users, roles, connections and tasks managed on its page; started from the desktop's menu or as `consensus serve`. See [The Server Host](host.html).
+- **Open a folder.** Start Consensus on one project folder from the command line, the way an editor opens a folder, and its `.consensus` is made for you; a folder the Host serves opens as the Host's project.
+- **Three tiers.** Free is the desktop and the sidecar; Personal the LLM tasks, the Hosts and a Server Host on this machine; Professional the Host on the network. See [the licenses](../pricing.html).
 - **Docker.** One image, one volume, port 3500, for a box on your network.
 - **Scope.** The server listens for this machine only, for the network, or not at all, as the settings say.
 - **Live updates.** Every change is a Server-Sent Event, so every open page, window and server row stays in step.

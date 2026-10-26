@@ -747,6 +747,20 @@ const PAGE_PICTURES = [
 		},
 	},
 	{
+		// The Host's page (plan Rearchitecturation, Step 5): the demo project's menu, mounted, with Unmount in it.
+		Name: 'host-mount',
+		Make: async function ( Page, Url, Demo, Folder, Theme )
+		{
+			await Page.Evaluate( 'document.querySelector( ".project[data-project=\\"" + ' + JSON.stringify( Demo.Id ) + ' + "\\"] .project-head .row-menu" ).click(); true' );
+			await Page.WaitFor( visible( '#popup-menu' ) + ' && document.getElementById( "popup-menu" ).textContent.includes( "Unmount" )' );
+			await wait( 200 );
+			let file = await capture( Page, Folder, 'host-mount', Theme, { Selector: '.sidebar', Height: 600 } );
+			await Page.Press( 'Escape' );
+			await wait( 200 );
+			return file;
+		},
+	},
+	{
 		// The title bar with its look popover open (plan UI Components, Steps 5 and 6): the bar's own height, and the
 		// popover below it.
 		Name: 'title-bar',
@@ -905,6 +919,62 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 }
 
 
+// A folder open in the desktop (plan Rearchitecturation, Step 7): the app started on a temporary folder, the one project
+// pictured, then its menu (Sign in…, the Server Host items).
+async function desktop_folder_pictures( Folder, Log )
+{
+	const CDP = require( '../test/support/Cdp.js' );
+	let electron = require( 'electron' );
+	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-docs-desktop-folder-' ) );
+	let config = PATH.join( DEMO_ROOT, 'desktop-folder-config' );
+	FS.mkdirSync( config, { recursive: true } );
+	FS.writeFileSync( PATH.join( config, 'desktop.json' ), JSON.stringify( { Theme: 'light', Scale: 'normal', License: { Plan: 'personal', Until: null, Checked: new Date().toISOString() } }, null, '\t' ) );
+	let project = PATH.join( DEMO_ROOT, 'recipe-box-folder' );
+	FS.mkdirSync( project, { recursive: true } );
+	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', project, '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data, '--config', config ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );
+	let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
+	let files = [];
+	let page = null;
+	try
+	{
+		let target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return Target.url.includes( '127.0.0.1' ) && !Target.url.includes( 'connect.html' ); }, 60000 );
+		await wait( 1000 );
+		page = await CDP.Attach( target.webSocketDebuggerUrl );
+		await page.Send( 'Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false } );
+		await page.WaitFor( count_of( '.project.single.open' ) + ' === 1 && document.body.textContent.indexOf( "{{" ) < 0', 30000 );
+		await wait( 800 );
+		for ( let theme of THEMES )
+		{
+			await set_theme( page, theme );
+			files.push( await capture( page, Folder, 'desktop-project', theme ) );
+			Log( 'desktop-project ' + theme );
+		}
+		for ( let theme of THEMES )
+		{
+			await set_theme( page, theme );
+			await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
+			await page.WaitFor( visible( '#popup-menu' ) );
+			await wait( 300 );
+			files.push( await capture( page, Folder, 'desktop-menu', theme, { Selector: 'body', Height: 470 } ) );
+			Log( 'desktop-menu ' + theme );
+			await page.Press( 'Escape' );
+			await wait( 200 );
+		}
+	}
+	finally
+	{
+		if ( page )
+		{
+			page.Close();
+		}
+		child.kill();
+		await Promise.race( [ exited, wait( 5000 ) ] );
+		FS.rmSync( user_data, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
+	}
+	return files;
+}
+
+
 //---------------------------------------------------------------------
 // Screenshots( { Folder, Log, Desktop } ): every picture, into Folder/images. A server runs on a temporary data
 // folder with the demo project; a headless Chrome or Edge takes the page's pictures in both themes; then the
@@ -964,6 +1034,7 @@ async function Screenshots( Options )
 		if ( with_desktop )
 		{
 			files = files.concat( await desktop_pictures( running.Url, demo, folder, log ) );
+			files = files.concat( await desktop_folder_pictures( folder, log ) );
 		}
 	}
 	finally

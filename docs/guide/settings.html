@@ -37,6 +37,7 @@
 				<a class="guide-link" href="llm.html">Working with an LLM</a>
 				<a class="guide-link" href="ways-of-working.html">Ways of working</a>
 				<a class="guide-link active" href="settings.html">Settings and themes</a>
+				<a class="guide-link" href="host.html">The Server Host</a>
 				<a class="guide-link" href="sharing.html">Sharing a server</a>
 				<a class="guide-link" href="export-import.html">Export and import</a>
 				<a class="guide-link" href="api.html">The API</a>
@@ -77,7 +78,8 @@
 <h2 id="the-config-folder-and-the-project-folders">The config folder and the project folders</h2>
 <p>The config folder, <code>.consensus</code> in your user folder by default or the one <code>--config</code> names, holds two files. <code>consensus.json</code> is the server&#39;s (the Server Host&#39;s): its settings, and the registry <code>Projects</code>, which lists the project folders in display order (a folder opened from the command line goes to the top), each entry with a <code>Mounted</code> switch that says whether the Host exposes it. <code>desktop.json</code> is the desktop&#39;s own: the recent project folders, the saved Hosts (name, address and project, no tokens), the theme, the size and the remembered view state; the desktop writes this file and never <code>consensus.json</code>. Each project is a folder of its own, a repository as a rule, with a <code>.consensus</code> sub-folder that is the project; a project made with no folder named goes under <code>projects/</code> in the config folder. Everything is plain files:</p>
 <pre><code>&lt;config&gt;/consensus.json                    the server&#39;s settings and the registry: Projects: [ { Path, Mounted } ]
-&lt;config&gt;/desktop.json                      the desktop&#39;s own: Recent, Hosts, Theme, Scale, Remembered
+&lt;config&gt;/desktop.json                      the desktop&#39;s own: Recent, Hosts, Theme, Scale, Remembered, License (the sign-in&#39;s license as last checked)
+&lt;config&gt;/~host.json                        the Server Host&#39;s address while it runs; &lt;project&gt;/.consensus/~sidecar.json the sidecar&#39;s
 &lt;config&gt;/Users.json                        the accounts of the server (User Management Step 3): the owner, the users and the Service accounts, each with its hashed tokens
 &lt;project&gt;/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands, its Tasks, its Work options GitSync and AutoCommit, and its Roles (the four role folders, account ids)
 &lt;project&gt;/.consensus/content/&lt;id&gt;/content.md    a plan&#39;s or document&#39;s text
@@ -92,7 +94,7 @@
 			</article>
 			<nav class="guide-pager">
 				<a class="guide-previous" href="ways-of-working.html">&larr; Ways of working</a>
-				<a class="guide-next" href="sharing.html">Next: Sharing a server &rarr;</a>
+				<a class="guide-next" href="host.html">Next: The Server Host &rarr;</a>
 			</nav>
 		</main>
 	</div>

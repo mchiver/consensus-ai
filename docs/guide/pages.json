@@ -7,6 +7,7 @@
 	{ "File": "llm.md", "Title": "Working with an LLM" },
 	{ "File": "ways-of-working.md", "Title": "Ways of working" },
 	{ "File": "settings.md", "Title": "Settings and themes" },
+	{ "File": "host.md", "Title": "The Server Host" },
 	{ "File": "sharing.md", "Title": "Sharing a server" },
 	{ "File": "export-import.md", "Title": "Export and import" },
 	{ "File": "api.md", "Title": "The API" }
