@@ -8,7 +8,7 @@
 	</form>
 	<span class="project-name" ng-if="!$ctrl.Tree.IsRenaming($ctrl.entry)">{{ $ctrl.entry.Name }}</span>
 	<!-- unmounted on a Server Host (plan Rearchitecturation, Step 5): the Administrator alone sees it; Mount is in the menu -->
-	<span class="unmounted muted small" ng-if="$ctrl.root.Admin && $ctrl.root.Kind !== 'local' && $ctrl.entry.Mounted !== true" title="unmounted: served to nobody but the Administrator; Mount is in the project's menu">unmounted</span>
+	<span class="unmounted muted small" ng-if="$ctrl.root.Manage && $ctrl.root.Kind !== 'local' && $ctrl.entry.Mounted !== true" title="unmounted: served to nobody but the Administrator and the Managers; Mount is in the project's menu">unmounted</span>
 	<span class="count">{{ $ctrl.Tree.ItemCount($ctrl.entry.Items) }}</span>
 	<span class="tree-stamp" ng-if="$ctrl.Tree.ShowUpdated && $ctrl.entry.Updated" title="updated {{ $ctrl.entry.Updated | fullstamp }}">{{ $ctrl.entry.Updated | stamp }}</span>
 	<button class="row-menu" ng-class="{ shown: $ctrl.Tree.MenuOpenFor($ctrl.entry), current: $ctrl.Open() }" ng-hide="$ctrl.Tree.Deleting === $ctrl.entry.Id" title="actions" ng-click="$ctrl.Tree.OpenMenu('project', $ctrl.entry, $ctrl.entry, $event)"><svg class="icon"><use href="#i-more"></use></svg></button>

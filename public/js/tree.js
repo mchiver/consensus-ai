@@ -677,7 +677,7 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	function mount_action( project )
 	{
 		let root = root_of( project );
-		if ( !root || !root.Admin || root.Kind === 'local' )
+		if ( !root || !root.Manage || root.Kind === 'local' )
 		{
 			return null;
 		}

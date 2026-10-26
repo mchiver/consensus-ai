@@ -436,13 +436,13 @@ Users fold is `public/components/users-fold/`, the role folders `public/componen
 
 **Sign-in through Clerk** (plan User Management, Step 4; the subplan Clerk, Steps 2 to 4) puts people on a shared
 server without a password of ours. The built-in publishable key turns it on (the file's optional Clerk section,
-hand-edited since it left the Settings popup on 2026-10-20, overrides it and adds the secret key, the webhook
-secret and the Administrator's email; PUT /api/settings keeps the section when the body gives none); `src/Clerk.js` needs no package: a Clerk session token is an
+hand-edited since it left the Settings popup on 2026-10-20, overrides it and adds the webhook secret and the
+Administrator's email; no secret key since plan The Server, Step 2; PUT /api/settings keeps the section when the body gives none); `src/Clerk.js` needs no package: a Clerk session token is an
 RS256 JWT, verified with Node's crypto against the instance's published keys (read from the Frontend API the
 publishable key names, cached, read again for an unknown key id), its exp and nbf with a minute's leeway, its
 issuer and, when it carries one, its azp against the request's host; a Bearer value that is no token of ours is
-tried as one, and its subject is the registry record with that Clerk id. A subject the registry lacks is fetched
-once from Clerk's Backend API with the secret key and written: matched by email to a record the Administrator
+tried as one, and its subject is the registry record with that Clerk id. A subject the registry lacks is written
+from the token's claims (nobody when they carry no email): matched by email to a record the Administrator
 made by hand, whose Clerk id is filled in, else a new user with a login made from the email (lowercased, other
 characters a dash, a number while taken) and no role. On a Public server a bare request is refused with 401
 "sign in"; on Local it stays the owner, and a session there is the owner's. The page asks `GET /api/clerk`
@@ -474,14 +474,13 @@ read: nobody held a license under them. A site license is a Clerk organization c
 capped at the seats bought; the sign-in stays personal, the tie is Clerk's invitation, and the page makes the
 person's organization active at sign-in so the token carries its license. There is one Clerk instance, ours: its
 publishable key is a constant in `src/Clerk.js`, so a Public server needs no Clerk section (the section overrides
-the key with another instance's, adds the secret key and the webhook secret on our own servers, and names the
-Administrator); the trusted network of before, Public with no keys, is gone, and Trust is local, clerk or none. A
+the key with another instance's, adds the webhook secret, and names the Administrator); the trusted network of before, Public with no keys, is gone, and Trust is local, clerk or none. A
 person's email, names and license come from the session token's claims, written there by the instance's session
 token template (`email`, `first`, `last`, `username`, `license` from the user's public metadata, `org_license` from
-the active organization's: `{ Plan, Until }` or the plan as a string, the higher valid one counting); the Backend
-API is asked only when a secret key is there and the claims lack an email. `src/Roles.js` ranks the plans
+the active organization's: `{ Plan, Until }` or the plan as a string, the higher valid one counting); Clerk's
+Backend API is never asked. `src/Roles.js` ranks the plans
 (`PLANS`, `PlanRank`, `PlanFor`: Owners and Members need personal). Three checks, each naming the plan it wants: at
-sign-in (`clerk_participant` in `src/Api.js`) the Administrator needs professional and an Owner or a Member of any
+sign-in (`clerk_participant` in `src/Api.js`) the Administrator needs personal (plan The Server, Step 2; professional before) and an Owner or a Member of any
 project needs personal, else 401 `{ Error: 'license', Plan, Has }`, a Watcher-only or unplaced person admitted free,
 the plan written on the record (`Plan`, shown by `GET /api/users` and `/api/me`); at `PUT /api/settings`, Scope
 Public is saved from a session with a professional plan alone (403 otherwise; a server configured Public from its

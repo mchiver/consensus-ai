@@ -139,3 +139,35 @@ TEST( 'the four tiers: Unlicensed with no record or 14 days unchecked (signed ou
 	ASSERT.equal( LICENSE.Line( fresh, now + 20 * DAY ), 'Unlicensed: the sign-in last checked on 2026-10-26 is more than 14 days old; sign in again' );
 	ASSERT.equal( LICENSE.Line( null, now ), 'Unlicensed: not signed in; sign in with a Consensus-AI account' );
 } );
+
+
+//---------------------------------------------------------------------
+// The Server's authority (plan The Server, Step 2)
+
+TEST( 'Authority: with no Administrator yet a Personal or Professional user starts the Server and is claimed as it; with one, only that user, at their tier; Public for Professional alone; the reasons', function ()
+{
+	let now = Date.parse( '2026-10-26T10:00:00.000Z' );
+	let checked = new Date( now ).toISOString();
+	let ann = { Email: 'Ann@example.com', Clerk: 'user_1', Display: 'Ann', Plan: 'personal', Until: null, Checked: checked };
+	let bo = { Email: 'bo@example.com', Clerk: 'user_2', Display: 'Bo', Plan: 'professional', Until: null, Checked: checked };
+	let cy = { Email: 'cy@example.com', Clerk: 'user_3', Display: 'Cy', Plan: null, Until: null, Checked: checked };
+	let nameless = { Email: null, Clerk: 'user_4', Display: 'Dee', Plan: 'personal', Until: null, Checked: checked };
+
+	// no Administrator yet: the first licensed user claims it
+	ASSERT.deepEqual( LICENSE.Authority( ann, null, now ), { Ok: true, Tier: 'personal', Public: false, Claim: 'Ann@example.com', Administrator: null, Reason: null } );
+	ASSERT.deepEqual( [ LICENSE.Authority( bo, '', now ).Ok, LICENSE.Authority( bo, '', now ).Public ], [ true, true ] );
+	ASSERT.deepEqual( [ LICENSE.Authority( cy, null, now ).Ok, LICENSE.Authority( cy, null, now ).Reason ], [ false, 'the Server needs a Personal or Professional sign-in; the first one becomes its Administrator' ] );
+	ASSERT.equal( LICENSE.Authority( null, null, now ).Ok, false );
+	ASSERT.match( LICENSE.Authority( nameless, null, now ).Reason, /no email address/ );
+
+	// an Administrator: that user alone, matched by email in any case
+	ASSERT.deepEqual( LICENSE.Authority( ann, 'ann@example.com', now ), { Ok: true, Tier: 'personal', Public: false, Claim: null, Administrator: 'ann@example.com', Reason: null } );
+	let other = LICENSE.Authority( bo, 'ann@example.com', now );
+	ASSERT.deepEqual( [ other.Ok, other.Reason, other.Administrator ], [ false, 'the Server runs under its Administrator: sign in as ann@example.com', 'ann@example.com' ] );
+	ASSERT.equal( LICENSE.Authority( null, 'ann@example.com', now ).Reason, 'the Server runs under its Administrator: sign in as ann@example.com' );
+	// the Administrator without a license now, or signed out after 14 days
+	let lapsed = Object.assign( {}, ann, { Plan: 'personal', Until: new Date( now - DAY ).toISOString() } );
+	ASSERT.deepEqual( [ LICENSE.Authority( lapsed, 'ann@example.com', now ).Ok, LICENSE.Authority( lapsed, 'ann@example.com', now ).Reason ], [ false, 'the Administrator\'s sign-in is Registered: the Server needs Personal or Professional' ] );
+	ASSERT.equal( LICENSE.Authority( ann, 'ann@example.com', now + 15 * DAY ).Reason, 'the Server runs under its Administrator: sign in as ann@example.com' );
+	ASSERT.deepEqual( [ LICENSE.Authority( bo, 'bo@example.com', now ).Public, LICENSE.Authority( bo, 'bo@example.com', now ).Tier ], [ true, 'professional' ] );
+} );

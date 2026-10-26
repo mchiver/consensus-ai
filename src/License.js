@@ -27,6 +27,11 @@
 //   Line( Record, Now? )               the About line: "Personal, checked 3 days ago: 11 days left offline" and the rest
 //   Rank( Tier )                       0 for unlicensed up to 3 for professional
 //   AtLeast( Record, Tier, Now? )      whether the record gives that tier or above
+//   Authority( Record, AdminEmail, Now? )  whether the Server may start under the current user (plan The Server, Step 2):
+//                                      { Ok, Tier, Public, Claim, Administrator, Reason }. The Server runs under its
+//                                      Administrator: with no AdminEmail yet, a Personal or Professional user may start
+//                                      it and becomes the Administrator (Claim: the email to record); with one, only that
+//                                      user, at their tier; Public whether the tier allows public addresses (Professional)
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -289,7 +294,50 @@ function Line( Record, Now )
 }
 
 
+//---------------------------------------------------------------------
+// The Server's authority (plan The Server, Step 2)
+
+function Authority( Record, AdminEmail, Now )
+{
+	let tier = Tier( Record, Now );
+	let admin_email = text_or_null( AdminEmail );
+	let answer = { Ok: false, Tier: tier.Tier, Public: false, Claim: null, Administrator: admin_email, Reason: null };
+	let licensed = tier.Rank >= Rank( 'personal' );
+	if ( !admin_email )
+	{
+		if ( !licensed )
+		{
+			answer.Reason = 'the Server needs a Personal or Professional sign-in; the first one becomes its Administrator';
+			return answer;
+		}
+		if ( !tier.Email )
+		{
+			answer.Reason = 'the sign-in carries no email address, which the Administrator is matched by';
+			return answer;
+		}
+		answer.Ok = true;
+		answer.Claim = tier.Email;
+		answer.Public = tier.Rank >= Rank( 'professional' );
+		return answer;
+	}
+	if ( !tier.Email || tier.Email.toLowerCase() !== admin_email.toLowerCase() )
+	{
+		answer.Reason = 'the Server runs under its Administrator: sign in as ' + admin_email;
+		return answer;
+	}
+	if ( !licensed )
+	{
+		answer.Reason = 'the Administrator\'s sign-in is ' + TITLES[ tier.Tier ] + ': the Server needs Personal or Professional';
+		return answer;
+	}
+	answer.Ok = true;
+	answer.Public = tier.Rank >= Rank( 'professional' );
+	return answer;
+}
+
+
 module.exports = {
+	Authority: Authority,
 	TIERS: TIERS,
 	TITLES: TITLES,
 	CACHE_DAYS: CACHE_DAYS,

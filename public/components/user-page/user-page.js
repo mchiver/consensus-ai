@@ -6,6 +6,9 @@
 // the server (the threads, replies, resolves, applies and revisions the records hold, newest first), and Delete
 // (the Administrator's, never the owner). The owner's own page on a Local server is the same page, where the
 // owner's tokens are minted. The page is the account's own or the Administrator's; anyone else sees a line.
+// Plan The Server, Step 2: a Manager manages as the Administrator does, except the Administrator's and the Managers'
+// accounts; the Administrator makes a user a Manager (the Manager switch), and the heading says Administrator,
+// Manager or Member.
 //
 // Interface:
 //   <user-page></user-page>
@@ -22,6 +25,8 @@ angular.module( 'Consensus' ).component( 'userPage', {
 		controller.Id = null;
 		controller.User = null;			// the record as /api/users/:id shows it, with its tokens
 		controller.IsAdmin = false;		// whether the account shown is the Administrator
+		controller.IsManager = false;	// whether the account shown is a Manager
+		controller.Assigning = { Busy: false, Problem: null };
 		controller.Error = null;
 		controller.Refused = null;		// another account's page: the line shown instead
 		controller.Form = null;			// { Login, Display, Email, Busy, Saved, Problem }
@@ -76,6 +81,7 @@ angular.module( 'Consensus' ).component( 'userPage', {
 				}
 				controller.User = answer.User;
 				controller.IsAdmin = !!answer.Admin;
+				controller.IsManager = !!answer.Manager;
 				controller.Refused = null;
 				if ( !controller.Form || !controller.Form.Dirty )
 				{
@@ -126,6 +132,43 @@ angular.module( 'Consensus' ).component( 'userPage', {
 		};
 
 
+		// The one asking manages this server: the Administrator or a Manager.
+		controller.ManageAsking = function ()
+		{
+			let me = controller.Root ? controller.Root.Me : null;
+			return controller.AdminAsking() || ( !!me && me.Manager === true );
+		};
+
+
+		// The account shown is the Administrator's or a Manager's: a Manager leaves its details to the Administrator.
+		controller.Guarded = function ()
+		{
+			return controller.IsAdmin || controller.IsManager;
+		};
+
+
+		// The account's place on the server, for the heading: Administrator, Manager or Member (a user's).
+		controller.Standing = function ()
+		{
+			if ( controller.IsAdmin )
+			{
+				return 'Administrator';
+			}
+			if ( controller.IsManager )
+			{
+				return 'Manager';
+			}
+			return ( controller.User && controller.User.Type === 'user' ) ? 'Member' : null;
+		};
+
+
+		// The Manager switch: the Administrator's, on a user's page.
+		controller.MayAssign = function ()
+		{
+			return controller.AdminAsking() && !!controller.User && controller.User.Type === 'user' && !controller.IsAdmin;
+		};
+
+
 		controller.Mine = function ()
 		{
 			let me = controller.Root ? controller.Root.Me : null;
@@ -135,13 +178,13 @@ angular.module( 'Consensus' ).component( 'userPage', {
 
 		controller.MayEditDetails = function ()
 		{
-			return controller.AdminAsking();
+			return controller.AdminAsking() || ( controller.ManageAsking() && !controller.Guarded() );
 		};
 
 
 		controller.MayEditDisplay = function ()
 		{
-			return controller.AdminAsking() || controller.Mine();
+			return controller.ManageAsking() || controller.Mine();
 		};
 
 
@@ -152,13 +195,17 @@ angular.module( 'Consensus' ).component( 'userPage', {
 			{
 				return false;
 			}
-			return controller.AdminAsking() || ( controller.Mine() && controller.User.Type !== 'service' );
+			return controller.ManageAsking() || ( controller.Mine() && controller.User.Type !== 'service' );
 		};
 
 
 		controller.MayDelete = function ()
 		{
-			return controller.AdminAsking() && !!controller.User && controller.User.Type !== 'owner';
+			if ( !controller.User || controller.User.Type === 'owner' )
+			{
+				return false;
+			}
+			return controller.AdminAsking() || ( controller.ManageAsking() && !controller.Guarded() );
 		};
 
 
@@ -221,6 +268,32 @@ angular.module( 'Consensus' ).component( 'userPage', {
 				form.Problem = ( error.Body && error.Body.Error ) || error.message;
 			}
 			form.Busy = false;
+			$scope.$applyAsync();
+		};
+
+
+		// The Manager switch flipped: the Administrator makes the user a Manager, or no longer one.
+		controller.SetManager = async function ( Value )
+		{
+			let assigning = controller.Assigning;
+			if ( assigning.Busy || !controller.MayAssign() )
+			{
+				return;
+			}
+			assigning.Busy = true;
+			assigning.Problem = null;
+			try
+			{
+				let answer = await Client.Put( controller.Root, '/api/users/' + encodeURIComponent( controller.Id ), { Manager: !!Value } );
+				controller.User = answer.User;
+				controller.IsManager = !!answer.User.Manager;
+				await Users.For( controller.Root ).Reload();
+			}
+			catch ( error )
+			{
+				assigning.Problem = ( error.Body && error.Body.Error ) || error.message;
+			}
+			assigning.Busy = false;
 			$scope.$applyAsync();
 		};
 

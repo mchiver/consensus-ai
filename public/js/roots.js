@@ -103,6 +103,7 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 			Root.ReadOnly = !!answer.ReadOnly;		// plan Rearchitecturation, Step 4: the Desktop reads the Server Host's file; its connections and settings are the Host's
 			Root.Host = answer.Host || null;		// the Host's page, when ReadOnly
 			Root.Admin = !!answer.Admin;			// plan User Management, Step 3: the Administrator, and the account's roles by project
+			Root.Manage = !!( answer.Manage || answer.Admin );	// plan The Server, Step 2: the Administrator or a Manager
 			Root.Roles = answer.Roles || {};
 			Root.Participants = answer.Participants;
 			Root.States = answer.States || [];

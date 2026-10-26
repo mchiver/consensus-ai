@@ -76,7 +76,7 @@ TEST( 'a person signs in through Clerk in the page: the sign-in box on a refused
 	ASSERT.ok( made.Status === 200 || made.Status === 422, 'the test user at Clerk: ' + made.Status + ' ' + JSON.stringify( made.Body ).slice( 0, 200 ) );
 	// Public from the settings file, with the keys (plan Clerk, Step 5: Public is not saved from a bare request).
 	let folder = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-smoke-' ) );
-	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( { Port: 0, Scope: 'Public', Clerk: { PublishableKey: PUBLISHABLE, SecretKey: SECRET } } ) );
+	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( { Port: 0, Scope: 'Public', Clerk: { PublishableKey: PUBLISHABLE } } ) );
 	let running = await SERVER.Start( { Config: folder, Port: 0 } );
 	let browser = null;
 	try
@@ -172,7 +172,7 @@ TEST( 'the desktop signs in the same way (plan Clerk, Step 7): the Settings popu
 	let electron = require( 'electron' );
 	let config = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-desktop-config-' ) );
 	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-desktop-user-data-' ) );
-	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( { Port: 0, Scope: 'Local', Clerk: { PublishableKey: PUBLISHABLE, SecretKey: SECRET } } ) );
+	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( { Port: 0, Scope: 'Local', Clerk: { PublishableKey: PUBLISHABLE } } ) );
 	// A window is one project (plan Rearchitecturation, Step 2): the app opens on a folder, its .consensus made.
 	let project_folder = PATH.join( FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-desktop-project-' ) ), 'clerk-smoke' );
 	FS.mkdirSync( project_folder );
@@ -295,7 +295,7 @@ TEST( 'a Watcher and a Member (plan User Management, Step 5): as a Watcher the p
 	let folder = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-roles-' ) );
 	let stand_in = PATH.join( folder, 'never-run.js' );
 	FS.writeFileSync( stand_in, 'process.exit( 0 );\n' );
-	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( { Port: 0, Scope: 'Public', Clerk: { PublishableKey: PUBLISHABLE, SecretKey: SECRET }, Llms: [ { Id: SMOKE_LLM_ID, Name: 'planner', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Timeout: 60 } ] } ) );
+	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( { Port: 0, Scope: 'Public', Clerk: { PublishableKey: PUBLISHABLE }, Llms: [ { Id: SMOKE_LLM_ID, Name: 'planner', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Timeout: 60 } ] } ) );
 	let running = await SERVER.Start( { Config: folder, Port: 0 } );
 	let browser = null;
 	try

@@ -175,7 +175,7 @@ TEST( 'Perform runs an operation as a participant; a refusal is a Refusal with i
 	{
 		ASSERT.ok( OPERATIONS.IsRefusal( error ) );
 		ASSERT.equal( error.Status, 403 );
-		ASSERT.equal( error.Error, 'only the Administrator reads the settings' );
+		ASSERT.equal( error.Error, 'only the Administrator and the Managers read the settings' );
 		return true;
 	} );
 	await ASSERT.rejects( operations.Perform( 'empty_trash', watcher, {} ), function ( error )

@@ -2,7 +2,7 @@
 
 // Identity (plan User Management, Step 2): every request is the owner account, saying who it is with the service
 // header, or a run on its run token; the speakers the rules run over; the settings' checks (Name, Scope, Port,
-// States, Owner, the Clerk section), Clean, HasClerk and Trust.
+// States, Owner, the Clerk section), Clean and Trust.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -178,29 +178,28 @@ TEST( 'Clean keeps the known fields only, trims, and keeps the Owner to its Name
 } );
 
 
-TEST( 'the Clerk section (plan User Management, Step 1): checked, cleaned, dropped when empty; HasClerk and Trust', function ()
+TEST( 'the Clerk section (plan User Management, Step 1): checked, cleaned, dropped when empty; no SecretKey (plan The Server, Step 2); Trust', function ()
 {
 	let settings = PARTICIPANTS.DefaultSettings( 3500, 'Public' );
 	ASSERT.deepEqual( PARTICIPANTS.Validate( Object.assign( {}, settings, { Clerk: { PublishableKey: 'pk_test_1', SecretKey: 'sk_test_1', WebhookSecret: 'whsec_1', AdminEmail: 'andre@example.com' } } ) ), [] );
 	ASSERT.deepEqual( PARTICIPANTS.Validate( Object.assign( {}, settings, { Clerk: {} } ) ), [] );
 	ASSERT.deepEqual( PARTICIPANTS.Validate( Object.assign( {}, settings, { Clerk: null } ) ), [] );
-	ASSERT.deepEqual( PARTICIPANTS.Validate( Object.assign( {}, settings, { Clerk: 'keys' } ) ), [ 'Clerk must be an object with PublishableKey, SecretKey, WebhookSecret, AdminEmail as text' ] );
-	let problems = PARTICIPANTS.Validate( Object.assign( {}, settings, { Clerk: { PublishableKey: 'sk_x', SecretKey: 7, WebhookSecret: 'nope', AdminEmail: 'andre' } } ) );
-	ASSERT.deepEqual( problems, [ 'Clerk PublishableKey starts with pk_', 'Clerk SecretKey must be text', 'Clerk WebhookSecret starts with whsec_', 'Clerk AdminEmail must be an email address' ] );
-	// Clean: the four texts trimmed, the rest dropped; all empty or null, the section goes; a wrong shape is left for Validate
-	let clean = PARTICIPANTS.Clean( Object.assign( {}, settings, { Clerk: { PublishableKey: ' pk_a ', SecretKey: '', WebhookSecret: null, AdminEmail: 'a@b.co', Extra: 1 } } ) );
+	ASSERT.deepEqual( PARTICIPANTS.Validate( Object.assign( {}, settings, { Clerk: 'keys' } ) ), [ 'Clerk must be an object with PublishableKey, WebhookSecret, AdminEmail as text' ] );
+	let problems = PARTICIPANTS.Validate( Object.assign( {}, settings, { Clerk: { PublishableKey: 'sk_x', WebhookSecret: 'nope', AdminEmail: 'andre' } } ) );
+	ASSERT.deepEqual( problems, [ 'Clerk PublishableKey starts with pk_', 'Clerk WebhookSecret starts with whsec_', 'Clerk AdminEmail must be an email address' ] );
+	// Clean: the three texts trimmed, the rest dropped (an old file's SecretKey with them); all empty or null, the
+	// section goes; a wrong shape is left for Validate
+	let clean = PARTICIPANTS.Clean( Object.assign( {}, settings, { Clerk: { PublishableKey: ' pk_a ', SecretKey: 'sk_old', WebhookSecret: null, AdminEmail: 'a@b.co', Extra: 1 } } ) );
 	ASSERT.deepEqual( clean.Clerk, { PublishableKey: 'pk_a', AdminEmail: 'a@b.co' } );
+	ASSERT.equal( 'HasClerk' in PARTICIPANTS, false );
 	ASSERT.equal( 'Clerk' in PARTICIPANTS.Clean( Object.assign( {}, settings, { Clerk: { PublishableKey: ' ', SecretKey: '' } } ) ), false );
 	ASSERT.equal( 'Clerk' in PARTICIPANTS.Clean( Object.assign( {}, settings, { Clerk: null } ) ), false );
 	ASSERT.equal( 'Clerk' in PARTICIPANTS.Clean( settings ), false );
 	ASSERT.equal( PARTICIPANTS.Clean( Object.assign( {}, settings, { Clerk: 'keys' } ) ).Clerk, 'keys' );
-	// HasClerk and Trust
-	ASSERT.equal( PARTICIPANTS.HasClerk( settings ), false );
-	ASSERT.equal( PARTICIPANTS.HasClerk( { Clerk: { PublishableKey: 'pk_a' } } ), false );
-	ASSERT.equal( PARTICIPANTS.HasClerk( { Clerk: { PublishableKey: 'pk_a', SecretKey: 'sk_a' } } ), true );
+	// Trust
 	ASSERT.equal( PARTICIPANTS.Trust( settings ), 'clerk', 'Public is Clerk with or without a section (plan Clerk, Step 5)' );
-	ASSERT.equal( PARTICIPANTS.Trust( Object.assign( {}, settings, { Clerk: { PublishableKey: 'pk_a', SecretKey: 'sk_a' } } ) ), 'clerk' );
+	ASSERT.equal( PARTICIPANTS.Trust( Object.assign( {}, settings, { Clerk: { PublishableKey: 'pk_a' } } ) ), 'clerk' );
 	ASSERT.equal( PARTICIPANTS.Trust( PARTICIPANTS.DefaultSettings( 3500 ) ), 'local' );
 	ASSERT.equal( PARTICIPANTS.Trust( PARTICIPANTS.DefaultSettings( 3500, 'None' ) ), 'none' );
-	ASSERT.equal( PARTICIPANTS.Trust( { Scope: 'Local', Clerk: { PublishableKey: 'pk_a', SecretKey: 'sk_a' } } ), 'local' );
+	ASSERT.equal( PARTICIPANTS.Trust( { Scope: 'Local', Clerk: { PublishableKey: 'pk_a' } } ), 'local' );
 } );

@@ -113,8 +113,8 @@ function Attach( App, Context )
 
 	// A Clerk session token (Step 4): the registry record of its subject as the account, written from the token's claims
 	// when the registry lacks it (on a Local server the owner's record); null when the token is no live session of this
-	// instance. Plan Clerk, Step 5: the account carries the session's Plan; the first sign-in with a Professional license on a
-	// Public server with no Administrator becomes it; a plan below what the person's roles need is a refusal
+	// instance. Plan Clerk, Step 5: the account carries the session's Plan; the first sign-in with a Personal or
+	// Professional license (plan The Server, Step 2; Professional alone before) on a server with no Administrator becomes it; a plan below what the person's roles need is a refusal
 	// ({ Refused: the plan wanted, Has }) that identify answers with 401 "license".
 	async function clerk_participant( value, service, host )
 	{
@@ -134,13 +134,14 @@ function Attach( App, Context )
 		let account = ( found.Record.Type === 'owner' ) ? PARTICIPANTS.Identify( settings, { Service: service }, tokens, users ) : PARTICIPANTS.UserAccount( settings, users, found.Record, PARTICIPANTS.ServiceOf( service ), null );
 		account.Plan = found.License ? found.License.Plan : null;
 		account.Session = true;
-		if ( account.Type !== 'owner' && !admin_email() && found.Record.Email && ROLES.PlanRank( account.Plan ) >= ROLES.PlanRank( 'professional' ) )
+		if ( account.Type !== 'owner' && !admin_email() && found.Record.Email && ROLES.PlanRank( account.Plan ) >= ROLES.PlanRank( 'personal' ) )
 		{
 			settings.Clerk = Object.assign( {}, settings.Clerk || {}, { AdminEmail: found.Record.Email } );
 			await store.WriteSettings( settings );
-			console.log( 'the Administrator is ' + found.Record.Email + ': the first sign-in with a Professional license' );
+			console.log( 'the Administrator is ' + found.Record.Email + ': the first sign-in with a Personal or Professional license' );
 			events.Send( { Settings: true, Kind: 'settings' } );
 			account.Admin = true;
+			account.Manager = false;
 		}
 		let needed = await operations.Shared.NeededPlan( account );
 		if ( needed && ROLES.PlanRank( account.Plan ) < ROLES.PlanRank( needed ) )
@@ -210,7 +211,9 @@ function Attach( App, Context )
 	//-----------------------------------------------------------------
 	// Authorization (plan User Management, Step 3): the owner account passes; anyone else is checked against the
 	// route's action (Roles.js) and their role in the route's project, found before the route runs; the server's own
-	// routes are the Administrator's; the list routes narrow themselves; an account's own page checks itself.
+	// routes are the Administrator's and the Managers' (plan The Server, Step 2: a Manager manages as the Administrator
+	// does; assigning Managers is checked in the operation); the list routes narrow themselves; an account's own page
+	// checks itself.
 	// request.Role is the role found, and the account carries it as ProjectRole for the rules and the operations.
 	// check() is the rule itself, over a method, a path and the arguments, so that the MCP transport asks it for each
 	// tool call (authorize_operation) as the middleware asks it for each request.
@@ -252,26 +255,28 @@ function Attach( App, Context )
 		{
 			return { Role: null, ProjectId: null };
 		}
+		let manages = !!( account.Admin || account.Manager );
 		if ( rule.Action === 'admin' )
 		{
-			if ( account.Admin )
+			if ( manages )
 			{
 				return { Role: null, ProjectId: null };
 			}
-			throw new OPERATIONS.Refusal( 403, 'the Administrator\'s' );
+			throw new OPERATIONS.Refusal( 403, 'the Administrator\'s and the Managers\'' );
 		}
 		let project = await project_for( rule, body, query );
 		if ( !project )
 		{
 			throw new OPERATIONS.Refusal( 404, ( rule.Source === 'body' || rule.Source === 'query' ) ? 'a Project is needed' : 'no such project' );
 		}
-		// An unmounted project (plan Rearchitecturation, Step 5) is the Administrator's alone: to anyone else it is not there.
-		if ( project.Mounted !== true && !account.Admin )
+		// An unmounted project (plan Rearchitecturation, Step 5) is the Administrator's and the Managers' alone: to anyone
+		// else it is not there.
+		if ( project.Mounted !== true && !manages )
 		{
 			throw new OPERATIONS.Refusal( 404, 'no such project' );
 		}
 		let role = ROLES.RoleOf( project, account.Id );
-		if ( rule.Action === 'roles' && account.Admin )
+		if ( rule.Action === 'roles' && manages )
 		{
 			return { Role: role, ProjectId: null };
 		}

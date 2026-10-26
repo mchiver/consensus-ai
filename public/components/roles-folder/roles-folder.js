@@ -94,7 +94,7 @@ angular.module( 'Consensus' ).component( 'rolesFolder', {
 			{
 				return false;
 			}
-			if ( me.Role === 'owner' || me.Admin === true || root.Admin === true )
+			if ( me.Role === 'owner' || me.Admin === true || me.Manager === true || root.Manage === true )
 			{
 				return true;
 			}

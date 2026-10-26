@@ -47,11 +47,11 @@ angular.module( 'Consensus' ).component( 'usersFold', {
 		};
 
 
-		// The Administrator: the owner, or the account /api/me says is one.
+		// The fold's menu (new accounts) is the Administrator's and the Managers' (plan The Server, Step 2).
 		controller.IsAdmin = function ()
 		{
 			let me = controller.root ? controller.root.Me : null;
-			return !!me && ( me.Role === 'owner' || me.Admin === true );
+			return !!me && ( me.Role === 'owner' || me.Admin === true || me.Manager === true );
 		};
 
 

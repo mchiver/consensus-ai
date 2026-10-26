@@ -207,15 +207,30 @@ function Operations( Context )
 	}
 
 
-	function is_admin( account )
+	// Management (plan The Server, Step 2): the owner, the Administrator and the Managers.
+	function may_manage( account )
+	{
+		return !!account && ( account.Role === 'owner' || account.Admin === true || account.Manager === true );
+	}
+
+
+	// The Administrator alone (the owner of a Local server is it): assigning Managers, the Clerk section.
+	function is_administrator( account )
 	{
 		return !!account && ( account.Role === 'owner' || account.Admin === true );
 	}
 
 
+	// An account a Manager may not change or delete: the Administrator's and the Managers' (theirs to the Administrator).
+	function guarded( record )
+	{
+		return users.IsAdmin( settings, record ) || users.IsManager( settings, record );
+	}
+
+
 	function may_see( account, id )
 	{
-		return is_admin( account ) || ( !!account && account.Id === id );
+		return may_manage( account ) || ( !!account && account.Id === id );
 	}
 
 
@@ -226,7 +241,7 @@ function Operations( Context )
 	async function visible_projects( account )
 	{
 		let projects = await store.ListProjects();
-		if ( is_admin( account ) )
+		if ( may_manage( account ) )
 		{
 			return projects;
 		}
@@ -236,7 +251,7 @@ function Operations( Context )
 
 	async function visible_plan_ids( account )
 	{
-		if ( is_admin( account ) )
+		if ( may_manage( account ) )
 		{
 			return null;
 		}
@@ -276,7 +291,8 @@ function Operations( Context )
 	}
 
 
-	// The plan a person's roles need (plan Clerk, Step 5): Host for the Administrator, User for an Owner or a Member
+	// The plan a person's roles need (plan Clerk, Step 5): Personal for the Administrator (plan The Server, Step 2;
+	// Professional before), Personal for an Owner or a Member
 	// of any project, none for a Watcher or someone placed nowhere; the owner of a Local server needs none.
 	async function needed_plan( account )
 	{
@@ -286,7 +302,7 @@ function Operations( Context )
 		}
 		if ( account.Admin )
 		{
-			return 'professional';
+			return 'personal';
 		}
 		let roles = await roles_of( account );
 		for ( let project_id of Object.keys( roles ) )
@@ -484,7 +500,7 @@ function Operations( Context )
 			let account = ( users && participant.Id ) ? users.Public( users.Get( participant.Id ), false ) : null;
 			// ReadOnly and Host (plan Rearchitecturation, Step 4): the Desktop reads the Server Host's file, whose page is at Host.
 			let read_only = !!( store && store.ReadOnly );
-			return { Me: PARTICIPANTS.Public( participant ), Account: account, Admin: is_admin( participant ), Roles: await roles_of( participant ), Participants: await speakers( null, [], participant ), States: states(), Version: VERSION, Server: settings.Name || null, ReadOnly: read_only, Host: read_only ? 'http://127.0.0.1:' + ( settings.Port || 3500 ) : null };
+			return { Me: PARTICIPANTS.Public( participant ), Account: account, Admin: is_administrator( participant ), Manager: !is_administrator( participant ) && participant.Manager === true, Manage: may_manage( participant ), Roles: await roles_of( participant ), Participants: await speakers( null, [], participant ), States: states(), Version: VERSION, Server: settings.Name || null, ReadOnly: read_only, Host: read_only ? 'http://127.0.0.1:' + ( settings.Port || 3500 ) : null };
 		},
 	} );
 
@@ -519,13 +535,13 @@ function Operations( Context )
 		Name: 'read_settings',
 		Method: 'GET',
 		Path: '/settings',
-		Description: 'The server\'s settings file, whole, and its path; the Administrator\'s.',
+		Description: 'The server\'s settings file, whole, and its path; the Administrator\'s and the Managers\'.',
 		Parameters: {},
 		Perform: async function ( participant )
 		{
-			if ( !is_admin( participant ) )
+			if ( !may_manage( participant ) )
 			{
-				refuse( 403, 'only the Administrator reads the settings' );
+				refuse( 403, 'only the Administrator and the Managers read the settings' );
 			}
 			return { Settings: settings, Path: store.SettingsPath() };
 		},
@@ -536,23 +552,31 @@ function Operations( Context )
 		Name: 'write_settings',
 		Method: 'PUT',
 		Path: '/settings',
-		Description: 'Writes the server\'s settings (Name, Port, Scope, States, Owner, Tasks, Llms; the Administrator\'s): the fields given replace the file\'s, any other field stays. Answers whether a restart is needed (Scope and Port take effect at the next start).',
+		Description: 'Writes the server\'s settings (Name, Port, Scope, States, Owner, Tasks, Llms; the Administrator\'s and the Managers\', the Clerk section the Administrator\'s alone): the fields given replace the file\'s, any other field stays. Answers whether a restart is needed (Scope and Port take effect at the next start).',
 		Parameters: {
 			Settings: { Type: 'object', Description: 'the settings to write; the fields may also be given at the top level' },
 		},
 		Perform: async function ( participant, args )
 		{
-			if ( !is_admin( participant ) )
+			if ( !may_manage( participant ) )
 			{
-				refuse( 403, 'only the Administrator writes the settings' );
+				refuse( 403, 'only the Administrator and the Managers write the settings' );
 			}
 			host_only( SETTINGS_HOST_LINE );
 			let body = args || {};
 			let clean = PARTICIPANTS.Clean( body.Settings || body );
 			// The Clerk section is the file's since 2026-10-20 (it left the Settings popup): a body without one keeps it.
-			if ( ( body.Settings || body ).Clerk === undefined && settings.Clerk !== undefined )
+			// Plan The Server, Step 2: the Clerk section (its AdminEmail names the Administrator) is the Administrator's alone;
+			// the file's is kept cleaned, so an old SecretKey goes at this save.
+			let keep_clerk = ( ( body.Settings || body ).Clerk === undefined ) || !is_administrator( participant );
+			if ( keep_clerk )
 			{
-				clean.Clerk = settings.Clerk;
+				let kept = PARTICIPANTS.Clean( { Clerk: settings.Clerk } ).Clerk;
+				clean.Clerk = kept;
+				if ( kept === undefined )
+				{
+					delete clean.Clerk;
+				}
 			}
 			let problems = PARTICIPANTS.Validate( clean );
 			if ( problems.length )
@@ -1141,7 +1165,7 @@ function Operations( Context )
 		},
 		Perform: async function ( participant, args )
 		{
-			if ( !is_admin( participant ) )
+			if ( !may_manage( participant ) )
 			{
 				refuse( 403, 'the Administrator\'s' );
 			}
@@ -2931,7 +2955,7 @@ function Operations( Context )
 	// A run is stopped or deleted by the one who asked for it, or the Administrator (plan User Management, Step 3).
 	function own_run( participant, id )
 	{
-		if ( is_admin( participant ) )
+		if ( may_manage( participant ) )
 		{
 			return;
 		}
@@ -2973,12 +2997,12 @@ function Operations( Context )
 		Name: 'list_users',
 		Method: 'GET',
 		Path: '/users',
-		Description: 'The server\'s accounts (the owner, the users, the Service accounts), their public part; whether you are the Administrator.',
+		Description: 'The server\'s accounts (the owner, the users, the Service accounts), their public part; whether you are the Administrator, and whether you manage (the Administrator or a Manager).',
 		Parameters: {},
 		Perform: async function ( participant )
 		{
 			needs_users();
-			return { Users: users.List().map( function ( record ) { return users.Public( record, false ); } ), Admin: is_admin( participant ) };
+			return { Users: users.List().map( function ( record ) { return users.Public( record, false ); } ), Admin: is_administrator( participant ), Manage: may_manage( participant ) };
 		},
 	} );
 
@@ -3031,22 +3055,24 @@ function Operations( Context )
 			{
 				refuse( 403, 'another account\'s page' );
 			}
-			return { User: users.Public( record, true ), Admin: users.IsAdmin( settings, record ) };
+			return { User: users.Public( record, true ), Admin: users.IsAdmin( settings, record ), Manager: users.IsManager( settings, record ) };
 		},
 	} );
 
 
-	// The Administrator changes a login, a display and an email; an account its own display.
+	// The Administrator changes a login, a display and an email; an account its own display. Plan The Server, Step 2: a
+	// Manager changes them too, except the Administrator's and the Managers' accounts; Manager is the Administrator's alone.
 	define( {
 		Name: 'update_user',
 		Method: 'PUT',
 		Path: '/users/:id',
-		Description: 'Changes an account: the Administrator its Login, Display and Email, an account its own Display.',
+		Description: 'Changes an account: the Administrator and the Managers its Login, Display and Email (a Manager not the Administrator\'s or another Manager\'s), an account its own Display; Manager (a user made a Manager, or no longer one) the Administrator\'s alone.',
 		Parameters: {
 			Id: { Type: 'string', Required: true, Description: 'the account\'s id' },
 			Login: { Type: 'string' },
 			Display: { Type: 'string' },
 			Email: { Type: 'string' },
+			Manager: { Type: 'boolean', Description: 'whether the user is a Manager; the Administrator sets it' },
 		},
 		Perform: async function ( participant, args )
 		{
@@ -3057,7 +3083,17 @@ function Operations( Context )
 				refuse( 403, 'another account\'s page' );
 			}
 			let body = object_of( args );
-			let fields = is_admin( participant ) ? { Login: body.Login, Display: body.Display, Email: body.Email } : { Display: body.Display };
+			let administrator = is_administrator( participant );
+			let details = administrator || ( may_manage( participant ) && !guarded( record ) );
+			let fields = details ? { Login: body.Login, Display: body.Display, Email: body.Email } : { Display: body.Display };
+			if ( body.Manager !== undefined )
+			{
+				if ( !administrator )
+				{
+					refuse( 403, 'only the Administrator assigns Managers' );
+				}
+				fields.Manager = body.Manager;
+			}
 			let changed_record = null;
 			try
 			{
@@ -3078,7 +3114,7 @@ function Operations( Context )
 		Name: 'delete_user',
 		Method: 'DELETE',
 		Path: '/users/:id',
-		Description: 'Deletes an account, out of every project\'s role folders and its tokens with it; never the owner; the Administrator\'s.',
+		Description: 'Deletes an account, out of every project\'s role folders and its tokens with it; never the owner; the Administrator\'s and the Managers\' (a Manager not the Administrator\'s or a Manager\'s account).',
 		Parameters: {
 			Id: { Type: 'string', Required: true, Description: 'the account\'s id' },
 		},
@@ -3089,6 +3125,10 @@ function Operations( Context )
 			if ( record.Type === 'owner' )
 			{
 				refuse( 409, 'the owner is not deleted' );
+			}
+			if ( !is_administrator( participant ) && guarded( record ) )
+			{
+				refuse( 403, 'the Administrator\'s and the Managers\' accounts are the Administrator\'s to delete' );
 			}
 			await clear_roles( record.Id );
 			users.Delete( record.Id );
@@ -3113,7 +3153,7 @@ function Operations( Context )
 		{
 			needs_users();
 			let record = user_of( string_of( args.Id ) );
-			if ( !may_see( participant, record.Id ) || ( record.Type === 'service' && !is_admin( participant ) ) )
+			if ( !may_see( participant, record.Id ) || ( record.Type === 'service' && !may_manage( participant ) ) )
 			{
 				refuse( 403, 'another account\'s tokens' );
 			}

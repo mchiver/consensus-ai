@@ -202,17 +202,18 @@ TEST( 'settings: the Clerk section (plan User Management, Step 1) is kept, check
 	let written = await call( 'PUT', '/api/settings', { Settings: keyed } );
 	ASSERT.equal( written.Status, 200 );
 	ASSERT.equal( written.Body.Restart, false );
-	ASSERT.deepEqual( written.Body.Settings.Clerk, { PublishableKey: 'pk_test_1', SecretKey: 'sk_test_1', AdminEmail: 'andre@example.com' } );
-	ASSERT.deepEqual( JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).Clerk, { PublishableKey: 'pk_test_1', SecretKey: 'sk_test_1', AdminEmail: 'andre@example.com' } );
+	// the secret key is not kept (plan The Server, Step 2: the server never calls Clerk's Backend API)
+	ASSERT.deepEqual( written.Body.Settings.Clerk, { PublishableKey: 'pk_test_1', AdminEmail: 'andre@example.com' } );
+	ASSERT.deepEqual( JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).Clerk, { PublishableKey: 'pk_test_1', AdminEmail: 'andre@example.com' } );
 	// 2026-10-20, the section left the Settings popup: a body without Clerk keeps the file's section
 	let kept = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read ) } );
 	ASSERT.equal( kept.Status, 200 );
-	ASSERT.deepEqual( kept.Body.Settings.Clerk, { PublishableKey: 'pk_test_1', SecretKey: 'sk_test_1', AdminEmail: 'andre@example.com' } );
+	ASSERT.deepEqual( kept.Body.Settings.Clerk, { PublishableKey: 'pk_test_1', AdminEmail: 'andre@example.com' } );
 	// a problem: nothing written
 	let bad = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read, { Clerk: { PublishableKey: 'pk_x', AdminEmail: 'nobody' } } ) } );
 	ASSERT.equal( bad.Status, 400 );
 	ASSERT.deepEqual( bad.Body.Problems, [ 'Clerk AdminEmail must be an email address' ] );
-	ASSERT.deepEqual( ( await call( 'GET', '/api/settings' ) ).Body.Settings.Clerk, { PublishableKey: 'pk_test_1', SecretKey: 'sk_test_1', AdminEmail: 'andre@example.com' } );
+	ASSERT.deepEqual( ( await call( 'GET', '/api/settings' ) ).Body.Settings.Clerk, { PublishableKey: 'pk_test_1', AdminEmail: 'andre@example.com' } );
 	// emptied: the section leaves the file
 	let emptied = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, read, { Clerk: { PublishableKey: '', SecretKey: '', WebhookSecret: '', AdminEmail: '' } } ) } );
 	ASSERT.equal( emptied.Status, 200 );
@@ -1569,7 +1570,7 @@ TEST( 'users and roles (plan User Management, Step 3): accounts made by the Admi
 	ASSERT.equal( ( await call( 'GET', '/api/users/' + ann.Id, undefined, ann_token ) ).Status, 200 );
 	ASSERT.equal( ( await call( 'GET', '/api/users/' + bob.Id, undefined, ann_token ) ).Status, 403 );
 	ASSERT.equal( ( await call( 'GET', '/api/settings', undefined, ann_token ) ).Status, 403 );
-	ASSERT.equal( ( await call( 'POST', '/api/users', { Type: 'service', Login: 'x' }, ann_token ) ).Body.Error, 'the Administrator\'s' );
+	ASSERT.equal( ( await call( 'POST', '/api/users', { Type: 'service', Login: 'x' }, ann_token ) ).Body.Error, 'the Administrator\'s and the Managers\'' );
 	ASSERT.equal( ( await call( 'POST', '/api/projects', { Name: 'Mine' }, ann_token ) ).Status, 403 );
 	ASSERT.equal( ( await call( 'PUT', '/api/users/' + ann.Id, { Display: 'Ann A.', Login: 'other' }, ann_token ) ).Body.User.Display, 'Ann A.' );
 	ASSERT.equal( ( await call( 'GET', '/api/users/' + ann.Id ) ).Body.User.Login, 'ann' );
@@ -1653,7 +1654,7 @@ TEST( 'users and roles (plan User Management, Step 3): accounts made by the Admi
 	ASSERT.deepEqual( ( await call( 'DELETE', '/api/users/' + ann.Id ) ).Body, { Deleted: ann.Id } );
 	ASSERT.deepEqual( ( await project_named( project.Id ) ).Roles.Watchers, [] );
 	ASSERT.equal( ( await call( 'DELETE', '/api/users/' + owner.Id ) ).Status, 409 );
-	ASSERT.equal( ( await call( 'DELETE', '/api/users/' + bob.Id, undefined, bob_token ) ).Body.Error, 'the Administrator\'s' );
+	ASSERT.equal( ( await call( 'DELETE', '/api/users/' + bob.Id, undefined, bob_token ) ).Body.Error, 'the Administrator\'s and the Managers\'' );
 	ASSERT.equal( running.Tokens.Count(), 0 );
 	// the owner's bare requests are as they were
 	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Plan' } ) ).Status, 200 );
@@ -1668,12 +1669,8 @@ TEST( 'Clerk (plan User Management, Step 4; plan Clerk, Step 5): the built-in ke
 	const CRYPTO = require( 'crypto' );
 	let pair = CRYPTO.generateKeyPairSync( 'rsa', { modulusLength: 2048 } );
 	let jwk = Object.assign( pair.publicKey.export( { format: 'jwk' } ), { kid: 'k1', use: 'sig', alg: 'RS256' } );
-	let people = {
-		user_hal: { id: 'user_hal', first_name: 'Hal', last_name: 'H.', email_addresses: [ { id: 'e1', email_address: 'hal@example.com' } ], primary_email_address_id: 'e1' },
-	};
-	let fetched = [];
-	let clerk_options = { Jwks: function () { return [ jwk ]; }, FetchUser: function ( id ) { fetched.push( id ); return people[ id ] || null; } };
-	const SECTION = { PublishableKey: 'pk_test_' + Buffer.from( 'clerk.example.test$' ).toString( 'base64' ), SecretKey: 'sk_test_secret', WebhookSecret: 'whsec_' + Buffer.from( 'webhook-secret' ).toString( 'base64' ), AdminEmail: 'ann.a@example.com' };
+	let clerk_options = { Jwks: function () { return [ jwk ]; } };
+	const SECTION = { PublishableKey: 'pk_test_' + Buffer.from( 'clerk.example.test$' ).toString( 'base64' ), WebhookSecret: 'whsec_' + Buffer.from( 'webhook-secret' ).toString( 'base64' ), AdminEmail: 'ann.a@example.com' };
 	function base64url( value )
 	{
 		return Buffer.from( value ).toString( 'base64' ).replace( /=+$/, '' ).replace( /\+/g, '-' ).replace( /\//g, '_' );
@@ -1759,14 +1756,13 @@ TEST( 'Clerk (plan User Management, Step 4; plan Clerk, Step 5): the built-in ke
 		ASSERT.deepEqual( [ as_ann.Body.Me.Name, as_ann.Body.Me.Display, as_ann.Body.Me.Plan, as_ann.Body.Account.Email, as_ann.Body.Admin ], [ 'ann.a', 'Ann A.', 'professional', 'ann.a@example.com', true ] );
 		let as_bob = await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_bob', email: 'bob@example.com', first: 'Bob', license: { Plan: 'personal', Until: '2099-12-31' } } ) } );
 		ASSERT.deepEqual( [ as_bob.Status, as_bob.Body.Me.Name, as_bob.Body.Me.Type, as_bob.Body.Me.Plan, as_bob.Body.Account.Plan, as_bob.Body.Roles ], [ 200, 'bob', 'user', 'personal', 'personal', {} ] );
-		ASSERT.deepEqual( fetched, [], 'nothing fetched: the claims carry the person' );
 		// unplaced with no license: admitted, free
 		let as_carl = await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_carl', email: 'carl@example.com' } ) } );
 		ASSERT.deepEqual( [ as_carl.Status, as_carl.Body.Me.Name, as_carl.Body.Me.Plan ], [ 200, 'carl', undefined ] );
-		// the Administrator needs Host
-		let ann_low = await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_ann', license: 'personal' } ) } );
-		ASSERT.deepEqual( [ ann_low.Status, ann_low.Body ], [ 401, { Error: 'license', Plan: 'professional', Has: 'personal' } ] );
-		ASSERT.deepEqual( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_ann' } ) } ) ).Body, { Error: 'license', Plan: 'professional', Has: null } );
+		// the Administrator needs Personal (plan The Server, Step 2; Professional before)
+		let ann_personal = await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_ann', license: 'personal' } ) } );
+		ASSERT.deepEqual( [ ann_personal.Status, ann_personal.Body.Admin ], [ 200, true ] );
+		ASSERT.deepEqual( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_ann' } ) } ) ).Body, { Error: 'license', Plan: 'personal', Has: null } );
 		// the drag: a person seen without a User license stays out of Owners and Members; Watchers take anyone
 		let listed = ( await on( shared, 'GET', '/api/users', undefined, ann ) ).Body.Users;
 		let bob = listed.find( function ( one ) { return one.Login === 'bob'; } );
@@ -1789,10 +1785,9 @@ TEST( 'Clerk (plan User Management, Step 4; plan Clerk, Step 5): the built-in ke
 		ASSERT.deepEqual( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_dee', email: 'DEE@example.com' } ) } ) ).Body, { Error: 'license', Plan: 'personal', Has: null } );
 		let as_dee = await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_dee', email: 'DEE@example.com', license: 'personal' } ) } );
 		ASSERT.deepEqual( [ as_dee.Status, as_dee.Body.Me.Id, as_dee.Body.Account.Clerk, as_dee.Body.Roles[ project.Id ] ], [ 200, dee.Id, true, 'Members' ] );
-		// no email in the claims: fetched once from Clerk with the section's secret key
+		// no email in the claims for someone unknown: nobody (plan The Server, Step 2: no Backend API, no secret key)
 		let as_hal = await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_hal', license: 'personal' } ) } );
-		ASSERT.deepEqual( [ as_hal.Status, as_hal.Body.Me.Name, as_hal.Body.Account.Email, fetched ], [ 200, 'hal', 'hal@example.com', [ 'user_hal' ] ] );
-		ASSERT.equal( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_none' } ) } ) ).Body.Error, 'sign in', 'no such user at Clerk' );
+		ASSERT.deepEqual( [ as_hal.Status, as_hal.Body.Error ], [ 401, 'sign in' ] );
 		// the refusals: an expired session, another issuer, an azp that is not this server; the right azp passes
 		ASSERT.deepEqual( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_bob', org_license: 'personal', exp: Math.floor( Date.now() / 1000 ) - 600 } ) } ) ).Body, { Error: 'sign in' } );
 		ASSERT.equal( ( await on( shared, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_bob', org_license: 'personal', iss: 'https://other.example.test' } ) } ) ).Status, 401 );
@@ -1811,12 +1806,13 @@ TEST( 'Clerk (plan User Management, Step 4; plan Clerk, Step 5): the built-in ke
 		ASSERT.deepEqual( ( await on( shared, 'POST', '/api/clerk/webhook', gina, signed( gina, 'another-secret' ) ) ).Body, { Error: 'bad webhook signature' } );
 		ASSERT.equal( ( await on( shared, 'POST', '/api/clerk/webhook', 'not json', signed( 'not json' ) ) ).Status, 400 );
 
-		// a fresh Public server with no Administrator: the first sign-in with a Host license becomes it
+		// a fresh Public server with no Administrator: the first sign-in with a Personal or Professional license becomes it
+		// (plan The Server, Step 2); a sign-in with none (Registered) does not
 		let fresh = await public_server( { AdminEmail: '' } );
 		others.push( fresh );
-		let eve = { Authorization: session( { sub: 'user_eve', email: 'eve@example.com', license: 'personal' } ) };
+		let eve = { Authorization: session( { sub: 'user_eve', email: 'eve@example.com' } ) };
 		ASSERT.deepEqual( [ ( await on( fresh, 'GET', '/api/me', undefined, eve ) ).Body.Admin, !!( fresh.Settings.Clerk || {} ).AdminEmail ], [ false, false ] );
-		let frank = { Authorization: session( { sub: 'user_frank', email: 'frank@example.com', license: 'professional' } ) };
+		let frank = { Authorization: session( { sub: 'user_frank', email: 'frank@example.com', license: 'personal' } ) };
 		ASSERT.equal( ( await on( fresh, 'GET', '/api/me', undefined, frank ) ).Body.Admin, true );
 		ASSERT.equal( JSON.parse( FS.readFileSync( fresh.Store.SettingsPath(), 'utf8' ) ).Clerk.AdminEmail, 'frank@example.com' );
 		ASSERT.equal( ( await on( fresh, 'GET', '/api/me', undefined, eve ) ).Body.Admin, false );
@@ -1835,7 +1831,8 @@ TEST( 'Clerk (plan User Management, Step 4; plan Clerk, Step 5): the built-in ke
 		others.push( from_env );
 		ASSERT.equal( from_env.Settings.Clerk.AdminEmail, 'gina@example.com' );
 		ASSERT.equal( ( await on( from_env, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_gina', email: 'gina@example.com', license: 'professional' } ) } ) ).Body.Admin, true );
-		ASSERT.equal( ( await on( from_env, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_gina', email: 'gina@example.com', license: 'personal' } ) } ) ).Body.Error, 'license' );
+		ASSERT.equal( ( await on( from_env, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_gina', email: 'gina@example.com', license: 'personal' } ) } ) ).Body.Admin, true, 'Personal is enough (plan The Server, Step 2)' );
+		ASSERT.equal( ( await on( from_env, 'GET', '/api/me', undefined, { Authorization: session( { sub: 'user_gina', email: 'gina@example.com' } ) } ) ).Body.Error, 'license' );
 	}
 	finally
 	{
@@ -1907,6 +1904,78 @@ TEST( 'a project\'s server writes its address to the folder\'s .consensus/~sidec
 
 
 //---------------------------------------------------------------------
+// Managers (plan The Server, Step 2)
+
+TEST( 'Managers (plan The Server, Step 2): the Administrator makes a user a Manager; a Manager manages the server as the Administrator does, except assigning Managers, the Administrator\'s and the Managers\' accounts and the Clerk section; everyone else is a Member', async function ()
+{
+	let made = [];
+	async function person( login )
+	{
+		let user = ( await call( 'POST', '/api/users', { Type: 'user', Login: login, Email: login + '@example.com' } ) ).Body.User;
+		let token = 'Bearer ' + ( await call( 'POST', '/api/users/' + user.Id + '/tokens', { Name: 'laptop' } ) ).Body.Token;
+		made.push( user.Id );
+		return { User: user, Token: token };
+	}
+	let nina = await person( 'nina' );
+	let omar = await person( 'omar' );
+	let pia = await person( 'pia' );
+	let robot = ( await call( 'POST', '/api/users', { Type: 'service', Login: 'robot-s2' } ) ).Body.User;
+	made.push( robot.Id );
+	// a Member: nothing of the server's
+	ASSERT.equal( ( await call( 'GET', '/api/settings', undefined, nina.Token ) ).Status, 403 );
+	let as_member = ( await call( 'GET', '/api/me', undefined, nina.Token ) ).Body;
+	ASSERT.deepEqual( [ as_member.Admin, as_member.Manager, as_member.Manage ], [ false, false, false ] );
+	// the Administrator makes nina a Manager; a Service account cannot be one
+	let assigned = await call( 'PUT', '/api/users/' + nina.User.Id, { Manager: true } );
+	ASSERT.deepEqual( [ assigned.Status, assigned.Body.User.Manager ], [ 200, true ] );
+	ASSERT.match( ( await call( 'PUT', '/api/users/' + robot.Id, { Manager: true } ) ).Body.Error, /only a user can be a Manager/ );
+	ASSERT.match( ( await call( 'PUT', '/api/users/' + omar.User.Id, { Manager: 'yes' } ) ).Body.Error, /Manager must be true or false/ );
+	ASSERT.deepEqual( [ ( await call( 'GET', '/api/users/' + nina.User.Id ) ).Body.Manager, ( await call( 'GET', '/api/users/' + omar.User.Id ) ).Body.Manager ], [ true, false ] );
+	ASSERT.equal( JSON.parse( FS.readFileSync( running.Users.Path(), 'utf8' ) ).Users.find( function ( one ) { return one.Id === nina.User.Id; } ).Manager, true );
+	// as the Manager: who she is, the server's routes open
+	let as_manager = ( await call( 'GET', '/api/me', undefined, nina.Token ) ).Body;
+	ASSERT.deepEqual( [ as_manager.Admin, as_manager.Manager, as_manager.Manage, as_manager.Me.Manager ], [ false, true, true, true ] );
+	ASSERT.deepEqual( [ ( await call( 'GET', '/api/users', undefined, nina.Token ) ).Body.Admin, ( await call( 'GET', '/api/users', undefined, nina.Token ) ).Body.Manage ], [ false, true ] );
+	let settings = await call( 'GET', '/api/settings', undefined, nina.Token );
+	ASSERT.equal( settings.Status, 200 );
+	let project = ( await call( 'POST', '/api/projects', { Name: 'Managed' }, nina.Token ) ).Body.Project;
+	ASSERT.match( project.Id, /^prj-/ );
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: true }, nina.Token ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ omar.User.Id ] }, nina.Token ) ).Status, 200 );
+	// a Member's details are hers to change; a new account too
+	ASSERT.equal( ( await call( 'PUT', '/api/users/' + omar.User.Id, { Email: 'omar.n@example.com' }, nina.Token ) ).Body.User.Email, 'omar.n@example.com' );
+	// assigning Managers is the Administrator's alone
+	let refused = await call( 'PUT', '/api/users/' + omar.User.Id, { Manager: true }, nina.Token );
+	ASSERT.deepEqual( [ refused.Status, refused.Body.Error ], [ 403, 'only the Administrator assigns Managers' ] );
+	ASSERT.equal( ( await call( 'PUT', '/api/users/' + nina.User.Id, { Manager: false }, nina.Token ) ).Status, 403 );
+	// another Manager's account: its details and its deletion are the Administrator's
+	ASSERT.equal( ( await call( 'PUT', '/api/users/' + pia.User.Id, { Manager: true } ) ).Status, 200 );
+	let kept = await call( 'PUT', '/api/users/' + pia.User.Id, { Email: 'taken@example.com', Display: 'Pia P.' }, nina.Token );
+	ASSERT.deepEqual( [ kept.Status, kept.Body.User.Email, kept.Body.User.Display ], [ 200, 'pia@example.com', 'Pia P.' ] );
+	let undeleted = await call( 'DELETE', '/api/users/' + pia.User.Id, undefined, nina.Token );
+	ASSERT.deepEqual( [ undeleted.Status, undeleted.Body.Error ], [ 403, 'the Administrator\'s and the Managers\' accounts are the Administrator\'s to delete' ] );
+	ASSERT.equal( ( await call( 'DELETE', '/api/users/' + omar.User.Id, undefined, nina.Token ) ).Status, 200 );
+	made = made.filter( function ( id ) { return id !== omar.User.Id; } );
+	// the Clerk section stays as it is when a Manager writes the settings
+	let before = JSON.parse( JSON.stringify( settings.Body.Settings.Clerk || null ) );
+	let written = await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, settings.Body.Settings, { Clerk: { AdminEmail: 'nina@example.com' } } ) }, nina.Token );
+	ASSERT.equal( written.Status, 200 );
+	ASSERT.deepEqual( written.Body.Settings.Clerk === undefined ? null : written.Body.Settings.Clerk, before );
+	// no longer a Manager: a Member again
+	ASSERT.equal( ( await call( 'PUT', '/api/users/' + nina.User.Id, { Manager: false } ) ).Body.User.Manager, false );
+	ASSERT.equal( ( await call( 'GET', '/api/settings', undefined, nina.Token ) ).Status, 403 );
+	// the unmounted-again project is gone for her as for any Member
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: false } ) ).Status, 200 );
+	ASSERT.equal( ( await call( 'GET', '/api/projects', undefined, nina.Token ) ).Body.Projects.some( function ( one ) { return one.Id === project.Id; } ), false );
+	for ( let id of made )
+	{
+		await call( 'DELETE', '/api/users/' + id );
+	}
+	await call( 'DELETE', '/api/projects/' + project.Id );
+} );
+
+
+//---------------------------------------------------------------------
 // Mounting (plan Rearchitecturation, Step 5)
 
 TEST( 'mount and unmount (plan Rearchitecturation, Step 5): the Administrator\'s switch on the registry entry; a Member sees and reads a project once it is mounted and loses it when unmounted, the Administrator alone keeps it; a new project starts unmounted; the projects event', async function ()
@@ -1925,7 +1994,7 @@ TEST( 'mount and unmount (plan Rearchitecturation, Step 5): the Administrator\'s
 	ASSERT.equal( ( await call( 'GET', '/api/plans', undefined, mia_token ) ).Body.Plans.some( function ( one ) { return one.Id === plan.Id; } ), false );
 	// the switch is the Administrator's, true or false
 	let refused = await call( 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: true }, mia_token );
-	ASSERT.deepEqual( [ refused.Status, refused.Body.Error ], [ 403, 'the Administrator\'s' ] );
+	ASSERT.deepEqual( [ refused.Status, refused.Body.Error ], [ 403, 'the Administrator\'s and the Managers\'' ] );
 	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: 'yes' } ) ).Status, 400 );
 	ASSERT.equal( ( await call( 'PUT', '/api/projects/prj-none/mount', { Mounted: true } ) ).Status, 404 );
 	let events = listen_events();

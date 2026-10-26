@@ -330,7 +330,7 @@ function Runner( Options )
 		if ( llm && task && tokens )
 		{
 			let name = task.Name + ' run';
-			let account = by.Name ? { Id: by.Id || null, Name: by.Name, Display: by.Display || by.Name, Role: by.Role || 'owner', Type: by.Type || 'owner', Admin: ( by.Admin === undefined ) ? true : !!by.Admin } : null;
+			let account = by.Name ? { Id: by.Id || null, Name: by.Name, Display: by.Display || by.Name, Role: by.Role || 'owner', Type: by.Type || 'owner', Admin: ( by.Admin === undefined ) ? true : !!by.Admin, Manager: !!by.Manager } : null;
 			token = { Value: tokens.Mint( { Service: llm.Name, Name: name, Project: request.Project || null, Writes: task.Writes, Account: account, Role: by.ProjectRole || null } ), Name: name };
 		}
 		let made = await Package( request, token ? token.Value : null, by );

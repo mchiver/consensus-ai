@@ -1884,6 +1884,8 @@ TEST( 'UI Tweaks IX: the margins setting, Resolve with a draft, the thread tools
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "settings-popup" ) ).display === "none"' );
 	await menu_pick( '.root-head', 'Settings' );
 	await page.WaitFor( 'document.getElementById( "settings-port" ) !== null', 20000 );
+	// the popup settles first: a scrollbar may come in just after it opens and move the × by its width
+	await page.Evaluate( 'new Promise( function ( done ) { let last = null; let tick = function () { let r = document.querySelector( "#settings-popup .popup-close" ).getBoundingClientRect(); let now = r.x + "," + r.y; if ( now === last ) { done( true ); return; } last = now; setTimeout( tick, 100 ); }; tick(); } )' );
 	await page.Click( '#settings-popup .popup-close' );
 	await page.WaitFor( 'getComputedStyle( document.getElementById( "settings-popup" ) ).display === "none"' );
 
@@ -1941,6 +1943,21 @@ TEST( 'users and roles (plan User Management, Step 3): the Users fold holds the 
 	await page.Click( roles + ' .role-folder[data-role="Watchers"] .role-remove' );
 	await page.WaitFor( count_of( roles + ' .role-folder[data-role="Watchers"] .role-account' ) + ' === 0' );
 	ASSERT.deepEqual( ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === home; } ).Roles.Watchers, [] );
+	// plan The Server, Step 2: ann's page says Member; the Administrator's Manager switch makes her a Manager and back
+	await page.Evaluate( 'Array.from( document.querySelectorAll( "#users-list .user-row" ) ).find( function ( row ) { return row.querySelector( ".plan-title" ).textContent.trim() === "Ann"; } ).click(); true' );
+	await page.WaitFor( 'document.getElementById( "user-login" ) !== null && document.getElementById( "user-login" ).value === "ann"' );
+	await page.WaitFor( text_of( '#user-standing' ) + ' === "Member"' );
+	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "user-manager" ).closest( ".settings-row" ) ).display !== "none"' ), true );
+	await page.Click( '#user-manager' );
+	await page.WaitFor( text_of( '#user-standing' ) + ' === "Manager"' );
+	ASSERT.equal( ( await api( 'GET', '/api/users/' + ann.Id ) ).Manager, true );
+	await page.WaitFor( '!document.getElementById( "user-manager" ).disabled' );
+	await page.Click( '#user-manager' );
+	await page.WaitFor( text_of( '#user-standing' ) + ' === "Member"' );
+	ASSERT.equal( ( await api( 'GET', '/api/users/' + ann.Id ) ).Manager, false );
+	// back to the owner's page before ann goes, so her page does not ask for her again
+	await page.Evaluate( 'Array.from( document.querySelectorAll( "#users-list .user-row" ) ).find( function ( row ) { return row.querySelector( ".plan-title" ).textContent.trim() === "User"; } ).click(); true' );
+	await page.WaitFor( '!window.location.hash.includes( ' + JSON.stringify( ann.Id ) + ' )' );
 	await api( 'DELETE', '/api/users/' + ann.Id );
 	await page.WaitFor( count_of( '#users-list .user-row' ) + ' === 1' );
 	ASSERT.deepEqual( page.Errors, [] );

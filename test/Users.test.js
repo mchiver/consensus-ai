@@ -61,7 +61,7 @@ TEST( 'accounts: a user needs an email and a free login, a Service account a log
 	ASSERT.equal( users.Delete( bot.Id ), false );
 	ASSERT.deepEqual( users.List().map( function ( record ) { return record.Login; } ), [ 'user', 'ann' ] );
 	// the Administrator on a Public server with Clerk: the AdminEmail's account
-	let settings = { Clerk: { PublishableKey: 'pk_x', SecretKey: 'sk_x', AdminEmail: 'ANNB@example.com' } };
+	let settings = { Clerk: { PublishableKey: 'pk_x', AdminEmail: 'ANNB@example.com' } };
 	ASSERT.equal( users.IsAdmin( settings, users.Get( ann.Id ) ), true );
 	ASSERT.equal( users.IsAdmin( {}, users.Get( ann.Id ) ), false );
 	ASSERT.equal( users.IsAdmin( settings, null ), false );
@@ -94,10 +94,40 @@ TEST( 'tokens: minted with a name and shown once, kept as a hash, matched, touch
 	users.Touch( ann.Id, 'nope' );
 	let shown = users.Public( users.Get( ann.Id ), true );
 	ASSERT.deepEqual( shown.Tokens, [ { Name: 'laptop', Created: record.Tokens[ 0 ].Created, LastUsed: first } ] );
-	ASSERT.deepEqual( Object.keys( users.Public( ann, false ) ), [ 'Id', 'Type', 'Login', 'Display', 'Email', 'Clerk', 'Plan', 'Created' ] );
+	ASSERT.deepEqual( Object.keys( users.Public( ann, false ) ), [ 'Id', 'Type', 'Login', 'Display', 'Email', 'Clerk', 'Plan', 'Manager', 'Created' ] );
 	ASSERT.equal( users.Public( null ), null );
 	ASSERT.equal( users.RevokeToken( ann.Id, 'laptop' ), true );
 	ASSERT.equal( users.RevokeToken( ann.Id, 'laptop' ), false );
 	ASSERT.equal( users.ByToken( value ), null );
 	ASSERT.equal( users.RevokeToken( 'usr-none', 'x' ), false );
+} );
+
+
+TEST( 'Managers (plan The Server, Step 2): a user\'s flag, false by default, set true or false only; never the owner\'s or a Service account\'s; IsManager is a flagged user who is not the Administrator; the public shape shows it', function ()
+{
+	let users = fresh();
+	users.Prepare( { Owner: { Name: 'user', Display: 'User' } } );
+	let owner = users.List()[ 0 ];
+	let ann = users.Create( { Type: 'user', Login: 'ann', Email: 'ann@example.com' } );
+	let bot = users.Create( { Type: 'service', Login: 'bot' } );
+	ASSERT.deepEqual( [ owner.Manager, ann.Manager, bot.Manager ], [ false, false, false ] );
+	ASSERT.equal( users.Update( ann.Id, { Manager: true } ).Manager, true );
+	ASSERT.equal( USERS.Users( { Folder: PATH.dirname( users.Path() ) } ).Get( ann.Id ).Manager, true, 'kept in the file' );
+	ASSERT.throws( function () { users.Update( ann.Id, { Manager: 'yes' } ); }, /Manager must be true or false/ );
+	ASSERT.throws( function () { users.Update( bot.Id, { Manager: true } ); }, /only a user can be a Manager/ );
+	ASSERT.throws( function () { users.Update( owner.Id, { Manager: true } ); }, /only a user can be a Manager/ );
+	ASSERT.equal( users.Update( bot.Id, { Manager: false } ).Manager, false );
+	ASSERT.equal( users.IsManager( {}, users.Get( ann.Id ) ), true );
+	ASSERT.equal( users.IsManager( {}, owner ), false );
+	ASSERT.equal( users.IsManager( {}, bot ), false );
+	// the Administrator is not a Manager too
+	ASSERT.equal( users.IsManager( { Clerk: { AdminEmail: 'ANN@example.com' } }, users.Get( ann.Id ) ), false );
+	ASSERT.equal( users.Public( users.Get( ann.Id ), false ).Manager, true );
+	ASSERT.equal( users.Update( ann.Id, { Manager: false } ).Manager, false );
+	ASSERT.equal( users.Public( users.Get( ann.Id ), false ).Manager, false );
+	// a record written with the flag on a Service account reads it as false
+	let file = JSON.parse( FS.readFileSync( users.Path(), 'utf8' ) );
+	file.Users.find( function ( one ) { return one.Id === bot.Id; } ).Manager = true;
+	FS.writeFileSync( users.Path(), JSON.stringify( file ) );
+	ASSERT.equal( USERS.Users( { Folder: PATH.dirname( users.Path() ) } ).Get( bot.Id ).Manager, false );
 } );

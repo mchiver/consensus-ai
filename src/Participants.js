@@ -16,7 +16,8 @@
 // the server's owner and the project's Owners; a byline with a service in it is an llm speaker, a bare name a person's
 // or a Service account's own).
 // The settings (consensus.json) are checked here too: Name, Port, Scope, States, Owner ({ Name, Display }),
-// and the optional Clerk section (Step 1: PublishableKey, SecretKey, WebhookSecret, AdminEmail; read by nothing yet);
+// and the optional Clerk section (Step 1: PublishableKey, WebhookSecret, AdminEmail; SecretKey gone since plan The
+// Server, Step 2: an old file's is dropped by Clean);
 // the Tasks list (plan LLM Tasks, Step 1) is checked and cleaned by Tasks.js through the same calls, and a
 // run token carries its task's Writes, which Identify hands on as the account's Writes (null for any other request).
 // Scope (None, Local, Public) says whether the server listens and for whom; Trust says what a Scope comes to: local,
@@ -35,8 +36,8 @@ const SETTINGS_FIELDS = [ 'Name', 'Port', 'Scope', 'States', 'Owner', 'Clerk', '
 const DEFAULT_OWNER = { Name: 'user', Display: 'User' };
 const SERVICE_HEADER = 'X-Consensus-Service';
 const SERVICE_PATTERN = /^[A-Za-z0-9.:-]{1,40}$/;
-const CLERK_FIELDS = [ 'PublishableKey', 'SecretKey', 'WebhookSecret', 'AdminEmail' ];
-const CLERK_PREFIXES = { PublishableKey: 'pk_', SecretKey: 'sk_', WebhookSecret: 'whsec_' };
+const CLERK_FIELDS = [ 'PublishableKey', 'WebhookSecret', 'AdminEmail' ];
+const CLERK_PREFIXES = { PublishableKey: 'pk_', WebhookSecret: 'whsec_' };
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 
@@ -173,7 +174,7 @@ function account_of( owner, service, token, writes, users )
 // record, the API builds the account; token null).
 function user_account( settings, users, record, service, token )
 {
-	let account = { Id: record.Id, Name: record.Login, Display: record.Display, Role: record.Type, Type: record.Type, Admin: users.IsAdmin( settings, record ), Service: service || null, Token: token || null, Writes: null, Plan: record.Plan || null };
+	let account = { Id: record.Id, Name: record.Login, Display: record.Display, Role: record.Type, Type: record.Type, Admin: users.IsAdmin( settings, record ), Manager: users.IsManager( settings, record ), Service: service || null, Token: token || null, Writes: null, Plan: record.Plan || null };
 	account.Speaker = Speaker( account.Name, account.Service );
 	return account;
 }
@@ -199,6 +200,10 @@ function Public( Account )
 	if ( Account.Id )
 	{
 		shown.Id = Account.Id;
+	}
+	if ( Account.Manager === true )
+	{
+		shown.Manager = true;		// plan The Server, Step 2
 	}
 	if ( Account.Service )
 	{
@@ -331,8 +336,8 @@ function HostOf( Scope_ )
 
 
 //---------------------------------------------------------------------
-// The Clerk section (plan User Management, Step 1): four texts, each may be empty; a key given starts with Clerk's
-// prefix, the Admin's email is an email. HasClerk: both keys given. Trust: what a Scope and the section come to.
+// The Clerk section (plan User Management, Step 1): three texts, each may be empty; a key given starts with Clerk's
+// prefix, the Admin's email is an email. Trust: what a Scope and the section come to.
 
 function validate_clerk( Clerk )
 {
@@ -363,19 +368,6 @@ function validate_clerk( Clerk )
 		}
 	}
 	return problems;
-}
-
-
-function HasClerk( Settings )
-{
-	let clerk = ( Settings && Settings.Clerk && typeof Settings.Clerk === 'object' ) ? Settings.Clerk : null;
-	if ( !clerk )
-	{
-		return false;
-	}
-	let publishable = ( typeof clerk.PublishableKey === 'string' ) && clerk.PublishableKey.trim();
-	let secret = ( typeof clerk.SecretKey === 'string' ) && clerk.SecretKey.trim();
-	return !!( publishable && secret );
 }
 
 
@@ -476,7 +468,7 @@ function States( Settings )
 
 //---------------------------------------------------------------------
 // Clean: the settings as the modal sends them, kept to the known fields: the Owner to its Name and Display (trimmed,
-// the Display dropped when empty); the Clerk section to its four texts, trimmed, and dropped when all are empty
+// the Display dropped when empty); the Clerk section to its three texts, trimmed, and dropped when all are empty
 // (absent means our own instance, whose publishable key is built in; plan Clerk, Step 5). The result is what Validate
 // checks and what is written.
 
@@ -552,7 +544,6 @@ module.exports = {
 	SERVICE_HEADER: SERVICE_HEADER,
 	SERVICE_PATTERN: SERVICE_PATTERN,
 	CLERK_FIELDS: CLERK_FIELDS,
-	HasClerk: HasClerk,
 	Trust: Trust,
 	DefaultSettings: DefaultSettings,
 	Owner: Owner,

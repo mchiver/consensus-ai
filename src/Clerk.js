@@ -7,21 +7,22 @@
 // part reads "<host>$"); a webhook is signed the Svix way (HMAC-SHA256 over "<id>.<timestamp>.<body>" with the
 // secret decoded from its whsec_ form). There is one instance, ours (plan Clerk, Step 5): its publishable key is
 // PUBLISHABLE_KEY below, so a server needs no Clerk section; the section, read live, overrides the key with another
-// instance's and adds the secret key and the webhook secret on our own servers. On() is whether the server listens.
+// instance's and adds the webhook secret. On() is whether the server listens. No secret key (plan The Server, Step 2):
+// the server never calls Clerk's Backend API; a session whose claims carry no email for someone unknown is nobody.
 // The license (Step 5) is a claim of the session token, from the user's or the active organization's public metadata
 // through the instance's session token template ({ Plan: 'personal' | 'professional', Until? }, or the plan as a
 // string; plan Rearchitecturation, Step 6 renamed the plans outright, the old names are not read); the
-// template also carries the email and the names, so a person is written from the claims with no secret key.
+// template also carries the email and the names, so a person is written from the claims.
 //
-//   Clerk( { Settings, Users, Jwks?, FetchUser?, Now? } ) -> {
+//   Clerk( { Settings, Users, Jwks?, Now? } ) -> {
 //     On(), FrontendApi(), PublishableKey(),
 //     Config() -> { On, Required (a Public server: everyone signs in), PublishableKey, FrontendApi, Pricing } (never the secret),
 //     Verify( Token, Host? ) -> the claims | null  (async): the signature against the key the token names, exp and
 //       nbf with a minute's leeway, the issuer, and azp against Host (the request's Host header) when both are there,
 //     License( Claims ) -> { Plan, Until } | null: the higher of the user's and the organization's valid licenses,
 //     Session( Token, Host? ) -> { Record, Claims, License } | null  (async): the registry record of the token's
-//       subject with the Plan written on it; a subject the registry lacks is written from the claims (Adopt), or
-//       fetched once from Clerk's Backend API when the claims lack an email and a secret key is there; on a Local
+//       subject with the Plan written on it; a subject the registry lacks is written from the claims (Adopt), and
+//       is nobody (null) when the claims carry no email; on a Local
 //       server the session is the owner's, whose record takes the Clerk id, the Plan and the email the claims carry (Login and Display stay the settings' Owner),
 //     Identify( Token, Host? ) -> record | null  (async): Session's record,
 //     Adopt( { Clerk, Email, First?, Last?, Username? } ) -> { Record, Made } | null: the record by Clerk id brought
@@ -33,8 +34,7 @@
 //     Handle( Event ) -> { Type, Record?, Removed?, Line }: user.created and user.updated adopt; user.deleted and
 //       organizationMembership.deleted remove the record (Removed, the roles are the API's to clear);
 //       organizationMembership.created adopts the member; organization.created is logged; anything else ignored }
-//   Jwks (tests): a function answering the JWKS keys list instead of the fetch; FetchUser( id ): the Clerk user
-//   object instead of the Backend API; Now: the clock in milliseconds.
+//   Jwks (tests): a function answering the JWKS keys list instead of the fetch; Now: the clock in milliseconds.
 
 const CRYPTO = require( 'crypto' );
 const PARTICIPANTS = require( './Participants.js' );
@@ -43,7 +43,6 @@ const ROLES = require( './Roles.js' );
 const LEEWAY = 60;	// seconds either way on exp and nbf
 const WEBHOOK_WINDOW = 5 * 60;	// seconds a webhook's timestamp may be off
 const JWKS_INTERVAL = 60 * 1000;	// the keys are read again for an unknown key id, once a minute at most
-const BACKEND_API = 'https://api.clerk.com/v1';
 const FETCH_TIMEOUT = 10 * 1000;
 const LOGIN_LIMIT = 40;
 const HOST = /^[a-z0-9.-]+$/i;
@@ -58,7 +57,6 @@ function Clerk( Options )
 	let settings = options.Settings || {};
 	let users = options.Users || null;
 	let jwks = ( typeof options.Jwks === 'function' ) ? options.Jwks : null;
-	let fetch_user = ( typeof options.FetchUser === 'function' ) ? options.FetchUser : null;
 	let now = ( typeof options.Now === 'function' ) ? options.Now : Date.now;
 	let keys = {};			// key id -> KeyObject
 	let keys_read_at = 0;
@@ -82,13 +80,6 @@ function Clerk( Options )
 	{
 		let given = ( typeof section().PublishableKey === 'string' ) ? section().PublishableKey.trim() : '';
 		return given.startsWith( 'pk_' ) ? given : PUBLISHABLE_KEY;
-	}
-
-
-	function secret_key()
-	{
-		let given = ( typeof section().SecretKey === 'string' ) ? section().SecretKey.trim() : '';
-		return given.startsWith( 'sk_' ) ? given : '';
 	}
 
 
@@ -383,7 +374,7 @@ function Clerk( Options )
 	}
 
 
-	// A Clerk user object (the Backend API's and the user webhooks') as a profile.
+	// A Clerk user object (the user webhooks') as a profile.
 	function profile_of( user )
 	{
 		let given = ( user && typeof user === 'object' ) ? user : {};
@@ -393,30 +384,6 @@ function Clerk( Options )
 	}
 
 
-	async function read_user( id )
-	{
-		try
-		{
-			if ( fetch_user )
-			{
-				return await fetch_user( id );
-			}
-			if ( !secret_key() )
-			{
-				return null;
-			}
-			let response = await fetch( BACKEND_API + '/users/' + encodeURIComponent( id ), { headers: { Authorization: 'Bearer ' + secret_key() }, signal: AbortSignal.timeout( FETCH_TIMEOUT ) } );
-			if ( !response.ok )
-			{
-				return null;
-			}
-			return await response.json();
-		}
-		catch ( error )
-		{
-			return null;
-		}
-	}
 
 
 	//-----------------------------------------------------------------
@@ -520,12 +487,7 @@ function Clerk( Options )
 		let profile = profile_of_claims( claims );
 		if ( !profile.Email )
 		{
-			let user = await read_user( claims.sub );
-			if ( !user || user.id !== claims.sub )
-			{
-				return null;
-			}
-			profile = profile_of( user );
+			return null;
 		}
 		let adopted = Adopt( profile );
 		if ( !adopted )
@@ -667,5 +629,4 @@ module.exports = {
 	PRICING: PRICING,
 	LEEWAY: LEEWAY,
 	WEBHOOK_WINDOW: WEBHOOK_WINDOW,
-	BACKEND_API: BACKEND_API,
 };

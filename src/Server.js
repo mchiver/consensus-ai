@@ -11,7 +11,7 @@
 // <config>/runs/) and the Runner are attached to the API; a run's changes go out over the events. Step 4: Project
 // (a folder on the command line) loads that project alone, Scope None taken as Local for it; the configured port in
 // use (another instance) gives way to a free one, PortTaken saying which was taken. Plan User Management, Step 4: Clerk
-// (Clerk.js) over the settings' Clerk section and the registry; the option Clerk = { Jwks, FetchUser } is the tests'
+// (Clerk.js) over the settings' Clerk section and the registry; the option Clerk = { Jwks } is the tests'
 // way of standing in for the instance. Plan Rearchitecturation, Step 3: a project's server is the sidecar (Sidecar.js):
 // with no --port its port is hashed from the folder into 3600 to 3699, stepped up while taken; it listens on 127.0.0.1
 // whatever the Scope says (None keeps the window's server and turns the sidecar off: no address file); while it runs,
@@ -112,7 +112,7 @@ async function Start( Options )
 			console.log( 'CONSENSUS_ADMIN is not an email address: ignored' );
 		}
 	}
-	let clerk = CLERK.Clerk( { Settings: settings, Users: users, Jwks: options.Clerk ? options.Clerk.Jwks : null, FetchUser: options.Clerk ? options.Clerk.FetchUser : null } );
+	let clerk = CLERK.Clerk( { Settings: settings, Users: users, Jwks: options.Clerk ? options.Clerk.Jwks : null } );
 	if ( clerk.On() && PARTICIPANTS.Trust( settings ) === 'clerk' )
 	{
 		let admin_email = ( settings.Clerk && settings.Clerk.AdminEmail ) ? settings.Clerk.AdminEmail : null;
