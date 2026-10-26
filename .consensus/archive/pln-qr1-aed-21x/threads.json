@@ -3,10 +3,20 @@
 		"Id": "thr-ig8-ya1-95a",
 		"Anchor": null,
 		"Detached": false,
-		"Status": "contested",
+		"Status": "resolved",
 		"Reopened": false,
-		"Resolved": null,
-		"Applied": null,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T03:15:24.466Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T03:16:06.601Z",
+			"Revision": 1,
+			"RevisionId": "rev-un3-dxb-sx5",
+			"Outcome": "Closed: folded into Rearchitecturation's Licensing section (pln-gkn-zlj-42q) and archived on 2026-10-25."
+		},
 		"Created": "2026-10-25T20:39:42.840Z",
 		"Replies": [
 			{
