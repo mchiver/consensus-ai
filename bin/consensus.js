@@ -41,7 +41,7 @@ async function main()
 		console.log( 'nothing to run without a window: --scope local or public starts the server' );
 		process.exit( 1 );
 	}
-	console.log( 'no window: this is the headless form; open the address in a browser, or run the desktop (npm run desktop); Ctrl+C stops the server' );
+	console.log( 'no window: this is the headless form; open the address in a browser, or run the Server with its window (consensus-server, or npm run server); Ctrl+C stops the server' );
 	// Ctrl+C, and SIGTERM from `docker stop` (in a container the server is the first process, which a signal with no
 	// handler does not end): close the server, then exit.
 	function stop()

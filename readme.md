@@ -9,25 +9,56 @@ page, plain files in a config folder and a `.consensus` per project folder. The 
 takes part through the API, from wherever it runs: an agent session in the codebase works it through the API
 and the turn ("your turn in Consensus"), and the server runs LLM connections of its own for you (plan Run
 Shapes, Step 3), each a participant, in a project's folder on its machine; the server reads no code on its
-own and indexes nothing: a run does, as a tool of the model. The desktop application is the same page in a
-window, with a server of its own inside and every saved server beside it, each a root of the tree (plan Run
-Shapes, Step 5).
+own and indexes nothing: a run does, as a tool of the model. The Desktop and the Server are the same page in a
+window (plan The Server).
 
 ## Starting it
 
 	npm install
-	node bin/consensus.js [serve | <path> | --project <folder>] [--config <folder>] [--port 3500] [--scope none|local|public] [--headless]
+	node bin/consensus.js [serve | <path> | --project <folder>] [--config <folder>] [--port 3500] [--scope none|local|public]
+	node bin/consensus-server.js [--open <folder>] [--config <folder>] [--port 3500] [--scope local|public] [--headless]
 	node bin/consensus.js mcp <folder> [--service <name>]
+	npm run desktop -- [<folder> | --connect <server name>] [--config <folder>] [--port <port>]
+	npm run server
 
-Two modes (plan Rearchitecturation, 2026-10-25): the **Desktop**, one project per window with the **sidecar**, that
-project's server, inside, for a person and the agent beside them; and the **Server Host**, one server holding a registry
-of projects and serving the mounted ones to accounts, with the users, roles, LLM connections and tasks managed on its
-page. One program, two entry points over one start module (`src/Start.js`, plan Run Shapes, Step 1): this one, headless,
-for a plain node install and the Docker image, and the desktop (below), which opens a window as well. The word
-`serve` (plan Rearchitecturation, Step 1) names the **Server Host**, every registered project served; the bare form
-with no path means the same, so the Docker image and `npm start` are unchanged, and `serve` takes no folder. Both read
-the global config, `consensus.json` in the config folder: `.consensus` in the user's folder by default, or the
-`--config` folder (`--data` is its older name, kept for one release); the projects live there too until Step 2.
+Two applications (plan The Server, 2026-10-26, which reframed plan Rearchitecturation): **Consensus Desktop**, one
+project per window with the **sidecar**, that project's server, inside, for a person and the agent beside them, with
+no sign-in, no LLM connections, no tasks and no users (sidecar mode); signed in, the Desktop is also a thin client of
+Servers (Connect to Server). And **Consensus Server**, a superset of the Desktop: one server holding a registry of
+projects and serving the mounted ones to signed-in accounts, with the users, roles, LLM connections and tasks managed
+on its page by its **Administrator** and **Managers**; the LLM tasks always run on the Server. Two Electron
+applications (`desktop/`, `server/`) over one start module (`src/Start.js`, plan Run Shapes, Step 1) and one page,
+plus the headless form for a plain node install and the Docker image.
+
+**The tiers** (`src/License.js`): **Unlicensed** (no sign-in) is the Desktop in sidecar mode; **Registered** (a sign-in
+with no license, free) connects the Desktop to Servers; **Personal** runs the Server on localhost and makes its
+Administrator; **Professional** runs it on public addresses. One person is signed in per machine, the **current
+user**, `<config>/user.json` (`{ Email, Clerk, Display, Plan, Until, Checked }`), written by a sign-in in either
+application and replaced by the next, removed at Sign out and after 14 days with no check. No project role needs a
+license: a Server runs under its Administrator's.
+
+**The Server** (`server/main.js`, `bin/consensus-server.js`): the server in-process over every registered project,
+its window on the server's own page, one instance per machine (a second launch hands over its `--open <folder>` and
+quits), a tray icon (Open, the address, Quit) restoring the window, which closing only hides. `--headless` is
+`consensus serve` in the same process, which `npm start` and the Docker image run. The **gate** (`src/Gate.js`): a
+Server opens only under its Administrator's authority, the settings' `Clerk.AdminEmail`, set by the first sign-in with
+a Personal or Professional license (or `CONSENSUS_ADMIN`); until then every API route but Clerk's answers 401 "sign
+in" with `Closed: true` and the reason; Public needs Professional. In the window the authority is the current user;
+headless, the Administrator's account in `Users.json` and the plan its last sign-in showed. The Server tells people
+apart by their sign-in whatever its Scope (plan The Server, Step 5: `Participants.Trust( Settings, People )`): a
+bare request is refused, a Clerk session is its person by email, the Administrator's being the owner's record.
+**Managers** are a `Manager` flag on accounts in `Users.json`: the Administrator and the Managers manage the settings,
+the users, the LLM connections and tasks, the projects, mounting and the trash; only the Administrator assigns
+Managers. An LLM session's token is minted per person and project by the LLM Instructions popup (`POST
+/api/instructions/token`, named "LLM session: <project name>", replaced when asked again). The installers (`npm run
+dist`, `build/desktop.json`, `build/server.json`): Consensus Desktop (app id com.mchiver.consensus, adds **Open in
+Consensus Desktop** to a folder's menu) and Consensus Server (com.mchiver.consensus-server, **Open in Consensus
+Server**).
+
+The word `serve` (plan Rearchitecturation, Step 1) names the headless Server, every registered project served; the
+bare form with no path means the same, so the Docker image and `npm start` are unchanged, and `serve` takes no
+folder. Both forms read the global config, `consensus.json` in the config folder: `.consensus` in the user's folder
+by default, or the `--config` folder (`--data` is its older name, kept for one release).
 The server listens as the settings' `Scope` says: `Local` on 127.0.0.1, `Public` on 0.0.0.0, `None` not at all;
 `--scope` overrides it for one start, and `--port` the port (the configured port in use gives way to a free one,
 plan Run Shapes, Step 4; a port given on the command line does not). A path, or `--project <folder>`, serves
@@ -40,26 +71,28 @@ project is open, `<folder>/.consensus/~sidecar.json` holds `{ Url, Port, Pid, St
 removed at a clean exit, a stale file (its Pid gone) overwritten. A folder already open in a running sidecar is not
 opened again: `consensus <folder>` asks that sidecar to bring its window to the front (`POST /api/desktop/activate`,
 answered by a Desktop's sidecar alone), prints its address and exits. `consensus mcp <folder>` is the MCP shim over a
-folder's sidecar (below). The **Server Host** (plan Rearchitecturation, Step 5) serves accounts the **mounted** projects
-alone: the registry entry's `Mounted` switch, set with `PUT /api/projects/:pid/mount { Mounted }` (the Administrator's;
-Mount and Unmount in the project's menu on the Host's page, an unmounted project marked there), sends `{ Kind: "projects" }`;
-an unmounted project is read and written by the Administrator alone, and to anyone else it is not there, in the lists,
-the tree and every route (404). A project registered on the Host starts unmounted, as do the entries of a server
-upgraded to this version, so a Host serves nothing to accounts until the Administrator mounts; the start log marks each
-unmounted project and counts them. While it runs the Host writes `<config>/~host.json` (`{ Url, Port, Pid, Started }`,
-`src/Host.js`), removed at a clean exit, so the Desktop finds it and can stop the one it started.
-It prints its address and scope, the config folder, the settings file and the projects loaded, and says that it
-opens no window: this form never does. Open `http://127.0.0.1:3500/` in a browser, or run the desktop (below).
+folder's sidecar (below). The Server (plan Rearchitecturation, Step 5) serves accounts the **mounted** projects
+alone: the registry entry's `Mounted` switch, set with `PUT /api/projects/:pid/mount { Mounted }` (the Administrator's
+and the Managers'; Mount and Unmount in the project's menu, an unmounted project marked there), sends `{ Kind:
+"projects" }`; an unmounted project is read and written by the Administrator and the Managers alone, and to anyone
+else it is not there, in the lists, the tree and every route (404). A project registered on the Server starts
+unmounted, as do the entries of a server upgraded to this version; the start log marks each unmounted project and
+counts them. While it runs the Server writes `<config>/~host.json` (`{ Url, Port, Pid, Started }`, `src/Host.js`),
+removed at a clean exit, so the Desktop finds it and routes a mounted folder through it.
+It prints its address and scope, whether its gate is open, the config folder, the settings file and the projects
+loaded, and that it opens no window: this form never does.
 
-Security is relaxed for now: a request without a token is the owner, so anyone who can reach a server
-listening beyond this machine acts as the owner, and reads the llm token at `/instructions`.
+A project's own server, the sidecar, takes every request as the owner, on this machine alone. A Server takes none
+without a sign-in or a token.
 
 An agent session in any repo is started with one line: "read the instructions at
 `http://<server>:<port>/instructions`" (with `curl`). That page is `.guides/build-with-consensus.md` with a
-**This server** section first: the API's address, as the request reached it, and the llm participant's token.
+**This server** section first: the API's address, as the request reached it, and how to say who you are; on a
+Server the LLM Instructions popup puts a token minted for the person at the top of the copied text.
 An MCP client (plan MCP Server, 2026-10-23) gets the same operations as tools: `POST /api/mcp` in the server, or the
-stdio relay `node bin/mcp.js --server <url or saved Host> [--service <name> | --token <token>] [--project <id or name>]` on its own
-machine (a saved Host is a Name from `desktop.json`'s Hosts, its Url taken), or the **shim** over a project's sidecar,
+stdio relay `node bin/mcp.js --server <url or saved Server> [--service <name>] [--token <token>] [--project <id or name>]` on its own
+machine (a saved Server is a Name from `desktop.json`'s Hosts, its Url taken; with no `--token` the environment's
+`CONSENSUS_TOKEN` is sent), or the **shim** over a project's sidecar,
 `consensus mcp <folder>` (`node bin/mcp.js <folder>`; plan Rearchitecturation, Step 3): the sidecar's address is read
 from `<folder>/.consensus/~sidecar.json` at every message, so one MCP entry per project is fixed,
 `{ "command": "consensus", "args": [ "mcp", "<folder>" ] }`, and a folder not open in Consensus answers each request
@@ -206,18 +239,13 @@ one per line, and the participants with their display names, roles and tokens (N
 it). Saving writes these fields, the desktop's untouched, and applies them at once, Scope and Port excepted,
 which take effect at the next start (the popup says so). The server's own checks apply: no owner, a name used twice, a state still
 used by a plan, and the rest are shown, and nothing is saved while there are problems. The settings are read
-once at start, so an edit of the file by hand needs a restart. **In the Desktop** (plan Rearchitecturation, Step 4)
-the file is the Server Host's: the window's server opens it read-only (`Server.Start( { ReadOnly: true } )`,
-`Store.Open( …, { ReadOnly: true } )`), reads its `Llms` and `Tasks`, re-reads them when the file changes (a watcher
-with a short debounce; the pages hear `llms` and `settings` events) and never writes it, nor `users.json`, nor the
-registry; a missing file is the defaults in memory. The LLM connections are edited on the Host: in the Desktop the
-LLM page's Details and Packaging popups show a connection, hide Save and say "Connections are managed by the Server
-Host" with a button to the Host's page (`/api/me` answers `ReadOnly` and `Host`); New LLM, Rename and Delete leave
-the LLMs menu; a connection or settings write answers 403 with that line. Runs stay the window's: its server starts
-them in the project's folder with the connection as the file has it and writes the record under `<config>/runs/`,
-the ids being global. With no Personal license the Desktop's task buttons on this machine's project are disabled
-with the reason "a Personal license" (`Llms.Reason`): the sidecar is the free LLM path; a Host's project is the
-Host's affair.
+once at start, so an edit of the file by hand needs a restart. **In the Desktop** (plan Rearchitecturation, Step 4;
+plan The Server, Step 4) the file is the Server's: the window's server opens it read-only (`Server.Start( { ReadOnly: true } )`,
+`Store.Open( …, { ReadOnly: true } )`) and never writes it, nor `users.json`, nor the registry; a missing file is
+the defaults in memory. That is **sidecar mode**: the window's server takes none of the file's connections or tasks
+(none in memory, so nothing runs), `/api/me` answers `Sidecar: true`, and the page shows no LLMs fold, no Users fold and
+no role folders; a connection or settings write answers 403 "managed by the Server". The connections and the tasks
+are the Server's, made by its Administrator and Managers, and the runs always run on the Server.
 
 Theme and size are not settings: the page keeps them in the browser's storage, per user and per server.
 The first state was called Proposal before plan UI Tweaks V: a settings list that still names Proposal and
@@ -287,7 +315,16 @@ is removed). An export of another `Version` is refused.
 Consensus Desktop (plan Consensus Desktop, Step 2; the Desktop mode of plan Rearchitecturation) is an Electron client,
 run from the checkout:
 
-	npm run desktop -- [<folder> | --connect <host name>] [--config <folder>] [--port <port>] [--scope ...] [--headless]
+	npm run desktop -- [<folder> | --connect <server name>] [--config <folder>] [--port <port>]
+
+Plan The Server, Step 4 split the Desktop from the Server: the Desktop starts, opens and stops no Server (the Server
+Host items and `desktop/Host.js`'s Start and Stop are gone, `Host.js` keeping Status and Routed) and has no
+`--headless`; the chooser's Hosts are the **Servers**, **Connect to Server** open to Registered and above; a window
+connected to a Server signs in to it (Step 5: `session.js` takes the window's one Server root as its own, and Clerk
+accepts a session made on a loopback page, so the Desktop's window on 127.0.0.1 signs in to a Server elsewhere); a
+Server that asks for a sign-in answers Try with `SignIn`, and Connect opens the whole Server in the window, whose
+page signs in and lists the projects. What follows describes the Desktop as plan Rearchitecturation built it; the
+Server Host parts of it are superseded by the above.
 
 Since plan Run Shapes (Step 1) the app is the second entry point over `src/Start.js`, taking the same arguments
 (from the checkout, `npm run desktop -- --config …`). **A window is one project** (plan Rearchitecturation, Step 2):
@@ -461,6 +498,15 @@ writes the member with no role, organizationMembership.deleted removes it, organ
 write sends { Kind: 'users' }. The production instance, our own OAuth applications and waitlist mode are dashboard
 work (Clerk Step 6); the guide pages are Step 5 of User Management.
 
+**The license as it stands** (plan The Server, Steps 1 to 5, 2026-10-26; it supersedes the paragraph after this one
+where they differ): four tiers, Unlicensed, Registered, Personal and Professional (`src/License.js`: Tier, Rank,
+AtLeast, Authority), read from the machine's current user, `<config>/user.json` (desktop.json has no License
+any more). No project role needs a license (`Roles.PlanFor` and `NEEDS_PLAN` are gone): at sign-in only the
+Administrator needs personal, and the role folders take any account. The Administrator is the first Personal or
+Professional sign-in to a Server; a Server opens under its Administrator's license alone (the gate), Public needing
+professional. The Desktop needs no license for sidecar mode and a sign-in (Registered) for Connect to Server; it
+starts no Server. The LLM connections and settings are the Administrator's and the Managers'.
+
 **The license** (the subplan Clerk, Step 5, 2026-10-20; the tiers of plan Rearchitecturation, Step 6, 2026-10-25)
 belongs to a person, not to a server. **Free** is no license: the Desktop on local folders and the sidecar, no
 sign-in, the owner's typed name, the owner's and the Service accounts' tokens, unlimited installations; the LLM task
@@ -501,7 +547,7 @@ Checked is within 14 days and Until has not passed (`License.Tier`, read by the 
 `Licensed()`, so it holds offline), asks again whenever the page loads signed in, falls back to Free with a line in
 About when the cache lapses (`License.Line`), and Sign out clears it. Free needs no account; Personal unlocks the
 task buttons, the chooser's Hosts and Start the Server Host (Scope Local); Professional lets the Host keep its
-file's Scope Public. The pricing page, `docs/pricing.html`, names the three tiers. The production instance and the
+file's Scope Public. The pricing page, `docs/pricing.html`, names the four tiers (plan The Server, Step 6). The production instance and the
 token template are Clerk Step 6.
 
 An `ollama` one-shot (plan Consensus Desktop, Step 4: Local Models) runs in the server: a local model has no
@@ -563,7 +609,7 @@ folder, which create in it.
 
 Layout: `desktop/main.js` the main process, `desktop/preload.js` its bridge, `desktop/Settings.js` the desktop's
 own file, desktop.json, `desktop/Page.js` the server for the page and the
-chooser (`desktop/page/connect.html`, `connect.js`, `connect.css`), `desktop/Host.js` the Server Host from the Desktop
+chooser (`desktop/page/connect.html`, `connect.js`, `connect.css`), `desktop/Host.js` the Server found from the Desktop and a mounted folder routed to it (plan The Server, Step 4)
 (Start detached, Status, Stop, Routed: plan Rearchitecturation, Step 5), `desktop/Projects.js` the chooser's work without
 Electron; the runs are the server's:
 `src/Llms.js` the connections, `src/Runner.js` the package and the start of a run over the store,
@@ -655,19 +701,23 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 ## Layout of the code
 
 	bin/consensus.js      the headless entry point
+	bin/consensus-server.js  the Server application's command (plan The Server, Step 3): Electron with server/, or --headless as consensus serve
+	server/main.js        the Server application's main process: the server in-process, its window, the tray, one instance, --open
+	src/Gate.js           the Server's gate: open under its Administrator's authority alone (plan The Server, Step 3)
+	src/License.js        the machine's current user (<config>/user.json) and the four tiers (plan The Server, Step 1)
 	src/Start.js          the start module both entry points share: the arguments, Run, the lines
 	src/Server.js         Start( { Config, Port, Scope, Project, Activate } ); a project's server is the sidecar
 	src/Sidecar.js        the sidecar's port (hashed from the folder into 3600 to 3699), its address file and Activate
-	src/Host.js           the Server Host's address file (<config>/~host.json), Probe and Status (plan Rearchitecturation, Step 5)
+	src/Host.js           the Server's address file (<config>/~host.json), Probe and Status (plan Rearchitecturation, Step 5)
 	src/Api.js            the routes
 	src/Instructions.js   GET /instructions: the agent guide with This server first
 	src/Operations.js     every operation defined once (plan MCP Server): name, description, parameters, action, the function; Route and Definition for a client
 	src/Mcp.js            the Model Context Protocol over the operations: initialize, ping, tools/list, tools/call; no transport in it
-	bin/mcp.js            the MCP stdio relay to a running server (consensus-mcp); a folder is the shim over its sidecar, --server a Url or a saved Host from desktop.json
+	bin/mcp.js            the MCP stdio relay to a running server (consensus-mcp); a folder is the shim over its sidecar, --server a Url or a saved Server from desktop.json, CONSENSUS_TOKEN its token by default
 	src/Rules.js          the consensus rules, pure functions
 	src/Tree.js           a project's tree, pure functions; the Context folder's rules
 	src/Anchors.js        visible-text anchors
-	src/Store.js          the config folder and the project folders, the archive; Open( Folder, { ReadOnly } ) for the desktop's reading of the Host's config
+	src/Store.js          the config folder and the project folders, the archive; Open( Folder, { ReadOnly } ) for the desktop's reading of the Server's config (sidecar mode)
 	src/ProjectPort.js    export and import
 	src/Report.js         the report of a plan: Compose, Markdown, Html (plan Printing and Reporting)
 	src/Participants.js   who is calling, the States, and the settings' checks

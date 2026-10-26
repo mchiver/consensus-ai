@@ -131,12 +131,12 @@
 			<div class="runs">
 				<div class="cards">
 					<div class="card-plain">
-						<h3>The browser</h3>
-						<p>A small Node server and a page. Start it, open it, and you are the owner.</p>
+						<h3>The desktop</h3>
+						<p>One project folder in one window, with its own server inside for you and your agent. No account needed; signed in, it connects to Servers.</p>
 					</div>
 					<div class="card-plain">
-						<h3>The desktop</h3>
-						<p>The same page in its own window, connected to any server or running one locally, with LLM connections and workspaces of its own.</p>
+						<h3>The Server</h3>
+						<p>One server for several people, in a window of its own or headless: the projects, the users and their roles, the LLM connections and tasks.</p>
 					</div>
 					<div class="card-plain">
 						<h3>Docker</h3>
@@ -144,8 +144,8 @@
 					</div>
 				</div>
 				<figure class="shot">
-					<img class="light-only" src="images/desktop-connect.png" alt="The desktop's connect screen.">
-					<img class="dark-only" src="images/desktop-connect-dark.png" alt="The desktop's connect screen.">
+					<img class="light-only" src="images/desktop-connect.png" alt="The desktop's chooser.">
+					<img class="dark-only" src="images/desktop-connect-dark.png" alt="The desktop's chooser.">
 				</figure>
 			</div>
 		</div>
@@ -160,12 +160,12 @@
 				<div class="card-plain">
 					<span class="tag">From the checkout</span>
 					<h3>Node 22 and git</h3>
-					<p>Clone, install, start, and open the page.</p>
+					<p>Clone, install, and start the Server.</p>
 					<pre><code>git clone https://github.com/mchiver/consensus-ai.git
 cd consensus-ai
 npm install
-node bin/consensus.js</code></pre>
-					<p style="margin-top: 0.75rem;">Then open <code>http://127.0.0.1:3500/</code>. <a href="guide/getting-started.html#from-the-checkout">More in the guide.</a></p>
+npm run server</code></pre>
+					<p style="margin-top: 0.75rem;">Sign in on its page with a Personal license to become its Administrator. <a href="guide/getting-started.html#the-server">More in the guide.</a></p>
 				</div>
 				<div class="card-plain">
 					<span class="tag">In Docker</span>
@@ -178,16 +178,16 @@ docker compose up -d</code></pre>
 				<div class="card-plain">
 					<span class="tag">The desktop</span>
 					<h3>A window of its own</h3>
-					<p>Run the desktop from the checkout and connect, or start a local server from its connect screen.</p>
+					<p>Run the desktop from the checkout and open a folder, or connect to a Server.</p>
 					<pre><code>npm run desktop</code></pre>
 					<p style="margin-top: 0.75rem;"><a href="guide/getting-started.html#the-desktop">More in the guide.</a></p>
 				</div>
 				<div class="card-plain">
 					<span class="tag">The installer</span>
 					<h3>Windows, no checkout</h3>
-					<p>The desktop packaged with its server: download, install, open. The installer is not signed yet, so Windows asks once before it runs.</p>
+					<p>Consensus Desktop and Consensus Server, each packaged with its server: download, install, open. The installers are not signed yet, so Windows asks once before each runs.</p>
 					<p style="margin-top: 0.75rem;"><a class="btn btn-primary" href="https://github.com/mchiver/consensus-ai/releases/latest">Download the latest release</a></p>
-					<p style="margin-top: 0.75rem;"><a href="guide/getting-started.html#the-installer">More in the guide.</a></p>
+					<p style="margin-top: 0.75rem;"><a href="guide/getting-started.html#the-installers">More in the guide.</a></p>
 				</div>
 			</div>
 			<p class="disambiguation">Consensus-AI is not <a href="https://consensus.app">Consensus</a>, the research search engine at consensus.app, and has no connection to it. Consensus-AI is a tool for settling a plan with your LLM, thread by thread.</p>

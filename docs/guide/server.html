@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>The Server - Consensus-AI guide</title>
+	<meta name="description" content="The Consensus-AI user guide: The Server.">
+	<link rel="icon" href="../images/mark.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="../css/bootstrap.min.css">
+	<link rel="stylesheet" href="../css/site.css">
+	<script src="../js/site.js"></script>
+</head>
+<body class="guide-page">
+
+	<header class="site-header">
+		<div class="container site-header-row">
+			<a class="brand" href="../index.html"><img class="brand-mark" src="../images/mark.svg" alt="">Consensus-AI</a>
+			<nav class="site-nav">
+				<a href="getting-started.html" class="active">Guide</a>
+				<a href="features.html">Features</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">GitHub</a>
+				<button class="theme-toggle" type="button" data-theme-toggle title="light or dark"><span class="theme-sun" aria-hidden="true">&#9728;</span><span class="theme-moon" aria-hidden="true">&#9790;</span><span class="visually-hidden">Toggle the theme</span></button>
+			</nav>
+		</div>
+	</header>
+
+	<div class="container guide-layout">
+		<aside class="guide-side">
+			<div class="guide-side-title">The guide</div>
+			<nav class="guide-nav">
+				<a class="guide-link" href="getting-started.html">Getting started</a>
+				<a class="guide-link" href="features.html">Features</a>
+				<a class="guide-link" href="projects.html">Projects, plans and documents</a>
+				<a class="guide-link" href="threads.html">Threads</a>
+				<a class="guide-link" href="editing.html">Editing and revisions</a>
+				<a class="guide-link" href="llm.html">Working with an LLM</a>
+				<a class="guide-link" href="ways-of-working.html">Ways of working</a>
+				<a class="guide-link" href="settings.html">Settings and themes</a>
+				<a class="guide-link active" href="server.html">The Server</a>
+				<a class="guide-link" href="sharing.html">Sharing a server</a>
+				<a class="guide-link" href="export-import.html">Export and import</a>
+				<a class="guide-link" href="api.html">The API</a>
+			</nav>
+		</aside>
+		<main class="guide-main">
+			<article class="guide-article">
+<h1 id="the-server">The Server</h1>
+<p>Consensus-AI comes as two applications. <strong>Consensus Desktop</strong> opens one project folder in one window, with the project&#39;s own server inside, the sidecar, for you and your agent on this machine; <a href="getting-started.html">Getting started</a> is about it. <strong>Consensus Server</strong> is the other: one server that holds a registry of projects and serves them to people, each signed in and each with a role, on this machine or on the network. It is everything the desktop is, plus the management of the machine&#39;s resources: the users, the LLM connections and tasks, the projects and their permissions. This page is the Server: how it starts, what it serves, who manages what on it, and how the desktop works with it. <a href="sharing.html">Sharing a server</a> follows with the sign-in, the roles and the tokens.</p>
+<h2 id="starting-it">Starting it</h2>
+<p>On Windows, run <code>Consensus-Server-Setup-&lt;version&gt;.exe</code> from the <a href="https://github.com/mchiver/consensus-ai/releases/latest">latest release</a>; it puts <strong>Consensus Server</strong> in the Start menu. From the checkout:</p>
+<pre><code>npm run server
+node bin/consensus-server.js [--open &lt;folder&gt;] [--config &lt;folder&gt;] [--port 3500] [--scope local|public] [--headless]
+</code></pre>
+<p>The Server reads the config folder (<code>.consensus</code> in your user folder, or the one <code>--config</code> names), listens as its Scope says, and serves every project its registry lists. Its window shows the Server&#39;s own page: every registered project as a tree of its own in the one sidebar, with the LLM connections, the Users fold and the Trash beneath them. One Server runs per machine: a second launch hands its arguments to the first and ends. Closing the window does not stop the Server: its icon in the tray brings the window back, shows the address, and its <strong>Quit</strong> ends the Server. While it runs it writes its address to <code>&lt;config&gt;/~host.json</code>, so the desktop on the same machine finds it.</p>
+<p><code>--headless</code> runs the Server with no window, which is what the Docker image and <code>npm start</code> do; <code>consensus serve</code> is the same for a plain node install. It prints where it is and whether it is open:</p>
+<pre><code>Consensus at http://127.0.0.1:3500/ (Scope Local, listening on 127.0.0.1)
+closed: the Server waits for its first sign-in: a Personal or Professional license makes the Administrator; the page at http://127.0.0.1:3500/ signs in
+config folder C:\Users\you\.consensus
+settings from C:\Users\you\.consensus\consensus.json
+project Recipe Box at C:\Users\you\projects\recipe-box (unmounted)
+1 project is unmounted: accounts see mounted projects alone; the Administrator mounts a project in its menu on the Server&#39;s page
+Server address in C:\Users\you\.consensus\~host.json
+</code></pre>
+<h2 id="the-first-sign-in">The first sign-in</h2>
+<p>A new Server is closed: it serves its page and the sign-in, and refuses everything else with the reason. The first person to sign in with a <strong>Personal</strong> or <strong>Professional</strong> license becomes its <strong>Administrator</strong>, and the Server opens. In the window, sign in from the page; a headless Server is opened from a browser at its address. When the environment variable <code>CONSENSUS_ADMIN</code> names an email, only that person can make the first sign-in, which keeps a Docker server on the network from being claimed by whoever reaches it first.</p>
+<p>The Server runs under the Administrator&#39;s license: Personal lets it listen on this machine, Professional on the network too (Scope Public). Its later starts check the Administrator again: in the window, the person signed in on the machine; headless, the license the Administrator&#39;s last sign-in showed.</p>
+<p>From then on the Server tells people apart by their sign-in, Local or Public alike: every request is a signed-in person, a token, or refused. See <a href="sharing.html">Sharing a server</a>.</p>
+<h2 id="the-registry-and-mounting">The registry and mounting</h2>
+<p>The Server&#39;s settings file, <code>consensus.json</code>, holds the registry: the project folders it knows, in display order, each with a <strong>Mounted</strong> switch.</p>
+<p>A project registered on the Server, with <strong>New project</strong> or <strong>Add folder</strong>, starts unmounted: read and written by the Administrator and the Managers alone, marked &quot;unmounted&quot; in its row, and not there for anyone else, in the lists, the tree and the API. <strong>Mount</strong> in the project&#39;s menu opens it to the accounts that hold a role in it; <strong>Unmount</strong> takes it back without touching the roles.</p>
+<figure class="shot"><img class="light-only" src="../images/host-mount.png" alt="The Server's page: a project's menu with Unmount, the project mounted for its accounts."><img class="dark-only" src="../images/host-mount-dark.png" alt="The Server's page: a project's menu with Unmount, the project mounted for its accounts."><figcaption>The Server's page: a project's menu with Unmount, the project mounted for its accounts.</figcaption></figure>
+<p><strong>Open in Consensus Server</strong>, which the Server&#39;s installer adds to a folder&#39;s right-click menu in the file explorer (and <code>--open &lt;folder&gt;</code> on the command line), registers the folder as a project of the Server, or finds it when it is registered already, and shows it in the Server&#39;s window.</p>
+<h2 id="who-manages-what">Who manages what</h2>
+<p>The users, the roles, the LLM connections and the tasks are managed on the Server&#39;s page, by the Administrator and the Managers, as <a href="sharing.html">Sharing a server</a> and <a href="llm.html">Working with an LLM</a> describe: they make accounts and place anyone in a project&#39;s roles, define the connections and the tasks, and mount the projects; a project&#39;s Owners place people in its roles. Only the Administrator makes Managers. The LLM tasks always run on the Server.</p>
+<h2 id="the-desktop-and-the-server">The desktop and the Server</h2>
+<p>The desktop starts no Server: the Server is an application of its own. A desktop window reaches one in two ways, both needing a sign-in in the desktop (a free Registered account is enough):</p>
+<ul>
+<li><strong>Connect to Server</strong> on the desktop&#39;s chooser: a name and the address, then <strong>Try</strong>. A Server answers that it asks for a sign-in, and <strong>Connect</strong> opens it in the window, where you sign in and see the projects you may; a saved entry with a project opens on it. The page works on the Server and writes nothing on your machine, and its tasks are the Server&#39;s.</li>
+<li><strong>Open folder</strong>, or <strong>Open in Consensus Desktop</strong>, on a folder the Server&#39;s registry lists as mounted, while the Server runs, connects the window to the Server&#39;s project instead of opening the folder as a sidecar, so the Server stays the one writer of that folder. When the Server is not running the folder opens as a sidecar.</li>
+</ul>
+<p>An agent session beside a Server project takes its token from the project&#39;s <strong>LLM Instructions</strong>, or, wired through MCP, from <code>CONSENSUS_TOKEN</code>: <code>node bin/mcp.js --server http://&lt;server&gt;:&lt;port&gt; --service &lt;your name&gt;</code>. The sidecar&#39;s fixed entry, <code>consensus mcp &lt;folder&gt;</code>, is the desktop&#39;s own; see <a href="llm.html#through-mcp">Working with an LLM</a>.</p>
+
+			</article>
+			<nav class="guide-pager">
+				<a class="guide-previous" href="settings.html">&larr; Settings and themes</a>
+				<a class="guide-next" href="sharing.html">Next: Sharing a server &rarr;</a>
+			</nav>
+		</main>
+	</div>
+
+	<footer class="site-footer">
+		<div class="container site-footer-row">
+			<span>Consensus-AI is free software under the MIT license.</span>
+			<nav>
+				<a href="getting-started.html">Guide</a>
+				<a href="features.html">Features</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">Repository</a>
+			</nav>
+		</div>
+	</footer>
+
+	<div class="lightbox" id="lightbox" hidden><img alt=""><button type="button" class="lightbox-close" title="close">&times;</button></div>
+</body>
+</html>

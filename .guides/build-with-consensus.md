@@ -14,9 +14,11 @@ task buttons, with every tool and all the context the session's harness keeps. T
 API and MCP on this machine, its address in the folder's `.consensus/~sidecar.json` while the project is open; the
 fixed MCP entry is `consensus mcp <folder>`, and the instructions page names the one project. Sidecar mode is one
 project's: the plans are made in Consensus and carried out in the session, and the session works in that project
-alone. The other case is a **Server Host**, one server holding several projects for several people: there you act
-for an account, with a token minted on its page (below), and the Host's other projects, each the business of a
-session of its own, are not yours. Read this with `curl` (`curl -s http://<server>:<port>/instructions`): a
+alone. The other case is a **Server**, one server holding several projects for several people: there you act
+for a person, on the token at the top of the instructions your user copied from the project's LLM Instructions (or
+one minted on their account's page), sent as "Authorization: Bearer <token>" with every request, since a Server
+takes no request without one; and the Server's other projects, each the business of a session of its own, are not
+yours. Read this with `curl` (`curl -s http://<server>:<port>/instructions`): a
 session's web fetch tool may not reach a local or private address. The plan "Build Workflow" in the Consensus project is where the build loop was agreed, and
 "Agent Instructions" where this page was. Since the plan "Consensus Desktop" (Step 1), the server calls no LLM
 and reads no code: every LLM takes part through the API, as you do. Consensus Desktop (Step 3) can run a model
@@ -100,12 +102,12 @@ its arguments, and `instructions` is this page. A project is given by its id or 
   is the sidecar: its address sits in `<folder>/.consensus/~sidecar.json` while the project is open, the shim reads
   it at every message, so the entry is fixed, `{ "command": "consensus", "args": [ "mcp", "<folder>" ] }`, and its
   one project is filled in for the tools that take one; a folder not open in Consensus answers each request with
-  one message saying so. Against a Host: `node <checkout>/bin/mcp.js --server http://<server>:<port> --service
-  <your name>` (`--token <token>` on a shared server; `--server <name>` a saved Host of desktop.json; `--project <id
-  or name>` fills in the project for the tools that take one, which is how the one-project rule is set for a
-  client). For Claude Code: `claude mcp add consensus -- consensus mcp <folder>`, or against a Host `claude mcp add
-  consensus -- node <checkout>/bin/mcp.js --server http://127.0.0.1:3500 --service Claude-CLI --project <your
-  project>`.
+  one message saying so. Against a Server: `node <checkout>/bin/mcp.js --server http://<server>:<port> --service
+  <your name>` with the token in the environment as CONSENSUS_TOKEN (or `--token <token>`; `--server <name>` a
+  saved Server of desktop.json; `--project <id or name>` fills in the project for the tools that take one, which
+  is how the one-project rule is set for a client). For Claude Code: `claude mcp add consensus -- consensus mcp
+  <folder>`, or against a Server `claude mcp add consensus -e CONSENSUS_TOKEN=<token> -- node
+  <checkout>/bin/mcp.js --server http://127.0.0.1:3500 --service Claude-CLI --project <your project>`.
 - **HTTP**: `POST http://<server>:<port>/api/mcp`, a JSON-RPC message in the body, with the same header a curl
   request carries.
 

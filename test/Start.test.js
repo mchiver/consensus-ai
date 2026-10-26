@@ -78,8 +78,8 @@ TEST( 'Run starts the server from the config folder and says where; Scope None s
 	ASSERT.equal( lines[ 3 ], 'settings written to ' + PATH.join( config, 'consensus.json' ) );
 	// a registered project starts unmounted and the Host says how many are (plan Rearchitecturation, Step 5), and where its address file is
 	ASSERT.equal( lines[ 4 ], 'project Default at ' + PATH.join( config, 'projects', 'Default' ) + ' (unmounted)' );
-	ASSERT.equal( lines[ 5 ], '1 project is unmounted: accounts see mounted projects alone; the Administrator mounts a project in its menu on the Host\'s page' );
-	ASSERT.equal( lines[ 6 ], 'host address in ' + PATH.join( config, '~host.json' ) );
+	ASSERT.equal( lines[ 5 ], '1 project is unmounted: accounts see mounted projects alone; the Administrator mounts a project in its menu on the Server\'s page' );
+	ASSERT.equal( lines[ 6 ], 'Server address in ' + PATH.join( config, '~host.json' ) );
 	ASSERT.deepEqual( Object.keys( JSON.parse( FS.readFileSync( PATH.join( config, '~host.json' ), 'utf8' ) ) ).sort(), [ 'Pid', 'Port', 'Started', 'Url' ] );
 	let closed = await fetch( running.Url + '/api/me' );
 	ASSERT.deepEqual( [ closed.status, ( await closed.json() ).Closed ], [ 401, true ] );
@@ -145,7 +145,7 @@ TEST( 'a project folder on the command line: its .consensus made when missing, t
 	ASSERT.deepEqual( ( await plain.Store.ListProjects() ).map( function ( project ) { return project.Name; } ), [ 'tic-tac-toe', 'Default' ] );
 	ASSERT.ok( lines.includes( 'project tic-tac-toe at ' + folder + ' (unmounted)' ) );
 	ASSERT.ok( lines.includes( 'project Default at ' + PATH.join( config, 'projects', 'Default' ) + ' (unmounted)' ) );
-	ASSERT.ok( lines.includes( '2 projects are unmounted: accounts see mounted projects alone; the Administrator mounts a project in its menu on the Host\'s page' ), lines.join( '\n' ) );
+	ASSERT.ok( lines.includes( '2 projects are unmounted: accounts see mounted projects alone; the Administrator mounts a project in its menu on the Server\'s page' ), lines.join( '\n' ) );
 	await plain.Close();
 	await ASSERT.rejects( START.Run( { Config: config, Port: 0, Project: PATH.join( folder, 'nowhere' ) } ), /no such folder/ );
 } );

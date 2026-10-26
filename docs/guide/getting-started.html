@@ -37,7 +37,7 @@
 				<a class="guide-link" href="llm.html">Working with an LLM</a>
 				<a class="guide-link" href="ways-of-working.html">Ways of working</a>
 				<a class="guide-link" href="settings.html">Settings and themes</a>
-				<a class="guide-link" href="host.html">The Server Host</a>
+				<a class="guide-link" href="server.html">The Server</a>
 				<a class="guide-link" href="sharing.html">Sharing a server</a>
 				<a class="guide-link" href="export-import.html">Export and import</a>
 				<a class="guide-link" href="api.html">The API</a>
@@ -46,53 +46,69 @@
 		<main class="guide-main">
 			<article class="guide-article">
 <h1 id="getting-started">Getting started</h1>
-<p>Consensus-AI is a web application you run yourself. It keeps your plans as plain files in a folder, shows them in a browser, and lets an LLM take part through its API. It runs in two modes: the <strong>desktop</strong>, one project in one window with a server of its own inside, which is where you work; and the <strong>Server Host</strong>, one server for several people, from the checkout or in Docker. This page gets the desktop running first, from the Windows installer or from the checkout, then the Host.</p>
-<p>The code is public at <a href="https://github.com/mchiver/consensus-ai">github.com/mchiver/consensus-ai</a>. The Windows installer is on the <a href="https://github.com/mchiver/consensus-ai/releases/latest">releases page</a>; everything else starts from the checkout.</p>
+<p>Consensus-AI is a tool you run yourself. It keeps your plans as plain files in a folder, shows them in a window or a browser, and lets an LLM take part through its API. It comes as two applications: <strong>Consensus Desktop</strong>, one project in one window with a server of its own inside, which is where you work on your own folders; and <strong>Consensus Server</strong>, one server for several people, which also manages the users, the LLM connections and tasks, and the projects. This page gets the desktop running first, from the Windows installer or from the checkout, then the Server.</p>
+<p>The code is public at <a href="https://github.com/mchiver/consensus-ai">github.com/mchiver/consensus-ai</a>. The Windows installers are on the <a href="https://github.com/mchiver/consensus-ai/releases/latest">releases page</a>; everything else starts from the checkout.</p>
 <p>Consensus-AI is not <a href="https://consensus.app">Consensus</a>, the research search engine at consensus.app, and has no connection to it. Consensus-AI is a tool for settling a plan with your LLM, thread by thread.</p>
 <h2 id="the-desktop">The desktop</h2>
-<p>Consensus Desktop is where you work: one project in one window, with a Consensus server of its own inside. The app opens a folder, as an editor does, makes the folder&#39;s <code>.consensus</code> when it has none, and shows that project&#39;s tree. On Windows the <a href="#the-installer">installer</a> is the quickest way in; from the checkout:</p>
+<p>Consensus Desktop is where you work: one project in one window, with a Consensus server of its own inside. The app opens a folder, as an editor does, makes the folder&#39;s <code>.consensus</code> when it has none, and shows that project&#39;s tree. On Windows the <a href="#the-installers">installer</a> is the quickest way in; from the checkout:</p>
 <pre><code>npm run desktop
 npm run desktop -- W:\projects\tic-tac-toe
 npm run desktop -- --connect cube4
 </code></pre>
-<p>With no folder the app opens on the <strong>chooser</strong>: <strong>Recent projects</strong> (Open, or Forget to drop one from the list; the folder stays), <strong>Open folder…</strong>, <strong>New project</strong> (a name and the folder to put it in) and the <strong>Hosts</strong> you saved, each opening in this window. Another project is another window: the menu&#39;s <strong>New window</strong> opens a chooser, <strong>Open folder in new window…</strong> and the recent folders start one on a folder, and the app is one process per window, so a folder already open in another window is brought to the front, not opened twice.</p>
-<figure class="shot"><img class="light-only" src="../images/desktop-connect.png" alt="The chooser: recent projects, Open folder, New project, and the Hosts."><img class="dark-only" src="../images/desktop-connect-dark.png" alt="The chooser: recent projects, Open folder, New project, and the Hosts."><figcaption>The chooser: recent projects, Open folder, New project, and the Hosts.</figcaption></figure>
-<p>The page shows the one project: its tree, open, with the LLM connections, the Users and the Trash of its server beneath it. The window has no frame of its own: the page&#39;s title bar is the window&#39;s, the minimize, maximize and close buttons sit over its right end in the palette&#39;s colours, and the bar drags the window.</p>
-<figure class="shot"><img class="light-only" src="../images/desktop-project.png" alt="A folder open in the desktop: the one project, with the folds of its server beneath."><img class="dark-only" src="../images/desktop-project-dark.png" alt="A folder open in the desktop: the one project, with the folds of its server beneath."><figcaption>A folder open in the desktop: the one project, with the folds of its server beneath.</figcaption></figure>
+<p>With no folder the app opens on the <strong>chooser</strong>: <strong>Recent projects</strong> (Open, or Forget to drop one from the list; the folder stays), <strong>Open folder…</strong>, <strong>New project</strong> (a name and the folder to put it in) and the <strong>Servers</strong> you connected to, each opening in this window. Another project is another window: the menu&#39;s <strong>New window</strong> opens a chooser, <strong>Open folder in new window…</strong> and the recent folders start one on a folder, and the app is one process per window, so a folder already open in another window is brought to the front, not opened twice.</p>
+<figure class="shot"><img class="light-only" src="../images/desktop-connect.png" alt="The chooser: recent projects, Open folder, New project, and the Servers."><img class="dark-only" src="../images/desktop-connect-dark.png" alt="The chooser: recent projects, Open folder, New project, and the Servers."><figcaption>The chooser: recent projects, Open folder, New project, and the Servers.</figcaption></figure>
+<p>The page shows the one project: its tree, open, with the Trash beneath it. The window has no frame of its own: the page&#39;s title bar is the window&#39;s, the minimize, maximize and close buttons sit over its right end in the palette&#39;s colours, and the bar drags the window.</p>
+<figure class="shot"><img class="light-only" src="../images/desktop-project.png" alt="A folder open in the desktop: the one project."><img class="dark-only" src="../images/desktop-project-dark.png" alt="A folder open in the desktop: the one project."><figcaption>A folder open in the desktop: the one project.</figcaption></figure>
 <h3 id="the-sidecar">The sidecar</h3>
-<p>The server inside the window is the <strong>sidecar</strong>: the API and the MCP of the open project, on this machine alone, for the agent session you keep beside the window. It listens on a port hashed from the folder&#39;s path into 3600 to 3699, stepping up while the port is taken, and keeps its address in the folder&#39;s <code>.consensus/~sidecar.json</code> while the project is open, so an agent finds it without a copy and paste.</p>
+<p>The server inside the window is the <strong>sidecar</strong>: the API and the MCP of the open project, on this machine alone, for the agent session you keep beside the window. It listens on a port hashed from the folder&#39;s path into 3600 to 3699, stepping up while the port is taken, and keeps its address in the folder&#39;s <code>.consensus/~sidecar.json</code> while the project is open, so an agent finds it without a copy and paste. It needs no sign-in: every request is you.</p>
+<p>This is <strong>sidecar mode</strong>: the agent session is the LLM&#39;s way in, and the window has no LLM connections, no LLM tasks, no users and no roles of its own; those are a Server&#39;s.</p>
 <p>Two ways to point an agent at it. <strong>LLM Instructions</strong> in the project&#39;s menu opens the instructions page the server serves, with the address first and a <strong>Copy</strong> button: paste the one line into your session (&quot;read the instructions at <a href="http://127.0.0.1:36xx/instructions">http://127.0.0.1:36xx/instructions</a> with curl&quot;) and it knows the rules, the address and the one project it works in. Or give the agent one MCP entry per project, fixed for good:</p>
 <pre><code>claude mcp add consensus -- consensus mcp W:\projects\tic-tac-toe
 </code></pre>
 <p><code>consensus mcp &lt;folder&gt;</code> reads the sidecar&#39;s address from the folder at every message and fills in the project for every tool, so the entry keeps working as the project is closed and opened; while the folder is not open, each request is answered with one message saying so. <a href="llm.html">Working with an LLM</a> has the rest.</p>
+<h3 id="connecting-to-a-server">Connecting to a Server</h3>
+<p>Signed in, the desktop is also a thin client of a Server: <strong>Connect to Server</strong> on the chooser takes a name and the Server&#39;s address, and opens the Server in the window, where you sign in and work on the projects you have a role in, with the Server&#39;s LLM tasks. The pair is saved under <strong>Servers</strong> for next time, and <code>--connect &lt;name&gt;</code> opens it from the command line. A folder the Server on this machine serves opens through the Server rather than as a sidecar, so one folder never has two writers. <a href="server.html#the-desktop-and-the-server">The Server</a> has the details.</p>
 <h3 id="the-menu-the-account-and-the-tiers">The menu, the account and the tiers</h3>
-<p>The title bar&#39;s <strong>Menu</strong> has New window, Open folder in new window and the recent folders, <strong>Settings</strong> (the server&#39;s), <strong>Sign in…</strong>, Reload, the <strong>Server Host</strong> items and Quit; Ctrl+N, Ctrl+Shift+O and Ctrl+R do the same, and F11 goes full screen.</p>
-<figure class="shot"><img class="light-only" src="../images/desktop-menu.png" alt="The desktop's menu: the windows, Settings, Sign in, the Server Host and Quit."><img class="dark-only" src="../images/desktop-menu-dark.png" alt="The desktop's menu: the windows, Settings, Sign in, the Server Host and Quit."><figcaption>The desktop's menu: the windows, Settings, Sign in, the Server Host and Quit.</figcaption></figure>
-<p>The desktop is free to use on your own folders with the sidecar as the LLM&#39;s way in. <strong>Sign in…</strong> signs you in with your Consensus-AI account, and the license it carries sets the tier the desktop is at, kept for fourteen days offline and shown in About: <strong>Personal</strong> unlocks the LLM connections and tasks in the page, connecting to a Host&#39;s project, and <strong>Start the Server Host</strong> on this machine; <strong>Professional</strong> lets that Host listen on the network. When the cache lapses the desktop falls back to Free with a line in About, and nothing you saved is locked away. <a href="../pricing.html">The licenses</a> lists the tiers; <a href="host.html">The Server Host</a> is the other mode.</p>
-<p><code>--connect &lt;host name&gt;</code> opens a saved Host&#39;s project as a thin client: the page works on the Host&#39;s server and writes nothing on your machine. <code>--config &lt;folder&gt;</code> names the config folder, <code>--port</code> and <code>--scope</code> apply to the window&#39;s server (the sidecar listens on this machine whatever the Scope; None keeps the server for the window and writes no address file), and <code>--headless</code> runs the server with no window at all, printing what the command line prints.</p>
-<h2 id="the-installer">The installer</h2>
-<p>On Windows, the desktop comes packaged with its server, with nothing to install first: download <code>Consensus-Setup-&lt;version&gt;.exe</code> from the <a href="https://github.com/mchiver/consensus-ai/releases/latest">latest release</a>, run it, and pick the folder (the default is under your user profile). It puts Consensus in the Start menu and starts it; the app reads the same config folder, <code>&lt;user&gt;/.consensus</code>, as the other ways do, so a checkout and the installed app share the settings and the local server&#39;s projects. It also adds <strong>Open with Consensus</strong> to the file explorer&#39;s right-click menu of a folder, and of the empty space inside one, which opens the app on that folder&#39;s project alone, as <code>consensus &lt;path&gt;</code> does; on Windows 11 the entry is under &quot;Show more options&quot;. The uninstaller removes it. The installer is not signed yet: Windows SmartScreen warns once (&quot;Windows protected your PC&quot;); More info, then Run anyway, lets it through. A new version is installed over the old one from its own installer; the config folder stays.</p>
-<h2 id="the-server-host">The Server Host</h2>
-<p>The other mode is one server for several people: it holds a registry of projects, serves the mounted ones to the accounts with a role in them, on this machine or on the network, and runs the LLM connections and tasks the desktop windows use. It is the headless program with the word <code>serve</code>, from the checkout or in Docker; the page <a href="host.html">The Server Host</a> is about it, and <a href="sharing.html">Sharing a server</a> about its accounts and roles. From the checkout, with Node 22 or later and git:</p>
+<p>The title bar&#39;s <strong>Menu</strong> has New window, Open folder in new window and the recent folders, <strong>Settings</strong> (the server&#39;s), <strong>Sign in…</strong>, Reload and Quit; Ctrl+N, Ctrl+Shift+O and Ctrl+R do the same, and F11 goes full screen.</p>
+<figure class="shot"><img class="light-only" src="../images/desktop-menu.png" alt="The desktop's menu: the windows, Settings, Sign in and Quit."><img class="dark-only" src="../images/desktop-menu-dark.png" alt="The desktop's menu: the windows, Settings, Sign in and Quit."><figcaption>The desktop's menu: the windows, Settings, Sign in and Quit.</figcaption></figure>
+<p>The desktop is free to use on your own folders with no account. <strong>Sign in…</strong> signs you in with your Consensus-AI account; one person is signed in on a machine at a time, kept in <code>~/.consensus/user.json</code> for both applications, and a later sign-in replaces them. The license the account carries sets the tier, kept for fourteen days without a check and shown in About:</p>
+<ul>
+<li><strong>Unlicensed</strong> (not signed in): the desktop in sidecar mode.</li>
+<li><strong>Registered</strong> (signed in, free): connecting the desktop to Servers.</li>
+<li><strong>Personal</strong>: running the Server on this machine.</li>
+<li><strong>Professional</strong>: running the Server on the network.</li>
+</ul>
+<p>After fourteen days with no check you are signed out, with a line in About, and nothing you saved is locked away. <a href="../pricing.html">The licenses</a> lists the tiers.</p>
+<p><code>--config &lt;folder&gt;</code> names the config folder and <code>--port</code> the sidecar&#39;s port. The desktop has no headless form: <code>consensus-server --headless</code> runs a Server, and <code>consensus &lt;folder&gt;</code> one project&#39;s server with no window.</p>
+<h2 id="the-installers">The installers</h2>
+<p>On Windows each application comes packaged with its server, with nothing to install first. From the <a href="https://github.com/mchiver/consensus-ai/releases/latest">latest release</a>:</p>
+<ul>
+<li><code>Consensus-Desktop-Setup-&lt;version&gt;.exe</code> installs <strong>Consensus Desktop</strong>, and adds <strong>Open in Consensus Desktop</strong> to the file explorer&#39;s right-click menu of a folder (and of the empty space inside one), which opens the desktop on that folder&#39;s project alone.</li>
+<li><code>Consensus-Server-Setup-&lt;version&gt;.exe</code> installs <strong>Consensus Server</strong>, and adds <strong>Open in Consensus Server</strong>, which registers the folder as a project of the Server and shows it in the Server&#39;s window.</li>
+</ul>
+<p>Run one, pick the folder (the default is under your user profile), and it puts the application in the Start menu and starts it. Both read the same config folder, <code>&lt;user&gt;/.consensus</code>, as the other ways do, so a checkout and the installed applications share the settings and the signed-in person. On Windows 11 the folder entries are under &quot;Show more options&quot;; the uninstaller removes them. The installers are not signed yet: Windows SmartScreen warns once (&quot;Windows protected your PC&quot;); More info, then Run anyway, lets it through. A new version is installed over the old one from its own installer; the config folder stays.</p>
+<h2 id="the-server">The Server</h2>
+<p>The other application is one server for several people: it holds a registry of projects, serves the mounted ones to the signed-in accounts with a role in them, on this machine or on the network, and runs the LLM connections and tasks. It runs with a window of its own, or headless from the checkout or in Docker; the page <a href="server.html">The Server</a> is about it, and <a href="sharing.html">Sharing a server</a> about its sign-in, accounts and roles. From the checkout, with Node 22 or later and git:</p>
 <pre><code>git clone https://github.com/mchiver/consensus-ai.git
 cd consensus-ai
 npm install
-node bin/consensus.js serve
+npm run server
 </code></pre>
-<p>The server prints its address and scope, its config folder, its settings file and the projects it loaded, and that it opens no window:</p>
+<p><code>npm run server</code> opens the Server&#39;s window; <code>node bin/consensus-server.js --headless</code>, or <code>node bin/consensus.js serve</code>, runs it with no window and prints its address, its config folder, its settings file and the projects it loaded:</p>
 <pre><code>Consensus at http://127.0.0.1:3500/ (Scope Local, listening on 127.0.0.1)
+closed: the Server waits for its first sign-in: a Personal or Professional license makes the Administrator; the page at http://127.0.0.1:3500/ signs in
 config folder C:\Users\you\.consensus
 settings written to C:\Users\you\.consensus\consensus.json
 project Default at C:\Users\you\.consensus\projects\Default (unmounted)
-1 project is unmounted: accounts see mounted projects alone; the Administrator mounts a project in its menu on the Host&#39;s page
-host address in C:\Users\you\.consensus\~host.json
-no window: this is the headless form; open the address in a browser, or run the desktop (npm run desktop); Ctrl+C stops the server
+1 project is unmounted: accounts see mounted projects alone; the Administrator mounts a project in its menu on the Server&#39;s page
+Server address in C:\Users\you\.consensus\~host.json
+no window: this is the headless form; open the address in a browser, or run the Server with its window (consensus-server, or npm run server); Ctrl+C stops the server
 </code></pre>
-<p>Open <code>http://127.0.0.1:3500/</code> in a browser. You are the owner, and you see the <strong>Default</strong> project with its Context folder and an empty Readme.</p>
+<p>A new Server is closed until its first sign-in: sign in on its page, in the window or at <code>http://127.0.0.1:3500/</code> in a browser, with a Personal or Professional license, and you are its Administrator. You then see the <strong>Default</strong> project with its Context folder and an empty Readme.</p>
 <figure class="shot"><img class="light-only" src="../images/first-start.png" alt="The page at first start: the Default project and its Readme."><img class="dark-only" src="../images/first-start-dark.png" alt="The page at first start: the Default project and its Readme."><figcaption>The page at first start: the Default project and its Readme.</figcaption></figure>
 <p>Across the top runs the <strong>title bar</strong>: the brand, a <strong>Menu</strong> (About, with the version, the links and a summary of every project&#39;s threads; Hotkeys; and, in the desktop, the window&#39;s commands), <strong>Waiting on you</strong> with the count of threads that wait on you, <strong>Running</strong> while an LLM run is in progress, and a gear for the look: the theme, the size, the editor and Confirm on close.</p>
 <figure class="shot"><img class="light-only" src="../images/title-bar.png" alt="The title bar, with the look popover open."><img class="dark-only" src="../images/title-bar-dark.png" alt="The title bar, with the look popover open."><figcaption>The title bar, with the look popover open.</figcaption></figure>
-<p>The config folder holds the settings and the registry, and the projects that were made with no folder of their own; a project is a folder with a <code>.consensus</code> in it (the page <a href="settings.html">Settings</a> has the layout). The same program with a path is the one-project server the desktop runs, the sidecar, for a window of your own or a browser:</p>
+<p>The config folder holds the settings and the registry, and the projects that were made with no folder of their own; a project is a folder with a <code>.consensus</code> in it (the page <a href="settings.html">Settings</a> has the layout). The headless program, <code>bin/consensus.js</code>, takes these:</p>
 <table>
 <thead>
 <tr>
@@ -102,11 +118,11 @@ no window: this is the headless form; open the address in a browser, or run the 
 </thead>
 <tbody><tr>
 <td><code>serve</code></td>
-<td>the Server Host: every registered project served, the mounted ones to accounts; the bare form with no path means the same</td>
+<td>the Server, headless: every registered project served, the mounted ones to the signed-in accounts; the bare form with no path means the same</td>
 </tr>
 <tr>
 <td><code>&lt;path&gt;</code>, or <code>--project &lt;folder&gt;</code></td>
-<td>one project alone, the sidecar: the folder&#39;s project is served and no other, its <code>.consensus</code> made when it has none (named after the folder), its address written to the folder; <code>consensus .</code> is the folder you are in</td>
+<td>one project alone, its sidecar: the folder&#39;s project is served and no other, to you with no sign-in, its <code>.consensus</code> made when it has none (named after the folder), its address written to the folder; <code>consensus .</code> is the folder you are in</td>
 </tr>
 <tr>
 <td><code>mcp &lt;folder&gt;</code></td>
@@ -118,30 +134,30 @@ no window: this is the headless form; open the address in a browser, or run the 
 </tr>
 <tr>
 <td><code>--port &lt;port&gt;</code></td>
-<td>the port; the settings&#39; Port, 3500 by default, for the Host (the port in use gives way to a free one, printed); a sidecar&#39;s port is hashed from its folder unless given here</td>
+<td>the port; the settings&#39; Port, 3500 by default, for the Server (the port in use gives way to a free one, printed); a sidecar&#39;s port is hashed from its folder unless given here</td>
 </tr>
 <tr>
 <td><code>--scope none</code>, <code>local</code> or <code>public</code></td>
-<td>for this start, in place of the settings&#39; Scope: <code>local</code> listens on this machine only, <code>public</code> on every interface, <code>none</code> starts no server; a sidecar listens on this machine whatever the Scope</td>
+<td>for this start, in place of the settings&#39; Scope: <code>local</code> listens on this machine only, <code>public</code> on every interface (with the Administrator&#39;s Professional license), <code>none</code> starts no server; a sidecar listens on this machine whatever the Scope</td>
 </tr>
 <tr>
 <td><code>--headless</code></td>
 <td>accepted here and does nothing: this form never has a window</td>
 </tr>
 </tbody></table>
-<p>Listening beyond your own machine is a decision: a Public server signs people in through Consensus-AI and needs a Professional license to be set Public from the page. Keep the Scope Local unless the server is for a team.</p>
+<p>Listening beyond your own machine is a decision: keep the Scope Local unless the Server is for a team on the network.</p>
 <h2 id="in-docker">In Docker</h2>
 <p>The repository holds a <code>Dockerfile</code> and a <code>compose.yaml</code>. From the checkout:</p>
 <pre><code>docker build -t consensus:latest .
 docker compose up -d
 </code></pre>
-<p>The image runs the Server Host with <code>serve --config /data --scope public --port 3500 --headless</code>: it listens on port 3500 and keeps its config and data in the <code>consensus-data</code> volume. <code>docker compose down</code> stops it; the volume stays. The <code>compose.yaml</code> as shipped publishes the port on every IPv4 address of the host, because it is written for a server on a private network; edit it for your own.</p>
+<p>The image runs the Server headless with <code>serve --config /data --scope public --port 3500 --headless</code>: it listens on port 3500 and keeps its config and data in the <code>consensus-data</code> volume. Open its address in a browser and sign in to make yourself its Administrator; set <code>CONSENSUS_ADMIN</code> to your email so nobody else can. <code>docker compose down</code> stops it; the volume stays. The <code>compose.yaml</code> as shipped publishes the port on every IPv4 address of the host, because it is written for a server on a private network; edit it for your own.</p>
 <h2 id="what-to-do-first">What to do first</h2>
 <ol>
 <li>Open the Readme in the Context folder and write a few lines about what the project is for. Every LLM that works on the project reads it.</li>
 <li>Make a plan with <strong>New plan</strong> in the project&#39;s menu, and write a draft.</li>
 <li>Select a sentence of the draft and comment on it. That is a thread, and the rest of this guide is about what happens next.</li>
-<li>Read <a href="ways-of-working.html">Ways of working</a> for how an LLM takes part: an agent session beside your editor, or a connection the server runs, and the loop you will use with either.</li>
+<li>Read <a href="ways-of-working.html">Ways of working</a> for how an LLM takes part: an agent session beside your editor, or a connection the Server runs, and the loop you will use with either.</li>
 </ol>
 
 			</article>

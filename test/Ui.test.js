@@ -1950,10 +1950,12 @@ TEST( 'users and roles (plan User Management, Step 3): the Users fold holds the 
 	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "user-manager" ).closest( ".settings-row" ) ).display !== "none"' ), true );
 	await page.Click( '#user-manager' );
 	await page.WaitFor( text_of( '#user-standing' ) + ' === "Manager"' );
-	ASSERT.equal( ( await api( 'GET', '/api/users/' + ann.Id ) ).Manager, true );
+	// the switch is enabled again once the save has answered
 	await page.WaitFor( '!document.getElementById( "user-manager" ).disabled' );
+	ASSERT.equal( ( await api( 'GET', '/api/users/' + ann.Id ) ).Manager, true );
 	await page.Click( '#user-manager' );
 	await page.WaitFor( text_of( '#user-standing' ) + ' === "Member"' );
+	await page.WaitFor( '!document.getElementById( "user-manager" ).disabled' );
 	ASSERT.equal( ( await api( 'GET', '/api/users/' + ann.Id ) ).Manager, false );
 	// back to the owner's page before ann goes, so her page does not ask for her again
 	await page.Evaluate( 'Array.from( document.querySelectorAll( "#users-list .user-row" ) ).find( function ( row ) { return row.querySelector( ".plan-title" ).textContent.trim() === "User"; } ).click(); true' );
