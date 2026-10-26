@@ -268,8 +268,12 @@ TEST( 'the license (plan Clerk, Step 5): the person written from the claims with
 	let local_users = fresh_users();
 	let local = CLERK.Clerk( { Settings: { Scope: 'Local', Clerk: SECTION }, Users: local_users, Jwks: function () { return [ JWK ]; } } );
 	let owner = await local.Session( sign( { sub: 'user_owner', email: 'owner@example.com', license: 'professional' } ) );
-	ASSERT.deepEqual( [ owner.Record.Type, owner.Record.Login, owner.Record.Clerk, owner.Record.Plan, owner.License.Plan ], [ 'owner', 'user', 'user_owner', 'professional', 'professional' ] );
+	// the record takes the Clerk id, the plan and, since 2026-10-26, the email; Login and Display stay the settings' Owner
+	ASSERT.deepEqual( [ owner.Record.Type, owner.Record.Login, owner.Record.Display, owner.Record.Email, owner.Record.Clerk, owner.Record.Plan, owner.License.Plan ], [ 'owner', 'user', 'User', 'owner@example.com', 'user_owner', 'professional', 'professional' ] );
 	ASSERT.equal( local_users.List().length, 1, 'nothing else written' );
+	ASSERT.equal( local_users.List()[ 0 ].Email, 'owner@example.com', 'written to the registry' );
+	// a sign-in whose claims carry no email leaves the one on the record
+	ASSERT.equal( ( await local.Session( sign( { sub: 'user_owner', license: 'professional' } ) ) ).Record.Email, 'owner@example.com' );
 	ASSERT.equal( ( await local.Session( sign( { sub: 'user_other', email: 'other@example.com' } ) ) ).Record.Type, 'owner', 'any session on Local is the owner' );
 	ASSERT.equal( local_users.List()[ 0 ].Plan, null );
 } );

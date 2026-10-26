@@ -219,7 +219,8 @@ function Users( Options )
 		{
 			record.Display = fields.Display.trim();
 		}
-		if ( fields.Email !== undefined && record.Type === 'user' )
+		// a person's: a user's, and the owner's since 2026-10-26 (the Local sign-in writes it); a Service account has none
+		if ( fields.Email !== undefined && record.Type !== 'service' )
 		{
 			record.Email = fields.Email ? String( fields.Email ).trim() : null;
 		}

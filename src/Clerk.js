@@ -22,7 +22,7 @@
 //     Session( Token, Host? ) -> { Record, Claims, License } | null  (async): the registry record of the token's
 //       subject with the Plan written on it; a subject the registry lacks is written from the claims (Adopt), or
 //       fetched once from Clerk's Backend API when the claims lack an email and a secret key is there; on a Local
-//       server the session is the owner's, whose record takes the Clerk id and the Plan,
+//       server the session is the owner's, whose record takes the Clerk id, the Plan and the email the claims carry (Login and Display stay the settings' Owner),
 //     Identify( Token, Host? ) -> record | null  (async): Session's record,
 //     Adopt( { Clerk, Email, First?, Last?, Username? } ) -> { Record, Made } | null: the record by Clerk id brought
 //       up (Made updated or kept), else the hand-made record with that email completed with the Clerk id (completed),
@@ -494,9 +494,21 @@ function Clerk( Options )
 			{
 				return null;
 			}
+			// The record takes the Clerk id and, since 2026-10-26, the email the claims carry; Login and Display stay the
+			// settings' Owner, so the byline does not change under the person.
+			let changes = {};
 			if ( owner.Clerk !== claims.sub )
 			{
-				owner = users.Update( owner.Id, { Clerk: claims.sub } );
+				changes.Clerk = claims.sub;
+			}
+			let email = ( typeof claims.email === 'string' && claims.email.trim() ) ? claims.email.trim() : null;
+			if ( email && owner.Email !== email )
+			{
+				changes.Email = email;
+			}
+			if ( Object.keys( changes ).length )
+			{
+				owner = users.Update( owner.Id, changes );
 			}
 			return { Record: with_plan( owner, license ), Claims: claims, License: license };
 		}
