@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-26T03:16:06.627Z",
-	"Version": 74,
+	"Updated": "2026-10-26T06:47:44.617Z",
+	"Version": 78,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -41,6 +41,14 @@
 				},
 				{
 					"Kind": "plan",
+					"Id": "pln-lv9-2n4-kcc"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-xbb-c4g-gtr"
+				},
+				{
+					"Kind": "plan",
 					"Id": "pln-jvc-db6-e0r",
 					"Items": [
 						{
@@ -68,44 +76,6 @@
 						{
 							"Kind": "plan",
 							"Id": "pln-3qx-ajz-4wb"
-						}
-					]
-				},
-				{
-					"Kind": "plan",
-					"Id": "pln-lv9-2n4-kcc"
-				},
-				{
-					"Kind": "plan",
-					"Id": "pln-gkn-zlj-42q",
-					"Items": [
-						{
-							"Kind": "plan",
-							"Id": "pln-dys-jgy-09u"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-5pv-tni-imt"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-5rn-o8r-u4m"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-t2z-wuz-h0u"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-6ir-npt-fcu"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-xz2-kec-wta"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-kjf-5qo-2ue"
 						}
 					]
 				}
@@ -359,6 +329,40 @@
 				{
 					"Kind": "plan",
 					"Id": "pln-hax-1ie-yqm"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-gkn-zlj-42q",
+					"Items": [
+						{
+							"Kind": "plan",
+							"Id": "pln-dys-jgy-09u"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-5pv-tni-imt"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-5rn-o8r-u4m"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-t2z-wuz-h0u"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-6ir-npt-fcu"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-xz2-kec-wta"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-kjf-5qo-2ue"
+						}
+					]
 				}
 			]
 		}
@@ -389,5 +393,5 @@
 		"Watchers": []
 	},
 	"Llm": "llm-yn1-ve3-2pi",
-	"Mounted": false
+	"Mounted": true
 }

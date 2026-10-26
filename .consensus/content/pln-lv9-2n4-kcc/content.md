@@ -4,6 +4,9 @@
 - The Run page for any run should be in a collapsable box that is, by default, collapsed.
 - The timeout for a run should be configurable during a run so that a user can give the run more time if it gets close timing out.
 - Add a section to all LLM instructions that explains how to use the Context/Readme to store context for the project. this should be read first before changes and updated last after changes.
+- The About window should display the user and license details of the signed in user.
+- The About window should display the address and port of servers running in the background.
+- Each project should store its own customized view settings, theme, etc.
 
 
 

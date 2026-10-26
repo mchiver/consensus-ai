@@ -1,0 +1,705 @@
+[
+	{
+		"Id": "thr-98d-qgd-yk3",
+		"Anchor": {
+			"Text": "LLM Tasks always run on the Server",
+			"Prefix": "he LLM Tasks the Server offers. ",
+			"Suffix": ". Sign-in A user who signs in th"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T06:52:52.006Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:04:53.136Z",
+			"Revision": 3,
+			"RevisionId": "rev-j17-a5l-6ur",
+			"Outcome": "Applied with the owner's reply: a signed-in Desktop invokes the LLM Tasks a Server offers, and LLM Tasks always run on the Server."
+		},
+		"Created": "2026-10-26T06:47:26.286Z",
+		"Replies": [
+			{
+				"Id": "rep-npi-lwf-9t3",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T06:47:26.286Z",
+				"Text": "A solo user who wants LLM Tasks buys Personal and runs the Server on localhost; today the tasks run inside the Desktop. Since the Server is a superset of the Desktop, that user can work in the Server's window alone, with no Desktop beside it. **Recommendation:** as written: LLM Tasks only on a Server, Personal the way in for a solo user. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-iwa-2dv-uyr",
+				"By": "user",
+				"At": "2026-10-26T06:52:52.006Z",
+				"Text": "a user should be able to invoke the LLM Tasks available on a server. LLM Tasks are always run on the server."
+			}
+		]
+	},
+	{
+		"Id": "thr-64h-dbe-8cx",
+		"Anchor": {
+			"Text": "never the Administrator",
+			"Prefix": "n-in replaces the current user, ",
+			"Suffix": "; the current user has the Admin"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:05:23.235Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:17:16.480Z",
+			"Revision": 9,
+			"RevisionId": "rev-4gb-2dl-sj5",
+			"Outcome": "Applied with the owner's reply and the wording confirmed: a sign-in replaces the current user, never the Administrator."
+		},
+		"Created": "2026-10-26T06:47:26.340Z",
+		"Replies": [
+			{
+				"Id": "rep-j74-90p-mhn",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T06:47:26.340Z",
+				"Text": "One current user is shared by the Desktop and the Server on a machine. If the Server is running as a Professional user and someone signs a different user into the Desktop there, does the running Server lose its license? **Recommendation:** the running Server keeps the user it started under until it is quit; the new current user takes effect at its next start. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-xxc-tvu-j0p",
+				"By": "user",
+				"At": "2026-10-26T06:59:13.619Z",
+				"Text": "No, because sign-in replaces the Current user, not the Administrator user. If the Current user is the Administrator, then they can do administrator things."
+			},
+			{
+				"Id": "rep-t1a-ixb-x1r",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:04:53.292Z",
+				"Text": "Understood: the Administrator is a fixed record in the Server's configuration, apart from the current user. A sign-in replaces the current user only; when the current user is the Administrator, the Administrator's functions are open to them, and otherwise they are not. I will write into Sign-in: \"A sign-in replaces the current user, never the Administrator; the current user has the Administrator's functions when they are the Administrator.\" Resolve to take that wording."
+			}
+		]
+	},
+	{
+		"Id": "thr-73k-0b0-9k3",
+		"Anchor": {
+			"Text": "The first user to sign in to the Server",
+			"Prefix": "ect management and permissions. ",
+			"Suffix": " with a Personal or Professional"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:03:34.574Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:04:53.166Z",
+			"Revision": 4,
+			"RevisionId": "rev-g7p-ili-1vp",
+			"Outcome": "Resolved with no reply: the recommendation applied. The Administrator is the first Personal or Professional sign-in to the Server, recorded in its configuration."
+		},
+		"Created": "2026-10-26T06:47:26.420Z",
+		"Replies": [
+			{
+				"Id": "rep-gi5-r1k-986",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T06:47:26.420Z",
+				"Text": "Which first sign-in makes the Administrator: the first to the Server, or the first to either application? A Registered user signing into the Desktop first cannot run a Server. **Recommendation:** the first user to sign in to the Server with a Personal or Professional license, recorded in the Server's configuration; Desktop sign-ins do not count. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-i51-v58-d15",
+		"Anchor": {
+			"Text": "The Server runs under the authority of the Administrator",
+			"Prefix": "etails and is matched by email. ",
+			"Suffix": ": it takes its level from the cu"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:31:47.141Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:32:06.795Z",
+			"Revision": 11,
+			"RevisionId": "rev-yrg-m9v-y9c",
+			"Outcome": "Resolved with no reply: the stated wording and recommendation (a) applied. User management is by email, and the Server takes its level from the current user's license while the current user is the Administrator."
+		},
+		"Created": "2026-10-26T06:47:26.480Z",
+		"Replies": [
+			{
+				"Id": "rep-r7b-k75-0od",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T06:47:26.480Z",
+				"Text": "What happens to a running Server, a headless one especially, when its user signs out or the stored token expires? **Recommendation:** it keeps serving until quit; at its next start it needs a current user with a Personal or Professional license, and the headless one logs the refusal and exits. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-viu-0lf-hi0",
+				"By": "user",
+				"At": "2026-10-26T07:00:24.367Z",
+				"Text": "the Server runs under the authority of the Administrator."
+			},
+			{
+				"Id": "rep-u2s-7al-lfn",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:04:53.304Z",
+				"Text": "Understood: the Server runs under the authority of the Administrator, so its license level is the Administrator's, whoever the current user is. A follow-up: the Administrator may not be the current user, so their token may not be on the machine to check. **Recommendation:** the Server records the Administrator's license level and its expiry each time the Administrator signs in, and runs at that level until it expires; after that a running Server keeps serving until quit, and the next start waits for the Administrator to sign in again (a headless one logs it and exits). Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-rg7-528-orn",
+				"By": "user",
+				"At": "2026-10-26T07:15:09.779Z",
+				"Text": "the Administrator record only keeps user info and matches against a user's email address.\nUser management is email based. Remote users authenticate with Clerk and pass their authentication result to the Server who validates the user email against the user roles (Administrator, Manager, Member)."
+			},
+			{
+				"Id": "rep-jqb-x2f-0wb",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:17:16.522Z",
+				"Text": "Understood: user management is by email. The Administrator record keeps the user's details and is matched by email; a remote user signs in with Clerk on their own machine and passes the result to the Server, which validates the email against the roles (Administrator, Manager, Member). I will write into Sign-in: \"User management is by email: a remote user signs in with Clerk and passes the result to the Server, which validates the email against its roles, Administrator, Manager and Member; the Administrator record keeps the user's details and is matched by email.\"\n\nOne question remains: which license sets the Server's level (none, localhost, public) when the record keeps no license? Two ways: (a) the Server takes the level from the current user's license, and runs at a Personal or Professional level only while the current user is the Administrator; (b) the Server re-checks the Administrator's license with Clerk by their email at each start, whoever the current user is. **Recommendation:** (a): it needs nothing beyond the current sign-in, and a running Server keeps its level until it is quit. Reply (b) for the other, or resolve with no reply to take (a) together with the wording above."
+			}
+		]
+	},
+	{
+		"Id": "thr-cul-sva-0jk",
+		"Anchor": {
+			"Text": "there is no separate management address",
+			"Prefix": "istrator and the Managers only; ",
+			"Suffix": ". The first user to sign in to t"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:03:00.091Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:04:53.195Z",
+			"Revision": 5,
+			"RevisionId": "rev-0zw-hs3-t36",
+			"Outcome": "Resolved with no reply: the recommendation applied. No /manage page; management is in the Server's window and web page for the Administrator and Managers."
+		},
+		"Created": "2026-10-26T06:47:26.521Z",
+		"Replies": [
+			{
+				"Id": "rep-qfh-syn-gvd",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T06:47:26.521Z",
+				"Text": "The earlier draft gave the Administrator a separate browser page at `/manage`. **Recommendation:** no separate page: management lives in the Server's window and in its web page, shown to the Administrator and the Managers only. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-mfw-tnj-0x4",
+		"Anchor": {
+			"Text": "does not end the application",
+			"Prefix": "rs. Closing the Server's window ",
+			"Suffix": ": a tray icon, or a minimized ic"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:16:33.945Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:17:16.510Z",
+			"Revision": 10,
+			"RevisionId": "rev-hea-qyb-uqm",
+			"Outcome": "Applied with the owner's reply and the wording confirmed: closing the window leaves the Server running, restored from a tray or minimized icon."
+		},
+		"Created": "2026-10-26T06:47:26.553Z",
+		"Replies": [
+			{
+				"Id": "rep-xzl-4zu-42f",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T06:47:26.553Z",
+				"Text": "Closing the Server's window: does the server stop? **Recommendation:** no: the Server keeps running from the tray (Open, Quit, the address) until Quit, so a team's connections outlive the window. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-zdz-p4q-i90",
+				"By": "user",
+				"At": "2026-10-26T07:02:21.718Z",
+				"Text": "when the Server window closes, it does not terminate the application. in such a case, a tray or minimized icon should allow restoration of the Server window."
+			},
+			{
+				"Id": "rep-0ua-6nu-18t",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:04:53.318Z",
+				"Text": "Understood: closing the Server's window does not end the application; a tray icon (or the minimized icon where there is no tray) restores the window, and Quit there ends it. I will write into The Server: \"Closing the Server's window does not end the application: a tray icon, or a minimized icon where there is no tray, restores the window, and its Quit ends the Server.\" Resolve to take that wording."
+			}
+		]
+	},
+	{
+		"Id": "thr-4c2-u9w-25t",
+		"Anchor": {
+			"Text": "starts the Desktop",
+			"Prefix": "p [<folder> | --connect <name>] ",
+			"Suffix": " and consensus-server [--config "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:04:01.637Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:04:53.223Z",
+			"Revision": 6,
+			"RevisionId": "rev-yc9-jpo-nxn",
+			"Outcome": "Resolved with no reply: the recommendation applied. The command line written into Installation."
+		},
+		"Created": "2026-10-26T06:47:26.610Z",
+		"Replies": [
+			{
+				"Id": "rep-k6r-pon-1cc",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T06:47:26.610Z",
+				"Text": "The command line: `consensus-desktop [<folder> | --connect <name>]` for the Desktop, `consensus-server [--config <folder>] [--port] [--scope]` for the Server, with `--headless` for no window (what the Docker image and `npm start` run) and `consensus serve` kept as its alias for a plain node install. **Recommendation:** as written. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-elg-kqv-8nj",
+		"Anchor": {
+			"Text": "Open in Consensus",
+			"Prefix": "s menus), and the Server offers ",
+			"Suffix": " on any project it hosts, openin"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T06:54:45.806Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:04:53.250Z",
+			"Revision": 7,
+			"RevisionId": "rev-15h-o85-ee1",
+			"Outcome": "Applied with the owner's reply: the Host items leave the Desktop's menus, the dependency is inverted, and the Server offers Open in Consensus on each project it hosts (read as opening it in the Desktop connected to that Server)."
+		},
+		"Created": "2026-10-26T06:47:26.648Z",
+		"Replies": [
+			{
+				"Id": "rep-mcn-0kr-9vn",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T06:47:26.648Z",
+				"Text": "Start the Server Host, Open the Server Host and Stop the Server Host come off the Desktop's menus, now that the Server is its own application. **Recommendation:** remove them. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-hse-35m-sk1",
+				"By": "user",
+				"At": "2026-10-26T06:54:45.806Z",
+				"Text": "Correct. The dependency is now inverted. The Server can offer \"Open in Consensus\" for any project it is hosting."
+			}
+		]
+	},
+	{
+		"Id": "thr-miz-kud-dhm",
+		"Anchor": {
+			"Text": "Connect to Server",
+			"Prefix": "in client: it connects, through ",
+			"Suffix": " (formerly Connect to Host), to "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T06:53:05.269Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:04:53.280Z",
+			"Revision": 8,
+			"RevisionId": "rev-3ef-2wc-eyv",
+			"Outcome": "Resolved with no reply: the recommendation applied. Connect to Host is renamed Connect to Server."
+		},
+		"Created": "2026-10-26T06:47:26.701Z",
+		"Replies": [
+			{
+				"Id": "rep-rf7-0lj-d0x",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T06:47:26.701Z",
+				"Text": "The Desktop's Connect to Host is renamed Connect to Server. **Recommendation:** rename it. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-ehb-2ok-zs0",
+		"Anchor": {
+			"Text": "desktop.json keeps only the Desktop's window settings",
+			"Prefix": "d written by both applications; ",
+			"Suffix": ". A sign-in writes it whole, rep"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:37:03.715Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:56:42.633Z",
+			"Revision": 13,
+			"RevisionId": "rev-e4g-m69-int",
+			"Outcome": "Resolved with no reply: the recommendation applied. The current user is user.json of its own in ~/.consensus/."
+		},
+		"Created": "2026-10-26T07:34:29.656Z",
+		"Replies": [
+			{
+				"Id": "rep-v7b-dxu-4qy",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:34:29.656Z",
+				"Text": "Where the current user lives: a record of its own in ~/.consensus/ (user.json: Email, Clerk id, Display, Plan, Until, Checked), read by both applications, with desktop.json keeping only the Desktop's window settings; the alternative is a section of consensus.json, which is the Server's file. **Recommendation:** user.json of its own. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-zhs-lz3-4s7",
+		"Anchor": {
+			"Text": "after 14 days with no check the user is signed out",
+			"Prefix": "eck against Clerk while online; ",
+			"Suffix": ". The tiers become four, Unlicen"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:37:34.195Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:56:42.659Z",
+			"Revision": 14,
+			"RevisionId": "rev-umw-hop-c4a",
+			"Outcome": "Resolved with no reply: the recommendation applied. Refreshed while online, signed out after 14 days with no check."
+		},
+		"Created": "2026-10-26T07:34:29.667Z",
+		"Replies": [
+			{
+				"Id": "rep-rj5-5io-5ay",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:34:29.667Z",
+				"Text": "When \"the stored token expires\": a Clerk session token lasts about a minute, so what can lapse is the record. Today the Desktop re-checks whenever it is online and keeps the license 14 days offline (License.js). **Recommendation:** keep that: the record is refreshed on each sign-in or check while online, and after 14 days with no check the user is signed out. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-g1h-sd2-tiv",
+		"Anchor": {
+			"Text": "with its Manager flag set",
+			"Prefix": "ger is an account in Users.json ",
+			"Suffix": ", and only the Administrator set"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:38:29.502Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:56:42.704Z",
+			"Revision": 15,
+			"RevisionId": "rev-sou-0ji-qkb",
+			"Outcome": "Applied with the owner's reply: a Manager flag on each account in Users.json, not a list in the settings."
+		},
+		"Created": "2026-10-26T07:34:29.678Z",
+		"Replies": [
+			{
+				"Id": "rep-fw3-hfs-5fl",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:34:29.678Z",
+				"Text": "Where the Managers are kept: a Managers list of emails in consensus.json beside AdminEmail, or a Manager flag on each account in Users.json. **Recommendation:** the list in the settings, beside AdminEmail, since both are matched by email. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-3xx-u4i-2sg",
+				"By": "user",
+				"At": "2026-10-26T07:38:29.502Z",
+				"Text": "Manager flag on each account in Users.json"
+			}
+		]
+	},
+	{
+		"Id": "thr-tly-x7f-f0s",
+		"Anchor": {
+			"Text": "stays with the project's role folders",
+			"Prefix": "at a Member may do in a project ",
+			"Suffix": ". The Server's routes split in t"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:39:31.272Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:56:42.725Z",
+			"Revision": 16,
+			"RevisionId": "rev-yh0-1fb-c7j",
+			"Outcome": "Resolved with no reply: the recommendation applied. A Member is any other account the Server knows; project role folders stay as they are."
+		},
+		"Created": "2026-10-26T07:34:29.690Z",
+		"Replies": [
+			{
+				"Id": "rep-nmc-j2h-o4k",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:34:29.690Z",
+				"Text": "You named three roles: Administrator, Manager and Member. Projects already have role folders of their own (Owners, Members, Service, Watchers). **Recommendation:** a Member is any account the Server knows that is not the Administrator or a Manager; what a Member may do in a project stays with the project's role folders, as today. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-e4f-367-k5n",
+		"Anchor": {
+			"Text": "naming the Administrator's email",
+			"Prefix": "d its window shows the sign-in, ",
+			"Suffix": ". Tests in Api, Operations and U"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:40:00.952Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:56:42.750Z",
+			"Revision": 17,
+			"RevisionId": "rev-cic-wep-bmy",
+			"Outcome": "Resolved with no reply: the recommendation applied. The Server does not start under anyone but the Administrator and asks for their sign-in."
+		},
+		"Created": "2026-10-26T07:34:29.704Z",
+		"Replies": [
+			{
+				"Id": "rep-809-l9u-ra6",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:34:29.704Z",
+				"Text": "The Server started while the current user is not the Administrator: it does not start and its window shows the sign-in, naming the Administrator's email; the alternative is to start with no network listener and only the page. **Recommendation:** it does not start, and asks for the Administrator's sign-in. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-611-gaj-lvq",
+		"Anchor": {
+			"Text": "Open in Consensus Server to a folder's menu",
+			"Prefix": "d Open in Consensus Desktop and ",
+			"Suffix": " in the file explorer. The Deskt"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T08:05:59.630Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T08:06:28.799Z",
+			"Revision": 20,
+			"RevisionId": "rev-oiu-cxd-5jp",
+			"Outcome": "Applied with the owner's reply and both recommendations: two folder commands in the file explorer, Open in Consensus Desktop (sidecar mode, or client mode through the Server for a folder it hosts) and Open in Consensus Server (registers and shows the project); no Open in Consensus item on the Server's project rows."
+		},
+		"Created": "2026-10-26T07:34:29.716Z",
+		"Replies": [
+			{
+				"Id": "rep-fmq-sc0-9dc",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:34:29.716Z",
+				"Text": "How Open in Consensus reaches the Desktop: the Desktop's installer registers a consensus:// link; the Server opens consensus://connect?server=<address>&project=<id>, and the Desktop adds that Server to its list when it is new and opens the project in a window. With no Desktop installed, the Server says so. **Recommendation:** the consensus:// link. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-mp2-314-c1o",
+				"By": "user",
+				"At": "2026-10-26T07:48:55.868Z",
+				"Text": "there should actually be two different \"Open in Consensus\" folder commands:\n1. \"Open in Consensus Desktop\"\n2. \"Open in Consensus Server\""
+			},
+			{
+				"Id": "rep-07u-ffs-egf",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:56:42.796Z",
+				"Text": "I read \"folder commands\" as items on a folder's right-click menu in the file explorer, the way VS Code adds \"Open with Code\": **Open in Consensus Desktop**, added by the Desktop's installer, opens the folder in the Desktop in sidecar mode; **Open in Consensus Server**, added by the Server's installer, registers the folder as a project of the Server (or finds it when it is registered already) and shows it in the Server's window. Is that what you meant, rather than two items on the Server's project row?\n\nIf so, a follow-up: does the Server's project row keep an item that opens a hosted project in the Desktop as a thin client (through the consensus:// link)? **Recommendation:** yes: the two folder items as above, and \"Open in Consensus Desktop\" on the Server's project row through the consensus:// link. Resolve with no reply to take that."
+			},
+			{
+				"Id": "rep-mq7-ssq-55y",
+				"By": "user",
+				"At": "2026-10-26T08:00:20.834Z",
+				"Text": "i agree with the first paragraph but i dont understand what you are asking about in the follow-up."
+			},
+			{
+				"Id": "rep-edx-pi5-3pq",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T08:04:50.296Z",
+				"Text": "Good: the two folder commands as in the first paragraph.\n\nThe follow-up, put more plainly: earlier the plan also gave the Server's own window an \"Open in Consensus\" item on each project it hosts, which would open that project in a Desktop window connected to the Server. Since the Server's window can already work in the project, that item may not be needed. **Recommendation:** drop it; the two folder commands are the only Open in Consensus commands.\n\nOne related point: \"Open in Consensus Desktop\" on a folder the running Server already hosts would put two writers on one folder (the sidecar and the Server). **Recommendation:** in that case the Desktop opens the project through the Server in client mode instead of in sidecar mode, so Step 4 keeps that routing rather than removing it.\n\nResolve with no reply to take both recommendations."
+			}
+		]
+	},
+	{
+		"Id": "thr-vpu-ixd-e42",
+		"Anchor": {
+			"Text": "serves only the sign-in until the first user signs in through a browser",
+			"Prefix": ". A headless Server's first run ",
+			"Suffix": "; that sign-in, with a Personal "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T08:04:16.074Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T08:04:50.287Z",
+			"Revision": 19,
+			"RevisionId": "rev-m6w-e8t-9v3",
+			"Outcome": "Resolved with no reply: the wording and both recommendations applied. The first run is blocked until the first browser sign-in records the Administrator; CONSENSUS_ADMIN limits who can make it; the level is the Administrator's last-seen license."
+		},
+		"Created": "2026-10-26T07:34:29.729Z",
+		"Replies": [
+			{
+				"Id": "rep-m4n-mta-onh",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:34:29.729Z",
+				"Text": "A headless Server, the Docker image especially, has no window to sign in through. **Recommendation:** it reads user.json from its config folder (the Docker volume): sign in once in the Server application on any machine and copy the record into the volume; with no record, or not the Administrator's, it logs why and exits. The alternative, a sign-in command that prints a browser link, can come later. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-6zu-7xx-ym4",
+				"By": "user",
+				"At": "2026-10-26T07:54:30.950Z",
+				"Text": "an initial run of the server image will be blocked until the first user signs-in via browser. Upon sucessful first sign-in, the Adminstrator is recorded and blocks are removed."
+			},
+			{
+				"Id": "rep-54l-5n1-wzq",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:56:42.807Z",
+				"Text": "Understood: a headless Server's first run is blocked until the first user signs in through a browser; that sign-in records the Administrator and lifts the block. No sign-in file is copied. I will write into Step 3: \"A headless Server's first run serves only the sign-in until the first user signs in through a browser; that sign-in, with a Personal or Professional license, records the Administrator and lifts the block.\"\n\nTwo follow-ups, each with a recommendation:\n1. The level of a headless Server: it has no current user on its machine. **Recommendation:** it takes its level from the Administrator's account in Users.json, the license their last sign-in showed (the Plan field already kept there), so a Public Scope needs the Administrator's last sign-in to have shown Professional.\n2. While blocked on a Public Scope, anyone who reaches the address first would become the Administrator. **Recommendation:** keep CONSENSUS_ADMIN (the environment variable the image already reads): when set, only that email can make the first sign-in.\n\nResolve with no reply to take the wording and both recommendations."
+			}
+		]
+	},
+	{
+		"Id": "thr-1zu-izm-2by",
+		"Anchor": {
+			"Text": "so installed copies update in place",
+			"Prefix": " app id, com.mchiver.consensus, ",
+			"Suffix": ". A Server test like the Desktop"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:55:14.214Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:56:42.772Z",
+			"Revision": 18,
+			"RevisionId": "rev-ot4-tef-t43",
+			"Outcome": "Resolved with no reply: the recommendation applied. Consensus Desktop keeps the app id; Consensus Server gets its own."
+		},
+		"Created": "2026-10-26T07:34:29.741Z",
+		"Replies": [
+			{
+				"Id": "rep-4yb-fev-xko",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:34:29.741Z",
+				"Text": "The installers' names: today's Consensus installer becomes Consensus Desktop and keeps its app id (com.mchiver.consensus), so installed copies update in place; Consensus Server gets its own id (com.mchiver.consensus-server). Both are built from one package.json with a build configuration each. **Recommendation:** as written. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-esb-667-5d5",
+		"Anchor": {
+			"Text": "The Desktop's split",
+			"Prefix": "e the Desktop's, and the smoke. ",
+			"Suffix": ". Off the Desktop: Start, Open a"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T07:55:45.290Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T07:56:42.786Z",
+			"Revision": 18,
+			"RevisionId": "rev-ot4-tef-t43",
+			"Outcome": "Resolved with no reply: the order stands as written, no change to the text."
+		},
+		"Created": "2026-10-26T07:34:29.753Z",
+		"Replies": [
+			{
+				"Id": "rep-dcc-5st-d2p",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T07:34:29.753Z",
+				"Text": "The order of the Steps: the current user and the tiers first, since everything checks them; the roles second; the Server application third; the Desktop's split fourth, after the Server exists, so no one is left without a way to serve projects; the guide last. **Recommendation:** as written. Resolve with no reply to take the recommendation."
+			}
+		]
+	}
+]
