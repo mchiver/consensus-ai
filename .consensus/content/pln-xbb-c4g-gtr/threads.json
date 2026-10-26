@@ -701,5 +701,34 @@
 				"Text": "The order of the Steps: the current user and the tiers first, since everything checks them; the roles second; the Server application third; the Desktop's split fourth, after the Server exists, so no one is left without a way to serve projects; the guide last. **Recommendation:** as written. Resolve with no reply to take the recommendation."
 			}
 		]
+	},
+	{
+		"Id": "thr-q4c-slb-zel",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T08:27:14.338Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T08:27:49.220Z",
+			"Revision": 20,
+			"RevisionId": "rev-oiu-cxd-5jp",
+			"Outcome": "Accepted by the owner: Step 1 built as the log says."
+		},
+		"Created": "2026-10-26T08:19:26.615Z",
+		"Replies": [
+			{
+				"Id": "rep-lhp-fzi-j3s",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T08:19:26.615Z",
+				"Text": "**Build log: Step 1, The current user and the tiers** (Claude Opus 5.5, as Claude-CLI).\n\n**What was built**\n- `src/License.js` (moved from desktop/License.js, which is gone): the machine's current user in `<config>/user.json` (~/.consensus/user.json by default): `{ Email, Clerk, Display, Plan, Until, Checked }`, with Read, Write (whole, through a temporary file), Remove, Verify (a session token to the record), FromClaims, Clean, Lapsed, Tier, Line, Rank and AtLeast.\n- The four tiers: `unlicensed` (no record, or 14 days with no check), `registered` (a sign-in with no license, or a license whose Until has passed), `personal`, `professional`; Tier answers a Rank 0 to 3 beside the name.\n- A sign-in with no license now writes a record (Registered) instead of clearing the cache; a sign-in replaces whoever was there; Sign out removes the file.\n- The Desktop (`desktop/main.js`) reads user.json at each use, so a sign-in in another window or the Server counts at once; a record unchecked for 14 days is removed there and a line logged (\"signed out: ...\"). The page still hands its token over at every load while signed in, which refreshes Checked.\n- `desktop.json` no longer has a License field (`desktop/Settings.js`); an older file's field is dropped at the next save. An old cached license carries no email, so it is not carried over: the next sign-in writes user.json.\n- The gates that read \"free\" now read the rank: Start the Server Host and the Hosts on the connect screen need Personal, as before (Step 4 moves Connect to Server to Registered). The Server's refusal of Scope Public names the tier by its title (\"Unlicensed\", \"Registered\", ...).\n- The page (`public/js/session.js`): Tier() answers unlicensed or registered instead of free (on a server page, registered when signed in with no plan).\n- `bin/docs.js`: the demo Desktop's Personal sign-in is written as user.json instead of desktop.json's License.\n\n**Tests**\n- New `test/License.test.js` (3 tests): the token to the record (licensed, Registered, old names, other key, bad token), the file (write whole, replace, remove, bad file and record, a missing folder made), the four tiers with Rank, AtLeast, the 14-day sign-out, a license run out, and the About lines.\n- `test/Desktop.test.js`: the license test moved out; desktop.json drops a License field. `test/Api.test.js`: Scope Public refused at the Unlicensed and Registered tiers.\n- `npm test`: 266 tests, all pass (3 skipped, as before). `npm run smoke`: SMOKE OK. The docs screenshot test passes with the new seeding.\n\n**Decided during the build**\n- user.json sits in the config folder (`--config`), so a probe or test on a temporary config has its own current user.\n- An About line names the user: \"Personal (ann@example.com), checked today: 14 days left offline\"; \"Registered (...): signed in with no license\"; \"Unlicensed: not signed in\".\n- A Clerk session lives in each window's page, user.json on the machine: a window whose page has no Clerk session still shows the tier from user.json. Signing out in any window removes the machine's user.\n- The guide and the features page wait for Step 5.\n\nResolve to accept the step; reply with what to fix otherwise."
+			}
+		]
 	}
 ]

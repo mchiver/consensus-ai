@@ -14,6 +14,7 @@ const PATH = require( 'path' );
 const CHILD_PROCESS = require( 'child_process' );
 const MARKED = require( 'marked' );
 const OPERATIONS = require( '../src/Operations.js' );
+const LICENSE = require( '../src/License.js' );
 
 const DOCS_FOLDER = PATH.join( __dirname, '..', 'docs' );
 const BOOTSTRAP_CSS = PATH.join( __dirname, '..', 'node_modules', 'bootstrap', 'dist', 'css', 'bootstrap.min.css' );
@@ -822,6 +823,13 @@ async function wait_for_target( Port, Test, TimeoutMs )
 }
 
 
+// The demo's current user (plan The Server, Step 1): a Personal sign-in in the config folder's user.json.
+function demo_user( Config )
+{
+	LICENSE.Write( Config, { Email: 'demo@example.com', Clerk: 'user_demo', Display: 'Demo', Plan: 'personal', Until: null, Checked: new Date().toISOString() } );
+}
+
+
 async function desktop_pictures( Url, Demo, Folder, Log )
 {
 	const CDP = require( '../test/support/Cdp.js' );
@@ -835,9 +843,10 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 	let settings = Object.assign( PARTICIPANTS.DefaultSettings( 3500, 'None' ), { Name: 'Recipe Box desktop' } );
 	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( settings, null, '\t' ) );
 	// The seeded project saved as a Host project (plan Rearchitecturation, Step 2: one entry per Host project).
-	// a Personal license cached (plan Rearchitecturation, Step 6): the Hosts need one
-	let desktop = { Hosts: [ { Name: 'Recipe Box server', Url: Url, Project: Demo.Id, Title: 'Recipe Box' } ], Theme: 'light', Scale: 'normal', License: { Plan: 'personal', Until: null, Checked: new Date().toISOString() } };
+	let desktop = { Hosts: [ { Name: 'Recipe Box server', Url: Url, Project: Demo.Id, Title: 'Recipe Box' } ], Theme: 'light', Scale: 'normal' };
 	FS.writeFileSync( PATH.join( config, 'desktop.json' ), JSON.stringify( desktop, null, '\t' ) );
+	// a Personal user signed in (plan Rearchitecturation, Step 6; plan The Server, Step 1: user.json): the Hosts need one
+	demo_user( config );
 
 	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data, '--config', config ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );
 	let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
@@ -928,7 +937,8 @@ async function desktop_folder_pictures( Folder, Log )
 	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-docs-desktop-folder-' ) );
 	let config = PATH.join( DEMO_ROOT, 'desktop-folder-config' );
 	FS.mkdirSync( config, { recursive: true } );
-	FS.writeFileSync( PATH.join( config, 'desktop.json' ), JSON.stringify( { Theme: 'light', Scale: 'normal', License: { Plan: 'personal', Until: null, Checked: new Date().toISOString() } }, null, '\t' ) );
+	FS.writeFileSync( PATH.join( config, 'desktop.json' ), JSON.stringify( { Theme: 'light', Scale: 'normal' }, null, '\t' ) );
+	demo_user( config );
 	let project = PATH.join( DEMO_ROOT, 'recipe-box-folder' );
 	FS.mkdirSync( project, { recursive: true } );
 	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', project, '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data, '--config', config ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );

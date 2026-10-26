@@ -17,9 +17,11 @@
 // detached, over the same config folder, its log in <config>/~logs/; desktop/Host.js), opens its page and stops it; a
 // Host already running is found by its port; Open folder on a folder the Host's registry lists as mounted, while the
 // Host runs, connects the window to the Host's project instead of opening the folder. Step 6: the tiers: the page's sign-in
-// hands its token here (set-license), verified against Clerk's keys and cached in desktop.json for 14 days (License.js);
-// Free opens local folders and runs the sidecar, Personal unlocks the tasks, the Hosts and the Server Host with Scope
-// Local, Professional lets the Host keep its file's Scope Public.
+// hands its token here (set-license), verified against Clerk's keys; Personal unlocks the tasks, the Hosts and the
+// Server Host with Scope Local, Professional lets the Host keep its file's Scope Public. Plan The Server, Step 1: the
+// sign-in is the machine's current user, <config>/user.json (src/License.js), shared with the Server and read at each
+// use, so a sign-in in another window or application counts here; the tiers are Unlicensed (no sign-in, the sidecar),
+// Registered (a sign-in with no license), Personal and Professional; after 14 days with no check the user is signed out.
 // Plan UI Components, Step 5: the window has no frame of its own: Electron draws the window buttons over the page's
 // title bar (titleBarStyle hidden with titleBarOverlay; the page sends the bar's colours and height over the chrome
 // message, so the buttons follow the palette), the bar is the drag region, and the native menu is not shown; it is
@@ -35,7 +37,7 @@ const ELECTRON = require( 'electron' );
 const SETTINGS = require( './Settings.js' );
 const PROJECTS = require( './Projects.js' );
 const HOST = require( './Host.js' );
-const LICENSE = require( './License.js' );
+const LICENSE = require( '../src/License.js' );
 const START = require( '../src/Start.js' );
 const PAGE = require( './Page.js' );
 const SERVER = require( '../src/Server.js' );
@@ -285,7 +287,7 @@ async function connect_host_here( Host )
 	{
 		return { Error: 'a Host needs a Name' };
 	}
-	if ( !LICENSE.AtLeast( desktop.License, 'personal' ) )
+	if ( !LICENSE.AtLeast( current_user(), 'personal' ) )
 	{
 		return { Error: 'a Personal license: connecting to a Host needs one; sign in from the page\'s menu' };
 	}
@@ -646,15 +648,32 @@ const HOST_NAME = 'Server Host';
 const HOST_START_WAIT = 15000;
 
 
-// The tier the Desktop is at now (plan Rearchitecturation, Step 6), for the page and the gates here.
-function tier_now()
+// The machine's current user (plan The Server, Step 1): <config>/user.json, read at each use since another window or
+// the Server may sign someone in; a record with no check for 14 days is removed, the user signed out.
+function current_user()
 {
-	let tier = LICENSE.Tier( desktop ? desktop.License : null );
-	return { Tier: tier.Tier, Plan: tier.Plan, Days: tier.Days, Until: tier.Until, Checked: tier.Checked, Lapsed: tier.Lapsed, Line: LICENSE.Line( desktop ? desktop.License : null ) };
+	let record = LICENSE.Read( config_folder() );
+	if ( record && LICENSE.Lapsed( record ) )
+	{
+		LICENSE.Remove( config_folder() );
+		console.log( 'signed out: ' + ( record.Email || record.Display || 'the current user' ) + ', not checked for ' + LICENSE.CACHE_DAYS + ' days' );
+		return null;
+	}
+	return record;
 }
 
 
-// A sign-in's session token: verified, the license cached; answers the tier, or { Error }.
+// The tier the Desktop is at now, for the page and the gates here.
+function tier_now()
+{
+	let record = current_user();
+	let tier = LICENSE.Tier( record );
+	return { Tier: tier.Tier, Rank: tier.Rank, Plan: tier.Plan, Email: tier.Email, Display: tier.Display, Days: tier.Days, Until: tier.Until, Checked: tier.Checked, Lapsed: tier.Lapsed, Line: LICENSE.Line( record ) };
+}
+
+
+// A sign-in's session token: verified, written whole as the current user (replacing whoever was there); answers the
+// tier, or { Error } with the tier unchanged.
 async function set_license( Token )
 {
 	let record = null;
@@ -668,24 +687,19 @@ async function set_license( Token )
 	}
 	if ( !record )
 	{
-		// a verified sign-in with no license: the cache is cleared, the Desktop is Free
-		desktop.License = null;
-		save_settings();
-		build_menu();
-		return tier_now();
+		return Object.assign( tier_now(), { Error: 'the sign-in could not be verified' } );
 	}
-	desktop.License = record;
-	save_settings();
+	LICENSE.Write( config_folder(), record );
 	build_menu();
-	console.log( 'license: ' + LICENSE.Line( desktop.License ) );
+	console.log( 'signed in: ' + LICENSE.Line( record ) );
 	return tier_now();
 }
 
 
+// Sign out: the current user removed.
 function clear_license()
 {
-	desktop.License = null;
-	save_settings();
+	LICENSE.Remove( config_folder() );
 	build_menu();
 	return tier_now();
 }
@@ -717,7 +731,7 @@ async function start_host()
 {
 	// Personal starts the Host with Scope Local; Professional leaves its file's Scope (Public allowed); Free starts nothing.
 	let tier = tier_now().Tier;
-	if ( tier === 'free' )
+	if ( LICENSE.Rank( tier ) < LICENSE.Rank( 'personal' ) )
 	{
 		return Object.assign( { Running: false }, { Error: 'a Personal license: Start the Server Host needs one; sign in from the page\'s menu' } );
 	}
@@ -766,7 +780,7 @@ function host_items()
 	}
 	else
 	{
-		items.push( { label: 'Start the Server Host', enabled: tier_now().Tier !== 'free', click: function () { start_host(); } } );
+		items.push( { label: 'Start the Server Host', enabled: tier_now().Rank >= LICENSE.Rank( 'personal' ), click: function () { start_host(); } } );
 	}
 	return items;
 }

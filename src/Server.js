@@ -41,6 +41,7 @@ const CLERK = require( './Clerk.js' );
 const SIDECAR = require( './Sidecar.js' );
 const HOST = require( './Host.js' );
 const ROLES = require( './Roles.js' );
+const LICENSE = require( './License.js' );
 
 const DEFAULT_PORT = 3500;
 const REREAD_DELAY = 300;		// the debounce on the Host's file changing (plan Rearchitecturation, Step 4)
@@ -134,7 +135,7 @@ async function Start( Options )
 	// and admits licensed sign-ins alone.
 	if ( scope === 'Public' && options.Tier !== undefined && options.Tier !== null && ROLES.PlanRank( options.Tier ) < ROLES.PlanRank( 'professional' ) )
 	{
-		throw new Error( 'Scope Public needs a Professional license: this Desktop is at the ' + ( ROLES.PlanRank( options.Tier ) ? options.Tier.charAt( 0 ).toUpperCase() + options.Tier.slice( 1 ) : 'Free' ) + ' tier; sign in with one, or run the Server Host with Scope Local' );
+		throw new Error( 'Scope Public needs a Professional license: this Desktop is at the ' + ( LICENSE.TITLES[ options.Tier ] || 'Unlicensed' ) + ' tier; sign in with one, or run the Server Host with Scope Local' );
 	}
 	let host = PARTICIPANTS.HostOf( scope );
 

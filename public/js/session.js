@@ -16,8 +16,9 @@
 // server has no session.
 //
 // In the Desktop (plan Rearchitecturation, Step 6) a sign-in's token goes to the desktop (ConsensusDesktop.SetLicense),
-// which verifies it and caches the license in desktop.json for 14 days; the Desktop's tier (Tier, free, personal or
-// professional) is read from that cache, so it holds offline, and a sign-out clears it.
+// at every load while signed in, which verifies it and writes it as the machine's current user (plan The Server,
+// Step 1: <config>/user.json, kept 14 days from the last check, so it holds offline); a sign-out removes it. The tiers
+// are unlicensed (no sign-in), registered (a sign-in with no license), personal and professional.
 //
 //   Session { Key, Base (the own server's root key and base, null when there is none),
 //             On, Loaded, Required, Asked, Refusal, Error, Config, Pricing, Ready (a promise: loaded), License (the
@@ -356,9 +357,13 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	{
 		if ( window.ConsensusDesktop )
 		{
-			return ( session.License && session.License.Tier ) ? session.License.Tier : 'free';
+			return ( session.License && session.License.Tier ) ? session.License.Tier : 'unlicensed';
 		}
-		return Plan() || 'free';
+		if ( Plan() )
+		{
+			return Plan();
+		}
+		return SignedIn() ? 'registered' : 'unlicensed';
 	}
 
 

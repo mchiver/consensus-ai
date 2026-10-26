@@ -9,11 +9,10 @@
 //     "Recent": [ { "Path": "W:/code/tic-tac-toe", "Opened": "2026-10-25T10:00:00.000Z" } ],
 //     "Hosts": [ { "Name": "cube4", "Url": "http://cube4:3500", "Project": "prj-aaa-bbb-ccc", "Title": "Test" } ],
 //     "Theme": "system", "Scale": "normal",
-//     "Remembered": {},
-//     "License": { "Plan": "personal", "Until": null, "Checked": "2026-10-25T10:00:00.000Z" }
+//     "Remembered": {}
 //   }
-//   License (plan Rearchitecturation, Step 6): the sign-in's license as the Desktop last verified it (desktop/License.js:
-//   the tier holds for 14 days from Checked, offline too), or null: Free.
+//   The sign-in is not here (plan The Server, Step 1): it is the machine's current user, <config>/user.json
+//   (src/License.js), shared with the Server; a License field of an older file is dropped at the next save.
 //   Recent: the project folders opened, newest first. Hosts: one entry per Host project the Desktop has opened (Step 2:
 //   Project the project's id and Title its name as last seen; an entry with no Project is a Host saved before a project
 //   was picked), in place of the saved servers of before; no tokens: a Host with Scope Local is reached from its own
@@ -31,8 +30,7 @@ const FILE = 'desktop.json';
 const THEMES = [ 'system', 'light', 'sepia', 'paper', 'solarized-light', 'dark', 'slate', 'solarized-dark', 'nord', 'midnight' ];
 const DARK_THEMES = [ 'dark', 'slate', 'solarized-dark', 'nord', 'midnight' ];
 const SCALES = [ 'small', 'normal', 'large' ];
-const DESKTOP_FIELDS = [ 'Recent', 'Hosts', 'Theme', 'Scale', 'Remembered', 'License' ];
-const PLANS = [ 'personal', 'professional' ];		// src/Roles.js's PLANS
+const DESKTOP_FIELDS = [ 'Recent', 'Hosts', 'Theme', 'Scale', 'Remembered' ];
 const RECENT_LIMIT = 20;
 
 
@@ -56,7 +54,6 @@ function Default()
 		Theme: 'system',
 		Scale: 'normal',
 		Remembered: {},
-		License: null,
 	};
 }
 
@@ -99,10 +96,6 @@ function Fill( Settings )
 	if ( given.Remembered && typeof given.Remembered === 'object' && !Array.isArray( given.Remembered ) )
 	{
 		settings.Remembered = JSON.parse( JSON.stringify( given.Remembered ) );
-	}
-	if ( given.License && typeof given.License === 'object' && PLANS.includes( given.License.Plan ) && typeof given.License.Checked === 'string' )
-	{
-		settings.License = { Plan: given.License.Plan, Until: ( typeof given.License.Until === 'string' && given.License.Until ) ? given.License.Until : null, Checked: given.License.Checked };
 	}
 	return settings;
 }

@@ -1955,11 +1955,12 @@ TEST( 'mount and unmount (plan Rearchitecturation, Step 5): the Administrator\'s
 TEST( 'Scope Public is refused at bind time below the Professional tier when the Desktop\'s tier is given, with a line naming the tier; without a tier (the headless form, the image) a Public server starts as before', async function ()
 {
 	await ASSERT.rejects( SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public', Tier: 'personal' } ), /Scope Public needs a Professional license: this Desktop is at the Personal tier/ );
-	await ASSERT.rejects( SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public', Tier: 'free' } ), /this Desktop is at the Free tier/ );
+	await ASSERT.rejects( SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public', Tier: 'unlicensed' } ), /this Desktop is at the Unlicensed tier/ );
+	await ASSERT.rejects( SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public', Tier: 'registered' } ), /this Desktop is at the Registered tier/ );
 	let professional = await SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public', Tier: 'professional' } );
 	ASSERT.equal( professional.Scope, 'Public' );
 	await professional.Close();
-	let local = await SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Local', Tier: 'free' } );
+	let local = await SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Local', Tier: 'unlicensed' } );
 	ASSERT.equal( local.Scope, 'Local', 'Local needs no tier' );
 	await local.Close();
 	let untiered = await SERVER.Start( { Config: temporary_folder(), Port: 0, Scope: 'Public' } );

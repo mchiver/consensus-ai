@@ -27,9 +27,9 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	Project: BOOT.Project || null,
 	// The recent project folders (desktop.json), newest first, for the menu.
 	Recent: BOOT.Recent || [],
-	// The Desktop's tier (plan Rearchitecturation, Step 6): { Tier, Days, Line } from the cached license; SetLicense hands a
-	// sign-in's session token to the desktop, which verifies it, caches the license and answers the tier; ClearLicense
-	// forgets it (a sign-out).
+	// The Desktop's tier (plan Rearchitecturation, Step 6): { Tier, Rank, Days, Line, ... } from the machine's current user
+	// (plan The Server, Step 1: <config>/user.json); SetLicense hands a sign-in's session token to the desktop, which
+	// verifies it, writes it as the current user and answers the tier; ClearLicense removes it (a sign-out).
 	License: BOOT.License || null,
 	SetLicense: function ( Token ) { return invoke( 'set-license', Token ); },
 	ClearLicense: function () { return invoke( 'clear-license' ); },
