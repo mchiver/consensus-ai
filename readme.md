@@ -436,7 +436,7 @@ stay on the LLM page.
 **Explain** (plan LLM Tasks, Step 4) is the conversation with a project: a tab per project (`#/x/<project id>`;
 Explain in the project's menu, or the Explain button on the LLM page, which opens the tab instead of running;
 `public/components/explain-pane/`) with the exchange above and a question box below. Ask starts an Explain run
-of the project's chosen connection (Step 6: project.json's `Llm`, picked in the project's Settings popup) with the question as its Text, and the answer
+of the project's chosen connection (Step 6: `Llm` on the project's registry entry in consensus.json since plan Project settings, Step 1, picked in the project's Settings popup) with the question as its Text, and the answer
 is the run's output, rendered when the run ends. The conversation is the person's Explain runs of the project,
 read from the run records (`GET /api/runs?Project=&Task=explain&By=`), so nothing is kept in the project; Clear
 deletes them (`DELETE /api/runs/:id`, never a running one). An Explain run has Writes none: it reads the project
@@ -455,8 +455,8 @@ Administrator (the owner; on a Public server the account whose email is the Cler
 makes accounts on the server-level **Users** fold in the sidebar (New user with a login, a display and an email, the
 record Clerk completes at the person's first sign-in; New Service account with a name) and mints a Service
 account's tokens; an account edits its own display and mints and revokes its own. A project's **Users** folder,
-fixed after the Context folder, holds exactly **Owners**, **Members**, **Service** and **Watchers** (project.json's
-`Roles`, account ids, an account in one at most): an account is dragged in from the Users fold, between them to
+fixed after the Context folder, holds exactly **Owners**, **Members**, **Service** and **Watchers** (`Roles` on the
+project's registry entry in consensus.json since plan Project settings, Step 1; project.json's before; account ids, an account in one at most): an account is dragged in from the Users fold, between them to
 change role, and out with the × on its row, by an Owner of the project or the Administrator
 (`PUT /api/projects/:pid/roles`). `src/Roles.js` names the actions (read, write, resolve, state, manage, roles,
 press; admin for the server's own routes) and what each role allows: Owners everything in the project; Members
@@ -593,7 +593,7 @@ Writes is the permission: the run token carries it, so a none run is refused eve
 run reads only") and a local model gets the read tools only; a task that packages the plan or the threads
 needs a plan picked, one that writes or packages files the project's folder on the server's machine. Tasks
 are defined per server and enabled per project: a project's Settings lists them with a checkbox each (`Tasks`
-in project.json, the enabled ids; absent means all, so a task added later is on everywhere). A file with no
+on the project's registry entry in consensus.json since plan Project settings, Step 1, the enabled ids; absent means all, so a task added later is on everywhere). A file with no
 `Tasks` gets the shipped set at start. `TasksVersion` in the settings (3
 since Step 4) says which shipped tasks a file has been given: a file below it gets the shipped tasks that came
 after its version (each shipped task carries a Since), each after the nearest shipped one before it, once, so a

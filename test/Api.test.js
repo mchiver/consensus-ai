@@ -1325,6 +1325,11 @@ TEST( 'the project\'s LLM connection (plan LLM Tasks, Step 6): PUT /api/projects
 	ASSERT.equal( set.Status, 200 );
 	ASSERT.equal( set.Body.Project.Llm, llm.Id );
 	ASSERT.equal( ( await project_named( project.Id ) ).Llm, llm.Id );
+	// kept on the project's entry in consensus.json, never in its project.json (plan Project settings, Step 1)
+	let file = JSON.parse( FS.readFileSync( PATH.join( set.Body.Project.Path, '.consensus', 'project.json' ), 'utf8' ) );
+	ASSERT.equal( 'Llm' in file, false );
+	let entry = JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).Projects.find( function ( item ) { return item.Path === set.Body.Project.Path; } );
+	ASSERT.equal( entry.Llm, llm.Id );
 	let bad = await call( 'PUT', '/api/projects/' + project.Id, { Llm: 'llm-nobody' } );
 	ASSERT.equal( bad.Status, 400 );
 	ASSERT.match( bad.Body.Error, /names no connection of this server/ );

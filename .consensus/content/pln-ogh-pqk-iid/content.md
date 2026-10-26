@@ -1,0 +1,50 @@
+# Project settings
+
+Raised by the owner on 2026-10-26 after running the Desktop: a folder opened in the Desktop showed the settings of the global config (`~/.consensus/consensus.json`) rather than the project's own. A project's `project.json` is part of the project's folder and goes into source control with it, so it holds what belongs to the project for anyone who clones it, and nothing else: never a secret, and nothing that belongs to one machine's Server or one person.
+
+## What project.json holds
+
+- **Kept:** Id, Name, Context, ContextFolder, Created, Updated, Version, Items, Archive, States, Include, Exclude, Commands, GitSync, AutoCommit.
+- **Added:** `View`, the project's view settings (below).
+- **Removed:** `Roles`, `Llm` and `Tasks`. They name one Server's accounts, its LLM connection and its tasks, so they live in the user's global config only. A stray `Mounted` (the registry's switch, written back into some project.json files) is removed too.
+
+None of what is kept is a secret.
+
+## Where Roles, Llm and Tasks go
+
+They move onto the project's entry in the global config's project list: `consensus.json` Projects `[ { Path, Mounted, Llm, Tasks, Roles } ]`. The store joins them to the project when it reads it, as it joins `Mounted` today, and writes them to the entry when they change, so the code that reads a project's roles, connection and tasks is unchanged. Only a person signed in to a Server from the Desktop reads and invokes LLM Tasks; a folder opened in the Desktop's sidecar has none.
+
+## Moving existing projects
+
+At start, a Server (a writable global config) finds a `project.json` that still has `Roles`, `Llm` or `Tasks`, copies them to the project's entry where the entry has none, and writes `project.json` without them. The Desktop's sidecar reads the global config read-only, so it moves nothing: it ignores those fields, as it has no roles or connections in sidecar mode, and leaves them for the Server to move.
+
+## View settings
+
+`project.json` gets `View`: the project's look in the Desktop, the same for everyone who opens the folder.
+
+- **In View:** the margins, the highlight, the editor, the preview and source mode, show-updated, which panes are hidden (the tree, the threads) and the pane widths.
+- **Kept per person, as now** (`desktop.json` in the Desktop, the browser's storage otherwise): the open tabs, the open item and project, the folded sections, the thread filter, the closed roots, the LLM box, the comment height and the other remembered conveniences.
+
+In the Desktop the look belongs to the project: every change to it, from the look controls or from Settings, is saved to View, so it is shared with everyone who clones the project and shows up in git; nothing of the look is kept per person there.
+
+A project opened from a Server (the Server's window, a browser, or the Desktop connected to it) uses the Server's view settings and ignores the project's View: one look for everyone on that Server, kept in its config (`consensus.json` View, the same keys) and set in the Server's Settings by the Administrator and the Managers. On a Server's page the look controls change the Server's look for the Administrator and the Managers and are hidden from everyone else.
+
+## The settings of a project
+
+- **The Desktop, sidecar mode:** Settings shows the project's settings, read from and saved to `project.json`: the Name, the States, Include and Exclude, Commands, GitSync and AutoCommit, and View. The global config's settings (Port, Scope, Owner, Tasks, the Clerk section) are not shown there and are never read for it.
+- **A Server:** Settings stays the Server's own and holds the Server's view settings. A project's settings open from the project's menu ("Project settings…"), for its Owners and the Administrator and Managers: the mechanical settings only (the Name, the States, Include and Exclude, Commands, GitSync and AutoCommit, the LLM connection and the Tasks), never View. On a Server the look is always the Server's.
+- **The API:** the project update operation takes `View` on the Desktop's sidecar alone (known keys only, plain values); on a Server the LLM connection, the Tasks and the roles go to the project's registry entry, never into the file.
+
+## Steps
+
+### Step 1: Roles, Llm and Tasks leave project.json
+
+The registry entry carries `Llm`, `Tasks` and `Roles`; the store joins them on read and writes them to the entry; Prepare moves them out of an old `project.json` on a writable config; the sidecar ignores them; a stray `Mounted` is removed. Tests: a project.json with Roles, Llm and Tasks is moved once and not again; the roles, the connection and the tasks read the same before and after; the sidecar leaves the file's fields alone; a written project.json never holds Roles, Llm, Tasks or Mounted.
+
+### Step 2: The look in View
+
+The `View` field, its keys and defaults, in `project.json` and in the Server's `consensus.json`; in the Desktop the page takes the project's View and saves every change of the look to it; on a Server the page takes the Server's View, changed by the Administrator and the Managers; the update operation takes View on the Desktop's sidecar. Tests: View read and saved; an unknown key refused; a Server ignores a project's View and refuses a write to it; a Member on a Server has no look controls.
+
+### Step 3: The Settings of a project
+
+The Desktop's Settings in sidecar mode shows and saves the project's settings; a Server's projects get "Project settings…". Tests, the smoke, and the guide (settings, projects, the Server) brought along.

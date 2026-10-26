@@ -1,0 +1,294 @@
+[
+	{
+		"Id": "thr-gql-rlb-flu",
+		"Anchor": {
+			"Text": "the margins, the highlight, the editor",
+			"Prefix": "everyone who opens it. In View: ",
+			"Suffix": ", the preview and source mode, s"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T20:40:08.703Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T20:46:19.931Z",
+			"Revision": 1,
+			"RevisionId": "rev-14g-5c3-6eh",
+			"Outcome": "Taken as written: the look in View, the moment-to-moment state per person."
+		},
+		"Created": "2026-10-26T20:33:08.722Z",
+		"Replies": [
+			{
+				"Id": "rep-dad-4yu-zca",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T20:33:08.722Z",
+				"Text": "**The split of View:** the look (margins, highlight, editor, preview and source mode, show-updated, hidden panes, pane widths) goes in `project.json`; the moment-to-moment state (tabs, open item, folds, filter) stays per person. Everything in `project.json` is committed, so per-person state there would make every click a change in git. **Recommendation:** as written. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-nza-0sf-klr",
+		"Anchor": {
+			"Text": "In the Desktop the look belongs to the project",
+			"Prefix": " other remembered conveniences. ",
+			"Suffix": ": every change to it, from the l"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T20:48:18.944Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T20:49:17.898Z",
+			"Revision": 4,
+			"RevisionId": "rev-l4l-oy6-wlo",
+			"Outcome": "Taken with the reply: in the Desktop every change of the look is saved to the project's View, nothing of it per person; from a Server the Server's view settings apply, one look for everyone on it, kept in its config and set by the Administrator and the Managers."
+		},
+		"Created": "2026-10-26T20:33:08.762Z",
+		"Replies": [
+			{
+				"Id": "rep-p3a-zgk-0uq",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T20:33:08.762Z",
+				"Text": "**A person's changes to the look:** they stay with that person and override the project's; the project's View changes only through its settings. **Recommendation:** as written. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-ovy-38h-l4a",
+				"By": "user",
+				"At": "2026-10-26T20:41:52.065Z",
+				"Text": "The project's Desktop view settings stay with the project, not the person. When a project is viewed from the server, it uses the server's view settings."
+			},
+			{
+				"Id": "rep-re8-bl3-hvz",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T20:46:35.981Z",
+				"Text": "Understood. In the Desktop the look belongs to the project: every change to it is saved to `project.json`'s View, so it is shared with everyone who clones the project and shows up in git; nothing of the look is kept per person there. A project opened from a Server (the Server's window, a browser, or the Desktop connected to it) uses the Server's view settings and ignores the project's View.\n\n**One question:** are the Server's view settings one look for everyone on that Server, kept in its config, or each person's own look on that Server as today (the browser's storage, or `desktop.json`)? **Recommendation:** one look per Server, kept in its config and set in the Server's Settings by the Administrator and the Managers. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-fjg-swl-d86",
+		"Anchor": {
+			"Text": "Only a person signed in to a Server",
+			"Prefix": "nection and tasks is unchanged. ",
+			"Suffix": " from the Desktop reads and invo"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T20:39:20.128Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T20:46:19.984Z",
+			"Revision": 2,
+			"RevisionId": "rev-2qt-9vb-gid",
+			"Outcome": "Taken with the reply: the Tasks list moves to the global config with Roles and Llm; LLM Tasks are read and invoked only by a person signed in to a Server from the Desktop."
+		},
+		"Created": "2026-10-26T20:33:08.772Z",
+		"Replies": [
+			{
+				"Id": "rep-2x8-wkq-hgb",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T20:33:08.772Z",
+				"Text": "**The project's Tasks list** (the ids of the Server's tasks the project runs): like `Llm`, it names one Server's resources. **Recommendation:** move it to the registry entry with Roles and Llm. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-y4q-xy1-471",
+				"By": "user",
+				"At": "2026-10-26T20:39:20.128Z",
+				"Text": "Correct. Move it to the global config. Only when a user signs-in to a server from the Desktop are they able to read and invoke LLM tasks."
+			}
+		]
+	},
+	{
+		"Id": "thr-okm-dmw-z04",
+		"Anchor": {
+			"Text": "Commands, GitSync, AutoCommit",
+			"Prefix": "hive, States, Include, Exclude, ",
+			"Suffix": ". Added: View, the project's vie"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T20:35:46.534Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T20:46:19.959Z",
+			"Revision": 1,
+			"RevisionId": "rev-14g-5c3-6eh",
+			"Outcome": "Taken as written: GitSync and AutoCommit stay in project.json."
+		},
+		"Created": "2026-10-26T20:33:08.781Z",
+		"Replies": [
+			{
+				"Id": "rep-jp3-2sl-fw1",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T20:33:08.781Z",
+				"Text": "**GitSync and AutoCommit:** the project's own behaviour, no secret. **Recommendation:** keep them in `project.json`. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-h1q-6ew-0fj",
+		"Anchor": {
+			"Text": "so it moves nothing",
+			"Prefix": "ds the global config read-only, ",
+			"Suffix": ": it ignores those fields, as it"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T20:39:39.759Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T20:46:20.010Z",
+			"Revision": 3,
+			"RevisionId": "rev-war-svc-cu6",
+			"Outcome": "Taken as written, with Tasks moved alongside Roles and Llm."
+		},
+		"Created": "2026-10-26T20:33:08.793Z",
+		"Replies": [
+			{
+				"Id": "rep-45u-swd-5gb",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T20:33:08.793Z",
+				"Text": "**Moving old projects:** the Server moves Roles and Llm out of `project.json` at start; the Desktop's sidecar, read-only on the global config, leaves them for it. **Recommendation:** as written. Resolve with no reply to take the recommendation."
+			}
+		]
+	},
+	{
+		"Id": "thr-guu-39r-4vz",
+		"Anchor": {
+			"Text": "the mechanical settings only",
+			"Prefix": "the Administrator and Managers: ",
+			"Suffix": " (the Name, the States, Include "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T20:48:36.952Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T20:49:17.921Z",
+			"Revision": 5,
+			"RevisionId": "rev-k49-lhw-bvx",
+			"Outcome": "Taken with the reply: \"Project settings…\" on a Server holds the mechanical settings only, never View; on a Server the look is always the Server's."
+		},
+		"Created": "2026-10-26T20:33:08.807Z",
+		"Replies": [
+			{
+				"Id": "rep-ge6-yfx-1if",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T20:33:08.807Z",
+				"Text": "**A Server's projects:** \"Project settings…\" on the project's menu, for its Owners, the Administrator and the Managers. **Recommendation:** as written. Resolve with no reply to take the recommendation."
+			},
+			{
+				"Id": "rep-k83-g70-hqm",
+				"By": "user",
+				"At": "2026-10-26T20:45:39.357Z",
+				"Text": "These server users can confgure the mechanical settings of a project, but not the view settings. The server will always use the server's view settings."
+			},
+			{
+				"Id": "rep-k32-sfh-tqi",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T20:46:36.000Z",
+				"Text": "Understood. \"Project settings…\" on a Server holds the mechanical settings only: the Name, the States, Include and Exclude, Commands, GitSync and AutoCommit, the LLM connection and the Tasks; never View. On a Server the look is always the Server's. Resolve and I will write it so."
+			}
+		]
+	},
+	{
+		"Id": "thr-k24-za0-x4g",
+		"Anchor": {
+			"Text": "the look controls change the Server's look",
+			"Prefix": "he Managers. On a Server's page ",
+			"Suffix": " for the Administrator and the M"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T20:50:42.071Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T20:51:00.811Z",
+			"Revision": 5,
+			"RevisionId": "rev-k49-lhw-bvx",
+			"Outcome": "Taken as written: on a Server the look controls are offered to the Administrator and the Managers alone."
+		},
+		"Created": "2026-10-26T20:49:17.931Z",
+		"Replies": [
+			{
+				"Id": "rep-svy-2j0-mz5",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T20:49:17.931Z",
+				"Text": "**The look controls on a Server's page:** with one look per Server, the controls (margins, highlight, panes, widths) change it for everyone, so they are offered to the Administrator and the Managers alone and hidden from the rest. The other way: everyone keeps the controls, and a change by anyone else lasts only for that page and is never saved. **Recommendation:** as written. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-je2-sfr-7y1",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-26T21:05:42.019Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-26T21:06:16.377Z",
+			"Revision": 5,
+			"RevisionId": "rev-k49-lhw-bvx",
+			"Outcome": "Accepted by the owner as built."
+		},
+		"Created": "2026-10-26T21:04:07.322Z",
+		"Replies": [
+			{
+				"Id": "rep-mzg-66d-jgw",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T21:04:07.322Z",
+				"Text": "**Build log: Step 1, Roles, Llm and Tasks leave project.json** (Claude Opus 5.5, as Claude-CLI).\n\n**What was built** (`src/Store.js`)\n- A project's `Roles`, `Llm` and `Tasks` live on its registry entry in `consensus.json`: Projects `[ { Path, Mounted, Llm, Tasks, Roles } ]`. The store joins them to the project when it reads it, as it joins `Mounted`, so the code that reads a project's roles, connection and tasks is unchanged.\n- `WriteProject` puts them on the entry, never in the file; a cleared one (no connection, all tasks, empty role folders) leaves the entry. A stray `Mounted` is never written into the file again.\n- A new project's `project.json` has no `Roles`.\n- Moving old files: when a project is registered on a writable config (the Server's start, a folder opened, a folder found under `projects/`), a `project.json` that still has `Roles`, `Llm`, `Tasks` or `Mounted` has them moved to the entry, where the entry has none of its own, and is written without them, with a start line (\"project Consensus: Roles, Llm, Mounted moved out of project.json\").\n- The Desktop's sidecar (read-only on the global config): a project shows no roles, connection or tasks, and when it writes `project.json` the file keeps whatever of them it had, for the Server to move.\n\n**Docs**: the config folder's layout in Settings and themes, and three lines of the readme, say where the fields live now.\n\n**Tests**\n- Store: a new project's file holds none of the fields; changes go to the entry and read back; cleared ones leave it; the sidecar shows none and writes the old ones back untouched, settings unchanged; a writable start moves them once, the second start moves nothing; an entry with its own value keeps it.\n- Api: setting a project's LLM connection writes the entry, not the file.\n- The whole suite file by file: 270 pass, 3 skipped. The smoke: every check passes but one, \"chooser: the overlay follows the header\" (the window-button strip's height against the chooser header's); it fails the same way on the committed code with this step stashed, so it comes from this machine's display, not the step. I left it alone.\n\n**Decided during the build**\n- Empty role folders are not written to the entry, so a project with nobody in its roles has a plain `{ Path }` entry.\n- When both the file and the entry have a value, the entry's wins and the file's is dropped.\n\n**For this machine**: this checkout's `.consensus/project.json` still holds `Roles`, `Llm` and `Mounted`; the old Host on 3500 runs the code from before. The first start of the Server on this code moves them into `~/.consensus/consensus.json` and rewrites `project.json` without them; that change will show in git.\n\nResolve to accept the step; reply with what to fix otherwise."
+			}
+		]
+	}
+]

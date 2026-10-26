@@ -425,3 +425,75 @@ TEST( 'a read-only store (the Desktop reading the Host config) reads the setting
 	ASSERT.deepEqual( await empty.ListProjects(), [] );
 	ASSERT.equal( FS.existsSync( nowhere ), false );
 } );
+
+
+TEST( 'Roles, Llm and Tasks live on the registry entry, not in project.json (plan Project settings, Step 1): moved once at registration, joined on read, written back to the entry; read-only leaves the file alone', async function ()
+{
+	let ready = await prepared();
+	let store = ready.Store;
+	let zebra = await store.CreateProject( { Name: 'Zebra' } );
+	let file = PATH.join( zebra.Path, '.consensus', 'project.json' );
+	let written = JSON.parse( FS.readFileSync( file, 'utf8' ) );
+	ASSERT.deepEqual( [ written.Roles, written.Llm, written.Tasks, written.Mounted ], [ undefined, undefined, undefined, undefined ] );
+	ASSERT.deepEqual( zebra.Roles, { Owners: [], Members: [], Service: [], Watchers: [] } );
+	// a change to the Server's fields goes to the entry; the file never holds them
+	let project = await store.ReadProject( zebra.Id );
+	project.Roles = { Owners: [ 'acc-one' ], Members: [], Service: [], Watchers: [] };
+	project.Llm = 'llm-abc';
+	project.Tasks = [ 'answer' ];
+	await store.WriteProject( project );
+	written = JSON.parse( FS.readFileSync( file, 'utf8' ) );
+	ASSERT.deepEqual( [ written.Roles, written.Llm, written.Tasks, written.Mounted ], [ undefined, undefined, undefined, undefined ] );
+	let entry = ( await store.ReadSettings() ).Projects.find( function ( item ) { return item.Path === zebra.Path; } );
+	ASSERT.deepEqual( entry, { Path: zebra.Path, Llm: 'llm-abc', Tasks: [ 'answer' ], Roles: { Owners: [ 'acc-one' ], Members: [], Service: [], Watchers: [] } } );
+	let read = await store.ReadProject( zebra.Id );
+	ASSERT.deepEqual( [ read.Roles.Owners, read.Llm, read.Tasks ], [ [ 'acc-one' ], 'llm-abc', [ 'answer' ] ] );
+	// cleared: off the entry
+	delete read.Llm;
+	delete read.Tasks;
+	read.Roles = { Owners: [], Members: [], Service: [], Watchers: [] };
+	await store.WriteProject( read );
+	entry = ( await store.ReadSettings() ).Projects.find( function ( item ) { return item.Path === zebra.Path; } );
+	ASSERT.deepEqual( entry, { Path: zebra.Path } );
+
+	// an old project.json: the read-only store (the Desktop's sidecar) shows none of its fields and writes them back as they were
+	let old = JSON.parse( FS.readFileSync( file, 'utf8' ) );
+	old.Roles = { Owners: [ 'acc-two' ], Members: [ 'acc-three' ], Service: [], Watchers: [] };
+	old.Llm = 'llm-old';
+	old.Tasks = [ 'work' ];
+	old.Mounted = true;
+	FS.writeFileSync( file, JSON.stringify( old, null, '\t' ) );
+	let before = FS.readFileSync( ready.Store.SettingsPath(), 'utf8' );
+	let reader = STORE.Open( store.Folder, { ReadOnly: true } );
+	await reader.Prepare( await reader.ReadSettings(), { Project: zebra.Path } );
+	let seen = await reader.ReadProject( zebra.Id );
+	ASSERT.deepEqual( [ seen.Roles, seen.Llm, seen.Tasks, seen.Mounted ], [ { Owners: [], Members: [], Service: [], Watchers: [] }, undefined, undefined, false ] );
+	seen.Name = 'Zebra renamed';
+	await reader.WriteProject( seen );
+	written = JSON.parse( FS.readFileSync( file, 'utf8' ) );
+	ASSERT.equal( written.Name, 'Zebra renamed' );
+	ASSERT.deepEqual( [ written.Roles, written.Llm, written.Tasks, written.Mounted ], [ old.Roles, 'llm-old', [ 'work' ], undefined ] );
+	ASSERT.equal( FS.readFileSync( ready.Store.SettingsPath(), 'utf8' ), before );
+
+	// a writable start moves them to the entry, once; the roles, the connection and the tasks read the same
+	let server = STORE.Open( store.Folder );
+	let settings = await server.ReadSettings();
+	let lines = await server.Prepare( settings );
+	ASSERT.deepEqual( lines, [ 'project Zebra renamed: Roles, Llm, Tasks moved out of project.json' ] );
+	written = JSON.parse( FS.readFileSync( file, 'utf8' ) );
+	ASSERT.deepEqual( [ written.Roles, written.Llm, written.Tasks, written.Mounted ], [ undefined, undefined, undefined, undefined ] );
+	entry = ( await server.ReadSettings() ).Projects.find( function ( item ) { return item.Path === zebra.Path; } );
+	ASSERT.deepEqual( entry, { Path: zebra.Path, Roles: old.Roles, Llm: 'llm-old', Tasks: [ 'work' ] } );
+	let moved = await server.ReadProject( zebra.Id );
+	ASSERT.deepEqual( [ moved.Roles, moved.Llm, moved.Tasks ], [ old.Roles, 'llm-old', [ 'work' ] ] );
+	let later = STORE.Open( store.Folder );
+	ASSERT.deepEqual( await later.Prepare( await later.ReadSettings() ), [] );
+
+	// an entry that has its own keeps them; the file's are dropped
+	let stale = JSON.parse( FS.readFileSync( file, 'utf8' ) );
+	stale.Llm = 'llm-stale';
+	FS.writeFileSync( file, JSON.stringify( stale, null, '\t' ) );
+	let third = STORE.Open( store.Folder );
+	ASSERT.deepEqual( await third.Prepare( await third.ReadSettings() ), [ 'project Zebra renamed: Llm moved out of project.json' ] );
+	ASSERT.equal( ( await third.ReadProject( zebra.Id ) ).Llm, 'llm-old' );
+} );

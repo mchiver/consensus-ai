@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-26T06:47:44.617Z",
-	"Version": 78,
+	"Updated": "2026-10-26T20:31:58.509Z",
+	"Version": 79,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -78,6 +78,10 @@
 							"Id": "pln-3qx-ajz-4wb"
 						}
 					]
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-ogh-pqk-iid"
 				}
 			]
 		},

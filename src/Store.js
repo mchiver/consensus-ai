@@ -4,11 +4,12 @@
 // and a queue per plan so two requests never interleave their writes. The config folder holds the settings; each
 // project is a folder of its own (a repository, as a rule) with a .consensus sub-folder that is the project:
 //
-//   <config>/consensus.json                            settings; its Projects: [ { Path, Mounted } ] lists the project folders, in display
-//                                                      order, Mounted (plan Rearchitecturation, Step 1) saying whether a Server Host exposes it
+//   <config>/consensus.json                            settings; its Projects: [ { Path, Mounted, Llm, Tasks, Roles } ] lists the project
+//                                                      folders, in display order, Mounted (plan Rearchitecturation, Step 1) saying whether
+//                                                      the Server exposes it; Llm, Tasks and Roles: { Owners, Members, Service, Watchers }
+//                                                      (account ids, plan User Management, Step 3) are the Server's for that project
 //   <project>/.consensus/project.json                  { Id, Name, Context, ContextFolder, Created, Updated, Version, Items: [ node ],
-//                                                      Archive: [ node ], States, Include, Exclude, Commands, Tasks, GitSync, AutoCommit, Llm,
-//                                                      Roles: { Owners, Members, Service, Watchers } (account ids, plan User Management, Step 3) }  (see Tree.js)
+//                                                      Archive: [ node ], States, Include, Exclude, Commands, GitSync, AutoCommit }  (see Tree.js)
 //                                                      Context: the id of the project's Readme; ContextFolder: the id of the Context
 //                                                      folder that holds it, first in Items; Archive: the archived plans, whole
 //   <project>/.consensus/content/<id>/content.json     { Id, Title, Kind: 'plan' | 'document', State, Created, Updated, Revision, Head }
@@ -29,6 +30,12 @@
 // Open( Folder, { ReadOnly: true } ) (plan Rearchitecturation, Step 1) is the Desktop's opening of the Server Host's config:
 // the settings and the registry are read and never written (WriteSettings refuses with a plain error, Prepare registers
 // the listed folders, makes no Default project and writes nothing); a folder with no consensus.json gives empty lists.
+//
+// Plan Project settings, Step 1: project.json goes into source control with the project, so it holds nothing of one
+// machine's Server: a project's Roles, Llm and Tasks live on its registry entry in consensus.json. A project comes back
+// with them joined from the entry (as Mounted is), and WriteProject puts them back there, never in the file. A
+// project.json that still holds them (or a stray Mounted) has them moved to the entry when it is registered on a
+// writable config; read-only (the Desktop's sidecar) a project has none, and the file's are written back untouched.
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -50,6 +57,8 @@ const DEFAULT_STATES = [ 'Draft', 'Plan', 'Working', 'Finished' ];
 const DEFAULT_EXCLUDE = [ '~*/**', 'node_modules/**', '.git/**' ];
 const RENAME_ATTEMPTS = 10;
 const RENAME_DELAY_MS = 20;
+const SERVER_FIELDS = [ 'Roles', 'Llm', 'Tasks' ];
+const ROLE_NAMES = [ 'Owners', 'Members', 'Service', 'Watchers' ];
 
 
 //---------------------------------------------------------------------
@@ -292,13 +301,21 @@ function Open( Folder, Options )
 	}
 
 
-	async function register( Path )
+	async function register( Path, Lines )
 	{
 		let home = home_path( Path );
 		let project = await read_json_or_null( PATH.join( home, PROJECT_FILE ) );
 		if ( !project || typeof project.Id !== 'string' )
 		{
 			return null;
+		}
+		if ( !read_only )
+		{
+			let moved = await move_server_fields( project, PATH.resolve( Path ) );
+			if ( moved && Lines )
+			{
+				Lines.push( moved );
+			}
 		}
 		roots[ project.Id ] = { Id: project.Id, Path: PATH.resolve( Path ), Home: home };
 		for ( let id of await folder_names( PATH.join( home, CONTENT_FOLDER ) ) )
@@ -310,6 +327,90 @@ function Open( Folder, Options )
 			homes[ id ] = { Project: project.Id, Archived: true };
 		}
 		return project;
+	}
+
+
+	// A project.json written before plan Project settings: its Roles, Llm and Tasks go to the registry entry (where the
+	// entry has none of its own), a stray Mounted is dropped, and the file is written without them. Returns the line to
+	// log, or null when the file was clean.
+	async function move_server_fields( project, path )
+	{
+		let found = SERVER_FIELDS.concat( [ 'Mounted' ] ).filter( function ( field ) { return project[ field ] !== undefined; } );
+		if ( !found.length )
+		{
+			return null;
+		}
+		let entry = entry_at( path );
+		if ( !entry )
+		{
+			entry = { Path: path };
+			projects_list().push( entry );
+		}
+		for ( let field of SERVER_FIELDS )
+		{
+			if ( entry[ field ] === undefined && kept_value( field, project[ field ] ) )
+			{
+				entry[ field ] = JSON.parse( JSON.stringify( project[ field ] ) );
+			}
+		}
+		for ( let field of found )
+		{
+			delete project[ field ];
+		}
+		await write_json( PATH.join( home_path( path ), PROJECT_FILE ), project );
+		await write_projects_list();
+		return 'project ' + ( project.Name || project.Id ) + ': ' + found.join( ', ' ) + ' moved out of ' + PROJECT_FILE;
+	}
+
+
+	// Whether a Server field's value is worth keeping on the entry: not empty, and Roles with someone in them.
+	function kept_value( field, value )
+	{
+		if ( value === undefined || value === null )
+		{
+			return false;
+		}
+		if ( field === 'Roles' )
+		{
+			return ROLE_NAMES.some( function ( role ) { return Array.isArray( value[ role ] ) && value[ role ].length > 0; } );
+		}
+		return true;
+	}
+
+
+	// The project's Server fields onto its registry entry (WriteProject); true when the entry changed.
+	function keep_server_fields( Project )
+	{
+		let root = roots[ Project.Id ];
+		if ( !root )
+		{
+			return false;
+		}
+		let entry = entry_at( root.Path );
+		let made = false;
+		if ( !entry )
+		{
+			entry = { Path: root.Path };
+			made = true;
+		}
+		let before = JSON.stringify( entry );
+		for ( let field of SERVER_FIELDS )
+		{
+			if ( kept_value( field, Project[ field ] ) )
+			{
+				entry[ field ] = JSON.parse( JSON.stringify( Project[ field ] ) );
+			}
+			else
+			{
+				delete entry[ field ];
+			}
+		}
+		let changed = JSON.stringify( entry ) !== before;
+		if ( made && changed )
+		{
+			projects_list().push( entry );
+		}
+		return changed;
 	}
 
 
@@ -775,7 +876,18 @@ function Open( Folder, Options )
 		{
 			project.Archive = [];
 		}
-		// the role folders (plan User Management, Step 3), empty when the file has none
+		// the Server's fields from the registry entry (plan Project settings, Step 1); none read-only, the sidecar's
+		let entry = read_only ? null : entry_at( roots[ id ].Path );
+		for ( let field of SERVER_FIELDS )
+		{
+			delete project[ field ];
+			if ( entry && entry[ field ] !== undefined )
+			{
+				project[ field ] = JSON.parse( JSON.stringify( entry[ field ] ) );
+			}
+		}
+		delete project.Mounted;
+		// the role folders (plan User Management, Step 3), empty when the entry has none
 		if ( !project.Roles || typeof project.Roles !== 'object' )
 		{
 			project.Roles = { Owners: [], Members: [], Service: [], Watchers: [] };
@@ -876,7 +988,6 @@ function Open( Folder, Options )
 			Include: [],
 			Exclude: DEFAULT_EXCLUDE.slice(),
 			Commands: [],
-			Roles: { Owners: [], Members: [], Service: [], Watchers: [] },
 		};
 		await write_json( PATH.join( home, PROJECT_FILE ), project );
 		if ( !root_at( path ) || !projects_list().some( function ( entry ) { return PATH.resolve( entry.Path ) === path; } ) )
@@ -884,7 +995,7 @@ function Open( Folder, Options )
 			projects_list().push( { Path: path } );
 			await write_projects_list();
 		}
-		return with_path( project );
+		return await read_project( id );
 	}
 
 
@@ -908,7 +1019,7 @@ function Open( Folder, Options )
 		{
 			return await read_project( known.Id );
 		}
-		let project = await register( path );
+		let project = await register( path, [] );
 		if ( !project )
 		{
 			return null;
@@ -970,13 +1081,35 @@ function Open( Folder, Options )
 	}
 
 
-	// Writes a changed project: its Version goes up by one and Updated is now. Returns the project as written.
+	// Writes a changed project: its Version goes up by one and Updated is now. Returns the project as written. The
+	// Server's fields go to the registry entry (plan Project settings, Step 1), never into the file; read-only (the
+	// sidecar) the file keeps whatever of them it had, for the Server to move.
 	async function WriteProject( Project )
 	{
 		Project.Version = ( Project.Version || 0 ) + 1;
 		Project.Updated = new Date().toISOString();
 		let stored = Object.assign( {}, Project );
 		delete stored.Path;
+		delete stored.Mounted;
+		for ( let field of SERVER_FIELDS )
+		{
+			delete stored[ field ];
+		}
+		if ( read_only )
+		{
+			let on_disk = ( await read_json_or_null( project_file( Project.Id ) ) ) || {};
+			for ( let field of SERVER_FIELDS )
+			{
+				if ( on_disk[ field ] !== undefined )
+				{
+					stored[ field ] = on_disk[ field ];
+				}
+			}
+		}
+		else if ( keep_server_fields( Project ) )
+		{
+			await write_projects_list();
+		}
 		await write_json( project_file( Project.Id ), stored );
 		return with_path( Project );
 	}
@@ -1111,7 +1244,7 @@ function Open( Folder, Options )
 			let problem = null;
 			try
 			{
-				project = await register( path );
+				project = await register( path, lines );
 			}
 			catch ( error )
 			{
@@ -1130,8 +1263,8 @@ function Open( Folder, Options )
 			let path = PATH.join( folder, PROJECTS_FOLDER, name );
 			if ( !root_at( path ) && FS.existsSync( PATH.join( home_path( path ), PROJECT_FILE ) ) )
 			{
-				let project = await register( path );
-				if ( project )
+				let project = await register( path, lines );
+				if ( project && !entry_at( path ) )
 				{
 					projects_list().push( { Path: path } );
 					lines.push( 'project folder found and listed: ' + path );
@@ -1163,7 +1296,7 @@ function Open( Folder, Options )
 			throw new Error( 'no such folder: ' + path );
 		}
 		let lines = [];
-		let project = await register( path );
+		let project = await register( path, lines );
 		if ( !project )
 		{
 			if ( FS.existsSync( PATH.join( home_path( path ), PROJECT_FILE ) ) )

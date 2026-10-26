@@ -54,15 +54,15 @@ The gear at the right end of the title bar opens the look: the theme (light, dar
 
 ## The config folder and the project folders
 
-The config folder, `.consensus` in your user folder by default or the one `--config` names, is shared by both applications. `consensus.json` is the Server's: its settings, and the registry `Projects`, which lists the project folders in display order (a folder opened from the command line goes to the top), each entry with a `Mounted` switch that says whether the Server exposes it. `desktop.json` is the desktop's own: the recent project folders, the saved Servers (name, address and project, no tokens; kept under `Hosts`), the theme, the size and the remembered view state; the desktop writes this file and never `consensus.json`. `user.json` is the machine's signed-in person, read by both. Each project is a folder of its own, a repository as a rule, with a `.consensus` sub-folder that is the project; a project made with no folder named goes under `projects/` in the config folder. Everything is plain files:
+The config folder, `.consensus` in your user folder by default or the one `--config` names, is shared by both applications. `consensus.json` is the Server's: its settings, and the registry `Projects`, which lists the project folders in display order (a folder opened from the command line goes to the top), each entry with a `Mounted` switch that says whether the Server exposes it, and the project's `Llm`, `Tasks` and `Roles` on that Server. A project's `project.json` goes into source control with the project, so it holds nothing of one machine's Server; a `project.json` from before that still has them has them moved to its entry when the Server starts. `desktop.json` is the desktop's own: the recent project folders, the saved Servers (name, address and project, no tokens; kept under `Hosts`), the theme, the size and the remembered view state; the desktop writes this file and never `consensus.json`. `user.json` is the machine's signed-in person, read by both. Each project is a folder of its own, a repository as a rule, with a `.consensus` sub-folder that is the project; a project made with no folder named goes under `projects/` in the config folder. Everything is plain files:
 
 ```
-<config>/consensus.json                    the server's settings and the registry: Projects: [ { Path, Mounted } ]
+<config>/consensus.json                    the server's settings and the registry: Projects: [ { Path, Mounted, Llm, Tasks, Roles } ]
 <config>/desktop.json                      the desktop's own: Recent, Hosts (the saved Servers), Theme, Scale, Remembered
 <config>/user.json                         the machine's signed-in person: Email, Clerk, Display, Plan, Until, Checked (signed out after 14 days with no check)
 <config>/~host.json                        the Server's address while it runs; <project>/.consensus/~sidecar.json the sidecar's
 <config>/Users.json                        the accounts of the Server: the owner's record (the Administrator's), the users (each with its Manager switch) and the Service accounts, each with its hashed tokens
-<project>/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands, its Tasks, its Work options GitSync and AutoCommit, and its Roles (the four role folders, account ids)
+<project>/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands, and its Work options GitSync and AutoCommit
 <project>/.consensus/content/<id>/content.md    a plan's or document's text
 <project>/.consensus/content/<id>/content.json  its record
 <project>/.consensus/content/<id>/threads.json  its threads
