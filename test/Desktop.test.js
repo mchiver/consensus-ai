@@ -11,7 +11,7 @@ const FS = require( 'fs' );
 const OS = require( 'os' );
 const PATH = require( 'path' );
 const SETTINGS = require( '../desktop/Settings.js' );
-const PAGE = require( '../desktop/Page.js' );
+const PAGE = require( '../electron/Page.js' );
 const PROJECTS = require( '../desktop/Projects.js' );
 const SERVER = require( '../src/Server.js' );
 const HOST = require( '../desktop/Host.js' );
@@ -152,7 +152,8 @@ TEST( 'settings: Load reads the desktop\'s file from the config folder and says 
 
 TEST( 'the page server serves the page, the connect screen and the vendor files, and forwards to each root\'s server', async function ()
 {
-	let served = await PAGE.Serve();
+	// the connect screen is Desktop's own folder, named to the shared page server (plan Sidecar Edition, Step 1)
+	let served = await PAGE.Serve( { Folders: [ PATH.join( __dirname, '..', 'desktop', 'page' ) ] } );
 	try
 	{
 		ASSERT.match( served.Url, /^http:\/\/127\.0\.0\.1:\d+$/ );

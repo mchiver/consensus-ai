@@ -1,0 +1,29 @@
+{
+	"appId": "com.mchiver.consensus-sidecar",
+	"productName": "Consensus Sidecar",
+	"artifactName": "Consensus-Sidecar-Setup-${version}.${ext}",
+	"extraMetadata": {
+		"name": "consensus-sidecar",
+		"main": "sidecar/main.js"
+	},
+	"directories": {
+		"output": "~dist/sidecar"
+	},
+	"files": [
+		"sidecar/**",
+		"electron/**",
+		"desktop/icon.ico",
+		"src/**",
+		"public/**",
+		".guides/build-with-sidecar.md",
+		"package.json"
+	],
+	"win": {
+		"target": "nsis",
+		"icon": "desktop/icon.ico"
+	},
+	"nsis": {
+		"oneClick": false,
+		"allowToChangeInstallationDirectory": true
+	}
+}

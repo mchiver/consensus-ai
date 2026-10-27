@@ -41,10 +41,13 @@ const PROJECTS = require( './Projects.js' );
 const HOST = require( './Host.js' );
 const LICENSE = require( '../src/License.js' );
 const START = require( '../src/Start.js' );
-const PAGE = require( './Page.js' );
+const PAGE = require( '../electron/Page.js' );
+const WINDOWS = require( '../electron/Windows.js' );
 const SERVER = require( '../src/Server.js' );
 
 const VERSION = require( '../package.json' ).version;
+const PRELOAD = PATH.join( __dirname, 'preload.js' );
+const CONNECT_FOLDER = PATH.join( __dirname, 'page' );		// the chooser, served beside the page
 const ICON = PATH.join( __dirname, 'icon.ico' );		// the windows' icon from the checkout; the packaged executable carries its own (plan Installer)
 const TRY_TIMEOUT = 5000;
 const DESKTOP_USAGE = 'usage: consensus-desktop [<folder> | --connect <server name>] [--config <folder>] [--port <port>]';
@@ -63,8 +66,6 @@ let opened = null;		// the window's project: { Kind: 'folder', Path, Project: { 
 let page = null;
 let window = null;
 let reason = null;		// why the project asked for could not open, for the chooser
-let closing = false;
-const CLOSE_ANSWER_WAIT = 3000;		// the page's answer to a close, before the window closes anyway
 
 
 //---------------------------------------------------------------------
@@ -114,29 +115,17 @@ function theme_in_use()
 }
 
 
-// The window buttons Electron draws over the title bar (plan UI Components, Step 5): a light or a dark pair to open
-// with; the page sends the palette's own colours and the bar's height once it is drawn (the chrome message).
-const LIGHT_OVERLAY = { color: '#f8f9fa', symbolColor: '#212529', height: 35 };
-const DARK_OVERLAY = { color: '#1e1e1e', symbolColor: '#e6e6e6', height: 35 };
-
+// The window buttons Electron draws over the title bar (plan UI Components, Step 5), and the window's dialogs and
+// native parts, follow the theme (electron/Windows.js since plan Sidecar Edition, Step 1).
 function overlay_for_theme()
 {
-	let theme = theme_in_use();
-	let dark = ( theme === 'system' ) ? ELECTRON.nativeTheme.shouldUseDarkColors : SETTINGS.DARK_THEMES.includes( theme );
-	return Object.assign( {}, dark ? DARK_OVERLAY : LIGHT_OVERLAY );
+	return WINDOWS.Overlay( theme_in_use(), SETTINGS.DARK_THEMES );
 }
 
 
-// The window's dialogs and native parts follow the theme, light or dark (plan UI Tweaks IV); System follows the system.
 function apply_native_theme()
 {
-	let theme = theme_in_use();
-	if ( theme === 'system' )
-	{
-		ELECTRON.nativeTheme.themeSource = 'system';
-		return;
-	}
-	ELECTRON.nativeTheme.themeSource = SETTINGS.DARK_THEMES.includes( theme ) ? 'dark' : 'light';
+	WINDOWS.ApplyNativeTheme( theme_in_use(), SETTINGS.DARK_THEMES );
 }
 
 
@@ -381,14 +370,14 @@ async function serve_page()
 	{
 		try
 		{
-			return await PAGE.Serve( { Port: remembered } );
+			return await PAGE.Serve( { Port: remembered, Folders: [ CONNECT_FOLDER ] } );
 		}
 		catch ( error )
 		{
 			console.log( 'the page port ' + remembered + ' is in use: another one' );
 		}
 	}
-	let served = await PAGE.Serve();
+	let served = await PAGE.Serve( { Folders: [ CONNECT_FOLDER ] } );
 	if ( SETTINGS.Remember( desktop, 'page-port', Number( new URL( served.Url ).port ) ) )
 	{
 		save_settings();
@@ -439,185 +428,45 @@ function boot_info()
 }
 
 
-function web_preferences()
-{
-	return {
-		preload: PATH.join( __dirname, 'preload.js' ),
-		contextIsolation: true,
-		nodeIntegration: false,
-	};
-}
-
-
-// A report page of a root's server, opened from the page (plan Printing and Reporting): /api/plans/<id>/report, on
-// the app's own origin through the forwarder.
-function is_report_url( Url )
-{
-	return !!page && String( Url ).startsWith( page.Url + '/' ) && /\/api\/plans\/[^/?#]+\/report(\.md)?(\?|#|$)/.test( Url );
-}
-
-
 // The report window's Print to PDF (plan Printing and Reporting): the save dialog in the folder last used, then the
 // page printed to that file. Answers { Path } or { Cancelled } or { Error }.
 async function print_to_pdf( sender, Name )
 {
-	let owner = ELECTRON.BrowserWindow.fromWebContents( sender );
 	let remembered = desktop.Remembered && desktop.Remembered[ 'report-folder' ];
-	let folder = ( typeof remembered === 'string' && remembered ) ? remembered : ELECTRON.app.getPath( 'documents' );
-	let name = String( Name || 'report' ).replace( /[\\/:*?"<>|\u0000-\u001f]+/g, ' ' ).trim() || 'report';
-	let picked = await ELECTRON.dialog.showSaveDialog( owner, { defaultPath: PATH.join( folder, name + '.pdf' ), filters: [ { name: 'PDF', extensions: [ 'pdf' ] } ] } );
-	if ( picked.canceled || !picked.filePath )
-	{
-		return { Cancelled: true };
-	}
-	try
-	{
-		let data = await sender.printToPDF( { printBackground: true, pageSize: 'A4' } );
-		await FS.promises.writeFile( picked.filePath, data );
-	}
-	catch ( error )
-	{
-		return { Error: 'not written: ' + ( error && error.message || error ) };
-	}
-	if ( SETTINGS.Remember( desktop, 'report-folder', PATH.dirname( picked.filePath ) ) )
+	let answer = await WINDOWS.PrintToPdf( sender, Name, ( typeof remembered === 'string' ) ? remembered : null );
+	if ( answer.Path && SETTINGS.Remember( desktop, 'report-folder', PATH.dirname( answer.Path ) ) )
 	{
 		save_settings_soon();
 	}
-	return { Path: picked.filePath };
+	return answer;
 }
 
 
-// The report window's View in Browser (plan Printing and Reporting): the window's URL is the forwarder's,
-// /servers/<key>/api/plans/<id>/report on the app's origin; the same path on the root's own address is what a
-// browser can open. Answers { Url } or { Error }.
+// The report window's View in Browser: the same report at its root's own address, in the system browser.
 function view_in_browser( Url )
 {
-	let match = /^\/servers\/([^/]+)(\/.*)$/.exec( new URL( String( Url ) ).pathname );
-	if ( !match )
-	{
-		return { Error: 'this page is not a server\'s' };
-	}
-	let root = roots_now().find( function ( one ) { return one.Key === decodeURIComponent( match[ 1 ] ); } );
-	if ( !root || !root.Url )
-	{
-		return { Error: 'no server "' + match[ 1 ] + '" in this window' };
-	}
-	let target = root.Url.replace( /\/+$/, '' ) + match[ 2 ];
-	ELECTRON.shell.openExternal( target );
-	return { Url: target };
+	return WINDOWS.ViewInBrowser( Url, roots_now() );
 }
 
 
 // A window of the app (plan UI Components, Step 5): no frame, Electron's window buttons over the page's title bar.
 function window_options( Width, Height )
 {
-	return {
-		width: Width,
-		height: Height,
-		title: 'Consensus Desktop',
-		icon: ICON,
-		titleBarStyle: 'hidden',
-		titleBarOverlay: overlay_for_theme(),
-		webPreferences: web_preferences(),
-	};
+	return WINDOWS.Options( { Width: Width, Height: Height, Title: 'Consensus Desktop', Icon: ICON, Theme: theme_in_use(), DarkThemes: SETTINGS.DARK_THEMES, Preload: PRELOAD } );
 }
 
 
+// The main window: its detached tabs, its report windows and its close (electron/Windows.js).
 function create_window()
 {
 	window = new ELECTRON.BrowserWindow( window_options( 1400, 900 ) );
-	window.setMenuBarVisibility( false );
-	window.webContents.on( 'preload-error', function ( event, path, error )
-	{
-		console.error( 'preload error in ' + path + ': ' + ( error && error.stack || error ) );
+	WINDOWS.Attach( window, {
+		PageUrl: function () { return page ? page.Url : null; },
+		Icon: ICON,
+		Preload: PRELOAD,
+		Options: window_options,
+		OnClosed: function () { window = null; },
 	} );
-	// A tab's Detach: the page opens "?detached=1#/p/<id>" on its own origin; it becomes a window of the app.
-	window.webContents.setWindowOpenHandler( function ( details )
-	{
-		if ( is_report_url( details.url ) )
-		{
-			// a report (plan Printing and Reporting): a plain framed window, its Print button printing to PDF
-			return { action: 'allow', overrideBrowserWindowOptions: { width: 1000, height: 800, title: 'Consensus report', icon: ICON, titleBarStyle: 'default', titleBarOverlay: false, webPreferences: web_preferences() } };
-		}
-		if ( details.url.startsWith( page.Url + '/' ) )
-		{
-			return { action: 'allow', overrideBrowserWindowOptions: window_options( 1000, 800 ) };
-		}
-		ELECTRON.shell.openExternal( details.url );
-		return { action: 'deny' };
-	} );
-	window.webContents.on( 'did-create-window', function ( child, details )
-	{
-		child.setMenuBarVisibility( false );
-		if ( details && is_report_url( details.url ) )
-		{
-			return;
-		}
-		// a detached window asks its page about its own draft, as the main window does
-		child.on( 'close', function ( event )
-		{
-			event.preventDefault();
-			ask_page_to_close( child, function () { child.destroy(); } );
-		} );
-	} );
-	window.on( 'close', function ( event )
-	{
-		if ( closing )
-		{
-			return;
-		}
-		event.preventDefault();
-		ask_page_to_close( window, function ()
-		{
-			closing = true;
-			window.destroy();
-		} );
-	} );
-	window.on( 'closed', function ()
-	{
-		window = null;
-	} );
-}
-
-
-// The page is asked before its window closes (plan Markdown Editor, Step 4): close-requested goes to it, and it
-// answers close-decided once its prompt about the unsaved edits is settled, or at once when nothing is dirty or
-// Confirm on close is off; the chooser has no page to ask; no answer within CLOSE_ANSWER_WAIT and the window
-// closes anyway. Destroy closes it without another close event.
-function ask_page_to_close( target, destroy )
-{
-	let contents = target.webContents;
-	if ( target.isDestroyed() || contents.isDestroyed() || contents.getURL().indexOf( 'connect.html' ) >= 0 )
-	{
-		destroy();
-		return;
-	}
-	let settled = false;
-	let timer = null;
-	function settle( ok )
-	{
-		if ( settled )
-		{
-			return;
-		}
-		settled = true;
-		clearTimeout( timer );
-		ELECTRON.ipcMain.removeListener( 'close-decided', on_decided );
-		if ( ok && !target.isDestroyed() )
-		{
-			destroy();
-		}
-	}
-	function on_decided( event, ok )
-	{
-		if ( event.sender === contents )
-		{
-			settle( !!ok );
-		}
-	}
-	timer = setTimeout( function () { settle( true ); }, CLOSE_ANSWER_WAIT );
-	ELECTRON.ipcMain.on( 'close-decided', on_decided );
-	contents.send( 'close-requested' );
 }
 
 
@@ -628,31 +477,11 @@ function ask_page_to_close( target, destroy )
 
 function build_menu()
 {
-	let template = [
-		{
-			label: 'Project',
-			submenu: [
-				{ label: 'New window', accelerator: 'CmdOrCtrl+N', click: function () { new_window(); } },
-				{ label: 'Open folder in new window…', accelerator: 'CmdOrCtrl+Shift+O', click: function () { open_folder_window(); } },
-				{ type: 'separator' },
-				{ label: 'Reload', accelerator: 'CmdOrCtrl+R', click: function () { if ( window ) { window.webContents.reload(); } } },
-				{ type: 'separator' },
-				{ role: 'quit' },
-			],
-		},
-		{
-			label: 'View',
-			submenu: [
-				{ role: 'toggleDevTools' },
-				{ role: 'resetZoom' },
-				{ role: 'zoomIn' },
-				{ role: 'zoomOut' },
-				{ type: 'separator' },
-				{ role: 'togglefullscreen' },
-			],
-		},
-	];
-	ELECTRON.Menu.setApplicationMenu( ELECTRON.Menu.buildFromTemplate( template ) );
+	WINDOWS.BuildMenu( {
+		NewWindow: function () { new_window(); },
+		OpenFolderWindow: function () { open_folder_window(); },
+		Reload: function () { if ( window ) { window.webContents.reload(); } },
+	} );
 }
 
 
@@ -782,19 +611,9 @@ async function open_folder_window( owner )
 
 
 // The folder dialog, for the chooser, the page's + Project and the menu. Returns the folder with forward slashes, or null.
-async function pick_folder( owner, current_folder )
+function pick_folder( owner, current_folder )
 {
-	let picker_options = { properties: [ 'openDirectory', 'createDirectory' ] };
-	if ( current_folder )
-	{
-		picker_options.defaultPath = current_folder;
-	}
-	let picked = await ELECTRON.dialog.showOpenDialog( owner || window, picker_options );
-	if ( picked.canceled || !picked.filePaths.length )
-	{
-		return null;
-	}
-	return picked.filePaths[ 0 ].replace( /\\/g, '/' );
+	return WINDOWS.PickFolder( owner || window, current_folder );
 }
 
 
@@ -977,38 +796,8 @@ function attach_handlers()
 		return clear_license();
 	} );
 
-	// The title bar's colours and height, from the page once its bar is drawn and after every change of theme or size
-	// (plan UI Components, Step 5): the window buttons follow the palette.
-	ELECTRON.ipcMain.on( 'chrome', function ( event, chrome )
-	{
-		let owner = ELECTRON.BrowserWindow.fromWebContents( event.sender );
-		if ( !owner || !chrome )
-		{
-			return;
-		}
-		let overlay = {};
-		if ( /^#[0-9a-f]{6}$/i.test( chrome.Color || '' ) )
-		{
-			overlay.color = chrome.Color;
-		}
-		if ( /^#[0-9a-f]{6}$/i.test( chrome.Symbol || '' ) )
-		{
-			overlay.symbolColor = chrome.Symbol;
-		}
-		let height = Number( chrome.Height );
-		if ( height >= 24 && height <= 96 )
-		{
-			overlay.height = Math.round( height );
-		}
-		try
-		{
-			owner.setTitleBarOverlay( overlay );
-		}
-		catch ( error )
-		{
-			console.error( 'the title bar overlay was not set: ' + error.message );
-		}
-	} );
+	// The title bar's colours and height, from the page (plan UI Components, Step 5): the window buttons follow the palette.
+	WINDOWS.AttachChrome();
 }
 
 

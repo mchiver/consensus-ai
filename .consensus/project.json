@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-26T20:31:58.509Z",
-	"Version": 79,
+	"Updated": "2026-10-27T09:06:28.910Z",
+	"Version": 90,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -81,7 +81,7 @@
 				},
 				{
 					"Kind": "plan",
-					"Id": "pln-ogh-pqk-iid"
+					"Id": "pln-zp4-e72-4lu"
 				}
 			]
 		},
@@ -367,6 +367,10 @@
 							"Id": "pln-kjf-5qo-2ue"
 						}
 					]
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-ogh-pqk-iid"
 				}
 			]
 		}
@@ -390,12 +394,9 @@
 		".git/**"
 	],
 	"Commands": [],
-	"Roles": {
-		"Owners": [],
-		"Members": [],
-		"Service": [],
-		"Watchers": []
-	},
-	"Llm": "llm-yn1-ve3-2pi",
-	"Mounted": true
+	"View": {
+		"ThreadsWidth": 494,
+		"Highlight": "open",
+		"SidebarWidth": 395
+	}
 }

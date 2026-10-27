@@ -13,7 +13,8 @@
 // none is, so the token carries the organization's license. The page's own server is the browser's one root (Base
 // ''), or in the desktop the desktop's own server, reached through the page server under /servers/local (plan Clerk,
 // Step 7); since plan The Server, Step 5, a desktop window connected to a Server (client mode) signs in to that
-// Server the same way, and a desktop window with no server has no session.
+// Server the same way, and a desktop window with no server has no session. The Sidecar app (plan Sidecar Edition,
+// Step 3) never signs anyone in: it has no session.
 //
 // In the Desktop (plan Rearchitecturation, Step 6) a sign-in's token goes to the desktop (ConsensusDesktop.SetLicense),
 // at every load while signed in, which verifies it and writes it as the machine's current user (plan The Server,
@@ -46,6 +47,10 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		if ( !window.ConsensusDesktop )
 		{
 			return { Key: '', Base: '' };
+		}
+		if ( window.ConsensusDesktop.Sidecar === true )
+		{
+			return null;
 		}
 		let roots = Array.isArray( window.ConsensusDesktop.Roots ) ? window.ConsensusDesktop.Roots : [];
 		let local = roots.find( function ( root ) { return root && root.Kind === 'local' && root.Key; } );

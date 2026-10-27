@@ -7,8 +7,10 @@
 //
 //   RANGE_START, RANGE_COUNT   3600 and 100: the ports 3600 to 3699
 //   Normalize( Folder )        the folder's absolute path with forward slashes, lower-cased on Windows: what is hashed
-//   Port( Folder )             the folder's port: the range's start plus the hash modulo the count
-//   Ports( Folder )            the hundred ports in the order they are tried: the folder's first, then up by one, wrapping
+//   Port( Folder, Range? )     the folder's port: the range's start plus the hash modulo the count
+//   Ports( Folder, Range? )    the range's ports in the order they are tried: the folder's first, then up by one, wrapping;
+//                              Range { Start, Count } another range than 3600 to 3699 (plan Sidecar Edition, Step 1:
+//                              Sidecar's, SIDECAR_APP_RANGE, 52000 to 52999)
 //   FilePath( Folder )         <folder>/.consensus/~sidecar.json (the tilde keeps it out of source control)
 //   Read( Folder )             the file's record { Url, Port, Pid, Started, Project }, or null when missing or unreadable
 //   Alive( Pid )               whether a process with that id runs
@@ -23,6 +25,7 @@ const PATH = require( 'path' );
 
 const RANGE_START = 3600;
 const RANGE_COUNT = 100;
+const SIDECAR_APP_RANGE = { Start: 52000, Count: 1000 };
 const HOME_FOLDER = '.consensus';
 const FILE = '~sidecar.json';
 const ACTIVATE_PATH = '/api/desktop/activate';
@@ -52,19 +55,32 @@ function hash( Text )
 }
 
 
-function Port( Folder )
+// The range asked for, or the default one.
+function range_of( Range )
 {
-	return RANGE_START + ( hash( Normalize( Folder ) ) % RANGE_COUNT );
+	if ( Range && Number.isInteger( Range.Start ) && Number.isInteger( Range.Count ) && Range.Count > 0 )
+	{
+		return { Start: Range.Start, Count: Range.Count };
+	}
+	return { Start: RANGE_START, Count: RANGE_COUNT };
 }
 
 
-function Ports( Folder )
+function Port( Folder, Range )
 {
-	let first = Port( Folder ) - RANGE_START;
+	let range = range_of( Range );
+	return range.Start + ( hash( Normalize( Folder ) ) % range.Count );
+}
+
+
+function Ports( Folder, Range )
+{
+	let range = range_of( Range );
+	let first = Port( Folder, range ) - range.Start;
 	let ports = [];
-	for ( let step = 0; step < RANGE_COUNT; step++ )
+	for ( let step = 0; step < range.Count; step++ )
 	{
-		ports.push( RANGE_START + ( ( first + step ) % RANGE_COUNT ) );
+		ports.push( range.Start + ( ( first + step ) % range.Count ) );
 	}
 	return ports;
 }
@@ -186,6 +202,7 @@ async function Activate( Url, TimeoutMs )
 module.exports = {
 	RANGE_START: RANGE_START,
 	RANGE_COUNT: RANGE_COUNT,
+	SIDECAR_APP_RANGE: SIDECAR_APP_RANGE,
 	ACTIVATE_PATH: ACTIVATE_PATH,
 	Normalize: Normalize,
 	Port: Port,

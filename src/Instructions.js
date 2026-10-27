@@ -8,7 +8,8 @@
 // (plan Run Shapes, Step 3) makes the same text with the run's token and connection, with Guide() and Make( …, Run ).
 // A sidecar (plan Rearchitecturation, Step 3: a one-project server) names its project and the one-project rule.
 // Plan The Server, Step 5: on a Server (People) a request needs a token; the text says so, and the page's LLM
-// Instructions popup puts a token minted for the person at its top.
+// Instructions popup puts a token minted for the person at its top. Plan Sidecar Edition, Step 3: Attach and Guide
+// take the guide's path, so the Sidecar app serves its own, .guides/build-with-sidecar.md (SIDECAR_GUIDE_PATH).
 
 const PATH = require( 'path' );
 const FS = require( 'fs' );
@@ -16,6 +17,7 @@ const PARTICIPANTS = require( './Participants.js' );
 const TASKS = require( './Tasks.js' );
 
 const GUIDE_PATH = PATH.join( __dirname, '..', '.guides', 'build-with-consensus.md' );
+const SIDECAR_GUIDE_PATH = PATH.join( __dirname, '..', '.guides', 'build-with-sidecar.md' );
 
 
 //---------------------------------------------------------------------
@@ -65,27 +67,29 @@ function Make( Settings, Base, Guide, Run, Project, People )
 //---------------------------------------------------------------------
 // Guide(): the guide's text, read each time; throws when the file is missing.
 
-async function Guide()
+// Guide( Path? ): the guide's text; Path another guide than GUIDE_PATH.
+async function Guide( Path )
 {
-	return await FS.promises.readFile( GUIDE_PATH, 'utf8' );
+	return await FS.promises.readFile( Path || GUIDE_PATH, 'utf8' );
 }
 
 
 //---------------------------------------------------------------------
-// Attach( App, { Settings, Project?, People? } ): the route.
+// Attach( App, { Settings, Project?, People?, Guide? } ): the route; Guide the guide's path, GUIDE_PATH when none.
 
 function Attach( App, Options )
 {
 	App.get( '/instructions', async function ( request, response )
 	{
 		let guide = null;
+		let path = Options.Guide || GUIDE_PATH;
 		try
 		{
-			guide = await Guide();
+			guide = await Guide( path );
 		}
 		catch ( error )
 		{
-			return response.status( 500 ).type( 'text/plain' ).send( 'the guide is missing: ' + GUIDE_PATH + '\n' );
+			return response.status( 500 ).type( 'text/plain' ).send( 'the guide is missing: ' + path + '\n' );
 		}
 		let base = request.protocol + '://' + request.get( 'host' );
 		response.type( 'text/plain; charset=utf-8' ).send( Make( Options.Settings, base, guide, null, Options.Project || null, !!Options.People ) );
@@ -98,4 +102,5 @@ module.exports = {
 	Guide: Guide,
 	Attach: Attach,
 	GUIDE_PATH: GUIDE_PATH,
+	SIDECAR_GUIDE_PATH: SIDECAR_GUIDE_PATH,
 };

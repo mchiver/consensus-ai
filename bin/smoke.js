@@ -9,13 +9,15 @@
 // menu's desktop items, the overlay following the theme and the size, a detached window, the connect screen, Quit.
 // Then the Server application (plan The Server, Step 3) on a temporary config and its own --user-data-dir: its gate
 // closed with no current user (the sign-in with the reason), open for a Personal one (the whole tree, the Users fold),
-// and a second launch with --open handed to the first, which registers the folder.
+// and a second launch with --open handed to the first, which registers the folder. Then the Sidecar app (plan Sidecar
+// Edition, Step 5) on a temporary folder and its own --user-data-dir: no sign-in, its menus, About and guide, the user
+// renamed and the theme set into the project's sidecar.json, Quit, and both back after a restart.
 // Each check prints ok or FAIL; the exit code is 1 when any failed. Pictures go to ~smoke/ in the checkout (a tilde
 // keeps the folder out of source control): the page in both themes, and captures of the desktop window's top, from
 // the screen, since the window buttons are not part of the page.
 //
 //   npm run smoke                     the page, then the desktop
-//   npm run smoke -- --no-desktop     the page alone (no desktop, no Server application)
+//   npm run smoke -- --no-desktop     the page alone (no desktop, no Server application, no Sidecar)
 //
 // Nothing of the real config folder or the real user data is touched: both are temporary and removed after.
 
@@ -31,6 +33,7 @@ const ROOT = PATH.join( __dirname, '..' );
 const OUT = PATH.join( ROOT, '~smoke' );
 const DESKTOP_PORT = 9337;
 const SERVER_APP_PORT = 9338;
+const SIDECAR_APP_PORT = 9339;
 const WIDTH = 1400;
 const HEIGHT = 900;
 const PLAN_TITLE = 'Smoke plan';
@@ -587,6 +590,119 @@ async function smoke_server_app()
 
 
 //---------------------------------------------------------------------
+// The Sidecar app (plan Sidecar Edition, Step 5), over its own DevTools port: a window on a temporary folder, no
+// sign-in, Sidecar's menus and guide, the user renamed and the theme changed into the project's sidecar.json, both
+// back after a restart, and Quit.
+
+async function sidecar_page( TimeoutMs )
+{
+	let limit = Date.now() + ( TimeoutMs || 30000 );
+	while ( Date.now() < limit )
+	{
+		try
+		{
+			let list = await ( await fetch( 'http://127.0.0.1:' + SIDECAR_APP_PORT + '/json/list' ) ).json();
+			let found = list.find( function ( target ) { return target.type === 'page' && /^http:\/\/127\.0\.0\.1:\d+\/(#.*)?$/.test( target.url ); } );
+			if ( found )
+			{
+				return found;
+			}
+		}
+		catch ( error )
+		{
+			// not listening yet
+		}
+		await wait( 300 );
+	}
+	throw new Error( 'Sidecar showed no page within ' + ( ( TimeoutMs || 30000 ) / 1000 ) + ' seconds' );
+}
+
+
+// In the page: the labels of the menu open now; a service from the page's injector, inside a digest.
+const MENU_LABELS = 'JSON.stringify( ( angular.element( document.body ).injector().get( "Menus" ).Open || { Items: [] } ).Items.map( function ( item ) { return item.Separator ? "---" : item.Label; } ) )';
+const CLOSE_MENU = '( function () { let injector = angular.element( document.body ).injector(); injector.get( "$rootScope" ).$apply( function () { injector.get( "Menus" ).Close(); } ); return true; } )()';
+const PROJECT_MENU = '( function () { let injector = angular.element( document.body ).injector(); let project = injector.get( "Roots" ).List[ 0 ].Projects[ 0 ]; injector.get( "$rootScope" ).$apply( function () { injector.get( "Tree" ).OpenMenu( "project", project, project, { preventDefault: function () {}, stopPropagation: function () {}, currentTarget: document.body, target: document.body, clientX: 10, clientY: 10 } ); } ); return true; } )()';
+const SHOW_ABOUT = '( function () { let injector = angular.element( document.body ).injector(); injector.get( "$rootScope" ).$apply( function () { injector.get( "HelpPanel" ).Show( "about" ); } ); return true; } )()';
+const CLOSE_ABOUT = '( function () { let injector = angular.element( document.body ).injector(); injector.get( "$rootScope" ).$apply( function () { injector.get( "HelpPanel" ).Close(); } ); return true; } )()';
+const PROJECT_SETTINGS = '( function () { let injector = angular.element( document.body ).injector(); let project = injector.get( "Roots" ).List[ 0 ].Projects[ 0 ]; injector.get( "$rootScope" ).$apply( function () { injector.get( "$rootScope" ).$broadcast( "project-settings", project ); } ); return true; } )()';
+const RENAME = '( function () { let input = document.getElementById( "project-user" ); input.value = "Smoke Person"; input.dispatchEvent( new Event( "input" ) ); let scope = angular.element( input ).scope(); return scope.Save().then( function () { return JSON.stringify( { Problems: scope.Panel.Problems, Saved: scope.Panel.Saved } ); } ); } )()';
+
+
+async function smoke_sidecar()
+{
+	console.log( '== the Sidecar app' );
+	let electron = require( 'electron' );
+	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-sidecar-user-data-' ) );
+	let project_folder = PATH.join( FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-sidecar-' ) ), 'sidecar-project' );
+	FS.mkdirSync( project_folder );
+	let settings_file = PATH.join( project_folder, '.consensus', 'sidecar.json' );
+	let launch = [ 'sidecar', project_folder, '--user-data-dir=' + user_data, '--remote-debugging-port=' + SIDECAR_APP_PORT ];
+	let child = null;
+	try
+	{
+		child = CHILD_PROCESS.spawn( electron, launch, { cwd: ROOT, stdio: 'ignore' } );
+		let page = await CDP.Attach( ( await sidecar_page() ).webSocketDebuggerUrl );
+		await page.WaitFor( 'document.body !== null && typeof angular !== "undefined" && document.body.innerText.indexOf( "Readme" ) >= 0', 30000 );
+		check( 'window: the folder\'s project', await page.Evaluate( 'window.ConsensusDesktop.Project.Name' ), 'sidecar-project' );
+		let port = Number( new URL( await page.Evaluate( 'window.ConsensusDesktop.Roots[ 0 ].Url' ) ).port );
+		check( 'server: the port in 52000 to 52999', port >= 52000 && port <= 52999, true );
+		check( 'server: no address file', FS.existsSync( PATH.join( project_folder, '.consensus', '~sidecar.json' ) ), false );
+		check( 'session: no sign-in', await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).On' ), false );
+		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
+		await wait( 300 );
+		let app_menu = JSON.parse( await page.Evaluate( MENU_LABELS ) );
+		check( 'menu: no Sign in, a Quit', app_menu.indexOf( 'Sign in…' ) < 0 && app_menu.indexOf( 'Quit' ) >= 0, true );
+		await page.Evaluate( CLOSE_MENU );
+		await page.Evaluate( PROJECT_MENU );
+		await wait( 200 );
+		let project_menu = JSON.parse( await page.Evaluate( MENU_LABELS ) );
+		check( 'project menu: LLM Instructions, no Explain', project_menu.indexOf( 'LLM Instructions' ) >= 0 && project_menu.indexOf( 'Explain' ) < 0, true );
+		await page.Evaluate( CLOSE_MENU );
+		await page.Evaluate( SHOW_ABOUT );
+		let about = await page.WaitFor( 'document.body.innerText.indexOf( "About Consensus Sidecar" ) >= 0', 5000 ).catch( function () { return false; } );
+		check( 'about: names Consensus Sidecar', about, true );
+		await page.Evaluate( CLOSE_ABOUT );
+		let instructions = await page.Evaluate( 'fetch( "/servers/local/instructions" ).then( function ( r ) { return r.text(); } )' );
+		check( 'instructions: Sidecar\'s guide', instructions.indexOf( '# Build with Consensus Sidecar' ) >= 0, true );
+		// the project's Settings: Your name, and none of a run's lists
+		await page.Evaluate( PROJECT_SETTINGS );
+		await page.WaitFor( 'document.getElementById( "project-user" ) !== null', 5000 );
+		check( 'settings: Your name, by default <user>@<machine>', await page.Evaluate( 'document.getElementById( "project-user" ).value' ), ( OS.userInfo().username + '@' + OS.hostname() ).toLowerCase() );
+		check( 'settings: no Include, Commands or Work', await page.Evaluate( count_of( '#project-include, #project-commands, #project-git-sync' ) ), 0 );
+		let saved = JSON.parse( await page.Evaluate( RENAME ) );
+		check( 'rename: saved', saved.Saved === true && saved.Problems.length === 0, true );
+		check( 'rename: the server\'s owner', await page.Evaluate( 'fetch( "/servers/local/api/me" ).then( function ( r ) { return r.json(); } ).then( function ( j ) { return j.Me.Name; } )' ), 'Smoke Person' );
+		await page.Evaluate( 'window.ConsensusDesktop.SetTheme( "dark" ); true' );
+		await wait( 800 );
+		let written = FS.existsSync( settings_file ) ? JSON.parse( FS.readFileSync( settings_file, 'utf8' ) ) : {};
+		check( 'sidecar.json: the name and the theme', written.User + '/' + written.Theme, 'Smoke Person/dark' );
+		await capture_window( page, 'sidecar-top' );
+		// Quit ends it; the next start has the name and the theme back
+		let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
+		await page.Evaluate( 'window.Desktop.Quit(); true' ).catch( function () {} );
+		let code = await Promise.race( [ exited, wait( 10000 ).then( function () { return 'timeout'; } ) ] );
+		check( 'quit: the app ends', code !== 'timeout' );
+		page.Close();
+		child = CHILD_PROCESS.spawn( electron, launch, { cwd: ROOT, stdio: 'ignore' } );
+		page = await CDP.Attach( ( await sidecar_page() ).webSocketDebuggerUrl );
+		await page.WaitFor( 'document.body !== null && typeof angular !== "undefined" && document.body.innerText.indexOf( "Readme" ) >= 0', 30000 );
+		check( 'restart: the name and the theme back', await page.Evaluate( 'window.ConsensusDesktop.User + "/" + window.ConsensusDesktop.Theme' ), 'Smoke Person/dark' );
+		page.Close();
+	}
+	finally
+	{
+		if ( child && child.exitCode === null )
+		{
+			child.kill();
+		}
+		await wait( 1000 );
+		FS.rmSync( user_data, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
+		FS.rmSync( PATH.dirname( project_folder ), { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
+	}
+}
+
+
+//---------------------------------------------------------------------
 
 async function main()
 {
@@ -596,6 +712,7 @@ async function main()
 	{
 		await smoke_desktop();
 		await smoke_server_app();
+		await smoke_sidecar();
 	}
 	console.log( failed ? 'SMOKE FAILED: ' + failed + ' check(s)' : 'SMOKE OK' );
 	process.exit( failed ? 1 : 0 );

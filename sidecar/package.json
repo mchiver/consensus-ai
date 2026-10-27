@@ -1,0 +1,7 @@
+{
+	"name": "consensus-sidecar",
+	"version": "0.5.1",
+	"description": "Consensus Sidecar: one local project folder, one person, the LLM session beside it (plan Sidecar Edition). Run from the checkout with npm run sidecar -- <folder>.",
+	"private": true,
+	"main": "main.js"
+}

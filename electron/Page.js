@@ -1,14 +1,15 @@
 'use strict';
 
-// Page - serves the Consensus page (public/, the one page since plan Run Shapes, Step 3), the connect screen
-// (desktop/page/) and the vendor files on 127.0.0.1, for the window to load (plan Consensus Desktop, Step 2), and forwards
+// Page - serves the Consensus page (public/, the one page since plan Run Shapes, Step 3), the app's own pages (Folders:
+// Desktop's connect screen, desktop/page/) and the vendor files on 127.0.0.1, for the window to load (plan Consensus Desktop, Step 2), and forwards
 // the page's API calls to the servers the window shows: since plan Run Shapes, Step 5, one root per server,
 // /servers/<key>/api/* (the events stream included) and /servers/<key>/instructions going to that root's server, so
 // the page and every API share one origin. The server sends no CORS headers and is not changed for the desktop, and
 // Electron runs no preload for a window whose web security is off, so the forwarding is what lets the page call
-// another origin's API; the base URL the preload hands the page stays the page's own origin.
+// another origin's API; the base URL the preload hands the page stays the page's own origin. Plan Sidecar Edition,
+// Step 1: shared by Desktop and Sidecar (moved from desktop/Page.js); the app names its own pages' folders.
 //
-//   Serve( { Folder, Port? } ) -> { Url, Roots(), SetRoots( [ { Key, Url } ] ), Close }
+//   Serve( { Folder?, Folders?, Port? } ) -> { Url, Roots(), SetRoots( [ { Key, Url } ] ), Close }
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -19,7 +20,6 @@ const SERVER = require( '../src/Server.js' );
 
 const HOST = '127.0.0.1';
 const DEFAULT_FOLDER = PATH.join( __dirname, '..', 'public' );
-const CONNECT_FOLDER = PATH.join( __dirname, 'page' );
 const FORWARDED = [ '/api', '/instructions' ];
 const HOP_BY_HOP = [ 'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade' ];
 
@@ -42,7 +42,10 @@ async function Serve( Options )
 		app.use( prefix, not_here );
 	}
 	app.use( EXPRESS.static( folder ) );
-	app.use( EXPRESS.static( CONNECT_FOLDER ) );
+	for ( let extra of ( options.Folders || [] ) )
+	{
+		app.use( EXPRESS.static( extra ) );
+	}
 
 
 	// The page reaches a server through its root only.
@@ -158,5 +161,4 @@ async function Serve( Options )
 module.exports = {
 	Serve: Serve,
 	DEFAULT_FOLDER: DEFAULT_FOLDER,
-	CONNECT_FOLDER: CONNECT_FOLDER,
 };

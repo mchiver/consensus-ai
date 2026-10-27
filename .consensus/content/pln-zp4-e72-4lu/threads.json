@@ -1,0 +1,783 @@
+[
+	{
+		"Id": "thr-s0e-5g7-xea",
+		"Anchor": {
+			"Text": "with no server and no multiuser functionality",
+			"Prefix": "app, Sidecar, based on Desktop, ",
+			"Suffix": ". Sidecar is added, not replacin"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:33:51.835Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:46:08.753Z",
+			"Revision": 7,
+			"RevisionId": "rev-uph-bhr-nr7",
+			"Outcome": "The wording went in with the rewrite: Sidecar is a new app, and Desktop and the Server keep everything they have."
+		},
+		"Created": "2026-10-27T06:17:34.228Z",
+		"Replies": [
+			{
+				"Id": "rep-xl3-5uf-hfe",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:17:34.228Z",
+				"Text": "Does the Server go from the codebase too, or only from this app? The Server application (server/), consensus serve, the Dockerfile and compose.yaml, the Server installer, and the code they share with the app (Clerk, users, roles, licensing) all sit in this repo. Recommendation: remove them from the codebase entirely (git history keeps them). Keeping the Server while the app drops it leaves src/ carrying all of the multiuser code, and the simplification would be the app's surface only. If you agree, the plans The Server and Teams (with Clerk and Accounts and Roles) are superseded."
+			},
+			{
+				"Id": "rep-7dw-d4l-kkq",
+				"By": "user",
+				"At": "2026-10-27T06:19:31.678Z",
+				"Text": "omg no.\nwe are KEEPING the Server and will continue to work on it under a different plan.\nThis plan pertains ONLY to desktop/sidecar."
+			},
+			{
+				"Id": "rep-azv-cxq-r2s",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:33:18.899Z",
+				"Text": "Understood: the Server and Desktop stay as they are, and this plan is Sidecar alone. The wording I will apply (it is part of the new text in the thread on \"This app is used only in sidecar mode.\"): \"We are going to make a new app, Sidecar, based on Desktop, with no server and no multiuser functionality. Sidecar is added, not replacing anything: Desktop and the Server keep everything they have and go on under their own plans.\""
+			}
+		]
+	},
+	{
+		"Id": "thr-hy1-27g-jt5",
+		"Anchor": {
+			"Text": "Sidecar is free: it reads no license.",
+			"Prefix": " account, no token and no tier. ",
+			"Suffix": " An LLM session works beside it "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:19:43.862Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:32:16.059Z",
+			"Revision": 4,
+			"RevisionId": "rev-mve-9a6-6k7",
+			"Outcome": "The recommendation went in: Sidecar is free and reads no license. The pricing page stays, since the Server keeps its tiers (thread on the Server: it stays)."
+		},
+		"Created": "2026-10-27T06:17:34.238Z",
+		"Replies": [
+			{
+				"Id": "rep-uiq-y2k-epn",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:17:34.238Z",
+				"Text": "With no sign-in there is no license: is Sidecar free? Recommendation: yes. License.js, the tiers and the 14-day check go, and the public docs drop the pricing page (the $5/$10 prices that were waiting on a billing period)."
+			}
+		]
+	},
+	{
+		"Id": "thr-y9s-mb9-ti1",
+		"Anchor": {
+			"Text": "This app is used only in sidecar mode.",
+			"Prefix": " never asks for a user sign-in. ",
+			"Suffix": " This app's settings are stored "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:37:27.347Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:46:08.736Z",
+			"Revision": 7,
+			"RevisionId": "rev-uph-bhr-nr7",
+			"Outcome": "The plan is rewritten for Sidecar as a new app in sidecar/, based on Desktop and simpler, with Desktop and the Server unchanged; the whole text in the reply went in."
+		},
+		"Created": "2026-10-27T06:17:34.248Z",
+		"Replies": [
+			{
+				"Id": "rep-b8d-8a8-51v",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:17:34.248Z",
+				"Text": "Do the in-app LLM connections, tasks and runs stay (the Ollama connections, the Answer and Work buttons, the one-shot run that packages this page with the Readme and the plan)? Today the sidecar already reads none of them, since they live in the Server's consensus.json. Recommendation: remove them (src/Llms.js, Ollama.js, Runner.js, Runs.js, Tasks.js, Package.js, the llm-fold and llm-session components): the LLM is the agent session beside the app, through the API or MCP. The alternative is to move the connections and tasks into sidecar.json and keep runs."
+			},
+			{
+				"Id": "rep-9f7-h9j-7s6",
+				"By": "user",
+				"At": "2026-10-27T06:24:34.988Z",
+				"Text": "yes, we are removing those things for Desktop ONLY.\nOK< Scratch all of that, we have to make even more simple. You can create a new folder for sidecar and start a new app there. that way you can mess up anything in Desktop or Server. So, read this as new app called Sidecar based on Desktop."
+			},
+			{
+				"Id": "rep-kqh-02n-q9p",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:33:18.867Z",
+				"Text": "Understood: scratch the rework of Desktop. Sidecar is a new app in its own folder, sidecar/, based on Desktop and simpler than it, and nothing under desktop/ or server/ changes. Sidecar has no LLM connections, tasks or runs; Desktop keeps them. Here is the whole new text I will apply when you resolve this thread:\n\n# Sidecar Edition\n\nWe are going to simplify things greatly.\n\nWe are going to make a new app, Sidecar, based on Desktop, with no server and no multiuser functionality. Sidecar is added, not replacing anything: Desktop and the Server keep everything they have and go on under their own plans.\nThis app opens only a local project folder and never connects to a Server.\nThis app never asks for a user sign-in.\nThis app is used only in sidecar mode.\n\nThis app's settings are stored in the project's `.consensus/sidecar.json` file. Sidecar has nothing to do with the Server or the global config folder.\n\n\n## What Sidecar is\n\n- A new Electron app in its own folder, `sidecar/`, run from the checkout with `npm run sidecar -- <folder>`. Its main process is written new from Desktop's, keeping only what Sidecar needs; nothing under `desktop/` or `server/` changes.\n- A window holds one project folder, its `.consensus` made when missing. Another folder is another window.\n- The window's server is the sidecar over that folder: it listens on 127.0.0.1 alone, its port hashed from the folder into 3600 to 3699, its address in `<folder>/.consensus/~sidecar.json` while the project is open, so `consensus mcp <folder>` and an LLM session find it as they find Desktop's. A second launch on a folder already open brings that window to the front.\n- One person uses it: the user named in the project's `sidecar.json`. There is no sign-in, no account, no token and no tier. Sidecar is free: it reads no license.\n- There are no LLM connections, tasks or runs: no Answer or Work buttons, no Ollama. The LLM is the agent session beside the app, through the API or MCP, saying who it is with `X-Consensus-Service`; what it posts reads \"<service> by <user name>\". A request with no token is the user.\n- The consensus rules stay as they are, for one person: a thread is resolved by the user, applied by the user or the LLM, and waits on the user and the LLM.\n\n\n## sidecar.json\n\n- The file is `<project>/.consensus/sidecar.json`, read and written by Sidecar alone. A missing file is the defaults; nothing is carried over from Desktop's or the Server's files.\n- Its fields:\n  - `User`: the name the user goes by, whatever they type in Settings; by default `<os user>@<machine>` (for example `andre@cube1`). It is the name on everything the user writes and in the LLM's byline.\n  - `States`: the project's plan states, as the tree offers them.\n  - `Theme` and `Scale`: the look (the ten palettes; small, normal, large).\n  - `Remembered`: the page's view state (the open item, the folds, the tabs, the sort, the hidden panes, the widths).\n- The address file `.consensus/~sidecar.json` beside it is another file, unchanged.\n\n\n## What Sidecar does not have\n\n- Connect to Server, the Hosts, the Server routing of Open folder, the chooser's server rows.\n- Sign-in, licensing, the tiers, the license line of About.\n- Users, roles, the Users page, minted tokens, the LLM session token.\n- LLM connections, tasks and runs.\n\n\n## What Sidecar keeps from Desktop\n\n- Plans, documents, folders, threads, revisions, anchors, the rules, reports and Print to PDF, the editor and the View, the look controls, the project tree, the waiting list, the project settings.\n- The API, the MCP (`POST /api/mcp` and `bin/mcp.js`), and the instructions page, for sidecar mode alone.\n\n\n## Desktop and the Server\n\n- Desktop, the Server, `consensus <folder>`, `consensus serve` and `consensus mcp <folder>` stay as they are.\n\n\n## The installer\n\n- A new installer for the new app: product name \"Consensus Sidecar\", appId `com.mchiver.consensus-sidecar`, `Consensus-Sidecar-Setup-<version>.exe`, its config `build/sidecar.json`, built by `npm run dist` with the other two. It installs beside Desktop and the Server.\n\n\n## Steps\n\n1. **The app.** `sidecar/`: the main process, the window, the sidecar over the folder, the activate, `npm run sidecar`.\n2. **sidecar.json.** The user, the states, the look and the view state, read and written in the project's `.consensus`; tests.\n3. **The page for Sidecar.** What Sidecar does not have left out of its page: sign-in, servers, users, LLM connections and tasks.\n4. **The installer.** `build/sidecar.json` and the dist script.\n5. **The guide.** The user guide's Sidecar page, the features page, the Readme and a Sidecar smoke."
+			}
+		]
+	},
+	{
+		"Id": "thr-zal-2sm-1md",
+		"Anchor": {
+			"Text": "Sidecar writes no address file",
+			"Prefix": "m the folder into 3600 to 3699. ",
+			"Suffix": ": the user connects an LLM sessi"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:49:28.128Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:50:09.410Z",
+			"Revision": 11,
+			"RevisionId": "rev-qht-3nj-j45",
+			"Outcome": "Sidecar writes no address file: the user connects an LLM session by pasting the project's LLM Instructions into it, and Sidecar's MCP is reached at the address they give."
+		},
+		"Created": "2026-10-27T06:17:34.259Z",
+		"Replies": [
+			{
+				"Id": "rep-ead-h5c-j8l",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:17:34.259Z",
+				"Text": "Where does sidecar.json live? Recommendation: in the config folder, ~/.consensus/sidecar.json, where desktop.json is now, with --config for another folder. It shares its name with the address file <folder>/.consensus/~sidecar.json; I recommend keeping both names, since one is in the user's home and the other in the project and hidden by its tilde. Say if you would rather the address file be renamed (the MCP shim and the instructions page would change with it)."
+			},
+			{
+				"Id": "rep-ulp-r18-aju",
+				"By": "user",
+				"At": "2026-10-27T06:26:18.060Z",
+				"Text": "No. it lives with the project. `<project>/.consensus/sidecar.json`\n\nSidecar has nothing to do with the server or the global config."
+			},
+			{
+				"Id": "rep-as8-2d1-ko6",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:33:18.910Z",
+				"Text": "Understood: <project>/.consensus/sidecar.json, and no global config. The wording I will apply: \"This app's settings are stored in the project's .consensus/sidecar.json file. Sidecar has nothing to do with the Server or the global config folder.\" The address file .consensus/~sidecar.json stays beside it, unchanged, so consensus mcp <folder> finds Sidecar's server as it finds Desktop's."
+			},
+			{
+				"Id": "rep-r1e-461-27t",
+				"By": "user",
+				"At": "2026-10-27T06:41:32.514Z",
+				"Text": "using the `~` to exclude from source control is brittle and only works in this environment. what does `~sidecar.json` contain?"
+			},
+			{
+				"Id": "rep-80q-ucm-qw0",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:46:08.919Z",
+				"Text": "~sidecar.json is the address of the project's running server: { Url, Port, Pid, Started, Project }. The server writes it when the project opens and removes it when it closes (src/Sidecar.js, shared with Desktop and consensus <folder>). consensus mcp <folder> and an LLM session read it to find the server without a copy and paste, and a second launch on the folder reads it to bring the open window to the front. It means nothing outside the running moment, so it should never be committed. You are right that the tilde keeps it out only here. Recommendation: when .consensus/.gitignore is missing, Sidecar writes one holding the line ~sidecar.json. That works with git anywhere, and it keeps the name, so the MCP shim and Desktop are unchanged. The wording I will apply, in the sidecar.json section: \"The address file .consensus/~sidecar.json beside it holds the running server's address and is unchanged; Sidecar writes .consensus/.gitignore with the line ~sidecar.json when that file is missing, so the address is never committed.\""
+			},
+			{
+				"Id": "rep-s2z-q02-k6h",
+				"By": "user",
+				"At": "2026-10-27T06:49:28.128Z",
+				"Text": "no. we wont save that information. the user must bootstrap the sidecar connection by copy/pasting the instructions into the llm session."
+			}
+		]
+	},
+	{
+		"Id": "thr-9bt-n2u-fk9",
+		"Anchor": {
+			"Text": "nothing is carried over",
+			"Prefix": "A missing file is the defaults; ",
+			"Suffix": " from Desktop's or the Server's "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:41:48.017Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:46:08.768Z",
+			"Revision": 7,
+			"RevisionId": "rev-uph-bhr-nr7",
+			"Outcome": "The wording went in with the rewrite: a missing sidecar.json is the defaults, and nothing is carried over."
+		},
+		"Created": "2026-10-27T06:17:34.338Z",
+		"Replies": [
+			{
+				"Id": "rep-4nx-psv-lrk",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:17:34.338Z",
+				"Text": "Should the first start carry over the current settings? Recommendation: yes, once. With no sidecar.json, Sidecar takes Recent, Theme, Scale and Remembered from desktop.json, and the Owner and States from consensus.json, writes sidecar.json, and never touches the old files again (no deleting them)."
+			},
+			{
+				"Id": "rep-job-2rn-b05",
+				"By": "user",
+				"At": "2026-10-27T06:26:49.667Z",
+				"Text": "Nobody cares."
+			},
+			{
+				"Id": "rep-hr0-92m-rqf",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:33:18.920Z",
+				"Text": "Understood: nothing is carried over. The wording I will apply: \"A missing file is the defaults; nothing is carried over from Desktop's or the Server's files.\""
+			}
+		]
+	},
+	{
+		"Id": "thr-7bt-2nf-q8q",
+		"Anchor": {
+			"Text": "the name the user goes by",
+			"Prefix": "rver's files. Its fields: User: ",
+			"Suffix": ", whatever they type in Settings"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:42:14.728Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:46:08.786Z",
+			"Revision": 7,
+			"RevisionId": "rev-uph-bhr-nr7",
+			"Outcome": "The wording went in with the rewrite: User is whatever the user types, by default <os user>@<machine>."
+		},
+		"Created": "2026-10-27T06:17:34.368Z",
+		"Replies": [
+			{
+				"Id": "rep-api-wrc-jfo",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:17:34.368Z",
+				"Text": "What can the user change about their name? Name is the key in every thread record already written (\"user\"), so changing it would cut the user off from their past replies, resolves and the waiting list. Recommendation: Name stays \"user\" and is not shown; Display is the user name you edit in Settings, used on the page and in bylines (\"Claude-CLI by Andre\")."
+			},
+			{
+				"Id": "rep-nhj-9wl-wdn",
+				"By": "user",
+				"At": "2026-10-27T06:27:48.514Z",
+				"Text": "In Sidecar, the user can put whatever name they want in there. It could default to user@machine though, that would be clever."
+			},
+			{
+				"Id": "rep-jwj-635-j43",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:33:18.934Z",
+				"Text": "Understood: one field, whatever the user types. The wording I will apply: \"User: the name the user goes by, whatever they type in Settings; by default <os user>@<machine> (for example andre@cube1). It is the name on everything the user writes and in the LLM's byline.\" A side effect to know about: a reply written before a rename keeps the old name."
+			}
+		]
+	},
+	{
+		"Id": "thr-0uu-lhx-jv9",
+		"Anchor": {
+			"Text": "The plan states are not in sidecar.json",
+			"Prefix": " the hidden panes, the widths). ",
+			"Suffix": ": they stay in the project's pro"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:46:55.624Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:50:09.433Z",
+			"Revision": 12,
+			"RevisionId": "rev-qpn-imt-bm7",
+			"Outcome": "States: the project's plan states."
+		},
+		"Created": "2026-10-27T06:17:34.378Z",
+		"Replies": [
+			{
+				"Id": "rep-wyi-id3-oqs",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:17:34.378Z",
+				"Text": "Plan states: per app or per project? Today they are one list in consensus.json for every project. Recommendation: keep them per app, in sidecar.json, as they are now. The alternative is project.json, which travels with the repo, so everyone working that repo sees the same states."
+			},
+			{
+				"Id": "rep-6cx-vno-n52",
+				"By": "user",
+				"At": "2026-10-27T06:28:58.316Z",
+				"Text": "These are per project and live with the project files."
+			},
+			{
+				"Id": "rep-a03-gz8-c1d",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:33:18.968Z",
+				"Text": "Understood: per project, with the project's files. The wording I will apply, in the project's sidecar.json: \"States: the project's plan states, as the tree offers them.\""
+			},
+			{
+				"Id": "rep-m0o-yix-mrc",
+				"By": "user",
+				"At": "2026-10-27T06:44:51.136Z",
+				"Text": "why add \"as the tree offers them\" to that? its just \"the project's plan states\". why did you add that part?"
+			},
+			{
+				"Id": "rep-vv2-v5h-mxb",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:46:08.932Z",
+				"Text": "No reason: I added it to say where the states show up, and it says nothing the word States does not. The wording I will apply: \"States: the project's plan states.\""
+			}
+		]
+	},
+	{
+		"Id": "thr-lib-nnc-7up",
+		"Anchor": {
+			"Text": "stay as they are",
+			"Prefix": "s the user. The consensus rules ",
+			"Suffix": ", for one person: a thread is re"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:29:47.572Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:32:31.148Z",
+			"Revision": 5,
+			"RevisionId": "rev-1ht-ksv-7q6",
+			"Outcome": "The recommendation went in for consensus <folder> and consensus mcp <folder>, which stay. consensus serve and --scope stay too: they are the Server's, and the Server is kept."
+		},
+		"Created": "2026-10-27T06:17:34.390Z",
+		"Replies": [
+			{
+				"Id": "rep-5pb-h4q-jwm",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:17:34.390Z",
+				"Text": "Does the headless form stay, `consensus <folder>` with no window (bin/consensus.js)? It runs the same sidecar, and the smoke and a session on a machine with no display use it. Recommendation: keep `consensus <folder>` and `consensus mcp <folder>`; drop `consensus serve` and the --scope option (the sidecar is localhost only)."
+			}
+		]
+	},
+	{
+		"Id": "thr-kwv-f3j-d8w",
+		"Anchor": {
+			"Text": "A new installer for the new app",
+			"Prefix": "stay as they are. The installer ",
+			"Suffix": ": product name \"Consensus Sideca"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:45:08.985Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:46:08.808Z",
+			"Revision": 7,
+			"RevisionId": "rev-uph-bhr-nr7",
+			"Outcome": "The wording went in with the rewrite: a new installer, Consensus Sidecar, installed beside Desktop and the Server."
+		},
+		"Created": "2026-10-27T06:17:34.421Z",
+		"Replies": [
+			{
+				"Id": "rep-49o-ded-xel",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:17:34.421Z",
+				"Text": "What is the product called, and does it install over Consensus Desktop? Recommendation: \"Consensus Sidecar\", installer Consensus-Sidecar-Setup-<version>.exe, keeping the appId com.mchiver.consensus so it upgrades the Desktop in place instead of installing beside it; the public docs keep saying Consensus-AI."
+			},
+			{
+				"Id": "rep-1t0-uuc-lf9",
+				"By": "user",
+				"At": "2026-10-27T06:30:51.098Z",
+				"Text": "a new installer for a new app."
+			},
+			{
+				"Id": "rep-p17-yvy-2dr",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:33:18.980Z",
+				"Text": "Understood: a new installer, installed beside Desktop and the Server. The wording I will apply: \"A new installer for the new app: product name Consensus Sidecar, appId com.mchiver.consensus-sidecar, Consensus-Sidecar-Setup-<version>.exe, its config build/sidecar.json, built by npm run dist with the other two. It installs beside Desktop and the Server.\""
+			}
+		]
+	},
+	{
+		"Id": "thr-l8w-vtr-q5n",
+		"Anchor": {
+			"Text": "Sidecar is added, not replacing anything",
+			"Prefix": "and no multiuser functionality. ",
+			"Suffix": ": Desktop and the Server keep ev"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:30:27.795Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:32:31.171Z",
+			"Revision": 6,
+			"RevisionId": "rev-bwf-q50-6m1",
+			"Outcome": "Sidecar is a new app; Desktop is not renamed and nothing of it changes. Step 4 now says so."
+		},
+		"Created": "2026-10-27T06:17:34.432Z",
+		"Replies": [
+			{
+				"Id": "rep-9vi-a56-zha",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:17:34.432Z",
+				"Text": "Should the code follow the name: the desktop/ folder renamed sidecar/, `npm run desktop` renamed `npm run sidecar`, and \"Desktop\" replaced with \"Sidecar\" in the code's comments and in the routes (/api/desktop/activate)? Recommendation: yes for the folder, the script and the user-facing words. Leave the API route alone (renaming it breaks a running older window's activate for no gain)."
+			},
+			{
+				"Id": "rep-075-al7-qnq",
+				"By": "user",
+				"At": "2026-10-27T06:30:27.795Z",
+				"Text": "i have already decided that Sidecar will be a new app. we are adding not replacing."
+			}
+		]
+	},
+	{
+		"Id": "thr-i4i-1qc-1k7",
+		"Anchor": {
+			"Text": "Sidecar shares as much code as it can",
+			"Prefix": "th npm run sidecar -- <folder>. ",
+			"Suffix": ": src/ and public/ are shared wi"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:39:10.875Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:46:08.834Z",
+			"Revision": 8,
+			"RevisionId": "rev-7tk-2dw-e3y",
+			"Outcome": "Sidecar shares as much code as it can: src/ and public/ through added options, and the parts of Desktop's main process it needs made into components both apps use."
+		},
+		"Created": "2026-10-27T06:33:18.995Z",
+		"Replies": [
+			{
+				"Id": "rep-4a8-wlr-2pt",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:33:18.995Z",
+				"Text": "Should Sidecar share the server and page code with Desktop, or copy it? Sidecar needs src/ (the API, the store, the rules, the MCP) and public/ (the page). Sharing means a few added options in src/ and public/, for example where the user name and the states come from and which parts of the page to leave out. Desktop and the Server would behave exactly as before, and their tests would check that. Copying them into sidecar/ means Desktop and the Server cannot be touched at all, but it is about 25,000 lines that drift apart, and every fix is made twice. Recommendation: share, with added options only."
+			},
+			{
+				"Id": "rep-sum-98s-pud",
+				"By": "user",
+				"At": "2026-10-27T06:39:10.875Z",
+				"Text": "yes, share as much code as possible. make components."
+			}
+		]
+	},
+	{
+		"Id": "thr-ctg-3fq-x5f",
+		"Anchor": {
+			"Text": "Started with no folder",
+			"Prefix": "other folder is another window. ",
+			"Suffix": ", Sidecar shows the folder dialo"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:34:23.859Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:46:08.861Z",
+			"Revision": 9,
+			"RevisionId": "rev-492-5fq-18b",
+			"Outcome": "The recommendation went in: with no folder, the folder dialog straight away; no chooser and no recent list."
+		},
+		"Created": "2026-10-27T06:33:19.010Z",
+		"Replies": [
+			{
+				"Id": "rep-4xx-13t-b8v",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:33:19.010Z",
+				"Text": "What does Sidecar show when it starts with no folder? With no global settings there is no recent list. Recommendation: the folder dialog straight away (Windows' dialog has its own New folder button), and the window closes on Cancel; no chooser and no recent list. The alternative is a recent list kept in Electron's own app data, which is a global setting of a kind."
+			}
+		]
+	},
+	{
+		"Id": "thr-2kp-z4h-g3r",
+		"Anchor": {
+			"Text": "Sidecar does nothing about git",
+			"Prefix": " the hidden panes, the widths). ",
+			"Suffix": ": the guide says to add .consens"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T06:39:47.256Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T06:46:08.885Z",
+			"Revision": 10,
+			"RevisionId": "rev-hag-95z-nxh",
+			"Outcome": "The recommendation went in: Sidecar does nothing about git, and the guide says how to keep sidecar.json out of source control."
+		},
+		"Created": "2026-10-27T06:33:19.022Z",
+		"Replies": [
+			{
+				"Id": "rep-f27-4z6-ruv",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:33:19.022Z",
+				"Text": "Should sidecar.json go into source control with the rest of .consensus? It holds the states, which belong with the project, but also the user name and the view state, which change as you click and would show up in every commit. Recommendation: Sidecar does nothing about git, and the guide says to add .consensus/sidecar.json to .gitignore for anyone who wants it out. The alternative is to split the file: the states in sidecar.json, and the user and view state in a tilde file that stays out of source control."
+			}
+		]
+	},
+	{
+		"Id": "thr-jym-9mv-55c",
+		"Anchor": {
+			"Text": "opening a folder twice is the user's responsibility",
+			"Prefix": "ther window on the same folder: ",
+			"Suffix": ". One person uses it: the user n"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T07:00:15.687Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T07:00:36.941Z",
+			"Revision": 13,
+			"RevisionId": "rev-8l5-g19-23n",
+			"Outcome": "Multiple instances are allowed: Sidecar does not check for another window on the same folder, and that is the user's responsibility. The activate is gone from the shared components and from Step 1."
+		},
+		"Created": "2026-10-27T06:50:09.443Z",
+		"Replies": [
+			{
+				"Id": "rep-dyi-tt9-tlv",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:50:09.443Z",
+				"Text": "With no address file, how does a second launch on a folder that is already open find the window that has it? Today it reads ~sidecar.json and calls that server's activate. Recommendation: drop it. A second launch on an open folder opens a second window, whose server takes the next free port. Both windows write the same files through the API, but it is one person, and the page already reloads on the events. The alternative is for the second launch to ask the folder's hashed ports in turn which project they serve (GET /api/projects) and activate the one that matches: no file, but more code, and a launch delay while the ports answer."
+			},
+			{
+				"Id": "rep-um7-v60-5aj",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:50:20.582Z",
+				"Text": "A correction to my recommendation. Two windows on one folder are two servers, each with its own copy of the project in memory and its own events. Neither would see the other's writes, so one window could overwrite the other's revisions. That is why Desktop keeps one window per folder. So my recommendation is the alternative: a second launch asks the folder's ports, from its hashed port up, which project they serve (GET /api/projects), and brings the window that serves this folder to the front. There is no file. A port that does not answer is skipped quickly, so on a free folder the delay is short."
+			},
+			{
+				"Id": "rep-c8y-9jb-xsc",
+				"By": "user",
+				"At": "2026-10-27T06:52:58.575Z",
+				"Text": "no. an attempt to open a 2nd instance of Sidecar over the same folder is denied. the proper behavior is to bring the existing Sidecar to the front and set it active."
+			},
+			{
+				"Id": "rep-npo-zlk-42y",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:53:21.053Z",
+				"Text": "Understood: a second Sidecar over the same folder is refused, and the open one is brought to the front and made the active window. With no address file, I recommend this way of doing it. Sidecar runs as one process, using Electron's single-instance lock. A launch while Sidecar runs hands its folder to the running Sidecar and exits. If that folder is open, its window is brought to the front and made active. If not, it opens in a new window of the same process. There is no file and no probing of ports, and Desktop's activate route is not needed. This differs from Desktop, which starts one process per window.\n\nThe wording I will apply, in place of the last sentence of the server bullet: \"Sidecar runs as one process (Electron's single-instance lock): a launch while it runs hands its folder to the running Sidecar and exits. A folder already open is not opened again: its window is brought to the front and made active. Another folder opens in a new window.\" \"The activate\" also comes out of the shared components and of Step 1, which get \"the single-instance hand-off\" in its place."
+			},
+			{
+				"Id": "rep-3ug-6tq-1kd",
+				"By": "user",
+				"At": "2026-10-27T06:56:24.182Z",
+				"Text": "so what would happens if one of the windows throws an exception? will the entire process shut down? i kind of dont like leveraging like that. each window should be its own process, which is why Desktop is the way that it is. Come up with a better answer."
+			},
+			{
+				"Id": "rep-6mi-7co-m4q",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T06:56:53.424Z",
+				"Text": "Agreed: one process per window, as in Desktop, so one window failing takes nothing else down. Without an address file, the open window is found through the ports instead. I recommend:\n\n- Each window's server takes the folder's own port (hashed into 3600 to 3699), or the next free one up, as now.\n- A launch on a folder first asks the folder's port, then each next port up, which project it serves (GET /api/projects gives the project's Path). It stops at the first port that does not answer, since a server on this folder would have taken a port before that gap.\n- If one serves this folder, the launch calls that server's activate (POST /api/desktop/activate, which Desktop's sidecar already answers). Its window comes to the front and is made active, and the launch exits without opening anything.\n- Otherwise the launch opens the folder in its own process.\n\nThere is no file, and nothing goes stale: a window that dies frees its port, and the next launch finds nothing there. On a folder that is not open, the cost is a single refused connection on 127.0.0.1.\n\nThe wording I will apply, in place of the last sentence of the server bullet: \"Each window is its own process, as in Desktop. A launch on a folder asks the folder's port, and each next port up to the first that does not answer, which project it serves; if one serves this folder, its window is brought to the front and made active, and the launch exits. A second Sidecar over a folder is never opened.\" Step 1's \"the activate\" becomes \"the activate, found through the ports\"."
+			},
+			{
+				"Id": "rep-nlc-5nv-ckq",
+				"By": "user",
+				"At": "2026-10-27T07:00:15.687Z",
+				"Text": "No. fuck all that. Here is what we are going to do. Allow multiple instances and dont worry about it. Let the user be responsible for that."
+			}
+		]
+	},
+	{
+		"Id": "thr-5lv-rwl-zsv",
+		"Anchor": {
+			"Text": "hashed into 52000 to 52999",
+			"Prefix": "ee port: the folder's own port, ",
+			"Suffix": " so that a folder keeps its addr"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T07:12:24.771Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T07:12:45.805Z",
+			"Revision": 14,
+			"RevisionId": "rev-va4-xxf-j1l",
+			"Outcome": "The recommendation went in: the folder's port hashed into 52000 to 52999, stepping up while taken; Desktop keeps 3600 to 3699."
+		},
+		"Created": "2026-10-27T07:05:42.925Z",
+		"Replies": [
+			{
+				"Id": "rep-plu-g7c-1ca",
+				"By": "user",
+				"At": "2026-10-27T07:05:42.925Z",
+				"Text": "we can use any available port. pick a less consipuous port range."
+			},
+			{
+				"Id": "rep-ujl-eg4-xs7",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T07:10:28.016Z",
+				"Text": "Understood: any free port will do, and the range moves somewhere less conspicuous. One thing hashing still gives Sidecar: a folder gets the same port every time it opens, so the LLM Instructions pasted into a session stay good after Sidecar restarts. A port picked by the system changes at every start, and the instructions would have to be pasted again. Recommendation: keep the folder's hash, moved to 52000 to 52999. That is inside the private range (49152 to 65535), which no service registers, and with a thousand ports collisions are rare. A taken port steps up to the next free one, as now. The range is an option Sidecar passes to the shared server, so Desktop keeps 3600 to 3699. If you would rather have a port that changes and re-paste the instructions after a restart, say so, and Sidecar asks the system for any free port.\n\nThe wording I will apply, in the server bullet: \"it listens on 127.0.0.1 alone, on any free port: the folder's own port, hashed into 52000 to 52999 so that a folder keeps its address between starts, or the next free one up.\""
+			}
+		]
+	},
+	{
+		"Id": "thr-gbc-klz-6cf",
+		"Anchor": {
+			"Text": "The plan states are not in sidecar.json",
+			"Prefix": " the hidden panes, the widths). ",
+			"Suffix": ": they stay in the project's pro"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-27T07:57:37.725Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-27T07:58:08.217Z",
+			"Revision": 15,
+			"RevisionId": "rev-scl-mhb-g6b",
+			"Outcome": "The recommendation went in: no States in sidecar.json; the plan states stay in the project's project.json, edited from the project's Settings, as in Desktop. Step 2 was built that way."
+		},
+		"Created": "2026-10-27T07:30:18.212Z",
+		"Replies": [
+			{
+				"Id": "rep-uyh-1pp-a9d",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-27T07:30:18.212Z",
+				"Text": "A question from the build of Step 2. A project's plan states already live with the project's files: every project.json has a States list, made when the project is made and edited in the project's Settings popup (plan Run Shapes, Step 2). This is what the server reads for that project's plans, in Desktop and Sidecar alike. A States list in sidecar.json as well would be a second copy. Either it would never be read, because the project's own list wins, or it would have to override project.json and be kept in step with it. Recommendation: no States in sidecar.json. The states stay in project.json, edited from the project's Settings in Sidecar as in Desktop. sidecar.json then holds User, Theme, Scale and Remembered. I am building Step 2 that way meanwhile, and the line comes out of the plan when you resolve this."
+			}
+		]
+	},
+	{
+		"Id": "thr-uyr-ru5-mx3",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-27T09:06:06.367Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-27T09:07:17.361Z",
+			"Revision": 15,
+			"RevisionId": "rev-scl-mhb-g6b",
+			"Outcome": "Accepted: Sidecar Edition, Steps 1 to 5, built as the log says; committed as \"Sidecar Edition\" and the plan set Finished."
+		},
+		"Created": "2026-10-27T09:03:58.777Z",
+		"Replies": [
+			{
+				"Id": "rep-zuf-rdr-yt6",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-27T09:03:58.777Z",
+				"Text": "Build log: Sidecar Edition, Steps 1 to 5.\n\nBuilt by Claude-CLI sessions; Step 5 was finished, after the owner's machine crashed mid-step, by Claude Opus 5.5 (claude-opus-5-5).\n\n**What was built, and where**\n\n- Step 1, the app: the window parts Desktop and Sidecar share taken out of `desktop/main.js` into `electron/Windows.js`, and `desktop/Page.js` moved to `electron/Page.js`; `sidecar/main.js`, `sidecar/preload.js`, `sidecar/package.json`; `npm run sidecar -- <folder>`; with no folder the folder dialog, Cancel quits. `src/Server.js` takes `Settings`, `Ports` and `AddressFile: false`; `src/Sidecar.js` takes a range (`SIDECAR_APP_RANGE`, 52000 to 52999; Desktop keeps 3600 to 3699).\n- Step 2, sidecar.json: `sidecar/Settings.js` reads and writes `<project>/.consensus/sidecar.json` (User, Theme, Scale, Remembered); the user renamed from the project's Settings renames the server's owner in place.\n- Step 3, the page: with `ConsensusDesktop.Sidecar` no session or sign-in (`public/js/session.js`), no Explain (`public/js/tree.js`), \"Your name\" in place of Include, Exclude, Commands and Work (`public/index.html`, `public/js/project.js`), About names Consensus Sidecar (`public/js/help.js`); the instructions serve `.guides/build-with-sidecar.md` (`src/Instructions.js`, `src/Operations.js`).\n- Step 4, the installer: `build/sidecar.json` (Consensus Sidecar, `com.mchiver.consensus-sidecar`, `Consensus-Sidecar-Setup-<version>.exe`), the third build of `npm run dist`; `build/desktop.json` packs `electron/`.\n- Step 5, the guide: `docs/guide/sidecar.md` and its page in `pages.json` (the other pages re-rendered for the new nav entry), the Features page's Running it for three applications, the smoke's Sidecar part in `bin/smoke.js`, and the project's Readme (revision 102).\n\n**After the crash**\n\nThe crash had lost the `public/js/project.js` changes (the file was back at the last commit while `index.html` and the smoke relied on them), which broke the project-settings UI test. They are written again: `Panel.User` is the Sidecar user (null elsewhere), shown as Your name, and Save renames through `ConsensusDesktop.SetUser` first, a refused name saving nothing.\n\n**How it was checked**\n\n- `node --test`: 286 tests, 283 pass in the full run. The three that fail there pass when their files run alone: `test/Api.test.js` 42 of 42 (the run-queue test and the users-and-roles test, both timing on the LLM runs, code this plan did not touch) and `test/Start.test.js` 8 of 8 (the sidecar port test, \"fetch failed\" under load). I have not checked whether the two run tests also fail in a full run on the last commit.\n- `npm run smoke`: SMOKE OK, the page, the desktop, the Server app and the Sidecar app (15 checks: the folder's project, the port in 52000 to 52999, no address file, no sign-in, no Sign in and a Quit, LLM Instructions and no Explain, About, the Sidecar guide, Your name by default <user>@<machine>, no Include, Commands or Work, the rename saved and the server's owner renamed, the name and theme in sidecar.json, Quit, both back after a restart).\n\nNothing is committed. Resolve to accept: I apply this log, commit the work as \"Sidecar Edition\", and set the plan Finished."
+			}
+		]
+	}
+]

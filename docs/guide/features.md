@@ -49,7 +49,8 @@
 
 ## Running it
 
-- **Two applications.** Consensus Desktop for your own folders and Consensus Server for several people, installed and started apart, sharing the page and the signed-in person of the machine. See [Getting started](getting-started.html).
+- **Three applications.** Consensus Sidecar, the simplest, for one folder, you and your agent; Consensus Desktop for your own folders and Servers; and Consensus Server for several people; installed and started apart, sharing the page. See [Getting started](getting-started.html).
+- **Consensus Sidecar.** One window over one local folder, its own process, with no Server, sign-in, license, users, LLM connections or tasks: your agent session works beside it through the API or MCP, connected by the project's LLM Instructions pasted into it. The port comes from the folder (52000 to 52999), so the address holds between starts; your name, the look and the view are kept with the project in `.consensus/sidecar.json`. See [Consensus Sidecar](sidecar.html).
 - **The desktop.** One project in one window, opened as an editor opens a folder, with a server of its own inside; a chooser for the recent folders, a new project and the Servers; another window for another project; **Open in Consensus Desktop** on a folder's right-click menu. See [Getting started](getting-started.html).
 - **The sidecar.** The window's server is the open project's API and MCP on this machine, on a known port with its address in the folder: one fixed MCP entry per project, `consensus mcp <folder>`, and a Copy button for the instructions. Sidecar mode needs no sign-in, and has no LLM connections, tasks or users of its own.
 - **Connect to Server.** Signed in, the desktop is a thin client of a Server, on this machine or remote, with the Server's projects and LLM tasks; a folder the Server serves opens through it, so one folder never has two writers.

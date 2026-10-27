@@ -9,8 +9,9 @@
 		"start": "node bin/consensus.js",
 		"test": "node --test",
 		"desktop": "electron desktop",
+		"sidecar": "electron sidecar",
 		"smoke": "node bin/smoke.js",
-		"dist": "electron-builder --win nsis -c build/desktop.json && electron-builder --win nsis -c build/server.json",
+		"dist": "electron-builder --win nsis -c build/desktop.json && electron-builder --win nsis -c build/server.json && electron-builder --win nsis -c build/sidecar.json",
 		"server": "electron server"
 	},
 	"engines": {

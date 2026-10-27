@@ -607,7 +607,7 @@ function Operations( Context )
 			// a sidecar's one project (plan Rearchitecturation, Step 3), named first
 			let isolated = ( store && typeof store.Isolated === 'function' ) ? store.Isolated() : null;
 			let project = isolated ? await store.ReadProject( isolated ) : null;
-			return Answer( 200, INSTRUCTIONS.Make( settings, base || 'http://<server>:<port>', await INSTRUCTIONS.Guide(), null, project, !!Context.People ), 'text/plain; charset=utf-8' );
+			return Answer( 200, INSTRUCTIONS.Make( settings, base || 'http://<server>:<port>', await INSTRUCTIONS.Guide( Context.Guide || null ), null, project, !!Context.People ), 'text/plain; charset=utf-8' );
 		},
 	} );
 

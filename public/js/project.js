@@ -9,6 +9,9 @@
 // /api/view; the Desktop's sidecar has no connections or tasks, so those rows are not shown there. On a Server the look
 // is the Server's and never here. Opened from the project's menu (tree.js) with the 'project-settings' event, and in
 // the Desktop's sidecar from Settings.
+// The Sidecar app (plan Sidecar Edition, Step 2): User, the name the user goes by, shown first as Your name and saved
+// through window.ConsensusDesktop.SetUser into the project's sidecar.json; null everywhere else. Step 3: the app has
+// no runs, so Include, Exclude, Commands and Work are not shown there.
 
 angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
 {
@@ -18,6 +21,7 @@ angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
 		Form: null,
 		View: null,		// { Shape, Form, Start } when the look is kept with the project and may be changed
 		Sidecar: false,
+		User: null,		// the Sidecar app's user name; null elsewhere
 		Problems: [],
 		Busy: false,
 		Saved: false,
@@ -26,9 +30,25 @@ angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
 } ] )
 
 
-.controller( 'ProjectSettingsController', [ '$scope', 'State', 'Client', 'ProjectSettings', 'Roots', 'Llms', 'ViewForm', function ( $scope, State, Client, ProjectSettings, Roots, Llms, ViewForm )
+.controller( 'ProjectSettingsController', [ '$scope', 'State', 'Client', 'ProjectSettings', 'Roots', 'Llms', 'ViewForm', '$window', function ( $scope, State, Client, ProjectSettings, Roots, Llms, ViewForm, $window )
 {
 	$scope.Panel = ProjectSettings;
+
+
+	// The Sidecar app's user name, or null when this is not the Sidecar app.
+	function sidecar_user()
+	{
+		let desktop = $window.ConsensusDesktop;
+		if ( !desktop || desktop.Sidecar !== true || typeof desktop.SetUser !== 'function' )
+		{
+			return null;
+		}
+		if ( ProjectSettings.User !== null )
+		{
+			return ProjectSettings.User;
+		}
+		return desktop.User || '';
+	}
 
 
 	function root_of( project )
@@ -65,6 +85,7 @@ angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
 	function to_form( project )
 	{
 		return {
+			User: ProjectSettings.User,
 			Name: project.Name || '',
 			Tasks: tasks_form( project ),
 			Llms: llms_form( project ),
@@ -114,6 +135,7 @@ angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
 		let root = root_of( project );
 		ProjectSettings.Project = project;
 		ProjectSettings.Sidecar = !!( root && root.Sidecar );
+		ProjectSettings.User = sidecar_user();
 		ProjectSettings.Form = to_form( project );
 		ProjectSettings.View = null;
 		ProjectSettings.Problems = [];
@@ -162,6 +184,17 @@ angular.module( 'Consensus' ).factory( 'ProjectSettings', [ function ()
 		let root = root_of( ProjectSettings.Project );
 		try
 		{
+			// the Sidecar app's user, renamed first: a refused name saves nothing
+			if ( ProjectSettings.User !== null && String( form.User || '' ).trim() !== ProjectSettings.User )
+			{
+				let renamed = await $window.ConsensusDesktop.SetUser( form.User );
+				if ( renamed.Error )
+				{
+					throw new Error( renamed.Error );
+				}
+				ProjectSettings.User = renamed.User;
+				await Roots.LoadMe( root );
+			}
 			let answer = await Client.Put( root, '/api/projects/' + encodeURIComponent( ProjectSettings.Project.Id ), body );
 			answer.Project.Root = root.Key;
 			ProjectSettings.Project = answer.Project;

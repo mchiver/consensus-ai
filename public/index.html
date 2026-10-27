@@ -257,6 +257,11 @@
 				<div>Not saved. Fix these first:</div>
 				<ul class="mb-0"><li ng-repeat="problem in Panel.Problems track by $index">{{ problem }}</li></ul>
 			</div>
+			<!-- The Sidecar app's user (plan Sidecar Edition, Step 2): kept in the project's sidecar.json. -->
+			<div class="settings-row" ng-if="Panel.User !== null">
+				<label for="project-user">Your name</label>
+				<input class="form-control form-control-sm" id="project-user" ng-model="Panel.Form.User" maxlength="60" title="the name you go by in this project: on everything you write and in the LLM's byline; kept in .consensus/sidecar.json">
+			</div>
 			<div class="settings-row">
 				<label for="project-name">Name</label>
 				<input class="form-control form-control-sm" id="project-name" ng-model="Panel.Form.Name" title="the project's name">
@@ -265,19 +270,20 @@
 				<label for="project-states">States</label>
 				<textarea class="form-control form-control-sm" id="project-states" rows="4" ng-model="Panel.Form.StatesText" placeholder="one state per line; a new plan starts in the first" title="the states this project's plans are picked from, one per line; one in use by a plan cannot be removed"></textarea>
 			</div>
-			<div class="settings-row top">
+			<!-- Include, Exclude, Commands and Work are what a run works within: the Sidecar app has no runs (plan Sidecar Edition, Step 3). -->
+			<div class="settings-row top" ng-if="Panel.User === null">
 				<label for="project-include">Include</label>
 				<textarea class="form-control form-control-sm" id="project-include" rows="2" ng-model="Panel.Form.IncludeText" placeholder="globs, one per line; empty: everything" title="the files of the project's folder an LLM may read, as globs; empty means everything"></textarea>
 			</div>
-			<div class="settings-row top">
+			<div class="settings-row top" ng-if="Panel.User === null">
 				<label for="project-exclude">Exclude</label>
 				<textarea class="form-control form-control-sm" id="project-exclude" rows="2" ng-model="Panel.Form.ExcludeText" placeholder="globs, one per line" title="the files and folders left out, as globs"></textarea>
 			</div>
-			<div class="settings-row top">
+			<div class="settings-row top" ng-if="Panel.User === null">
 				<label for="project-commands">Commands</label>
 				<textarea class="form-control form-control-sm" id="project-commands" rows="2" ng-model="Panel.Form.CommandsText" placeholder="one command per line; none by default" title="the commands an LLM may run in the folder, one per line"></textarea>
 			</div>
-			<div class="settings-row">
+			<div class="settings-row" ng-if="Panel.User === null">
 				<label>Work</label>
 				<label class="project-git" title="pull before a run that writes files, and push after an auto-commit"><input type="checkbox" id="project-git-sync" ng-model="Panel.Form.GitSync"> Git sync</label>
 				<label class="project-git" title="commit the working tree when a build log posted by a run that writes files is resolved"><input type="checkbox" id="project-auto-commit" ng-model="Panel.Form.AutoCommit"> Auto-commit</label>

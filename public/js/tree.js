@@ -29,6 +29,8 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	tree.Roots = Roots;
 	tree.HashFor = Roots.HashFor;
 	tree.HasDesktop = !!( window.Desktop && typeof window.Desktop.PickFolder === 'function' );
+	// the Sidecar app (plan Sidecar Edition, Step 3): no LLM tasks, so no Explain
+	const SIDECAR_APP = !!( window.ConsensusDesktop && window.ConsensusDesktop.Sidecar === true );
 	tree.Creating = null;
 	tree.Renaming = null;
 	tree.Deleting = null;
@@ -737,8 +739,8 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 			export_action( 'project', project, project ),
 			action( 'Project settings…', 'settings', function () { tree.OpenProjectSettings( project ); }, { Disabled: !sets_project( project ) } ),
 			action( 'LLM Instructions', 'info', function () { tree.OpenInstructions( project ); } ),
-			action( 'Explain', 'eye', function () { $window.location.hash = Roots.HashFor( root_of( project ), '/x/' + encodeURIComponent( project.Id ) ); } ),
-		].concat( mount ? [ { Separator: true }, mount ] : [] ).concat( [
+			SIDECAR_APP ? null : action( 'Explain', 'eye', function () { $window.location.hash = Roots.HashFor( root_of( project ), '/x/' + encodeURIComponent( project.Id ) ); } ),
+		].filter( function ( one ) { return one !== null; } ).concat( mount ? [ { Separator: true }, mount ] : [] ).concat( [
 			{ Separator: true },
 			action( 'Delete', 'trash', function () { tree.StartDelete( project, QUIET ); }, { Danger: true, Disabled: root_of( project ).Projects.length <= 1 || !only_context( project ) || ( project.Archive || [] ).length > 0 } ),
 		] );

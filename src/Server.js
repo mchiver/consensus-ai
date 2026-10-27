@@ -21,6 +21,11 @@
 // settings, users or registry write; a missing file is the defaults in memory); the connection and settings writes are
 // refused in Operations.js with the Server's line. Plan The Server, Step 4: the Desktop's sidecar mode: a ReadOnly
 // server reads no connections or tasks from the file (none in memory, so no runs), and /api/me says Sidecar.
+// Plan Sidecar Edition, Step 1: three options for the Sidecar app, which has nothing to do with the config folder:
+// Settings (the settings given, in place of consensus.json, which is not read), Ports ({ Start, Count }: the range the
+// folder's port is hashed into, Sidecar.SIDECAR_APP_RANGE for the app) and AddressFile (false: no ~sidecar.json).
+// Step 3: Guide, the path of the guide the instructions serve, the page and the MCP tool alike
+// (Instructions.SIDECAR_GUIDE_PATH for the app).
 
 const PATH = require( 'path' );
 const OS = require( 'os' );
@@ -55,7 +60,8 @@ async function Start( Options )
 
 	let read_only = !!options.ReadOnly;
 	let store = STORE.Open( options.Config || options.Data || DEFAULT_CONFIG, { ReadOnly: read_only } );
-	let settings = await store.ReadSettings();
+	let given = ( options.Settings && typeof options.Settings === 'object' ) ? JSON.parse( JSON.stringify( options.Settings ) ) : null;
+	let settings = given || await store.ReadSettings();
 	let settings_written = false;
 	if ( !settings )
 	{
@@ -179,8 +185,8 @@ async function Start( Options )
 			response.json( { Ok: true } );
 		} );
 	}
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git, Users: users, Clerk: clerk, Gate: gate, People: people, Url: function () { return url; } } );
-	INSTRUCTIONS.Attach( app, { Settings: settings, Project: project, People: people } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git, Users: users, Clerk: clerk, Gate: gate, People: people, Guide: options.Guide || null, Url: function () { return url; } } );
+	INSTRUCTIONS.Attach( app, { Settings: settings, Project: project, People: people, Guide: options.Guide || null } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
 	{
@@ -192,7 +198,7 @@ async function Start( Options )
 	if ( host && project && options.Port === undefined )
 	{
 		// The sidecar's port: the folder's, stepped up by one while taken, wrapping at the range's end.
-		let ports = SIDECAR.Ports( project.Path );
+		let ports = SIDECAR.Ports( project.Path, options.Ports );
 		for ( let candidate of ports )
 		{
 			try
@@ -211,7 +217,7 @@ async function Start( Options )
 		}
 		if ( !server )
 		{
-			throw new Error( 'no free port for the sidecar: every port from ' + SIDECAR.RANGE_START + ' to ' + ( SIDECAR.RANGE_START + SIDECAR.RANGE_COUNT - 1 ) + ' is in use' );
+			throw new Error( 'no free port for the sidecar: every port from ' + Math.min.apply( null, ports ) + ' to ' + Math.max.apply( null, ports ) + ' is in use' );
 		}
 	}
 	else if ( host )
@@ -237,7 +243,7 @@ async function Start( Options )
 
 	// The address file, while the project is open (a stale one, its process gone, is overwritten here).
 	let sidecar = null;
-	if ( server && project && !sidecar_off )
+	if ( server && project && !sidecar_off && options.AddressFile !== false )
 	{
 		let record = { Url: url, Port: address.port, Pid: process.pid, Started: new Date().toISOString(), Project: { Id: project.Id, Name: project.Name } };
 		sidecar = { Path: SIDECAR.Write( project.Path, record ), Record: record };

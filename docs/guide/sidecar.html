@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Consensus Sidecar - Consensus-AI guide</title>
+	<meta name="description" content="The Consensus-AI user guide: Consensus Sidecar.">
+	<link rel="icon" href="../images/mark.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="../css/bootstrap.min.css">
+	<link rel="stylesheet" href="../css/site.css">
+	<script src="../js/site.js"></script>
+</head>
+<body class="guide-page">
+
+	<header class="site-header">
+		<div class="container site-header-row">
+			<a class="brand" href="../index.html"><img class="brand-mark" src="../images/mark.svg" alt="">Consensus-AI</a>
+			<nav class="site-nav">
+				<a href="getting-started.html" class="active">Guide</a>
+				<a href="features.html">Features</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">GitHub</a>
+				<button class="theme-toggle" type="button" data-theme-toggle title="light or dark"><span class="theme-sun" aria-hidden="true">&#9728;</span><span class="theme-moon" aria-hidden="true">&#9790;</span><span class="visually-hidden">Toggle the theme</span></button>
+			</nav>
+		</div>
+	</header>
+
+	<div class="container guide-layout">
+		<aside class="guide-side">
+			<div class="guide-side-title">The guide</div>
+			<nav class="guide-nav">
+				<a class="guide-link" href="getting-started.html">Getting started</a>
+				<a class="guide-link active" href="sidecar.html">Consensus Sidecar</a>
+				<a class="guide-link" href="features.html">Features</a>
+				<a class="guide-link" href="projects.html">Projects, plans and documents</a>
+				<a class="guide-link" href="threads.html">Threads</a>
+				<a class="guide-link" href="editing.html">Editing and revisions</a>
+				<a class="guide-link" href="llm.html">Working with an LLM</a>
+				<a class="guide-link" href="ways-of-working.html">Ways of working</a>
+				<a class="guide-link" href="settings.html">Settings and themes</a>
+				<a class="guide-link" href="server.html">The Server</a>
+				<a class="guide-link" href="sharing.html">Sharing a server</a>
+				<a class="guide-link" href="export-import.html">Export and import</a>
+				<a class="guide-link" href="api.html">The API</a>
+			</nav>
+		</aside>
+		<main class="guide-main">
+			<article class="guide-article">
+<h1 id="consensus-sidecar">Consensus Sidecar</h1>
+<p><strong>Consensus Sidecar</strong> is the simplest way to use Consensus: one window over one local project folder, you, and your agent session beside it. It never connects to a Server, never asks you to sign in, and has no users, roles, licenses, LLM connections or tasks. Your agent (Claude Code or any other) works in the project through its API or MCP, and Sidecar is where the two of you settle the plans thread by thread. It installs beside Consensus Desktop and Consensus Server and changes neither.</p>
+<h2 id="installing-and-starting-it">Installing and starting it</h2>
+<p>On Windows, run <code>Consensus-Sidecar-Setup-&lt;version&gt;.exe</code> from the <a href="https://github.com/mchiver/consensus-ai/releases/latest">latest release</a>; it puts <strong>Consensus Sidecar</strong> in the Start menu. Start it and it asks for a folder: pick your project&#39;s folder (the dialog&#39;s New folder button makes one), and the window opens on it. Cancel quits. A folder that has no <code>.consensus</code> yet gets one, with a Readme in its Context folder.</p>
+<p>From the command line, or from the checkout:</p>
+<pre><code>&quot;Consensus Sidecar.exe&quot; &lt;folder&gt;
+npm run sidecar -- &lt;folder&gt; [--port &lt;port&gt;]
+</code></pre>
+<p>Each window is a process of its own and holds one project. <strong>New window</strong> (Ctrl+N) and <strong>Open folder in new window…</strong> (Ctrl+Shift+O) in the window&#39;s menu start another. Sidecar does not check whether a folder is already open in another window: opening the same folder twice is yours to avoid, since two windows on one folder do not see each other&#39;s changes.</p>
+<h2 id="connecting-your-agent">Connecting your agent</h2>
+<p>The window&#39;s server, the sidecar, listens on this machine alone. Its port comes from the folder: a number between 52000 and 52999 worked out from the folder&#39;s path, or the next free one when that one is taken, so a folder keeps its address from one start to the next.</p>
+<p>To connect an agent session, open the project&#39;s menu (the <code>…</code> beside its name in the tree), choose <strong>LLM Instructions</strong>, press <strong>Copy</strong>, and paste the text into the session. The text starts with the server&#39;s address and the project, then tells the agent how to work: how to say who it is, what &quot;check consensus&quot;, &quot;your turn&quot; and &quot;build it&quot; mean, and the build loop. The same text is at <code>http://127.0.0.1:&lt;port&gt;/instructions</code>. Nothing is written into the project folder to find the server: the pasted instructions are the connection. If you restart Sidecar and the port has changed, paste them again.</p>
+<p>Through MCP, the agent uses the same address: <code>POST http://127.0.0.1:&lt;port&gt;/api/mcp</code>, or the stdio relay from a Consensus checkout, for Claude Code:</p>
+<pre><code>claude mcp add consensus -- node &lt;checkout&gt;/bin/mcp.js --server http://127.0.0.1:&lt;port&gt; --service Claude-CLI
+</code></pre>
+<p>What the agent posts reads &quot;Claude-CLI by <your name>&quot;. See <a href="llm.html">Working with an LLM</a> and <a href="ways-of-working.html">Ways of working</a> for the loop itself.</p>
+<h2 id="your-name-and-settings">Your name and settings</h2>
+<p>Sidecar keeps its settings with the project, in <code>.consensus/sidecar.json</code>:</p>
+<ul>
+<li><strong>Your name</strong>: the name on everything you write and in your agent&#39;s byline. It starts as <code>&lt;your user name&gt;@&lt;your machine&gt;</code>, and you can change it to anything in <strong>Settings</strong> (the window&#39;s menu) or <strong>Project settings…</strong> (the project&#39;s menu). Replies written before a rename keep the name they were written under.</li>
+<li><strong>The theme and the size</strong>, from the gear in the title bar.</li>
+<li><strong>The view</strong>: the open plan, the tabs, the folds, the sort, the widths.</li>
+</ul>
+<p>The project&#39;s own settings (its name and its plan states) stay in <code>.consensus/project.json</code>, as in Desktop. <code>sidecar.json</code> holds your name and the view as you left it, which changes as you click; if you would rather keep it out of source control, add <code>.consensus/sidecar.json</code> to your <code>.gitignore</code>. Sidecar does nothing with git itself.</p>
+<h2 id="what-sidecar-leaves-out">What Sidecar leaves out</h2>
+<p>Sidecar is Desktop with everything about servers and people taken away: no Connect to Server, no sign-in, no tiers, no Users or roles, no tokens, no LLM connections, task buttons or Explain, and no recent-folders chooser. When you want those, <a href="getting-started.html">Consensus Desktop</a> and <a href="server.html">the Server</a> have them.</p>
+
+			</article>
+			<nav class="guide-pager">
+				<a class="guide-previous" href="getting-started.html">&larr; Getting started</a>
+				<a class="guide-next" href="features.html">Next: Features &rarr;</a>
+			</nav>
+		</main>
+	</div>
+
+	<footer class="site-footer">
+		<div class="container site-footer-row">
+			<span>Consensus-AI is free software under the MIT license.</span>
+			<nav>
+				<a href="getting-started.html">Guide</a>
+				<a href="features.html">Features</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">Repository</a>
+			</nav>
+		</div>
+	</footer>
+
+	<div class="lightbox" id="lightbox" hidden><img alt=""><button type="button" class="lightbox-close" title="close">&times;</button></div>
+</body>
+</html>
