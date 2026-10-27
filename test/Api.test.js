@@ -2108,3 +2108,93 @@ TEST( 'Scope Public is refused at bind time below the Professional tier when the
 	ASSERT.deepEqual( ROLES.PLANS, [ 'personal', 'professional' ] );
 	ASSERT.deepEqual( [ ROLES.PlanRank( 'personal' ), ROLES.PlanRank( 'professional' ), ROLES.PlanRank( 'Host' ), ROLES.PlanRank( 'User' ) ], [ 1, 2, 0, 0 ] );
 } );
+
+
+TEST( 'the look (plan Project settings, Step 2): a Server keeps its own View in consensus.json, changed by the Administrator and the Managers alone, and never reads a project\'s; a project\'s own server keeps it in project.json, the Desktop\'s sidecar too', async function ()
+{
+	// on the Server (the test's server over its registry): empty at first, the owner changes it
+	let first = await call( 'GET', '/api/view' );
+	ASSERT.deepEqual( first.Body, { View: {}, Writable: true, Kept: 'server' } );
+	let changed = await call( 'PUT', '/api/view', { View: { Margins: 'wide', SidebarWidth: 300, ThreadsHidden: true } } );
+	ASSERT.deepEqual( [ changed.Status, changed.Body.View ], [ 200, { Margins: 'wide', SidebarWidth: 300, ThreadsHidden: true } ] );
+	ASSERT.deepEqual( JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).View, { Margins: 'wide', SidebarWidth: 300, ThreadsHidden: true } );
+	let me = ( await call( 'GET', '/api/me' ) ).Body;
+	ASSERT.deepEqual( [ me.View, me.ViewWritable ], [ { Margins: 'wide', SidebarWidth: 300, ThreadsHidden: true }, true ] );
+	// null clears a field; an unknown field or a bad value is refused and nothing changes
+	ASSERT.deepEqual( ( await call( 'PUT', '/api/view', { View: { ThreadsHidden: null } } ) ).Body.View, { Margins: 'wide', SidebarWidth: 300 } );
+	let unknown = await call( 'PUT', '/api/view', { View: { Theme: 'dark' } } );
+	ASSERT.deepEqual( [ unknown.Status, unknown.Body.Error ], [ 400, 'View has no field Theme' ] );
+	let bad = await call( 'PUT', '/api/view', { View: { Margins: 'huge', ThreadsWidth: 5 } } );
+	ASSERT.equal( bad.Status, 400 );
+	ASSERT.equal( bad.Body.Error, 'Margins must be one of narrow, normal, wide; ThreadsWidth must be a whole number of pixels from 160 to 900' );
+	ASSERT.equal( ( await call( 'PUT', '/api/view', { View: 'wide' } ) ).Status, 400 );
+	ASSERT.deepEqual( ( await call( 'GET', '/api/view' ) ).Body.View, { Margins: 'wide', SidebarWidth: 300 } );
+	// a project's View is not the Server's: written into its project.json by hand, the Server's look stays
+	let project = await project_named( home );
+	let file = PATH.join( project.Path, '.consensus', 'project.json' );
+	let on_disk = JSON.parse( FS.readFileSync( file, 'utf8' ) );
+	on_disk.View = { Margins: 'narrow' };
+	FS.writeFileSync( file, JSON.stringify( on_disk, null, '\t' ) );
+	ASSERT.deepEqual( ( await call( 'GET', '/api/view' ) ).Body.View, { Margins: 'wide', SidebarWidth: 300 } );
+	await call( 'PUT', '/api/view', { View: { Highlight: 'open' } } );
+	ASSERT.deepEqual( JSON.parse( FS.readFileSync( file, 'utf8' ) ).View, { Margins: 'narrow' } );
+	delete on_disk.View;
+	FS.writeFileSync( file, JSON.stringify( on_disk, null, '\t' ) );
+	// a Member reads the look and may not change it; a Manager may
+	let made = [];
+	async function person( login )
+	{
+		let user = ( await call( 'POST', '/api/users', { Type: 'user', Login: login, Email: login + '@example.com' } ) ).Body.User;
+		let token = 'Bearer ' + ( await call( 'POST', '/api/users/' + user.Id + '/tokens', { Name: 'laptop' } ) ).Body.Token;
+		made.push( user.Id );
+		return { User: user, Token: token };
+	}
+	let sam = await person( 'sam-view' );
+	let tia = await person( 'tia-view' );
+	await call( 'PUT', '/api/users/' + tia.User.Id, { Manager: true } );
+	let as_member = ( await call( 'GET', '/api/me', undefined, sam.Token ) ).Body;
+	ASSERT.deepEqual( [ as_member.View, as_member.ViewWritable ], [ { Margins: 'wide', SidebarWidth: 300, Highlight: 'open' }, false ] );
+	let refused = await call( 'PUT', '/api/view', { View: { Margins: 'narrow' } }, sam.Token );
+	ASSERT.deepEqual( [ refused.Status, refused.Body.Error ], [ 403, 'only the Administrator and the Managers change the look on a Server' ] );
+	ASSERT.equal( ( await call( 'GET', '/api/me', undefined, tia.Token ) ).Body.ViewWritable, true );
+	ASSERT.equal( ( await call( 'PUT', '/api/view', { View: { Margins: 'narrow' } }, tia.Token ) ).Body.View.Margins, 'narrow' );
+	for ( let id of made )
+	{
+		await call( 'DELETE', '/api/users/' + id );
+	}
+	await call( 'PUT', '/api/view', { View: { Margins: null, SidebarWidth: null, Highlight: null } } );
+	ASSERT.equal( 'View' in JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ), false );
+
+	// a project's own server (`consensus <folder>`): the project's project.json; the settings untouched
+	let folder = PATH.join( temporary_folder(), 'looked' );
+	FS.mkdirSync( folder );
+	let config = temporary_folder();
+	let own = await SERVER.Start( { Config: config, Port: 0, Project: folder } );
+	try
+	{
+		let answer = await fetch( own.Url + '/api/view', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { View: { Editor: 'monaco' } } ) } );
+		ASSERT.deepEqual( await answer.json(), { View: { Editor: 'monaco' }, Writable: true, Kept: 'project' } );
+		ASSERT.deepEqual( JSON.parse( FS.readFileSync( PATH.join( folder, '.consensus', 'project.json' ), 'utf8' ) ).View, { Editor: 'monaco' } );
+		ASSERT.equal( 'View' in JSON.parse( FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' ) ), false );
+	}
+	finally
+	{
+		await own.Close();
+	}
+	// the Desktop's sidecar (read-only on the Server's file): the project's View, written to project.json alone
+	let before = FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' );
+	let sidecar = await SERVER.Start( { Config: config, Port: 0, Project: folder, ReadOnly: true } );
+	try
+	{
+		let me_there = await ( await fetch( sidecar.Url + '/api/me' ) ).json();
+		ASSERT.deepEqual( [ me_there.View, me_there.ViewWritable ], [ { Editor: 'monaco' }, true ] );
+		let answer = await fetch( sidecar.Url + '/api/view', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { View: { TreeHidden: true } } ) } );
+		ASSERT.equal( answer.status, 200 );
+		ASSERT.deepEqual( JSON.parse( FS.readFileSync( PATH.join( folder, '.consensus', 'project.json' ), 'utf8' ) ).View, { Editor: 'monaco', TreeHidden: true } );
+		ASSERT.equal( FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' ), before );
+	}
+	finally
+	{
+		await sidecar.Close();
+	}
+} );

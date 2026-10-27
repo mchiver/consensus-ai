@@ -60,7 +60,7 @@
 - **Scope.** The server listens for this machine only, for the network, or not at all, as the settings say; a Server signs people in either way.
 - **Live updates.** Every change is a Server-Sent Event, so every open page, window and server row stays in step.
 - **Settings in the app.** Name, scope, port, states, the owner's display and the tasks, edited in a popup by the Administrator and the Managers; Public is offered to a sign-in with a Professional license. See [Settings and themes](settings.html).
-- **Themes, scale and margins.** System, light, dark and seven more palettes, three text sizes, and the width the text is held to, remembered in the browser.
+- **Themes, scale and margins.** System, light, dark and seven more palettes and three text sizes, yours in the browser; the width the text is held to and the rest of the look kept with the project in the desktop, and with the Server on a Server.
 
 ## The API
 

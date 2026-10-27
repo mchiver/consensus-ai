@@ -4,7 +4,9 @@
 // sidebar's bottom held the first three before; plan Markdown Editor, Step 4 added the last; plan UI Tweaks IX the
 // margins): four selects and a checkbox in the title bar's look popover. The theme and the size go to ConsensusTheme
 // (theme.js, which keeps them in the browser or the desktop's settings); the margins to State.SetMargins and the
-// editor to State.SetEditor, each taking effect at once; Confirm on close to State.SetConfirmClose.
+// editor to State.SetEditor, each taking effect at once; Confirm on close to State.SetConfirmClose. The margins and the
+// editor are the look the window's server keeps (plan Project settings, Step 2): shown only to whoever may change it
+// (in the Desktop its user; on a Server the Administrator and the Managers).
 //
 // Interface:
 //   <look-controls></look-controls>
@@ -34,6 +36,12 @@ angular.module( 'Consensus' ).component( 'lookControls', {
 		controller.SetScale = function ()
 		{
 			theme.SetScale( controller.Scale );
+		};
+
+
+		controller.ViewWritable = function ()
+		{
+			return !!( $window.ConsensusStored && $window.ConsensusStored.ViewWritable() );
 		};
 
 

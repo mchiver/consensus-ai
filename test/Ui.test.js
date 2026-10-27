@@ -103,6 +103,25 @@ async function api( method, path, body, as_llm )
 }
 
 
+// The look as the server keeps it (plan Project settings, Step 2): waits until the View's field holds the value the
+// page saved (a moment after the change), and answers it.
+async function view_saved( field, value )
+{
+	let wanted = JSON.stringify( value );
+	let held = undefined;
+	for ( let attempt = 0; attempt < 50; attempt++ )
+	{
+		held = ( await api( 'GET', '/api/view' ) ).View[ field ];
+		if ( JSON.stringify( held ) === wanted )
+		{
+			return held;
+		}
+		await new Promise( function ( resolve ) { setTimeout( resolve, 100 ); } );
+	}
+	return held;
+}
+
+
 TEST.before( async function ()
 {
 	let data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-ui-' ) );
@@ -347,7 +366,8 @@ TEST( 'the threads and the preview hide and are remembered; a plan is renamed in
 	await page.WaitFor( 'document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
 	await page.Evaluate( 'window.location.reload(); true' );
 	await page.WaitFor( text_of( '#read-view h1' ) + ' === "Browser check"', 20000 );
-	ASSERT.equal( await page.Evaluate( 'document.querySelector( ".layout" ).classList.contains( "no-threads" )' ), true );
+	// the look comes with /api/me (plan Project settings, Step 2), a moment after the page
+	await page.WaitFor( 'document.querySelector( ".layout" ).classList.contains( "no-threads" )', 5000 );
 	await page.Click( '#threads-toggle' );
 	await page.WaitFor( '!document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
 	// the preview toggle gives the editor the whole width
@@ -355,7 +375,7 @@ TEST( 'the threads and the preview hide and are remembered; a plan is renamed in
 	await page.WaitFor( 'window.monaco && !!' + EDIT_EDITOR, 30000 );
 	await page.Click( '#preview-toggle' );
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".edit-preview" ) ).display === "none"' );
-	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.preview-hidden" )' ), 'true' );
+	ASSERT.equal( await view_saved( 'PreviewHidden', true ), true );
 	await page.Click( '#preview-toggle' );
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".edit-preview" ) ).display !== "none"' );
 	await page.Click( '#view-read' );
@@ -590,10 +610,11 @@ TEST( 'tabs: a tab detaches into its own window, stays ghosted in the strip, and
 	ASSERT.equal( await detached.Evaluate( 'getComputedStyle( document.querySelector( "aside.sidebar" ) ).display' ), 'none' );
 	ASSERT.equal( await detached.Evaluate( 'getComputedStyle( document.querySelector( ".tabs-row" ) ).display' ), 'none' );
 	// the bar's threads button hides and shows the threads there (plan UI Tweaks VI); the window keeps the choice to itself
-	let remembered = await detached.Evaluate( 'window.localStorage.getItem( "consensus.threads-hidden" )' );
+	let remembered = ( await api( 'GET', '/api/view' ) ).View.ThreadsHidden;
 	await detached.Click( '#detached-threads' );
 	await detached.WaitFor( 'document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
-	ASSERT.equal( await detached.Evaluate( 'window.localStorage.getItem( "consensus.threads-hidden" )' ), remembered );
+	await new Promise( function ( resolve ) { setTimeout( resolve, 600 ); } );
+	ASSERT.equal( ( await api( 'GET', '/api/view' ) ).View.ThreadsHidden, remembered );
 	await detached.Click( '#detached-threads' );
 	await detached.WaitFor( '!document.querySelector( ".layout" ).classList.contains( "no-threads" )' );
 	await page.WaitFor( 'window.heard.includes( "here" )' );
@@ -769,7 +790,7 @@ TEST( 'the tree: it hides and shows; it sorts by name, created and updated; it s
 	// the tree hides and comes back, remembered
 	await page.Click( '#tree-toggle' );
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".sidebar" ) ).display === "none"' );
-	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.tree-hidden" )' ), 'true' );
+	ASSERT.equal( await view_saved( 'TreeHidden', true ), true );
 	await page.Click( '#tree-toggle' );
 	await page.WaitFor( 'getComputedStyle( document.querySelector( ".sidebar" ) ).display !== "none"' );
 
@@ -824,7 +845,7 @@ TEST( 'threads: New Comment with Comment and resolve; Re-anchor on a whole-docum
 	await page.Evaluate( '( function () { let select = document.getElementById( "thread-highlight" ); select.selectedIndex = 1; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
 	await page.WaitFor( '!' + MARKED + '.includes( "' + resolved_thread.Id + '" )' );
 	ASSERT.match( await page.Evaluate( MARKED ), new RegExp( open_thread.Id ) );
-	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.highlight" )' ), '"open"' );
+	ASSERT.equal( await view_saved( 'Highlight', 'open' ), 'open' );
 	await page.Evaluate( '( function () { let select = document.getElementById( "thread-highlight" ); select.selectedIndex = 0; select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
 	await page.WaitFor( MARKED + '.includes( "' + resolved_thread.Id + '" )' );
 
@@ -1201,7 +1222,7 @@ TEST( 'CodeMirror (plan UI Components, Step 3): the Editor setting switches the 
 	await show_all_threads();
 	// the setting, as the look popover's select sets it
 	await set_editor( 'codemirror' );
-	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.editor" )' ), '"codemirror"' );
+	ASSERT.equal( await view_saved( 'Editor', 'codemirror' ), 'codemirror' );
 	// in CodeMirror mode the editor is the view (plan Markdown Editor, Step 3): it opens at once
 	await page.WaitFor( count_of( '#editor .cm-editor' ) + ' === 1 && ' + count_of( '#editor .monaco-editor' ) + ' === 0', 30000 );
 	// the CodeMirror editor has no preview pane or Preview button: it opens as the Live Preview, with the Source button (plan Markdown Editor, Step 1)
@@ -1283,10 +1304,10 @@ TEST( 'Live Preview (plan Markdown Editor, Step 1): off the cursor\'s line the m
 	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 0' );
 	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-live-bullet' ) + ' + ' + count_of( '#editor .cm-live-table' ) ), 0 );
 	ASSERT.equal( await page.Evaluate( count_of( '#editor .cm-lineNumbers' ) ), 1 );
-	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.source-mode" )' ), 'true' );
+	ASSERT.equal( await view_saved( 'Source', true ), true );
 	await page.Click( '#view-source' );
 	await page.WaitFor( count_of( '#editor .cm-editor.cm-live' ) + ' === 1 && ' + count_of( '#editor .cm-live-bullet' ) + ' === 2' );
-	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.source-mode" )' ), 'false' );
+	ASSERT.equal( await view_saved( 'Source', false ), false );
 	// the checkbox edits the source and lights Save
 	await page.Evaluate( 'document.querySelector( "#editor .cm-live-check input" ).click(); true' );
 	await page.WaitFor( '!document.getElementById( "save-button" ).disabled' );
@@ -1814,7 +1835,7 @@ TEST( 'UI Tweaks IX: the margins setting, Resolve with a draft, the thread tools
 			ASSERT.ok( parseFloat( await page.Evaluate( WIDTH ) ) < parseFloat( normal ), 'wide margins hold the text narrower than normal' );
 		}
 	}
-	ASSERT.equal( await page.Evaluate( 'window.localStorage.getItem( "consensus.margins" )' ), '"normal"' );
+	ASSERT.equal( await view_saved( 'Margins', 'normal' ), 'normal' );
 	await page.Click( '#look-button' );
 	await page.WaitFor( count_of( '#look-popover' ) + ' === 0' );
 
@@ -2052,5 +2073,33 @@ TEST( 'the Host\'s page (plan Rearchitecturation, Step 5): one project-view per 
 	await page.WaitFor( count_of( row + '.open' ) + ' === ' + ( was_open ? 0 : 1 ) );
 	await page.Click( row + ' > .project-head' );
 	await page.WaitFor( count_of( row + '.open' ) + ' === ' + ( was_open ? 1 : 0 ) );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'the look (plan Project settings, Step 2): it comes from the server, a change is saved there, and a page that may not change it has no Margins or Editor in the look popover', async function ()
+{
+	// the server's View, handed in again: the margins follow
+	let view = ( await api( 'GET', '/api/view' ) ).View;
+	await page.Evaluate( 'window.ConsensusStored.SetView( { Margins: "wide" }, true, function () {} ); true' );
+	await page.WaitFor( 'document.documentElement.dataset.margins === "wide"' );
+	// a page that may not change the look (a Member on a Server): the popover keeps Theme, Size and Confirm on close
+	await page.Evaluate( 'window.ConsensusStored.SetView( { Margins: "narrow" }, false, function () { window.saved_view = true; } ); true' );
+	await page.WaitFor( 'document.documentElement.dataset.margins === "narrow"' );
+	await page.Click( '#look-button' );
+	await page.WaitFor( count_of( '#look-popover #theme-select' ) + ' === 1' );
+	ASSERT.deepEqual( await page.Evaluate( '[ ' + count_of( '#look-popover #margins-select' ) + ', ' + count_of( '#look-popover #editor-select' ) + ', ' + count_of( '#look-popover #scale-select' ) + ', ' + count_of( '#look-popover #confirm-close' ) + ' ]' ), [ 0, 0, 1, 1 ] );
+	await page.Click( '#look-button' );
+	await page.WaitFor( count_of( '#look-popover' ) + ' === 0' );
+	// its toggles still work for the page, and nothing is sent
+	await page.Click( '#tree-toggle' );
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".sidebar" ) ).display === "none"' );
+	await page.Click( '#tree-toggle' );
+	await page.WaitFor( 'getComputedStyle( document.querySelector( ".sidebar" ) ).display !== "none"' );
+	ASSERT.equal( await page.Evaluate( 'window.saved_view === true' ), false );
+	// the server's own back, from /api/me
+	await page.Evaluate( 'window.location.reload(); true' );
+	await page.WaitFor( 'document.documentElement.dataset.margins === ' + JSON.stringify( view.Margins || 'normal' ), 20000 );
+	await page.WaitFor( 'window.ConsensusStored.ViewWritable() === true' );
 	ASSERT.deepEqual( page.Errors, [] );
 } );

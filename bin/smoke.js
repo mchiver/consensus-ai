@@ -388,7 +388,16 @@ async function smoke_desktop()
 		await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( button ) { return button.textContent.trim() === "About"; } ).click(); true' );
 		await page.WaitFor( count_of( '.about-table' ) + ' === 1' );
 		check( 'about: names Consensus Desktop', /^About Consensus Desktop/.test( await page.Evaluate( text_of( '.help-form .subplan-head' ) ) ), true );
-		check( 'about: the window\'s project alone', await page.Evaluate( '[ ...document.querySelectorAll( ".about-table tbody tr" ) ].filter( function ( row ) { return getComputedStyle( row ).display !== "none"; } ).length' ), 1 );
+		// the look is the project's (plan Project settings, Step 2): a hidden tree is saved to its project.json's View
+		await page.WaitFor( 'window.ConsensusStored.ViewWritable() === true', 10000 );
+		await page.Evaluate( 'document.getElementById( "tree-toggle" ).click(); true' );
+		await page.WaitFor( 'getComputedStyle( document.querySelector( ".sidebar" ) ).display === "none"' );
+		await wait( 1000 );
+		let project_view = JSON.parse( FS.readFileSync( PATH.join( project_folder, '.consensus', 'project.json' ), 'utf8' ) ).View || {};
+		check( 'look: the hidden tree is in the project\'s View', project_view.TreeHidden, true );
+		await page.Evaluate( 'document.getElementById( "tree-toggle" ).click(); true' );
+		await page.WaitFor( 'getComputedStyle( document.querySelector( ".sidebar" ) ).display !== "none"' );
+		check( 'about: the window\'s project alone',await page.Evaluate( '[ ...document.querySelectorAll( ".about-table tbody tr" ) ].filter( function ( row ) { return getComputedStyle( row ).display !== "none"; } ).length' ), 1 );
 		await page.WaitFor( '!!document.activeElement && !!document.activeElement.closest( ".help-form" )', 5000 );
 		await page.Press( 'Escape' );
 		await page.WaitFor( count_of( '.help-form' ) + ' === 0' );

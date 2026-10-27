@@ -379,6 +379,45 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	apply_margins( state.Margins );
 
 
+	// The look came from the window's server (plan Project settings, Step 2, stored.js): taken again, the editors and
+	// the read view told of what changed.
+	function apply_view()
+	{
+		let editor = editor_setting();
+		let source = recall( SOURCE_KEY, false );
+		let highlight = recall( HIGHLIGHT_KEY, 'all' );
+		if ( !DETACHED )
+		{
+			state.ThreadsHidden = recall( THREADS_HIDDEN_KEY, false );
+		}
+		state.Margins = margins_setting();
+		state.PreviewHidden = preview_hidden();
+		state.TreeHidden = recall( TREE_HIDDEN_KEY, false );
+		apply_margins( state.Margins );
+		if ( editor !== state.Editor )
+		{
+			state.Editor = editor;
+			$rootScope.$broadcast( 'editor-changed', state.Editor );
+		}
+		if ( source !== state.Source )
+		{
+			state.Source = source;
+			$rootScope.$broadcast( 'source-changed', state.Source );
+		}
+		if ( highlight !== state.Highlight )
+		{
+			state.Highlight = highlight;
+			$rootScope.$broadcast( 'highlight-changed' );
+		}
+	}
+
+
+	window.addEventListener( 'consensus-view', function ()
+	{
+		$rootScope.$evalAsync( apply_view );
+	} );
+
+
 	// The project tree shown or hidden, remembered in this browser.
 	function SetTreeHidden( Hidden )
 	{

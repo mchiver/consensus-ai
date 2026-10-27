@@ -731,6 +731,7 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 	src/Ollama.js         the tool loop over Ollama's chat endpoint
 	src/Tools.js          a local model's tools over the project's folder and the server
 	src/Files.js          the files of a folder: globs, Include and Exclude
+	src/View.js           the look (plan Project settings, Step 2): project.json's View in the Desktop, consensus.json's on a Server; GET and PUT /api/view
 	public/               the page: index.html, css/, js/ (one controller per pane; roots.js the servers the page shows; settings.js the settings popup; llm.js the LLMs and the runs)
 	test/                 node --test; Ui.test.js drives a headless browser through test/support/Cdp.js
 	.plans/               the build plans and the story of this repository

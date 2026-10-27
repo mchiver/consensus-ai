@@ -40,6 +40,7 @@ const ROLES = require( './Roles.js' );
 const LLM = require( './Llm.js' );
 const REPORT = require( './Report.js' );
 const INSTRUCTIONS = require( './Instructions.js' );
+const VIEW = require( './View.js' );
 
 const CONNECTIONS_HOST_LINE = 'Connections are managed by the Server';		// plan Rearchitecturation, Step 4
 const SETTINGS_HOST_LINE = 'The settings are managed by the Server';
@@ -494,7 +495,100 @@ function Operations( Context )
 			// Sidecar (plan The Server, Step 4): the Desktop's sidecar mode, over the Server's file read-only: no
 			// connections, no tasks, and the page shows no LLMs, Users or roles.
 			let sidecar = !!( store && store.ReadOnly );
-			return { Me: PARTICIPANTS.Public( participant ), Account: account, Admin: is_administrator( participant ), Manager: !is_administrator( participant ) && participant.Manager === true, Manage: may_manage( participant ), Roles: await roles_of( participant ), Participants: await speakers( null, [], participant ), States: states(), Version: VERSION, Server: settings.Name || null, Sidecar: sidecar, People: !!Context.People };
+			return { Me: PARTICIPANTS.Public( participant ), Account: account, Admin: is_administrator( participant ), Manager: !is_administrator( participant ) && participant.Manager === true, Manage: may_manage( participant ), Roles: await roles_of( participant ), Participants: await speakers( null, [], participant ), States: states(), Version: VERSION, Server: settings.Name || null, Sidecar: sidecar, People: !!Context.People, View: await view_now(), ViewWritable: may_manage( participant ) };
+		},
+	} );
+
+
+	//-----------------------------------------------------------------
+	// The look (plan Project settings, Step 2, View.js): a project's own server (the Desktop's sidecar, or
+	// `consensus <folder>`) keeps it in the project's project.json; a Server keeps its own in consensus.json, one for
+	// everyone on it, and never reads a project's. On a Server only the Administrator and the Managers change it.
+
+	function view_project()
+	{
+		return ( store && typeof store.Isolated === 'function' ) ? store.Isolated() : null;
+	}
+
+
+	async function view_now()
+	{
+		let isolated = view_project();
+		if ( isolated )
+		{
+			let project = await store.ReadProject( isolated );
+			return VIEW.Clean( project ? project.View : null ).View;
+		}
+		return VIEW.Clean( settings.View ).View;
+	}
+
+
+	define( {
+		Name: 'read_view',
+		Method: 'GET',
+		Path: '/view',
+		Description: 'The look: the project\'s in the Desktop, the Server\'s on a Server (Margins, Highlight, Editor, PreviewHidden, Source, ThreadsHidden, TreeHidden, ShowUpdated, SidebarWidth, ThreadsWidth, PreviewWidth), whether you may change it, and where it is kept.',
+		Parameters: {},
+		Perform: async function ( participant )
+		{
+			return { View: await view_now(), Writable: may_manage( participant ), Kept: view_project() ? 'project' : 'server' };
+		},
+	} );
+
+
+	define( {
+		Name: 'write_view',
+		Method: 'PUT',
+		Path: '/view',
+		Description: 'Changes the look: the fields given over the look as it is, null clearing one; in the Desktop it is saved to the project\'s project.json, on a Server to its settings, by the Administrator and the Managers alone.',
+		Parameters: {
+			View: { Type: 'object', Required: true, Description: 'the fields to change' },
+		},
+		Perform: async function ( participant, args )
+		{
+			if ( !may_manage( participant ) )
+			{
+				refuse( 403, 'only the Administrator and the Managers change the look on a Server' );
+			}
+			let body = object_of( args );
+			if ( !body.View || typeof body.View !== 'object' || Array.isArray( body.View ) )
+			{
+				refuse( 400, 'View must be an object of the look\'s fields' );
+			}
+			let isolated = view_project();
+			let merged = VIEW.Merge( await view_now(), body.View );
+			if ( merged.Problems.length )
+			{
+				refuse( 400, merged.Problems.join( '; ' ) );
+			}
+			if ( isolated )
+			{
+				sent( await change_project( isolated, undefined, async function ( project )
+				{
+					if ( Object.keys( merged.View ).length )
+					{
+						project.View = merged.View;
+					}
+					else
+					{
+						delete project.View;
+					}
+				} ) );
+			}
+			else
+			{
+				host_only( SETTINGS_HOST_LINE );
+				if ( Object.keys( merged.View ).length )
+				{
+					settings.View = merged.View;
+				}
+				else
+				{
+					delete settings.View;
+				}
+				await store.WriteSettings( settings );
+			}
+			return { View: merged.View, Writable: true, Kept: isolated ? 'project' : 'server' };
 		},
 	} );
 

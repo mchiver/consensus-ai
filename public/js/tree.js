@@ -39,6 +39,14 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 		tree.Sort = 'none';
 	}
 	tree.ShowUpdated = read_shared( SHOW_UPDATED_KEY, false );
+	// the look came from the window's server (plan Project settings, Step 2)
+	window.addEventListener( 'consensus-view', function ()
+	{
+		$rootScope.$evalAsync( function ()
+		{
+			tree.ShowUpdated = read_shared( SHOW_UPDATED_KEY, false );
+		} );
+	} );
 	let per_root = {};		// root key -> { OpenProjectId, Folded, ShowingLlms, Closed, ShowingTrash, Trash }
 
 

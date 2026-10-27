@@ -28,7 +28,7 @@ Closing a tab that holds a draft asks: **Save**, **Discard** or **Cancel**. Clos
 
 ## Monaco mode
 
-The **Editor** setting behind the gear can pick Monaco, the editor of VS Code, instead of CodeMirror. The page then works as it did before the one view: **Read** shows the rendered text with the threads' passages, **Edit** opens Monaco beside a live preview, with a **Preview** button, Save and Discard in the editor's bar, and Ctrl+E switches between Read and Edit, from the editor too, saving first. Monaco neither renders the markdown in place nor marks the threads' passages. The setting takes effect at once, is remembered in the browser, and the comment and reply boxes follow it.
+The **Editor** setting behind the gear can pick Monaco, the editor of VS Code, instead of CodeMirror. The page then works as it did before the one view: **Read** shows the rendered text with the threads' passages, **Edit** opens Monaco beside a live preview, with a **Preview** button, Save and Discard in the editor's bar, and Ctrl+E switches between Read and Edit, from the editor too, saving first. Monaco neither renders the markdown in place nor marks the threads' passages. The setting takes effect at once, is part of the look (the project's in the desktop, the Server's on a Server; see [Settings and themes](settings.html#the-look)), and the comment and reply boxes follow it.
 
 ## Revisions
 
@@ -38,7 +38,7 @@ Every save, and every applied thread, is a revision. **Revisions** lists them, n
 
 ## Tabs
 
-Every item you open, and Waiting on you, opens in a **tab** above the document: one tab per item, dragged to reorder, closed with ×. Each tab comes back as you left it, the editor or Revisions, an unsaved edit included, and a dot on the tab says the edit is there. The thread filter and the highlight are not the tab's: they are the page's, the same in every item, and remembered in the browser. Open tabs come back after a restart, per server; a tab whose item is gone from the server is dropped. With none open, the start page shows.
+Every item you open, and Waiting on you, opens in a **tab** above the document: one tab per item, dragged to reorder, closed with ×. Each tab comes back as you left it, the editor or Revisions, an unsaved edit included, and a dot on the tab says the edit is there. The thread filter and the highlight are not the tab's: they are the page's, the same in every item; the filter is remembered in the browser, the highlight is part of the look. Open tabs come back after a restart, per server; a tab whose item is gone from the server is dropped. With none open, the start page shows.
 
 ![The tab strip, one tab with unsaved changes.](../images/tabs.png)
 
@@ -46,9 +46,9 @@ A tab's menu (the ▾ beside its ×, or a right-click) has Close, Close others, 
 
 ## The threads pane and the tree
 
-The small button at the right end of the tab strip hides or shows the threads pane, and its mirror at the left end the project tree (Ctrl+Shift+T and Ctrl+Shift+E do the same); each is remembered in the browser. A document gives the threads pane's room to the text.
+The small button at the right end of the tab strip hides or shows the threads pane, and its mirror at the left end the project tree (Ctrl+Shift+T and Ctrl+Shift+E do the same); each is part of the look. A document gives the threads pane's room to the text.
 
-The project tree's state per server, the open project, the folded folders and the LLMs fold, is remembered under the server; the sort order, the open tabs, the look of the page, the hidden panes and the pane widths, are the window's, whatever the servers it shows.
+The project tree's state per server, the open project, the folded folders and the LLMs fold, is remembered under the server; the sort order and the open tabs are the window's, whatever the servers it shows; the hidden panes and the pane widths are the look, the project's in the desktop and the Server's on a Server.
 
 ## Hotkeys
 

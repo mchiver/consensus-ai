@@ -98,6 +98,7 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 	{
 		try
 		{
+			let view_mark = ( window.ConsensusStored && typeof window.ConsensusStored.ViewMark === 'function' ) ? window.ConsensusStored.ViewMark() : undefined;
 			let answer = await Client.Get( Root, '/api/me' );
 			Root.Me = answer.Me;
 			Root.Sidecar = !!answer.Sidecar;		// plan The Server, Step 4: the Desktop's sidecar mode: no LLMs, Users or roles
@@ -108,6 +109,14 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 			Root.Participants = answer.Participants;
 			Root.States = answer.States || [];
 			Root.Version = answer.Version || Root.Version;
+			// the look (plan Project settings, Step 2): the window's server's View, the project's or the Server's
+			if ( Root === roots.List[ 0 ] && answer.View && window.ConsensusStored && typeof window.ConsensusStored.SetView === 'function' )
+			{
+				window.ConsensusStored.SetView( answer.View, answer.ViewWritable === true, function ( changes )
+				{
+					return Client.Put( Root, '/api/view', { View: changes } );
+				}, view_mark );
+			}
 			if ( answer.Server && Root.Kind === 'browser' )
 			{
 				Root.Name = answer.Server;

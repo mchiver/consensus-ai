@@ -75,6 +75,8 @@
 	// Every splitter, those in the page and those a component brings later (plan UI Components, Step 2), through one
 	// listener on the document.
 	restore();
+	// the look came from the window's server (plan Project settings, Step 2)
+	window.addEventListener( 'consensus-view', restore );
 	document.addEventListener( 'mousedown', function ( down )
 	{
 		let splitter = down.target.closest ? down.target.closest( '.splitter[data-splitter]' ) : null;

@@ -290,5 +290,67 @@
 				"Text": "**Build log: Step 1, Roles, Llm and Tasks leave project.json** (Claude Opus 5.5, as Claude-CLI).\n\n**What was built** (`src/Store.js`)\n- A project's `Roles`, `Llm` and `Tasks` live on its registry entry in `consensus.json`: Projects `[ { Path, Mounted, Llm, Tasks, Roles } ]`. The store joins them to the project when it reads it, as it joins `Mounted`, so the code that reads a project's roles, connection and tasks is unchanged.\n- `WriteProject` puts them on the entry, never in the file; a cleared one (no connection, all tasks, empty role folders) leaves the entry. A stray `Mounted` is never written into the file again.\n- A new project's `project.json` has no `Roles`.\n- Moving old files: when a project is registered on a writable config (the Server's start, a folder opened, a folder found under `projects/`), a `project.json` that still has `Roles`, `Llm`, `Tasks` or `Mounted` has them moved to the entry, where the entry has none of its own, and is written without them, with a start line (\"project Consensus: Roles, Llm, Mounted moved out of project.json\").\n- The Desktop's sidecar (read-only on the global config): a project shows no roles, connection or tasks, and when it writes `project.json` the file keeps whatever of them it had, for the Server to move.\n\n**Docs**: the config folder's layout in Settings and themes, and three lines of the readme, say where the fields live now.\n\n**Tests**\n- Store: a new project's file holds none of the fields; changes go to the entry and read back; cleared ones leave it; the sidecar shows none and writes the old ones back untouched, settings unchanged; a writable start moves them once, the second start moves nothing; an entry with its own value keeps it.\n- Api: setting a project's LLM connection writes the entry, not the file.\n- The whole suite file by file: 270 pass, 3 skipped. The smoke: every check passes but one, \"chooser: the overlay follows the header\" (the window-button strip's height against the chooser header's); it fails the same way on the committed code with this step stashed, so it comes from this machine's display, not the step. I left it alone.\n\n**Decided during the build**\n- Empty role folders are not written to the entry, so a project with nobody in its roles has a plain `{ Path }` entry.\n- When both the file and the entry have a value, the entry's wins and the file's is dropped.\n\n**For this machine**: this checkout's `.consensus/project.json` still holds `Roles`, `Llm` and `Mounted`; the old Host on 3500 runs the code from before. The first start of the Server on this code moves them into `~/.consensus/consensus.json` and rewrites `project.json` without them; that change will show in git.\n\nResolve to accept the step; reply with what to fix otherwise."
 			}
 		]
+	},
+	{
+		"Id": "thr-xxb-m24-6no",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T01:33:40.998Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-27T01:34:24.987Z",
+			"Revision": 5,
+			"RevisionId": "rev-k49-lhw-bvx",
+			"Outcome": "Accepted by the owner as built."
+		},
+		"Created": "2026-10-26T21:32:33.680Z",
+		"Replies": [
+			{
+				"Id": "rep-9gb-g42-xws",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T21:32:33.680Z",
+				"Text": "**Build log: Step 2, The look in View** (Claude Opus 5.5, as Claude-CLI).\n\n**What was built**\n- `src/View.js`: the look's fields and their checks: Margins (narrow, normal, wide), Highlight (all, open), Editor (codemirror, monaco), PreviewHidden, Source, ThreadsHidden, TreeHidden, ShowUpdated (true or false), and SidebarWidth, ThreadsWidth, PreviewWidth (whole pixels, 160 to 900). An unknown field or a bad value is refused; null clears a field; a missing field takes the page's default.\n- Where it is kept: a project's own server (the Desktop's sidecar, or `consensus <folder>`) keeps it in the project's `project.json` as `View`; a Server keeps its own in `consensus.json` as `View` and never reads a project's.\n- The API: `/api/me` answers `View` and `ViewWritable`; `GET /api/view` answers the look, whether you may change it and where it is kept; `PUT /api/view { View }` changes the fields given. On a Server only the Administrator and the Managers may change it (\"only the Administrator and the Managers change the look on a Server\"); in the Desktop its user may. The sidecar writes `project.json` and leaves `consensus.json` alone.\n- The page (`public/js/stored.js`): the look's keys are no longer kept in the browser or in `desktop.json`; they are read from the View `/api/me` brought and every change is sent back with `PUT /api/view` (a dragged width once the drag rests, the rest at once). When the View arrives the page takes it again: the margins, the editor, Source, the highlight, the hidden panes (`app.js`), the widths (`layout.js`) and show-updated (`tree.js`). An answer asked for before the page's own change does not undo that change.\n- The look popover shows Margins and Editor only to whoever may change the look. Theme, Size and Confirm on close stay each person's, in the browser.\n- The guide (Settings and themes gains \"The look\"; Editing, Threads and Features say where each choice is kept), the API reference (the two operations) and the readme's file table.\n\n**Tests**\n- Api: a Server's View in `consensus.json`, changed by the owner, null clearing, unknown fields and bad values refused, a project's `project.json` View neither read nor written there, a Member refused with ViewWritable false, a Manager allowed; a project's own server and the sidecar writing `project.json` with `consensus.json` untouched.\n- Ui: the checks that read the look from the browser's storage now wait for the server's View; a reload keeps a hidden pane; a page that may not change the look has no Margins or Editor and sends nothing; the server's look comes back after a reload.\n- The smoke: in the Desktop a hidden tree lands in the project's `project.json` View.\n- The whole suite file by file: 248 pass, 3 skipped (I counted wrong in the Step 1 log: 270 was not the total). Ui ran three times in a row clean after the fix below. SMOKE OK, the overlay check included this time.\n\n**Decided during the build**\n- **Its own operation.** The look goes through `GET`/`PUT /api/view`, not the project update and the settings save: one route for the page whichever place keeps it. The project update takes no View, so nothing writes a project's View on a Server.\n- **The other controls on a Server.** The plan hides the look controls from everyone but the Administrator and the Managers; I hid the two in the look popover (Margins, Editor). The pane toggles, Source, the highlight picker and the splitters stay for everyone, since a Member needs to hide the threads or widen a pane to work; for a Member such a change lasts for that page only and is never sent. Say if you want those hidden too.\n- **Before the View arrives.** The page shows the defaults for the moment between loading and `/api/me` answering, then takes the View. A change made in that moment is held and saved once the server says whether the page may.\n- **What a person's old look becomes.** The margins, the editor and the rest kept in a browser or in `desktop.json` before this step are no longer read; each project and Server starts from the defaults until someone sets its look.\n\nResolve to accept the step; reply with what to fix otherwise."
+			}
+		]
+	},
+	{
+		"Id": "thr-2ie-ocb-lo2",
+		"Anchor": {
+			"Text": "the look controls change the Server's look",
+			"Prefix": "he Managers. On a Server's page ",
+			"Suffix": " for the Administrator and the M"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T01:33:35.736Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-27T01:34:24.792Z",
+			"Revision": 5,
+			"RevisionId": "rev-k49-lhw-bvx",
+			"Outcome": "Kept as built: the pane toggles, Source, the highlight picker and the splitters stay for everyone; a Member's change lasts for that page only."
+		},
+		"Created": "2026-10-26T21:32:41.958Z",
+		"Replies": [
+			{
+				"Id": "rep-vks-phg-ue5",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-26T21:32:41.958Z",
+				"Text": "**The other look controls on a Server** (from the Step 2 build). The look popover now shows Margins and Editor to the Administrator and the Managers alone. The pane toggles (threads, tree, preview), Source, the highlight picker and the splitters stay for everyone, since a Member needs to hide the threads or widen a pane to work; for a Member such a change lasts for that page only and is never sent to the Server. The other way: hide those from a Member too, so a Member sees the Server's look and nothing else. **Recommendation:** keep them for everyone, page-only for a Member. Resolve with no reply to take it."
+			}
+		]
 	}
 ]

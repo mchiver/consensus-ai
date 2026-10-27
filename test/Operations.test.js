@@ -14,6 +14,8 @@ const ROUTES = [
 	[ 'GET', '/me', 'me' ],
 	[ 'GET', '/instructions', 'instructions' ],
 	[ 'POST', '/instructions/token', 'instructions_token' ],
+	[ 'GET', '/view', 'read_view' ],
+	[ 'PUT', '/view', 'write_view' ],
 	[ 'GET', '/settings', 'read_settings' ],
 	[ 'PUT', '/settings', 'write_settings' ],
 	[ 'GET', '/plans', 'list_plans' ],

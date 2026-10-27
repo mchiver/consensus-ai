@@ -48,7 +48,11 @@ An optional `Clerk` section, edited by hand and not by the popup (which leaves i
 
 ## Theme and size
 
-The gear at the right end of the title bar opens the look: the theme (light, dark, the system's, or a palette from Sepia and Paper to Nord and Midnight), three sizes, the margins (**Narrow** lets the text take the pane, **Normal** holds it to a wide column, **Wide** to a narrow one), the editor, CodeMirror or Monaco, and Confirm on close (see [Editing](editing.html)). They are kept in the browser, not in the settings; the desktop keeps one theme for its window, whatever the servers it shows, and its window buttons follow the palette.
+The gear at the right end of the title bar opens the look: the theme (light, dark, the system's, or a palette from Sepia and Paper to Nord and Midnight), three sizes, the margins (**Narrow** lets the text take the pane, **Normal** holds it to a wide column, **Wide** to a narrow one), the editor, CodeMirror or Monaco, and Confirm on close (see [Editing](editing.html)). The theme, the size and Confirm on close are yours, kept in the browser; the desktop keeps one theme for its window, whatever the servers it shows, and its window buttons follow the palette.
+
+### The look
+
+The margins, the editor, the highlight, Source mode, the hidden panes, the pane widths and the tree's update times are the **look**, and it is not yours alone. In the desktop it is the project's: kept in the project's `project.json` as `View`, so everyone who clones the project opens it the same way, and a change to it shows in git. On a Server it is the Server's, one for everyone on it, kept in its `consensus.json` as `View`; a project's own `View` is not read there. On a Server only the Administrator and the Managers change it: the look popover shows the margins and the editor to them alone, and a hidden pane or a dragged width on anyone else's page lasts for that page only.
 
 ![The title bar, with the look popover open.](../images/title-bar.png)
 
@@ -62,7 +66,7 @@ The config folder, `.consensus` in your user folder by default or the one `--con
 <config>/user.json                         the machine's signed-in person: Email, Clerk, Display, Plan, Until, Checked (signed out after 14 days with no check)
 <config>/~host.json                        the Server's address while it runs; <project>/.consensus/~sidecar.json the sidecar's
 <config>/Users.json                        the accounts of the Server: the owner's record (the Administrator's), the users (each with its Manager switch) and the Service accounts, each with its hashed tokens
-<project>/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands, and its Work options GitSync and AutoCommit
+<project>/.consensus/project.json          the project: its name and tree, its Archive, its States, Include, Exclude and Commands, its Work options GitSync and AutoCommit, and its View (the look in the desktop)
 <project>/.consensus/content/<id>/content.md    a plan's or document's text
 <project>/.consensus/content/<id>/content.json  its record
 <project>/.consensus/content/<id>/threads.json  its threads

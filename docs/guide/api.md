@@ -42,6 +42,8 @@ Every route is an operation of one interface definition (`src/Operations.js`), o
 
 <!-- operations -->
 - **`me`** `GET /api/me` — Who you are to this server: your account, your roles by project, the speakers the rules run over, the default states and the server's version and name.
+- **`read_view`** `GET /api/view` — The look: the project's in the Desktop, the Server's on a Server (Margins, Highlight, Editor, PreviewHidden, Source, ThreadsHidden, TreeHidden, ShowUpdated, SidebarWidth, ThreadsWidth, PreviewWidth), whether you may change it, and where it is kept.
+- **`write_view`** `PUT /api/view` — Changes the look: the fields given over the look as it is, null clearing one; in the Desktop it is saved to the project's project.json, on a Server to its settings, by the Administrator and the Managers alone. Arguments: `View` (object, required): the fields to change.
 - **`instructions`** `GET /api/instructions` — The instructions for an LLM working with this server: what Consensus is, how to call it, what your user's words mean ("check consensus", "your turn", "build it"), the turn and the build loop; This server first, with the API's address and how to say who you are. Read it first.
 - **`instructions_token`** `POST /api/instructions/token` (answers 201) — Mints a token for you for an LLM session in a project, named "LLM session: <project name>", replacing the one of that name; its value answered this once, for the LLM Instructions' copied text. Arguments: `Project` (string, required): the project's id.
 - **`read_settings`** `GET /api/settings` — The server's settings file, whole, and its path; the Administrator's and the Managers'.
