@@ -39,6 +39,8 @@ The Server's settings file, `consensus.json`, holds the registry: the project fo
 
 A project registered on the Server, with **New project** or **Add folder**, starts unmounted: read and written by the Administrator and the Managers alone, marked "unmounted" in its row, and not there for anyone else, in the lists, the tree and the API. **Mount** in the project's menu opens it to the accounts that hold a role in it; **Unmount** takes it back without touching the roles.
 
+**Project settings…** in a project's menu is for its Owners, the Administrator and the Managers: the project's Name, States, Include, Exclude and Commands, Git sync and Auto-commit, its LLM connection and the tasks it enables. It never holds the look: on a Server the look is the Server's, one for everyone, set in the Server's Settings by the Administrator and the Managers.
+
 ![The Server's page: a project's menu with Unmount, the project mounted for its accounts.](../images/host-mount.png)
 
 **Open in Consensus Server**, which the Server's installer adds to a folder's right-click menu in the file explorer (and `--open <folder>` on the command line), registers the folder as a project of the Server, or finds it when it is registered already, and shows it in the Server's window.

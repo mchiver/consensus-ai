@@ -402,15 +402,35 @@ async function smoke_desktop()
 		await page.Press( 'Escape' );
 		await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
 
-		// the sign-in (plan Clerk, Step 7): the Settings popup of the desktop's own server offers Sign in, Public greyed
-		// out, and nothing is loaded from Clerk until the button is pressed
-		await page.Evaluate( 'angular.element( document.body ).scope().$broadcast( "settings-opened" ); true' );
-		await page.WaitFor( count_of( '#settings-popup .settings-form' ) + ' === 1 && !!document.getElementById( "settings-sign-in" )', 20000 );
+		// the sign-in (plan Clerk, Step 7): the session knows the desktop's own server, and nothing is loaded from Clerk
+		// until Sign in is asked for
 		check( 'settings: the session knows the desktop\'s own server', await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Base' ), '/servers/local' );
-		check( 'settings: the Sign in button', await page.Evaluate( 'getComputedStyle( document.getElementById( "settings-sign-in" ) ).display !== "none"' ), true );
-		check( 'settings: Public greyed out', await page.Evaluate( '[ ...document.getElementById( "settings-scope" ).options ].find( function ( option ) { return option.textContent.trim() === "Public"; } ).disabled' ), true );
 		check( 'settings: nothing loaded from Clerk', await page.Evaluate( 'typeof window.Clerk' ), 'undefined' );
-		await page.Evaluate( 'document.getElementById( "settings-close" ).click(); true' );
+		// Settings is the project's (plan Project settings, Step 3): its Name and Work options and its look, no connection
+		// or tasks, never the global config's; a margin changed there lands in project.json's View
+		async function project_settings()
+		{
+			await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
+			await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
+			await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( button ) { return button.textContent.trim() === "Settings"; } ).click(); true' );
+			await page.WaitFor( count_of( '#project-view #view-Margins' ) + ' === 1', 20000 );
+		}
+		function pick_margins( value )
+		{
+			return '( function () { let select = document.getElementById( "view-Margins" ); select.selectedIndex = [ ...select.options ].findIndex( function ( option ) { return option.label === ' + JSON.stringify( value ) + '; } ); select.dispatchEvent( new Event( "change" ) ); return true; } )()';
+		}
+		await project_settings();
+		check( 'settings: the project\'s, by name', await page.Evaluate( 'document.getElementById( "project-name" ).value.length > 0' ), true );
+		check( 'settings: no connection or tasks, no global settings', JSON.stringify( await page.Evaluate( '[ ' + count_of( '#project-llm' ) + ', ' + count_of( '.project-tasks' ) + ', ' + count_of( '#settings-popup .settings-form' ) + ' ]' ) ), '[0,0,0]' );
+		await page.Evaluate( pick_margins( 'narrow' ) );
+		await page.Evaluate( 'document.getElementById( "project-settings-save" ).click(); true' );
+		await page.WaitFor( 'getComputedStyle( document.getElementById( "project-settings-saved" ) ).display !== "none"', 10000 );
+		await page.WaitFor( 'document.documentElement.dataset.margins === "narrow"', 10000 );
+		check( 'settings: the margins in the project\'s View', ( JSON.parse( FS.readFileSync( PATH.join( project_folder, '.consensus', 'project.json' ), 'utf8' ) ).View || {} ).Margins, 'narrow' );
+		await page.Evaluate( pick_margins( 'normal' ) );
+		await page.Evaluate( 'document.getElementById( "project-settings-save" ).click(); true' );
+		await page.WaitFor( 'document.documentElement.dataset.margins === "normal"', 10000 );
+		await page.Evaluate( 'document.getElementById( "project-settings-close" ).click(); true' );
 		await page.WaitFor( count_of( '.settings-form' ) + ' === 0' );
 
 		// the overlay follows the theme and the size

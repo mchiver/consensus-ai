@@ -76,7 +76,7 @@ TEST( 'the route table: every route comes to an action and says where its projec
 	ASSERT.deepEqual( rule( 'POST', '/users/usr-1/tokens' ), [ 'self', null, null ] );
 	ASSERT.deepEqual( rule( 'DELETE', '/users/usr-1/tokens/laptop' ), [ 'self', null, null ] );
 	ASSERT.deepEqual( rule( 'PUT', '/projects/prj-1/roles' ), [ 'roles', 'param', 'prj-1' ] );
-	ASSERT.deepEqual( rule( 'PUT', '/projects/prj-1' ), [ 'manage', 'param', 'prj-1' ] );
+	ASSERT.deepEqual( rule( 'PUT', '/projects/prj-1' ), [ 'settings', 'param', 'prj-1' ] );
 	ASSERT.deepEqual( rule( 'POST', '/projects/prj-1/folders' ), [ 'manage', 'param', 'prj-1' ] );
 	ASSERT.deepEqual( rule( 'GET', '/projects/prj-1/export' ), [ 'read', 'param', 'prj-1' ] );
 	ASSERT.deepEqual( rule( 'GET', '/items/pln-1/export' ), [ 'read', 'item', 'pln-1' ] );

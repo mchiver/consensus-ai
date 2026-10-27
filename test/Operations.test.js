@@ -80,7 +80,7 @@ const ROUTES = [
 	[ 'PUT', '/projects/:pid/roles', 'set_roles' ],
 ];
 
-const ACTIONS = [ 'read', 'write', 'resolve', 'state', 'manage', 'roles', 'press', 'admin', 'self', 'list', 'open' ];
+const ACTIONS = [ 'read', 'write', 'resolve', 'state', 'manage', 'settings', 'roles', 'press', 'admin', 'self', 'list', 'open' ];
 const PARAM_NAMES = { id: 'Id', pid: 'Project', fid: 'Folder', tid: 'Thread', n: 'Revision', name: 'Name' };
 
 

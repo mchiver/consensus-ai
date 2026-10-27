@@ -13,6 +13,9 @@
 //
 //   Clean( Given ) -> { View, Problems }   the fields given, checked; an unknown field is a problem
 //   Merge( View, Given ) -> { View, Problems }   the given fields over the view; null clears one
+//   Shape() -> { Choices, Switches, Widths, WidthMinimum, WidthMaximum, Defaults }   the fields for a form (plan
+//                                                Project settings, Step 3): a missing choice is its default, a
+//                                                missing switch false, a missing width the page's own
 
 const CHOICES = {
 	Margins: [ 'narrow', 'normal', 'wide' ],
@@ -24,6 +27,7 @@ const WIDTHS = [ 'SidebarWidth', 'ThreadsWidth', 'PreviewWidth' ];
 const WIDTH_MINIMUM = 160;
 const WIDTH_MAXIMUM = 900;
 const FIELDS = Object.keys( CHOICES ).concat( SWITCHES, WIDTHS );
+const DEFAULTS = { Margins: 'normal', Highlight: 'all', Editor: 'codemirror' };
 
 
 //---------------------------------------------------------------------
@@ -88,8 +92,15 @@ function Merge( View, Given )
 }
 
 
+function Shape()
+{
+	return JSON.parse( JSON.stringify( { Choices: CHOICES, Switches: SWITCHES, Widths: WIDTHS, WidthMinimum: WIDTH_MINIMUM, WidthMaximum: WIDTH_MAXIMUM, Defaults: DEFAULTS } ) );
+}
+
+
 module.exports = {
 	FIELDS: FIELDS,
 	Clean: Clean,
 	Merge: Merge,
+	Shape: Shape,
 };

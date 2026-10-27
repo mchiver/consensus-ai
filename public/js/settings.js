@@ -8,7 +8,10 @@
 // alone, the Sign in button beside the line asking for one on a Local server), and the Tasks
 // (plan LLM Tasks, Step 1: one row per task, its Name, Writes, the Package switches (Box, Step 2, off for a new one) and its Prompt; Add, Remove,
 // up and down, Reset for a shipped one; the levels, the switches and the defaults come from GET /api/tasks). Saved
-// through PUT /api/settings; the server's problems are shown and nothing is saved while there are any.
+// through PUT /api/settings; the server's problems are shown and nothing is saved while there are any. The Server's
+// look (plan Project settings, Step 3: consensus.json View, one for everyone on it; view-settings) is shown to whoever
+// may change it and saved through PUT /api/view. The Desktop's sidecar never opens this popup: its Settings are the
+// project's (project.js).
 
 angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 {
@@ -18,6 +21,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		Form: null,
 		Problems: [],
 		Restart: false,
+		View: null,		// { Shape, Form, Start } when the look is the Server's and this page may change it
 		Busy: false,
 		Saved: false,
 	};
@@ -25,7 +29,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 } ] )
 
 
-.controller( 'SettingsController', [ '$scope', 'State', 'Client', 'SettingsPanel', 'Roots', 'Session', function ( $scope, State, Client, SettingsPanel, Roots, Session )
+.controller( 'SettingsController', [ '$scope', 'State', 'Client', 'SettingsPanel', 'Roots', 'Session', 'ViewForm', function ( $scope, State, Client, SettingsPanel, Roots, Session, ViewForm )
 {
 	const SCOPES = [ 'None', 'Local', 'Public' ];
 	$scope.Panel = SettingsPanel;
@@ -190,6 +194,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		SettingsPanel.Restart = false;
 		SettingsPanel.Saved = false;
 		SettingsPanel.Form = null;
+		SettingsPanel.View = null;
 		SettingsPanel.Root = root;
 		SettingsPanel.Open = true;
 		let answer = await State.Act( function () { return Client.Get( root, '/api/settings' ); } );
@@ -211,6 +216,18 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 		{
 			// the popup keeps its own lists; Reset is not offered
 		}
+		try
+		{
+			let view = await Client.Get( root, '/api/view' );
+			if ( view.Kept === 'server' && view.Writable === true && view.Shape )
+			{
+				SettingsPanel.View = { Shape: view.Shape, Form: ViewForm.From( view.View, view.Shape ), Start: ViewForm.From( view.View, view.Shape ) };
+			}
+		}
+		catch ( error )
+		{
+			// no look in the popup
+		}
 		$scope.$applyAsync();
 	}
 
@@ -219,6 +236,7 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 	{
 		SettingsPanel.Open = false;
 		SettingsPanel.Form = null;
+		SettingsPanel.View = null;
 	};
 
 
@@ -246,12 +264,20 @@ angular.module( 'Consensus' ).factory( 'SettingsPanel', [ function ()
 			let answer = await Client.Put( SettingsPanel.Root, '/api/settings', { Settings: settings } );
 			SettingsPanel.Form = to_form( answer.Settings );
 			SettingsPanel.Restart = !!answer.Restart;
+			let view = SettingsPanel.View;
+			let changes = view ? ViewForm.Changes( view.Form, view.Start, view.Shape ) : {};
+			if ( Object.keys( changes ).length )
+			{
+				let saved = await Client.Put( SettingsPanel.Root, '/api/view', { View: changes } );
+				view.Form = ViewForm.From( saved.View, view.Shape );
+				view.Start = ViewForm.From( saved.View, view.Shape );
+			}
 			SettingsPanel.Saved = true;
 			await Roots.LoadMe( SettingsPanel.Root || State.Root );
 		}
 		catch ( error )
 		{
-			SettingsPanel.Problems = ( error.Body && error.Body.Problems ) ? error.Body.Problems : [ error.message ];
+			SettingsPanel.Problems = ( error.Body && error.Body.Problems ) ? error.Body.Problems : [ ( error.Body && error.Body.Error ) || error.message ];
 		}
 		SettingsPanel.Busy = false;
 		$scope.$applyAsync();

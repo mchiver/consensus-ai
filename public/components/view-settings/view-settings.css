@@ -1,0 +1,29 @@
+/* view-settings - the look as a form (plan Project settings, Step 3). */
+
+.view-settings .view-choice,
+.view-settings .view-width
+{
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	margin-right: 0.8rem;
+}
+
+.view-settings .view-choice .form-select
+{
+	width: auto;
+}
+
+.view-settings .view-width .form-control
+{
+	flex: 0 0 6rem;
+	width: 6rem;
+}
+
+.view-settings .view-switches
+{
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3rem 0.9rem;
+	margin: 0.4rem 0;
+}

@@ -352,5 +352,34 @@
 				"Text": "**The other look controls on a Server** (from the Step 2 build). The look popover now shows Margins and Editor to the Administrator and the Managers alone. The pane toggles (threads, tree, preview), Source, the highlight picker and the splitters stay for everyone, since a Member needs to hide the threads or widen a pane to work; for a Member such a change lasts for that page only and is never sent to the Server. The other way: hide those from a Member too, so a Member sees the Server's look and nothing else. **Recommendation:** keep them for everyone, page-only for a Member. Resolve with no reply to take it."
 			}
 		]
+	},
+	{
+		"Id": "thr-jc2-5he-hmg",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-27T03:23:30.481Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"At": "2026-10-27T03:23:58.772Z",
+			"Revision": 5,
+			"RevisionId": "rev-k49-lhw-bvx",
+			"Outcome": "Accepted by the owner as built."
+		},
+		"Created": "2026-10-27T01:53:55.715Z",
+		"Replies": [
+			{
+				"Id": "rep-c00-rer-dfg",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"At": "2026-10-27T01:53:55.715Z",
+				"Text": "**Build log: Step 3, The Settings of a project** (Claude Opus 5.5, as Claude-CLI).\n\n**What was built**\n- **The Desktop:** Settings in the title bar's Menu opens the window's project's settings (`public/js/project.js`), never the global config's: the Name, the States, Include, Exclude and Commands, the Work options Git sync and Auto-commit, and the project's look. The LLM connection and the Tasks are not shown there (the sidecar has none). Everything saves to the project's `project.json`; the look through `PUT /api/view`, the rest through the project update.\n- **A Server:** the project's menu item is now \"Project settings…\", enabled for its Owners, the Administrator and the Managers: the Name, the States, the lists, Git sync and Auto-commit, the LLM connection and the Tasks; never the look. The Server's own Settings popup gains \"The look\", the Server's View, for whoever may change it.\n- **The look as a form:** a new component `public/components/view-settings/` shows the margins, the highlight and the editor as selects, the hidden panes, Source and show-updated as checkboxes, and the three widths as whole pixels (empty: the page's own). Its choices and defaults come from `GET /api/view`, which now answers a `Shape` (`src/View.js`). Only the fields you changed are sent, and the page takes the new look at once.\n- **Who may:** the project update (`PUT /api/projects/:pid`) has its own role action, `settings`: an Owner's, and the Administrator's and the Managers' without a role in the project. Every other change inside a project stays the Owners' (\"a Member never changes the project settings\" is the refusal now).\n- **The guide:** Settings and themes, Projects, the Server, Sharing, Getting started and Features say where each setting lives; the API reference and the readme follow.\n\n**Tests**\n- Api: the look's Shape; a Member refused the project's settings, an Owner and a Manager allowed, a Manager still refused a folder in a project they have no role in; the Desktop's sidecar writes a project's Work options and Commands to `project.json` with `consensus.json` untouched. The Roles and Operations tests know the new action.\n- Ui: the Server's Settings change the margins through the look section, saved to the Server's View and taken by the page; \"Project settings…\" on a Server shows the Name, Git sync and the connection, saves Git sync, and has no look.\n- The smoke: in the Desktop, Settings opens the project's popup, with no connection, no tasks and no global settings; a margin changed there lands in `project.json`'s View and on the page.\n- The whole suite file by file: 250 pass, 3 skipped. SMOKE OK.\n\n**Decided during the build**\n- **The Desktop's Sign in.** The old smoke checked the Sign in button in the Server's Settings popup inside the Desktop. That popup is no longer shown in the Desktop; Sign in… stays in the title bar's Menu.\n- **`consensus <folder>`.** A project served from the command line runs on a writable global config, so its Settings stay the global config's, as on a Server; its look is the project's and shows in its \"Project settings…\", as in the Desktop.\n- **Managers rename too.** The Name is one of a project's settings, so the Administrator and the Managers may rename a project they hold no role in.\n\nResolve to accept the step; reply with what to fix otherwise."
+			}
+		]
 	}
 ]

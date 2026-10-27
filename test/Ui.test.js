@@ -1118,7 +1118,7 @@ TEST( 'settings: the owner edits consensus.json in a popup; problems are shown a
 	await page.WaitFor( count_of( '.settings-form' ) + ' === 0' );
 	// the settings' list is the default for a new project (plan Run Shapes, Step 2); the picker follows the project's own
 	// States, edited in its Settings popup
-	await menu_pick( '.project[data-project="' + home + '"] .project-head', 'Settings' );
+	await menu_pick( '.project[data-project="' + home + '"] .project-head', 'Project settings' );
 	await page.WaitFor( '( document.getElementById( "project-states" ) || { value: "" } ).value.startsWith( "Draft" )' );
 	await page.WaitFor( count_of( '.project-task' ) + ' === 5' );
 	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".project-task input" ) ].every( function ( box ) { return box.checked; } )' ), true );
@@ -1760,7 +1760,7 @@ TEST( 'the task buttons on the plan page (plan LLM Tasks, Step 6): on a plan\'s 
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "plan-task-enhance" ).disabled' ), true );
 	ASSERT.match( await page.Evaluate( 'document.getElementById( "plan-task-enhance" ).title' ), /choose the project's LLM connection in its settings/ );
 	// the project's settings choose it
-	await menu_pick( '.project[data-project="' + home + '"] .project-head', 'Settings' );
+	await menu_pick( '.project[data-project="' + home + '"] .project-head', 'Project settings' );
 	await page.WaitFor( 'document.getElementById( "project-llm" ) !== null && document.getElementById( "project-llm" ).options.length === 2' );
 	await page.Evaluate( '( function () { let pick = document.getElementById( "project-llm" ); pick.selectedIndex = 1; pick.dispatchEvent( new Event( "change" ) ); return true; } )()' );
 	await page.Click( '#project-settings-save' );
@@ -2099,7 +2099,37 @@ TEST( 'the look (plan Project settings, Step 2): it comes from the server, a cha
 	ASSERT.equal( await page.Evaluate( 'window.saved_view === true' ), false );
 	// the server's own back, from /api/me
 	await page.Evaluate( 'window.location.reload(); true' );
-	await page.WaitFor( 'document.documentElement.dataset.margins === ' + JSON.stringify( view.Margins || 'normal' ), 20000 );
+	await page.WaitFor( '!!document.documentElement && document.documentElement.dataset.margins === ' + JSON.stringify( view.Margins || 'normal' ), 20000 );
 	await page.WaitFor( 'window.ConsensusStored.ViewWritable() === true' );
+	ASSERT.deepEqual( page.Errors, [] );
+} );
+
+
+TEST( 'the settings of a project (plan Project settings, Step 3): a Server\'s Settings hold the Server\'s look, saved to its View; a project\'s "Project settings…" hold its Name and Work options and no look on a Server', async function ()
+{
+	// the Server's Settings: the look, a margin changed and saved through /api/view, the page following
+	await menu_pick( '.root-head', 'Settings' );
+	await page.WaitFor( count_of( '#settings-view #view-Margins' ) + ' === 1', 20000 );
+	await page.Evaluate( '( function () { let select = document.getElementById( "view-Margins" ); select.selectedIndex = [ ...select.options ].findIndex( function ( option ) { return option.label === "wide"; } ); select.dispatchEvent( new Event( "change" ) ); return true; } )()' );
+	await page.Click( '#settings-save' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "settings-saved" ) ).display !== "none"' );
+	ASSERT.equal( await view_saved( 'Margins', 'wide' ), 'wide' );
+	await page.WaitFor( 'document.documentElement.dataset.margins === "wide"' );
+	await page.Click( '#settings-close' );
+	await page.WaitFor( count_of( '.settings-form' ) + ' === 0' );
+	await api( 'PUT', '/api/view', { View: { Margins: null } } );
+	// a project's settings on a Server: its Name, the Work options, the connection; never the look
+	let project = ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === home; } );
+	await menu_pick( '.project[data-project="' + home + '"] .project-head', 'Project settings' );
+	await page.WaitFor( '( document.getElementById( "project-name" ) || { value: "" } ).value === ' + JSON.stringify( project.Name ) );
+	ASSERT.equal( await page.Evaluate( count_of( '#project-llm' ) ), 1 );
+	ASSERT.equal( await page.Evaluate( 'document.getElementById( "project-git-sync" ).checked' ), false );
+	await page.Click( '#project-git-sync' );
+	await page.Click( '#project-settings-save' );
+	await page.WaitFor( 'getComputedStyle( document.getElementById( "project-settings-saved" ) ).display !== "none"' );
+	ASSERT.equal( ( await api( 'GET', '/api/projects' ) ).Projects.find( function ( one ) { return one.Id === home; } ).GitSync, true );
+	ASSERT.equal( await page.Evaluate( count_of( '#project-view' ) ), 0 );
+	await page.Click( '#project-settings-close' );
+	await api( 'PUT', '/api/projects/' + home, { GitSync: false } );
 	ASSERT.deepEqual( page.Errors, [] );
 } );

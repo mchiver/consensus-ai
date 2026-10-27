@@ -309,7 +309,7 @@ function Attach( App, Context )
 			throw new OPERATIONS.Refusal( 404, 'no such project' );
 		}
 		let role = ROLES.RoleOf( project, account.Id );
-		if ( rule.Action === 'roles' && manages )
+		if ( ( rule.Action === 'roles' || rule.Action === 'settings' ) && manages )
 		{
 			return { Role: role, ProjectId: null };
 		}

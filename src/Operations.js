@@ -527,11 +527,11 @@ function Operations( Context )
 		Name: 'read_view',
 		Method: 'GET',
 		Path: '/view',
-		Description: 'The look: the project\'s in the Desktop, the Server\'s on a Server (Margins, Highlight, Editor, PreviewHidden, Source, ThreadsHidden, TreeHidden, ShowUpdated, SidebarWidth, ThreadsWidth, PreviewWidth), whether you may change it, and where it is kept.',
+		Description: 'The look: the project\'s in the Desktop, the Server\'s on a Server (Margins, Highlight, Editor, PreviewHidden, Source, ThreadsHidden, TreeHidden, ShowUpdated, SidebarWidth, ThreadsWidth, PreviewWidth), whether you may change it, where it is kept, and its Shape (the choices, the switches, the widths and the defaults, for a form).',
 		Parameters: {},
 		Perform: async function ( participant )
 		{
-			return { View: await view_now(), Writable: may_manage( participant ), Kept: view_project() ? 'project' : 'server' };
+			return { View: await view_now(), Writable: may_manage( participant ), Kept: view_project() ? 'project' : 'server', Shape: VIEW.Shape() };
 		},
 	} );
 

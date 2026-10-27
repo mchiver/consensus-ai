@@ -44,7 +44,7 @@ Signed in, the desktop is also a thin client of a Server: **Connect to Server** 
 
 ### The menu, the account and the tiers
 
-The title bar's **Menu** has New window, Open folder in new window and the recent folders, **Settings** (the server's), **Sign in…**, Reload and Quit; Ctrl+N, Ctrl+Shift+O and Ctrl+R do the same, and F11 goes full screen.
+The title bar's **Menu** has New window, Open folder in new window and the recent folders, **Settings** (the project's), **Sign in…**, Reload and Quit; Ctrl+N, Ctrl+Shift+O and Ctrl+R do the same, and F11 goes full screen.
 
 ![The desktop's menu: the windows, Settings, Sign in and Quit.](../images/desktop-menu.png)
 

@@ -8,7 +8,7 @@
 // sit here too: a role needs a plan, and a plan has a rank.
 //
 //   ROLES                       [ 'Owners', 'Members', 'Service', 'Watchers' ]
-//   ACTIONS                     read, write, resolve, state, manage, roles, press (a project's), admin (the server's),
+//   ACTIONS                     read, write, resolve, state, manage, settings, roles, press (a project's), admin (the server's),
 //                               self (an account's own page), list (a list the route narrows), open (everyone's)
 //   Empty()                     the four empty lists
 //   Clean( Roles )              the lists as given, ids trimmed, an id once over all four (the first folder wins)
@@ -27,7 +27,7 @@ const ROLES = [ 'Owners', 'Members', 'Service', 'Watchers' ];
 const PLANS = [ 'personal', 'professional' ];
 
 const ALLOWED = {
-	Owners: [ 'read', 'write', 'resolve', 'state', 'manage', 'roles', 'press' ],
+	Owners: [ 'read', 'write', 'resolve', 'state', 'manage', 'settings', 'roles', 'press' ],
 	Members: [ 'read', 'write', 'resolve', 'press' ],
 	Service: [ 'read', 'write' ],
 	Watchers: [ 'read', 'press' ],
@@ -41,6 +41,7 @@ const ACTION_WORDS = {
 	resolve: 'resolves threads',
 	state: 'sets a plan\'s state',
 	manage: 'manages the project',
+	settings: 'changes the project settings',
 	roles: 'assigns roles',
 	press: 'presses a task',
 };
@@ -68,6 +69,7 @@ const RULES = [
 	[ 'PUT', /^\/projects\/([^/]+)\/mount$/, 'admin', null ],	// the registry entry's switch (plan Rearchitecturation, Step 5)
 	[ 'PUT', /^\/projects\/([^/]+)\/roles$/, 'roles', 'param' ],
 	[ 'GET', /^\/projects\/([^/]+)\/export$/, 'read', 'param' ],
+	[ 'PUT', /^\/projects\/([^/]+)$/, 'settings', 'param' ],	// a project's settings (plan Project settings, Step 3): its Owners, the Administrator and the Managers
 	[ 'PUT|POST|DELETE', /^\/projects\/([^/]+)(\/.*)?$/, 'manage', 'param' ],
 	[ 'GET', /^\/items\/([^/]+)\/export$/, 'read', 'item' ],
 	[ 'POST', /^\/items\/([^/]+)\/.*$/, 'manage', 'item' ],

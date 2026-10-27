@@ -197,15 +197,34 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	};
 
 
-	// The settings popup (settings.js) opens from a root's row or menu, for its owner.
+	// The settings popup (settings.js) opens from a root's row or menu, for its owner; in the Desktop's sidecar the
+	// settings are the window's project's (plan Project settings, Step 3: project.js), never the global config's.
 	tree.OpenSettings = function ( root, event )
 	{
 		if ( event )
 		{
 			event.stopPropagation();
 		}
-		$rootScope.$broadcast( 'settings-opened', root || State.Root );
+		let where = root || State.Root;
+		if ( where && where.Sidecar )
+		{
+			tree.OpenProjectSettings( tree.OpenProject( where ) || where.Projects[ 0 ] || null );
+			return;
+		}
+		$rootScope.$broadcast( 'settings-opened', where );
 	};
+
+
+	// A project's settings are its Owners', the Administrator's and the Managers' (plan Project settings, Step 3).
+	function sets_project( project )
+	{
+		let root = root_of( project );
+		if ( manages( root ) )
+		{
+			return true;
+		}
+		return !!( root && root.Roles && root.Roles[ project.Id ] === 'Owners' );
+	}
 
 
 	//-----------------------------------------------------------------
@@ -716,7 +735,7 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 			paste_action( project, null ),
 			action( 'Rename', 'pencil', function () { tree.StartRename( 'project', project, project, QUIET ); } ),
 			export_action( 'project', project, project ),
-			action( 'Settings', 'settings', function () { tree.OpenProjectSettings( project ); } ),
+			action( 'Project settings…', 'settings', function () { tree.OpenProjectSettings( project ); }, { Disabled: !sets_project( project ) } ),
 			action( 'LLM Instructions', 'info', function () { tree.OpenInstructions( project ); } ),
 			action( 'Explain', 'eye', function () { $window.location.hash = Roots.HashFor( root_of( project ), '/x/' + encodeURIComponent( project.Id ) ); } ),
 		].concat( mount ? [ { Separator: true }, mount ] : [] ).concat( [

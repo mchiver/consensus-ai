@@ -1641,7 +1641,7 @@ TEST( 'users and roles (plan User Management, Step 3): accounts made by the Admi
 	ASSERT.equal( ( await call( 'POST', '/api/plans', { Title: 'Bob\'s plan', Text: '# Bob\'s plan\n', Project: project.Id }, bob_token ) ).Status, 201 );
 	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Plan' }, bob_token ) ).Body.Error, 'a Member never sets a plan\'s state' );
 	ASSERT.equal( ( await call( 'DELETE', '/api/plans/' + plan.Id, undefined, bob_token ) ).Body.Error, 'a Member never manages the project' );
-	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id, { Name: 'Renamed' }, bob_token ) ).Body.Error, 'a Member never manages the project' );
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id, { Name: 'Renamed' }, bob_token ) ).Body.Error, 'a Member never changes the project settings' );
 	ASSERT.equal( ( await call( 'DELETE', '/api/plans/' + plan.Id + '/threads/' + asked.Id, undefined, bob_token ) ).Body.Error, 'a Member never manages the project' );
 	// the bot: writes as a Member does, presses no task, mints no token of its own
 	let bot_token = 'Bearer ' + ( await call( 'POST', '/api/users/' + bot.Id + '/tokens', { Name: 'cron' } ) ).Body.Token;
@@ -2114,7 +2114,7 @@ TEST( 'the look (plan Project settings, Step 2): a Server keeps its own View in 
 {
 	// on the Server (the test's server over its registry): empty at first, the owner changes it
 	let first = await call( 'GET', '/api/view' );
-	ASSERT.deepEqual( first.Body, { View: {}, Writable: true, Kept: 'server' } );
+	ASSERT.deepEqual( [ first.Body.View, first.Body.Writable, first.Body.Kept ], [ {}, true, 'server' ] );
 	let changed = await call( 'PUT', '/api/view', { View: { Margins: 'wide', SidebarWidth: 300, ThreadsHidden: true } } );
 	ASSERT.deepEqual( [ changed.Status, changed.Body.View ], [ 200, { Margins: 'wide', SidebarWidth: 300, ThreadsHidden: true } ] );
 	ASSERT.deepEqual( JSON.parse( FS.readFileSync( running.Store.SettingsPath(), 'utf8' ) ).View, { Margins: 'wide', SidebarWidth: 300, ThreadsHidden: true } );
@@ -2174,6 +2174,7 @@ TEST( 'the look (plan Project settings, Step 2): a Server keeps its own View in 
 	{
 		let answer = await fetch( own.Url + '/api/view', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { View: { Editor: 'monaco' } } ) } );
 		ASSERT.deepEqual( await answer.json(), { View: { Editor: 'monaco' }, Writable: true, Kept: 'project' } );
+		ASSERT.equal( ( await ( await fetch( own.Url + '/api/view' ) ).json() ).Kept, 'project' );
 		ASSERT.deepEqual( JSON.parse( FS.readFileSync( PATH.join( folder, '.consensus', 'project.json' ), 'utf8' ) ).View, { Editor: 'monaco' } );
 		ASSERT.equal( 'View' in JSON.parse( FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' ) ), false );
 	}
@@ -2191,6 +2192,69 @@ TEST( 'the look (plan Project settings, Step 2): a Server keeps its own View in 
 		let answer = await fetch( sidecar.Url + '/api/view', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { View: { TreeHidden: true } } ) } );
 		ASSERT.equal( answer.status, 200 );
 		ASSERT.deepEqual( JSON.parse( FS.readFileSync( PATH.join( folder, '.consensus', 'project.json' ), 'utf8' ) ).View, { Editor: 'monaco', TreeHidden: true } );
+		ASSERT.equal( FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' ), before );
+	}
+	finally
+	{
+		await sidecar.Close();
+	}
+} );
+
+
+TEST( 'a project\'s settings (plan Project settings, Step 3): its Owners, the Administrator and the Managers change them, a Member never, and a Manager manages nothing else of it; the look has a Shape for a form; the Desktop\'s sidecar saves a project\'s settings to its project.json alone', async function ()
+{
+	// the look's Shape: the choices, the switches, the widths and the defaults
+	let shape = ( await call( 'GET', '/api/view' ) ).Body.Shape;
+	ASSERT.deepEqual( shape.Choices, { Margins: [ 'narrow', 'normal', 'wide' ], Highlight: [ 'all', 'open' ], Editor: [ 'codemirror', 'monaco' ] } );
+	ASSERT.deepEqual( shape.Switches, [ 'PreviewHidden', 'Source', 'ThreadsHidden', 'TreeHidden', 'ShowUpdated' ] );
+	ASSERT.deepEqual( [ shape.Widths, shape.WidthMinimum, shape.WidthMaximum ], [ [ 'SidebarWidth', 'ThreadsWidth', 'PreviewWidth' ], 160, 900 ] );
+	ASSERT.deepEqual( shape.Defaults, { Margins: 'normal', Highlight: 'all', Editor: 'codemirror' } );
+	// a mounted project with an Owner and a Member; a Manager with no role in it
+	let project = ( await call( 'POST', '/api/projects', { Name: 'Configured' } ) ).Body.Project;
+	await call( 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: true } );
+	let made = [];
+	async function person( login )
+	{
+		let user = ( await call( 'POST', '/api/users', { Type: 'user', Login: login, Email: login + '@example.com' } ) ).Body.User;
+		let token = 'Bearer ' + ( await call( 'POST', '/api/users/' + user.Id + '/tokens', { Name: 'laptop' } ) ).Body.Token;
+		made.push( user.Id );
+		return { User: user, Token: token };
+	}
+	let sam = await person( 'sam-settings' );
+	let uma = await person( 'uma-settings' );
+	let tia = await person( 'tia-settings' );
+	await call( 'PUT', '/api/users/' + tia.User.Id, { Manager: true } );
+	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ sam.User.Id ], Owners: [ uma.User.Id ] } ) ).Status, 200 );
+	let refused = await call( 'PUT', '/api/projects/' + project.Id, { Include: [ 'docs/**' ] }, sam.Token );
+	ASSERT.deepEqual( [ refused.Status, refused.Body.Error ], [ 403, 'a Member never changes the project settings' ] );
+	let by_owner = await call( 'PUT', '/api/projects/' + project.Id, { Name: 'Configured here', GitSync: true }, uma.Token );
+	ASSERT.deepEqual( [ by_owner.Status, by_owner.Body.Project.Name, by_owner.Body.Project.GitSync ], [ 200, 'Configured here', true ] );
+	let by_manager = await call( 'PUT', '/api/projects/' + project.Id, { Include: [ 'docs/**' ] }, tia.Token );
+	ASSERT.deepEqual( [ by_manager.Status, by_manager.Body.Project.Include ], [ 200, [ 'docs/**' ] ] );
+	let folder_refused = await call( 'POST', '/api/projects/' + project.Id + '/folders', { Name: 'Not mine' }, tia.Token );
+	ASSERT.deepEqual( [ folder_refused.Status, folder_refused.Body.Error ], [ 403, 'no role in this project' ] );
+	for ( let id of made )
+	{
+		await call( 'DELETE', '/api/users/' + id );
+	}
+	await call( 'DELETE', '/api/projects/' + project.Id );
+
+	// the Desktop's sidecar: the project's settings in its project.json, the Server's file untouched
+	let folder = PATH.join( temporary_folder(), 'configured' );
+	FS.mkdirSync( folder );
+	let config = temporary_folder();
+	let own = await SERVER.Start( { Config: config, Port: 0, Project: folder } );
+	await own.Close();
+	let before = FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' );
+	let sidecar = await SERVER.Start( { Config: config, Port: 0, Project: folder, ReadOnly: true } );
+	try
+	{
+		let listed = await ( await fetch( sidecar.Url + '/api/projects' ) ).json();
+		let id = listed.Projects[ 0 ].Id;
+		let answer = await fetch( sidecar.Url + '/api/projects/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { AutoCommit: true, Commands: [ 'npm test' ] } ) } );
+		ASSERT.equal( answer.status, 200 );
+		let file = JSON.parse( FS.readFileSync( PATH.join( folder, '.consensus', 'project.json' ), 'utf8' ) );
+		ASSERT.deepEqual( [ file.AutoCommit, file.Commands ], [ true, [ 'npm test' ] ] );
 		ASSERT.equal( FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' ), before );
 	}
 	finally

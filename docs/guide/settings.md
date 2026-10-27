@@ -1,6 +1,6 @@
 # Settings and themes
 
-**Settings** in a server row's menu (the ⋯ at the row's end) opens that server's settings in a popup, for the Administrator and the Managers (in the desktop, for you). The theme, the size, the editor and Confirm on close are behind the gear at the right end of the title bar, for everyone.
+**Settings** in a server row's menu (the ⋯ at the row's end) opens that server's settings in a popup, for the Administrator and the Managers. In the desktop, **Settings** in the title bar's Menu opens the window's project's settings instead (see [Projects](projects.html)): the global config's settings are the Server's, and the desktop never shows them. The theme, the size, the editor and Confirm on close are behind the gear at the right end of the title bar, for everyone.
 
 ![The settings popup: name, scope and port, the states, the participants.](../images/settings.png)
 
@@ -53,6 +53,8 @@ The gear at the right end of the title bar opens the look: the theme (light, dar
 ### The look
 
 The margins, the editor, the highlight, Source mode, the hidden panes, the pane widths and the tree's update times are the **look**, and it is not yours alone. In the desktop it is the project's: kept in the project's `project.json` as `View`, so everyone who clones the project opens it the same way, and a change to it shows in git. On a Server it is the Server's, one for everyone on it, kept in its `consensus.json` as `View`; a project's own `View` is not read there. On a Server only the Administrator and the Managers change it: the look popover shows the margins and the editor to them alone, and a hidden pane or a dragged width on anyone else's page lasts for that page only.
+
+The look is a section of the settings too, field by field: in the Server's Settings popup on a Server, and in the project's settings in the desktop. An empty width is the page's own.
 
 ![The title bar, with the look popover open.](../images/title-bar.png)
 

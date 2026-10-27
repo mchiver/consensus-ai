@@ -10,6 +10,7 @@
 	<!-- The components (plan UI Components): one stylesheet and one script each, under /components/<name>/. -->
 	<link rel="stylesheet" href="/components/title-bar/title-bar.css">
 	<link rel="stylesheet" href="/components/look-controls/look-controls.css">
+	<link rel="stylesheet" href="/components/view-settings/view-settings.css">
 	<link rel="stylesheet" href="/components/project-tree/project-tree.css">
 	<link rel="stylesheet" href="/components/server-row/server-row.css">
 	<link rel="stylesheet" href="/components/project-view/project-view.css">
@@ -234,6 +235,11 @@
 			<div class="thread-buttons">
 				<button class="btn btn-sm btn-outline-secondary" type="button" id="settings-task-add" ng-click="AddTask()"><svg class="icon lead"><use href="#i-plus"></use></svg>Add task</button>
 			</div>
+			<!-- The Server's look (plan Project settings, Step 3): one for everyone on it, kept in consensus.json View. -->
+			<div id="settings-view" ng-if="Panel.View">
+				<div class="settings-label">The look <span class="muted small fw-normal">this Server's, the same for everyone on it, whatever the project; a project's own look is not used here</span></div>
+				<view-settings form="Panel.View.Form" shape="Panel.View.Shape"></view-settings>
+			</div>
 			<div class="thread-buttons">
 				<button class="btn btn-sm btn-primary" type="submit" id="settings-save" ng-disabled="Panel.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
 				<button class="btn btn-sm btn-outline-secondary" type="button" id="settings-close" ng-click="Close()"><svg class="icon lead"><use href="#i-x"></use></svg>{{ Panel.Saved ? 'Close' : 'Cancel' }}</button>
@@ -242,7 +248,7 @@
 		</form>
 	</div>
 
-	<!-- A project's own settings (plan Run Shapes, Step 2): its States, Include, Exclude and Commands, one per line, and the tasks it enables (plan LLM Tasks, Step 1). -->
+	<!-- A project's own settings (plan Run Shapes, Step 2; plan Project settings, Step 3): its Name, States, Include, Exclude and Commands, its Work options, on a Server its LLM connection and the tasks it enables (plan LLM Tasks, Step 1), and in the Desktop its look. -->
 	<div class="subplan-popup settings-popup project-settings-popup" ng-controller="ProjectSettingsController" ng-show="Panel.Open" ng-keydown="Key($event)">
 		<form class="subplan-form settings-form" ng-if="Panel.Open" ng-submit="Save()">
 			<div class="subplan-head">Project settings <span class="muted small">{{ Panel.Project.Name }}</span><button class="popup-close" type="button" title="close (Escape)" ng-click="Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
@@ -250,6 +256,10 @@
 			<div class="port-error" id="project-settings-problems" ng-show="Panel.Problems.length">
 				<div>Not saved. Fix these first:</div>
 				<ul class="mb-0"><li ng-repeat="problem in Panel.Problems track by $index">{{ problem }}</li></ul>
+			</div>
+			<div class="settings-row">
+				<label for="project-name">Name</label>
+				<input class="form-control form-control-sm" id="project-name" ng-model="Panel.Form.Name" title="the project's name">
 			</div>
 			<div class="settings-row top">
 				<label for="project-states">States</label>
@@ -268,15 +278,25 @@
 				<textarea class="form-control form-control-sm" id="project-commands" rows="2" ng-model="Panel.Form.CommandsText" placeholder="one command per line; none by default" title="the commands an LLM may run in the folder, one per line"></textarea>
 			</div>
 			<div class="settings-row">
+				<label>Work</label>
+				<label class="project-git" title="pull before a run that writes files, and push after an auto-commit"><input type="checkbox" id="project-git-sync" ng-model="Panel.Form.GitSync"> Git sync</label>
+				<label class="project-git" title="commit the working tree when a build log posted by a run that writes files is resolved"><input type="checkbox" id="project-auto-commit" ng-model="Panel.Form.AutoCommit"> Auto-commit</label>
+			</div>
+			<div class="settings-row" ng-if="!Panel.Sidecar">
 				<label for="project-llm">LLM connection</label>
 				<select class="form-select form-select-sm" id="project-llm" ng-model="Panel.Form.Llm" ng-options="llm.Id as llm.Name for llm in Panel.Form.Llms" title="the connection the task buttons on this project's plans and its Explain tab run through (plan LLM Tasks, Step 6); none: those buttons wait"><option value="">none</option></select>
 			</div>
-			<div class="settings-row top">
+			<div class="settings-row top" ng-if="!Panel.Sidecar">
 				<label>Tasks</label>
 				<div class="project-tasks">
 					<label class="project-task" ng-repeat="task in Panel.Form.Tasks track by task.Id" title="writes {{ task.Writes }}"><input type="checkbox" ng-model="task.Enabled"> {{ task.Name }}</label>
 					<span class="muted small" ng-show="!Panel.Form.Tasks.length">the server has no tasks</span>
 				</div>
+			</div>
+			<!-- The project's look (plan Project settings, Step 3): in the Desktop, kept in project.json View. -->
+			<div id="project-view" ng-if="Panel.View">
+				<div class="settings-label">The look <span class="muted small fw-normal">the project's, kept in its project.json and shared with everyone who clones it</span></div>
+				<view-settings form="Panel.View.Form" shape="Panel.View.Shape"></view-settings>
 			</div>
 			<div class="thread-buttons">
 				<button class="btn btn-sm btn-primary" type="submit" id="project-settings-save" ng-disabled="Panel.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
@@ -453,6 +473,7 @@
 	<script src="/components/close-prompt/close-prompt.js"></script>
 	<script src="/components/title-bar/title-bar.js"></script>
 	<script src="/components/look-controls/look-controls.js"></script>
+	<script src="/components/view-settings/view-settings.js"></script>
 	<script src="/components/project-tree/project-tree.js"></script>
 	<script src="/components/server-row/server-row.js"></script>
 	<script src="/components/project-view/project-view.js"></script>

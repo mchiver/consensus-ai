@@ -1,0 +1,18 @@
+<div class="view-settings" ng-if="$ctrl.form && $ctrl.shape">
+	<div class="settings-row">
+		<span class="view-choice" ng-repeat="field in $ctrl.ChoiceFields() track by field">
+			<label for="view-{{ field }}">{{ $ctrl.Label( field ) }}</label>
+			<select class="form-select form-select-sm view-field" id="view-{{ field }}" ng-model="$ctrl.form[ field ]" ng-options="choice for choice in $ctrl.shape.Choices[ field ]"></select>
+		</span>
+	</div>
+	<div class="check-row view-switches">
+		<label ng-repeat="field in $ctrl.shape.Switches track by field"><input type="checkbox" class="view-field" id="view-{{ field }}" ng-model="$ctrl.form[ field ]"> {{ $ctrl.Label( field ) }}</label>
+	</div>
+	<div class="settings-row view-widths">
+		<span class="muted small">Widths:</span>
+		<span class="view-width" ng-repeat="field in $ctrl.shape.Widths track by field">
+			<label for="view-{{ field }}">{{ $ctrl.Label( field ) }}</label>
+			<input class="form-control form-control-sm view-field" id="view-{{ field }}" type="number" min="{{ $ctrl.shape.WidthMinimum }}" max="{{ $ctrl.shape.WidthMaximum }}" step="1" ng-model="$ctrl.form[ field ]" placeholder="default" title="whole pixels from {{ $ctrl.shape.WidthMinimum }} to {{ $ctrl.shape.WidthMaximum }}; empty: the page's own">
+		</span>
+	</div>
+</div>
