@@ -1,0 +1,417 @@
+[
+	{
+		"Id": "thr-658-blr-wju",
+		"Anchor": {
+			"Text": "Client is added beside Sidecar, Desktop and the Server.",
+			"Prefix": " one or more Consensus Servers. ",
+			"Suffix": " The Client has no Sidecar funct"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T07:24:44.306Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T07:27:08.540Z",
+			"Revision": 6,
+			"RevisionId": "rev-7zf-8z7-ly5",
+			"Outcome": "Resolved with no reply: the wording went in, with the recommendation on the name. Nothing in Desktop, the Server or Sidecar changes; the app is named Consensus Client."
+		},
+		"Created": "2026-10-28T07:11:42.253Z",
+		"Replies": [
+			{
+				"Id": "rep-aok-msm-0m5",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T07:11:42.253Z",
+				"Text": "Does Desktop keep its Connect to Server (its client mode) once the Client exists, or does the Client take it over?\n\nRecommendation: the Client is added and Desktop is left as it is in this plan, as the plan says under \"Desktop, the Server and Sidecar\". Whether Desktop drops Connect to Server, and becomes local folders only, is decided in Desktop's own plan, so this plan changes no existing app."
+			},
+			{
+				"Id": "rep-8vs-dxg-7qv",
+				"By": "user",
+				"At": "2026-10-28T07:14:17.006Z",
+				"Text": "Dont you worry about all of that. We are just working with Client right now. we will not be changing anything in Desktop and Server. We are making a new app called Client Edition/"
+			},
+			{
+				"Id": "rep-mri-1zb-6s8",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T07:21:03.447Z",
+				"Text": "Understood: this plan is the Client alone, and nothing in Desktop, the Server or Sidecar changes. The wording I will apply, in place of the section \"Desktop, the Server and Sidecar\": \"Nothing in Desktop, the Server or Sidecar changes: this plan is the Client alone. Where the Client shares their code, it is through added options, and they behave as before.\"\n\nOne follow-up on the name: the plan is Client Edition, and the app it makes is named \"Consensus Client\" (the window, About, the Start menu, Consensus-Client-Setup-<version>.exe), as Sidecar Edition made \"Consensus Sidecar\". Recommendation: keep \"Consensus Client\" for the app."
+			}
+		]
+	},
+	{
+		"Id": "thr-4gz-jrf-h6h",
+		"Anchor": {
+			"Text": "the projects the Server gives them by their roles.",
+			"Prefix": "ervers they added and, on each, ",
+			"Suffix": " Servers The person adds a Serve"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T07:19:01.580Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T07:20:48.527Z",
+			"Revision": 2,
+			"RevisionId": "rev-sfo-0qs-g1f",
+			"Outcome": "Resolved with no reply: the recommendation went in. One window shows every added Server as a root of the tree, tabs across Servers, one waiting list; New window opens another on the same list."
+		},
+		"Created": "2026-10-28T07:11:42.400Z",
+		"Replies": [
+			{
+				"Id": "rep-25k-m4x-ly5",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T07:11:42.400Z",
+				"Text": "How are the Servers and their projects laid out in windows?\n\nRecommendation: one window shows every added Server as a root of the project tree, each with the projects it gives the person beneath it (the page's roots, as Run Shapes Step 5 had them), with tabs open across Servers and one waiting list over all of them; New window opens another window on the same list. The other way, one project per window with a chooser, as Desktop does, fits a local folder better than a list of Servers."
+			}
+		]
+	},
+	{
+		"Id": "thr-2qt-wn1-8hc",
+		"Anchor": {
+			"Text": "Creating, editing, moving and deleting plans, documents and folders, replying, resolving and setting a plan's state, as the person's role on that Server allows.",
+			"Prefix": "st across every Server, Export. ",
+			"Suffix": " What the Client does not have A"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T07:20:03.828Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T07:20:48.796Z",
+			"Revision": 3,
+			"RevisionId": "rev-0qr-5bq-j7x",
+			"Outcome": "Resolved with no reply: the recommendation went in. The Server's task buttons and the Explain tab are kept as the project's enabled tasks and the person's role allow; only their configuration stays out."
+		},
+		"Created": "2026-10-28T07:11:42.531Z",
+		"Replies": [
+			{
+				"Id": "rep-6zq-t8b-ln0",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T07:11:42.531Z",
+				"Text": "Does the Client show the Server's LLM task buttons (Answer, Enhance, Work and the Explain tab)? They run on the Server as the person who pressed, with no token leaving the Server, so they are not the token-based service API the Client leaves out.\n\nRecommendation: yes, kept as the project's enabled tasks and the person's role allow, the runs shown as they are in a browser on the Server; only the configuration of connections and tasks stays out."
+			}
+		]
+	},
+	{
+		"Id": "thr-ede-2bc-rkw",
+		"Anchor": {
+			"Text": "The Client keeps its own settings in client.json in the global config folder",
+			"Prefix": " sign-in. The Client's settings ",
+			"Suffix": " (/.consensus unless --config na"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T07:19:20.450Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T07:20:49.052Z",
+			"Revision": 4,
+			"RevisionId": "rev-i8u-r9p-sqa",
+			"Outcome": "Resolved with no reply: the recommendation went in. The settings are client.json in the global config folder, beside desktop.json and consensus.json; nothing is carried over from desktop.json."
+		},
+		"Created": "2026-10-28T07:11:42.655Z",
+		"Replies": [
+			{
+				"Id": "rep-6wu-uks-v5b",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T07:11:42.655Z",
+				"Text": "Where does the Client keep its settings file?\n\nRecommendation: client.json in the global config folder (<user>/.consensus unless --config names another), beside desktop.json and consensus.json, each app writing only its own file. Nothing is carried over from desktop.json's saved Servers, as Sidecar carried nothing over."
+			}
+		]
+	},
+	{
+		"Id": "thr-71e-xn3-b03",
+		"Anchor": {
+			"Text": "The Client has no current user",
+			"Prefix": "listens beyond the page server. ",
+			"Suffix": ": it reads and writes no user.js"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T07:26:40.834Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T07:27:08.819Z",
+			"Revision": 7,
+			"RevisionId": "rev-8oh-0uh-ycc",
+			"Outcome": "Resolved with no reply: the wording went in, with the recommendation on the session. No current user, no user.json, no license read; the Server authorizes the identity project by project; Clerk's session is kept in the Client's own window storage, so a restart stays signed in, with Sign out in the menu."
+		},
+		"Created": "2026-10-28T07:11:42.783Z",
+		"Replies": [
+			{
+				"Id": "rep-day-emv-tea",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T07:11:42.783Z",
+				"Text": "Is the Client's sign-in the machine's current user (<config>/user.json), shared with Desktop and the Server, or one of its own?\n\nRecommendation: shared, as plan The Server decided for Desktop and the Server: one current user per machine, so a sign-in in the Client counts in Desktop and the Server and the other way, and Sign out signs out all three."
+			},
+			{
+				"Id": "rep-bzh-pzq-vvr",
+				"By": "user",
+				"At": "2026-10-28T07:17:15.133Z",
+				"Text": "No. We are not considering any current user in this app. The user must always sign-in and their identity will be authorized  by the Server on a per-project basis."
+			},
+			{
+				"Id": "rep-t5a-km5-5i1",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T07:21:03.601Z",
+				"Text": "Understood: the Client has no current user. It reads and writes no user.json, reads no license, and the person signs in in the Client itself; each Server decides, project by project, what that identity may see and do. The wording I will apply, in place of the sentence \"One person uses it: whoever is signed in. A sign-in is our Clerk instance's, so one sign-in is good on every Server; the session token goes with every call to every Server.\": \"The Client has no current user: it reads and writes no user.json and reads no license. The person signs in in the Client, through our Clerk instance, and the session token goes with every call to every Server, which authorizes that identity project by project.\"\n\nOne follow-up: does the Clerk session last between starts of the Client? Clerk keeps its session in the window's own storage, so a restart would find the person still signed in until they sign out or Clerk ends the session. Recommendation: keep Clerk's session in the Client's own window storage, so a restart stays signed in, with Sign out in the menu; nothing of it is shared with Desktop or the Server. The other way is a sign-in at every start, which means clearing Clerk's storage when the app quits."
+			}
+		]
+	},
+	{
+		"Id": "thr-kc3-kvp-mfs",
+		"Anchor": {
+			"Text": "All project configuration, access controls included, is done remotely by the Server's Administrator and Managers.",
+			"Prefix": "n-in, with any license or none. ",
+			"Suffix": " What the Client is A new Electr"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T07:14:42.388Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T07:20:49.365Z",
+			"Revision": 5,
+			"RevisionId": "rev-5fd-487-nbo",
+			"Outcome": "Resolved with no reply: the recommendation went in. The Client shows no configuration to anyone, a Server's Administrator and Managers included."
+		},
+		"Created": "2026-10-28T07:11:42.912Z",
+		"Replies": [
+			{
+				"Id": "rep-4v4-5i7-n6w",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T07:11:42.912Z",
+				"Text": "When the person signed in is a Server's Administrator or a Manager, does the Client still show no configuration?\n\nRecommendation: yes, none for anyone: the Client is for working in projects, and an Administrator or Manager configures the Server in the Server's own window or in its page in a browser."
+			}
+		]
+	},
+	{
+		"Id": "thr-127-o73-o88",
+		"Anchor": {
+			"Text": "The Server's services, read from the Server and not built into the Client.",
+			"Prefix": "n's role on that Server allows. ",
+			"Suffix": " Today that is LLM Tasks: the ta"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T08:30:05.036Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T08:30:49.887Z",
+			"Revision": 8,
+			"RevisionId": "rev-eiv-pmb-t3k",
+			"Outcome": "Resolved after the reply: the wording in the reply went in. The Client builds in no task: it shows the services the Server lists, today LLM Tasks, each run followed from the press to its end with what the Server already reports."
+		},
+		"Created": "2026-10-28T08:20:54.027Z",
+		"Replies": [
+			{
+				"Id": "rep-0sn-0gz-5c4",
+				"By": "user",
+				"At": "2026-10-28T08:20:54.027Z",
+				"Text": "The list of available LLM Tasks should be populated dynamically. In the future, we may expand this into a set of services offered by a Server, of which \"LLM Tasks\" would be one of many services.\n\nAll tasks will be run on the Server, which means we need to build a feedback mechanism into the task execution."
+			},
+			{
+				"Id": "rep-86k-s78-7ne",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T08:23:28.418Z",
+				"Text": "Understood, on both counts.\n\nThe list: the Client hardcodes no task. It shows the tasks the Server lists (GET /api/tasks, as the page reads them now), as the project enables them and the role allows, so a task the Server adds later appears with no change to the Client. Answer, Enhance, Work and Explain are named in the plan only as today's list.\n\nFeedback: a run is the Server's, so the Client can only show what the Server tells it. What the Server tells today: each run has a record with its Status (queued, running, done, failed, stopped), when it was queued and the run it waits behind, and its Output (and an ollama run's Transcript) growing as it goes, every change heard over the Server's events; Stop takes it out of the line or ends it. So the Client can follow a run from the press to the end with nothing changed on the Server.\n\nThe wording I would put in on resolve, in place of the line:\n\n- The Server's services, read from the Server and not built into the Client. Today that is LLM Tasks: the tasks the Server lists (today Answer, Enhance and Work on a plan's heading, and the Explain tab), as the project enables them and the person's role allows, each run on the Server as the person who pressed, with no token leaving the Server, and followed in the Client from the press to its end.\n\nThree questions follow from this, each in its own thread: what the feedback shows at the press, where a person finds their runs, and whether the services are made general now or later."
+			}
+		]
+	},
+	{
+		"Id": "thr-aw5-cae-iep",
+		"Anchor": {
+			"Text": "After a press, the button shows the run's state from the Server's events",
+			"Prefix": "ient from the press to its end. ",
+			"Suffix": ": Queued (behind which run), Run"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T08:30:07.915Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T08:30:50.179Z",
+			"Revision": 9,
+			"RevisionId": "rev-xup-elt-fa7",
+			"Outcome": "Resolved with no reply: the recommendation went in. The button shows the run's state, a click opens its popup with the output growing and Stop, and a notice links to the run when it ends; nothing changes on the Server. Step 3 now names it."
+		},
+		"Created": "2026-10-28T08:23:28.527Z",
+		"Replies": [
+			{
+				"Id": "rep-xxd-k50-0qk",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T08:23:28.527Z",
+				"Text": "What does the person see after pressing a task in the Client?\n\nRecommendation: the button shows the run's state from the Server's events: Queued (behind which run), Running with the time so far, then Done, Failed or Stopped. A click on it opens the run's popup, its Output (or Transcript) growing as it comes in, with Stop for the person who pressed. A task that writes leaves its changes in the plan the usual way, as revisions and threads. When the run ends the person gets a short notice in the window, with a link to the run, so they need not keep the popup open. Nothing changes on the Server: this reads the records and events it already has.\n\nResolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-nwl-922-m3b",
+		"Anchor": {
+			"Text": "My runs, beside the waiting list",
+			"Prefix": " events the Server already has. ",
+			"Suffix": ": the person's own runs on every"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T08:25:46.940Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T08:30:50.379Z",
+			"Revision": 10,
+			"RevisionId": "rev-vvk-aav-r5h",
+			"Outcome": "Resolved with no reply: the recommendation went in. My runs lists the person's own runs on every Server beside the waiting list; the Server's LLM page, with the connections and every person's runs, joins what the Client does not have."
+		},
+		"Created": "2026-10-28T08:23:28.619Z",
+		"Replies": [
+			{
+				"Id": "rep-l9p-gkw-m0v",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T08:23:28.619Z",
+				"Text": "Where does a person find their runs later?\n\nRecommendation: a My runs list beside the waiting list, holding the person's own runs on every Server, newest first, each with its task, plan, Server, state and time, opened in the same popup. It shows only the runs the person pressed: the Server's LLM page, with the connections and every person's runs, is configuration and stays out of the Client.\n\nResolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-5yv-k3k-onj",
+		"Anchor": {
+			"Text": "The services are not made general in this plan.",
+			"Prefix": " the person pressed are listed. ",
+			"Suffix": " The Client reads LLM Tasks from"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T08:30:06.579Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T08:30:50.593Z",
+			"Revision": 11,
+			"RevisionId": "rev-mv6-te1-olz",
+			"Outcome": "Resolved with no reply: the recommendation went in. The services are made general later, in their own plan; the Client keeps its LLM Tasks code apart as the first of the Server's services."
+		},
+		"Created": "2026-10-28T08:23:28.710Z",
+		"Replies": [
+			{
+				"Id": "rep-uop-6yz-ftx",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T08:23:28.710Z",
+				"Text": "Are a Server's services made general in this plan, or later?\n\nRecommendation: later, in their own plan. Here the Client reads LLM Tasks from what the Server lists today (/api/tasks and /api/runs) and keeps that code apart, as the first of the Server's services, so another service can come in beside it. A general list of services (say GET /api/services, each with its name, its actions and how it reports progress) changes the Server, and this plan changes nothing on the Server. It is better designed when there is a second service to shape it.\n\nResolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-i51-h38-3qw",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T08:52:16.710Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T08:53:21.694Z",
+			"Revision": 11,
+			"RevisionId": "rev-mv6-te1-olz",
+			"Outcome": "Accepted: Step 1 (the app) as built: client/main.js, client/preload.js, client/Settings.js, client/package.json, npm run client and test/Client.test.js. Committed as \"Client Edition Step 1: The app\"."
+		},
+		"Created": "2026-10-28T08:41:25.189Z",
+		"Replies": [
+			{
+				"Id": "rep-gbn-d80-9u2",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T08:41:25.189Z",
+				"Text": "Build log: Client Edition, Step 1 (The app).\n\nBuilt by Claude Opus 5.5 (claude-opus-5-5), as Claude-CLI.\n\n**What was built, and where**\n\n- `client/main.js`: the Client's main process. It parses `--config <folder>` (and `--help`; Electron's own switches pass through), loads `client.json`, starts the page server (`electron/Page.js`, as it is) on the port it had last time and opens a window over the shared parts (`electron/Windows.js`, as they are). Every saved Server is a root of the page, keyed by its name, Kind server, forwarded through /servers/<name>/api. New window opens another window in the same process, on the same list and the same settings (so two windows never write client.json over each other). It starts no server, opens no folder, reads no user.json and no license, and serves no API, MCP or instructions of its own.\n- `client/preload.js`: the bridge the page already reads (window.ConsensusDesktop) with Client true, no Project, no License, no Recent and no SetLicense or SetUser; window.Desktop has New window and Quit only (no folder dialog, no Open folder).\n- `client/Settings.js`: client.json in the config folder: Servers [{ Name, Url }] (a name of 1 to 60 characters with no slash, the address http or https, trailing slashes dropped, a name twice kept once), Theme, Scale, Remembered. A missing file is the defaults; nothing is read from desktop.json; a file that cannot be read is left as it is.\n- `client/package.json`, and `npm run client` in the root package.json.\n- `test/Client.test.js`: six tests (client.json's place and defaults, nothing from desktop.json, the write and read back with the fields checked, an unreadable file, Remembered, and the app's files holding no server, license, user or folder).\n\n**Decided during the build**\n\n- client.json is made in Step 1, not Step 2: the window needs the look, the view state and the page port from the start. Its Servers are read here; Add server, rename and remove are Step 2.\n- The page server keeps its port in Remembered (page-port), as Desktop does, so the window's origin, and Clerk's session in its storage, stays the same between starts.\n- New window is a window of the same process, not a second process: one client.json, one writer.\n\n**How it was tested**\n\n- `node --test test/Client.test.js`: 6 pass.\n- The whole suite: 292 tests, 289 pass. The three that failed pass when run alone: two Sidecar tests hit EACCES on a port in 52000 to 52999 (Windows refused the port during the run), and one UI test (users and roles, the Users fold) failed in the full run only.\n- A probe from the scratchpad (not in the repository): two temporary servers, a temporary config naming them, the Client launched over DevTools. Both Servers showed as roots with their projects, a trailing slash on an address was dropped, ConsensusDesktop.Client was true with no SetLicense and no PickFolder, New window opened a second window, a theme and a remembered value were written to client.json, Quit ended the app, and the config folder held client.json alone (no user.json).\n\n**What is not done yet (the later Steps)**\n\n- There is no sign-in in the Client yet. A single Server signs in through the page as Desktop's client mode does; with several Servers the page has no session. That is Step 2, with Add server, rename, remove and offline Servers.\n- The page still shows what the Client does not have: the LLMS, USERS and TRASH folds, the project's Settings and the rest. That is Step 3, with the run feedback and My runs. About still says Consensus.\n\nResolve to accept Step 1; reply with anything to change."
+			}
+		]
+	}
+]

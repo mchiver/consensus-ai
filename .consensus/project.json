@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-27T09:06:28.910Z",
-	"Version": 90,
+	"Updated": "2026-10-28T07:11:09.941Z",
+	"Version": 105,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -20,8 +20,8 @@
 		},
 		{
 			"Kind": "folder",
-			"Id": "fld-3ch-hu7-6ef",
-			"Name": "Drafts",
+			"Id": "fld-c5p-119-ks1",
+			"Name": "Deprecated",
 			"Items": [
 				{
 					"Kind": "plan",
@@ -34,14 +34,6 @@
 				{
 					"Kind": "plan",
 					"Id": "pln-hv9-t4n-45m"
-				},
-				{
-					"Kind": "plan",
-					"Id": "pln-7rj-c79-kh8"
-				},
-				{
-					"Kind": "plan",
-					"Id": "pln-lv9-2n4-kcc"
 				},
 				{
 					"Kind": "plan",
@@ -81,7 +73,22 @@
 				},
 				{
 					"Kind": "plan",
-					"Id": "pln-zp4-e72-4lu"
+					"Id": "pln-7rj-c79-kh8"
+				}
+			]
+		},
+		{
+			"Kind": "folder",
+			"Id": "fld-3ch-hu7-6ef",
+			"Name": "Drafts",
+			"Items": [
+				{
+					"Kind": "plan",
+					"Id": "pln-lv9-2n4-kcc"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-t24-bp7-mlp"
 				}
 			]
 		},
@@ -371,6 +378,10 @@
 				{
 					"Kind": "plan",
 					"Id": "pln-ogh-pqk-iid"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-zp4-e72-4lu"
 				}
 			]
 		}

@@ -1,0 +1,7 @@
+{
+	"name": "consensus-client",
+	"version": "0.5.1",
+	"description": "Consensus Client: projects on one or more Consensus Servers, a Clerk sign-in, no local folder and no API of its own (plan Client Edition). Run from the checkout with npm run client.",
+	"private": true,
+	"main": "main.js"
+}

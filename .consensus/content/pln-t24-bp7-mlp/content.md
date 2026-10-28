@@ -1,0 +1,69 @@
+# Client Edition
+
+We are going to make a new app, **Consensus Client** (the name in its window, About, the Start menu and the installer), that connects to projects on one or more Consensus Servers. Client is added beside Sidecar, Desktop and the Server.
+
+The Client has no Sidecar functionality: it opens no local folder and runs no server of its own.
+The Client offers no token-based service API: no local API or MCP, no LLM Instructions, no tokens minted.
+The Client requires only a Clerk sign-in, with any license or none.
+All project configuration, access controls included, is done remotely by the Server's Administrator and Managers.
+
+
+## What the Client is
+
+- A new Electron app in its own folder, `client/`, run from the checkout with `npm run client`. It shares as much code as it can: `public/` (the page), and the window parts in `electron/` (`Windows.js`, `Page.js`) that Desktop and Sidecar already share, through added options. Desktop, the Server and Sidecar behave as before, and their tests check it.
+- The window's page is served by the app's own page server on 127.0.0.1, which forwards each Server's API through `/servers/<key>/api`, as Desktop's client mode does today. There is no server of the Client's own and nothing listens beyond the page server.
+- The Client has no current user: it reads and writes no user.json and reads no license. The person signs in in the Client, through our Clerk instance, and the session token goes with every call to every Server, which authorizes that identity project by project.
+- Clerk's session is kept in the Client's own window storage, so a restart finds the person still signed in until they sign out (Sign out in the menu) or Clerk ends the session; nothing of it is shared with Desktop or the Server.
+- Started signed out, the Client shows the sign-in box and nothing else. Signed in with any tier (Registered, Personal or Professional), the person sees the Servers they added and, on each, the projects the Server gives them by their roles.
+- One window shows every added Server as a root of the project tree, each with the projects it gives the person beneath it, with tabs open across Servers and one waiting list over all of them. New window opens another window on the same list.
+
+
+## Servers
+
+- The person adds a Server by its address: Add server asks for the address, tries it (the Server's /api/me) and saves it under the Server's own name. Servers can be renamed in the list and removed; removing one changes nothing on the Server.
+- A Server that does not answer stays in the list, shown offline with the reason, and is read again when it answers.
+- What a person may see and do on a Server is the Server's to say: its gate, its mounted projects, and the person's role in each project (Owner, Member, Service, Watcher). The Client shows what the Server answers and asks nothing of the license beyond the sign-in.
+
+
+## The Client's settings
+
+- The Client keeps its own settings in client.json in the global config folder (<user>/.consensus unless --config names another), beside desktop.json and consensus.json, read and written by the Client alone: `Servers` (each { Name, Url }), `Theme` and `Scale` (the look), and `Remembered` (the page's view state: the open item, the folds, the tabs, the sort, the widths).
+- A missing file is the defaults; nothing is carried over from desktop.json's saved Servers.
+
+
+## What the Client keeps from the page
+
+- Plans, documents, folders, threads, revisions, anchors, the consensus rules, reports and Print to PDF, the editor and the View, the look controls, the project tree, the waiting list across every Server, Export.
+- Creating, editing, moving and deleting plans, documents and folders, replying, resolving and setting a plan's state, as the person's role on that Server allows.
+- The Server's services, read from the Server and not built into the Client. Today that is LLM Tasks: the tasks the Server lists (today Answer, Enhance and Work on a plan's heading, and the Explain tab), as the project enables them and the person's role allows, each run on the Server as the person who pressed, with no token leaving the Server, and followed in the Client from the press to its end.
+- After a press, the button shows the run's state from the Server's events: Queued (behind which run), Running with the time so far, then Done, Failed or Stopped. A click on it opens the run's popup, its Output (or Transcript) growing as it comes in, with Stop for the person who pressed. A task that writes leaves its changes in the plan the usual way, as revisions and threads. When the run ends, a short notice in the window links to the run, so the popup need not stay open. This reads the records and events the Server already has.
+- My runs, beside the waiting list: the person's own runs on every Server, newest first, each with its task, plan, Server, state and time, opened in the same popup. Only the runs the person pressed are listed.
+- The services are not made general in this plan. The Client reads LLM Tasks from what the Server lists today (/api/tasks and /api/runs) and keeps that code apart, as the first of the Server's services, so another can come in beside it. A general list of a Server's services (each with its name, its actions and how it reports progress) changes the Server and comes in its own plan, shaped by a second service.
+
+
+## What the Client does not have
+
+- A local folder, the sidecar, the chooser's recent folders, Open folder, New project on this machine.
+- The API and MCP of its own, LLM Instructions, the LLM session token, minted tokens.
+- Configuration of any kind: the Server's Settings, a project's Settings, New Project on a Server, Mount and Unmount, Users, accounts and roles, the role folders' drag, the LLM connections and the tasks' configuration, the Server's LLM page (the connections and every person's runs), the Server's look (its View).
+- Licensing checks of its own: no tier gates anything in the Client.
+- This holds for everyone, a Server's Administrator and Managers included: they configure the Server in its own window or in its page in a browser.
+
+
+## Desktop, the Server and Sidecar
+
+- Nothing in Desktop, the Server or Sidecar changes: this plan is the Client alone. Where the Client shares their code, it is through added options, and they behave as before.
+
+
+## The installer
+
+- A new installer for the new app: product name "Consensus Client", appId `com.mchiver.consensus-client`, `Consensus-Client-Setup-<version>.exe`, its config `build/client.json`, built by `npm run dist` with the other three. It installs beside the others.
+
+
+## Steps
+
+1. **The app.** `client/`: the main process, the preload, the window over the shared `electron/` parts, the page server forwarding to the Servers, `npm run client`.
+2. **Servers and sign-in.** The sign-in first; Add server, rename, remove; the Client's settings; the tree with each Server's projects; offline Servers.
+3. **The page for the Client.** What the Client does not have left out of its page; the runs followed from the press; My runs.
+4. **The installer.** `build/client.json` and the dist script.
+5. **The guide.** The user guide's Client page, the features page, the Readme and a Client smoke.
