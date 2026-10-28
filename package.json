@@ -12,7 +12,7 @@
 		"sidecar": "electron sidecar",
 		"client": "electron client",
 		"smoke": "node bin/smoke.js",
-		"dist": "electron-builder --win nsis -c build/desktop.json && electron-builder --win nsis -c build/server.json && electron-builder --win nsis -c build/sidecar.json",
+		"dist": "electron-builder --win nsis -c build/desktop.json && electron-builder --win nsis -c build/server.json && electron-builder --win nsis -c build/sidecar.json && electron-builder --win nsis -c build/client.json",
 		"server": "electron server"
 	},
 	"engines": {

@@ -489,5 +489,36 @@
 				"Text": "Understood: no run tokens. Every LLM interaction goes through tool calls that the Server runs itself, so no token is ever handed to an LLM or written into a prompt.\n\nWhat that changes today:\n\n- An ollama connection already works that way. Its tool loop runs inside the Server (Tools.js), and the token it uses never reaches the model.\n- A claude-cli connection does not. The Server writes the API address and a minted run token into the prompt, and the CLI calls the API with it. Without tokens, that kind goes, or gets a tool loop of its own (for example the Claude API with tools, run in the Server like the ollama loop).\n- Then the run tokens go from the Server: RunTokens in Participants.js, the Runner's minting, the token lines in the prompt and the instructions. A run's record would no longer carry anything secret.\n\nThat is a change to the Server (and to Desktop's client mode and the browser, which share it), and this plan changes nothing but the Client. My recommendation:\n\n1. Step 3 stands as built. The Client already shows no Prompt, and once the tokens go there is nothing left to hide.\n2. The tokens' removal becomes a plan of its own, \"Tool calls only\", drafted when you say so, with one thread per decision. The first decision is what replaces claude-cli: dropped, or a Claude API connection with its tools run in the Server.\n\nResolve this thread to accept Step 3 on those terms, or reply if you want the tokens out before the Client goes on."
 			}
 		]
+	},
+	{
+		"Id": "thr-t2k-flo-b62",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T09:48:08.435Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T09:48:36.112Z",
+			"Revision": 11,
+			"RevisionId": "rev-mv6-te1-olz",
+			"Outcome": "Accepted: Step 4 (the installer) as built: build/client.json and the fourth build of npm run dist. Committed as \"Client Edition Step 4: The installer\"."
+		},
+		"Created": "2026-10-28T09:45:08.932Z",
+		"Replies": [
+			{
+				"Id": "rep-dfb-j43-6pp",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T09:45:08.932Z",
+				"Text": "Build log: Client Edition, Step 4 (The installer).\n\nBuilt by Claude Opus 5.5 (claude-opus-5-5), as Claude-CLI.\n\n**What was built, and where**\n\n- `build/client.json`: product name \"Consensus Client\", appId `com.mchiver.consensus-client`, `Consensus-Client-Setup-<version>.exe`, main `client/main.js`, output `~dist/client`. The files are client/, electron/, src/, public/, the icon and package.json. There is no LLM guide, since the Client serves no instructions, and no installer script of its own, as Sidecar has none. It installs beside the other three (its own appId, per user, the folder chosen in the wizard).\n- `npm run dist` builds it fourth, after Desktop, the Server and Sidecar (`package.json`).\n- `test/Client.test.js`: one more test (the installer's names, files and place in npm run dist).\n\n**How it was tested**\n\n- `node --test test/Client.test.js`: 10 pass; Sidecar, ServerApp and Desktop tests: 19 pass.\n- The installer was built: Consensus-Client-Setup-0.5.1.exe, 127 MB, at C:/Users/Andre/AppData/Local/Temp/claude/W--code-projects-orgs-mchiver-consensus-git/50201c03-6ea4-4a82-aa03-6dbee40c622d/scratchpad/dist-client/. The packaged \"Consensus Client.exe\" (win-unpacked) was started on an empty config folder: it served its page, wrote client.json with no Servers, and was stopped. The installer itself was not run, so nothing was installed on this machine.\n\n**One thing to know**\n\n- Building into ~dist on W: fails right now, for every app and not only the Client. Sidecar's own build/sidecar.json fails the same way: electron-builder cannot rename ~dist/<app>/win-unpacked.tmp, because something on this machine holds default_app.asar in the freshly extracted copy (an antivirus scan, most likely). Building with the output on C: worked, which is how the installer above was made. Three half-made folders are left in ~dist (client, client-check and sidecar-check, each holding win-unpacked.tmp), still locked when I tried to remove them. They are untracked; delete them once the lock lets go. If `npm run dist` keeps failing there, adding ~dist to the antivirus exclusions is the usual fix.\n\n**Next: Step 5**, the guide: the Client's page in the user guide, the features page, the Readme and a Client smoke.\n\nResolve to accept Step 4; reply with anything to change."
+			}
+		]
 	}
 ]

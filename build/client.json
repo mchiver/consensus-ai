@@ -1,0 +1,28 @@
+{
+	"appId": "com.mchiver.consensus-client",
+	"productName": "Consensus Client",
+	"artifactName": "Consensus-Client-Setup-${version}.${ext}",
+	"extraMetadata": {
+		"name": "consensus-client",
+		"main": "client/main.js"
+	},
+	"directories": {
+		"output": "~dist/client"
+	},
+	"files": [
+		"client/**",
+		"electron/**",
+		"desktop/icon.ico",
+		"src/**",
+		"public/**",
+		"package.json"
+	],
+	"win": {
+		"target": "nsis",
+		"icon": "desktop/icon.ico"
+	},
+	"nsis": {
+		"oneClick": false,
+		"allowToChangeInstallationDirectory": true
+	}
+}

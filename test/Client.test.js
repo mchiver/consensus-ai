@@ -192,3 +192,26 @@ TEST( 'the Client\'s page: the folds and menus of configuration left out, About 
 	ASSERT.equal( runs.indexOf( 'Run.Prompt' ), -1, 'the Client shows no run\'s Prompt' );
 	ASSERT.match( read( 'public/components/client-runs/client-runs.js' ), /'\/api\/runs\?By=' \+ encodeURIComponent\( Root\.Me\.Name \)/ );
 } );
+
+
+//---------------------------------------------------------------------
+// The installer (Step 4)
+
+TEST( 'the installer: Consensus Client, its own appId and artifact, the Client\'s files, the fourth build of npm run dist', function ()
+{
+	let root = PATH.join( __dirname, '..' );
+	let build = JSON.parse( FS.readFileSync( PATH.join( root, 'build', 'client.json' ), 'utf8' ) );
+	ASSERT.equal( build.productName, 'Consensus Client' );
+	ASSERT.equal( build.appId, 'com.mchiver.consensus-client' );
+	ASSERT.equal( build.artifactName, 'Consensus-Client-Setup-${version}.${ext}' );
+	ASSERT.equal( build.extraMetadata.main, 'client/main.js' );
+	for ( let needed of [ 'client/**', 'electron/**', 'src/**', 'public/**', 'desktop/icon.ico', 'package.json' ] )
+	{
+		ASSERT.ok( build.files.includes( needed ), 'the installer holds ' + needed );
+	}
+	ASSERT.equal( build.files.some( function ( file ) { return file.indexOf( '.guides' ) >= 0; } ), false, 'no LLM guide: the Client serves no instructions' );
+	let others = [ 'desktop', 'server', 'sidecar' ].map( function ( name ) { return JSON.parse( FS.readFileSync( PATH.join( root, 'build', name + '.json' ), 'utf8' ) ).appId; } );
+	ASSERT.equal( others.includes( build.appId ), false, 'it installs beside the others' );
+	let dist = JSON.parse( FS.readFileSync( PATH.join( root, 'package.json' ), 'utf8' ) ).scripts.dist;
+	ASSERT.match( dist, /-c build\/desktop\.json .* -c build\/server\.json .* -c build\/sidecar\.json .* -c build\/client\.json$/ );
+} );
