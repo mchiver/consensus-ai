@@ -36,8 +36,13 @@ angular.module( 'Consensus' ).component( 'signInBox', {
 		};
 
 
+		// The server signed in to; the Client's one sign-in is good on every Server (plan Client Edition, Step 2).
 		controller.Name = function ()
 		{
+			if ( Session.Every === true )
+			{
+				return 'Consensus';
+			}
 			let root = Roots.Of( Session.Key || '' );
 			return ( root && root.Name ) ? root.Name : window.location.host;
 		};

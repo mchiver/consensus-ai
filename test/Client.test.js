@@ -122,3 +122,46 @@ TEST( 'the Client app: its own folder and npm script, no folder, no server, no l
 	}
 	ASSERT.match( preload, /Client: true/ );
 } );
+
+
+//---------------------------------------------------------------------
+// The Servers (Step 2): added by address under the Server's own name, renamed, removed
+
+TEST( 'the Servers: added under the Server\'s name, a name taken numbered on, an address twice refused, renamed, removed', function ()
+{
+	let settings = SETTINGS.Default();
+	ASSERT.deepEqual( SETTINGS.AddServer( settings, { Url: 'https://team.example.com/', Name: 'Team' } ), { Server: { Name: 'Team', Url: 'https://team.example.com' } } );
+	ASSERT.deepEqual( SETTINGS.AddServer( settings, { Url: 'http://other:3500', Name: 'team' } ).Server, { Name: 'team 2', Url: 'http://other:3500' } );
+	ASSERT.equal( SETTINGS.AddServer( settings, { Url: 'http://nameless:3500' } ).Server.Name, 'nameless:3500' );
+	ASSERT.match( SETTINGS.AddServer( settings, { Url: 'HTTPS://team.example.com' } ).Error, /in the list already, as Team/ );
+	ASSERT.match( SETTINGS.AddServer( settings, { Url: 'team.example.com' } ).Error, /http:\/\/ or https:\/\// );
+	ASSERT.equal( settings.Servers.length, 3 );
+	ASSERT.equal( SETTINGS.UniqueName( settings, 'x'.repeat( SETTINGS.NAME_LIMIT ) ), 'x'.repeat( SETTINGS.NAME_LIMIT ) );
+	settings.Servers.push( { Name: 'x'.repeat( SETTINGS.NAME_LIMIT ), Url: 'http://long:1' } );
+	ASSERT.equal( SETTINGS.UniqueName( settings, 'x'.repeat( SETTINGS.NAME_LIMIT ) ), 'x'.repeat( SETTINGS.NAME_LIMIT - 2 ) + ' 2' );
+	ASSERT.deepEqual( SETTINGS.RenameServer( settings, 'team 2', ' Other ' ).Server, { Name: 'Other', Url: 'http://other:3500' } );
+	ASSERT.match( SETTINGS.RenameServer( settings, 'Other', 'TEAM' ).Error, /another Server is named "Team"/ );
+	ASSERT.match( SETTINGS.RenameServer( settings, 'Other', 'a/b' ).Error, /no slash/ );
+	ASSERT.match( SETTINGS.RenameServer( settings, 'Nobody', 'x' ).Error, /no Server named/ );
+	ASSERT.equal( SETTINGS.RenameServer( settings, 'Team', 'team' ).Server.Name, 'team' );
+	ASSERT.deepEqual( SETTINGS.RemoveServer( settings, 'OTHER' ).Server, { Name: 'Other', Url: 'http://other:3500' } );
+	ASSERT.match( SETTINGS.RemoveServer( settings, 'Other' ).Error, /no Server named/ );
+	ASSERT.deepEqual( settings.Servers.map( function ( one ) { return one.Name; } ), [ 'team', 'nameless:3500', 'x'.repeat( SETTINGS.NAME_LIMIT ) ] );
+} );
+
+
+TEST( 'the Client\'s page: one sign-in for every Server, its configuration handed in, and a Server\'s refusal its own', function ()
+{
+	let root = PATH.join( __dirname, '..' );
+	let session = FS.readFileSync( PATH.join( root, 'public', 'js', 'session.js' ), 'utf8' );
+	ASSERT.match( session, /config = window\.ConsensusDesktop\.Clerk/ );
+	ASSERT.match( session, /Every: CLIENT/ );
+	let client = FS.readFileSync( PATH.join( root, 'public', 'js', 'client.js' ), 'utf8' );
+	ASSERT.match( client, /Session\.Every === true \|\|/ );
+	let main = FS.readFileSync( PATH.join( root, 'client', 'main.js' ), 'utf8' );
+	ASSERT.equal( main.indexOf( 'SecretKey' ), -1, 'no secret goes to the page' );
+	let CLERK = require( '../src/Clerk.js' );
+	let clerk = CLERK.Clerk( { Settings: {} } );
+	ASSERT.match( clerk.PublishableKey(), /^pk_/ );
+	ASSERT.ok( clerk.FrontendApi() );
+} );

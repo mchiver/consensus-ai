@@ -698,10 +698,17 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 //---------------------------------------------------------------------
 // AppController: the routes and the live stream.
 
-.controller( 'AppController', [ '$scope', '$window', 'State', 'Client', 'Tabs', 'Llms', 'Users', 'Roots', function ( $scope, $window, State, Client, Tabs, Llms, Users, Roots )
+.controller( 'AppController', [ '$scope', '$window', 'State', 'Client', 'Tabs', 'Llms', 'Users', 'Roots', 'Session', function ( $scope, $window, State, Client, Tabs, Llms, Users, Roots, Session )
 {
 	$scope.State = State;
 	$scope.Roots = Roots;
+
+
+	// The Client (plan Client Edition, Step 2): until someone is signed in, the sign-in box and nothing else.
+	$scope.ClientSignedOut = function ()
+	{
+		return Session.Every === true && !( Session.Loaded && Session.SignedIn() );
+	};
 
 
 	// What a hash stands for: { Kind: 'p' | 'waiting' | 'llm', Id?, Root }, or null. A route under #/s/<key> names its

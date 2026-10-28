@@ -18,7 +18,7 @@
 
 angular.module( 'Consensus' ).component( 'titleBar', {
 	templateUrl: '/components/title-bar/title-bar.html',
-	controller: [ '$scope', '$element', '$window', 'State', 'Roots', 'Llms', 'Menus', 'HelpPanel', 'Session', 'Tree', function ( $scope, $element, $window, State, Roots, Llms, Menus, HelpPanel, Session, Tree )
+	controller: [ '$scope', '$element', '$window', 'State', 'Roots', 'Llms', 'Menus', 'HelpPanel', 'Session', 'Tree', 'ClientServers', function ( $scope, $element, $window, State, Roots, Llms, Menus, HelpPanel, Session, Tree, ClientServers )
 	{
 		const MENU_KEY = 'app';
 		const RECENT_SHOWN = 5;		// the recent folders the desktop's menu lists (plan Rearchitecturation, Step 2)
@@ -121,6 +121,11 @@ angular.module( 'Consensus' ).component( 'titleBar', {
 					items.push( { Label: 'Open ' + entry.Path.split( /[\\/]/ ).filter( Boolean ).pop() + ' in new window', Icon: 'detach', Act: function () { desktop.OpenRecent( entry.Path ); } } );
 				}
 				items.push( { Separator: true } );
+				// the Client (plan Client Edition, Step 2): its Servers, added, renamed and removed
+				if ( ClientServers.Available && Session.SignedIn() )
+				{
+					items.push( { Label: 'Servers…', Icon: 'settings', Act: function () { ClientServers.Show(); } } );
+				}
 				let root = Roots.List[ 0 ] || null;
 				if ( root && root.Manage === true )
 				{

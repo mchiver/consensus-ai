@@ -8,7 +8,8 @@
 			<button class="btn btn-sm btn-outline-secondary" type="button" id="sign-in-sign-out" ng-click="$ctrl.SignOut()">Sign out</button>
 		</div>
 		<div ng-if="!$ctrl.Session.Refusal">
-			<div class="muted small" ng-if="$ctrl.Session.Required">This server signs people in through Consensus-AI. Once signed in you see the projects you have a role in; an account new to the server sees the Users folder alone until an Owner or the Administrator places it in a project.</div>
+			<div class="muted small" ng-if="$ctrl.Session.Every">Sign in with your Consensus-AI account, with any license or none. Each Server you add shows you the projects it gives you by your roles.</div>
+			<div class="muted small" ng-if="$ctrl.Session.Required && !$ctrl.Session.Every">This server signs people in through Consensus-AI. Once signed in you see the projects you have a role in; an account new to the server sees the Users folder alone until an Owner or the Administrator places it in a project.</div>
 			<div class="muted small" ng-if="!$ctrl.Session.Required">Sign in with your Consensus-AI account. Signed in (Registered, free), the Desktop connects to Servers; a Personal license runs the Server on this machine, a Professional license on public addresses, where people sign in and act by their roles.</div>
 			<div class="sign-in-mount" id="sign-in-mount" clerk-mount="sign-in"></div>
 		</div>

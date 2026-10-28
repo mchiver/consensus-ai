@@ -1,0 +1,26 @@
+<div class="subplan-popup settings-popup client-servers-popup" id="client-servers-popup" ng-if="$ctrl.Panel.Open" ng-keydown="$ctrl.Key($event)">
+	<div class="subplan-form settings-form client-servers-form" tabindex="-1" auto-focus>
+		<div class="subplan-head">Servers<button class="popup-close" type="button" title="close (Escape)" ng-click="$ctrl.Panel.Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
+		<div class="muted small">The Servers this Client shows, each a root of the tree. What you see and do on a Server is that Server's to say, by your roles in its projects. Removing a Server here changes nothing on it.</div>
+		<div class="list-empty" ng-if="$ctrl.Servers.length === 0">No Servers yet: add one by its address.</div>
+		<div class="client-server" ng-repeat="server in $ctrl.Servers track by server.Url" data-server="{{ server.Name }}">
+			<div class="settings-row">
+				<span class="connection root-dot" ng-class="{ live: $ctrl.Online( server ) }"></span>
+				<input class="form-control form-control-sm client-server-name" type="text" maxlength="60" ng-model="server.NewName" ng-blur="$ctrl.Rename( server )" ng-keydown="$event.key === 'Enter' && $ctrl.Rename( server )" ng-disabled="$ctrl.Busy" title="the Server's name in this Client">
+				<span class="client-server-url muted small">{{ server.Url }}</span>
+				<button class="btn btn-sm btn-outline-secondary client-server-remove" type="button" ng-if="$ctrl.Removing !== server.Name" ng-disabled="$ctrl.Busy" ng-click="$ctrl.AskRemove( server )"><svg class="icon lead"><use href="#i-trash"></use></svg>Remove</button>
+				<span class="confirm" ng-if="$ctrl.Removing === server.Name">remove it from this Client?
+					<button class="btn btn-sm btn-danger client-server-remove-yes" type="button" ng-click="$ctrl.Remove( server )"><svg class="icon lead"><use href="#i-check"></use></svg>Yes</button>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="$ctrl.Removing = null"><svg class="icon lead"><use href="#i-x"></use></svg>No</button>
+				</span>
+			</div>
+			<div class="client-server-state muted small">{{ $ctrl.State( server ) }}</div>
+		</div>
+		<div class="settings-label">Add server</div>
+		<div class="settings-row">
+			<input class="form-control form-control-sm" id="client-server-url" type="text" placeholder="https://consensus.example.com" ng-model="$ctrl.Url" ng-keydown="$event.key === 'Enter' && $ctrl.Add()" ng-disabled="$ctrl.Busy">
+			<button class="btn btn-sm btn-primary" type="button" id="client-server-add" ng-disabled="$ctrl.Busy || !$ctrl.Url" ng-click="$ctrl.Add()"><svg class="icon lead"><use href="#i-plus"></use></svg>Add server</button>
+		</div>
+		<div class="sign-in-error small" id="client-servers-error" ng-if="$ctrl.Error">{{ $ctrl.Error }}</div>
+	</div>
+</div>

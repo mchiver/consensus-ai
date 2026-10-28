@@ -5,7 +5,9 @@
 // through /servers/<name>), the API's base URL, the look and the remembered view state. Client is true; there is no
 // project of the window's own, no license, no recent list and no user (the Client has no current user: no SetLicense
 // and no SetUser). The page's application menu calls window.Desktop: New window and Quit; there is no folder to pick
-// or open.
+// or open. Step 2: Clerk, our instance's publishable key and Frontend API host, for the page's sign-in; and the
+// Servers: Servers() the list, AddServer( { Url, Token } ), RenameServer( { Name, To } ), RemoveServer( Name ), each
+// answering { Server } or { Error }; a change reloads every window on the new list.
 
 const ELECTRON = require( 'electron' );
 
@@ -28,6 +30,7 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	Recent: [],
 	License: null,
 	Client: true,
+	Clerk: BOOT.Clerk || null,
 	Reason: null,
 	Remembered: BOOT.Remembered || {},
 	SetTheme: function ( Theme ) { ELECTRON.ipcRenderer.send( 'theme', { Theme: Theme } ); },
@@ -38,6 +41,10 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	CloseDecided: function ( Ok ) { ELECTRON.ipcRenderer.send( 'close-decided', !!Ok ); },
 	PrintToPdf: function ( Name ) { return invoke( 'print-pdf', Name ); },
 	ViewInBrowser: function () { return invoke( 'view-in-browser' ); },
+	Servers: function () { return invoke( 'servers' ); },
+	AddServer: function ( Fields ) { return invoke( 'add-server', { Url: Fields && Fields.Url, Token: Fields && Fields.Token } ); },
+	RenameServer: function ( Fields ) { return invoke( 'rename-server', { Name: Fields && Fields.Name, To: Fields && Fields.To } ); },
+	RemoveServer: function ( Name ) { return invoke( 'remove-server', Name ); },
 } );
 
 

@@ -14,6 +14,7 @@
 angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope', 'Session', function ( $q, $rootScope, Session )
 {
 	const BASE = ( window.ConsensusDesktop && window.ConsensusDesktop.Base ) || '';
+	const RECONNECT_DELAY = 5000;		// the Client: a closed stream opened again after this long
 	let current = '';		// the current root's Base (State.SetRoot)
 
 
@@ -48,7 +49,8 @@ angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope'
 			options.headers[ 'Content-Type' ] = 'application/json';
 			options.body = JSON.stringify( body );
 		}
-		let own = ( Session.Base !== null && base_of( root ) === BASE + Session.Base );
+		// the Client (plan Client Edition, Step 2): one sign-in, its token on every Server's calls
+		let own = Session.Every === true || ( Session.Base !== null && base_of( root ) === BASE + Session.Base );
 		if ( own )
 		{
 			let token = await Session.Token();
@@ -135,6 +137,12 @@ angular.module( 'Consensus.Client', [] ).factory( 'Client', [ '$q', '$rootScope'
 		source.onerror = function ()
 		{
 			$rootScope.$applyAsync( function () { Status( false ); } );
+			// the Client (plan Client Edition, Step 2): a Server that does not answer closes the stream for good (the
+			// page server answers 502), so it is opened again a while later, and the Server read again when it answers
+			if ( Session.Every === true && source.readyState === EventSource.CLOSED )
+			{
+				setTimeout( function () { Listen( Root, Handler, Status ); }, RECONNECT_DELAY );
+			}
 		};
 		return source;
 	}

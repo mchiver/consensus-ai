@@ -11,7 +11,7 @@
 const DRAG_TYPE = 'application/x-consensus-item';
 const DRAG_PROJECT_TYPE = 'application/x-consensus-project';
 
-angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', 'Llms', 'Roots', 'Hotkeys', 'Toast', 'Instructions', 'Reports', function ( $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports, Llms, Roots, Hotkeys, Toast, Instructions, Reports )
+angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State', 'Client', 'Subplans', 'Tabs', 'Menus', 'Ports', 'Llms', 'Roots', 'Hotkeys', 'Toast', 'Instructions', 'Reports', 'ClientServers', function ( $rootScope, $window, State, Client, Subplans, Tabs, Menus, Ports, Llms, Roots, Hotkeys, Toast, Instructions, Reports, ClientServers )
 {
 	let tree = {};
 	// Remembered per root (stored.js, plan UI Tweaks V; per root since plan Run Shapes, Step 5), and the sort and the
@@ -170,6 +170,16 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	// left it with plan Rearchitecturation, Step 2: a window is one project, and the chooser is a new window.)
 	function root_actions( root )
 	{
+		// the Client (plan Client Edition, Step 2): a Server is renamed or removed in the Servers popup; the Server's own
+		// configuration is its Administrator's and Managers', never the Client's
+		if ( ClientServers.Available )
+		{
+			return [
+				action( 'Servers…', 'settings', function () { ClientServers.Show(); } ),
+				{ Separator: true },
+				action( 'Reload', 'refresh', function () { tree.ReloadRoot( root ); } ),
+			];
+		}
 		let actions = [
 			action( 'New Project', 'plus', function () { tree.StartCreate( 'project', null, QUIET, null, root ); } ),
 			action( 'Import', 'upload', function () { tree.StartImport( root ); } ),

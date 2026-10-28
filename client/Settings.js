@@ -184,6 +184,90 @@ function Write( Config, Settings )
 }
 
 
+//---------------------------------------------------------------------
+// The Servers (Step 2): added by address under the Server's own name, renamed, removed. Each answers { Server } or
+// { Error } and changes Settings in place; nothing here asks the Server anything (main.js tries it first).
+
+function named( Settings, Name )
+{
+	let wanted = String( Name || '' ).toLowerCase();
+	return ( Settings.Servers || [] ).find( function ( one ) { return one.Name.toLowerCase() === wanted; } ) || null;
+}
+
+
+// A name not taken yet: the name, else the name with " 2", " 3" and on.
+function UniqueName( Settings, Name )
+{
+	let base = CleanName( Name ) || 'Server';
+	if ( !named( Settings, base ) )
+	{
+		return base;
+	}
+	for ( let count = 2; ; count++ )
+	{
+		let suffix = ' ' + count;
+		let candidate = base.slice( 0, NAME_LIMIT - suffix.length ) + suffix;
+		if ( !named( Settings, candidate ) )
+		{
+			return candidate;
+		}
+	}
+}
+
+
+function AddServer( Settings, Fields )
+{
+	let fields = Fields || {};
+	let url = CleanUrl( fields.Url );
+	if ( !url )
+	{
+		return { Error: 'a Server\'s address starts with http:// or https://' };
+	}
+	let same = ( Settings.Servers || [] ).find( function ( one ) { return one.Url.toLowerCase() === url.toLowerCase(); } );
+	if ( same )
+	{
+		return { Error: url + ' is in the list already, as ' + same.Name };
+	}
+	let server = { Name: UniqueName( Settings, fields.Name || new URL( url ).host ), Url: url };
+	Settings.Servers = ( Settings.Servers || [] ).concat( [ server ] );
+	return { Server: server };
+}
+
+
+function RenameServer( Settings, Name, To )
+{
+	let server = named( Settings, Name );
+	if ( !server )
+	{
+		return { Error: 'no Server named "' + Name + '"' };
+	}
+	let name = CleanName( To );
+	if ( !name )
+	{
+		return { Error: 'a Server\'s name is one to ' + NAME_LIMIT + ' characters, with no slash' };
+	}
+	let other = named( Settings, name );
+	if ( other && other !== server )
+	{
+		return { Error: 'another Server is named "' + other.Name + '"' };
+	}
+	server.Name = name;
+	return { Server: server };
+}
+
+
+function RemoveServer( Settings, Name )
+{
+	let server = named( Settings, Name );
+	if ( !server )
+	{
+		return { Error: 'no Server named "' + Name + '"' };
+	}
+	Settings.Servers = Settings.Servers.filter( function ( one ) { return one !== server; } );
+	return { Server: server };
+}
+
+
 module.exports = {
 	FILE: FILE,
 	THEMES: THEMES,
@@ -196,6 +280,10 @@ module.exports = {
 	CleanUrl: CleanUrl,
 	Fill: Fill,
 	Remember: Remember,
+	UniqueName: UniqueName,
+	AddServer: AddServer,
+	RenameServer: RenameServer,
+	RemoveServer: RemoveServer,
 	Load: Load,
 	Write: Write,
 };

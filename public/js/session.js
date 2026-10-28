@@ -15,13 +15,18 @@
 // Step 7); since plan The Server, Step 5, a desktop window connected to a Server (client mode) signs in to that
 // Server the same way, and a desktop window with no server has no session. The Sidecar app (plan Sidecar Edition,
 // Step 3) never signs anyone in: it has no session.
+// The Client (plan Client Edition, Step 2: ConsensusDesktop.Client) has no server of its own and no current user: the
+// person signs in through our Clerk instance, whose configuration the Client hands in (ConsensusDesktop.Clerk, so
+// nothing is asked of a Server first), the sign-in always Required; Every is true, so the session token goes with
+// every call to every Server, which authorizes that identity project by project. Clerk's session stays in the
+// window's own storage. Signed in, a Server's refusal is that Server's (its root shows it) and never the box.
 //
 // In the Desktop (plan Rearchitecturation, Step 6) a sign-in's token goes to the desktop (ConsensusDesktop.SetLicense),
 // at every load while signed in, which verifies it and writes it as the machine's current user (plan The Server,
 // Step 1: <config>/user.json, kept 14 days from the last check, so it holds offline); a sign-out removes it. The tiers
 // are unlicensed (no sign-in), registered (a sign-in with no license), personal and professional.
 //
-//   Session { Key, Base (the own server's root key and base, null when there is none),
+//   Session { Key, Base (the own server's root key and base, null when there is none), Every (the Client: every root's calls carry the token),
 //             On, Loaded, Required, Asked, Refusal, Closed (a Server's closed gate: its reason), Error, Config, Pricing, Ready (a promise: loaded), License (the
 //             Desktop's cached tier { Tier, Days, Line } or null),
 //             Token(), SignedIn(), User(), Plan(), Tier(), Licensed( plan ), Needed( body ), Open(), SignOut(),
@@ -33,8 +38,9 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	const PLANS = [ 'personal', 'professional' ];	// Roles.js's PLANS: the rank is the index plus one (plan Rearchitecturation, Step 6)
 	const REMEMBERED = 'consensus-signed-in';
 	const SESSION_WAIT = 4000;	// milliseconds given to a remembered session to arrive after ClerkJS loads
+	const CLIENT = !!( window.ConsensusDesktop && window.ConsensusDesktop.Client === true );
 	let own = own_root();
-	let session = { Key: own ? own.Key : null, Base: own ? own.Base : null, On: false, Loaded: false, Required: false, Asked: false, Refusal: null, Closed: null, Error: null, Config: null, Pricing: null, Ready: null, License: ( window.ConsensusDesktop && window.ConsensusDesktop.License ) ? window.ConsensusDesktop.License : null };
+	let session = { Key: own ? own.Key : null, Base: own ? own.Base : null, On: false, Loaded: false, Required: false, Asked: false, Refusal: null, Closed: null, Error: null, Config: null, Pricing: null, Ready: null, Every: CLIENT, License: ( window.ConsensusDesktop && window.ConsensusDesktop.License ) ? window.ConsensusDesktop.License : null };
 	let clerk = null;
 	let loading = null;
 	let was_signed_in = false;
@@ -51,6 +57,10 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		if ( window.ConsensusDesktop.Sidecar === true )
 		{
 			return null;
+		}
+		if ( window.ConsensusDesktop.Client === true )
+		{
+			return { Key: null, Base: '' };
 		}
 		let roots = Array.isArray( window.ConsensusDesktop.Roots ) ? window.ConsensusDesktop.Roots : [];
 		let local = roots.find( function ( root ) { return root && root.Kind === 'local' && root.Key; } );
@@ -132,17 +142,25 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 			return;
 		}
 		let config = { On: false };
-		try
+		if ( CLIENT )
 		{
-			let response = await fetch( session.Base + '/api/clerk' );
-			if ( response.ok )
-			{
-				config = await response.json();
-			}
+			config = window.ConsensusDesktop.Clerk || { On: false };
+			session.Required = true;
 		}
-		catch ( error )
+		else
 		{
-			config = { On: false };
+			try
+			{
+				let response = await fetch( session.Base + '/api/clerk' );
+				if ( response.ok )
+				{
+					config = await response.json();
+				}
+			}
+			catch ( error )
+			{
+				config = { On: false };
+			}
 		}
 		session.Config = config;
 		session.Pricing = config.Pricing || null;
@@ -372,7 +390,7 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	// The tier: in the Desktop the cached license's (free when none), elsewhere the signed-in person's plan or free.
 	function Tier()
 	{
-		if ( window.ConsensusDesktop )
+		if ( window.ConsensusDesktop && !CLIENT )
 		{
 			return ( session.License && session.License.Tier ) ? session.License.Tier : 'unlicensed';
 		}
@@ -404,6 +422,11 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		{
 			retried = true;
 			$rootScope.$broadcast( 'session-ready' );
+			return;
+		}
+		// the Client, signed in: a Server that refuses the person says so on its own root, the others go on
+		if ( CLIENT && clerk && clerk.user )
+		{
 			return;
 		}
 		session.Required = true;

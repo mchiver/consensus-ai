@@ -1,0 +1,36 @@
+/* client-servers: the Client's Servers popup (plan Client Edition, Step 2). The frame and the rows are the page's
+   (.subplan-popup, .settings-form, .settings-row in consensus.css). */
+
+client-servers
+{
+	display: contents;
+}
+
+.client-servers-form
+{
+	width: min( 40rem, calc( 100vw - 2rem ) );
+}
+
+.client-server
+{
+	border-bottom: 1px solid var(--border, rgba( 128, 128, 128, 0.25 ));
+	padding-bottom: 0.3rem;
+}
+
+.client-server .client-server-name
+{
+	flex: 0 1 14rem;
+}
+
+.client-server-url
+{
+	flex: 1 1 10rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.client-server-state
+{
+	padding-left: 1.2rem;
+}
