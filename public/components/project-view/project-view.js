@@ -16,11 +16,12 @@
 angular.module( 'Consensus' ).component( 'projectView', {
 	templateUrl: '/components/project-view/project-view.html',
 	bindings: { entry: '<', root: '<', single: '<' },
-	controller: [ 'Tree', 'State', function ( Tree, State )
+	controller: [ 'Tree', 'State', 'Roots', function ( Tree, State, Roots )
 	{
 		let controller = this;
 		controller.Tree = Tree;
 		controller.State = State;
+		controller.Roots = Roots;
 
 
 		// Open: the window's one project is always open; the others as the Tree remembers.

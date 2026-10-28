@@ -1,0 +1,41 @@
+<section class="waiting-view client-runs-view" id="my-runs" ng-if="$ctrl.list && $ctrl.Runs.Available">
+	<div class="view-heading">My runs <span class="muted">{{ $ctrl.All().length }}</span></div>
+	<div class="muted" ng-show="$ctrl.All().length === 0">No runs yet: a task you press on a plan shows here.</div>
+	<a class="client-run" href="" ng-repeat="entry in $ctrl.All() track by entry.Root.Key + entry.Run.Id" ng-class="entry.Run.Status" ng-click="$ctrl.Runs.Open( entry.Root, entry.Run )" title="open its output">
+		<span class="state-badge client-run-state" ng-class="entry.Run.Status">{{ $ctrl.Runs.Words( entry.Run ) }}</span>
+		<span class="client-run-task">{{ entry.Run.Task ? entry.Run.Task.Name : '?' }}</span>
+		<span class="client-run-plan">{{ entry.Run.Plan ? entry.Run.Plan.Title : ( entry.Run.Project ? entry.Run.Project.Name : '' ) }}</span>
+		<span class="muted small" ng-show="$ctrl.Roots.Several()">on {{ entry.Root.Name }}</span>
+		<span class="muted small client-run-when">{{ $ctrl.Stamp( entry.Run ) }} · {{ $ctrl.Runs.Duration( entry.Run ) }}</span>
+	</a>
+</section>
+
+<div class="subplan-popup settings-popup client-run-popup" id="client-run-popup" ng-if="!$ctrl.list && $ctrl.Runs.Popup" ng-keydown="$ctrl.Key($event)">
+	<div class="subplan-form settings-form" tabindex="-1" auto-focus>
+		<div class="subplan-head">{{ $ctrl.Runs.Popup.Run.Task ? $ctrl.Runs.Popup.Run.Task.Name : 'Run' }} <span class="muted small">{{ $ctrl.Runs.Popup.Run.Plan ? 'on ' + $ctrl.Runs.Popup.Run.Plan.Title : '' }} · {{ $ctrl.Runs.Popup.Root.Name }}</span><button class="popup-close" type="button" title="close (Escape)" ng-click="$ctrl.Runs.Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
+		<div class="settings-row">
+			<span class="state-badge client-run-state" id="client-run-state" ng-class="$ctrl.Runs.Popup.Run.Status">{{ $ctrl.Runs.Words( $ctrl.Runs.Popup.Run ) }}</span>
+			<span class="muted small">{{ $ctrl.Runs.Duration( $ctrl.Runs.Popup.Run ) }}</span>
+			<span class="text-danger small" ng-show="$ctrl.Runs.Popup.Run.Error && $ctrl.Runs.Popup.Run.Status !== 'stopped'">{{ $ctrl.Runs.Popup.Run.Error }}</span>
+			<span class="text-danger small" ng-show="$ctrl.Runs.Popup.Error">{{ $ctrl.Runs.Popup.Error }}</span>
+		</div>
+		<div class="small" ng-show="$ctrl.Runs.Popup.Run.Text"><span class="muted">Instructions:</span> {{ $ctrl.Runs.Popup.Run.Text }}</div>
+		<div class="thread-buttons">
+			<button class="btn btn-sm btn-outline-danger" type="button" id="client-run-stop" ng-show="$ctrl.Runs.Popup.Run.Status === 'queued' || $ctrl.Runs.Popup.Run.Status === 'running'" ng-click="$ctrl.Runs.Stop()"><svg class="icon lead"><use href="#i-x"></use></svg>Stop</button>
+			<button class="btn btn-sm" type="button" ng-class="$ctrl.Runs.Popup.Source ? 'btn-secondary' : 'btn-outline-secondary'" ng-click="$ctrl.Runs.Popup.Source = !$ctrl.Runs.Popup.Source" title="the raw text instead of the rendered markdown"><svg class="icon lead"><use href="#i-eye"></use></svg>Source</button>
+			<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="$ctrl.Runs.Close()"><svg class="icon lead"><use href="#i-x"></use></svg>Close</button>
+		</div>
+		<div class="run-text">
+			<div class="run-text-head"><b>Output</b> <span class="muted small">{{ $ctrl.Runs.Popup.Run.Output | size }}</span></div>
+			<pre class="run-output" id="client-run-output" ng-if="$ctrl.Runs.Popup.Source">{{ $ctrl.Runs.Popup.Run.Output || '(nothing yet)' }}</pre>
+			<div class="run-output run-rendered markdown" id="client-run-rendered" ng-if="!$ctrl.Runs.Popup.Source" ng-bind-html="( $ctrl.Runs.Popup.Run.Output || '*(nothing yet)*' ) | markdown"></div>
+		</div>
+	</div>
+</div>
+
+<div class="client-run-notices" ng-if="!$ctrl.list && $ctrl.Runs.Notices.length">
+	<div class="client-run-notice" ng-repeat="notice in $ctrl.Runs.Notices" ng-class="notice.Run.Status">
+		<a href="" ng-click="$ctrl.Runs.Open( notice.Root, notice.Run ); $ctrl.Runs.Dismiss( notice )">{{ notice.Text }}</a>
+		<button class="popup-close" type="button" title="dismiss" ng-click="$ctrl.Runs.Dismiss( notice )"><svg class="icon"><use href="#i-x"></use></svg></button>
+	</div>
+</div>

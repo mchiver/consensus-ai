@@ -32,6 +32,7 @@
 	<link rel="stylesheet" href="/components/roles-folder/roles-folder.css">
 	<link rel="stylesheet" href="/components/sign-in-box/sign-in-box.css">
 	<link rel="stylesheet" href="/components/client-servers/client-servers.css">
+	<link rel="stylesheet" href="/components/client-runs/client-runs.css">
 	<link rel="stylesheet" href="/components/html-view/html-view.css">
 	<link rel="stylesheet" href="/components/selection-buttons/selection-buttons.css">
 	<link rel="stylesheet" href="/components/close-prompt/close-prompt.css">
@@ -378,6 +379,9 @@
 	<!-- The Client's Servers (plan Client Edition, Step 2): Add server, rename, remove. -->
 	<client-servers></client-servers>
 
+	<!-- The Client's runs (plan Client Edition, Step 3): a run's popup, and a notice when a run pressed here ends. -->
+	<client-runs></client-runs>
+
 	<!-- Help (plan UI Tweaks VI): About, and the hotkeys. -->
 	<div class="subplan-popup settings-popup help-popup" id="help-popup" ng-controller="HelpController" ng-show="Panel.Open" ng-keydown="Key($event)">
 		<div class="subplan-form settings-form help-form" ng-if="Panel.Open === 'about'" tabindex="-1" auto-focus>
@@ -506,6 +510,7 @@
 	<script src="/components/roles-folder/roles-folder.js"></script>
 	<script src="/components/sign-in-box/sign-in-box.js"></script>
 	<script src="/components/client-servers/client-servers.js"></script>
+	<script src="/components/client-runs/client-runs.js"></script>
 	<script src="/components/comment-editor/comment-editor.js"></script>
 	<script src="/components/thread-filters/thread-filters.js"></script>
 	<script src="/components/thread-list/thread-list.js"></script>

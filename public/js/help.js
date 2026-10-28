@@ -112,6 +112,10 @@ angular.module( 'Consensus' ).factory( 'HelpPanel', [ 'Roots', function ( Roots 
 		{
 			return 'Consensus Sidecar';
 		}
+		if ( $window.ConsensusDesktop && $window.ConsensusDesktop.Client === true )
+		{
+			return 'Consensus Client';
+		}
 		if ( $window.ConsensusDesktop )
 		{
 			return 'Consensus Desktop';

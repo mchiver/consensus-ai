@@ -6,6 +6,8 @@
 <document-editor ng-show="$ctrl.ShowsDocument()"></document-editor>
 <llm-session ng-show="$ctrl.State.View === 'llm'"></llm-session>
 <waiting-list ng-show="$ctrl.State.View === 'waiting'"></waiting-list>
+<!-- the Client's own runs (plan Client Edition, Step 3), beside the waiting list -->
+<client-runs list="true" ng-show="$ctrl.State.View === 'waiting'"></client-runs>
 <explain-pane ng-show="$ctrl.State.View === 'x'"></explain-pane>
 <user-page ng-show="$ctrl.State.View === 'u'"></user-page>
 <start-page ng-show="$ctrl.ShowsStart()"></start-page>

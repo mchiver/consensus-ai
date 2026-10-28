@@ -78,6 +78,11 @@ angular.module( 'Consensus' ).component( 'titleBar', {
 			{
 				return '';
 			}
+			// the Client (plan Client Edition, Step 3): no LLM page; the person's runs are beside the waiting list
+			if ( Roots.Client )
+			{
+				return '#/waiting';
+			}
 			return Roots.HashFor( first.Root, '/llm/' + encodeURIComponent( first.Id ) );
 		};
 
@@ -127,7 +132,7 @@ angular.module( 'Consensus' ).component( 'titleBar', {
 					items.push( { Label: 'Servers…', Icon: 'settings', Act: function () { ClientServers.Show(); } } );
 				}
 				let root = Roots.List[ 0 ] || null;
-				if ( root && root.Manage === true )
+				if ( root && root.Manage === true && !ClientServers.Available )
 				{
 					items.push( { Label: 'Settings', Icon: 'settings', Act: function () { Tree.OpenSettings( root ); } } );
 				}

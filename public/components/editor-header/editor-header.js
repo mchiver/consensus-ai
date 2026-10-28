@@ -10,6 +10,9 @@
 // before) holding New Comment, Report (plan Printing and Reporting: the report page in a new tab, Ctrl+P) and New
 // subplan, each disabled with its rule. Delete is in the item's menu in the tree. Ctrl+E (hotkeys.js) switches between
 // Edit and Read.
+// The Client (plan Client Edition, Step 3: ClientRuns): a task's button shows the person's newest run of it on this
+// plan, Queued or Running with the time so far, then Done, Failed or Stopped beside it; while it is queued or running a
+// click opens the run's popup instead of pressing again, and the state beside an ended one opens it too.
 //
 // Interface:
 //   <editor-header></editor-header>
@@ -19,7 +22,7 @@
 
 angular.module( 'Consensus' ).component( 'editorHeader', {
 	templateUrl: '/components/editor-header/editor-header.html',
-	controller: [ '$scope', '$rootScope', 'State', 'Client', 'Subplans', 'Roots', 'Reports', 'Llms', 'Toast', 'Menus', 'Threads', function ( $scope, $rootScope, State, Client, Subplans, Roots, Reports, Llms, Toast, Menus, Threads )
+	controller: [ '$scope', '$rootScope', 'State', 'Client', 'Subplans', 'Roots', 'Reports', 'Llms', 'Toast', 'Menus', 'Threads', 'ClientRuns', function ( $scope, $rootScope, State, Client, Subplans, Roots, Reports, Llms, Toast, Menus, Threads, ClientRuns )
 	{
 		let controller = this;
 		controller.State = State;
@@ -221,9 +224,47 @@ angular.module( 'Consensus' ).component( 'editorHeader', {
 		};
 
 
-		// A press: a task with a Box asks first; the others run at once.
+		// The Client: the person's newest run of the task on this plan, and whether it is still queued or running.
+		controller.LastRun = function ( task )
+		{
+			if ( !ClientRuns.Available || !State.Root )
+			{
+				return null;
+			}
+			return ClientRuns.Latest( State.Root, State.OpenId, task.Id );
+		};
+
+
+		controller.ActiveRun = function ( task )
+		{
+			let run = controller.LastRun( task );
+			return ( run && ( run.Status === 'queued' || run.Status === 'running' ) ) ? run : null;
+		};
+
+
+		controller.RunWords = function ( run )
+		{
+			let time = ClientRuns.Duration( run );
+			return ClientRuns.Words( run ) + ( time ? ' ' + time : '' );
+		};
+
+
+		controller.OpenRun = function ( run )
+		{
+			ClientRuns.Open( State.Root, run );
+		};
+
+
+		// A press: a task with a Box asks first; the others run at once. In the Client, a task whose run is still
+		// queued or running opens that run instead.
 		controller.RunTask = function ( task )
 		{
+			let active = controller.ActiveRun( task );
+			if ( active )
+			{
+				controller.OpenRun( active );
+				return;
+			}
 			if ( controller.TaskReason( task ) )
 			{
 				return;
@@ -281,6 +322,7 @@ angular.module( 'Consensus' ).component( 'editorHeader', {
 			try
 			{
 				let answer = await Client.Post( State.Root, '/api/runs', body );
+				ClientRuns.Pressed( State.Root, answer.Run );
 				if ( answer.Run.Status === 'queued' )
 				{
 					// a run on this plan or this connection is on: the press waits its turn (plan Multiuser, Step 3)

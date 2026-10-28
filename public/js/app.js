@@ -755,12 +755,24 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
+	// The Client (plan Client Edition, Step 3): the LLM page and an account's page are a Server's configuration, so
+	// their routes go to the waiting list instead.
+	function client_route_of( where )
+	{
+		if ( where && Roots.Client && ( where.Kind === 'llm' || where.Kind === 'u' ) )
+		{
+			return { Kind: 'waiting', Root: where.Root };
+		}
+		return where;
+	}
+
+
 	// Every route is a tab. An item open in a detached window is brought forward there instead; no route shows the
 	// last tab, or the start page when there are no tabs.
 	function route()
 	{
 		let hash = $window.location.hash;
-		let where = route_of( hash );
+		let where = client_route_of( route_of( hash ) );
 		if ( !where )
 		{
 			let last = Tabs.Active() || Tabs.List[ Tabs.List.length - 1 ];

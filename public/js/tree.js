@@ -31,6 +31,8 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	tree.HasDesktop = !!( window.Desktop && typeof window.Desktop.PickFolder === 'function' );
 	// the Sidecar app (plan Sidecar Edition, Step 3): no LLM tasks, so no Explain
 	const SIDECAR_APP = !!( window.ConsensusDesktop && window.ConsensusDesktop.Sidecar === true );
+	// the Client (plan Client Edition, Step 3): every project's configuration is its Server's Administrator's and Managers'
+	const CLIENT_APP = !!( window.ConsensusDesktop && window.ConsensusDesktop.Client === true );
 	tree.Creating = null;
 	tree.Renaming = null;
 	tree.Deleting = null;
@@ -218,6 +220,10 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 			event.stopPropagation();
 		}
 		let where = root || State.Root;
+		if ( CLIENT_APP )
+		{
+			return;
+		}
 		if ( where && where.Sidecar )
 		{
 			tree.OpenProjectSettings( tree.OpenProject( where ) || where.Projects[ 0 ] || null );
@@ -738,6 +744,20 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 
 	function project_actions( project )
 	{
+		// The Client: the project's content and Explain; no Rename, Project settings, LLM Instructions, Mount or Delete,
+		// which configure the project on its Server.
+		if ( CLIENT_APP )
+		{
+			return [
+				action( 'New Folder', 'plus', create_in( 'folder', project ) ),
+				action( new_plan_label( project ), 'plus', create_in( 'plan', project ) ),
+				{ Separator: true },
+				copy_action( 'project', project, project ),
+				paste_action( project, null ),
+				export_action( 'project', project, project ),
+				action( 'Explain', 'eye', function () { $window.location.hash = Roots.HashFor( root_of( project ), '/x/' + encodeURIComponent( project.Id ) ); } ),
+			];
+		}
 		let mount = mount_action( project );
 		return [
 			action( 'New Folder', 'plus', create_in( 'folder', project ) ),
@@ -901,6 +921,10 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 
 	tree.OpenProjectSettings = function ( project )
 	{
+		if ( CLIENT_APP )
+		{
+			return;
+		}
 		$rootScope.$broadcast( 'project-settings', project );
 	};
 
@@ -1413,6 +1437,10 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	// LLM Instructions (plan UI Tweaks VII): the server's page, the project named first, in a popup to copy.
 	tree.OpenInstructions = async function ( project )
 	{
+		if ( CLIENT_APP )
+		{
+			return;
+		}
 		await Instructions.Start( project, root_of( project ) );
 		$rootScope.$applyAsync();
 	};

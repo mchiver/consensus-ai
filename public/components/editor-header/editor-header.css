@@ -134,3 +134,16 @@ editor-header
 	align-items: center;
 	flex-wrap: wrap;
 }
+
+/* the Client (plan Client Edition, Step 3): a task's button with the person's last run of it beside */
+.plan-task-group
+{
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.plan-task-state.failed
+{
+	color: var(--danger, #b02a37);
+}

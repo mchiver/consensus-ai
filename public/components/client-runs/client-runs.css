@@ -1,0 +1,80 @@
+/* client-runs: the Client's My runs, a run's popup and the notices when a run ends (plan Client Edition, Step 3). The
+   view's frame is the waiting list's (.waiting-view), the popup's the page's (.subplan-popup, .settings-form), the
+   output's the LLM page's (.run-text, .run-output). */
+
+client-runs
+{
+	display: contents;
+}
+
+.client-runs-view
+{
+	border-top: 1px solid var(--border, rgba( 128, 128, 128, 0.25 ));
+}
+
+.client-run
+{
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.5rem;
+	padding: 0.3rem 0.4rem;
+	border-radius: 4px;
+	color: inherit;
+	text-decoration: none;
+}
+
+.client-run:hover
+{
+	background: var(--hover, rgba( 128, 128, 128, 0.12 ));
+}
+
+.client-run-task
+{
+	font-weight: 600;
+}
+
+.client-run-when
+{
+	margin-left: auto;
+}
+
+.client-run-state.running,
+.client-run-state.queued
+{
+	color: var(--accent, #0d6efd);
+}
+
+.client-run-state.failed
+{
+	color: var(--danger, #b02a37);
+}
+
+.client-run-notices
+{
+	position: fixed;
+	right: 1rem;
+	bottom: 1rem;
+	z-index: 1050;
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	max-width: min( 26rem, calc( 100vw - 2rem ) );
+}
+
+.client-run-notice
+{
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem 0.75rem;
+	border: 1px solid var(--border, rgba( 128, 128, 128, 0.35 ));
+	border-radius: 6px;
+	background: var(--panel, var(--bs-body-bg, #fff));
+	box-shadow: 0 4px 14px rgba( 0, 0, 0, 0.18 );
+}
+
+.client-run-notice.failed a
+{
+	color: var(--danger, #b02a37);
+}

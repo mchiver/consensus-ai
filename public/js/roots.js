@@ -47,6 +47,8 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 	roots.List = given.map( make );
 	// The window's one project (the Desktop), or null for a page of many.
 	roots.Project = ( window.ConsensusDesktop && window.ConsensusDesktop.Project && window.ConsensusDesktop.Project.Id ) ? window.ConsensusDesktop.Project : null;
+	// The Client (plan Client Edition, Step 3): its page leaves out every Server's configuration.
+	roots.Client = !!( window.ConsensusDesktop && window.ConsensusDesktop.Client === true );
 
 
 	function Of( Key )

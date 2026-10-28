@@ -35,7 +35,11 @@
 		<div class="header-buttons">
 			<!-- The plan-tasks (plan LLM Tasks, Step 6): one button per enabled task that packages the plan, run through the project's chosen connection; as a group with room between them (plan UI Tweaks IX). -->
 			<span class="task-buttons" ng-show="$ctrl.ShowTasks()">
-				<button class="btn btn-sm btn-outline-primary plan-task" type="button" id="plan-task-{{ task.Id }}" ng-repeat="task in $ctrl.PlanTasks() track by task.Id" ng-click="$ctrl.RunTask( task )" ng-disabled="$ctrl.TaskReason( task )" title="{{ $ctrl.TaskTitle( task ) }}"><svg class="icon lead"><use href="#i-play"></use></svg>{{ task.Name }}</button>
+				<span class="plan-task-group" ng-repeat="task in $ctrl.PlanTasks() track by task.Id">
+					<button class="btn btn-sm btn-outline-primary plan-task" type="button" id="plan-task-{{ task.Id }}" ng-click="$ctrl.RunTask( task )" ng-disabled="$ctrl.TaskReason( task ) && !$ctrl.ActiveRun( task )" title="{{ $ctrl.ActiveRun( task ) ? 'open the run' : $ctrl.TaskTitle( task ) }}"><svg class="icon lead"><use href="#i-play"></use></svg>{{ task.Name }}<span class="plan-task-running" ng-if="$ctrl.ActiveRun( task )"> · {{ $ctrl.RunWords( $ctrl.ActiveRun( task ) ) }}</span></button>
+					<!-- the Client (plan Client Edition, Step 3): the person's last run of the task here, which opens it -->
+					<a class="small plan-task-state" href="" id="plan-task-state-{{ task.Id }}" ng-if="$ctrl.LastRun( task ) && !$ctrl.ActiveRun( task )" ng-class="$ctrl.LastRun( task ).Status" ng-click="$ctrl.OpenRun( $ctrl.LastRun( task ) )" title="open the run">{{ $ctrl.RunWords( $ctrl.LastRun( task ) ) }}</a>
+				</span>
 			</span>
 			<span class="muted small plan-task-error" id="plan-task-error" ng-show="$ctrl.TaskError">{{ $ctrl.TaskError }}</span>
 			<!-- The actions (plan UI Tweaks IX): New Comment, Report and New subplan under one menu, each with its rule. -->

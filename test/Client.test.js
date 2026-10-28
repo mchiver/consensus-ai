@@ -165,3 +165,30 @@ TEST( 'the Client\'s page: one sign-in for every Server, its configuration hande
 	ASSERT.match( clerk.PublishableKey(), /^pk_/ );
 	ASSERT.ok( clerk.FrontendApi() );
 } );
+
+
+//---------------------------------------------------------------------
+// The page for the Client (Step 3): no configuration, the runs followed from the press, My runs
+
+TEST( 'the Client\'s page: the folds and menus of configuration left out, About named, and the runs component loaded', function ()
+{
+	let root = PATH.join( __dirname, '..' );
+	function read( path ) { return FS.readFileSync( PATH.join( root, path ), 'utf8' ); }
+	ASSERT.match( read( 'public/components/server-row/server-row.html' ), /<llm-fold ng-if="[^"]*!\$ctrl\.Roots\.Client"/ );
+	ASSERT.match( read( 'public/components/server-row/server-row.html' ), /<users-fold ng-if="[^"]*!\$ctrl\.Roots\.Client"/ );
+	ASSERT.match( read( 'public/components/project-view/project-view.html' ), /<roles-folder ng-if="[^"]*!\$ctrl\.Roots\.Client"/ );
+	let tree = read( 'public/js/tree.js' );
+	let client_menu = /if \( CLIENT_APP \)\s*\{\s*return \[([\s\S]*?)\];/.exec( tree.slice( tree.indexOf( 'function project_actions' ) ) )[ 1 ];
+	for ( let left_out of [ 'Rename', 'Project settings', 'LLM Instructions', 'Delete', 'mount' ] )
+	{
+		ASSERT.equal( client_menu.indexOf( left_out ), -1, 'the Client\'s project menu has no ' + left_out );
+	}
+	ASSERT.match( read( 'public/js/help.js' ), /return 'Consensus Client'/ );
+	let index = read( 'public/index.html' );
+	ASSERT.match( index, /<script src="\/components\/client-runs\/client-runs\.js"><\/script>/ );
+	ASSERT.match( index, /<client-runs><\/client-runs>/ );
+	ASSERT.match( read( 'public/components/documents-pane/documents-pane.html' ), /<client-runs list="true"/ );
+	let runs = read( 'public/components/client-runs/client-runs.html' );
+	ASSERT.equal( runs.indexOf( 'Run.Prompt' ), -1, 'the Client shows no run\'s Prompt' );
+	ASSERT.match( read( 'public/components/client-runs/client-runs.js' ), /'\/api\/runs\?By=' \+ encodeURIComponent\( Root\.Me\.Name \)/ );
+} );
