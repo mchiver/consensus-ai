@@ -2,9 +2,9 @@
 	"Id": "pln-t24-bp7-mlp",
 	"Title": "Client Edition",
 	"Kind": "plan",
-	"State": "Working",
+	"State": "Finished",
 	"Created": "2026-10-28T07:11:09.915Z",
-	"Updated": "2026-10-28T10:01:01.536Z",
+	"Updated": "2026-10-28T16:09:41.542Z",
 	"Revision": 11,
 	"Head": "rev-mv6-te1-olz"
 }
