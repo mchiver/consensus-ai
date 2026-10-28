@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Consensus Client - Consensus-AI guide</title>
+	<meta name="description" content="The Consensus-AI user guide: Consensus Client.">
+	<link rel="icon" href="../images/mark.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="../css/bootstrap.min.css">
+	<link rel="stylesheet" href="../css/site.css">
+	<script src="../js/site.js"></script>
+</head>
+<body class="guide-page">
+
+	<header class="site-header">
+		<div class="container site-header-row">
+			<a class="brand" href="../index.html"><img class="brand-mark" src="../images/mark.svg" alt="">Consensus-AI</a>
+			<nav class="site-nav">
+				<a href="getting-started.html" class="active">Guide</a>
+				<a href="features.html">Features</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">GitHub</a>
+				<button class="theme-toggle" type="button" data-theme-toggle title="light or dark"><span class="theme-sun" aria-hidden="true">&#9728;</span><span class="theme-moon" aria-hidden="true">&#9790;</span><span class="visually-hidden">Toggle the theme</span></button>
+			</nav>
+		</div>
+	</header>
+
+	<div class="container guide-layout">
+		<aside class="guide-side">
+			<div class="guide-side-title">The guide</div>
+			<nav class="guide-nav">
+				<a class="guide-link" href="getting-started.html">Getting started</a>
+				<a class="guide-link" href="sidecar.html">Consensus Sidecar</a>
+				<a class="guide-link active" href="client.html">Consensus Client</a>
+				<a class="guide-link" href="features.html">Features</a>
+				<a class="guide-link" href="projects.html">Projects, plans and documents</a>
+				<a class="guide-link" href="threads.html">Threads</a>
+				<a class="guide-link" href="editing.html">Editing and revisions</a>
+				<a class="guide-link" href="llm.html">Working with an LLM</a>
+				<a class="guide-link" href="ways-of-working.html">Ways of working</a>
+				<a class="guide-link" href="settings.html">Settings and themes</a>
+				<a class="guide-link" href="server.html">The Server</a>
+				<a class="guide-link" href="sharing.html">Sharing a server</a>
+				<a class="guide-link" href="export-import.html">Export and import</a>
+				<a class="guide-link" href="api.html">The API</a>
+			</nav>
+		</aside>
+		<main class="guide-main">
+			<article class="guide-article">
+<h1 id="consensus-client">Consensus Client</h1>
+<p><strong>Consensus Client</strong> is for working in projects that live on one or more Consensus Servers. You sign in once, add the Servers you work with, and each one shows the projects it gives you by your roles. There is no local folder and no server of its own, the Client mints no tokens and has no API or MCP for an agent, and it configures nothing: every Server&#39;s projects, roles, LLM connections and tasks are set by that Server&#39;s Administrator and Managers. It installs beside Consensus Sidecar, Consensus Desktop and Consensus Server and changes none of them.</p>
+<h2 id="installing-and-starting-it">Installing and starting it</h2>
+<p>On Windows, run <code>Consensus-Client-Setup-&lt;version&gt;.exe</code> from the <a href="https://github.com/mchiver/consensus-ai/releases/latest">latest release</a>; it puts <strong>Consensus Client</strong> in the Start menu.</p>
+<p>From the command line, or from the checkout:</p>
+<pre><code>&quot;Consensus Client.exe&quot; [--config &lt;folder&gt;]
+npm run client -- [--config &lt;folder&gt;]
+</code></pre>
+<p><strong>New window</strong> (Ctrl+N, or the window&#39;s menu) opens another window on the same Servers.</p>
+<h2 id="signing-in">Signing in</h2>
+<p>The Client shows nothing but the sign-in box until you sign in with your Consensus-AI account. Any account will do, with a license or without one: the Client checks no tier. The same sign-in goes with every call to every Server, and each Server decides, project by project, what you may see and do.</p>
+<p>The sign-in is kept in the Client&#39;s own window, so a restart finds you still signed in. <strong>Sign out</strong> is in the window&#39;s menu. The Client keeps no current user of the machine, so signing in or out here changes nothing in Desktop or the Server.</p>
+<h2 id="your-servers">Your Servers</h2>
+<p><strong>Servers…</strong>, in the window&#39;s menu or in a Server&#39;s own menu in the tree, lists the Servers you added:</p>
+<ul>
+<li><strong>Add server</strong> takes the Server&#39;s address (<code>https://consensus.example.com</code>, or <code>http://127.0.0.1:3500</code> for the Server on this machine). The Client tries it with your sign-in and saves it under the Server&#39;s own name; a name you already use gets a number. An address that does not answer, or is already in the list, is refused with the reason.</li>
+<li><strong>The name</strong> can be changed in place. It is the Server&#39;s name in this Client only.</li>
+<li><strong>Remove</strong> takes the Server out of the list and changes nothing on the Server.</li>
+<li>Each Server shows <strong>online</strong>, or <strong>offline</strong> with the reason. An offline Server stays in the list and comes back by itself when it answers again.</li>
+</ul>
+<p>With no Servers yet, the popup opens on its own after you sign in. Every Server is a root of the project tree, with its projects beneath it, and the waiting list and the tabs cover all of them.</p>
+<h2 id="working-in-the-projects">Working in the projects</h2>
+<p>Plans, documents, folders, threads, revisions, reports, Export and the look all work as they do in Desktop, as far as your role in each project allows. A project&#39;s menu has New Folder, New Draft, Copy, Paste, Export and Explain.</p>
+<p>A Server&#39;s LLM tasks are read from the Server: the buttons on a plan&#39;s heading are the tasks the project enables, and the Explain tab is there when the project has it. They run on the Server, as you.</p>
+<ul>
+<li><strong>At the press</strong>, the button follows the run: <strong>Answer · Running 0:42</strong>, or <strong>Queued behind</strong> the run it waits for. While it runs, a click opens the run instead of pressing again.</li>
+<li><strong>The run&#39;s popup</strong> shows its state and time and its output as it comes in, with <strong>Stop</strong>.</li>
+<li><strong>When it ends</strong>, a notice in the corner names it and opens it, and the button has <strong>Done</strong>, <strong>Failed</strong> or <strong>Stopped</strong> beside it.</li>
+<li><strong>My runs</strong>, under the waiting list, holds your own runs on every Server, newest first.</li>
+</ul>
+<h2 id="settings">Settings</h2>
+<p>The Client keeps its settings in <code>client.json</code> in the config folder (<code>&lt;your home&gt;/.consensus</code>, unless <code>--config</code> names another), beside Desktop&#39;s <code>desktop.json</code> and the Server&#39;s <code>consensus.json</code>: your Servers, the theme and the size, and the view as you left it. Nothing is carried over from Desktop&#39;s saved Servers.</p>
+<h2 id="what-the-client-leaves-out">What the Client leaves out</h2>
+<p>The Client is for working in projects, not for running them. It has no Server Settings, no project settings, no New Project, no Mount, no Users, accounts or role folders, no LLM connections or task settings, no LLM page and no LLM Instructions. That holds for a Server&#39;s Administrator and Managers too: they configure the Server in <a href="server.html">the Server&#39;s own window</a> or in its page in a browser.</p>
+
+			</article>
+			<nav class="guide-pager">
+				<a class="guide-previous" href="sidecar.html">&larr; Consensus Sidecar</a>
+				<a class="guide-next" href="features.html">Next: Features &rarr;</a>
+			</nav>
+		</main>
+	</div>
+
+	<footer class="site-footer">
+		<div class="container site-footer-row">
+			<span>Consensus-AI is free software under the MIT license.</span>
+			<nav>
+				<a href="getting-started.html">Guide</a>
+				<a href="features.html">Features</a>
+				<a href="api.html">API</a>
+				<a href="https://github.com/mchiver/consensus-ai">Repository</a>
+			</nav>
+		</div>
+	</footer>
+
+	<div class="lightbox" id="lightbox" hidden><img alt=""><button type="button" class="lightbox-close" title="close">&times;</button></div>
+</body>
+</html>

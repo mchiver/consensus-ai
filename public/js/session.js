@@ -169,6 +169,12 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		{
 			await load_clerk();
 		}
+		// the Client signed out (plan Client Edition, Step 5): the page's route leaves the address before Clerk's form
+		// is mounted, since the form reads the hash as its own step and sends the window to Clerk's hosted page
+		if ( CLIENT && !SignedIn() && window.location.hash )
+		{
+			window.history.replaceState( null, '', window.location.pathname + window.location.search );
+		}
 		session.Loaded = true;
 		$rootScope.$applyAsync();
 	}

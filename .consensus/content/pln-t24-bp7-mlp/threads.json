@@ -520,5 +520,36 @@
 				"Text": "Build log: Client Edition, Step 4 (The installer).\n\nBuilt by Claude Opus 5.5 (claude-opus-5-5), as Claude-CLI.\n\n**What was built, and where**\n\n- `build/client.json`: product name \"Consensus Client\", appId `com.mchiver.consensus-client`, `Consensus-Client-Setup-<version>.exe`, main `client/main.js`, output `~dist/client`. The files are client/, electron/, src/, public/, the icon and package.json. There is no LLM guide, since the Client serves no instructions, and no installer script of its own, as Sidecar has none. It installs beside the other three (its own appId, per user, the folder chosen in the wizard).\n- `npm run dist` builds it fourth, after Desktop, the Server and Sidecar (`package.json`).\n- `test/Client.test.js`: one more test (the installer's names, files and place in npm run dist).\n\n**How it was tested**\n\n- `node --test test/Client.test.js`: 10 pass; Sidecar, ServerApp and Desktop tests: 19 pass.\n- The installer was built: Consensus-Client-Setup-0.5.1.exe, 127 MB, at C:/Users/Andre/AppData/Local/Temp/claude/W--code-projects-orgs-mchiver-consensus-git/50201c03-6ea4-4a82-aa03-6dbee40c622d/scratchpad/dist-client/. The packaged \"Consensus Client.exe\" (win-unpacked) was started on an empty config folder: it served its page, wrote client.json with no Servers, and was stopped. The installer itself was not run, so nothing was installed on this machine.\n\n**One thing to know**\n\n- Building into ~dist on W: fails right now, for every app and not only the Client. Sidecar's own build/sidecar.json fails the same way: electron-builder cannot rename ~dist/<app>/win-unpacked.tmp, because something on this machine holds default_app.asar in the freshly extracted copy (an antivirus scan, most likely). Building with the output on C: worked, which is how the installer above was made. Three half-made folders are left in ~dist (client, client-check and sidecar-check, each holding win-unpacked.tmp), still locked when I tried to remove them. They are untracked; delete them once the lock lets go. If `npm run dist` keeps failing there, adding ~dist to the antivirus exclusions is the usual fix.\n\n**Next: Step 5**, the guide: the Client's page in the user guide, the features page, the Readme and a Client smoke.\n\nResolve to accept Step 4; reply with anything to change."
 			}
 		]
+	},
+	{
+		"Id": "thr-4cx-lia-8af",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-28T16:08:58.593Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-28T16:09:27.199Z",
+			"Revision": 11,
+			"RevisionId": "rev-mv6-te1-olz",
+			"Outcome": "Accepted: Step 5 (the guide) as built: docs/guide/client.md, the Features page, the Readme, the smoke's Client part, and the fix for Clerk's form sending a signed-out window to its hosted page. Committed as \"Client Edition Step 5: The guide\"."
+		},
+		"Created": "2026-10-28T10:01:01.518Z",
+		"Replies": [
+			{
+				"Id": "rep-5od-mc7-vn4",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-28T10:01:01.518Z",
+				"Text": "Build log: Client Edition, Step 5 (The guide).\n\nBuilt by Claude Opus 5.5 (claude-opus-5-5), as Claude-CLI.\n\n**What was built, and where**\n\n- `docs/guide/client.md` (and its `.html`), a new page, \"Consensus Client\", after Consensus Sidecar in `docs/guide/pages.json`. It covers installing and starting the Client, signing in, your Servers, working in the projects and following a run, the settings, and what the Client leaves out. `node bin/docs.js build` rendered the 14 pages and checked their links.\n- `docs/guide/features.md`: \"Four applications\", and a Consensus Client entry under Running it.\n- The Readme (revisions 104 and 105):\n  - a Client Edition entry under Settled decisions, Step by Step;\n  - under Open questions, the **Tool calls only** plan still to draft (your no-tokens decision) and the ~dist build failure on W:.\n- `bin/smoke.js`: a Client part, last, over two temporary servers and a slow stand-in connection. Its checks: signed out the sign-in box alone; then a stand-in for the sign-in; no LLMS, USERS or role folders; the menus and About; a task's run followed from the press (the button, the popup with Stop and the output, the notice, Done beside the button, My runs); Add server and the same address refused; two roots after the reload; client.json with both and no user.json; Quit. 20 checks, and a capture, `~smoke/client-top.png`.\n\n**Found by the smoke and fixed**\n\nSigned out, Clerk's sign-in form reads the address's hash as a step of its own. When the window loaded with a page route in the address, it sent the whole window to Clerk's hosted sign-in page (bursting-egret-2591.accounts.dev), out of the app. That happens with a remembered tab, or after Sign out on a plan.\n\n- In the Client, `public/js/session.js` now takes the page's route out of the address, signed out, before the form is mounted.\n- `public/js/app.js` routes nothing, and restores no tab into the address, until the sign-in is known. Then it reads the route.\n\nSetting a hash by hand while the form is showing still does it, but nothing on the page does that.\n\n**How it was tested**\n\n- The whole suite: 296 tests, 293 pass, 3 skipped (Clerk smoke), none failed.\n- `node bin/smoke.js`: the page, the desktop, the Server application and Sidecar all ok. The Client part found the Clerk redirect above; after the fix it ran on its own (with the other parts left out of a temporary copy of the script) to SMOKE OK, all 20 checks. The whole smoke was not run again after the fix.\n\n**Not tested here**\n\n- A real Clerk sign-in in the Client, with the token reaching a Server that requires it (the Server on 3500). The smoke stands in for the sign-in. Worth a try by you: `npm run client`, sign in, Servers…, add http://127.0.0.1:3500.\n\n**The whole plan**\n\nSteps 1 to 4 are committed (373f2f5, cc5a820, 372408e, 6317ace), none pushed. On your acceptance I commit Step 5, set the plan Finished and bring the Readme's line up to date.\n\nResolve to accept Step 5; reply with anything to change."
+			}
+		]
 	}
 ]

@@ -1,6 +1,7 @@
 [
 	{ "File": "getting-started.md", "Title": "Getting started" },
 	{ "File": "sidecar.md", "Title": "Consensus Sidecar" },
+	{ "File": "client.md", "Title": "Consensus Client" },
 	{ "File": "features.md", "Title": "Features" },
 	{ "File": "projects.md", "Title": "Projects, plans and documents" },
 	{ "File": "threads.md", "Title": "Threads" },

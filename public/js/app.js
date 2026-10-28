@@ -771,6 +771,12 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	// last tab, or the start page when there are no tabs.
 	function route()
 	{
+		// the Client signed out (plan Client Edition, Step 5): no route, and no tab restored into the address, while
+		// Clerk's form is the page
+		if ( $scope.ClientSignedOut() )
+		{
+			return;
+		}
 		let hash = $window.location.hash;
 		let where = client_route_of( route_of( hash ) );
 		if ( !where )
@@ -900,6 +906,11 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	// and every root's stream brings its lists in as it connects.
 	State.SetRoot( Roots.List[ 0 ] || null );
 	State.LoadMe().then( route );
+	if ( Session.Every === true )
+	{
+		// the Client: the route is read once the sign-in is known
+		Session.Ready.then( function () { $scope.$applyAsync( route ); } );
+	}
 	for ( let root of Roots.List )
 	{
 		Roots.Listen( root, function ( event ) { on_change( root, event ); }, function ( live ) { on_status( root, live ); } );

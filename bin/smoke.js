@@ -11,13 +11,15 @@
 // closed with no current user (the sign-in with the reason), open for a Personal one (the whole tree, the Users fold),
 // and a second launch with --open handed to the first, which registers the folder. Then the Sidecar app (plan Sidecar
 // Edition, Step 5) on a temporary folder and its own --user-data-dir: no sign-in, its menus, About and guide, the user
-// renamed and the theme set into the project's sidecar.json, Quit, and both back after a restart.
+// renamed and the theme set into the project's sidecar.json, Quit, and both back after a restart. Then the Client app
+// (plan Client Edition, Step 5) over two temporary servers: the sign-in box alone, no configuration on the page, its
+// menus and About, a task's run followed from the press, Add server, Quit.
 // Each check prints ok or FAIL; the exit code is 1 when any failed. Pictures go to ~smoke/ in the checkout (a tilde
 // keeps the folder out of source control): the page in both themes, and captures of the desktop window's top, from
 // the screen, since the window buttons are not part of the page.
 //
 //   npm run smoke                     the page, then the desktop
-//   npm run smoke -- --no-desktop     the page alone (no desktop, no Server application, no Sidecar)
+//   npm run smoke -- --no-desktop     the page alone (no desktop, no Server application, no Sidecar, no Client)
 //
 // Nothing of the real config folder or the real user data is touched: both are temporary and removed after.
 
@@ -34,6 +36,7 @@ const OUT = PATH.join( ROOT, '~smoke' );
 const DESKTOP_PORT = 9337;
 const SERVER_APP_PORT = 9338;
 const SIDECAR_APP_PORT = 9339;
+const CLIENT_APP_PORT = 9340;
 const WIDTH = 1400;
 const HEIGHT = 900;
 const PLAN_TITLE = 'Smoke plan';
@@ -703,6 +706,163 @@ async function smoke_sidecar()
 
 
 //---------------------------------------------------------------------
+// The Client app (plan Client Edition, Step 5), over its own DevTools port: two temporary servers, one with a slow
+// stand-in connection, and a temporary config whose client.json names the first. Signed out, the sign-in box alone;
+// then the smoke stands in for a sign-in (a person signs in through Clerk; the servers are Local, so the calls need
+// no token): no configuration on the page, its menus and About, Add server, a task's run followed from the press
+// (the button, the popup, the notice, My runs), and Quit.
+
+const CLIENT_SLOW = [
+	"let t = '';",
+	"process.stdin.on( 'data', function ( c ) { t += c; } );",
+	"process.stdin.on( 'end', async function ()",
+	"{",
+	"\tfor ( let i = 1; i <= 3; i++ ) { process.stdout.write( 'step ' + i + '\\n\\n' ); await new Promise( function ( r ) { setTimeout( r, 1200 ); } ); }",
+	"\tprocess.stdout.write( 'all done' );",
+	"} );",
+].join( '\n' );
+const INJECTOR = 'angular.element( document.body ).injector()';
+const FAKE_EVENT = '{ preventDefault: function () {}, stopPropagation: function () {}, currentTarget: document.body, target: document.body, clientX: 10, clientY: 10 }';
+
+
+async function client_page( TimeoutMs )
+{
+	let limit = Date.now() + ( TimeoutMs || 30000 );
+	while ( Date.now() < limit )
+	{
+		try
+		{
+			let list = await ( await fetch( 'http://127.0.0.1:' + CLIENT_APP_PORT + '/json/list' ) ).json();
+			let found = list.find( function ( target ) { return target.type === 'page' && /^http:\/\/127\.0\.0\.1:\d+\/(#.*)?$/.test( target.url ); } );
+			if ( found )
+			{
+				return found;
+			}
+		}
+		catch ( error )
+		{
+			// not listening yet
+		}
+		await wait( 300 );
+	}
+	throw new Error( 'the Client showed no page within ' + ( ( TimeoutMs || 30000 ) / 1000 ) + ' seconds' );
+}
+
+
+async function client_attach()
+{
+	let page = await CDP.Attach( ( await client_page() ).webSocketDebuggerUrl );
+	await page.WaitFor( 'typeof angular !== "undefined" && ' + INJECTOR + ' && ' + INJECTOR + '.get( "Session" ).Loaded', 30000 );
+	return page;
+}
+
+
+async function local_api( Server, Method, Path, Body )
+{
+	let response = await fetch( Server.Url + Path, { method: Method, headers: { 'Content-Type': 'application/json' }, body: Body ? JSON.stringify( Body ) : undefined } );
+	return response.json();
+}
+
+
+async function smoke_client()
+{
+	console.log( '== the Client app' );
+	let electron = require( 'electron' );
+	let base = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-client-' ) );
+	let servers = [];
+	let child = null;
+	try
+	{
+		for ( let name of [ 'first', 'second' ] )
+		{
+			let folder = PATH.join( base, name );
+			FS.mkdirSync( folder );
+			servers.push( await SERVER.Start( { Project: folder, Config: PATH.join( base, name + '-config' ), Port: 0, AddressFile: false } ) );
+		}
+		let slow = PATH.join( base, 'slow.js' );
+		FS.writeFileSync( slow, CLIENT_SLOW );
+		let llm = ( await local_api( servers[ 0 ], 'POST', '/api/llms', { Name: 'planner', Kind: 'claude-cli', Command: process.execPath, Arguments: [ slow ], Timeout: 60 } ) ).Llm;
+		let project = ( await local_api( servers[ 0 ], 'GET', '/api/projects' ) ).Projects[ 0 ];
+		await local_api( servers[ 0 ], 'PUT', '/api/projects/' + project.Id, { Llm: llm.Id } );
+		let plan = ( await local_api( servers[ 0 ], 'POST', '/api/plans', { Title: 'Client plan', Text: '# Client plan\n\nA sketch.\n', Project: project.Id } ) ).Plan;
+		let config = PATH.join( base, 'config' );
+		FS.mkdirSync( config );
+		let settings_file = PATH.join( config, 'client.json' );
+		FS.writeFileSync( settings_file, JSON.stringify( { Servers: [ { Name: 'First', Url: servers[ 0 ].Url } ] } ) );
+		child = CHILD_PROCESS.spawn( electron, [ 'client', '--config', config, '--user-data-dir=' + PATH.join( base, 'user-data' ), '--remote-debugging-port=' + CLIENT_APP_PORT ], { cwd: ROOT, stdio: 'ignore' } );
+		let page = await client_attach();
+		check( 'window: the Client', await page.Evaluate( 'window.ConsensusDesktop.Client === true && !window.ConsensusDesktop.SetLicense && !window.Desktop.PickFolder' ), true );
+		await page.WaitFor( 'document.getElementById( "sign-in-popup" ) !== null', 15000 ).catch( function () {} );
+		check( 'signed out: the sign-in box alone', await page.Evaluate( 'document.querySelector( ".layout" ).classList.contains( "ng-hide" ) && document.getElementById( "sign-in-popup" ).innerText.indexOf( "Sign in to Consensus" ) >= 0' ), true );
+		// a stand-in for the person's sign-in
+		await page.Evaluate( '( function () { let session = ' + INJECTOR + '.get( "Session" ); session.SignedIn = function () { return true; }; ' + INJECTOR + '.get( "$rootScope" ).$apply(); return true; } )()' );
+		await page.WaitFor( INJECTOR + '.get( "Roots" ).List.every( function ( root ) { return root.Loaded && root.Me; } )', 20000 );
+		check( 'signed in: the page', await page.Evaluate( '!document.querySelector( ".layout" ).classList.contains( "ng-hide" )' ), true );
+		check( 'no configuration: LLMS, USERS and role folders', await page.Evaluate( count_of( 'llm-fold, users-fold, roles-folder' ) ), 0 );
+		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
+		await wait( 300 );
+		let app_menu = JSON.parse( await page.Evaluate( MENU_LABELS ) );
+		check( 'menu: Servers… and Sign out, no Settings', app_menu.indexOf( 'Servers…' ) >= 0 && app_menu.indexOf( 'Sign out' ) >= 0 && app_menu.indexOf( 'Settings' ) < 0, true );
+		await page.Evaluate( CLOSE_MENU );
+		await page.Evaluate( PROJECT_MENU );
+		await wait( 200 );
+		let project_menu = JSON.parse( await page.Evaluate( MENU_LABELS ) );
+		check( 'project menu: Explain, no settings, instructions, rename or delete', project_menu.indexOf( 'Explain' ) >= 0 && [ 'Project settings…', 'LLM Instructions', 'Rename', 'Delete' ].every( function ( label ) { return project_menu.indexOf( label ) < 0; } ), true );
+		await page.Evaluate( CLOSE_MENU );
+		await page.Evaluate( '( function () { let root = ' + INJECTOR + '.get( "Roots" ).List[ 0 ]; ' + INJECTOR + '.get( "$rootScope" ).$apply( function () { ' + INJECTOR + '.get( "Tree" ).OpenMenu( "root", root, null, ' + FAKE_EVENT + ' ); } ); return true; } )()' );
+		check( 'server menu: Servers… and Reload', await page.Evaluate( MENU_LABELS ), JSON.stringify( [ 'Servers…', '---', 'Reload' ] ) );
+		await page.Evaluate( CLOSE_MENU );
+		await page.Evaluate( SHOW_ABOUT );
+		check( 'about: names Consensus Client', await page.WaitFor( 'document.body.innerText.indexOf( "About Consensus Client" ) >= 0', 5000 ).catch( function () { return false; } ), true );
+		await page.Evaluate( CLOSE_ABOUT );
+		// a task's run, from the press
+		await page.Evaluate( 'window.location.hash = "#/s/First/p/' + plan.Id + '"; true' );
+		await page.WaitFor( 'document.getElementById( "plan-task-answer" ) !== null && !document.getElementById( "plan-task-answer" ).disabled', 20000 );
+		await page.Click( '#plan-task-answer' );
+		let running = await page.WaitFor( '/Running|Queued/.test( document.getElementById( "plan-task-answer" ).textContent )', 10000 ).catch( function () { return false; } );
+		check( 'press: the button follows the run', running, true );
+		await page.Click( '#plan-task-answer' );
+		check( 'press again: the run\'s popup, with Stop', await page.WaitFor( 'document.getElementById( "client-run-popup" ) !== null && document.getElementById( "client-run-stop" ).offsetParent !== null', 5000 ).catch( function () { return false; } ), true );
+		check( 'popup: the output as it comes', await page.WaitFor( 'document.getElementById( "client-run-rendered" ).innerText.indexOf( "step 1" ) >= 0', 8000 ).catch( function () { return false; } ), true );
+		await page.Evaluate( '( function () { ' + INJECTOR + '.get( "$rootScope" ).$apply( function () { ' + INJECTOR + '.get( "ClientRuns" ).Close(); } ); return true; } )()' );
+		check( 'end: the notice', await page.WaitFor( 'document.querySelector( ".client-run-notice" ) !== null && document.querySelector( ".client-run-notice" ).innerText.indexOf( "Answer on Client plan: done" ) >= 0', 20000 ).catch( function () { return false; } ), true );
+		check( 'end: Done beside the button', await page.WaitFor( 'document.getElementById( "plan-task-state-answer" ) !== null && document.getElementById( "plan-task-state-answer" ).textContent.indexOf( "Done" ) === 0', 5000 ).catch( function () { return false; } ), true );
+		await page.Evaluate( 'window.location.hash = "#/waiting"; true' );
+		check( 'My runs: the run', await page.WaitFor( 'document.querySelectorAll( "#my-runs .client-run.done" ).length === 1', 10000 ).catch( function () { return false; } ), true );
+		await capture_window( page, 'client-top' );
+		// Add server: the second, under its own name; the window reloads on the new list
+		let added = JSON.parse( await page.Evaluate( 'window.ConsensusDesktop.AddServer( { Url: "' + servers[ 1 ].Url + '/" } ).then( JSON.stringify )' ) );
+		check( 'add server: saved under the Server\'s name', !!( added.Server && added.Server.Url === servers[ 1 ].Url ), true );
+		check( 'add server: the same address refused', /in the list already/.test( JSON.parse( await page.Evaluate( 'window.ConsensusDesktop.AddServer( { Url: "' + servers[ 0 ].Url + '" } ).then( JSON.stringify )' ) ).Error || '' ), true );
+		await wait( 1500 );
+		page.Close();
+		page = await client_attach();
+		check( 'add server: two roots after the reload', await page.Evaluate( INJECTOR + '.get( "Roots" ).List.length' ), 2 );
+		check( 'client.json: both Servers', JSON.parse( FS.readFileSync( settings_file, 'utf8' ) ).Servers.length, 2 );
+		check( 'no user.json in the config folder', FS.existsSync( PATH.join( config, 'user.json' ) ), false );
+		let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
+		await page.Evaluate( 'window.Desktop.Quit(); true' ).catch( function () {} );
+		let code = await Promise.race( [ exited, wait( 10000 ).then( function () { return 'timeout'; } ) ] );
+		check( 'quit: the app ends', code !== 'timeout' );
+		page.Close();
+	}
+	finally
+	{
+		if ( child && child.exitCode === null )
+		{
+			child.kill();
+		}
+		for ( let server of servers )
+		{
+			await server.Close().catch( function () {} );
+		}
+		await wait( 1000 );
+		FS.rmSync( base, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
+	}
+}
+
+
+//---------------------------------------------------------------------
 
 async function main()
 {
@@ -713,6 +873,7 @@ async function main()
 		await smoke_desktop();
 		await smoke_server_app();
 		await smoke_sidecar();
+		await smoke_client();
 	}
 	console.log( failed ? 'SMOKE FAILED: ' + failed + ' check(s)' : 'SMOKE OK' );
 	process.exit( failed ? 1 : 0 );
