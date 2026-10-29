@@ -24,9 +24,15 @@ const RENAME_DELAY_MS = 20;
 
 //---------------------------------------------------------------------
 
+// The temporary file's name: the target's, the process id and a count, so two writes of one file, in two processes
+// or awaited side by side in one (two requests saving the settings at once), never share a temporary file; each
+// rename then lands whole and the last one stands.
+let count = 0;
+
 function temporary_name( Path )
 {
-	return Path + '.' + process.pid + '.tmp';
+	count += 1;
+	return Path + '.' + process.pid + '.' + count + '.tmp';
 }
 
 

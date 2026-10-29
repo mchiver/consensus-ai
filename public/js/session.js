@@ -285,11 +285,12 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 
 	// The Desktop's license cache (plan Rearchitecturation, Step 6): a signed-in session's token goes to the desktop,
 	// which verifies it and answers the tier it is at now.
-	// The application the page runs in, which keeps the machine's current user: the Desktop, or the Server application
-	// (plan The Server, Step 3: window.ConsensusServer), null in a plain browser.
+	// The application the page runs in, which keeps the machine's current user: the Desktop or the Server application
+	// (plan The Server, Step 3; since plan Review 2026-10-29, Step 3, the Server gives the same ConsensusDesktop bridge,
+	// Edition server), null in a plain browser or an app with no current user (the Sidecar, the Client: no SetLicense).
 	function license_bridge()
 	{
-		return window.ConsensusDesktop || window.ConsensusServer || null;
+		return window.ConsensusDesktop || null;
 	}
 
 

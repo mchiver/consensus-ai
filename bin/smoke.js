@@ -555,7 +555,7 @@ async function smoke_server_app()
 		let page = await CDP.Attach( ( await server_app_page() ).webSocketDebuggerUrl );
 		await page.WaitFor( 'document.getElementById( "sign-in-closed" ) !== null', 30000 );
 		check( 'closed: the sign-in says why', await page.Evaluate( 'document.getElementById( "sign-in-closed" ).textContent.trim()' ), 'the Server needs a Personal or Professional sign-in; the first one becomes its Administrator.' );
-		check( 'closed: the window\'s bridge', await page.Evaluate( 'JSON.stringify( [ typeof window.ConsensusServer, typeof window.ConsensusDesktop, typeof window.Desktop.PickFolder ] )' ), '["object","undefined","function"]' );
+		check( 'closed: the window\'s bridge', await page.Evaluate( 'JSON.stringify( [ typeof window.ConsensusServer, typeof window.ConsensusDesktop, window.ConsensusDesktop.Edition, typeof window.ConsensusDesktop.SetLicense, typeof window.Desktop.PickFolder ] )' ), '["undefined","object","server","function","function"]' );
 		check( 'closed: the window\'s title', await page.Evaluate( 'document.title' ), 'Consensus Server' );
 		page.Close();
 		child.kill();
@@ -568,7 +568,8 @@ async function smoke_server_app()
 		await page.WaitFor( count_of( '#sign-in-popup' ) + ' === 1 && document.getElementById( "sign-in-mount" ) !== null', 30000 );
 		check( 'open: the sign-in, no closed reason', await page.Evaluate( count_of( '#sign-in-closed' ) ), 0 );
 		check( 'open: the Administrator recorded', JSON.parse( FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' ) ).Clerk.AdminEmail, 'smoke@example.com' );
-		check( 'open: the server is the Server', await page.Evaluate( 'location.protocol + "//" + location.hostname' ), 'http://127.0.0.1' );
+		// the page comes from the page server on the window's own origin (plan Review 2026-10-29, Step 3); the Server is its one root
+		check( 'open: the server is the Server', await page.Evaluate( 'location.protocol + "//" + location.hostname + " " + JSON.stringify( window.ConsensusDesktop.Roots.map( function ( root ) { return root.Key + ":" + root.Kind; } ) )' ), 'http://127.0.0.1 ["server:server"]' );
 		await screenshot( page, 'server-app' );
 		// a second launch with --open: handed to the first, the folder registered and shown
 		let second = CHILD_PROCESS.spawnSync( electron, [ 'server', '--config', config, '--user-data-dir=' + user_data, '--open', project_folder ], { cwd: ROOT, encoding: 'utf8', timeout: 30000 } );

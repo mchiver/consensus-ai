@@ -49,6 +49,9 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 	roots.Project = ( window.ConsensusDesktop && window.ConsensusDesktop.Project && window.ConsensusDesktop.Project.Id ) ? window.ConsensusDesktop.Project : null;
 	// The Client (plan Client Edition, Step 3): its page leaves out every Server's configuration.
 	roots.Client = !!( window.ConsensusDesktop && window.ConsensusDesktop.Client === true );
+	// The edition the page runs in (plan Review 2026-10-29, Step 3): the bridge's Edition, 'desktop', 'sidecar',
+	// 'client' or 'server'; null in a browser.
+	roots.Edition = ( window.ConsensusDesktop && typeof window.ConsensusDesktop.Edition === 'string' ) ? window.ConsensusDesktop.Edition : null;
 	// The application's name, in the title bar, the window's title and About; plain Consensus in a browser.
 	roots.Product = product_name();
 	document.title = roots.Product;
@@ -56,21 +59,14 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 
 	function product_name()
 	{
-		if ( window.ConsensusDesktop && window.ConsensusDesktop.Sidecar === true )
+		let names = { desktop: 'Consensus Desktop', sidecar: 'Consensus Sidecar', client: 'Consensus Client', server: 'Consensus Server' };
+		if ( roots.Edition && names[ roots.Edition ] )
 		{
-			return 'Consensus Sidecar';
-		}
-		if ( window.ConsensusDesktop && window.ConsensusDesktop.Client === true )
-		{
-			return 'Consensus Client';
+			return names[ roots.Edition ];
 		}
 		if ( window.ConsensusDesktop )
 		{
 			return 'Consensus Desktop';
-		}
-		if ( window.ConsensusServer )
-		{
-			return 'Consensus Server';
 		}
 		return 'Consensus';
 	}

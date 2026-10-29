@@ -18,6 +18,8 @@ function invoke( channel, argument )
 
 // For the Consensus page copy: client.js prefixes Base to every API path; theme.js reads and writes the theme here.
 ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
+	// The edition the page runs in (plan Review 2026-10-29, Step 3): desktop, sidecar, client or server; roots.js names the product by it.
+	Edition: 'desktop',
 	Base: BOOT.Base || '',
 	Version: BOOT.Version,
 	Theme: BOOT.Theme,

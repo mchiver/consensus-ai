@@ -10,9 +10,12 @@
 //   Dark( Theme, DarkThemes )                 whether the theme is a dark one (System: the system's)
 //   ApplyNativeTheme( Theme, DarkThemes )     the window's dialogs and native parts light or dark
 //   Options( { Width, Height, Title, Icon, Theme, DarkThemes, Preload } )   a window's options
-//   Attach( Window, { PageUrl, Icon, Preload, Options( Width, Height ), AsksPage( Url )?, OnClosed? } )
+//   Attach( Window, { PageUrl, Icon, Preload, Options( Width, Height ), AsksPage( Url )?, CloseAction()?, OnClosed? } )
 //                                             the main window's detached tabs, report windows and close; AsksPage says
-//                                             which pages are asked before closing (every one when not given)
+//                                             which pages are asked before closing (every one when not given);
+//                                             CloseAction answers what a close does: 'hide' hides the window, 'close'
+//                                             closes it without asking, else ('ask') the page is asked. Answers
+//                                             { AskClose( Destroy ) }: the page asked, then Destroy when it agrees
 //   MenuTemplate( { NewWindow?, OpenFolderWindow?, Reload? } )   the menu's template, an item left out with its action
 //   AttachChrome()                            the 'chrome' message: the window buttons follow the page's palette
 //   PrintToPdf( Sender, Name, Folder )        the save dialog in Folder, then the page as a PDF: { Path } | { Cancelled } | { Error }
@@ -103,11 +106,15 @@ function IsReportUrl( PageUrl, Url )
 // The main window: a tab's Detach opens "?detached=1#/p/<id>" on the page's origin, which becomes a window of the app;
 // a report opens in a plain framed window; any other address goes to the system browser. The window and each detached
 // one ask their page before they close; Fields.AsksPage( url ), when given, says whether the page at that address is
-// one to ask (the Desktop's chooser is not; plan Review 2026-10-29, Step 1), else every page is asked.
+// one to ask (the Desktop's chooser is not; plan Review 2026-10-29, Step 1), else every page is asked. Fields.CloseAction(),
+// when given, says what the main window's close does (the Server hides its window and serves on from the tray, plan
+// Review 2026-10-29, Step 3). Answers { AskClose( Destroy ) }, for an app that closes the window from elsewhere (the
+// Server's tray Quit): the page asked, Destroy called when it agrees.
 function Attach( Window, Fields )
 {
 	let fields = Fields || {};
 	let asks_page = ( typeof fields.AsksPage === 'function' ) ? fields.AsksPage : null;
+	let close_action = ( typeof fields.CloseAction === 'function' ) ? fields.CloseAction : null;
 	let closing = false;
 	Window.setMenuBarVisibility( false );
 	Window.webContents.on( 'preload-error', function ( event, path, error )
@@ -148,6 +155,18 @@ function Attach( Window, Fields )
 		{
 			return;
 		}
+		let action = close_action ? close_action() : 'ask';
+		if ( action === 'hide' )
+		{
+			event.preventDefault();
+			Window.hide();
+			return;
+		}
+		if ( action === 'close' )
+		{
+			closing = true;
+			return;
+		}
 		event.preventDefault();
 		AskToClose( Window, function ()
 		{
@@ -162,6 +181,16 @@ function Attach( Window, Fields )
 			fields.OnClosed();
 		}
 	} );
+	return {
+		AskClose: function ( Destroy )
+		{
+			AskToClose( Window, function ()
+			{
+				closing = true;
+				Destroy();
+			}, asks_page );
+		},
+	};
 }
 
 

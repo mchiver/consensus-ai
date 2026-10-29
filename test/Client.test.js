@@ -184,7 +184,8 @@ TEST( 'the Client\'s page: the folds and menus of configuration left out, About 
 	{
 		ASSERT.equal( client_menu.indexOf( left_out ), -1, 'the Client\'s project menu has no ' + left_out );
 	}
-	ASSERT.match( read( 'public/js/roots.js' ), /return 'Consensus Client'/ );
+	// the product's name by the bridge's Edition (plan Review 2026-10-29, Step 3)
+	ASSERT.match( read( 'public/js/roots.js' ), /client: 'Consensus Client'/ );
 	let index = read( 'public/index.html' );
 	ASSERT.match( index, /<script src="\/components\/client-runs\/client-runs\.js"><\/script>/ );
 	ASSERT.match( index, /<client-runs><\/client-runs>/ );

@@ -21,6 +21,7 @@ function invoke( channel, argument )
 
 
 ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
+	Edition: 'client',
 	Base: BOOT.Base || '',
 	Version: BOOT.Version,
 	Theme: BOOT.Theme,

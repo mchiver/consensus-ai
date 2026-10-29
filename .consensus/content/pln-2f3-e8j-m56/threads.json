@@ -1,1 +1,130 @@
-[]
+[
+	{
+		"Id": "thr-2qn-act-yc5",
+		"Anchor": {
+			"Text": "the page through the page server, its port remembered in server.json as page-port",
+			"Prefix": "n the design turn (2026-10-29): ",
+			"Suffix": "; the Edition field replacing th"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T21:15:16.577Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T21:18:22.010Z",
+			"Revision": 2,
+			"RevisionId": "rev-o0y-7cg-6xv",
+			"Outcome": "Resolved with no reply: the recommendation went in. The Server window loads the page from the page server with one root, Key server; the page-port is remembered in server.json."
+		},
+		"Created": "2026-10-29T20:27:02.631Z",
+		"Replies": [
+			{
+				"Id": "rep-rjn-61m-xjw",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T20:27:02.631Z",
+				"Text": "Where the Server window loads its page from. Today it loads the Server's own address (http://127.0.0.1:<port>/) as a browser would, and its preload adds window.ConsensusServer for the sign-in and window.Desktop.PickFolder. The other three windows load the page from electron/Page.js on a loopback origin of their own, with the Server's API forwarded under /servers/<key>/api, and their preload gives the full ConsensusDesktop bridge (the look, the remembered state, the chrome message, the close asked of the page, Print to PDF and View in Browser).\n\nThe two ways: (a) keep loading the Server's address and give the window the full bridge anyway: the frameless window works, but ViewInBrowser (which maps a report's address from the page server's root back to the server's) has nothing to map and needs a Server-only path, and the window's origin changes with the Server's port; (b) load the page through the page server with one root, Key server, as the plan says: every edition's window then has the same shape and the same bridge, ViewInBrowser works as it does for the others, and the sign-in keeps working since the forwarder sends X-Forwarded-Host, which Api.js honours over the loopback. The cost is a second loopback listener in the Server process (the page server), which the other three already pay.\n\nRecommendation: (b), the page server, as the plan says. The page server's port is remembered in server.json as page-port (App.ServePage), so the window's origin, and the Clerk session in its storage, survive a restart. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-jtt-ocz-m4x",
+		"Anchor": {
+			"Text": "Edition added everywhere for the name",
+			"Prefix": "ed in server.json as page-port; ",
+			"Suffix": ", the Sidecar and Client flags l"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T21:16:49.660Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T21:18:22.032Z",
+			"Revision": 3,
+			"RevisionId": "rev-6nt-0os-q1v",
+			"Outcome": "Resolved with no reply: the recommendation went in. Edition is added to every bridge for the product's name and window.ConsensusServer is folded into ConsensusDesktop; the Sidecar and Client flags stay until Step 5."
+		},
+		"Created": "2026-10-29T20:27:02.656Z",
+		"Replies": [
+			{
+				"Id": "rep-dxi-wju-et4",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T20:27:02.656Z",
+				"Text": "The Edition field. The bridge carries two flags today, Sidecar and Client, and the Server window carries a bridge of another name (window.ConsensusServer); roots.js, session.js, tree.js, project.js and four components read the flags, in fifteen places, for two different things: the product's name on the page (roots.js), and what the page may do in that app (the Sidecar has no LLM tasks and renames its user; the Client leaves out every Server's configuration and keeps the one sign-in).\n\nTwo ways: (a) as the plan says, Edition replaces the flags: every reader asks Edition === \"sidecar\" or \"client\"; (b) Edition is added to every bridge for the product's name, window.ConsensusServer is folded into ConsensusDesktop with Edition \"server\", and the two flags stay as the page's capability switches for now. Step 5 redraws what the Client and the Desktop may do (the client/ code base becomes the Desktop, both remote-only); if the readers ask Edition === \"client\" today, Step 5 has to touch all fifteen again to add \"desktop\", and the question of what each edition may do is Step 5's, not this Step's.\n\nRecommendation: (b): Edition everywhere for the name (roots.js reads it in place of the flags and of window.ConsensusServer), the two flags left to Step 5, which decides their fate with the cut. Resolve with no reply to take it; reply \"replace\" to have the flags go in this Step."
+			}
+		]
+	},
+	{
+		"Id": "thr-xcy-3cx-c1k",
+		"Anchor": {
+			"Text": "server.json, through the base Settings of Step 2, for the Server's look and remembered state",
+			"Prefix": "nd Client flags left to Step 5; ",
+			"Suffix": ", nothing of it read by the serv"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T21:17:10.891Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T21:18:22.054Z",
+			"Revision": 4,
+			"RevisionId": "rev-5i3-8jd-0v1",
+			"Outcome": "Resolved with no reply: the recommendation went in. <config>/server.json through electron/Settings.js holds the window's Theme, Scale and Remembered; consensus.json stays the server's alone."
+		},
+		"Created": "2026-10-29T20:27:02.665Z",
+		"Replies": [
+			{
+				"Id": "rep-ocg-b97-y29",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T20:27:02.665Z",
+				"Text": "Where the Server window's look and remembered state live. The window needs a Theme, a Scale, the page's Remembered keys and the page-port, as the other three apps keep in desktop.json, sidecar.json and client.json. The Server's own file, <config>/consensus.json, is the server's (src/Store.js writes it at each settings change, and `consensus serve` reads it with no window at all), so the window's view state in it would mean two writers of one file and window fields in a headless server's settings.\n\nRecommendation: <config>/server.json through the base Settings of Step 2 (Make with File server.json, Label \"server settings\", Default { Theme, Scale, Remembered }), beside desktop.json and client.json; nothing of it is read by the server. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-hqa-eh4-hg4",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T21:47:10.723Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T21:48:25.512Z",
+			"Revision": 4,
+			"RevisionId": "rev-5i3-8jd-0v1",
+			"Outcome": "Accepted by the owner on 2026-10-29. Committed as \"Review 2026-10-29 Step 3: The Server window on electron/Windows.js\"; the Step is Finished and the Readme names it."
+		},
+		"Created": "2026-10-29T21:31:44.425Z",
+		"Replies": [
+			{
+				"Id": "rep-l9i-64g-g0o",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T21:31:44.425Z",
+				"Text": "Build log: Step 3, The Server window on electron/Windows.js. Built by Claude Fable 5.1 (Claude-CLI) on 2026-10-29. Nothing is committed.\n\nWhat was built, by item:\n\n1. server/main.js, rewritten over the shared modules: the window is WINDOWS.Options and WINDOWS.Attach with the Server's preload and icon (frameless, the window buttons over the page's title bar, the report windows, the page asked before a dirty document is lost); the page comes from the page server (APP.ServePage, the port remembered in server.json as page-port) with one root, Key server, forwarded to the server's address and set again whenever the server starts again (a Scope change at a sign-in); the common handlers (boot, remember, theme, print-pdf, view-in-browser, quit, new-window, the chrome message) are APP.AttachHandlers's, the Server adding set-license, clear-license and the folder picker; the command line is APP.Arguments with --open and the rest for Start.js; the failed start is APP.FailToStart, quiet when headless; before-quit flushes the saver and closes the page server before the server. The tray, the single instance, the gate and the headless form are as they were. The window's close keeps hiding it, the tray's Quit asks the page first.\n2. electron/Windows.js: Attach takes CloseAction(), answering 'hide' (the window hides), 'close' (closed without asking) or 'ask' (the page asked, as before), and Attach answers { AskClose( Destroy ) }, so an app closing the window from elsewhere (the Server's tray Quit) asks the page without AskToClose coming back onto the export list (Step 4 took it off). The Server passes CloseAction answering 'hide', or 'close' once it is quitting.\n3. server/preload.js: window.ConsensusDesktop with Edition 'server', Base, Version, Theme, Scale, Roots, Project null, Recent [], License, SetLicense, ClearLicense, Remembered, SetTheme, SetScale, Remember, SetChrome, OnCloseRequested, CloseDecided, PrintToPdf and ViewInBrowser; window.Desktop with PickFolder, NewWindow (brings the one window forward) and Quit. window.ConsensusServer is gone: roots.js names the product by the bridge's Edition (Roots.Edition is new; a browser is still plain Consensus) and session.js's license bridge is ConsensusDesktop alone. The Desktop, Sidecar and Client preloads carry Edition 'desktop', 'sidecar' and 'client'; the Sidecar and Client flags stay, as decided.\n4. server/Settings.js (new): <config>/server.json over the base Settings (Theme, Scale, Remembered; Label \"server settings\"); the headless Server never reads or writes it.\n5. build/server.json: electron/** and server/Settings.js in the files.\n6. bin/smoke.js: the Server part's bridge check reads ConsensusDesktop with Edition server and SetLicense, no ConsensusServer; the origin check also reads the one root, server:server. The smoke needs Electron with a screen and was not run here; the headless Server is covered by the tests.\n7. Found by this Step's full run and fixed: src/Atomic.js named a temporary file by the target and the process id alone, so two awaited writes of one file side by side in one process (two requests saving the settings at once, which the UI tests do) shared the temporary and the second rename failed with ENOENT; PUT /api/view answered 500 from then on, and 29 browser tests fell. The name now carries a count as well, so each write lands and the last stands. The same single temporary name per file was in Store.js before Step 2 (<file>.tmp), so the race is older than the review; a reproduction (60 concurrent view saves: 21 failures before, none after) and a new Atomic test cover it. test/Client.test.js reads the product's name for the Client from the Edition map in roots.js.\n\nFiles: server/main.js, server/preload.js, server/Settings.js (new), electron/Windows.js, desktop/preload.js, sidecar/preload.js, client/preload.js, public/js/roots.js, public/js/session.js, build/server.json, bin/smoke.js, src/Atomic.js, test/ServerApp.test.js, test/Atomic.test.js, test/Client.test.js.\n\nHow it was checked:\n\n- test/ServerApp.test.js gains two tests: server.json over the base Settings, the server's consensus.json untouched beside it; and the window's bridge as plain node can see it: the Server preload exposes ConsensusDesktop with Edition server, SetLicense and PickFolder and no ConsensusServer, every preload names its Edition, roots.js and session.js no longer read ConsensusServer, the build carries electron/** and server/Settings.js. The headless tests still pass (the gate closed and open, --open refused).\n- ServerApp, Desktop, Scaffold and Manifests tests: 23 of 23 pass.\n- The dead-export check: the only unread function is still bin/docs.js Publish.\n- The whole suite, after the fix: 327 tests, 324 pass, 3 skipped (the Clerk keys), none failed; the first full run of this Step, before it, had 29 browser tests fall on the 500 described under 7, and test/Ui.test.js alone passed all 48 either way. This is the first full run of the review with no load flake.\n\nDecided during the build: Attach's CloseAction and the AskClose handle, in place of an OnClose: 'hide' option and a re-exported AskToClose; NewWindow on the Server brings its one window forward rather than opening a second, since the Server has one window; the second-instance fallback parses the handed argv through App.Arguments and ignores a bad line; the page server's port is protected from the page as in the Desktop and the Client.\n\nResolve to accept: I apply this thread, commit as \"Review 2026-10-29 Step 3: The Server window on electron/Windows.js\", set the Step Finished and bring the Readme up to date. Reply to send it back."
+			}
+		]
+	}
+]

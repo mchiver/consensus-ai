@@ -102,3 +102,47 @@ TEST( 'consensus-server --headless --open: refused, the folder command needs the
 	ASSERT.equal( answer.status, 1 );
 	ASSERT.match( answer.stderr, /--open needs the Server application's window/ );
 } );
+
+
+//---------------------------------------------------------------------
+// The window of the shared kind (plan Review 2026-10-29, Step 3): what plain node can check of it. The window itself
+// is looked at by the smoke.
+
+TEST( 'server.json: the window\'s look and remembered state in the config folder, over the base Settings; nothing of consensus.json', function ()
+{
+	const SETTINGS = require( '../server/Settings.js' );
+	const BASE = require( '../electron/Settings.js' );
+	let config = temporary_folder();
+	ASSERT.equal( SETTINGS.Path( config ), PATH.join( config, 'server.json' ) );
+	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( { Name: 'host', Theme: 'dark', Scope: 'Local' } ) );
+	let loaded = SETTINGS.Load( config );
+	ASSERT.deepEqual( loaded.Settings, { Theme: 'system', Scale: 'normal', Remembered: {} } );
+	ASSERT.deepEqual( loaded.Lines, [ 'server settings start with the defaults (' + loaded.Path + ' is written at the first change)' ] );
+	ASSERT.equal( SETTINGS.Write( config, { Theme: 'nord', Scale: 'large', Remembered: { 'page-port': 51000 }, Projects: [ 'not ours' ] } ), loaded.Path );
+	ASSERT.deepEqual( SETTINGS.Load( config ).Settings, { Theme: 'nord', Scale: 'large', Remembered: { 'page-port': 51000 } } );
+	ASSERT.equal( SETTINGS.THEMES, BASE.THEMES );
+	ASSERT.equal( SETTINGS.Remember, BASE.Remember );
+	ASSERT.equal( JSON.parse( FS.readFileSync( PATH.join( config, 'consensus.json' ), 'utf8' ) ).Theme, 'dark', 'the server\'s own file is not touched' );
+} );
+
+
+TEST( 'the Server window\'s bridge is the shared one: the preload exposes ConsensusDesktop with Edition server, SetLicense and the folder picker, and no ConsensusServer; every preload names its Edition; the build carries electron/', function ()
+{
+	let preload = FS.readFileSync( PATH.join( __dirname, '..', 'server', 'preload.js' ), 'utf8' );
+	ASSERT.match( preload, /exposeInMainWorld\( 'ConsensusDesktop', \{\s*Edition: 'server',/ );
+	ASSERT.match( preload, /SetLicense: function \( Token \) \{ return invoke\( 'set-license', Token \); \}/ );
+	ASSERT.match( preload, /PickFolder: function \( Current \) \{ return invoke\( 'folder', Current \); \}/ );
+	ASSERT.doesNotMatch( preload, /ConsensusServer/ );
+	for ( let edition of [ 'desktop', 'sidecar', 'client' ] )
+	{
+		let text = FS.readFileSync( PATH.join( __dirname, '..', edition, 'preload.js' ), 'utf8' );
+		ASSERT.match( text, new RegExp( 'Edition: \'' + edition + '\',' ), edition );
+	}
+	for ( let script of [ 'roots.js', 'session.js' ] )
+	{
+		ASSERT.doesNotMatch( FS.readFileSync( PATH.join( __dirname, '..', 'public', 'js', script ), 'utf8' ), /ConsensusServer/, script );
+	}
+	let build = JSON.parse( FS.readFileSync( PATH.join( __dirname, '..', 'build', 'server.json' ), 'utf8' ) );
+	ASSERT.ok( build.files.includes( 'electron/**' ), 'electron/** in the build' );
+	ASSERT.ok( build.files.includes( 'server/Settings.js' ), 'server/Settings.js in the build' );
+} );

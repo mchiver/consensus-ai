@@ -2,18 +2,25 @@
 
 // main - the Server application's main process (plan The Server, Step 3). The Server runs the server in this process
 // over every registered project (src/Start.js, the same as `consensus serve`), under the authority of its
-// Administrator (src/Gate.js); its window shows the server's own page at its loopback address, the whole tree with
-// the management parts open to the Administrator and the Managers. One Server per machine: a second launch hands its
-// arguments to the first and quits. Closing the window hides it; the tray icon brings it back, and the tray's Quit
-// ends the Server. --open <folder> (the file explorer's "Open in Consensus Server") registers the folder as a project,
-// or finds it when it is registered already, and shows it. --headless runs the server with no window and no tray: a
-// headless gate, which also takes the Administrator's account in Users.json for its authority.
+// Administrator (src/Gate.js); its window shows the server's page, the whole tree with the management parts open to
+// the Administrator and the Managers. One Server per machine: a second launch hands its arguments to the first and
+// quits. Closing the window hides it; the tray icon brings it back, and the tray's Quit ends the Server. --open <folder>
+// (the file explorer's "Open in Consensus Server") registers the folder as a project, or finds it when it is registered
+// already, and shows it. --headless runs the server with no window and no tray: a headless gate, which also takes the
+// Administrator's account in Users.json for its authority.
 //
 // The window's gate: the machine's current user (<config>/user.json) must be the Administrator, or the first licensed
 // user when there is none yet, with Personal or Professional. While it is closed, and while the license is Personal,
 // the server listens on this machine alone (Scope Local, whatever the file says), so the window can sign in; a
 // sign-in in the window writes the current user, the gate is checked again, and the server starts again on the
 // file's Scope when that changed what it may listen on.
+//
+// Plan Review 2026-10-29, Step 3: the window is a window of the shared kind (electron/Windows.js: frameless, the window
+// buttons over the page's title bar, the page asked before a dirty document is lost, the report window with Print to
+// PDF and View in Browser), loading the page from the page server (electron/Page.js) on its own loopback origin with
+// one root, Key server, forwarded to the server's address; its look and remembered state are <config>/server.json
+// (Settings.js); the command line, the saving, the common handlers and the failed start are electron/App.js's. The
+// tray, the single instance and the gate stay as they were; the tray's Quit asks the page first.
 //
 //   consensus-server [--open <folder>] [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]
 
@@ -23,50 +30,41 @@ const ELECTRON = require( 'electron' );
 const START = require( '../src/Start.js' );
 const SERVER = require( '../src/Server.js' );
 const LICENSE = require( '../src/License.js' );
+const WINDOWS = require( '../electron/Windows.js' );
+const APP = require( '../electron/App.js' );
 const CURRENT_USER = require( '../electron/CurrentUser.js' );
+const SETTINGS = require( './Settings.js' );
 
 const VERSION = require( '../package.json' ).version;
+const TITLE = 'Consensus Server';
 const ICON = PATH.join( __dirname, '..', 'desktop', 'icon.ico' );
-const OPEN_ARGUMENT = '--open';
+const PRELOAD = PATH.join( __dirname, 'preload.js' );
 const USAGE = 'usage: consensus-server [--open <folder>] [--config <folder>] [--port <port>] [--scope none|local|public] [--headless]';
-// Electron's own switches, which stay on the command line the app parses.
-const ELECTRON_SWITCH = /^--(remote-debugging-port|user-data-dir|inspect|enable-logging|no-sandbox|disable-gpu|trace-warnings|allow-file-access)/;
+const FLAGS = [ { Name: '--open', Takes: 'value', Key: 'Open', Needs: 'a folder' } ];
 
 let options = null;		// the command line's (src/Start.js)
 let running = null;		// src/Server.js's, from START.Run
+let window_settings = null;	// server.json, filled: { Theme, Scale, Remembered }; null when headless
+let page = null;		// electron/Page.js's, forwarding /servers/server/api to the server
 let window = null;
+let attached = null;		// Windows.Attach's handle on the window: AskClose
 let tray = null;
 let quitting = false;
 
 // The machine's current user (plan The Server, Step 1): <config>/user.json, shared with the Desktop (electron/CurrentUser.js).
 const USER = CURRENT_USER.Make( config_folder );
+// The window's settings saved: now, or a moment after the last change (the view state changes often: a fold, a tab).
+const SAVER = APP.Saver( { Write: function () { SETTINGS.Write( config_folder(), window_settings ); }, Label: SETTINGS.FILE } );
 
 
 //---------------------------------------------------------------------
 // The command line
 
-// The arguments after the app's: Electron's own switches dropped, --open <folder> taken out.
+// The arguments after the app's (electron/App.js): --open <folder> taken out, the rest left for src/Start.js.
 function own_arguments( argv )
 {
-	let rest = ELECTRON.app.isPackaged ? argv.slice( 1 ) : argv.slice( 2 );
-	let open = null;
-	let kept = [];
-	for ( let index = 0; index < rest.length; index++ )
-	{
-		let argument = rest[ index ];
-		if ( ELECTRON_SWITCH.test( argument ) )
-		{
-			continue;
-		}
-		if ( argument === OPEN_ARGUMENT )
-		{
-			open = rest[ index + 1 ] || null;
-			index++;
-			continue;
-		}
-		kept.push( argument );
-	}
-	return { Open: open, Arguments: kept };
+	let parsed = APP.Arguments( argv, { Title: 'the Server', Rest: true, Flags: FLAGS } );
+	return { Open: parsed.Options.Open, Arguments: parsed.Rest };
 }
 
 
@@ -131,6 +129,7 @@ async function start_server()
 	{
 		throw new Error( 'Scope None: the Server has nothing to serve; --scope local or public' );
 	}
+	apply_roots();
 	refresh_tray();
 	return running;
 }
@@ -152,12 +151,6 @@ async function recheck()
 	}
 	refresh_tray();
 	show_page();
-}
-
-
-function page_url( Hash )
-{
-	return 'http://127.0.0.1:' + running.Address.Port + '/' + ( Hash || '' );
 }
 
 
@@ -184,49 +177,76 @@ async function open_folder( Folder, Cwd )
 
 
 //---------------------------------------------------------------------
+// The page: served by the page server on its own origin, the server its one root, Key server.
+
+function root()
+{
+	return { Key: 'server', Name: ( running && running.Settings && running.Settings.Name ) || TITLE, Url: running ? running.Url : '', Kind: 'server', Version: VERSION };
+}
+
+
+// The page server forwards /servers/server/api to the server as it runs now (its port may change at a restart).
+function apply_roots()
+{
+	if ( page && running )
+	{
+		page.SetRoots( [ { Key: 'server', Url: running.Url } ] );
+	}
+}
+
+
+function page_url( Hash )
+{
+	return page.Url + '/' + ( Hash || '' );
+}
+
+
+function boot_info()
+{
+	return {
+		Base: '',		// the page's own origin: Page.js forwards /servers/server/api to the server
+		Version: VERSION,
+		Theme: window_settings.Theme,
+		Scale: window_settings.Scale,
+		Remembered: window_settings.Remembered,
+		Roots: [ root() ],
+		License: USER.Tier(),
+		Project: null,
+		Recent: [],
+		Reason: null,
+		Edition: 'server',
+	};
+}
+
+
+//---------------------------------------------------------------------
 // The window and the tray
 
+function window_options( Width, Height )
+{
+	return WINDOWS.Options( { Width: Width, Height: Height, Title: TITLE, Icon: ICON, Theme: window_settings.Theme, DarkThemes: SETTINGS.DARK_THEMES, Preload: PRELOAD } );
+}
+
+
+// The window, of the shared kind (electron/Windows.js). Closing it hides it: the Server keeps serving from the tray
+// until its Quit, which asks the page first and then closes the window without asking again.
 function create_window()
 {
-	window = new ELECTRON.BrowserWindow( {
-		width: 1400,
-		height: 900,
-		title: 'Consensus Server',
-		icon: ICON,
-		show: false,
-		webPreferences: { preload: PATH.join( __dirname, 'preload.js' ), contextIsolation: true, nodeIntegration: false },
-	} );
-	window.setMenuBarVisibility( false );
-	// links to other origins open in the system browser; the page's own windows (a report, a detached tab) stay the app's
-	window.webContents.setWindowOpenHandler( function ( details )
-	{
-		if ( running && details.url.startsWith( page_url() ) )
-		{
-			return { action: 'allow', overrideBrowserWindowOptions: { width: 1000, height: 800, icon: ICON, webPreferences: { preload: PATH.join( __dirname, 'preload.js' ), contextIsolation: true } } };
-		}
-		ELECTRON.shell.openExternal( details.url );
-		return { action: 'deny' };
-	} );
-	window.once( 'ready-to-show', function () { window.show(); } );
-	// Closing the window hides it: the Server keeps serving from the tray until its Quit.
-	window.on( 'close', function ( event )
-	{
-		if ( !quitting )
-		{
-			event.preventDefault();
-			window.hide();
-		}
-	} );
-	window.on( 'closed', function ()
-	{
-		window = null;
+	window = new ELECTRON.BrowserWindow( window_options( 1400, 900 ) );
+	attached = WINDOWS.Attach( window, {
+		PageUrl: function () { return page ? page.Url : null; },
+		Icon: ICON,
+		Preload: PRELOAD,
+		Options: window_options,
+		CloseAction: function () { return quitting ? 'close' : 'hide'; },
+		OnClosed: function () { window = null; attached = null; },
 	} );
 }
 
 
 function show_page( Hash )
 {
-	if ( !window || window.isDestroyed() || !running )
+	if ( !window || window.isDestroyed() || !running || !page )
 	{
 		return;
 	}
@@ -250,14 +270,27 @@ function show_window()
 }
 
 
+// The tray's Quit: the page asked about its unsaved edits first (the window may be hidden; its page still answers),
+// then the app quits, which closes the server.
+function quit_asking()
+{
+	if ( attached && window && !window.isDestroyed() )
+	{
+		attached.AskClose( function () { ELECTRON.app.quit(); } );
+		return;
+	}
+	ELECTRON.app.quit();
+}
+
+
 function tray_tip()
 {
 	if ( !running )
 	{
-		return 'Consensus Server';
+		return TITLE;
 	}
 	let state = running.Gate ? running.Gate.State() : { Open: true };
-	return 'Consensus Server at ' + running.Url + '/' + ( state.Open ? '' : ' (waiting for its Administrator)' );
+	return TITLE + ' at ' + running.Url + '/' + ( state.Open ? '' : ' (waiting for its Administrator)' );
 }
 
 
@@ -269,10 +302,10 @@ function refresh_tray()
 	}
 	tray.setToolTip( tray_tip() );
 	tray.setContextMenu( ELECTRON.Menu.buildFromTemplate( [
-		{ label: 'Open Consensus Server', click: show_window },
+		{ label: 'Open ' + TITLE, click: show_window },
 		{ label: running ? running.Url + '/' : 'not serving', enabled: false },
 		{ type: 'separator' },
-		{ label: 'Quit', click: function () { ELECTRON.app.quit(); } },
+		{ label: 'Quit', click: quit_asking },
 	] ) );
 }
 
@@ -286,14 +319,19 @@ function create_tray()
 
 
 //---------------------------------------------------------------------
-// The bridge (preload.js)
+// The bridge (preload.js): the common handlers (electron/App.js), then the Server's own.
 
 function attach_handlers()
 {
-	ELECTRON.ipcMain.on( 'server-boot', function ( event )
-	{
-		event.returnValue = { Version: VERSION, License: USER.Tier() };
+	APP.AttachHandlers( {
+		Boot: boot_info,
+		Settings: function () { return window_settings; },
+		Saver: SAVER,
+		Roots: function () { return [ root() ]; },
+		NewWindow: show_window,		// one window: New window brings it forward
+		Protected: [ APP.PAGE_PORT ],
 	} );
+
 	ELECTRON.ipcMain.handle( 'set-license', async function ( event, token )
 	{
 		let answer = await USER.SetLicense( token, running ? running.Settings : {} );
@@ -315,28 +353,20 @@ function attach_handlers()
 		}
 		return USER.Tier();
 	} );
+
 	ELECTRON.ipcMain.handle( 'clear-license', async function ()
 	{
 		USER.Clear();
 		setTimeout( function () { recheck().catch( function ( error ) { console.error( error.message ); } ); }, 0 );
 		return USER.Tier();
 	} );
-	ELECTRON.ipcMain.handle( 'folder', async function ( event, current )
+
+	// The folder picker for a new project's folder (tree.js).
+	ELECTRON.ipcMain.handle( 'folder', function ( event, current )
 	{
-		let picker_options = { properties: [ 'openDirectory', 'createDirectory' ] };
-		if ( current )
-		{
-			picker_options.defaultPath = current;
-		}
-		let picked = await ELECTRON.dialog.showOpenDialog( window, picker_options );
-		if ( picked.canceled || !picked.filePaths.length )
-		{
-			return null;
-		}
-		return picked.filePaths[ 0 ].replace( /\\/g, '/' );
+		return WINDOWS.PickFolder( window, current );
 	} );
 }
-
 
 
 //---------------------------------------------------------------------
@@ -352,9 +382,7 @@ async function main()
 	}
 	catch ( error )
 	{
-		console.error( error.message );
-		console.error( USAGE );
-		fail_to_start( error.message + '\n\n' + USAGE, process.argv.includes( '--headless' ) );
+		APP.FailToStart( TITLE, error.message + '\n\n' + USAGE, process.argv.includes( '--headless' ) );
 		return;
 	}
 	if ( options.Help )
@@ -365,7 +393,7 @@ async function main()
 	}
 	if ( options.Project !== undefined )
 	{
-		fail_to_start( 'the Server serves every registered project: --open <folder> registers one\n\n' + USAGE, options.Headless );
+		APP.FailToStart( TITLE, 'the Server serves every registered project: --open <folder> registers one\n\n' + USAGE, options.Headless );
 		return;
 	}
 	// One Server per machine: a second launch hands its --open and folder to the first.
@@ -377,7 +405,18 @@ async function main()
 	}
 	ELECTRON.app.on( 'second-instance', function ( event, argv, cwd, data )
 	{
-		let handed = ( data && typeof data === 'object' ) ? data : own_arguments( argv );
+		let handed = ( data && typeof data === 'object' ) ? data : null;
+		if ( !handed )
+		{
+			try
+			{
+				handed = own_arguments( argv );
+			}
+			catch ( error )
+			{
+				handed = { Open: null };
+			}
+		}
 		if ( handed.Open && running )
 		{
 			open_folder( handed.Open, handed.Cwd || cwd ).then( function ( answer )
@@ -394,6 +433,10 @@ async function main()
 	await ELECTRON.app.whenReady();
 	if ( !options.Headless )
 	{
+		let loaded = SETTINGS.Load( config_folder() );
+		window_settings = loaded.Settings;
+		loaded.Lines.forEach( function ( line ) { console.log( line ); } );
+		WINDOWS.ApplyNativeTheme( window_settings.Theme, SETTINGS.DARK_THEMES );
 		attach_handlers();
 	}
 	await start_server();
@@ -405,7 +448,8 @@ async function main()
 		}
 		quitting = true;
 		event.preventDefault();
-		let closing = running ? running.Close() : Promise.resolve();
+		SAVER.Flush();
+		let closing = Promise.resolve().then( function () { return page ? page.Close() : null; } ).catch( function () {} ).then( function () { return running ? running.Close() : null; } );
 		closing.catch( function () {} ).then( function () { ELECTRON.app.exit( 0 ); } );
 	} );
 	if ( options.Headless )
@@ -419,7 +463,10 @@ async function main()
 		}
 		return;
 	}
-	// the window and the tray: closing the window keeps the Server; the app ends at the tray's Quit
+	// the page server, the window and the tray: closing the window keeps the Server; the app ends at the tray's Quit
+	page = await APP.ServePage( { Settings: window_settings, Saver: SAVER } );
+	apply_roots();
+	console.log( TITLE + ': the page on ' + page.Url );
 	ELECTRON.app.on( 'window-all-closed', function () {} );
 	create_window();
 	create_tray();
@@ -437,19 +484,7 @@ async function main()
 }
 
 
-// A start that fails: the message on the console, and in a dialog unless --headless.
-function fail_to_start( message, headless )
-{
-	if ( !headless )
-	{
-		ELECTRON.dialog.showErrorBox( 'Consensus Server could not start', message );
-	}
-	ELECTRON.app.exit( 1 );
-}
-
-
 main().catch( function ( error )
 {
-	console.error( error.message );
-	fail_to_start( error.message, process.argv.includes( '--headless' ) );
+	APP.FailToStart( TITLE, error.message, process.argv.includes( '--headless' ) );
 } );

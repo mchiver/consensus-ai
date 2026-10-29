@@ -67,6 +67,22 @@ TEST( 'two processes writing the same file use temporary names of their own, and
 } );
 
 
+TEST( 'awaited writes of one file side by side in one process each land (two requests saving the settings at once); the file ends whole and no temporary file is left', async function ()
+{
+	let folder = temporary_folder();
+	let path = PATH.join( folder, 'settings.json' );
+	let writes = [];
+	for ( let index = 0; index < 20; index++ )
+	{
+		writes.push( ATOMIC.WriteJsonAsync( path, { Index: index } ) );
+	}
+	await Promise.all( writes );
+	let written = JSON.parse( FS.readFileSync( path, 'utf8' ) );
+	ASSERT.ok( Number.isInteger( written.Index ) && written.Index >= 0 && written.Index < 20 );
+	ASSERT.deepEqual( FS.readdirSync( folder ), [ 'settings.json' ] );
+} );
+
+
 TEST( 'Rename and RenameSync: a missing source throws at once (not a held target), the attempts and the delay are told', async function ()
 {
 	let folder = temporary_folder();

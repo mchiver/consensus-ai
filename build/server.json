@@ -12,6 +12,8 @@
 	"files": [
 		"server/main.js",
 		"server/preload.js",
+		"server/Settings.js",
+		"electron/**",
 		"desktop/icon.ico",
 		"src/**",
 		"public/**",
