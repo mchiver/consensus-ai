@@ -48,7 +48,7 @@ The `claude-cli` connection is dropped. In its place come API connections to the
 ## Dropping claude-cli
 
 - `claude-cli` leaves the kinds, with its Command and Arguments, its spawn in src/Runs.js, LLM.CommandLine and its Check.
-- A `claude-cli` connection already in a Server's settings is kept and shown as no longer supported: its runs are refused with that reason until the Administrator or a Manager changes its Kind (its Name, Prompts and Packaging carry over) or deletes it. Today an unknown Kind is read as the first kind; that changes, so no connection turns into another kind silently.
+- A `claude-cli` connection already in a Server's settings is removed when the Server reads its settings, and the Server's log names it. A project that had chosen it is left with no connection chosen, and its task buttons say so, as for any project that has not chosen one. Today an unknown Kind is read as the first kind; that changes: a connection of a kind the Server does not know is removed, never turned into another kind.
 - The tests and the smokes that stand in for a model with a `claude-cli` command running a node script use a stand-in service instead: a small HTTP server in test/support that speaks OpenAI's chat completions, answering from a script, its tool calls included.
 
 
@@ -62,5 +62,5 @@ The `claude-cli` connection is dropped. In its place come API connections to the
 
 1. **One tool loop.** src/Loop.js from src/Ollama.js, with the Ollama adapter; Tools.js performs the Consensus tools inside the Server as the run's person, and runs mint no token. Ollama runs behave as before, and their tests check it.
 2. **API connections.** The kinds `claude`, `chatgpt`, `gemini`, `grok` and `openai-compatible`, with the Anthropic and OpenAI adapters; Url, Model and the write-only Key in src/Llms.js; Check with the models list; the connection's Details on the page; the stand-in service in test/support.
-3. **claude-cli out.** The kind, its spawn and its Check removed; old connections shown as no longer supported and refused; the tests, bin/smoke.js and bin/docs.js moved to the stand-in service.
+3. **claude-cli out.** The kind, its spawn and its Check removed; old connections removed when the settings are read; the tests, bin/smoke.js and bin/docs.js moved to the stand-in service.
 4. **The guide.** docs/guide/llm.md (Who an LLM is, Connections and runs), the Features page, getting-started where it names claude-cli, .guides/build-with-consensus.md where it does, and the Readme.

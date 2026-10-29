@@ -49,6 +49,10 @@ function Attach( App, Context )
 	let people = !!Context.People;		// plan The Server, Step 5: a Server tells people apart whatever its Scope
 	let operations = OPERATIONS.Operations( Context );
 	let mcp = MCP.Mcp( { Operations: operations, Store: store, Authorize: authorize_operation } );
+	if ( Context.Runner && typeof Context.Runner.Attach === 'function' )
+	{
+		Context.Runner.Attach( perform_as_run );
+	}
 	let router = EXPRESS.Router();
 	// Before identify (Step 4): what the page needs to sign in, and Clerk's events over the raw body.
 	router.get( '/clerk', function ( request, response )
@@ -343,6 +347,26 @@ function Attach( App, Context )
 	{
 		let route = OPERATIONS.Route( operation, args );
 		await check( participant, route.Method, route.Path, args, args );
+	}
+
+
+	// A run's Consensus tool, performed inside the Server (plan Tool calls only, Step 1): the run's account checked as a
+	// request of it would be (a run that writes nothing is refused every write, the role in the project is checked),
+	// then the operation; a Refusal is thrown as it is, for the run's tools to word.
+	async function perform_as_run( participant, name, args )
+	{
+		let operation = operations.Get( name );
+		if ( !operation )
+		{
+			throw new OPERATIONS.Refusal( 404, 'no such operation: ' + name );
+		}
+		let arguments_given = args || {};
+		if ( participant.Writes === 'none' && operation.Method !== 'GET' && operation.Method !== 'HEAD' )
+		{
+			throw new OPERATIONS.Refusal( 403, 'this run reads only' );
+		}
+		await authorize_operation( participant, operation, arguments_given );
+		return await operations.Perform( name, participant, arguments_given );
 	}
 
 

@@ -191,6 +191,20 @@ function from_run( run )
 }
 
 
+// RunAccount (plan Tool calls only, Step 1): the account a run acts as when its tools are performed inside the Server,
+// with no token: the account a run token would have named. Fields = { Service, Name, Writes, Account?, Role? } as
+// RunTokens.Mint takes them: the presser's account when it is given, else the owner's.
+function RunAccount( Settings, Fields, Users )
+{
+	let fields = Fields || {};
+	if ( fields.Account )
+	{
+		return from_run( fields );
+	}
+	return account_of( Owner( Settings ), fields.Service || null, fields.Name || null, fields.Writes || null, Users || null );
+}
+
+
 // Public: an account as the API shows it; the empty fields left out.
 function Public( Account )
 {
@@ -555,6 +569,7 @@ module.exports = {
 	ServiceOf: ServiceOf,
 	RunTokens: RunTokens,
 	Identify: Identify,
+	RunAccount: RunAccount,
 	UserAccount: user_account,
 	Public: Public,
 	Speaker: Speaker,

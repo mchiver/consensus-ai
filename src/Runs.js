@@ -22,7 +22,7 @@
 //   Tokens: the server's RunTokens (Participants.js); a run's token (Request.Token, minted by the Runner) is dropped when it ends.
 //   Request = { Llm, Task: { Id, Name }, Writes, Text, By, Token: { Value, Name } | null, Project: { Id, Name, Path }, Plan: { Id, Title } | null,
 //               Folder: { Path, Include, Exclude, Commands } | null (the project's folder, the run's working folder),
-//               Prompt, Server?: { Url, Token, Project } (an ollama run's Consensus tools), Git?: { Pull } (the pull before the run, Step 3),
+//               Prompt, Server?: { Perform, Project } (an ollama run's Consensus tools, performed inside the Server: plan Tool calls only, Step 1), Git?: { Pull } (the pull before the run, Step 3),
 //               Prepare?: async () -> { Prompt, Folder?, Git? } | { Error } (a queued run's package and pull, made when it starts) }
 //   record  = { Id, Llm: { Id, Name }, Task, Writes, Text, Git, By, Service, Token, Project, Plan, Queued, Behind, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
 //             Queued the time of a press that waited (null for one that ran at once), Behind { Id, Task, Plan } the run it waited for.

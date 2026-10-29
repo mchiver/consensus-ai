@@ -10,7 +10,13 @@
 // (Url), so a run is always on this machine. The Work options (plan LLM Tasks, Step 3): a run of a task with Writes
 // files pulls first when the project's GitSync is on (Git.js), a failed pull refusing the run; the record keeps git's words.
 //
-//   Runner( { Store, Settings, Runs, Url, Tokens, Git? } ) -> { Lists( Request ), Package( Request, Token? ), Start( Request, By ) }
+// Plan Tool calls only, Step 1: an ollama run is minted no token. Its Consensus tools are performed inside the Server
+// as the run's account (Participants.RunAccount: the presser through the connection, carrying the task's Writes),
+// through what the API attaches (Attach), so nothing of the run's identity is a secret that could leave the Server.
+// The run's record still names the run ("Answer run") where a token's name was, which ties a build log to its run.
+//
+//   Runner( { Store, Settings, Runs, Url, Tokens, Users?, Git? } ) -> { Lists( Request ), Package( Request, Token? ), Start( Request, By ), Attach( Perform ) }
+//   Attach( Perform ): Perform( Account, Name, Arguments ), the API's check and the operation (Api.js), which a run's tools call.
 //   Url(): this server's address, what a run's tools and prompt reach it at; null when it does not listen.
 //   Lists( { Project, Plan?, Llm? } ) -> { Documents, Threads, Speaker } | { Error }
 //   Package( { Llm, Task, Project, Plan?, Text?, Overrides? }, Token?, By? ) -> { Prompt, Llm, Task, Writes, Text, Project, Plan, Folder, Speaker } | { Error }
@@ -40,7 +46,9 @@ function Runner( Options )
 	let settings = Options.Settings;
 	let runs = Options.Runs;
 	let tokens = Options.Tokens || null;
+	let users = Options.Users || null;
 	let git = Options.Git || null;
+	let perform = null;
 	let url_of = Options.Url || function () { return null; };
 
 
@@ -219,7 +227,7 @@ function Runner( Options )
 			return { Error: request.Task ? 'no task with the id ' + request.Task : 'a Task is needed: one of ' + ( settings.Tasks || [] ).map( function ( one ) { return one.Id; } ).join( ', ' ) };
 		}
 		let url = url_of();
-		if ( !url )
+		if ( !url && llm.Kind !== 'ollama' )
 		{
 			return { Error: 'this server does not listen (Scope None): a run could not reach it' };
 		}
@@ -253,7 +261,7 @@ function Runner( Options )
 		{
 			if ( is_ollama )
 			{
-				instructions = TOOLS.Tools( { Writes: task.Writes, Folder: folder, Server: { Url: url, Token: Token || null, Project: project.Id } } ).Instructions();
+				instructions = TOOLS.Tools( { Writes: task.Writes, Folder: folder, Server: { Project: project.Id } } ).Instructions();
 			}
 			else
 			{
@@ -327,11 +335,22 @@ function Runner( Options )
 		let llm = LLMS.ById( settings, request.Llm );
 		let task = TASKS.ById( settings, request.Task );
 		let token = null;
-		if ( llm && task && tokens )
+		let run_account = null;
+		if ( llm && task )
 		{
 			let name = task.Name + ' run';
 			let account = by.Name ? { Id: by.Id || null, Name: by.Name, Display: by.Display || by.Name, Role: by.Role || 'owner', Type: by.Type || 'owner', Admin: ( by.Admin === undefined ) ? true : !!by.Admin, Manager: !!by.Manager } : null;
-			token = { Value: tokens.Mint( { Service: llm.Name, Name: name, Project: request.Project || null, Writes: task.Writes, Account: account, Role: by.ProjectRole || null } ), Name: name };
+			let fields = { Service: llm.Name, Name: name, Project: request.Project || null, Writes: task.Writes, Account: account, Role: by.ProjectRole || null };
+			if ( llm.Kind === 'ollama' )
+			{
+				// no token: the run's tools act inside the Server as this account; the name stays on the record
+				run_account = PARTICIPANTS.RunAccount( settings, fields, users );
+				token = { Value: null, Name: name };
+			}
+			else if ( tokens )
+			{
+				token = { Value: tokens.Mint( fields ), Name: name };
+			}
 		}
 		let made = await Package( request, token ? token.Value : null, by );
 		if ( made.Error )
@@ -355,7 +374,7 @@ function Runner( Options )
 		let server = null;
 		if ( made.Llm.Kind === 'ollama' )
 		{
-			server = { Url: url_of(), Token: token ? token.Value : null, Project: made.Project.Id };
+			server = { Perform: Performer( run_account ), Project: made.Project.Id };
 		}
 		async function prepare()
 		{
@@ -406,9 +425,31 @@ function Runner( Options )
 	}
 
 
+	//-----------------------------------------------------------------
+	// Attach: what performs a run's Consensus tools (the API's check and the operation); Performer: that, as one account.
+
+	function Attach( Perform )
+	{
+		perform = ( typeof Perform === 'function' ) ? Perform : null;
+	}
+
+
+	function Performer( Account )
+	{
+		return async function ( Name, Arguments )
+		{
+			if ( !perform )
+			{
+				throw new Error( 'the run\'s tools are not attached to the API' );
+			}
+			return await perform( Account, Name, Arguments );
+		};
+	}
+
+
 	function drop( token )
 	{
-		if ( token && tokens )
+		if ( token && token.Value && tokens )
 		{
 			tokens.Drop( token.Value );
 		}
@@ -427,6 +468,8 @@ function Runner( Options )
 		Lists: Lists,
 		Package: Package,
 		Start: Start,
+		Attach: Attach,
+		Performer: Performer,
 	};
 }
 

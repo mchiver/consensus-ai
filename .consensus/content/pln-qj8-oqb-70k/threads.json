@@ -13,7 +13,15 @@
 			"By": "user",
 			"At": "2026-10-29T02:38:25.848Z"
 		},
-		"Applied": null,
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-29T02:51:40.565Z",
+			"Revision": 2,
+			"RevisionId": "rev-q8f-hwt-m9c",
+			"Outcome": "Resolved with no reply: the recommendation stands as the text has it. The kinds are claude, chatgpt, gemini, grok, openai-compatible (with its Url, for Mistral, DeepSeek, Groq, OpenRouter, LM Studio, vLLM) and ollama."
+		},
 		"Created": "2026-10-29T01:55:05.240Z",
 		"Replies": [
 			{
@@ -40,7 +48,15 @@
 			"By": "user",
 			"At": "2026-10-29T02:38:39.585Z"
 		},
-		"Applied": null,
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-29T02:51:40.810Z",
+			"Revision": 2,
+			"RevisionId": "rev-q8f-hwt-m9c",
+			"Outcome": "Resolved with no reply: Gemini goes through Google's OpenAI-compatible endpoint, so there are three formats; a native adapter only if its tool calls fall short, said in the build log."
+		},
 		"Created": "2026-10-29T01:55:05.352Z",
 		"Replies": [
 			{
@@ -67,7 +83,15 @@
 			"By": "user",
 			"At": "2026-10-29T02:40:10.994Z"
 		},
-		"Applied": null,
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-29T02:51:41.050Z",
+			"Revision": 2,
+			"RevisionId": "rev-q8f-hwt-m9c",
+			"Outcome": "Resolved with no reply: the Key is kept with its connection in consensus.json, write-only through the API, as the text has it."
+		},
 		"Created": "2026-10-29T01:55:05.459Z",
 		"Replies": [
 			{
@@ -94,7 +118,15 @@
 			"By": "user",
 			"At": "2026-10-29T02:39:57.578Z"
 		},
-		"Applied": null,
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-29T02:51:41.293Z",
+			"Revision": 2,
+			"RevisionId": "rev-q8f-hwt-m9c",
+			"Outcome": "Resolved with no reply: a run's Consensus tools are performed inside the Server as the person who pressed, and no run token is minted, as the text has it."
+		},
 		"Created": "2026-10-29T01:55:05.559Z",
 		"Replies": [
 			{
@@ -121,7 +153,15 @@
 			"By": "user",
 			"At": "2026-10-29T02:39:23.538Z"
 		},
-		"Applied": null,
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-29T02:51:41.536Z",
+			"Revision": 2,
+			"RevisionId": "rev-q8f-hwt-m9c",
+			"Outcome": "Resolved with no reply: no web access in this plan; the services' own server-side tools stay off; a fetch tool of the Server's own would be its own plan."
+		},
 		"Created": "2026-10-29T01:55:05.665Z",
 		"Replies": [
 			{
@@ -137,9 +177,9 @@
 	{
 		"Id": "thr-3rq-zob-5so",
 		"Anchor": {
-			"Text": "is kept and shown as no longer supported",
+			"Text": "is removed when the Server reads its settings, and the Server's log names it",
 			"Prefix": " already in a Server's settings ",
-			"Suffix": ": its runs are refused with that"
+			"Suffix": ". A project that had chosen it i"
 		},
 		"Detached": false,
 		"Status": "resolved",
@@ -148,7 +188,15 @@
 			"By": "user",
 			"At": "2026-10-29T02:40:41.835Z"
 		},
-		"Applied": null,
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-29T02:51:40.310Z",
+			"Revision": 2,
+			"RevisionId": "rev-q8f-hwt-m9c",
+			"Outcome": "Resolved after the reply \"remove it\": a claude-cli connection already in a Server's settings is removed when the settings are read, the log naming it, and a project that chose it is left with none chosen; an unknown kind is never turned into another."
+		},
 		"Created": "2026-10-29T01:55:05.784Z",
 		"Replies": [
 			{
@@ -181,7 +229,15 @@
 			"By": "user",
 			"At": "2026-10-29T02:41:26.457Z"
 		},
-		"Applied": null,
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-29T02:51:41.798Z",
+			"Revision": 2,
+			"RevisionId": "rev-q8f-hwt-m9c",
+			"Outcome": "Resolved with no reply: the agent-session tokens LLM Instructions mints stay; this plan removes only the tokens the Server makes for its own runs."
+		},
 		"Created": "2026-10-29T01:55:05.908Z",
 		"Replies": [
 			{
@@ -191,6 +247,37 @@
 				"Token": "LLM session: Consensus",
 				"At": "2026-10-29T01:55:05.908Z",
 				"Text": "Do the tokens for agent sessions stay: the one LLM Instructions mints for an agent the person runs themselves (Claude Code over curl, or an MCP client)?\n\nRecommendation: yes, they stay. Such an agent runs outside the Server, so it has to say who it is somehow, and that token is the person's own credential, as their sign-in is. This plan removes the tokens the Server makes for its own runs, which are the ones that end up in a prompt. If \"no tokens\" is meant to cover agent sessions too, say so: it means taking LLM Instructions' token line and the account page's tokens away, and an agent outside the Server would then have nothing to sign in with, so that would be its own plan."
+			}
+		]
+	},
+	{
+		"Id": "thr-3yt-uxj-tlv",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-29T03:46:56.146Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-29T03:47:35.726Z",
+			"Revision": 2,
+			"RevisionId": "rev-q8f-hwt-m9c",
+			"Outcome": "Accepted: Step 1 (one tool loop) as built: src/Loop.js with the Ollama adapter, the Consensus tools performed inside the Server as the run's account, no token minted for an ollama run; the run's name kept in the Token field. Committed as \"Tool calls only Step 1: One tool loop\"."
+		},
+		"Created": "2026-10-29T03:41:14.966Z",
+		"Replies": [
+			{
+				"Id": "rep-huz-mmn-w5w",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-29T03:41:14.966Z",
+				"Text": "Build log: Tool calls only, Step 1 (One tool loop).\n\nBuilt by Claude Opus 5.5 (claude-opus-5-5), as Claude-CLI.\n\n**What was built, and where**\n\n- `src/Loop.js` (new): the tool loop, moved out of `src/Ollama.js`. It runs the rounds, the run's tools, the Timeout and Rounds limits, the transcript and its rendering. What a service's requests and replies look like is left to an adapter (Label, First, Request, Read, Results, User), so the loop knows no service.\n- `src/Ollama.js`: now the Ollama adapter alone (its chat request, num_ctx, its tool calls and tool messages). Its Run and Render are the loop's, so `src/Runs.js` calls it as before, and its errors read as they did (\"Ollama took longer than …\", \"Ollama refused: …\").\n- The Consensus tools are performed inside the Server, with no token and no HTTP request:\n  - `src/Tools.js` takes `Server: { Perform, Project }` in place of `{ Url, Token, Project }` and calls the operation through Perform. A refusal still reads \"Consensus answered <status>: <reason>\".\n  - `src/Api.js` attaches `perform_as_run` to the Runner. It applies the same checks a request gets (a run that writes nothing is refused every write, and the person's role in the project is checked as for MCP calls), then performs the operation.\n  - `src/Participants.js` adds `RunAccount`: the account a run token would have named (the presser through the connection, with the task's Writes), built without a token.\n  - `src/Runner.js`: an ollama run is minted no token. Its tools act as that account (`Attach`, `Performer`). The Server no longer needs to listen for an ollama run to be packaged. `src/Server.js` hands the Runner the users registry.\n\n**Two things to know**\n\n- A claude-cli run still gets its token until Step 3 removes that kind.\n- The run's record, and every reply and revision it makes, still names the run (\"Enhance run\") in the Token field, as before. That has always been the token's name, never its value. It is how a build log is tied to the Work run that posted it (the Work options' commit on resolve), so I kept it as the run's name. The plan says \"A run's record keeps no Token\": the record keeps no token value, only the run's name.\n\n**How it was tested**\n\n- `test/Tools.test.js`:\n  - The Consensus tools test now runs on the in-Server performer, with no token minted.\n  - It adds that a Writes none account is refused a reply with \"this run reads only\" and may still read.\n  - A new test runs an ollama connection end to end through POST /api/runs (Enhance on a plan, a stand-in Ollama that calls reply). No token exists during or after the run, the prompt and every request to the model hold no \"Bearer\", and the reply is posted as user through local with the run's name.\n- The whole suite:\n  - Every file but the docs test: 271 tests, 268 pass, 3 skipped (the Clerk smoke tests), none failed.\n  - `test/Docs.test.js` alone: 2 of 2 pass.\n  - In the first full parallel run, the docs test hung under the load, and two Api tests failed. Each passed alone, and the Api tests passed again in the second run.\n- The smoke was not run for this step: no page, window or app changed.\n\nResolve to accept Step 1; reply with anything to change."
 			}
 		]
 	}

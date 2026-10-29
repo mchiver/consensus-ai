@@ -175,7 +175,7 @@ async function Start( Options )
 		await gate.Check();
 	}
 	let git = GIT.Git();
-	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Url: function () { return url; }, Tokens: tokens, Git: git } );
+	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Url: function () { return url; }, Tokens: tokens, Users: users, Git: git } );
 	if ( project && typeof options.Activate === 'function' )
 	{
 		// A Desktop's sidecar brings its window to the front for a second launch on its folder (Sidecar.Activate).

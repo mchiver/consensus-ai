@@ -18,6 +18,7 @@ const OLLAMA = require( '../src/Ollama.js' );
 const RUNS = require( '../src/Runs.js' );
 const LLM = require( '../src/Llm.js' );
 const SERVER = require( '../src/Server.js' );
+const PARTICIPANTS = require( '../src/Participants.js' );
 
 const TOKEN = 'test-llm-token-step-4';
 
@@ -231,8 +232,10 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		let resolved = ( await owner( url, 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Say third.', Anchor: { Text: 'A second line.' }, Resolve: true } ) ).Body.Thread;
 		let contested = ( await owner( url, 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Why a first line?' } ) ).Body.Thread;
 
-		// the tools call the API on a run token the server made (plan User Management, Step 2)
-		let tools = TOOLS.Tools( { Writes: 'consensus', Folder: null, Server: { Url: url, Token: target.Tokens.Mint( { Service: 'llm', Name: 'Review run', Project: project.Id } ), Project: project.Id } } );
+		// the tools perform the operations inside the Server as the run's account, on no token (plan Tool calls only, Step 1)
+		let account = PARTICIPANTS.RunAccount( target.Settings, { Service: 'llm', Name: 'Review run', Writes: 'consensus' }, target.Users );
+		let tools = TOOLS.Tools( { Writes: 'consensus', Folder: null, Server: { Perform: target.Runner.Performer( account ), Project: project.Id } } );
+		ASSERT.equal( target.Tokens.Count(), 0 );
 		ASSERT.deepEqual( tools.Definitions.map( function ( d ) { return d.function.name; } ), [ 'list_projects', 'read_plan', 'list_threads', 'list_revisions', 'read_revision', 'waiting', 'thread', 'reply', 'reanchor', 'apply', 'write_text', 'set_state', 'create_plan' ] );
 
 		let listed = await tools.Call( 'list_projects', {} );
@@ -297,9 +300,56 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		ASSERT.match( await tools.Call( 'set_state', { Id: plan.Id, State: 'Done' } ), /State must be one of/ );
 		ASSERT.match( await tools.Call( 'set_state', { Id: elsewhere.Id, State: 'Working' } ), /not in this project/ );
 		ASSERT.match( await tools.Call( 'nothing', {} ), /no tool named nothing/ );
+		// a run that writes nothing is refused every write inside the Server too, whatever its tools offer
+		let reader = PARTICIPANTS.RunAccount( target.Settings, { Service: 'llm', Name: 'Explain run', Writes: 'none' }, target.Users );
+		await ASSERT.rejects( target.Runner.Performer( reader )( 'reply', { Id: plan.Id, Thread: contested.Id, Text: 'no' } ), function ( error ) { return error.Status === 403 && error.Error === 'this run reads only'; } );
+		ASSERT.match( JSON.stringify( await target.Runner.Performer( reader )( 'read_plan', { Id: plan.Id } ) ), /The plan/ );
 	}
 	finally
 	{
+		await target.Close();
+	}
+} );
+
+
+TEST( 'an ollama run through the Server mints no token: its prompt holds none, its tools post as the presser through the connection, and its record names the run (plan Tool calls only, Step 1)', async function ()
+{
+	let target = await start_consensus();
+	let fake = null;
+	try
+	{
+		let url = target.Url;
+		let project = ( await owner( url, 'GET', '/api/projects' ) ).Body.Projects[ 0 ];
+		let plan = ( await owner( url, 'POST', '/api/plans', { Title: 'A sketch', Text: '# A sketch\n\nOne line.\n', Project: project.Id } ) ).Body.Plan;
+		let contested = ( await owner( url, 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Why one line?' } ) ).Body.Thread;
+		fake = await fake_ollama( [
+			{ calls: [ [ 'reply', { Id: plan.Id, Thread: contested.Id, Text: 'Because a sketch is short.' } ] ], delay: 300 },
+			{ content: 'Replied.' },
+		] );
+		let llm = ( await owner( url, 'POST', '/api/llms', { Name: 'local', Kind: 'ollama', Url: fake.Url, Model: 'fake:latest', Timeout: 30 } ) ).Body.Llm;
+		let started = await owner( url, 'POST', '/api/runs', { Llm: llm.Id, Task: 'enhance', Project: project.Id, Plan: plan.Id, Text: 'Answer the thread.' } );
+		ASSERT.equal( started.Status, 201 );
+		ASSERT.equal( started.Body.Run.Token, 'Enhance run' );
+		ASSERT.equal( target.Tokens.Count(), 0 );
+		let record = null;
+		for ( let attempt = 0; attempt < 200 && ( !record || record.Status === 'running' ); attempt++ )
+		{
+			await new Promise( function ( resolve ) { setTimeout( resolve, 50 ); } );
+			record = ( await owner( url, 'GET', '/api/runs/' + started.Body.Run.Id ) ).Body.Run;
+		}
+		ASSERT.equal( record.Status, 'done' );
+		ASSERT.doesNotMatch( record.Prompt, /Bearer|Your token/ );
+		ASSERT.doesNotMatch( JSON.stringify( fake.Requests ), /Bearer/ );
+		let thread = ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body.Threads.find( function ( one ) { return one.Id === contested.Id; } );
+		ASSERT.deepEqual( [ thread.Replies[ 1 ].By, thread.Replies[ 1 ].Service, thread.Replies[ 1 ].Token, thread.Replies[ 1 ].Text ], [ 'user', 'local', 'Enhance run', 'Because a sketch is short.' ] );
+		ASSERT.equal( target.Tokens.Count(), 0 );
+	}
+	finally
+	{
+		if ( fake )
+		{
+			await fake.Close();
+		}
 		await target.Close();
 	}
 } );

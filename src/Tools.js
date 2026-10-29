@@ -10,10 +10,12 @@
 // Since plan MCP Server, Step 2, the Consensus tools are the interface definition (Operations.js) in Ollama's form:
 // the operations a run may call (RUN_READS at every level, RUN_WRITES when the task's Writes is not none), named,
 // described and typed as the definition says, with the project fixed to the run's (Project is never asked, and a
-// plan named must be the project's), Revision supplied when left out and Anchor taken as plain words. Each call is
-// the operation's own route over the API as the run (Operations.Route), its answer rendered as text for the model.
+// plan named must be the project's), Revision supplied when left out and Anchor taken as plain words. Since plan Tool
+// calls only, Step 1, each call is the operation performed inside the Server as the run (Server.Perform: the API's
+// check of the person's role and the task's Writes, then the operation), with no token and no request over HTTP;
+// its answer is rendered as text for the model, and a refusal reads "Consensus answered <status>: <reason>".
 //
-//   Tools( { Writes: none | consensus | files, Folder: { Path, Include, Exclude, Commands } | null, Server: { Url, Token, Project } } )
+//   Tools( { Writes: none | consensus | files, Folder: { Path, Include, Exclude, Commands } | null, Server: { Perform( Name, Arguments ), Project } } )
 //     -> { Definitions, Call( Name, Arguments ), Describe( Name, Arguments ), Instructions() }
 //   Definitions: the tools in Ollama's form, [ { type: 'function', function: { name, description, parameters } } ]
 //   Call: a promise of the result text; a tool that does not exist or refuses answers with a sentence, never throws
@@ -32,7 +34,6 @@ const READ_LIMIT = 200;
 const RUN_TIMEOUT = 10 * 60 * 1000;
 const RUN_OUTPUT_LIMIT = 20000;
 const RESULT_SHOWN = 300;
-const FETCH_TIMEOUT = 30000;
 const SHELL_OPERATORS = /[|&;<>$`()\n\r]/;
 
 const WRITES = [ 'none', 'consensus', 'files' ];
@@ -233,7 +234,7 @@ function Tools( Options )
 			}
 		}
 	}
-	if ( server && server.Url )
+	if ( server && server.Project )
 	{
 		for ( let tool of CONSENSUS_TOOLS )
 		{
@@ -457,46 +458,34 @@ function Tools( Options )
 
 
 	//-----------------------------------------------------------------
-	// The Consensus tools: each the operation's route over the API, as the run.
+	// The Consensus tools: each the operation performed inside the Server, as the run.
 
-	async function api( method, path, body )
+	async function perform( name, args )
 	{
-		let base = String( server.Url ).replace( /\/+$/, '' );
-		let headers = {};
-		if ( server.Token )
+		if ( typeof server.Perform !== 'function' )
 		{
-			headers.Authorization = 'Bearer ' + server.Token;
+			throw new Error( 'this run cannot reach Consensus' );
 		}
-		let request = { method: method, headers: headers, signal: AbortSignal.timeout( FETCH_TIMEOUT ) };
-		if ( body )
+		let answer = null;
+		try
 		{
-			headers[ 'Content-Type' ] = 'application/json';
-			request.body = JSON.stringify( body );
+			answer = await server.Perform( name, args );
 		}
-		let response = await fetch( base + path, request );
-		let json = await response.json().catch( function () { return {}; } );
-		if ( !response.ok )
+		catch ( error )
 		{
-			throw new Error( 'Consensus answered ' + response.status + ( json.Error ? ': ' + json.Error : '' ) );
+			if ( OPERATIONS.IsRefusal( error ) )
+			{
+				throw new Error( 'Consensus answered ' + error.Status + ( error.Error ? ': ' + error.Error : '' ) );
+			}
+			throw error;
 		}
-		return json;
-	}
-
-
-	function query_string( query )
-	{
-		let parts = [];
-		for ( let key of Object.keys( query || {} ) )
-		{
-			parts.push( encodeURIComponent( key ) + '=' + encodeURIComponent( query[ key ] ) );
-		}
-		return parts.length ? '?' + parts.join( '&' ) : '';
+		return OPERATIONS.IsAnswer( answer ) ? answer.Body : answer;
 	}
 
 
 	async function project()
 	{
-		let answer = await api( 'GET', '/api/projects' );
+		let answer = await perform( 'list_projects', {} );
 		let found = ( answer.Projects || [] ).find( function ( one ) { return one.Id === server.Project; } );
 		if ( !found )
 		{
@@ -514,7 +503,7 @@ function Tools( Options )
 		{
 			return { Error: 'an id is needed' };
 		}
-		let answer = await api( 'GET', '/api/plans/' + encodeURIComponent( clean ) );
+		let answer = await perform( 'read_plan', { Id: clean } );
 		if ( !answer.Project || answer.Project.Id !== server.Project )
 		{
 			return { Error: clean + ' is not in this project' };
@@ -615,7 +604,7 @@ function Tools( Options )
 
 
 	// The operation's call as the run: the project fixed, a plan named checked to be the project's, the revision
-	// supplied, the anchor placed; then the route over the API and the answer rendered.
+	// supplied, the anchor placed; then the operation performed and the answer rendered.
 	async function call_operation( tool, input )
 	{
 		let args = Object.assign( {}, input );
@@ -656,8 +645,7 @@ function Tools( Options )
 			wanted_plan = String( args.Plan || '' ).trim();
 			delete args.Plan;
 		}
-		let route = OPERATIONS.Route( operation, args );
-		let answer = await api( route.Method, '/api' + route.Path + query_string( route.Query ), route.Body );
+		let answer = await perform( tool.name, args );
 		return render( tool.name, input, answer, wanted_plan );
 	}
 
