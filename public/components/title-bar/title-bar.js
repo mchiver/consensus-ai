@@ -27,6 +27,8 @@ angular.module( 'Consensus' ).component( 'titleBar', {
 		let desktop = ( $window.Desktop && typeof $window.Desktop.NewWindow === 'function' ) ? $window.Desktop : null;
 		controller.State = State;
 		controller.LookOpen = false;
+		// The brand names the application: Consensus Desktop, Server, Sidecar or Client; Consensus in a browser.
+		controller.Product = Roots.Product;
 
 
 		//-----------------------------------------------------------------

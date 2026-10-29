@@ -393,6 +393,7 @@ async function smoke_desktop()
 		await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
 		await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( button ) { return button.textContent.trim() === "About"; } ).click(); true' );
 		await page.WaitFor( count_of( '.about-table' ) + ' === 1' );
+		check( 'title: Consensus Desktop', await page.Evaluate( 'JSON.stringify( [ document.querySelector( "title-bar .brand" ).textContent.trim(), document.title ] )' ), JSON.stringify( [ 'Consensus Desktop', 'Consensus Desktop' ] ) );
 		check( 'about: names Consensus Desktop', /^About Consensus Desktop/.test( await page.Evaluate( text_of( '.help-form .subplan-head' ) ) ), true );
 		// the look is the project's (plan Project settings, Step 2): a hidden tree is saved to its project.json's View
 		await page.WaitFor( 'window.ConsensusStored.ViewWritable() === true', 10000 );
@@ -466,7 +467,7 @@ async function smoke_desktop()
 		await wait( 500 );
 		check( 'detached: the overlay', await detached.Evaluate( 'navigator.windowControlsOverlay.visible' ), true );
 		check( 'detached: no native title or menu bar', await detached.Evaluate( NO_FRAME ), true );
-		check( 'detached: the bar', await detached.Evaluate( text_of( 'title-bar .brand' ) ), 'Consensus' );
+		check( 'detached: the bar', await detached.Evaluate( text_of( 'title-bar .brand' ) ), 'Consensus Desktop' );
 		await capture_window( detached, 'desktop-detached' );
 		await detached.Evaluate( 'window.close(); true' );
 		await wait( 500 );
@@ -554,7 +555,7 @@ async function smoke_server_app()
 		await page.WaitFor( 'document.getElementById( "sign-in-closed" ) !== null', 30000 );
 		check( 'closed: the sign-in says why', await page.Evaluate( 'document.getElementById( "sign-in-closed" ).textContent.trim()' ), 'the Server needs a Personal or Professional sign-in; the first one becomes its Administrator.' );
 		check( 'closed: the window\'s bridge', await page.Evaluate( 'JSON.stringify( [ typeof window.ConsensusServer, typeof window.ConsensusDesktop, typeof window.Desktop.PickFolder ] )' ), '["object","undefined","function"]' );
-		check( 'closed: the window\'s title', await page.Evaluate( 'document.title.length > 0' ), true );
+		check( 'closed: the window\'s title', await page.Evaluate( 'document.title' ), 'Consensus Server' );
 		page.Close();
 		child.kill();
 		await wait( 1500 );
@@ -662,6 +663,7 @@ async function smoke_sidecar()
 		check( 'project menu: LLM Instructions, no Explain', project_menu.indexOf( 'LLM Instructions' ) >= 0 && project_menu.indexOf( 'Explain' ) < 0, true );
 		await page.Evaluate( CLOSE_MENU );
 		await page.Evaluate( SHOW_ABOUT );
+		check( 'title: Consensus Sidecar', await page.Evaluate( 'JSON.stringify( [ document.querySelector( "title-bar .brand" ).textContent.trim(), document.title ] )' ), JSON.stringify( [ 'Consensus Sidecar', 'Consensus Sidecar' ] ) );
 		let about = await page.WaitFor( 'document.body.innerText.indexOf( "About Consensus Sidecar" ) >= 0', 5000 ).catch( function () { return false; } );
 		check( 'about: names Consensus Sidecar', about, true );
 		await page.Evaluate( CLOSE_ABOUT );
@@ -813,6 +815,7 @@ async function smoke_client()
 		check( 'server menu: Servers… and Reload', await page.Evaluate( MENU_LABELS ), JSON.stringify( [ 'Servers…', '---', 'Reload' ] ) );
 		await page.Evaluate( CLOSE_MENU );
 		await page.Evaluate( SHOW_ABOUT );
+		check( 'title: Consensus Client', await page.Evaluate( 'JSON.stringify( [ document.querySelector( "title-bar .brand" ).textContent.trim(), document.title ] )' ), JSON.stringify( [ 'Consensus Client', 'Consensus Client' ] ) );
 		check( 'about: names Consensus Client', await page.WaitFor( 'document.body.innerText.indexOf( "About Consensus Client" ) >= 0', 5000 ).catch( function () { return false; } ), true );
 		await page.Evaluate( CLOSE_ABOUT );
 		// a task's run, from the press

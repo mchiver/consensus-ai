@@ -1,5 +1,5 @@
 <div class="title-bar" id="title-bar">
-	<div class="brand"><img class="brand-mark" src="/img/mark.svg" alt="">Consensus</div>
+	<div class="brand"><img class="brand-mark" src="/img/mark.svg" alt="">{{ $ctrl.Product }}</div>
 	<button class="title-button" type="button" id="app-menu" ng-class="{ shown: $ctrl.MenuOpen() }" ng-click="$ctrl.OpenMenu($event)" title="about Consensus, the hotkeys, and the desktop's commands">Menu<svg class="icon"><use href="#i-caret"></use></svg></button>
 	<div class="title-status">
 		<a class="waiting-link" ng-href="#/waiting" ng-class="{ open: $ctrl.State.View === 'waiting' }" id="waiting-link" title="the threads waiting on you, on every server">Waiting on you: {{ $ctrl.WaitingCount() }}</a>

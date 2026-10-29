@@ -1,0 +1,197 @@
+[
+	{
+		"Id": "thr-5ix-9xc-f2l",
+		"Anchor": {
+			"Text": "any other service that speaks OpenAI's chat completions, at the Url given",
+			"Prefix": "pi.x.ai/v1). openai-compatible: ",
+			"Suffix": ": Mistral, DeepSeek, Groq, OpenR"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-29T02:38:25.848Z"
+		},
+		"Applied": null,
+		"Created": "2026-10-29T01:55:05.240Z",
+		"Replies": [
+			{
+				"Id": "rep-kli-ue1-wp7",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-29T01:55:05.240Z",
+				"Text": "Are these the kinds: claude, chatgpt, gemini, grok, openai-compatible, and ollama as today?\n\nRecommendation: yes. Mistral, DeepSeek, Groq, OpenRouter and models served on the network (LM Studio, vLLM) all speak OpenAI's chat completions, so one openai-compatible kind with its Url covers them. Any of them can become a named kind later, with its Url filled in, without touching the loop."
+			}
+		]
+	},
+	{
+		"Id": "thr-p9a-l36-jhk",
+		"Anchor": {
+			"Text": "There are three formats",
+			"Prefix": " that service expects and back. ",
+			"Suffix": ": Anthropic's Messages, OpenAI's"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-29T02:38:39.585Z"
+		},
+		"Applied": null,
+		"Created": "2026-10-29T01:55:05.352Z",
+		"Replies": [
+			{
+				"Id": "rep-ndx-cr1-ge3",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-29T01:55:05.352Z",
+				"Text": "Does Gemini go through Google's OpenAI-compatible endpoint, or through its own API (generateContent)?\n\nRecommendation: the OpenAI-compatible endpoint (https://generativelanguage.googleapis.com/v1beta/openai), so ChatGPT, Grok, Gemini and the compatible kind share one adapter, and there are three formats in all. If Gemini's tool calls fall short there when the step is built, a native adapter is added in that step and the build log says so."
+			}
+		]
+	},
+	{
+		"Id": "thr-d3i-gjn-7uw",
+		"Anchor": {
+			"Text": "A connection's Key is kept in the Server's settings with the connection",
+			"Prefix": "he service's own words. The Key ",
+			"Suffix": " (consensus.json in the config f"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-29T02:40:10.994Z"
+		},
+		"Applied": null,
+		"Created": "2026-10-29T01:55:05.459Z",
+		"Replies": [
+			{
+				"Id": "rep-tsg-7wi-2dz",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-29T01:55:05.459Z",
+				"Text": "Where does a connection's API key live?\n\nRecommendation: in the Server's settings with the connection (consensus.json in the config folder), write-only through the API: the page shows whether a Key is set and can replace it, and nothing ever answers with it. Other ways, if you prefer one:\n\n- the connection names an environment variable (say ANTHROPIC_API_KEY), and the key is set on the Server's machine, never in a file of ours;\n- a separate file of keys beside consensus.json, such as ~keys.json, so the settings can be copied or shown without them."
+			}
+		]
+	},
+	{
+		"Id": "thr-lqh-gtq-bys",
+		"Anchor": {
+			"Text": "No run token is minted",
+			"Prefix": "ration's Perform, as MCP does). ",
+			"Suffix": ": the run itself carries the per"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-29T02:39:57.578Z"
+		},
+		"Applied": null,
+		"Created": "2026-10-29T01:55:05.559Z",
+		"Replies": [
+			{
+				"Id": "rep-vl4-s9y-jwn",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-29T01:55:05.559Z",
+				"Text": "Do a run's Consensus tools stop calling the Server's API with a run token, and perform the operations inside the Server instead?\n\nRecommendation: yes. Today even an Ollama run's tools call the API over HTTP with a token the Server mints for the run; the model never sees it, but it exists, and it is named in the run's record. Performed inside the Server (as MCP calls are, through the operation's Perform), the run needs no token at all: the run carries the person, the connection's name and the task's Writes, and a write beyond Writes is refused as it is today."
+			}
+		]
+	},
+	{
+		"Id": "thr-x2n-w7p-evi",
+		"Anchor": {
+			"Text": "A service's own server-side tools (its web search, its code execution) are not turned on",
+			"Prefix": "ar as the task's Writes allows. ",
+			"Suffix": ". The package's instructions are"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-29T02:39:23.538Z"
+		},
+		"Applied": null,
+		"Created": "2026-10-29T01:55:05.665Z",
+		"Replies": [
+			{
+				"Id": "rep-l8y-kjd-vlz",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-29T01:55:05.665Z",
+				"Text": "Does a run get any web access?\n\nRecommendation: no, not in this plan. A run has the Server's tools alone: the folder's files, the commands the project allows, and Consensus. The services' own web search and code execution stay off, since they run outside the Server and its rules. A claude-cli Work run could fetch pages (WebFetch was in its allowed tools), so this is something lost; a fetch tool of the Server's own, limited to the addresses a project allows (as Commands limits run), would be its own plan."
+			}
+		]
+	},
+	{
+		"Id": "thr-3rq-zob-5so",
+		"Anchor": {
+			"Text": "is kept and shown as no longer supported",
+			"Prefix": " already in a Server's settings ",
+			"Suffix": ": its runs are refused with that"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-29T02:40:41.835Z"
+		},
+		"Applied": null,
+		"Created": "2026-10-29T01:55:05.784Z",
+		"Replies": [
+			{
+				"Id": "rep-ywc-cr5-m4q",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-29T01:55:05.784Z",
+				"Text": "What happens to a claude-cli connection already in a Server's settings?\n\nRecommendation: it stays in the list, marked no longer supported, and its runs are refused with that reason until the Administrator or a Manager changes its Kind or deletes it. A project that chose it keeps the choice, and its task buttons say why they are greyed out. The other way is to drop such connections when the Server reads its settings, which is simpler but leaves those projects with no connection and nothing to say why."
+			},
+			{
+				"Id": "rep-a6u-6e7-crs",
+				"By": "user",
+				"At": "2026-10-29T02:40:41.835Z",
+				"Text": "remove it"
+			}
+		]
+	},
+	{
+		"Id": "thr-46o-bns-t1k",
+		"Anchor": {
+			"Text": "still act as that person on the token LLM Instructions mints",
+			"Prefix": "sor) the person runs themselves ",
+			"Suffix": ". This plan is about the runs a "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-29T02:41:26.457Z"
+		},
+		"Applied": null,
+		"Created": "2026-10-29T01:55:05.908Z",
+		"Replies": [
+			{
+				"Id": "rep-zct-4dq-hu0",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-29T01:55:05.908Z",
+				"Text": "Do the tokens for agent sessions stay: the one LLM Instructions mints for an agent the person runs themselves (Claude Code over curl, or an MCP client)?\n\nRecommendation: yes, they stay. Such an agent runs outside the Server, so it has to say who it is somehow, and that token is the person's own credential, as their sign-in is. This plan removes the tokens the Server makes for its own runs, which are the ones that end up in a prompt. If \"no tokens\" is meant to cover agent sessions too, say so: it means taking LLM Instructions' token line and the account page's tokens away, and an agent outside the Server would then have nothing to sign in with, so that would be its own plan."
+			}
+		]
+	}
+]

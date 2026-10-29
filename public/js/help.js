@@ -108,23 +108,7 @@ angular.module( 'Consensus' ).factory( 'HelpPanel', [ 'Roots', function ( Roots 
 	// The application's name for the About heading.
 	$scope.Product = function ()
 	{
-		if ( $window.ConsensusDesktop && $window.ConsensusDesktop.Sidecar === true )
-		{
-			return 'Consensus Sidecar';
-		}
-		if ( $window.ConsensusDesktop && $window.ConsensusDesktop.Client === true )
-		{
-			return 'Consensus Client';
-		}
-		if ( $window.ConsensusDesktop )
-		{
-			return 'Consensus Desktop';
-		}
-		if ( $window.ConsensusServer )
-		{
-			return 'Consensus Server';
-		}
-		return 'Consensus';
+		return Roots.Product;
 	};
 
 

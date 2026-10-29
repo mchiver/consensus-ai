@@ -49,6 +49,31 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 	roots.Project = ( window.ConsensusDesktop && window.ConsensusDesktop.Project && window.ConsensusDesktop.Project.Id ) ? window.ConsensusDesktop.Project : null;
 	// The Client (plan Client Edition, Step 3): its page leaves out every Server's configuration.
 	roots.Client = !!( window.ConsensusDesktop && window.ConsensusDesktop.Client === true );
+	// The application's name, in the title bar, the window's title and About; plain Consensus in a browser.
+	roots.Product = product_name();
+	document.title = roots.Product;
+
+
+	function product_name()
+	{
+		if ( window.ConsensusDesktop && window.ConsensusDesktop.Sidecar === true )
+		{
+			return 'Consensus Sidecar';
+		}
+		if ( window.ConsensusDesktop && window.ConsensusDesktop.Client === true )
+		{
+			return 'Consensus Client';
+		}
+		if ( window.ConsensusDesktop )
+		{
+			return 'Consensus Desktop';
+		}
+		if ( window.ConsensusServer )
+		{
+			return 'Consensus Server';
+		}
+		return 'Consensus';
+	}
 
 
 	function Of( Key )
