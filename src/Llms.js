@@ -14,11 +14,26 @@
 //     "Prompts": { "Session": "" } }
 //   Context (the model's window, Ollama's num_ctx) and Rounds (the most tool rounds a run takes) matter to an ollama
 //   connection; Command and Arguments to a claude-cli one.
+//
+// Plan Tool calls only, Step 2: the API connections, each a hosted model the Server's tool loop (Loop.js) reaches over
+// its API: claude (Anthropic's Messages), chatgpt, gemini and grok (OpenAI's chat completions, Gemini through Google's
+// OpenAI-compatible endpoint), and openai-compatible (any other service that speaks it, at the Url given). Each has
+// a Url (filled in for the named kinds), a Model (required) and a Key. The Key is write-only: Public and Hidden never
+// carry it, only KeySet; a save without a Key keeps the one the connection has. Every kind but claude-cli runs
+// through the tool loop (IsLoop), and FormatOf says which adapter speaks for it.
 
 const IDS = require( './Ids.js' );
 const PARTICIPANTS = require( './Participants.js' );
 
-const KINDS = [ 'claude-cli', 'ollama' ];
+const KINDS = [ 'claude-cli', 'ollama', 'claude', 'chatgpt', 'gemini', 'grok', 'openai-compatible' ];
+// The API kinds: the format of their requests, and the Url a new connection is given.
+const API_KINDS = {
+	'claude': { Format: 'anthropic', Url: 'https://api.anthropic.com/v1' },
+	'chatgpt': { Format: 'openai', Url: 'https://api.openai.com/v1' },
+	'gemini': { Format: 'openai', Url: 'https://generativelanguage.googleapis.com/v1beta/openai' },
+	'grok': { Format: 'openai', Url: 'https://api.x.ai/v1' },
+	'openai-compatible': { Format: 'openai', Url: '' },
+};
 const DEFAULT_COMMAND = 'claude';
 const DEFAULT_ARGUMENTS = [ '-p', '--output-format', 'text', '--allowedTools', 'Bash,Read,Edit,Write,Glob,Grep,MultiEdit,WebFetch' ];
 const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
@@ -28,6 +43,7 @@ const DEFAULT_ROUNDS = 30;
 const DEFAULT_PROMPTS = { Session: '' };
 const NAME_PATTERN = /^[A-Za-z0-9.:-]+$/;
 const PUBLIC_FIELDS = [ 'Id', 'Name', 'Kind', 'Model' ];
+const SECRET_FIELDS = [ 'Key' ];
 
 
 function text_of( value, fallback )
@@ -51,16 +67,45 @@ function lines_of( value, fallback )
 
 
 //---------------------------------------------------------------------
-// DefaultName( Kind, Model ): the name a new connection is offered: claude-cli, or ollama-<model>.
+// DefaultName( Kind, Model ): the name a new connection is offered: claude-cli, or <kind>-<model> (ollama-llama3,
+// claude-sonnet-4-5), or the kind alone without a model.
 
 function DefaultName( Kind, Model )
 {
-	if ( Kind === 'ollama' )
+	if ( Kind === 'ollama' || API_KINDS[ Kind ] )
 	{
 		let model = text_of( Model ).replace( /[^A-Za-z0-9.:-]+/g, '-' );
-		return model ? 'ollama-' + model : 'ollama';
+		return model ? Kind + '-' + model : Kind;
 	}
 	return 'claude-cli';
+}
+
+
+// IsLoop( Kind ): whether a connection of the kind runs through the Server's tool loop: every kind but claude-cli.
+function IsLoop( Kind )
+{
+	return Kind === 'ollama' || !!API_KINDS[ Kind ];
+}
+
+
+// FormatOf( Kind ): the adapter a loop kind speaks through: ollama, anthropic or openai; null for claude-cli.
+function FormatOf( Kind )
+{
+	if ( Kind === 'ollama' )
+	{
+		return 'ollama';
+	}
+	return API_KINDS[ Kind ] ? API_KINDS[ Kind ].Format : null;
+}
+
+
+function default_url( kind )
+{
+	if ( kind === 'ollama' )
+	{
+		return DEFAULT_OLLAMA_URL;
+	}
+	return API_KINDS[ kind ] ? API_KINDS[ kind ].Url : '';
 }
 
 
@@ -86,8 +131,9 @@ function Fill( Llm )
 		Kind: kind,
 		Command: text_of( given.Command ) || DEFAULT_COMMAND,
 		Arguments: Array.isArray( given.Arguments ) ? given.Arguments.map( function ( argument ) { return String( argument ); } ) : DEFAULT_ARGUMENTS.slice(),
-		Url: text_of( given.Url ) || ( ( kind === 'ollama' ) ? DEFAULT_OLLAMA_URL : '' ),
+		Url: ( text_of( given.Url ) || default_url( kind ) ).replace( /\/+$/, '' ),
 		Model: text_of( given.Model ),
+		Key: text_of( given.Key ),
 		Timeout: ( Number.isFinite( timeout ) && timeout > 0 ) ? Math.round( timeout ) : DEFAULT_TIMEOUT,
 		Context: ( Number.isFinite( context ) && context > 0 ) ? Math.round( context ) : DEFAULT_CONTEXT,
 		Rounds: ( Number.isFinite( rounds ) && rounds > 0 ) ? Math.round( rounds ) : DEFAULT_ROUNDS,
@@ -145,11 +191,11 @@ function Problems( Settings )
 		{
 			problems.push( what + ': a Command is needed' );
 		}
-		if ( llm.Kind === 'ollama' && !/^https?:\/\/\S+$/.test( llm.Url || '' ) )
+		if ( IsLoop( llm.Kind ) && !/^https?:\/\/\S+$/.test( llm.Url || '' ) )
 		{
 			problems.push( what + ': the Url must start with http:// or https://' );
 		}
-		if ( llm.Kind === 'ollama' && !llm.Model )
+		if ( IsLoop( llm.Kind ) && !llm.Model )
 		{
 			problems.push( what + ': a Model is needed' );
 		}
@@ -181,22 +227,55 @@ function ById( Settings, Id )
 }
 
 
-// Public( Llm, Settings, Whole ): what a request sees: the whole record for the owner, else the public fields;
-// Speaker is the byline its runs post under.
+// Public( Llm, Settings, Whole ): what a request sees: the whole record (but its Key) for the Administrator and the
+// Managers, else the public fields; Speaker is the byline its runs post under.
 function Public( Llm, Settings, Whole )
 {
-	let shown = {};
-	for ( let field of Whole ? Object.keys( Llm ) : PUBLIC_FIELDS )
+	let shown = Whole ? Hidden( Llm ) : {};
+	if ( !Whole )
 	{
-		shown[ field ] = Llm[ field ];
+		for ( let field of PUBLIC_FIELDS )
+		{
+			shown[ field ] = Llm[ field ];
+		}
 	}
 	shown.Speaker = SpeakerDisplay( Llm, Settings );
 	return shown;
 }
 
 
+// Hidden( Llm ): the record with no Key, and KeySet saying whether it has one; what any answer carries.
+function Hidden( Llm )
+{
+	let shown = {};
+	for ( let field of Object.keys( Llm || {} ) )
+	{
+		if ( !SECRET_FIELDS.includes( field ) )
+		{
+			shown[ field ] = Llm[ field ];
+		}
+	}
+	shown.KeySet = !!( Llm && Llm.Key );
+	return shown;
+}
+
+
+// Given( Fields ): the fields of a save, an empty Key left out so the connection keeps the one it has.
+function Given( Fields )
+{
+	let given = Object.assign( {}, Fields || {} );
+	if ( typeof given.Key !== 'string' || !given.Key.trim() )
+	{
+		delete given.Key;
+	}
+	delete given.KeySet;
+	return given;
+}
+
+
 module.exports = {
 	KINDS: KINDS,
+	API_KINDS: API_KINDS,
 	DEFAULT_PROMPTS: DEFAULT_PROMPTS,
 	DEFAULT_COMMAND: DEFAULT_COMMAND,
 	DEFAULT_ARGUMENTS: DEFAULT_ARGUMENTS,
@@ -206,6 +285,10 @@ module.exports = {
 	DEFAULT_ROUNDS: DEFAULT_ROUNDS,
 	NAME_PATTERN: NAME_PATTERN,
 	DefaultName: DefaultName,
+	IsLoop: IsLoop,
+	FormatOf: FormatOf,
+	Hidden: Hidden,
+	Given: Given,
 	Fill: Fill,
 	Problems: Problems,
 	SpeakerName: SpeakerName,

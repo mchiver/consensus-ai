@@ -10,7 +10,7 @@
 // (Url), so a run is always on this machine. The Work options (plan LLM Tasks, Step 3): a run of a task with Writes
 // files pulls first when the project's GitSync is on (Git.js), a failed pull refusing the run; the record keeps git's words.
 //
-// Plan Tool calls only, Step 1: an ollama run is minted no token. Its Consensus tools are performed inside the Server
+// Plan Tool calls only, Step 1: a tool loop run (ollama, and since Step 2 an API connection) is minted no token. Its Consensus tools are performed inside the Server
 // as the run's account (Participants.RunAccount: the presser through the connection, carrying the task's Writes),
 // through what the API attaches (Attach), so nothing of the run's identity is a secret that could leave the Server.
 // The run's record still names the run ("Answer run") where a token's name was, which ties a build log to its run.
@@ -227,7 +227,7 @@ function Runner( Options )
 			return { Error: request.Task ? 'no task with the id ' + request.Task : 'a Task is needed: one of ' + ( settings.Tasks || [] ).map( function ( one ) { return one.Id; } ).join( ', ' ) };
 		}
 		let url = url_of();
-		if ( !url && llm.Kind !== 'ollama' )
+		if ( !url && !LLMS.IsLoop( llm.Kind ) )
 		{
 			return { Error: 'this server does not listen (Scope None): a run could not reach it' };
 		}
@@ -246,7 +246,7 @@ function Runner( Options )
 			return { Error: 'a ' + task.Name + ' needs the project\'s folder on this machine' + ( project.Path ? ': ' + project.Path + ' is missing' : '' ) };
 		}
 		let participant = LLMS.SpeakerName( llm, settings );
-		let is_ollama = ( llm.Kind === 'ollama' );
+		let is_loop = LLMS.IsLoop( llm.Kind );		// the tool loop: ollama or an API connection (plan Tool calls only, Step 2)
 		let readme = null;
 		if ( task.Package.Readme && project.Context )
 		{
@@ -259,7 +259,7 @@ function Runner( Options )
 		let instructions = null;
 		if ( task.Package.Instructions )
 		{
-			if ( is_ollama )
+			if ( is_loop )
 			{
 				instructions = TOOLS.Tools( { Writes: task.Writes, Folder: folder, Server: { Project: project.Id } } ).Instructions();
 			}
@@ -299,15 +299,15 @@ function Runner( Options )
 			Folder: folder ? folder.Path : null,
 			Owner: presser,
 			Service: llm.Name,
-			Token: is_ollama ? null : Token,
+			Token: is_loop ? null : Token,
 			Instructions: instructions,
-			InstructionsTitle: is_ollama ? 'Tool instructions' : 'Agent instructions',
-			DocumentsHint: is_ollama ? 'Read one with the read_plan tool.' : undefined,
+			InstructionsTitle: is_loop ? 'Tool instructions' : 'Agent instructions',
+			DocumentsHint: is_loop ? 'Read one with the read_plan tool.' : undefined,
 			Readme: readme,
 			Documents: documents_of( project ).filter( function ( document ) { return !llm.Unchecked.Documents.includes( document.Id ); } ),
 			Threads: threads,
 			Shape: shape,
-			ShapeHint: is_ollama ? 'Read one with the read_plan tool.' : undefined,
+			ShapeHint: is_loop ? 'Read one with the read_plan tool.' : undefined,
 		} );
 		return {
 			Prompt: prompt,
@@ -341,7 +341,7 @@ function Runner( Options )
 			let name = task.Name + ' run';
 			let account = by.Name ? { Id: by.Id || null, Name: by.Name, Display: by.Display || by.Name, Role: by.Role || 'owner', Type: by.Type || 'owner', Admin: ( by.Admin === undefined ) ? true : !!by.Admin, Manager: !!by.Manager } : null;
 			let fields = { Service: llm.Name, Name: name, Project: request.Project || null, Writes: task.Writes, Account: account, Role: by.ProjectRole || null };
-			if ( llm.Kind === 'ollama' )
+			if ( LLMS.IsLoop( llm.Kind ) )
 			{
 				// no token: the run's tools act inside the Server as this account; the name stays on the record
 				run_account = PARTICIPANTS.RunAccount( settings, fields, users );
@@ -372,7 +372,7 @@ function Runner( Options )
 			}
 		}
 		let server = null;
-		if ( made.Llm.Kind === 'ollama' )
+		if ( LLMS.IsLoop( made.Llm.Kind ) )
 		{
 			server = { Perform: Performer( run_account ), Project: made.Project.Id };
 		}

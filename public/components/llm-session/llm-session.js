@@ -343,11 +343,46 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 				ArgumentsText: ( llm.Arguments || [] ).join( '\n' ),
 				Url: llm.Url,
 				Model: llm.Model,
+				Key: '',
+				KeySet: llm.KeySet === true,
 				Timeout: llm.Timeout,
 				Context: llm.Context,
 				Rounds: llm.Rounds,
 			};
 		}
+
+
+		// The kinds (plan Tool calls only, Step 2): an API connection (claude, chatgpt, gemini, grok, openai-compatible)
+		// has a Url, a Model and a Key; every kind but claude-cli runs through the Server's tool loop, with Rounds.
+		$scope.IsApi = function ( kind )
+		{
+			return !!kind && kind !== 'claude-cli' && kind !== 'ollama';
+		};
+
+
+		$scope.IsLoop = function ( kind )
+		{
+			return !!kind && kind !== 'claude-cli';
+		};
+
+
+		// Another kind: its own address, filled in by the Server on the save (the openai-compatible kind asks for one).
+		$scope.KindChanged = function ()
+		{
+			if ( $scope.Details )
+			{
+				$scope.Details.Form.Url = '';
+				$scope.Details.Checked = null;
+			}
+		};
+
+
+		// The models the last Check listed, for the Model's list.
+		$scope.CheckedModels = function ()
+		{
+			let checked = $scope.Details ? $scope.Details.Checked : null;
+			return ( checked && Array.isArray( checked.Models ) ) ? checked.Models : [];
+		};
 
 
 		function lines( text )
@@ -356,9 +391,10 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		}
 
 
+		// The form as a save sends it; the Key only when one was typed, so the connection keeps the one it has.
 		function from_details( form )
 		{
-			return {
+			let fields = {
 				Name: form.Name,
 				Kind: form.Kind,
 				Command: form.Command,
@@ -369,6 +405,11 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 				Context: form.Context,
 				Rounds: form.Rounds,
 			};
+			if ( String( form.Key || '' ).trim() )
+			{
+				fields.Key = String( form.Key ).trim();
+			}
+			return fields;
 		}
 
 

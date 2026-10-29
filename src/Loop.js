@@ -11,7 +11,9 @@
 //   Adapter = {
 //     Label                                     the service's name in an error ("Ollama took longer than ...")
 //     First( Prompt ) -> [ message ]            the conversation's start
-//     Request( Llm, Messages, Definitions )     -> { Url, Headers, Body }: one round's request; Definitions empty for the last
+//     Request( Llm, Messages, Definitions, Final ) -> { Url, Headers, Body }: one round's request; Final for the last,
+//                                               the answer asked for with no tool call (an adapter offers no tools then,
+//                                               or tells the service to call none)
 //     Read( Json ) -> { Message, Text, Calls: [ { Id, Name, Arguments } ], Usage: { Prompt, Answer } }
 //                                               the reply: Message is pushed onto the conversation as it is
 //     Results( Calls ) -> [ message ]           the results of a round's calls ({ Id, Name, Arguments, Result }) as messages
@@ -56,7 +58,7 @@ async function Run( Request )
 	}
 
 
-	async function round_trip( offered )
+	async function round_trip( final )
 	{
 		let left = deadline - Date.now();
 		if ( left <= 0 )
@@ -68,7 +70,7 @@ async function Run( Request )
 		{
 			signals.push( request.Signal );
 		}
-		let made = adapter.Request( llm, messages, offered );
+		let made = adapter.Request( llm, messages, definitions, final );
 		let headers = Object.assign( { 'Content-Type': 'application/json' }, made.Headers || {} );
 		let response = null;
 		try
@@ -107,7 +109,7 @@ async function Run( Request )
 	while ( rounds < rounds_allowed )
 	{
 		rounds++;
-		let reply = await round_trip( definitions );
+		let reply = await round_trip( false );
 		messages.push( reply.Message );
 		if ( !reply.Calls.length )
 		{
@@ -139,7 +141,7 @@ async function Run( Request )
 
 	// The rounds are spent: one last request, with no tools, for the answer.
 	messages.push( adapter.User( ANSWER_NUDGE ) );
-	let final = await round_trip( [] );
+	let final = await round_trip( true );
 	if ( !final.Text.trim() )
 	{
 		throw new Error( 'the model took ' + rounds + ' rounds without answering' );

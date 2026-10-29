@@ -670,7 +670,7 @@ function Operations( Context )
 			{
 				refuse( 403, 'only the Administrator and the Managers read the settings' );
 			}
-			return { Settings: settings, Path: store.SettingsPath() };
+			return { Settings: settings_shown(), Path: store.SettingsPath() };
 		},
 	} );
 
@@ -725,9 +725,21 @@ function Operations( Context )
 			let restart = ( settings.Scope !== before.Scope ) || ( settings.Port !== before.Port );
 			await store.WriteSettings( settings );
 			events.Send( { Settings: true, Kind: 'settings' } );
-			return { Settings: settings, Restart: restart };
+			return { Settings: settings_shown(), Restart: restart };
 		},
 	} );
+
+
+	// The settings as an answer carries them: every connection without its Key (plan Tool calls only, Step 2).
+	function settings_shown()
+	{
+		let shown = Object.assign( {}, settings );
+		if ( Array.isArray( settings.Llms ) )
+		{
+			shown.Llms = settings.Llms.map( LLMS.Hidden );
+		}
+		return shown;
+	}
 
 
 	//-----------------------------------------------------------------
@@ -2719,10 +2731,11 @@ function Operations( Context )
 
 
 	// A connection saved: the given fields over the record (a new one: over the defaults, with a new id),
-	// filled and checked with the rest; a new one goes to the end of the list.
-	async function save_llm( participant, given, existing )
+	// filled and checked with the rest; a new one goes to the end of the list. An empty Key keeps the one it has.
+	async function save_llm( participant, fields, existing )
 	{
 		host_only();
+		let given = LLMS.Given( fields );
 		let filled = existing ? LLMS.Fill( Object.assign( {}, existing, given, { Id: existing.Id } ) ) : LLMS.Fill( Object.assign( {}, given, { Id: undefined } ) );
 		let kept = ( settings.Llms || [] ).filter( function ( one ) { return one.Id !== filled.Id; } );
 		let index = ( settings.Llms || [] ).findIndex( function ( one ) { return one.Id === filled.Id; } );
@@ -2780,7 +2793,7 @@ function Operations( Context )
 		Method: 'POST',
 		Path: '/llms',
 		Status: 201,
-		Description: 'A new LLM connection from the fields given (Name, Kind, Command or Model and Url, the prompts), filled with the defaults and checked; the Administrator\'s and the Managers\'.',
+		Description: 'A new LLM connection from the fields given (Name, Kind, Model, Url and Key for an API connection, Command for claude-cli, the prompts), filled with the defaults and checked; the Key is never answered; the Administrator\'s and the Managers\'.',
 		Parameters: {
 			Name: { Type: 'string' },
 			Kind: { Type: 'string', Description: 'one of the kinds list_llms names' },
@@ -2805,7 +2818,7 @@ function Operations( Context )
 		Perform: async function ( participant, args )
 		{
 			manages_llms( participant );
-			return await LLM.Check( LLMS.Fill( object_of( args ) ) );
+			return await LLM.Check( LLMS.Fill( LLMS.Given( object_of( args ) ) ) );
 		},
 	} );
 
@@ -2839,7 +2852,7 @@ function Operations( Context )
 		{
 			manages_llms( participant );
 			let llm = llm_of( string_of( args.Id ) );
-			return await LLM.Check( LLMS.Fill( Object.assign( {}, llm, object_of( args ), { Id: llm.Id } ) ) );
+			return await LLM.Check( LLMS.Fill( Object.assign( {}, llm, LLMS.Given( object_of( args ) ), { Id: llm.Id } ) ) );
 		},
 	} );
 

@@ -4,7 +4,7 @@
 		<div class="item-head">
 			<span class="tree-icon icon-llm"></span>
 			<span class="item-head-name" id="llm-head-name">{{ Llm.Name }}</span>
-			<span class="muted small" id="llm-head-line">{{ Llm.Speaker }}{{ Llm.Kind ? ' · ' + Llm.Kind : '' }}{{ Llm.Model ? ' · ' + Llm.Model : '' }}{{ Llm.Command ? ' · ' + Llm.Command : ( Llm.Url ? ' · ' + Llm.Url : '' ) }}</span>
+			<span class="muted small" id="llm-head-line">{{ Llm.Speaker }}{{ Llm.Kind ? ' · ' + Llm.Kind : '' }}{{ Llm.Model ? ' · ' + Llm.Model : '' }}{{ ( Llm.Kind === 'claude-cli' && Llm.Command ) ? ' · ' + Llm.Command : ( Llm.Url ? ' · ' + Llm.Url : '' ) }}</span>
 			<span class="grow"></span>
 			<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-details" ng-show="Manages()" ng-click="OpenDetails()"><svg class="icon lead"><use href="#i-pencil"></use></svg>Details…</button>
 			<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-packaging" ng-show="Manages()" ng-click="OpenPackaging()"><svg class="icon lead"><use href="#i-threads"></use></svg>Packaging…</button>
@@ -79,11 +79,12 @@
 				<label for="llm-name">Name</label>
 				<input class="form-control form-control-sm" id="llm-name" ng-model="Details.Form.Name" placeholder="claude-cli" title="letters, digits, dot, dash and colon: its runs post as <name> by the owner" auto-focus>
 				<label for="llm-kind">Kind</label>
-				<select class="form-select form-select-sm item-kind" id="llm-kind" ng-model="Details.Form.Kind" ng-options="kind for kind in Items.Kinds" title="claude-cli: a command run without a shell on the server's machine, the prompt on its standard input; ollama: an Ollama server, run through the server's tools"></select>
+				<select class="form-select form-select-sm item-kind" id="llm-kind" ng-model="Details.Form.Kind" ng-change="KindChanged()" ng-options="kind for kind in Items.Kinds" title="claude, chatgpt, gemini, grok: the service's API, with a Key; openai-compatible: any other service that speaks OpenAI's API, at its Url; ollama: an Ollama server; each run through the Server's tools. claude-cli: a command run without a shell on the server's machine"></select>
 			</div>
 			<div class="settings-row">
 				<label for="llm-model">Model</label>
-				<input class="form-control form-control-sm" id="llm-model" ng-model="Details.Form.Model" placeholder="{{ Details.Form.Kind === 'ollama' ? 'required' : 'optional: sonnet, opus' }}">
+				<input class="form-control form-control-sm" id="llm-model" ng-model="Details.Form.Model" list="llm-models" placeholder="{{ IsLoop( Details.Form.Kind ) ? ( IsApi( Details.Form.Kind ) ? 'required: Check lists them' : 'required' ) : 'optional: sonnet, opus' }}">
+				<datalist id="llm-models"><option ng-repeat="model in CheckedModels() track by $index" value="{{ model }}"></option></datalist>
 				<label for="llm-timeout">Timeout</label>
 				<input class="form-control form-control-sm settings-port" id="llm-timeout" type="number" min="1" ng-model="Details.Form.Timeout" title="seconds a one-shot may take">
 			</div>
@@ -95,20 +96,25 @@
 				<label for="llm-arguments">Arguments</label>
 				<textarea class="form-control form-control-sm" id="llm-arguments" rows="3" ng-model="Details.Form.ArgumentsText" title="one argument per line, before --model; the default lets a non-interactive claude use its tools"></textarea>
 			</div>
-			<div class="settings-row" ng-show="Details.Form.Kind === 'ollama'">
+			<div class="settings-row" ng-show="IsLoop( Details.Form.Kind )">
 				<label for="llm-url">Url</label>
-				<input class="form-control form-control-sm" id="llm-url" ng-model="Details.Form.Url" placeholder="http://127.0.0.1:11434">
+				<input class="form-control form-control-sm" id="llm-url" ng-model="Details.Form.Url" placeholder="{{ Details.Form.Kind === 'ollama' ? 'http://127.0.0.1:11434' : ( Details.Form.Kind === 'openai-compatible' ? 'required: the service\'s address, such as https://api.mistral.ai/v1' : 'filled in for ' + Details.Form.Kind + ' when left empty' ) }}">
 			</div>
-			<div class="settings-row" ng-show="Details.Form.Kind === 'ollama'">
-				<label for="llm-context">Context</label>
-				<input class="form-control form-control-sm settings-port" id="llm-context" type="number" min="1" ng-model="Details.Form.Context" title="the model's context window in tokens (Ollama's num_ctx); Preview shows the package's estimated tokens">
+			<div class="settings-row" ng-show="IsApi( Details.Form.Kind )">
+				<label for="llm-key">Key</label>
+				<input class="form-control form-control-sm" id="llm-key" type="password" autocomplete="off" ng-model="Details.Form.Key" placeholder="{{ Details.Form.KeySet ? 'a Key is set: leave empty to keep it, or paste a new one' : 'paste the service\'s API key' }}" title="kept in the Server's settings and never shown again, nor sent to the model">
+				<span class="small muted" id="llm-key-state">{{ Details.Form.KeySet ? 'set' : 'not set' }}</span>
+			</div>
+			<div class="settings-row" ng-show="IsLoop( Details.Form.Kind )">
+				<label for="llm-context" ng-show="Details.Form.Kind === 'ollama'">Context</label>
+				<input class="form-control form-control-sm settings-port" id="llm-context" type="number" min="1" ng-show="Details.Form.Kind === 'ollama'" ng-model="Details.Form.Context" title="the model's context window in tokens (Ollama's num_ctx); Preview shows the package's estimated tokens">
 				<label for="llm-rounds">Rounds</label>
 				<input class="form-control form-control-sm settings-port" id="llm-rounds" type="number" min="1" ng-model="Details.Form.Rounds" title="the most tool rounds a run may take">
 			</div>
 			<div class="thread-buttons">
 				<button class="btn btn-sm btn-primary" type="submit" id="llm-save" ng-disabled="Details.Busy"><svg class="icon lead"><use href="#i-save"></use></svg>Save</button>
 				<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-cancel" ng-click="CloseDetails()"><svg class="icon lead"><use href="#i-x"></use></svg>Cancel</button>
-				<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-check" ng-click="CheckDetails()" ng-disabled="Details.Busy" title="does it answer, as entered here? claude-cli: the command's --version; ollama: its models, and whether the Model calls tools"><svg class="icon lead"><use href="#i-check"></use></svg>Check</button>
+				<button class="btn btn-sm btn-outline-secondary" type="button" id="llm-check" ng-click="CheckDetails()" ng-disabled="Details.Busy" title="does it answer, as entered here? an API connection: whether the Key is good, and its models for the Model's list; ollama: its models, and whether the Model calls tools; claude-cli: the command's --version"><svg class="icon lead"><use href="#i-check"></use></svg>Check</button>
 				<span class="small" id="llm-checked" ng-show="Details.Checked" ng-class="Details.Checked.Ok ? 'text-success' : 'text-danger'">{{ Details.Checked.Ok ? Details.Checked.Result : Details.Checked.Error }}</span>
 			</div>
 		</form>

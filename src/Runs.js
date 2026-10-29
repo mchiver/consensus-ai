@@ -12,7 +12,9 @@
 // then stderr) is kept. An ollama connection runs through Ollama.js instead of a child process: the tool loop in
 // this process, with the tools of Tools.js over the project's folder and this server; the Transcript (Ollama.js's
 // entries) is kept whole and the Output is its markdown, both growing with every call, and every listener hears
-// each call; Rounds and Usage are kept; Stop aborts the request in flight.
+// each call; Rounds and Usage are kept; Stop aborts the request in flight. Plan Tool calls only, Step 2: an API
+// connection (claude, chatgpt, gemini, grok, openai-compatible) runs through the same loop (Loop.js) with its kind's
+// adapter (Llm.Adapter); its record's Command reads "<kind> <model> at <url>", and its Key is in no record.
 //
 //   Runs( { Folder, Spawn?, Tokens? } ) -> { Start( Request ), Stop( Id ), List( Filter? ), Read( Id ), Delete( Id ), Running( LlmId ),
 //                                           IsBlocked( { Llm, Plan } ), OnChange( Handler ), Close() }
@@ -37,11 +39,18 @@ const CHILD_PROCESS = require( 'child_process' );
 const IDS = require( './Ids.js' );
 const LLMS = require( './Llms.js' );
 const LLM = require( './Llm.js' );
-const OLLAMA = require( './Ollama.js' );
+const LOOP = require( './Loop.js' );
 const TOOLS = require( './Tools.js' );
 
 const OUTPUT_LIMIT = 2 * 1024 * 1024;
 const PROGRESS_DELAY = 250;
+
+
+// What a tool loop run's record names in place of a command: "ollama llama3 at http://…", "claude claude-sonnet-4-5 at https://…".
+function loop_line( llm )
+{
+	return { Command: llm.Kind, Arguments: [ llm.Model, 'at', llm.Url ] };
+}
 
 
 function Runs( Options )
@@ -139,8 +148,8 @@ function Runs( Options )
 	// The record of a press, running at once or queued behind another run.
 	function make_record( llm, Request, behind )
 	{
-		let is_ollama = ( llm.Kind === 'ollama' );
-		let line = is_ollama ? { Command: 'ollama', Arguments: [ llm.Model, 'at', llm.Url ] } : LLM.CommandLine( llm );
+		let is_loop = LLMS.IsLoop( llm.Kind );
+		let line = is_loop ? loop_line( llm ) : LLM.CommandLine( llm );
 		let now = new Date().toISOString();
 		return {
 			Id: IDS.New( IDS.RUN ),
@@ -167,7 +176,7 @@ function Runs( Options )
 			Output: '',
 			Rounds: null,
 			Usage: null,
-			Transcript: is_ollama ? [] : null,
+			Transcript: is_loop ? [] : null,
 		};
 	}
 
@@ -175,13 +184,13 @@ function Runs( Options )
 	// The run itself: the command spawned, or the local model's loop; the record says running from here.
 	function launch( llm, Request, record )
 	{
-		let is_ollama = ( llm.Kind === 'ollama' );
-		let line = is_ollama ? { Command: 'ollama', Arguments: [ llm.Model, 'at', llm.Url ] } : LLM.CommandLine( llm );
+		let is_loop = LLMS.IsLoop( llm.Kind );
+		let line = is_loop ? loop_line( llm ) : LLM.CommandLine( llm );
 		record.Started = record.Started || new Date().toISOString();
 		record.Status = 'running';
-		if ( is_ollama )
+		if ( is_loop )
 		{
-			return start_ollama( llm, Request, record );
+			return start_loop( llm, Request, record );
 		}
 		let child = null;
 		try
@@ -266,10 +275,12 @@ function Runs( Options )
 
 
 	//-----------------------------------------------------------------
-	// An ollama run: the loop of Ollama.js with the tools of Tools.js; the transcript is the Output as it grows.
+	// A tool loop run (ollama, or an API connection): the loop of Loop.js with the kind's adapter and the tools of
+	// Tools.js; the transcript is the Output as it grows.
 
-	function start_ollama( llm, Request, record )
+	function start_loop( llm, Request, record )
 	{
+		let adapter = LLM.Adapter( llm );
 		let abort = new AbortController();
 		let state = { Record: record, Child: null, Abort: abort, Timer: null, Stopped: false, Timed: false, Progress: null };
 		let tools = TOOLS.Tools( { Writes: Request.Writes, Folder: Request.Folder || null, Server: Request.Server || null } );
@@ -305,7 +316,7 @@ function Runs( Options )
 				return;
 			}
 			record.Transcript.push( entry );
-			record.Output = OLLAMA.Render( record.Transcript );
+			record.Output = LOOP.Render( record.Transcript );
 			write( record );
 			if ( !state.Progress )
 			{
@@ -326,7 +337,7 @@ function Runs( Options )
 			abort.abort();
 		}, ( llm.Timeout || LLMS.DEFAULT_TIMEOUT ) * 1000 );
 
-		OLLAMA.Run( { Llm: llm, Prompt: record.Prompt, Tools: tools, Signal: abort.signal, OnProgress: progress } ).then( function ( result )
+		LOOP.Run( { Llm: llm, Prompt: record.Prompt, Tools: tools, Adapter: adapter, Signal: abort.signal, OnProgress: progress } ).then( function ( result )
 		{
 			record.Rounds = result.Rounds;
 			record.Usage = result.Usage;
@@ -335,7 +346,7 @@ function Runs( Options )
 		{
 			if ( state.Timed )
 			{
-				end( 'failed', 'Ollama took longer than ' + ( llm.Timeout || LLMS.DEFAULT_TIMEOUT ) + ' seconds' );
+				end( 'failed', adapter.Label + ' took longer than ' + ( llm.Timeout || LLMS.DEFAULT_TIMEOUT ) + ' seconds' );
 				return;
 			}
 			if ( state.Stopped )

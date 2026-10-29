@@ -48,10 +48,10 @@ const ADAPTER = {
 		return [ { role: 'user', content: Prompt } ];
 	},
 
-	Request: function ( Llm, Messages, Definitions )
+	Request: function ( Llm, Messages, Definitions, Final )
 	{
 		let body = { model: Llm.Model, messages: Messages, stream: false, options: { num_ctx: Llm.Context || LLMS.DEFAULT_CONTEXT } };
-		if ( Definitions && Definitions.length )
+		if ( !Final && Definitions && Definitions.length )
 		{
 			body.tools = Definitions;
 		}

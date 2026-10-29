@@ -1146,7 +1146,7 @@ TEST( 'an LLM connection is made, each a speaker "<Name> by <owner>", with no to
 	let listed = await call( 'GET', '/api/llms', undefined, true );
 	ASSERT.equal( listed.Status, 200 );
 	ASSERT.deepEqual( [ listed.Body.Llms[ 0 ].Id, listed.Body.Llms[ 0 ].Name, listed.Body.Llms[ 0 ].Speaker, listed.Body.Llms[ 0 ].Command, listed.Body.Llms[ 0 ].Running ], [ echo.Id, 'echo', 'echo by User', process.execPath, null ] );
-	ASSERT.deepEqual( listed.Body.Kinds, [ 'claude-cli', 'ollama' ] );
+	ASSERT.deepEqual( listed.Body.Kinds, [ 'claude-cli', 'ollama', 'claude', 'chatgpt', 'gemini', 'grok', 'openai-compatible' ] );
 	ASSERT.equal( typeof listed.Body.DefaultPrompts.Session, 'string' );
 	// changed in place, the id kept, a token given ignored; a second one with the same name is refused; a bad name too
 	let changed = await call( 'PUT', '/api/llms/' + echo.Id, { Timeout: 45, Token: 'ignored-0123456789abc' } );
