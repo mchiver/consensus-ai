@@ -47,6 +47,5 @@ ELECTRON.contextBridge.exposeInMainWorld( 'Desktop', {
 	PickFolder: function ( Current ) { return invoke( 'folder', Current ); },
 	NewWindow: function () { return invoke( 'new-window' ); },
 	OpenFolderWindow: function () { return invoke( 'open-folder-window' ); },
-	OpenRecent: function () { return Promise.resolve( {} ); },
 	Quit: function () { return invoke( 'quit' ); },
 } );

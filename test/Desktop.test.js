@@ -15,7 +15,7 @@ const PAGE = require( '../electron/Page.js' );
 const WINDOWS = require( '../electron/Windows.js' );
 const PROJECTS = require( '../desktop/Projects.js' );
 const SERVER = require( '../src/Server.js' );
-const HOST = require( '../desktop/Host.js' );
+const SERVER_STATUS = require( '../desktop/ServerStatus.js' );
 const NET = require( 'net' );
 
 const VERSION = require( '../package.json' ).version;
@@ -362,42 +362,42 @@ TEST( 'the Server from the Desktop: Status finds a running Server by its file an
 	let config = temporary_folder( 'desktop-host-' );
 	let port = await free_port();
 	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( { Port: port, Owner: { Name: 'user', Display: 'User' } } ) );
-	let before = await HOST.Status( config );
+	let before = await SERVER_STATUS.Status( config );
 	ASSERT.deepEqual( before, { Running: false, Url: 'http://127.0.0.1:' + port, Pid: null, Started: null, Ours: false } );
-	ASSERT.equal( await HOST.HostPort( config ), port );
+	ASSERT.equal( await SERVER_STATUS.HostPort( config ), port );
 	let folder = PATH.join( temporary_folder( 'desktop-host-project-' ), 'served' );
 	FS.mkdirSync( folder );
-	ASSERT.equal( await HOST.Routed( config, folder ), null, 'no Server, nothing routed' );
+	ASSERT.equal( await SERVER_STATUS.Routed( config, folder ), null, 'no Server, nothing routed' );
 	// the Server as its application runs it: every registered project, in process (the gate is the Server's affair)
 	let server = await SERVER.Start( { Config: config } );
 	try
 	{
-		let status = await HOST.Status( config );
+		let status = await SERVER_STATUS.Status( config );
 		ASSERT.deepEqual( [ status.Running, status.Url, status.Pid, status.Ours ], [ true, 'http://127.0.0.1:' + port, process.pid, true ] );
 		// found by its port alone when the file is not this machine's: the file set aside
 		FS.renameSync( PATH.join( config, '~host.json' ), PATH.join( config, '~host.json.aside' ) );
-		let by_port = await HOST.Status( config );
+		let by_port = await SERVER_STATUS.Status( config );
 		ASSERT.deepEqual( [ by_port.Running, by_port.Url, by_port.Ours ], [ true, 'http://127.0.0.1:' + port, false ] );
 		FS.renameSync( PATH.join( config, '~host.json.aside' ), PATH.join( config, '~host.json' ) );
 		// the folder registered on the Server: unmounted, not routed; mounted, routed to the Server's project
 		let headers = { 'Content-Type': 'application/json', 'X-Consensus-Service': 'Test' };
 		let made = await ( await fetch( status.Url + '/api/projects', { method: 'POST', headers: headers, body: JSON.stringify( { Name: 'served', Path: folder } ) } ) ).json();
 		ASSERT.equal( made.Project.Mounted, false );
-		ASSERT.equal( await HOST.Routed( config, folder ), null, 'unmounted: opened as a sidecar' );
+		ASSERT.equal( await SERVER_STATUS.Routed( config, folder ), null, 'unmounted: opened as a sidecar' );
 		let mounted = await ( await fetch( status.Url + '/api/projects/' + made.Project.Id + '/mount', { method: 'PUT', headers: headers, body: JSON.stringify( { Mounted: true } ) } ) ).json();
 		ASSERT.equal( mounted.Project.Mounted, true );
-		let routed = await HOST.Routed( config, folder.toUpperCase() );
+		let routed = await SERVER_STATUS.Routed( config, folder.toUpperCase() );
 		ASSERT.deepEqual( routed, { Url: status.Url, Project: { Id: made.Project.Id, Name: 'served' } } );
-		ASSERT.equal( await HOST.Routed( config, PATH.join( folder, '..', 'elsewhere' ) ), null );
+		ASSERT.equal( await SERVER_STATUS.Routed( config, PATH.join( folder, '..', 'elsewhere' ) ), null );
 	}
 	finally
 	{
 		await server.Close();
 	}
-	ASSERT.equal( ( await HOST.Status( config, port ) ).Running, false );
-	ASSERT.equal( await HOST.Routed( config, folder ), null, 'the Server gone, the folder opens as a sidecar' );
-	ASSERT.equal( HOST.Start, undefined, 'the Desktop starts no Server' );
-	ASSERT.equal( HOST.Stop, undefined, 'nor stops one' );
+	ASSERT.equal( ( await SERVER_STATUS.Status( config, port ) ).Running, false );
+	ASSERT.equal( await SERVER_STATUS.Routed( config, folder ), null, 'the Server gone, the folder opens as a sidecar' );
+	ASSERT.equal( SERVER_STATUS.Start, undefined, 'the Desktop starts no Server' );
+	ASSERT.equal( SERVER_STATUS.Stop, undefined, 'nor stops one' );
 } );
 
 

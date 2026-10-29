@@ -150,7 +150,6 @@ async function Serve( Options )
 
 	return {
 		Url: 'http://' + HOST + ':' + server.address().port,
-		Folder: folder,
 		Roots: Roots,
 		SetRoots: SetRoots,
 		Close: Close,
@@ -160,5 +159,4 @@ async function Serve( Options )
 
 module.exports = {
 	Serve: Serve,
-	DEFAULT_FOLDER: DEFAULT_FOLDER,
 };

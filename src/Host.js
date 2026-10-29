@@ -10,10 +10,9 @@
 //   Running( Config )           the record when the file is there and its Pid alive, else null
 //   Write( Config, Record )     the file written whole
 //   Remove( Config, Pid? )      the file removed; with Pid, only when the file is that process's
-//   Probe( Url, TimeoutMs? )    GET <Url>/api/me: { Ok, Version, Name, Closed? } or { Ok: false, Error }; a Server that
-//                               answers 401 with an Error (its gate closed, or a sign-in asked) is running (plan The
-//                               Server, Step 3)
 //   Status( Config, Port )      { Running, Url, Pid, Started, Ours }: the file's Host when alive, else the port probed
+//                               (GET <Url>/api/me; a Server that answers 401 with an Error, its gate closed or a sign-in
+//                               asked, is running: plan The Server, Step 3)
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -141,6 +140,5 @@ module.exports = {
 	Running: Running,
 	Write: Write,
 	Remove: Remove,
-	Probe: Probe,
 	Status: Status,
 };

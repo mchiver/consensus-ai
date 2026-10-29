@@ -14,7 +14,7 @@
 // folder's .consensus/~sidecar.json; a folder already open in another window is not opened again: that window is
 // brought to the front (the sidecar's POST /api/desktop/activate, answered here) and a launch on it exits, as VS Code
 // activates the window that has the folder. Step 5: Open folder on a folder the Server's registry lists as mounted,
-// while the Server runs (found by its address file or its port, desktop/Host.js), connects the window to the Server's
+// while the Server runs (found by its address file or its port, desktop/ServerStatus.js), connects the window to the Server's
 // project instead of opening the folder, so one folder never has two writers. Step 6: the tiers: the page's sign-in
 // hands its token here (set-license), verified against Clerk's keys. Plan The Server, Step 4: the Desktop's split: it
 // no longer starts, opens or stops a Server (the Server is an application of its own) and has no --headless form; its
@@ -32,13 +32,12 @@
 //
 //   npm run desktop -- [<folder> | --connect <server name>] [--config <folder>] [--port <port>]
 
-const FS = require( 'fs' );
 const PATH = require( 'path' );
 const CHILD_PROCESS = require( 'child_process' );
 const ELECTRON = require( 'electron' );
 const SETTINGS = require( './Settings.js' );
 const PROJECTS = require( './Projects.js' );
-const HOST = require( './Host.js' );
+const SERVER_STATUS = require( './ServerStatus.js' );
 const LICENSE = require( '../src/License.js' );
 const START = require( '../src/Start.js' );
 const PAGE = require( '../electron/Page.js' );
@@ -115,14 +114,8 @@ function theme_in_use()
 }
 
 
-// The window buttons Electron draws over the title bar (plan UI Components, Step 5), and the window's dialogs and
-// native parts, follow the theme (electron/Windows.js since plan Sidecar Edition, Step 1).
-function overlay_for_theme()
-{
-	return WINDOWS.Overlay( theme_in_use(), SETTINGS.DARK_THEMES );
-}
-
-
+// The window's dialogs and native parts follow the theme (electron/Windows.js since plan Sidecar Edition, Step 1; the
+// window buttons over the title bar take theirs from Windows.Options).
 function apply_native_theme()
 {
 	WINDOWS.ApplyNativeTheme( theme_in_use(), SETTINGS.DARK_THEMES );
@@ -223,7 +216,7 @@ async function open_folder_here( Folder )
 	let routed = null;
 	try
 	{
-		routed = await HOST.Routed( config_folder(), folder );
+		routed = await SERVER_STATUS.Routed( config_folder(), folder );
 	}
 	catch ( error )
 	{

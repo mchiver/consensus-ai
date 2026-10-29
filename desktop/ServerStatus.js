@@ -1,7 +1,8 @@
 'use strict';
 
-// Host - the Server on this machine as the Desktop sees it, without Electron (plan Rearchitecturation, Step 5; since
-// plan The Server, Step 4, the Desktop no longer starts, opens or stops it: the Server is an application of its own).
+// ServerStatus - the Server on this machine as the Desktop sees it, without Electron (plan Rearchitecturation, Step 5;
+// since plan The Server, Step 4, the Desktop no longer starts, opens or stops it: the Server is an application of its
+// own; named desktop/Host.js until plan Review 2026-10-29, Step 4, which took the clash with src/Host.js out).
 // A Server running on the machine is found by its address file (<config>/~host.json) or its port; a folder its
 // registry lists as mounted, while it runs, is routed through it rather than opened as a sidecar, so one folder never
 // has two writers.

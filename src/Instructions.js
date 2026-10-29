@@ -101,6 +101,5 @@ module.exports = {
 	Make: Make,
 	Guide: Guide,
 	Attach: Attach,
-	GUIDE_PATH: GUIDE_PATH,
 	SIDECAR_GUIDE_PATH: SIDECAR_GUIDE_PATH,
 };

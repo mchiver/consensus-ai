@@ -9,14 +9,10 @@
 //
 //   Dark( Theme, DarkThemes )                 whether the theme is a dark one (System: the system's)
 //   ApplyNativeTheme( Theme, DarkThemes )     the window's dialogs and native parts light or dark
-//   Overlay( Theme, DarkThemes )              the window buttons' colours and height to open with
-//   WebPreferences( Preload )                 the page's: the preload, isolated, no Node
 //   Options( { Width, Height, Title, Icon, Theme, DarkThemes, Preload } )   a window's options
-//   IsReportUrl( PageUrl, Url )               a report page on the app's own origin
 //   Attach( Window, { PageUrl, Icon, Preload, Options( Width, Height ), AsksPage( Url )?, OnClosed? } )
 //                                             the main window's detached tabs, report windows and close; AsksPage says
 //                                             which pages are asked before closing (every one when not given)
-//   AskToClose( Target, Destroy, AsksPage? )  the page asked, then Destroy when it agrees (or does not answer)
 //   MenuTemplate( { NewWindow?, OpenFolderWindow?, Reload? } )   the menu's template, an item left out with its action
 //   AttachChrome()                            the 'chrome' message: the window buttons follow the page's palette
 //   PrintToPdf( Sender, Name, Folder )        the save dialog in Folder, then the page as a PDF: { Path } | { Cancelled } | { Error }
@@ -386,17 +382,12 @@ function BuildMenu( Actions )
 module.exports = {
 	Dark: Dark,
 	ApplyNativeTheme: ApplyNativeTheme,
-	Overlay: Overlay,
-	WebPreferences: WebPreferences,
 	Options: Options,
-	IsReportUrl: IsReportUrl,
 	Attach: Attach,
-	AskToClose: AskToClose,
 	AttachChrome: AttachChrome,
 	PrintToPdf: PrintToPdf,
 	ViewInBrowser: ViewInBrowser,
 	PickFolder: PickFolder,
 	MenuTemplate: MenuTemplate,
 	BuildMenu: BuildMenu,
-	CLOSE_ANSWER_WAIT: CLOSE_ANSWER_WAIT,
 };

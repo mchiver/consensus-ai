@@ -18,7 +18,6 @@
 //   Write( Config, Record )            the file written whole (a temporary file renamed into place)
 //   Remove( Config )                   the file removed; answers whether it was there
 //   Verify( Token, { Settings?, Jwks?, Now? } )   the record from a session token, or null when it does not verify (async)
-//   FromClaims( Claims, License, Now? )  the record from verified claims and the license Clerk.js read from them
 //   Clean( Record )                    the record's fields checked, or null when it is not a record
 //   Lapsed( Record, Now? )             whether CACHE_DAYS have passed since the record's Checked (the user is signed out)
 //   Tier( Record, Now? )               { Tier, Rank, Plan, Email, Display, Days, Until, Checked, Lapsed }: the tier now;
@@ -364,7 +363,6 @@ module.exports = {
 	Write: Write,
 	Remove: Remove,
 	Verify: Verify,
-	FromClaims: FromClaims,
 	Clean: Clean,
 	Lapsed: Lapsed,
 	Tier: Tier,

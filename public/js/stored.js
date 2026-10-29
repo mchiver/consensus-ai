@@ -17,9 +17,9 @@
 // Administrator and the Managers on a Server), else kept for this page alone. Until it comes they read as the
 // fallback; when it comes the page hears a "consensus-view" event on window and takes the look again.
 //
-//   window.ConsensusStored = { Read( Name, Fallback, Root ), Write( Name, Value, Root ), Remove( Name, Root ), ServerKey(),
+//   window.ConsensusStored = { Read( Name, Fallback, Root ), Write( Name, Value, Root ), Remove( Name, Root ),
 //                              SetView( Values, Writable, Save, Mark ), ViewMark(), ViewWritable() }
-//   Root: a root (its Url names the server), true for the page's own server, or false for the shared scope.
+//   Root: a root (its Url names the server), or false for the shared scope.
 
 ( function ()
 {
@@ -48,15 +48,6 @@
 	let own = {};		// the page's own changes when it may not save them: kept over the server's
 
 
-	// The connected server's part of a key: its address without the scheme, or '' in a browser.
-	function ServerKey()
-	{
-		let desktop = window.ConsensusDesktop || null;
-		let url = ( desktop && desktop.Server && desktop.Server.Url ) ? String( desktop.Server.Url ) : '';
-		return url.replace( /^https?:\/\//, '' ).replace( /\/+$/, '' );
-	}
-
-
 	// A root with a StoredKey (the Desktop's one project, plan Rearchitecturation, Step 2: the folder, or the Host's
 	// address and the project id) is keyed by that in place of its address, which changes port at every start.
 	function key_of( name, per_server )
@@ -69,10 +60,6 @@
 		else if ( per_server && typeof per_server === 'object' )
 		{
 			server = String( per_server.Url || '' ).replace( /^https?:\/\//, '' ).replace( /\/+$/, '' );
-		}
-		else if ( per_server )
-		{
-			server = ServerKey();
 		}
 		return PREFIX + ( server ? server + '.' : '' ) + name;
 	}
@@ -266,5 +253,5 @@
 	}
 
 
-	window.ConsensusStored = { Read: Read, Write: Write, Remove: Remove, ServerKey: ServerKey, SetView: SetView, ViewMark: ViewMark, ViewWritable: ViewWritable };
+	window.ConsensusStored = { Read: Read, Write: Write, Remove: Remove, SetView: SetView, ViewMark: ViewMark, ViewWritable: ViewWritable };
 } )();

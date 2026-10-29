@@ -1,1 +1,31 @@
-[]
+[
+	{
+		"Id": "thr-84a-ekc-7ee",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T19:18:02.363Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T19:19:01.576Z",
+			"Revision": 1,
+			"RevisionId": "rev-qyr-75e-rfa",
+			"Outcome": "Accepted by the owner on 2026-10-29. Committed as \"Review 2026-10-29 Step 4: The dead code out\"; the Step is Finished and the Readme names it."
+		},
+		"Created": "2026-10-29T19:15:35.362Z",
+		"Replies": [
+			{
+				"Id": "rep-v5k-7nx-pb8",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T19:15:35.362Z",
+				"Text": "Build log: Step 4, The dead code out. Built by Claude Fable 5.1 (Claude-CLI) on 2026-10-29. Nothing is committed.\n\nWhat was built, by item:\n\n1. public/js/stored.js: ServerKey and the page-is-its-own-server scope are gone; key_of takes a root or the shared scope alone, and the header says so.\n2. desktop/main.js: the fs require and overlay_for_theme are gone. With overlay_for_theme gone nothing outside electron/Windows.js read Windows.Overlay any more, so Overlay came off the export list too (Options uses it inside the module); the comment over apply_native_theme says where the window buttons take their colours.\n3. sidecar/preload.js: the OpenRecent stub is gone; the Desktop bridge there has PickFolder, NewWindow, OpenFolderWindow and Quit.\n4. Off the export lists, used inside their module alone: Windows.js WebPreferences, IsReportUrl, AskToClose and CLOSE_ANSWER_WAIT (and their header lines); Page.js DEFAULT_FOLDER, and Serve no longer answers a Folder field; src/Host.js Probe (its header line folded into Status); License.js FromClaims; Instructions.js GUIDE_PATH. SIDECAR_GUIDE_PATH stays, the Sidecar and its test read it.\n5. desktop/Host.js is renamed desktop/ServerStatus.js (git mv), its header naming the old name and this Step; desktop/main.js and test/Desktop.test.js require it as SERVER_STATUS. Nothing else read it.\n6. The constants nothing reads stay exported, as the review decided.\n\nFiles: public/js/stored.js, desktop/main.js, sidecar/preload.js, electron/Windows.js, electron/Page.js, src/Host.js, src/License.js, src/Instructions.js, desktop/Host.js renamed to desktop/ServerStatus.js, test/Desktop.test.js.\n\nHow it was checked:\n\n- The dead-export check, run again over the 45 modules under src, electron, desktop, sidecar, client, server and bin (every name on a module.exports list against every .Name read outside the module): 32 unread exports, every one a constant the review decided to keep, and one function, bin/docs.js Publish, which the review listed with that script's constants as staying (it is the publish command's entry).\n- Desktop, Sidecar, License and Manifests tests: 24 of 24 pass.\n- The whole suite: 308 tests, 304 pass, 3 skipped (the Clerk keys), 1 failed under the full run's load: the users and roles browser test waiting for a roles folder count, the same one that timed out in Step 1's full run; alone it passes. Nothing in this Step touches the page it exercises.\n\nDecided during the build: Overlay off the export list (a consequence of item 2, by the plan's rule that a function read nowhere outside its module leaves the list); bin/docs.js Publish left as it is, since the review grouped it with the constants that stay.\n\nResolve to accept: I apply this thread, commit as \"Review 2026-10-29 Step 4: The dead code out\", set the Step Finished and bring the Readme up to date. Reply to send it back."
+			}
+		]
+	}
+]
