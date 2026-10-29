@@ -21,15 +21,15 @@ takes no request without one; and the Server's other projects, each the business
 yours. Read this with `curl` (`curl -s http://<server>:<port>/instructions`): a
 session's web fetch tool may not reach a local or private address. The plan "Build Workflow" in the Consensus project is where the build loop was agreed, and
 "Agent Instructions" where this page was. Since the plan "Consensus Desktop" (Step 1), the server calls no LLM
-and reads no code: every LLM takes part through the API, as you do. Consensus Desktop (Step 3) can run a model
-once, with this page, the project's Readme and the plan at hand packaged as its prompt: such a one-shot works
-exactly as a session does, through the API, and says in the package which plan, project and folder it is for.
-A local model run by the desktop (Step 4) does not call the API itself: the desktop runs its tools, the
-Consensus ones included, and gives it this page's rules in its own words.
+and reads no code: every LLM takes part through the API, as you do. A Server can also run a model
+once, through its service's API or Ollama, with the project's Readme and the plan at hand packaged as its prompt
+(plan Tool calls only): such a run does not call the API and is given no token; the Server carries out its
+tool calls, the Consensus ones included, as the person who pressed, and gives it this page's rules in its own
+words.
 
 ## Who does what
 
-- **Agent session, or a run** (you): reads and writes the codebase, and works in Consensus through its API. You
+- **Agent session** (you): reads and writes the codebase, and works in Consensus through its API. You
   keep the project's Readme, reply and apply, draft plans, and implement plans when asked to.
 - **The API, never the files.** The project's `.consensus` folder may sit in the repository you work in; it is the
   server's. Never write a plan, a thread or a revision there by hand: every change goes through the API, which
@@ -52,8 +52,7 @@ Consensus ones included, and gives it this page's rules in its own words.
 ## Talking to Consensus
 
 - The API's address, and how this server knows you, are in **This server**, at the top of this page when the
-  server serves it: on a local or trusted-network server a request with no token is the owner; a run the server
-  started carries the token it was given.
+  server serves it: on a local or trusted-network server a request with no token is the owner.
 - Everything goes through the API; you have no access to the server's files. The API keeps the queues,
   revisions and anchors right.
 - **Calling the API:** plain HTTP requests (`curl` or any client) to the address in This server, each with the

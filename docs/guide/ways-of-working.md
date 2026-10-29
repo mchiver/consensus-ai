@@ -20,7 +20,7 @@ The agent's own setup is nothing: no package, no key, no file in the repository.
 
 ## A run from the page
 
-The other way needs no terminal. Your server keeps **LLM connections**, each a model and how to run it: Claude Code as a one-shot command on the server's machine, or a local model through Ollama. A connection is listed in the sidebar under the server's projects, and its page has the buttons. Press one and the server runs the model once, in the project's folder, with a prompt it packages for the task, and logs the run: who pressed it, what it was given, what it answered.
+The other way needs no terminal. Your server keeps **LLM connections**, each a model and the service that runs it: Claude, ChatGPT, Gemini or Grok through its API with your key, any other service that speaks OpenAI's API, or a local model through Ollama. A connection is listed in the sidebar under the server's projects, and its page has the buttons. Press one and the server runs the model once, in the project's folder, with a prompt it packages for the task, and logs the run: who pressed it, what it was given, what it answered.
 
 ![The LLM page: the connection, the project and plan pickers, the task buttons, and the log of runs.](../images/desktop-llm.png)
 

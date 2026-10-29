@@ -387,14 +387,15 @@ import there, the way to move a plan between servers; drag and drop between root
 Run Shapes, Step 3) are kept in the server's settings (`Llms`) and shown by the page, in a browser and in the
 desktop alike: the **LLMs** list under the projects (New LLM in its menu; Open, Rename and Delete in a row's;
 the owner's to change, everyone's to see). Each connection is a participant of its server with the `llm` role,
-named `<connection Name>@<server Name>` (a Name is letters, digits, dot, dash and colon; `claude-cli` or
-`ollama-<model>` offered), with a Token the server makes when it is saved and keeps on it, so every reply and
-run says which connection posted it; the hand-made `llm` participant stays for an agent session. Each opens
+named `<connection Name>@<server Name>` (a Name is letters, digits, dot, dash and colon; `<kind>-<model>`
+offered), so every reply and run says which connection posted it; the hand-made `llm` participant stays for an agent session. Each opens
 in a tab of its own. The **LLM page** (plan UI Tweaks IV) has a head with **Details…** (a popup, the owner's:
-Name; Kind `claude-cli`, a command run without a shell on the server's machine, or `ollama`; Command and
-Arguments, one per line, before `--model`; Model; Timeout; for `ollama` Context, the model's window in tokens,
-and Rounds, the most tool rounds a run takes; Check, which tries the form as entered and, for `ollama`, says
-whether the Model calls tools) and **Packaging…** (a popup, the owner's: what the connection leaves out of a
+Name; Kind `claude`, `chatgpt`, `gemini`, `grok`, `openai-compatible` or `ollama` (plan Tool calls only,
+Step 2); Url, filled in for the named kinds; Key, for the API kinds, write-only (kept in the settings, never in
+an answer, a page, a record, a log or a prompt; a save without a new one keeps it); Model, asked of a run, not
+of a save; Timeout; Rounds, the most tool rounds a run takes; for `ollama` Context, the model's window in
+tokens; Check, which asks the service for its models with the Key as entered, says whether the Key is good and
+offers the models, and for `ollama` says whether the Model calls tools) and **Packaging…** (a popup, the owner's: what the connection leaves out of a
 package, the other Context documents listed by title and each checkable, the threads of the plan at hand
 waiting on the connection listed by anchor and each checkable, the unchecked ids remembered per connection so
 a new document or thread is in by default; its Session Prompt, appended to every package of the connection;
@@ -406,13 +407,13 @@ defaulting to the plan last opened; one button per **task** the project enables 
 Work and Session shipped, below), in the server's order, each packaging its task and running it once, disabled
 only while a run is going or for what it lacks, with the reason shown beside it; Stop while it runs) and the **log** (one record per run in the config folder's
 `runs/<id>.json`: when, which task, who asked, the project with its folder, the plan, the prompt, the output,
-the exit and the duration, and for a local model the rounds and the tokens; the page shows the connection's
+the exit and the duration, and the rounds and the tokens the service reports; the page shows the connection's
 runs, newest first; a run opens in a popup, its output and prompt rendered as markdown or shown as source,
 each with its size and Copy; a run's start, progress and end go out over `/api/events` as `{ Kind: "run" }`,
 so every page follows it). A run on a project whose folder is not on the server's machine is refused: an LLM
-works on the projects of its own machine. A `claude-cli` one-shot runs the command once in the project's
-folder with the package on its standard input; the model works through the API itself, with the token in the
-instructions, and nothing is parsed. The default Arguments let a non-interactive `claude` use its tools.
+works on the projects of its own machine. Every run is the tool loop below (plan Tool calls only, Step 3: the `claude-cli` kind is gone, and a
+connection of a kind the Server does not run is removed from the settings when they are read, its name on the
+log).
 Nothing in Consensus commits, branches or pushes on its own: the **Work options** (plan LLM Tasks, Step 3) are
 two switches of the project, off by default, shown on the LLM page beneath the task buttons when the project
 enables a task that writes files and kept in project.json as `GitSync` and `AutoCommit`. With Git sync on, a run
@@ -465,7 +466,7 @@ press nothing; Watchers read and press the tasks that write nothing; the Adminis
 roles anywhere, plus a role folder like anyone's. A middleware after identify (`authorize` in `src/Api.js`) finds
 the route's project and the account's role and refuses with 403 and a plain reason ("a Watcher reads only", "no
 role in this project", "the Administrator's") before the route runs; the list routes show a non-owner only the
-projects with a role; a run's token carries the presser's account and role, so a run is allowed what the presser
+projects with a role; a run carries the presser's account and role, so a run is allowed what the presser
 is, and its package says who it acts for. The owner account passes every check, so nothing a bare request does
 changes. An account's page (`#/u/<id>`, `public/components/user-page/`) holds the details, the projects and the
 role in each, the tokens and the activity the threads and revisions record (`GET /api/users/:id/activity`); the
@@ -550,21 +551,23 @@ task buttons, the chooser's Hosts and Start the Server Host (Scope Local); Profe
 file's Scope Public. The pricing page, `docs/pricing.html`, names the four tiers (plan The Server, Step 6). The production instance and the
 token template are Clerk Step 6.
 
-An `ollama` one-shot (plan Consensus Desktop, Step 4: Local Models) runs in the server: a local model has no
-tools of its own, so `Ollama.js` runs the tool loop over Ollama's chat endpoint, one request per round with
-the connection's Context as `num_ctx`, and `Tools.js` carries out each call the model makes and sends the
+A run (plan Consensus Desktop, Step 4: Local Models; every kind's since plan Tool calls only, Step 1) runs in
+the server: `Loop.js` runs the tool loop, one request per round, through an adapter per wire format
+(`Ollama.js` Ollama's chat, with the connection's Context as `num_ctx`; `Anthropic.js` Anthropic's Messages,
+for `claude`; `OpenAI.js` OpenAI's chat completions, for `chatgpt`, `gemini`, `grok` and `openai-compatible`),
+each a plain fetch with the Key in its header and no provider's library, and `Tools.js` carries out each call the model makes and sends the
 result back, until the model answers without a call, the Rounds run out (one last request without tools asks
 for the answer), the Timeout passes, or Stop aborts the request in flight. The tools: over the project's
 folder, `glob`, `grep` and `read` within its Include and Exclude, and when the task writes files `write`, `edit`
 (one occurrence, or refused) and `run`, which executes one of the project's **Commands** (one per line in its
 Settings, none by default; a command exactly or with arguments after it; nothing that chains, pipes,
-redirects or substitutes, on the list or in a call); over the server itself, as the connection's participant
-with its Token, the operations of the definition it may call (plan MCP Server, Step 2: `list_projects`, `read_plan` (a document too),
+redirects or substitutes, on the list or in a call); over the server itself, performed inside it as the person who
+pressed, through the connection and with no token, the operations of the definition it may call (plan MCP Server, Step 2: `list_projects`, `read_plan` (a document too),
 `list_threads`, `list_revisions`, `read_revision` and `waiting` to read; `thread`, `reply`, `reanchor`, `apply` (the current
 revision supplied), `write_text` (the whole text as a revision, the revision supplied), `set_state` and `create_plan` to write), each held to the project the run is on, a server's refusal
-going back to the model as the tool's result. The package is the same, except that the agent instructions
-(which say how to call the API with the token) are replaced by the server's tool instructions, so the token
-never enters a local model's prompt. The run keeps its `Transcript` as entries (a round's text, a call with
+going back to the model as the tool's result. The package's instructions are the server's tool instructions, so no
+token and no API address enters a prompt. A refusal from the service (a bad Key, a model it does not have, a
+limit reached) ends the run Failed with the service's words. The run keeps its `Transcript` as entries (a round's text, a call with
 its arguments, its whole result and how long it took, the answer) and its Output as the markdown rendered
 from them (a heading per round, each call in bold with its result fenced and clipped at 2,000 characters, the
 answer under its own heading), both growing with every call; every page hears each call, so the run popup
@@ -589,17 +592,17 @@ with a detailed plan as one revision and open a thread for each open question), 
 files: the Build of before), **Explain** (Step 4: the instructions, the Readme, the documents, the project's
 shape, the files and the box, writes none: the conversation with a project, below) and **Session** (the
 instructions, the Readme and the documents, writes files; its prompt is the connection's).
-Writes is the permission: the run token carries it, so a none run is refused every writing route (403, "this
-run reads only") and a local model gets the read tools only; a task that packages the plan or the threads
+Writes is the permission: the run carries it, so a none run gets the read tools only and is refused every
+write inside the server; a task that packages the plan or the threads
 needs a plan picked, one that writes or packages files the project's folder on the server's machine. Tasks
 are defined per server and enabled per project: a project's Settings lists them with a checkbox each (`Tasks`
 on the project's registry entry in consensus.json since plan Project settings, Step 1, the enabled ids; absent means all, so a task added later is on everywhere). A file with no
 `Tasks` gets the shipped set at start. `TasksVersion` in the settings (3
 since Step 4) says which shipped tasks a file has been given: a file below it gets the shipped tasks that came
 after its version (each shipped task carries a Since), each after the nearest shipped one before it, once, so a
-task the owner removes stays removed. A local model gets
+task the owner removes stays removed. A run gets
 `write_text` (the plan's whole new text as a revision, the current revision supplied) beside the other
-Consensus tools, so an Enhance through Ollama can post the text.
+Consensus tools, so an Enhance can post the text.
 
 The page's **theme** is a palette: System, Light, Sepia, Paper, Solarized Light, Dark, Slate, Solarized Dark,
 Nord or Midnight (`data-theme` on the page; `data-bs-theme` light or dark for Bootstrap), and the editor takes
@@ -614,10 +617,11 @@ chooser (`desktop/page/connect.html`, `connect.js`, `connect.css`), `desktop/Hos
 Electron; the runs are the server's:
 `src/Llms.js` the connections, `src/Runner.js` the package and the start of a run over the store,
 `src/Runs.js` the runs and their records, `src/Package.js` the one-shot prompt, `src/Llm.js` a connection's
-check and command line, `src/Ollama.js` the tool loop, `src/Tools.js` the tools, `src/Files.js` the files of a
+check, `src/Loop.js` the tool loop, `src/Ollama.js`, `src/Anthropic.js` and `src/OpenAI.js` its adapters, `src/Tools.js` the tools, `src/Files.js` the files of a
 folder; `public/js/llm.js` the LLMs list's data and the LLM page. `test/Desktop.test.js` covers the settings
 and the page server; `test/Runs.test.js` the connections, the participants they make, the package, the check
-and the runs; `test/Tools.test.js` the tools and the Ollama loop; `test/Api.test.js` the routes;
+and the runs; `test/Tools.test.js` the tools and the loop; `test/Connections.test.js` the API kinds against the stand-in
+service, `test/support/Service.js`; `test/Api.test.js` the routes;
 `test/Start.test.js` the start module and the headless entry point.
 
 ## The API
@@ -665,14 +669,14 @@ the Server Host serves it for every mounted project, each request an account wit
 	GET    /api/waiting                              everything waiting on the caller, in every project
 	GET    /api/tasks[?Project=]                     the tasks, in the buttons' order, or those a project enables; the Writes levels, the Package switches and the shipped Defaults
 	GET    /api/llms                                 the LLM connections: Id, Name, Kind, Model, Speaker, Running, the whole records
-	POST   /api/llms                                 owner; a connection from its fields, with a new id and token
-	POST   /api/llms/check                           owner; the connection as typed, tried: { Ok, Result | Error }
+	POST   /api/llms                                 owner; a connection from its fields, with a new id; the Key never answered
+	POST   /api/llms/check                           owner; the connection as typed, tried: { Ok, Result | Error, Models }
 	PUT    /api/llms/:id                             owner; the fields given over the record
 	POST   /api/llms/:id/check                       owner; tried as saved, the body's fields over it
 	DELETE /api/llms/:id                             owner; not while it runs; its participant goes with it
 	GET    /api/runs/lists?Project=&Plan=&Llm=       the other Context documents, the plan's threads waiting on the connection
 	POST   /api/runs/package                         { Llm, Task, Project, Plan?, Text?, Overrides? }  the prompt a run would get; Task the task's id, Text the box's text
-	POST   /api/runs                                 { Llm, Task, Project, Plan?, Text? }  a run started as the presser through the connection, on a token named after the task that carries its Writes; one per connection and per plan at a time, a press while either has a run on answered 201 with Status queued and Behind the run it waits for, packaged again when its turn comes
+	POST   /api/runs                                 { Llm, Task, Project, Plan?, Text? }  a run started as the presser through the connection, its tools performed inside the Server within the task's Writes; one per connection and per plan at a time, a press while either has a run on answered 201 with Status queued and Behind the run it waits for, packaged again when its turn comes
 	GET    /api/runs[?Llm=]                          the runs, newest first, without their prompts and outputs
 	GET    /api/runs/:id                             the whole record, the output as it stands
 	POST   /api/runs/:id/stop                        a running one stopped
@@ -727,9 +731,12 @@ name is Consensus-AI wherever the site names the product; the prose says Consens
 	src/Runner.js         a run's lists, package and start over the store
 	src/Runs.js           the runs and their records (<config>/runs/)
 	src/Package.js        the one-shot prompt
-	src/Llm.js            a connection's check and command line
-	src/Ollama.js         the tool loop over Ollama's chat endpoint
-	src/Tools.js          a local model's tools over the project's folder and the server
+	src/Llm.js            a connection's check: its service's models
+	src/Loop.js           the tool loop every run is (plan Tool calls only)
+	src/Ollama.js         the loop's adapter for Ollama's chat
+	src/Anthropic.js      the loop's adapter for Anthropic's Messages (claude)
+	src/OpenAI.js         the loop's adapter for OpenAI's chat completions (chatgpt, gemini, grok, openai-compatible)
+	src/Tools.js          a run's tools over the project's folder and the server
 	src/Files.js          the files of a folder: globs, Include and Exclude
 	src/View.js           the look (plan Project settings, Step 2): project.json's View in the Desktop, consensus.json's on a Server; GET and PUT /api/view
 	public/               the page: index.html, css/, js/ (one controller per pane; roots.js the servers the page shows; settings.js the settings popup; project.js a project's settings; components/view-settings/ the look as a form; llm.js the LLMs and the runs)
