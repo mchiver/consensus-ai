@@ -41,6 +41,7 @@ const FS = require( 'fs' );
 const PATH = require( 'path' );
 const TREE = require( './Tree.js' );
 const IDS = require( './Ids.js' );
+const ATOMIC = require( './Atomic.js' );
 
 const SETTINGS_FILE = 'consensus.json';
 const HOME_FOLDER = '.consensus';
@@ -55,8 +56,6 @@ const CONTEXT_FOLDER_NAME = 'Context';
 const CONTEXT_TITLE = 'Readme';
 const DEFAULT_STATES = [ 'Draft', 'Plan', 'Working', 'Finished' ];
 const DEFAULT_EXCLUDE = [ '~*/**', 'node_modules/**', '.git/**' ];
-const RENAME_ATTEMPTS = 10;
-const RENAME_DELAY_MS = 20;
 const SERVER_FIELDS = [ 'Roles', 'Llm', 'Tasks' ];
 const ROLE_NAMES = [ 'Owners', 'Members', 'Service', 'Watchers' ];
 
@@ -135,36 +134,11 @@ function Open( Folder, Options )
 	}
 
 
-	// Whole-file atomic write: to name.tmp, then rename over the target.
+	// Whole-file atomic write (src/Atomic.js since plan Review 2026-10-29, Step 2: a temporary file renamed into place,
+	// the rename tried again while a reader holds the target).
 	async function write_file( file, content )
 	{
-		let temporary = file + '.tmp';
-		await FS.promises.writeFile( temporary, content, 'utf8' );
-		await rename_with_retry( temporary, file );
-	}
-
-
-	// On Windows a rename fails with EPERM, EBUSY or EACCES while another request has the target open
-	// for reading; the reader is done within milliseconds, so the rename is tried again a few times.
-	async function rename_with_retry( source, target )
-	{
-		for ( let attempt = 1; ; attempt++ )
-		{
-			try
-			{
-				await FS.promises.rename( source, target );
-				return;
-			}
-			catch ( error )
-			{
-				let locked = ( error.code === 'EPERM' ) || ( error.code === 'EBUSY' ) || ( error.code === 'EACCES' );
-				if ( !locked || ( attempt >= RENAME_ATTEMPTS ) )
-				{
-					throw error;
-				}
-				await wait( RENAME_DELAY_MS * attempt );
-			}
-		}
+		await ATOMIC.WriteTextAsync( file, content );
 	}
 
 
@@ -174,7 +148,7 @@ function Open( Folder, Options )
 		await FS.promises.mkdir( PATH.dirname( target ), { recursive: true } );
 		try
 		{
-			await rename_with_retry( source, target );
+			await ATOMIC.Rename( source, target );
 		}
 		catch ( error )
 		{
@@ -185,12 +159,6 @@ function Open( Folder, Options )
 			await FS.promises.cp( source, target, { recursive: true } );
 			await FS.promises.rm( source, { recursive: true, force: true } );
 		}
-	}
-
-
-	function wait( milliseconds )
-	{
-		return new Promise( function ( resolve ) { setTimeout( resolve, milliseconds ); } );
 	}
 
 

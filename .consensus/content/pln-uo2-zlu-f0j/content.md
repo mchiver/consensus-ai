@@ -1,11 +1,11 @@
 # Step 2: The shared Electron scaffold
 
-The copies between desktop, sidecar and client main.js and their Settings modules become shared modules, each handed what differs. The apps keep only their own: their arguments, their boot fields, their own handlers.
+The copies between desktop, sidecar and client main.js and their Settings modules become shared modules, each handed what differs. The apps keep only their own: their arguments, their boot fields, their own handlers. The Server application takes electron/CurrentUser.js in this Step alone; its arguments and fail_to_start move onto App.js in Step 3 with the rest of its main, so it is rewritten once.
 
 ## The modules
 
 - **electron/App.js**
-  - Arguments( argv, Flags ): the Electron switches filtered out, the slice after the executable (packaged or from the checkout), the app's own flags taken as Flags describes them ({ Name, Takes: 'value' | 'folder' | 'flag' }), one positional allowed or not; throws the message the app prints with its usage.
+  - Arguments( argv, { Flags, Positional, Rest } ) answers { Options, Positional, Rest }: the Electron switches filtered out, the slice after the executable (packaged or from the checkout); Flags a list of { Name: '--port', Takes: 'value' | 'number' | 'flag', Key: 'Port' }, each landing in Options by its Key (null or false when absent), a value flag throwing when nothing or another flag follows it, 'number' also checking a whole positive number; Positional true allows one bare argument (the folder), else a bare argument throws; Rest true keeps the arguments the Flags do not name, in order, for src/Start.js (the Desktop and the Server), Rest false throwing on an unknown argument (the Sidecar and the Client). A folder is a value the app resolves itself. What is thrown is the message the app prints with its usage.
   - FailToStart( Title, Message, Quiet ): the console, the error box unless Quiet, exit 1.
   - Saver( Write ): { Save(), SaveSoon() } over a 300 ms debounce, Save flushing a pending SaveSoon; the window-all-closed flush in one place.
   - AttachHandlers( Fields ): the common bridge handlers boot, remember, theme, print-pdf, view-in-browser, quit and new-window, over Fields = { Boot(), Settings, Saver, Roots(), NewWindow(), Themes } plus WINDOWS.AttachChrome(); an app adds its own handlers after.
@@ -26,4 +26,4 @@ New tests: Atomic (a write lands whole, the temporary file is gone, two processe
 
 ## Decided before the build
 
-The modules above and Remember's one behaviour, from the review's threads. Proposed defaults, for the design turn: the Flags shape of App.Arguments; the test as the way the look lists are kept equal; electron/Servers.js as the store's home.
+The modules above and Remember's one behaviour, from the review's threads. Decided on the design turn (2026-10-29): the shape of App.Arguments as its bullet says; a test keeps the look lists equal (the section The look lists); electron/Servers.js is the Servers store's home.

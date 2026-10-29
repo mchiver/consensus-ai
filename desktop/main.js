@@ -28,7 +28,9 @@
 // title bar (titleBarStyle hidden with titleBarOverlay; the page sends the bar's colours and height over the chrome
 // message, so the buttons follow the palette), the bar is the drag region, and the native menu is not shown; it is
 // still set, for its accelerators, and the page's application menu (public/components/title-bar) has New window, Open
-// folder in new window, the recent folders, Settings, Reload and Quit, over the bridge.
+// folder in new window, the recent folders, Settings, Reload and Quit, over the bridge. Plan Review 2026-10-29, Step 2:
+// the command line, the saving, the common bridge handlers, the page server on its remembered port and the shutdown
+// are electron/App.js's, the current user electron/CurrentUser.js's and the probe src/Probe.js's.
 //
 //   npm run desktop -- [<folder> | --connect <server name>] [--config <folder>] [--port <port>]
 
@@ -39,12 +41,15 @@ const SETTINGS = require( './Settings.js' );
 const PROJECTS = require( './Projects.js' );
 const SERVER_STATUS = require( './ServerStatus.js' );
 const LICENSE = require( '../src/License.js' );
+const PROBE = require( '../src/Probe.js' );
 const START = require( '../src/Start.js' );
-const PAGE = require( '../electron/Page.js' );
 const WINDOWS = require( '../electron/Windows.js' );
+const APP = require( '../electron/App.js' );
+const CURRENT_USER = require( '../electron/CurrentUser.js' );
 const SERVER = require( '../src/Server.js' );
 
 const VERSION = require( '../package.json' ).version;
+const TITLE = 'Consensus Desktop';
 const PRELOAD = PATH.join( __dirname, 'preload.js' );
 const CONNECT_FOLDER = PATH.join( __dirname, 'page' );		// the chooser, served beside the page
 const ICON = PATH.join( __dirname, 'icon.ico' );		// the windows' icon from the checkout; the packaged executable carries its own (plan Installer)
@@ -52,8 +57,7 @@ const TRY_TIMEOUT = 5000;
 const DESKTOP_USAGE = 'usage: consensus-desktop [<folder> | --connect <server name>] [--config <folder>] [--port <port>]';
 const CONNECT_ARGUMENT = '--connect';		// the desktop's own argument: a saved Server project to open
 const SERVER_NAME = 'Server';				// the name a folder routed to this machine's Server goes by
-// Electron's own switches, which stay on the command line the app parses.
-const ELECTRON_SWITCH = /^--(remote-debugging-port|user-data-dir|inspect|enable-logging|no-sandbox|disable-gpu|trace-warnings)/;
+const FLAGS = [ { Name: CONNECT_ARGUMENT, Takes: 'value', Key: 'Connect', Needs: 'the Name of a saved Server' } ];
 
 let options = null;		// the command line's (src/Start.js), kept for the server a folder opened later needs
 let running = null;		// src/Server.js's, from START.Run: this machine's server over the window's folder, or none
@@ -66,44 +70,19 @@ let page = null;
 let window = null;
 let reason = null;		// why the project asked for could not open, for the chooser
 
+// The desktop's settings saved: now, or a moment after the last change (the view state changes often: a fold, a tab).
+const SAVER = APP.Saver( { Write: function () { SETTINGS.Write( desktop_path, desktop ); }, Label: 'the desktop settings' } );
+// The machine's current user (plan The Server, Step 1): <config>/user.json, shared with the Server (electron/CurrentUser.js).
+const USER = CURRENT_USER.Make( config_folder );
+
 
 //---------------------------------------------------------------------
 // Settings
-
-function save_settings()
-{
-	try
-	{
-		SETTINGS.Write( desktop_path, desktop );
-	}
-	catch ( error )
-	{
-		console.error( 'the desktop settings could not be written: ' + error.message );
-	}
-}
-
 
 // The settings as the pages see them: the desktop's own, filled.
 function desktop_settings()
 {
 	return SETTINGS.Fill( desktop );
-}
-
-
-// The page's remembered state changes often (a fold, a tab): written a moment after the last change.
-let remember_timer = null;
-
-function save_settings_soon()
-{
-	if ( remember_timer )
-	{
-		clearTimeout( remember_timer );
-	}
-	remember_timer = setTimeout( function ()
-	{
-		remember_timer = null;
-		save_settings();
-	}, 300 );
 }
 
 
@@ -123,34 +102,12 @@ function apply_native_theme()
 
 
 //---------------------------------------------------------------------
-// Trying a server: GET /api/me, as the owner. Returns { Ok, Version, Me, Participants, States, Url } or { Ok: false, Error }.
+// Trying a server (src/Probe.js): GET /api/me, as the owner. Returns { Ok, SignIn, Version, Me, Participants, States, Url }
+// or { Ok: false, Error }; a Server that asks for a sign-in answers, and the window's page makes the sign-in.
 
-async function try_server( url )
+function try_server( url )
 {
-	let base = String( url || '' ).trim().replace( /\/+$/, '' );
-	if ( !/^https?:\/\/\S+$/.test( base ) )
-	{
-		return { Ok: false, Error: 'the Url must start with http:// or https://' };
-	}
-	try
-	{
-		let response = await fetch( base + '/api/me', { signal: AbortSignal.timeout( TRY_TIMEOUT ) } );
-		let json = await response.json().catch( function () { return {}; } );
-		if ( response.status === 401 && json.Error === 'sign in' )
-		{
-			// a Server (plan The Server, Step 5): it answers and asks for a sign-in, which the window's page makes
-			return { Ok: true, SignIn: true, Version: null, Url: base };
-		}
-		if ( !response.ok )
-		{
-			return { Ok: false, Error: base + ' answered ' + response.status + ( json.Error ? ': ' + json.Error : '' ) };
-		}
-		return { Ok: true, Version: json.Version || null, Me: json.Me, Participants: json.Participants, States: json.States, Url: base };
-	}
-	catch ( error )
-	{
-		return { Ok: false, Error: base + ' does not answer: ' + ( error.name === 'TimeoutError' ? 'no answer within ' + ( TRY_TIMEOUT / 1000 ) + ' seconds' : error.message ) };
-	}
+	return PROBE.Probe( url, { Timeout: TRY_TIMEOUT } );
 }
 
 
@@ -227,7 +184,7 @@ async function open_folder_here( Folder )
 		opened = { Kind: 'host', Host: { Name: SERVER_NAME, Url: routed.Url, Project: routed.Project.Id, Routed: true }, Project: routed.Project, Path: folder };
 		if ( SETTINGS.Opened( desktop, folder ) )
 		{
-			save_settings();
+			SAVER.Save();
 		}
 		console.log( 'folder ' + folder + ' is mounted on the Server at ' + routed.Url + ': connected to its project ' + routed.Project.Name );
 		return { Ok: true, Project: project_info() };
@@ -261,7 +218,7 @@ async function open_folder_here( Folder )
 	opened = { Kind: 'folder', Path: folder, Project: { Id: running.Project.Id, Name: running.Project.Name } };
 	if ( SETTINGS.Opened( desktop, folder ) )
 	{
-		save_settings();
+		SAVER.Save();
 	}
 	return { Ok: true, Project: project_info() };
 }
@@ -280,7 +237,7 @@ async function connect_host_here( Host )
 	{
 		return { Error: 'a Server needs a Name' };
 	}
-	if ( !LICENSE.AtLeast( current_user(), 'registered' ) )
+	if ( !LICENSE.AtLeast( USER.Read(), 'registered' ) )
 	{
 		return { Error: 'a sign-in: connecting to a Server needs one (Registered is free); sign in from a project page\'s menu' };
 	}
@@ -297,7 +254,7 @@ async function connect_host_here( Host )
 		opened = { Kind: 'host', Host: { Name: name, Url: tried.Url, Project: named ? named.Id : null }, Project: named };
 		desktop.Hosts = SETTINGS.Fill( { Hosts: desktop.Hosts } ).Hosts.filter( function ( entry ) { return !( entry.Name === name && ( entry.Project || null ) === ( named ? named.Id : null ) ); } );
 		desktop.Hosts.push( { Name: name, Url: tried.Url, Project: named ? named.Id : null, Title: named ? named.Name : null } );
-		save_settings();
+		SAVER.Save();
 		return { Ok: true, Project: project_info() };
 	}
 	let projects = [];
@@ -317,7 +274,7 @@ async function connect_host_here( Host )
 	opened = { Kind: 'host', Host: { Name: name, Url: tried.Url, Project: project.Id }, Project: { Id: project.Id, Name: project.Name } };
 	desktop.Hosts = SETTINGS.Fill( { Hosts: desktop.Hosts } ).Hosts.filter( function ( entry ) { return !( entry.Name === name && ( entry.Project === project.Id || !entry.Project ) ); } );
 	desktop.Hosts.push( { Name: name, Url: tried.Url, Project: project.Id, Title: project.Name } );
-	save_settings();
+	SAVER.Save();
 	return { Ok: true, Project: project_info() };
 }
 
@@ -352,30 +309,12 @@ async function open_then_show( Open )
 
 
 //---------------------------------------------------------------------
-// The page server on the port it had last time (remembered in desktop.json as page-port), so the window's origin
-// stays the same between starts and a sign-in through Clerk survives a restart (plan Clerk, Step 7); a port in use
-// gives way to a free one, which is remembered instead.
+// The page server on the port it had last time (remembered in desktop.json as page-port, electron/App.js), so the
+// window's origin stays the same between starts and a sign-in through Clerk survives a restart (plan Clerk, Step 7).
 
-async function serve_page()
+function serve_page()
 {
-	let remembered = ( desktop.Remembered && Number.isInteger( desktop.Remembered[ 'page-port' ] ) ) ? desktop.Remembered[ 'page-port' ] : 0;
-	if ( remembered > 0 )
-	{
-		try
-		{
-			return await PAGE.Serve( { Port: remembered, Folders: [ CONNECT_FOLDER ] } );
-		}
-		catch ( error )
-		{
-			console.log( 'the page port ' + remembered + ' is in use: another one' );
-		}
-	}
-	let served = await PAGE.Serve( { Folders: [ CONNECT_FOLDER ] } );
-	if ( SETTINGS.Remember( desktop, 'page-port', Number( new URL( served.Url ).port ) ) )
-	{
-		save_settings();
-	}
-	return served;
+	return APP.ServePage( { Settings: desktop, Saver: SAVER, Folders: [ CONNECT_FOLDER ] } );
 }
 
 
@@ -412,7 +351,7 @@ function boot_info()
 		Scale: desktop.Scale,
 		Remembered: desktop.Remembered,
 		Roots: roots_now(),
-		License: tier_now(),
+		License: USER.Tier(),
 		Project: project_info(),
 		Recent: desktop_settings().Recent,
 		Reason: reason,
@@ -421,31 +360,10 @@ function boot_info()
 }
 
 
-// The report window's Print to PDF (plan Printing and Reporting): the save dialog in the folder last used, then the
-// page printed to that file. Answers { Path } or { Cancelled } or { Error }.
-async function print_to_pdf( sender, Name )
-{
-	let remembered = desktop.Remembered && desktop.Remembered[ 'report-folder' ];
-	let answer = await WINDOWS.PrintToPdf( sender, Name, ( typeof remembered === 'string' ) ? remembered : null );
-	if ( answer.Path && SETTINGS.Remember( desktop, 'report-folder', PATH.dirname( answer.Path ) ) )
-	{
-		save_settings_soon();
-	}
-	return answer;
-}
-
-
-// The report window's View in Browser: the same report at its root's own address, in the system browser.
-function view_in_browser( Url )
-{
-	return WINDOWS.ViewInBrowser( Url, roots_now() );
-}
-
-
 // A window of the app (plan UI Components, Step 5): no frame, Electron's window buttons over the page's title bar.
 function window_options( Width, Height )
 {
-	return WINDOWS.Options( { Width: Width, Height: Height, Title: 'Consensus Desktop', Icon: ICON, Theme: theme_in_use(), DarkThemes: SETTINGS.DARK_THEMES, Preload: PRELOAD } );
+	return WINDOWS.Options( { Width: Width, Height: Height, Title: TITLE, Icon: ICON, Theme: theme_in_use(), DarkThemes: SETTINGS.DARK_THEMES, Preload: PRELOAD } );
 }
 
 
@@ -481,62 +399,29 @@ function build_menu()
 
 
 //---------------------------------------------------------------------
-// The machine's current user.
-
-// The machine's current user (plan The Server, Step 1): <config>/user.json, read at each use since another window or
-// the Server may sign someone in; a record with no check for 14 days is removed, the user signed out.
-function current_user()
-{
-	let record = LICENSE.Read( config_folder() );
-	if ( record && LICENSE.Lapsed( record ) )
-	{
-		LICENSE.Remove( config_folder() );
-		console.log( 'signed out: ' + ( record.Email || record.Display || 'the current user' ) + ', not checked for ' + LICENSE.CACHE_DAYS + ' days' );
-		return null;
-	}
-	return record;
-}
-
-
-// The tier the Desktop is at now, for the page and the gates here.
-function tier_now()
-{
-	let record = current_user();
-	let tier = LICENSE.Tier( record );
-	return { Tier: tier.Tier, Rank: tier.Rank, Plan: tier.Plan, Email: tier.Email, Display: tier.Display, Days: tier.Days, Until: tier.Until, Checked: tier.Checked, Lapsed: tier.Lapsed, Line: LICENSE.Line( record ) };
-}
-
+// The machine's current user (electron/CurrentUser.js): read at each use since another window or the Server may sign
+// someone in; a record with no check for 14 days is removed, the user signed out.
 
 // A sign-in's session token: verified, written whole as the current user (replacing whoever was there); answers the
-// tier, or { Error } with the tier unchanged.
+// tier, or the tier with an Error and the user unchanged.
 async function set_license( Token )
 {
-	let record = null;
-	try
+	let answer = await USER.SetLicense( Token, settings || {} );
+	if ( answer.Error )
 	{
-		record = await LICENSE.Verify( Token, { Settings: settings || {} } );
+		return Object.assign( answer.Tier, { Error: answer.Error } );
 	}
-	catch ( error )
-	{
-		return Object.assign( tier_now(), { Error: 'the sign-in could not be verified: ' + error.message } );
-	}
-	if ( !record )
-	{
-		return Object.assign( tier_now(), { Error: 'the sign-in could not be verified' } );
-	}
-	LICENSE.Write( config_folder(), record );
 	build_menu();
-	console.log( 'signed in: ' + LICENSE.Line( record ) );
-	return tier_now();
+	return answer.Tier;
 }
 
 
 // Sign out: the current user removed.
 function clear_license()
 {
-	LICENSE.Remove( config_folder() );
+	let tier = USER.Clear();
 	build_menu();
-	return tier_now();
+	return tier;
 }
 
 
@@ -559,23 +444,12 @@ function local_running()
 }
 
 
-// The app's own arguments: after the executable (and, from the checkout, the app folder), Electron's switches left
-// out, and the desktop's own --connect <server name> taken: { Arguments, Connect }.
+// The app's own arguments (electron/App.js): the desktop's own --connect <server name> taken, the rest left for
+// src/Start.js: { Arguments, Connect }.
 function own_arguments( argv )
 {
-	let list = argv.slice( ELECTRON.app.isPackaged ? 1 : 2 ).filter( function ( argument ) { return !ELECTRON_SWITCH.test( argument ); } );
-	let connect = null;
-	let at = list.indexOf( CONNECT_ARGUMENT );
-	if ( at >= 0 )
-	{
-		connect = list[ at + 1 ];
-		if ( connect === undefined || connect.startsWith( '--' ) )
-		{
-			throw new Error( CONNECT_ARGUMENT + ' needs the Name of a saved Server' );
-		}
-		list.splice( at, 2 );
-	}
-	return { Arguments: list, Connect: connect };
+	let parsed = APP.Arguments( argv, { Title: 'the Desktop', Rest: true, Flags: FLAGS } );
+	return { Arguments: parsed.Rest, Connect: parsed.Options.Connect };
 }
 
 
@@ -613,43 +487,23 @@ function pick_folder( owner, current_folder )
 
 
 //---------------------------------------------------------------------
-// The bridge's handlers.
+// The bridge's handlers: the common ones (electron/App.js), then the Desktop's own.
 
 function attach_handlers()
 {
-	ELECTRON.ipcMain.on( 'boot', function ( event )
-	{
-		event.returnValue = boot_info();
-	} );
-
-	// The page's remembered state (stored.js): a value by key, into desktop.json.
-	ELECTRON.ipcMain.on( 'remember', function ( event, change )
-	{
-		if ( change && SETTINGS.Remember( desktop, change.Key, change.Value ) )
-		{
-			save_settings_soon();
-		}
-	} );
-
-	// The page's picker and the chooser's set the window's theme.
-	ELECTRON.ipcMain.on( 'theme', function ( event, change )
-	{
-		if ( change && SETTINGS.THEMES.includes( change.Theme ) )
-		{
-			desktop.Theme = change.Theme;
-		}
-		if ( change && SETTINGS.SCALES.includes( change.Scale ) )
-		{
-			desktop.Scale = change.Scale;
-		}
-		save_settings();
-		apply_native_theme();
+	APP.AttachHandlers( {
+		Boot: boot_info,
+		Settings: function () { return desktop; },
+		Saver: SAVER,
+		Roots: roots_now,
+		NewWindow: function () { new_window(); },
+		Protected: [ APP.PAGE_PORT ],
 	} );
 
 	// The chooser's lists, and the window's project when it has one.
 	ELECTRON.ipcMain.handle( 'settings', function ()
 	{
-		return { Settings: desktop_settings(), Path: desktop_path, Config: options.Config || SERVER.DEFAULT_CONFIG, Version: VERSION, Reason: reason, Project: project_info(), Local: local_running(), License: tier_now() };
+		return { Settings: desktop_settings(), Path: desktop_path, Config: options.Config || SERVER.DEFAULT_CONFIG, Version: VERSION, Reason: reason, Project: project_info(), Local: local_running(), License: USER.Tier() };
 	} );
 
 	// Open folder: the picker, then the folder in this window.
@@ -718,7 +572,7 @@ function attach_handlers()
 	ELECTRON.ipcMain.handle( 'forget', function ( event, path )
 	{
 		desktop.Recent = ( desktop.Recent || [] ).filter( function ( entry ) { return entry.Path !== path; } );
-		save_settings();
+		SAVER.Save();
 		return { Settings: desktop_settings() };
 	} );
 
@@ -726,7 +580,7 @@ function attach_handlers()
 	{
 		let wanted = entry || {};
 		desktop.Hosts = ( desktop.Hosts || [] ).filter( function ( one ) { return !( one.Name === wanted.Name && ( one.Project || null ) === ( wanted.Project || null ) ); } );
-		save_settings();
+		SAVER.Save();
 		return { Settings: desktop_settings() };
 	} );
 
@@ -738,12 +592,6 @@ function attach_handlers()
 	ELECTRON.ipcMain.handle( 'folder', function ( event, current_folder )
 	{
 		return pick_folder( ELECTRON.BrowserWindow.fromWebContents( event.sender ), current_folder );
-	} );
-
-	ELECTRON.ipcMain.handle( 'new-window', function ()
-	{
-		new_window();
-		return {};
 	} );
 
 	// The page's application menu (plan UI Components, Step 5): Open folder in new window, a recent folder in a new
@@ -762,24 +610,6 @@ function attach_handlers()
 		return {};
 	} );
 
-	// The report window's Print (plan Printing and Reporting).
-	ELECTRON.ipcMain.handle( 'print-pdf', function ( event, name )
-	{
-		return print_to_pdf( event.sender, name );
-	} );
-
-	// The report window's View in Browser: the same report at its root's own address, in the system browser.
-	ELECTRON.ipcMain.handle( 'view-in-browser', function ( event )
-	{
-		return view_in_browser( event.sender.getURL() );
-	} );
-
-	ELECTRON.ipcMain.handle( 'quit', function ()
-	{
-		ELECTRON.app.quit();
-		return {};
-	} );
-
 	// The license (plan Rearchitecturation, Step 6): the page's sign-in token verified and cached; a sign-out clears it.
 	ELECTRON.ipcMain.handle( 'set-license', function ( event, token )
 	{
@@ -790,9 +620,6 @@ function attach_handlers()
 	{
 		return clear_license();
 	} );
-
-	// The title bar's colours and height, from the page (plan UI Components, Step 5): the window buttons follow the palette.
-	WINDOWS.AttachChrome();
 }
 
 
@@ -809,9 +636,7 @@ async function main()
 	}
 	catch ( error )
 	{
-		console.error( error.message );
-		console.error( DESKTOP_USAGE );
-		fail_to_start( error.message + '\n\n' + DESKTOP_USAGE, false );
+		APP.FailToStart( TITLE, error.message + '\n\n' + DESKTOP_USAGE );
 		return;
 	}
 	if ( options.Help )
@@ -823,7 +648,7 @@ async function main()
 	if ( options.Headless )
 	{
 		// The Desktop serves nothing on its own (plan The Server, Step 4): the Server is an application of its own.
-		fail_to_start( 'the Desktop has no headless form: consensus-server --headless runs a Server, consensus <folder> a project\'s server alone', true );
+		APP.FailToStart( TITLE, 'the Desktop has no headless form: consensus-server --headless runs a Server, consensus <folder> a project\'s server alone', true );
 		return;
 	}
 	await ELECTRON.app.whenReady();
@@ -836,15 +661,16 @@ async function main()
 	page = await serve_page();
 	attach_handlers();
 	create_window();
-	ELECTRON.app.on( 'window-all-closed', function ()
-	{
-		if ( remember_timer )
+	APP.AttachShutdown( {
+		Saver: SAVER,
+		Close: async function ()
 		{
-			clearTimeout( remember_timer );
-			remember_timer = null;
-			save_settings();
-		}
-		page.Close().catch( function () {} ).then( function () { return running ? running.Close() : null; } ).catch( function () {} ).then( function () { ELECTRON.app.quit(); } );
+			await page.Close().catch( function () {} );
+			if ( running )
+			{
+				await running.Close();
+			}
+		},
 	} );
 	// The window's project: the folder on the command line, or the saved Server project --connect names; the chooser
 	// when there is neither, or when the one asked for could not open (the reason shown on it).
@@ -881,24 +707,7 @@ async function main()
 }
 
 
-// A start that fails (the settings refused, a folder that is not there, a port in use with --port): the message on
-// the console, and, since an icon has no console, in a dialog unless Quiet.
-function fail_to_start( message, quiet )
-{
-	if ( quiet )
-	{
-		console.error( message );
-	}
-	else
-	{
-		ELECTRON.dialog.showErrorBox( 'Consensus could not start', message );
-	}
-	ELECTRON.app.exit( 1 );
-}
-
-
 main().catch( function ( error )
 {
-	console.error( error.message );
-	fail_to_start( error.message, false );
+	APP.FailToStart( TITLE, error.message );
 } );

@@ -4,6 +4,8 @@
 // and written by Sidecar alone. Sidecar has nothing to do with the Server or the global config folder: a missing file
 // is the defaults, and nothing is carried over from Desktop's or the Server's files. The file is written when a value
 // changes; the page remembers the open project as it loads, so the file appears soon after a project is first opened.
+// Since plan Review 2026-10-29, Step 2, the file's reading, writing and look lists are electron/Settings.js's; this
+// module keeps what is Sidecar's own.
 //
 //   {
 //     "User": "andre@cube1",
@@ -20,28 +22,19 @@
 //   Default()                       the settings a project starts with
 //   Fill( Settings )                every field present and usable; anything else left out
 //   CleanUser( Text )               the name trimmed, or null when it is not a usable name
+//   Remember( Settings, Key, Value ) a remembered value set (null or undefined removes it); whether it changed
 //   Load( Folder )                  { Settings, Path, Lines }: the file filled, or the defaults when missing or unreadable
 //   Write( Folder, Settings )       the file written whole (a temporary file renamed into place); the path
 
-const FS = require( 'fs' );
 const OS = require( 'os' );
-const PATH = require( 'path' );
+const BASE = require( '../electron/Settings.js' );
 
 const FILE = 'sidecar.json';
 const HOME_FOLDER = '.consensus';
-const DARK_THEMES = [ 'dark', 'slate', 'solarized-dark', 'nord', 'midnight' ];
-const THEMES = [ 'system', 'light', 'sepia', 'paper', 'solarized-light' ].concat( DARK_THEMES );
-const SCALES = [ 'small', 'normal', 'large' ];
 const USER_LIMIT = 60;
 
 
 //---------------------------------------------------------------------
-
-function Path( Folder )
-{
-	return PATH.join( PATH.resolve( String( Folder || '' ) ), HOME_FOLDER, FILE );
-}
-
 
 function DefaultUser()
 {
@@ -94,69 +87,27 @@ function Fill( Settings )
 	{
 		settings.User = user;
 	}
-	if ( THEMES.includes( given.Theme ) )
-	{
-		settings.Theme = given.Theme;
-	}
-	if ( SCALES.includes( given.Scale ) )
-	{
-		settings.Scale = given.Scale;
-	}
-	if ( given.Remembered && typeof given.Remembered === 'object' && !Array.isArray( given.Remembered ) )
-	{
-		settings.Remembered = Object.assign( {}, given.Remembered );
-	}
-	return settings;
+	return BASE.FillLook( given, settings );
 }
 
 
 //---------------------------------------------------------------------
 
-function Load( Folder )
-{
-	let path = Path( Folder );
-	let lines = [];
-	if ( !FS.existsSync( path ) )
-	{
-		return { Settings: Default(), Path: path, Lines: [ 'no ' + FILE + ' yet: the defaults' ] };
-	}
-	let read = null;
-	try
-	{
-		read = JSON.parse( FS.readFileSync( path, 'utf8' ) );
-	}
-	catch ( error )
-	{
-		lines.push( FILE + ' could not be read (' + error.message + '): the defaults, and the file is left as it is until a setting changes' );
-		return { Settings: Default(), Path: path, Lines: lines };
-	}
-	lines.push( 'settings from ' + path );
-	return { Settings: Fill( read ), Path: path, Lines: lines };
-}
-
-
-function Write( Folder, Settings )
-{
-	let path = Path( Folder );
-	FS.mkdirSync( PATH.dirname( path ), { recursive: true } );
-	let temporary = path + '.' + process.pid + '.tmp';
-	FS.writeFileSync( temporary, JSON.stringify( Fill( Settings ), null, '\t' ) + '\n' );
-	FS.renameSync( temporary, path );
-	return path;
-}
+const FILE_BASE = BASE.Make( { File: HOME_FOLDER + '/' + FILE, Label: 'settings', Default: Default, Fill: Fill } );
 
 
 module.exports = {
 	FILE: FILE,
-	THEMES: THEMES,
-	DARK_THEMES: DARK_THEMES,
-	SCALES: SCALES,
+	THEMES: BASE.THEMES,
+	DARK_THEMES: BASE.DARK_THEMES,
+	SCALES: BASE.SCALES,
 	USER_LIMIT: USER_LIMIT,
-	Path: Path,
+	Path: FILE_BASE.Path,
 	DefaultUser: DefaultUser,
 	Default: Default,
 	Fill: Fill,
 	CleanUser: CleanUser,
-	Load: Load,
-	Write: Write,
+	Remember: BASE.Remember,
+	Load: FILE_BASE.Load,
+	Write: FILE_BASE.Write,
 };

@@ -9,7 +9,8 @@
 // The window parts and the page server are shared with Desktop (electron/Windows.js, electron/Page.js). Step 2: the
 // settings are the project's .consensus/sidecar.json (Settings.js): the user, the look and the view state; the user is
 // the server's owner, renamed in place from the project's Settings (set-user). Step 3: the instructions serve
-// Sidecar's own guide (.guides/build-with-sidecar.md).
+// Sidecar's own guide (.guides/build-with-sidecar.md). Plan Review 2026-10-29, Step 2: the command line, the saving,
+// the common bridge handlers and the shutdown are electron/App.js's; this file keeps what is Sidecar's own.
 //
 //   npm run sidecar -- [<folder>] [--port <port>]
 
@@ -21,6 +22,7 @@ const SIDECAR = require( '../src/Sidecar.js' );
 const INSTRUCTIONS = require( '../src/Instructions.js' );
 const PAGE = require( '../electron/Page.js' );
 const WINDOWS = require( '../electron/Windows.js' );
+const APP = require( '../electron/App.js' );
 const SETTINGS = require( './Settings.js' );
 
 const VERSION = require( '../package.json' ).version;
@@ -28,50 +30,24 @@ const TITLE = 'Consensus Sidecar';
 const ICON = PATH.join( __dirname, '..', 'desktop', 'icon.ico' );
 const PRELOAD = PATH.join( __dirname, 'preload.js' );
 const USAGE = 'usage: consensus-sidecar [<folder>] [--port <port>]';
-const DARK_THEMES = SETTINGS.DARK_THEMES;
-const SAVE_DELAY = 300;		// the view state changes often (a fold, a tab): written a moment after the last change
-// Electron's own switches, which stay on the command line the app parses.
-const ELECTRON_SWITCH = /^--(remote-debugging-port|user-data-dir|inspect|enable-logging|no-sandbox|disable-gpu|trace-warnings)/;
+const FLAGS = [
+	{ Name: '--port', Takes: 'number', Key: 'Port', Needs: 'a port number' },
+	{ Name: '--help', Alias: '-h', Takes: 'flag', Key: 'Help' },
+];
 
-let options = null;		// { Folder, Port }
+let options = null;		// { Folder, Port, Help }
 let sidecar = null;		// the project's sidecar.json, filled: { User, Theme, Scale, Remembered }
 let folder = null;		// the window's project folder
-let save_timer = null;
 let running = null;		// src/Server.js's: the sidecar over the folder
 let page = null;		// electron/Page.js's
 let window = null;
 
+// The settings saved: now, or a moment after the last change (the view state changes often: a fold, a tab).
+const SAVER = APP.Saver( { Write: function () { SETTINGS.Write( folder, sidecar ); }, Label: SETTINGS.FILE } );
+
 
 //---------------------------------------------------------------------
 // The settings: the project's .consensus/sidecar.json
-
-function save_settings()
-{
-	if ( save_timer )
-	{
-		clearTimeout( save_timer );
-		save_timer = null;
-	}
-	try
-	{
-		SETTINGS.Write( folder, sidecar );
-	}
-	catch ( error )
-	{
-		console.error( SETTINGS.FILE + ' could not be written: ' + error.message );
-	}
-}
-
-
-function save_settings_soon()
-{
-	if ( save_timer )
-	{
-		clearTimeout( save_timer );
-	}
-	save_timer = setTimeout( save_settings, SAVE_DELAY );
-}
-
 
 // The user renamed: the file written, and the server's owner renamed in place (the settings the API reads at each
 // request, and the owner's record). Answers { User } or { Error }.
@@ -83,7 +59,7 @@ function set_user( Text )
 		return { Error: 'a name is one to ' + SETTINGS.USER_LIMIT + ' characters' };
 	}
 	sidecar.User = user;
-	save_settings();
+	SAVER.Save();
 	running.Settings.Owner = { Name: user, Display: user };
 	running.Users.Prepare( running.Settings );
 	return { User: user };
@@ -101,43 +77,12 @@ function server_settings()
 
 
 //---------------------------------------------------------------------
-// The arguments: after the executable (and, from the checkout, the app folder), Electron's switches left out.
+// The arguments: one folder and --port (electron/App.js).
 
 function parse_arguments( argv )
 {
-	let list = argv.slice( ELECTRON.app.isPackaged ? 1 : 2 ).filter( function ( argument ) { return !ELECTRON_SWITCH.test( argument ); } );
-	let parsed = { Folder: null, Port: undefined, Help: false };
-	for ( let index = 0; index < list.length; index++ )
-	{
-		let argument = list[ index ];
-		if ( argument === '--help' || argument === '-h' )
-		{
-			parsed.Help = true;
-		}
-		else if ( argument === '--port' )
-		{
-			let port = Number( list[ index + 1 ] );
-			if ( !Number.isInteger( port ) || port < 0 || port > 65535 )
-			{
-				throw new Error( '--port needs a port number' );
-			}
-			parsed.Port = port;
-			index++;
-		}
-		else if ( argument.startsWith( '--' ) )
-		{
-			throw new Error( 'not an argument Sidecar knows: ' + argument );
-		}
-		else if ( parsed.Folder === null )
-		{
-			parsed.Folder = argument;
-		}
-		else
-		{
-			throw new Error( 'one folder only: ' + argument );
-		}
-	}
-	return parsed;
+	let parsed = APP.Arguments( argv, { Title: 'Sidecar', Positional: true, Flags: FLAGS } );
+	return { Folder: parsed.Positional, Port: ( parsed.Options.Port === null ) ? undefined : parsed.Options.Port, Help: parsed.Options.Help };
 }
 
 
@@ -204,7 +149,7 @@ function boot_info()
 
 function window_options( Width, Height )
 {
-	return WINDOWS.Options( { Width: Width, Height: Height, Title: TITLE, Icon: ICON, Theme: sidecar.Theme, DarkThemes: DARK_THEMES, Preload: PRELOAD } );
+	return WINDOWS.Options( { Width: Width, Height: Height, Title: TITLE, Icon: ICON, Theme: sidecar.Theme, DarkThemes: SETTINGS.DARK_THEMES, Preload: PRELOAD } );
 }
 
 
@@ -252,55 +197,21 @@ async function open_folder_window( owner )
 
 
 //---------------------------------------------------------------------
-// The bridge's handlers
+// The bridge's handlers: the common ones (electron/App.js), then Sidecar's own.
 
 function attach_handlers()
 {
-	ELECTRON.ipcMain.on( 'boot', function ( event )
-	{
-		event.returnValue = boot_info();
-	} );
-
-	ELECTRON.ipcMain.on( 'remember', function ( event, change )
-	{
-		if ( !change || typeof change.Key !== 'string' )
-		{
-			return;
-		}
-		if ( change.Value === null || change.Value === undefined )
-		{
-			delete sidecar.Remembered[ change.Key ];
-		}
-		else
-		{
-			sidecar.Remembered[ change.Key ] = change.Value;
-		}
-		save_settings_soon();
-	} );
-
-	ELECTRON.ipcMain.on( 'theme', function ( event, change )
-	{
-		if ( change && SETTINGS.THEMES.includes( change.Theme ) )
-		{
-			sidecar.Theme = change.Theme;
-		}
-		if ( change && SETTINGS.SCALES.includes( change.Scale ) )
-		{
-			sidecar.Scale = change.Scale;
-		}
-		save_settings();
-		WINDOWS.ApplyNativeTheme( sidecar.Theme, DARK_THEMES );
+	APP.AttachHandlers( {
+		Boot: boot_info,
+		Settings: function () { return sidecar; },
+		Saver: SAVER,
+		Roots: function () { return [ root() ]; },
+		NewWindow: function () { new_window( [] ); },
 	} );
 
 	ELECTRON.ipcMain.handle( 'folder', function ( event, current_folder )
 	{
 		return WINDOWS.PickFolder( ELECTRON.BrowserWindow.fromWebContents( event.sender ), current_folder );
-	} );
-
-	ELECTRON.ipcMain.handle( 'new-window', function ()
-	{
-		new_window( [] );
-		return {};
 	} );
 
 	ELECTRON.ipcMain.handle( 'open-folder-window', async function ( event )
@@ -309,36 +220,11 @@ function attach_handlers()
 		return {};
 	} );
 
-	ELECTRON.ipcMain.handle( 'print-pdf', async function ( event, name )
-	{
-		let remembered = sidecar.Remembered[ 'report-folder' ];
-		let answer = await WINDOWS.PrintToPdf( event.sender, name, ( typeof remembered === 'string' ) ? remembered : null );
-		if ( answer.Path )
-		{
-			sidecar.Remembered[ 'report-folder' ] = PATH.dirname( answer.Path );
-			save_settings_soon();
-		}
-		return answer;
-	} );
-
-	ELECTRON.ipcMain.handle( 'view-in-browser', function ( event )
-	{
-		return WINDOWS.ViewInBrowser( event.sender.getURL(), [ root() ] );
-	} );
-
 	// The project's Settings: the name the user goes by.
 	ELECTRON.ipcMain.handle( 'set-user', function ( event, text )
 	{
 		return set_user( text );
 	} );
-
-	ELECTRON.ipcMain.handle( 'quit', function ()
-	{
-		ELECTRON.app.quit();
-		return {};
-	} );
-
-	WINDOWS.AttachChrome();
 }
 
 
@@ -352,7 +238,7 @@ async function main()
 	}
 	catch ( error )
 	{
-		fail_to_start( error.message + '\n\n' + USAGE );
+		APP.FailToStart( TITLE, error.message + '\n\n' + USAGE );
 		return;
 	}
 	if ( options.Help )
@@ -376,14 +262,14 @@ async function main()
 	let loaded = SETTINGS.Load( folder );
 	sidecar = loaded.Settings;
 	loaded.Lines.forEach( function ( line ) { console.log( line ); } );
-	WINDOWS.ApplyNativeTheme( sidecar.Theme, DARK_THEMES );
+	WINDOWS.ApplyNativeTheme( sidecar.Theme, SETTINGS.DARK_THEMES );
 	try
 	{
 		running = await start_server();
 	}
 	catch ( error )
 	{
-		fail_to_start( error.message );
+		APP.FailToStart( TITLE, error.message );
 		return;
 	}
 	console.log( 'Sidecar on ' + running.Project.Path + ': ' + running.Url + ( running.PortTaken ? ' (port ' + running.PortTaken + ' was taken)' : '' ) );
@@ -392,27 +278,18 @@ async function main()
 	attach_handlers();
 	build_menu();
 	create_window();
-	ELECTRON.app.on( 'window-all-closed', function ()
-	{
-		if ( save_timer )
+	APP.AttachShutdown( {
+		Saver: SAVER,
+		Close: async function ()
 		{
-			save_settings();
-		}
-		page.Close().catch( function () {} ).then( function () { return running.Close(); } ).catch( function () {} ).then( function () { ELECTRON.app.quit(); } );
+			await page.Close().catch( function () {} );
+			await running.Close();
+		},
 	} );
-}
-
-
-// A start that fails: the message on the console and in a dialog, since an icon has no console.
-function fail_to_start( message )
-{
-	console.error( message );
-	ELECTRON.dialog.showErrorBox( TITLE + ' could not start', message );
-	ELECTRON.app.exit( 1 );
 }
 
 
 main().catch( function ( error )
 {
-	fail_to_start( error.message );
+	APP.FailToStart( TITLE, error.message );
 } );

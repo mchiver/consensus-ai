@@ -35,6 +35,7 @@
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
+const ATOMIC = require( './Atomic.js' );
 const IDS = require( './Ids.js' );
 const LLMS = require( './Llms.js' );
 const LLM = require( './Llm.js' );
@@ -69,10 +70,7 @@ function Runs( Options )
 
 	function write( record )
 	{
-		FS.mkdirSync( folder, { recursive: true } );
-		let temporary = path_of( record.Id ) + '.' + process.pid + '.tmp';
-		FS.writeFileSync( temporary, JSON.stringify( record, null, '\t' ) + '\n' );
-		FS.renameSync( temporary, path_of( record.Id ) );
+		ATOMIC.WriteJson( path_of( record.Id ), record );
 	}
 
 

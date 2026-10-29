@@ -1,1 +1,163 @@
-[]
+[
+	{
+		"Id": "thr-1kn-b05-nz7",
+		"Anchor": {
+			"Text": "the shape of App.Arguments as its bullet says",
+			"Prefix": "n the design turn (2026-10-29): ",
+			"Suffix": "; the test as the way the look l"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T19:29:32.870Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T19:33:57.044Z",
+			"Revision": 2,
+			"RevisionId": "rev-4cc-usy-e7p",
+			"Outcome": "Resolved with no reply: the recommendation went in. Arguments( argv, { Flags, Positional, Rest } ) answers { Options, Positional, Rest }; Flags are { Name, Takes: value | number | flag, Key }; Rest for the Desktop and the Server, whose remaining arguments go to Start.js."
+		},
+		"Created": "2026-10-29T19:22:13.868Z",
+		"Replies": [
+			{
+				"Id": "rep-nyw-0yi-m09",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T19:22:13.868Z",
+				"Text": "The shape of App.Arguments. The four parsers differ in one way that matters: the Sidecar and the Client parse every argument themselves and refuse what they do not know, while the Desktop and the Server take their own flag out (--connect, --open) and hand the rest (--config, --port, a folder) to src/Start.js, which parses them. So the shared parser needs a \"rest\" mode.\n\nRecommendation: Arguments( argv, { Flags, Positional, Rest } ) answers { Options, Positional, Rest }. Flags is a list of { Name: \"--port\", Takes: \"value\" | \"number\" | \"flag\", Key: \"Port\" }; a flag that takes a value throws \"--port needs a port number\" when none follows or the next word starts with --; \"number\" also checks a whole positive number. Options holds each flag by its Key (Connect, Port, Config, Open, Headless, Scope), null or false when absent. Positional true allows one bare argument (the folder), answered as Positional, else a bare argument throws. Rest true keeps every argument the Flags do not name, in order, for Start.js; Rest false (the default) throws on an unknown argument. The Electron switches and the executable (and the app folder from the checkout) are taken out first, as all four do today. A folder is a value the app resolves itself, so there is no \"folder\" kind. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-p4c-70v-vsw",
+		"Anchor": {
+			"Text": "a test keeps the look lists equal",
+			"Prefix": "p.Arguments as its bullet says; ",
+			"Suffix": " (the section The look lists); e"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T19:31:19.039Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T19:33:57.066Z",
+			"Revision": 3,
+			"RevisionId": "rev-74c-830-kbr",
+			"Outcome": "Resolved with no reply: the recommendation went in. The two lists stay plain constants, and a test over theme.js's PALETTES and electron/Settings.js fails when they differ."
+		},
+		"Created": "2026-10-29T19:22:13.904Z",
+		"Replies": [
+			{
+				"Id": "rep-7hu-iwi-jnz",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T19:22:13.904Z",
+				"Text": "How the look lists are kept to one. Today the themes are written four times: theme.js PALETTES in the browser, and THEMES, DARK_THEMES and SCALES in the three Settings modules (the Desktop's even lists the dark ones twice). The Settings modules move to electron/Settings.js, so the count becomes two: the browser script and the Node module, which cannot require each other.\n\nThe ways: (a) a test reads theme.js, finds PALETTES and asserts electron/Settings.js lists the same ids with the same dark ones; (b) one JSON file (public/js/themes.json) both read, theme.js fetching it before it paints, which puts a request before the first paint and a flash of the default theme; (c) electron/Settings.js reads theme.js's text at load and picks PALETTES out with a regex, which is brittle. Recommendation: (a), the test, as the plan says: the two lists stay plain constants, and a palette added to one side without the other fails the suite. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-pzk-iu1-dcf",
+		"Anchor": {
+			"Text": "electron/Servers.js is the Servers store's home",
+			"Prefix": "l (the section The look lists); ",
+			"Suffix": "."
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T19:32:13.727Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T19:33:57.089Z",
+			"Revision": 4,
+			"RevisionId": "rev-g6j-h3r-52w",
+			"Outcome": "Resolved with no reply: the recommendation went in. The Servers store lives in electron/Servers.js, with the applications' shared code."
+		},
+		"Created": "2026-10-29T19:22:13.912Z",
+		"Replies": [
+			{
+				"Id": "rep-aj0-hw7-5h6",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T19:22:13.912Z",
+				"Text": "Where the Servers store lives. It is the list of saved Servers an application connects to (Name, Url, the token kept by the OS), plain functions over a settings object, Electron-free; today in client/Settings.js, and after Step 5 the Desktop's too. It could live in src/ (Electron-free code) or in electron/ (what the applications share).\n\nRecommendation: electron/Servers.js. src/ is the server's code, which has no notion of a saved Server to connect to; electron/ is already the applications' shared place and Page.js there is Electron-free too. The module is tested in plain node either way. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-52d-f6g-6mg",
+		"Anchor": {
+			"Text": "The copies between desktop, sidecar and client main.js and their Settings modules become shared modules",
+			"Prefix": "2: The shared Electron scaffold ",
+			"Suffix": ", each handed what differs. The "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T19:27:14.967Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T19:33:57.109Z",
+			"Revision": 5,
+			"RevisionId": "rev-hg5-qyu-in9",
+			"Outcome": "Resolved with no reply: the recommendation went in. The Server takes CurrentUser.js in this Step; its App.js move is Step 3's."
+		},
+		"Created": "2026-10-29T19:22:13.921Z",
+		"Replies": [
+			{
+				"Id": "rep-3wu-4hy-ilz",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T19:22:13.921Z",
+				"Text": "The Server application's part in this Step. server/main.js carries the same copies (the switch filter and slice, fail_to_start with its Quiet form for --headless, current_user and the license handlers) but its move onto the shared window module is Step 3.\n\nRecommendation: in this Step the Server takes electron/CurrentUser.js only, as the plan names it, since that copy is verbatim with the Desktop's and the tests cover it; its arguments and fail_to_start move onto App.js in Step 3 with the rest of its main, so the Server is rewritten once, not twice. Resolve with no reply to take it; reply \"now\" to have the Server take App.Arguments and FailToStart in this Step as well."
+			}
+		]
+	},
+	{
+		"Id": "thr-80a-p31-vqe",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T20:23:15.620Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T20:24:28.426Z",
+			"Revision": 5,
+			"RevisionId": "rev-hg5-qyu-in9",
+			"Outcome": "Accepted by the owner on 2026-10-29. Committed as \"Review 2026-10-29 Step 2: The shared Electron scaffold\"; the Step is Finished and the Readme names it."
+		},
+		"Created": "2026-10-29T19:54:13.734Z",
+		"Replies": [
+			{
+				"Id": "rep-9xo-f0k-1t3",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T19:54:13.734Z",
+				"Text": "Build log: Step 2, The shared Electron scaffold. Built by Claude Fable 5.1 (Claude-CLI) on 2026-10-29. Nothing is committed.\n\nWhat was built, by module:\n\n1. electron/App.js (new): Arguments( argv, { Flags, Positional, Rest, Title, Packaged } ) as decided, with Alias (\"-h\") and Needs (the message tail) on a flag; FailToStart( Title, Message, Quiet ); Saver( { Write, Label } ) answering Save, SaveSoon and Flush over the 300 ms debounce; AttachHandlers( { Boot, Settings, Saver, Roots, NewWindow, Protected } ) with boot, remember, theme, new-window, print-pdf, view-in-browser, quit and the chrome message; ServePage( { Settings, Saver, Folders } ) on the remembered page-port; AttachShutdown( { Saver, Close } ) for window-all-closed. Protected names the remembered keys the page may not change: the Desktop and the Client both protect page-port now (the Client did before; the Desktop did not).\n2. electron/Settings.js (new): THEMES, DARK_THEMES and SCALES defined once; FillLook( Given, Settings ) for Theme, Scale and Remembered; Remember with the Desktop's behaviour (a deep copy, the key capped at 512, null or undefined forgets); Make( { File, Label, Default, Fill } ) answering Path, Load and Write. desktop/Settings.js, sidecar/Settings.js and client/Settings.js are over it, each keeping its own Default, Fill and functions; they export the base's lists and Remember (the same arrays, not copies). Load's lines take the Desktop's wording for every app (\"<label> start with the defaults (<path> is written at the first change)\", \"<label> from <path>\", \"<file> could not be read (...)\"); a Desktop file that cannot be read is the defaults now, as the other two were, instead of a throw at start.\n3. src/Atomic.js (new): WriteText and WriteJson, their awaited forms WriteTextAsync and WriteJsonAsync, and Rename and RenameSync with Store's retry (10 attempts, 20 ms growing) for EPERM, EBUSY and EACCES, the synchronous one pausing on Atomics.wait. The nine writers call it: Host, License, Sidecar, Users, Runs, Store (write_file, write_json and move_folder; its own retry, wait and constants are gone) and the three Settings through the base.\n4. electron/CurrentUser.js (new): Make( ConfigFolder ) over src/License.js, ConfigFolder a path or a function: Read (a lapsed record removed and logged), Tier, SetLicense( Token, Settings ) answering { Tier, Record, Before } or { Tier, Error }, Clear. desktop/main.js and server/main.js use it; the Server's set-license keeps its SameUser and gate recheck over Before and Record, and its Tier now also removes a lapsed record, as the Desktop's did.\n5. src/Probe.js (new): Base( Url ) and Probe( Url, { Token, Timeout } ) answering { Ok, SignIn, Closed, Version, Name, Me, Participants, States, Url } or { Ok: false, Error }: a 401 with an Error is a Server (SignIn when the Error is \"sign in\", Closed from the body), any other refusal is not Ok with the status and the Error, a 200 without Me is \"not as a Consensus Server does\". Host.Status, the Desktop's try_server (it hands Probe's answer on: the chooser reads SignIn, Url, Version and Projects as before) and the Client's Add server use it; Host.js's own Probe is gone. Projects.HostProjects keeps its GET /api/projects and takes its address check from Probe.Base, since both its callers probe the Server first and a second /api/me would be a wasted round trip.\n6. electron/Servers.js (new): NAME_LIMIT, CleanName, CleanUrl, Fill( List ), Named, UniqueName, AddServer, RenameServer and RemoveServer, out of client/Settings.js; client/main.js uses it, client/Settings.js's Fill takes Servers.Fill. test/Client.test.js reads the moved functions from it (the assertions unchanged).\n7. The three mains: sidecar/main.js and client/main.js rewritten over App.js (their own: the project and set-user; the Servers and Clerk); desktop/main.js keeps its own handlers (the chooser's, the folder ones, the license ones) and takes App.js for the rest; server/main.js takes CurrentUser.js alone, as decided.\n\nFiles: new electron/App.js, electron/Settings.js, electron/Servers.js, electron/CurrentUser.js, src/Atomic.js, src/Probe.js, test/Atomic.test.js, test/Probe.test.js, test/Scaffold.test.js; changed desktop/main.js, sidecar/main.js, client/main.js, server/main.js, desktop/Settings.js, sidecar/Settings.js, client/Settings.js, desktop/Projects.js, src/Host.js, src/License.js, src/Runs.js, src/Sidecar.js, src/Store.js, src/Users.js, test/Client.test.js.\n\nHow it was checked:\n\n- New tests: Atomic (a write lands whole in a made folder, no temporary file left, the awaited forms, two processes writing the same file 50 times each end with one whole file and no temporary, a missing source throws at once), Probe (over a stand-in server: let in with Me, a sign-in asked, a closed gate, a 200 without Me, HTML, a 403, a 404, no answer, a bad address, the token as a Bearer), Scaffold (Arguments on the Sidecar's, the Client's, the Desktop's and the Server's command lines with their refusals; the Saver's debounce, Flush and logged failure; Settings.Make and Remember; the look lists against theme.js's PALETTES and SCALES, and the three app modules carrying the one list; Servers.Fill and Named; CurrentUser over a path and a function, a lapsed record signed out).\n- Atomic, Probe, Scaffold, Desktop, Sidecar, Client, License and Manifests tests: 50 of 50 pass; the Desktop, Sidecar and Client tests unchanged in what they assert.\n- The dead-export check: the new modules' exports are all read (the awaited Atomic forms by Store, Rename by Store's move_folder); the only unread function is still bin/docs.js Publish.\n- The whole suite: 324 tests, 319 pass, 3 skipped (the Clerk keys), 2 failed under the full run's load, both browser tests: the users and roles test waiting for a roles folder count (the same one as in Steps 1 and 4) and the plan page's task buttons test, which found the three buttons already shown where it expected none, the page not yet having heard the previous test's connection removed. Both pass when run alone. test/Ui.test.js run alone on its own passes all 48.\n\nDecided during the build: Arguments takes \"number\" as a whole number of zero or more, so --port 0 (a free port, as the tests use it) is allowed, where the plan said positive; Alias and Needs on a flag; HostProjects uses Probe.Base rather than a second probe; AttachShutdown added to App.js as the one place of the window-all-closed flush the plan asked for; the Sidecar keeps PAGE.Serve() with a fresh port, since it has no Clerk session to keep an origin for; the Client no longer takes a non-401 refusal with an Error (a 403) as a Server to add, since Probe answers it as a refusal with the status and the reason.\n\nResolve to accept: I apply this thread, commit as \"Review 2026-10-29 Step 2: The shared Electron scaffold\", set the Step Finished and bring the Readme up to date. Reply to send it back."
+			}
+		]
+	}
+]

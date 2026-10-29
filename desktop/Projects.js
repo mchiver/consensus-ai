@@ -9,11 +9,13 @@
 //   NewFolder( Parent, Name ) -> the new folder's path; throws when the parent is not a folder, the name is not a folder
 //                                name, or the folder is there already and holds anything
 //   HostProjects( Url, TimeoutMs ) -> [ { Id, Name } ] from GET <Url>/api/projects; throws when the Host does not answer
+//                                   (the address checked as src/Probe.js does; the app probes the Server first)
 //   FindProject( Projects, IdOrName ) -> the project with that id, else that name, else null
 //   Key( Opened ) -> the stored key of { Kind: 'folder', Path } or { Kind: 'host', Host: { Url }, Project: { Id } }
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
+const PROBE = require( '../src/Probe.js' );
 
 const BAD_NAME = /[\\/:*?"<>|\u0000-\u001f]/;
 const DEFAULT_TIMEOUT = 5000;
@@ -63,8 +65,8 @@ function NewFolder( Parent, Name )
 
 async function HostProjects( Url, TimeoutMs )
 {
-	let base = String( Url || '' ).trim().replace( /\/+$/, '' );
-	if ( !/^https?:\/\/\S+$/.test( base ) )
+	let base = PROBE.Base( Url );
+	if ( !base )
 	{
 		throw new Error( 'the Url must start with http:// or https://' );
 	}

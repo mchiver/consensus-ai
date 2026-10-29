@@ -21,6 +21,7 @@
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
+const ATOMIC = require( './Atomic.js' );
 const CRYPTO = require( 'crypto' );
 const IDS = require( './Ids.js' );
 const PARTICIPANTS = require( './Participants.js' );
@@ -78,10 +79,7 @@ function Users( Options )
 		{
 			return;		// kept in memory: the Host's registry is not the Desktop's to write
 		}
-		FS.mkdirSync( folder, { recursive: true } );
-		let temporary = path + '.' + process.pid + '.tmp';
-		FS.writeFileSync( temporary, JSON.stringify( { Users: users }, null, '\t' ) + '\n' );
-		FS.renameSync( temporary, path );
+		ATOMIC.WriteJson( path, { Users: users } );
 	}
 
 

@@ -8,6 +8,7 @@ const FS = require( 'fs' );
 const OS = require( 'os' );
 const PATH = require( 'path' );
 const SETTINGS = require( '../client/Settings.js' );
+const SERVERS = require( '../electron/Servers.js' );
 
 
 function temporary_folder()
@@ -67,12 +68,12 @@ TEST( 'client.json: written whole and read back; Servers kept by name and addres
 	ASSERT.deepEqual( SETTINGS.Load( config ).Settings, written );
 	ASSERT.equal( FS.readdirSync( config ).filter( function ( name ) { return name.endsWith( '.tmp' ); } ).length, 0 );
 	ASSERT.deepEqual( SETTINGS.Fill( { Servers: 'x', Theme: 'purple', Scale: 'huge', Remembered: [ 1 ] } ), SETTINGS.Default() );
-	ASSERT.equal( SETTINGS.CleanName( 'x'.repeat( SETTINGS.NAME_LIMIT ) ), 'x'.repeat( SETTINGS.NAME_LIMIT ) );
-	ASSERT.equal( SETTINGS.CleanName( 'x'.repeat( SETTINGS.NAME_LIMIT + 1 ) ), null );
-	ASSERT.equal( SETTINGS.CleanName( 'a\nb' ), null );
-	ASSERT.equal( SETTINGS.CleanUrl( 'http://host:3500/base//' ), 'http://host:3500/base' );
-	ASSERT.equal( SETTINGS.CleanUrl( 'host:3500' ), null );
-	ASSERT.equal( SETTINGS.CleanUrl( 'http://a b' ), null );
+	ASSERT.equal( SERVERS.CleanName( 'x'.repeat( SERVERS.NAME_LIMIT ) ), 'x'.repeat( SERVERS.NAME_LIMIT ) );
+	ASSERT.equal( SERVERS.CleanName( 'x'.repeat( SERVERS.NAME_LIMIT + 1 ) ), null );
+	ASSERT.equal( SERVERS.CleanName( 'a\nb' ), null );
+	ASSERT.equal( SERVERS.CleanUrl( 'http://host:3500/base//' ), 'http://host:3500/base' );
+	ASSERT.equal( SERVERS.CleanUrl( 'host:3500' ), null );
+	ASSERT.equal( SERVERS.CleanUrl( 'http://a b' ), null );
 } );
 
 
@@ -130,23 +131,23 @@ TEST( 'the Client app: its own folder and npm script, no folder, no server, no l
 TEST( 'the Servers: added under the Server\'s name, a name taken numbered on, an address twice refused, renamed, removed', function ()
 {
 	let settings = SETTINGS.Default();
-	ASSERT.deepEqual( SETTINGS.AddServer( settings, { Url: 'https://team.example.com/', Name: 'Team' } ), { Server: { Name: 'Team', Url: 'https://team.example.com' } } );
-	ASSERT.deepEqual( SETTINGS.AddServer( settings, { Url: 'http://other:3500', Name: 'team' } ).Server, { Name: 'team 2', Url: 'http://other:3500' } );
-	ASSERT.equal( SETTINGS.AddServer( settings, { Url: 'http://nameless:3500' } ).Server.Name, 'nameless:3500' );
-	ASSERT.match( SETTINGS.AddServer( settings, { Url: 'HTTPS://team.example.com' } ).Error, /in the list already, as Team/ );
-	ASSERT.match( SETTINGS.AddServer( settings, { Url: 'team.example.com' } ).Error, /http:\/\/ or https:\/\// );
+	ASSERT.deepEqual( SERVERS.AddServer( settings, { Url: 'https://team.example.com/', Name: 'Team' } ), { Server: { Name: 'Team', Url: 'https://team.example.com' } } );
+	ASSERT.deepEqual( SERVERS.AddServer( settings, { Url: 'http://other:3500', Name: 'team' } ).Server, { Name: 'team 2', Url: 'http://other:3500' } );
+	ASSERT.equal( SERVERS.AddServer( settings, { Url: 'http://nameless:3500' } ).Server.Name, 'nameless:3500' );
+	ASSERT.match( SERVERS.AddServer( settings, { Url: 'HTTPS://team.example.com' } ).Error, /in the list already, as Team/ );
+	ASSERT.match( SERVERS.AddServer( settings, { Url: 'team.example.com' } ).Error, /http:\/\/ or https:\/\// );
 	ASSERT.equal( settings.Servers.length, 3 );
-	ASSERT.equal( SETTINGS.UniqueName( settings, 'x'.repeat( SETTINGS.NAME_LIMIT ) ), 'x'.repeat( SETTINGS.NAME_LIMIT ) );
-	settings.Servers.push( { Name: 'x'.repeat( SETTINGS.NAME_LIMIT ), Url: 'http://long:1' } );
-	ASSERT.equal( SETTINGS.UniqueName( settings, 'x'.repeat( SETTINGS.NAME_LIMIT ) ), 'x'.repeat( SETTINGS.NAME_LIMIT - 2 ) + ' 2' );
-	ASSERT.deepEqual( SETTINGS.RenameServer( settings, 'team 2', ' Other ' ).Server, { Name: 'Other', Url: 'http://other:3500' } );
-	ASSERT.match( SETTINGS.RenameServer( settings, 'Other', 'TEAM' ).Error, /another Server is named "Team"/ );
-	ASSERT.match( SETTINGS.RenameServer( settings, 'Other', 'a/b' ).Error, /no slash/ );
-	ASSERT.match( SETTINGS.RenameServer( settings, 'Nobody', 'x' ).Error, /no Server named/ );
-	ASSERT.equal( SETTINGS.RenameServer( settings, 'Team', 'team' ).Server.Name, 'team' );
-	ASSERT.deepEqual( SETTINGS.RemoveServer( settings, 'OTHER' ).Server, { Name: 'Other', Url: 'http://other:3500' } );
-	ASSERT.match( SETTINGS.RemoveServer( settings, 'Other' ).Error, /no Server named/ );
-	ASSERT.deepEqual( settings.Servers.map( function ( one ) { return one.Name; } ), [ 'team', 'nameless:3500', 'x'.repeat( SETTINGS.NAME_LIMIT ) ] );
+	ASSERT.equal( SERVERS.UniqueName( settings, 'x'.repeat( SERVERS.NAME_LIMIT ) ), 'x'.repeat( SERVERS.NAME_LIMIT ) );
+	settings.Servers.push( { Name: 'x'.repeat( SERVERS.NAME_LIMIT ), Url: 'http://long:1' } );
+	ASSERT.equal( SERVERS.UniqueName( settings, 'x'.repeat( SERVERS.NAME_LIMIT ) ), 'x'.repeat( SERVERS.NAME_LIMIT - 2 ) + ' 2' );
+	ASSERT.deepEqual( SERVERS.RenameServer( settings, 'team 2', ' Other ' ).Server, { Name: 'Other', Url: 'http://other:3500' } );
+	ASSERT.match( SERVERS.RenameServer( settings, 'Other', 'TEAM' ).Error, /another Server is named "Team"/ );
+	ASSERT.match( SERVERS.RenameServer( settings, 'Other', 'a/b' ).Error, /no slash/ );
+	ASSERT.match( SERVERS.RenameServer( settings, 'Nobody', 'x' ).Error, /no Server named/ );
+	ASSERT.equal( SERVERS.RenameServer( settings, 'Team', 'team' ).Server.Name, 'team' );
+	ASSERT.deepEqual( SERVERS.RemoveServer( settings, 'OTHER' ).Server, { Name: 'Other', Url: 'http://other:3500' } );
+	ASSERT.match( SERVERS.RemoveServer( settings, 'Other' ).Error, /no Server named/ );
+	ASSERT.deepEqual( settings.Servers.map( function ( one ) { return one.Name; } ), [ 'team', 'nameless:3500', 'x'.repeat( SERVERS.NAME_LIMIT ) ] );
 } );
 
 

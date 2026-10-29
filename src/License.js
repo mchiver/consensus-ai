@@ -34,6 +34,7 @@
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
+const ATOMIC = require( './Atomic.js' );
 const CLERK = require( './Clerk.js' );
 const ROLES = require( './Roles.js' );
 
@@ -133,11 +134,7 @@ function Write( Config, Record )
 	{
 		throw new Error( 'not a user record' );
 	}
-	FS.mkdirSync( Config, { recursive: true } );
-	let path = FilePath( Config );
-	let temporary = path + '.' + process.pid + '.tmp';
-	FS.writeFileSync( temporary, JSON.stringify( record, null, '\t' ) + '\n' );
-	FS.renameSync( temporary, path );
+	ATOMIC.WriteJson( FilePath( Config ), record );
 	return record;
 }
 

@@ -3,7 +3,9 @@
 // Settings - the desktop's own file, desktop.json, beside the Server's consensus.json in the machine's user folder
 // (plan Rearchitecturation, Step 1; the desktop's fields lived in consensus.json from plan Run Shapes, Step 1, until
 // then). The Desktop reads and writes this file and nothing else: consensus.json is the Host's to write, and the
-// Desktop reads it for the LLM connections and the tasks (Step 4) without writing it.
+// Desktop reads it for the LLM connections and the tasks (Step 4) without writing it. Since plan Review 2026-10-29,
+// Step 2, the file's reading, writing and look lists are electron/Settings.js's; this module keeps what is the
+// Desktop's own.
 //
 //   {
 //     "Recent": [ { "Path": "W:/code/tic-tac-toe", "Opened": "2026-10-25T10:00:00.000Z" } ],
@@ -21,30 +23,31 @@
 //   Host's address and the project id, "consensus.<name>" shared: the open item, the folds, the tabs, the sort, the
 //   hidden panes, the widths), since the page's origin changes port at every start and its localStorage would not
 //   survive a restart.
+//
+//   FILE, THEMES, DARK_THEMES, SCALES, DESKTOP_FIELDS, RECENT_LIMIT
+//   Path( Folder )                  <folder>/desktop.json
+//   Default()                       the settings a new desktop starts with
+//   Fill( Settings )                every field present in the desktop's shape; anything else left out
+//   Remember( Settings, Key, Value ) a remembered value set (null or undefined removes it); whether it changed
+//   Opened( Settings, Folder, Now ) a project folder opened now, first in Recent
+//   Apply( Settings, Filled )       the fields of Filled onto Settings, in place
+//   Read( Path )                    the file at that path filled, the defaults when there is none; throws when unreadable
+//   Load( Folder )                  { Settings, Path, Lines }: the file filled, or the defaults when missing or unreadable
+//   Write( Path, Settings )         the file at that path written whole and atomic
+//   Problems( Settings )            what is wrong with the settings, as sentences
+//   HostNamed( Settings, Name )     the first saved Host entry with that name, or null
+//   HostEntry( Settings, Name, Project )   the entry of that name and project, or null
 
 const FS = require( 'fs' );
-const PATH = require( 'path' );
+const BASE = require( '../electron/Settings.js' );
+const ATOMIC = require( '../src/Atomic.js' );
 
 const FILE = 'desktop.json';
-// The palettes (plan UI Tweaks IV), as theme.js names them; the dark ones set the native bars dark.
-const THEMES = [ 'system', 'light', 'sepia', 'paper', 'solarized-light', 'dark', 'slate', 'solarized-dark', 'nord', 'midnight' ];
-const DARK_THEMES = [ 'dark', 'slate', 'solarized-dark', 'nord', 'midnight' ];
-const SCALES = [ 'small', 'normal', 'large' ];
 const DESKTOP_FIELDS = [ 'Recent', 'Hosts', 'Theme', 'Scale', 'Remembered' ];
 const RECENT_LIMIT = 20;
 
 
 //---------------------------------------------------------------------
-// Path: the file's path in a config folder.
-
-function Path( Folder )
-{
-	return PATH.join( Folder, FILE );
-}
-
-
-//---------------------------------------------------------------------
-// Default: the settings a new desktop starts with.
 
 function Default()
 {
@@ -57,9 +60,6 @@ function Default()
 	};
 }
 
-
-//---------------------------------------------------------------------
-// Fill: a settings object with every field present, in the desktop's shape; anything else is left out.
 
 function Fill( Settings )
 {
@@ -85,52 +85,7 @@ function Fill( Settings )
 			};
 		} );
 	}
-	if ( THEMES.includes( given.Theme ) )
-	{
-		settings.Theme = given.Theme;
-	}
-	if ( SCALES.includes( given.Scale ) )
-	{
-		settings.Scale = given.Scale;
-	}
-	if ( given.Remembered && typeof given.Remembered === 'object' && !Array.isArray( given.Remembered ) )
-	{
-		settings.Remembered = JSON.parse( JSON.stringify( given.Remembered ) );
-	}
-	return settings;
-}
-
-
-//---------------------------------------------------------------------
-// Remember: a value under Key in Remembered (a json value), or forgotten when Value is null or undefined. Returns
-// whether anything changed.
-
-function Remember( Settings, Key, Value )
-{
-	if ( typeof Key !== 'string' || !Key || Key.length > 512 )
-	{
-		return false;
-	}
-	if ( !Settings.Remembered || typeof Settings.Remembered !== 'object' )
-	{
-		Settings.Remembered = {};
-	}
-	if ( Value === null || Value === undefined )
-	{
-		if ( Settings.Remembered[ Key ] === undefined )
-		{
-			return false;
-		}
-		delete Settings.Remembered[ Key ];
-		return true;
-	}
-	let text = JSON.stringify( Value );
-	if ( text === undefined || text === JSON.stringify( Settings.Remembered[ Key ] ) )
-	{
-		return false;
-	}
-	Settings.Remembered[ Key ] = JSON.parse( text );
-	return true;
+	return BASE.FillLook( given, settings );
 }
 
 
@@ -150,9 +105,7 @@ function Opened( Settings, Folder, Now )
 }
 
 
-//---------------------------------------------------------------------
 // Apply: the fields of Filled (Fill's shape) onto Settings, in place.
-
 function Apply( Settings, Filled )
 {
 	for ( let field of DESKTOP_FIELDS )
@@ -164,7 +117,10 @@ function Apply( Settings, Filled )
 
 
 //---------------------------------------------------------------------
-// Read: the file in the desktop's shape, filled in; the defaults when there is no file.
+// The file: Read and Write take the file's path (the Desktop keeps it from Load); Path, Load over the folder are the base's.
+
+const FILE_BASE = BASE.Make( { File: FILE, Label: 'desktop settings', Default: Default, Fill: Fill } );
+
 
 function Read( Path_ )
 {
@@ -177,30 +133,9 @@ function Read( Path_ )
 }
 
 
-//---------------------------------------------------------------------
-// Load: the desktop's settings from a config folder: { Settings, Path, Lines }, the lines saying where they came from.
-
-function Load( Folder )
-{
-	let path = Path( Folder );
-	let there = FS.existsSync( path );
-	return {
-		Settings: Read( path ),
-		Path: path,
-		Lines: [ there ? ( 'desktop settings from ' + path ) : ( 'desktop settings start with the defaults (' + path + ' is written at the first change)' ) ],
-	};
-}
-
-
-//---------------------------------------------------------------------
-// Write: the file in the desktop's shape, whole and atomic.
-
 function Write( Path_, Settings )
 {
-	FS.mkdirSync( PATH.dirname( Path_ ), { recursive: true } );
-	let temporary = Path_ + '.' + process.pid + '.tmp';
-	FS.writeFileSync( temporary, JSON.stringify( Settings, null, '\t' ) + '\n' );
-	FS.renameSync( temporary, Path_ );
+	ATOMIC.WriteJson( Path_, Settings );
 }
 
 
@@ -250,19 +185,19 @@ function HostEntry( Settings, Name, Project )
 
 module.exports = {
 	FILE: FILE,
-	THEMES: THEMES,
-	DARK_THEMES: DARK_THEMES,
-	SCALES: SCALES,
+	THEMES: BASE.THEMES,
+	DARK_THEMES: BASE.DARK_THEMES,
+	SCALES: BASE.SCALES,
 	DESKTOP_FIELDS: DESKTOP_FIELDS,
 	RECENT_LIMIT: RECENT_LIMIT,
-	Path: Path,
+	Path: FILE_BASE.Path,
 	Default: Default,
 	Fill: Fill,
-	Remember: Remember,
+	Remember: BASE.Remember,
 	Opened: Opened,
 	Apply: Apply,
 	Read: Read,
-	Load: Load,
+	Load: FILE_BASE.Load,
 	Write: Write,
 	Problems: Problems,
 	HostNamed: HostNamed,

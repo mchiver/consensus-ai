@@ -22,6 +22,7 @@
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
+const ATOMIC = require( './Atomic.js' );
 
 const RANGE_START = 3600;
 const RANGE_COUNT = 100;
@@ -145,12 +146,7 @@ function Running( Folder )
 
 function Write( Folder, Record )
 {
-	let file = FilePath( Folder );
-	FS.mkdirSync( PATH.dirname( file ), { recursive: true } );
-	let temporary = file + '.' + process.pid + '.tmp';
-	FS.writeFileSync( temporary, JSON.stringify( Record, null, '\t' ) + '\n' );
-	FS.renameSync( temporary, file );
-	return file;
+	return ATOMIC.WriteJson( FilePath( Folder ), Record );
 }
 
 

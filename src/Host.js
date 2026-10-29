@@ -3,7 +3,7 @@
 // Host - the Server's address on this machine (plan Rearchitecturation, Step 5). `consensus serve` (the bare
 // form, the Docker image, the Server application) writes <config>/~host.json while it runs, so the
 // Desktop finds the Host it started, or one started any other way, and can stop the one it started; a Host is also
-// found by its port (Probe), whoever started it.
+// found by its port (src/Probe.js), whoever started it.
 //
 //   FilePath( Config )          <config>/~host.json (the tilde keeps it out of source control)
 //   Read( Config )              { Url, Port, Pid, Started } or null
@@ -17,6 +17,8 @@
 const FS = require( 'fs' );
 const PATH = require( 'path' );
 const SIDECAR = require( './Sidecar.js' );
+const ATOMIC = require( './Atomic.js' );
+const PROBE = require( './Probe.js' );
 
 const FILE = '~host.json';
 const PROBE_TIMEOUT = 2000;
@@ -60,12 +62,7 @@ function Running( Config )
 
 function Write( Config, Record )
 {
-	let file = FilePath( Config );
-	FS.mkdirSync( PATH.dirname( file ), { recursive: true } );
-	let temporary = file + '.' + process.pid + '.tmp';
-	FS.writeFileSync( temporary, JSON.stringify( Record, null, '\t' ) + '\n' );
-	FS.renameSync( temporary, file );
-	return file;
+	return ATOMIC.WriteJson( FilePath( Config ), Record );
 }
 
 
@@ -91,30 +88,6 @@ function Remove( Config, Pid )
 }
 
 
-async function Probe( Url, TimeoutMs )
-{
-	let base = String( Url || '' ).replace( /\/+$/, '' );
-	try
-	{
-		let response = await fetch( base + '/api/me', { signal: AbortSignal.timeout( TimeoutMs || PROBE_TIMEOUT ) } );
-		let json = await response.json().catch( function () { return {}; } );
-		if ( response.status === 401 && json && json.Error )
-		{
-			return { Ok: true, Version: null, Name: null, Closed: !!json.Closed };
-		}
-		if ( !response.ok )
-		{
-			return { Ok: false, Error: base + ' answered ' + response.status };
-		}
-		return { Ok: true, Version: json.Version || null, Name: json.Server || null };
-	}
-	catch ( error )
-	{
-		return { Ok: false, Error: base + ' does not answer' };
-	}
-}
-
-
 // Status: the Host this machine runs, if any: the file's when its process is alive (Ours: it can be stopped by its
 // Pid), else the configured port probed (a Host started any other way, shown as running, not stoppable from here).
 async function Status( Config, Port )
@@ -125,7 +98,7 @@ async function Status( Config, Port )
 		return { Running: true, Url: record.Url, Pid: record.Pid, Started: record.Started || null, Ours: true };
 	}
 	let url = 'http://127.0.0.1:' + ( Port || 3500 );
-	let probed = await Probe( url );
+	let probed = await PROBE.Probe( url, { Timeout: PROBE_TIMEOUT } );
 	if ( probed.Ok )
 	{
 		return { Running: true, Url: url, Pid: null, Started: null, Ours: false };

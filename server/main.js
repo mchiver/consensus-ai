@@ -23,6 +23,7 @@ const ELECTRON = require( 'electron' );
 const START = require( '../src/Start.js' );
 const SERVER = require( '../src/Server.js' );
 const LICENSE = require( '../src/License.js' );
+const CURRENT_USER = require( '../electron/CurrentUser.js' );
 
 const VERSION = require( '../package.json' ).version;
 const ICON = PATH.join( __dirname, '..', 'desktop', 'icon.ico' );
@@ -36,6 +37,9 @@ let running = null;		// src/Server.js's, from START.Run
 let window = null;
 let tray = null;
 let quitting = false;
+
+// The machine's current user (plan The Server, Step 1): <config>/user.json, shared with the Desktop (electron/CurrentUser.js).
+const USER = CURRENT_USER.Make( config_folder );
 
 
 //---------------------------------------------------------------------
@@ -288,30 +292,19 @@ function attach_handlers()
 {
 	ELECTRON.ipcMain.on( 'server-boot', function ( event )
 	{
-		event.returnValue = { Version: VERSION, License: tier_now() };
+		event.returnValue = { Version: VERSION, License: USER.Tier() };
 	} );
 	ELECTRON.ipcMain.handle( 'set-license', async function ( event, token )
 	{
-		let record = null;
-		try
+		let answer = await USER.SetLicense( token, running ? running.Settings : {} );
+		if ( answer.Error )
 		{
-			record = await LICENSE.Verify( String( token || '' ), { Settings: running ? running.Settings : {} } );
+			return Object.assign( answer.Tier, { Error: answer.Error } );
 		}
-		catch ( error )
-		{
-			return Object.assign( tier_now(), { Error: 'the sign-in could not be verified: ' + error.message } );
-		}
-		if ( !record )
-		{
-			return Object.assign( tier_now(), { Error: 'the sign-in could not be verified' } );
-		}
-		let before = LICENSE.Read( config_folder() );
-		LICENSE.Write( config_folder(), record );
-		console.log( 'signed in: ' + LICENSE.Line( record ) );
 		// the same user checked again changes nothing but Checked: the page is not reloaded for it; a first sign-in,
 		// with no record before, is never the same (plan Review 2026-10-29, Step 1)
 		let was_open = running && running.Gate ? running.Gate.Open() : true;
-		let same = LICENSE.SameUser( before, record );
+		let same = LICENSE.SameUser( answer.Before, answer.Record );
 		if ( running && running.Gate )
 		{
 			await running.Gate.Check();
@@ -320,14 +313,13 @@ function attach_handlers()
 		{
 			setTimeout( function () { recheck().catch( function ( error ) { console.error( error.message ); } ); }, 0 );
 		}
-		return tier_now();
+		return USER.Tier();
 	} );
 	ELECTRON.ipcMain.handle( 'clear-license', async function ()
 	{
-		LICENSE.Remove( config_folder() );
-		console.log( 'signed out' );
+		USER.Clear();
 		setTimeout( function () { recheck().catch( function ( error ) { console.error( error.message ); } ); }, 0 );
-		return tier_now();
+		return USER.Tier();
 	} );
 	ELECTRON.ipcMain.handle( 'folder', async function ( event, current )
 	{
@@ -345,13 +337,6 @@ function attach_handlers()
 	} );
 }
 
-
-function tier_now()
-{
-	let record = LICENSE.Read( config_folder() );
-	let tier = LICENSE.Tier( record );
-	return { Tier: tier.Tier, Rank: tier.Rank, Plan: tier.Plan, Email: tier.Email, Display: tier.Display, Days: tier.Days, Until: tier.Until, Checked: tier.Checked, Lapsed: tier.Lapsed, Line: LICENSE.Line( record ) };
-}
 
 
 //---------------------------------------------------------------------
