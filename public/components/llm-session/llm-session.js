@@ -339,8 +339,6 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 			return {
 				Name: llm.Name,
 				Kind: llm.Kind,
-				Command: llm.Command,
-				ArgumentsText: ( llm.Arguments || [] ).join( '\n' ),
 				Url: llm.Url,
 				Model: llm.Model,
 				Key: '',
@@ -353,16 +351,11 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 
 
 		// The kinds (plan Tool calls only, Step 2): an API connection (claude, chatgpt, gemini, grok, openai-compatible)
-		// has a Url, a Model and a Key; every kind but claude-cli runs through the Server's tool loop, with Rounds.
+		// has a Url, a Model and a Key; an ollama one a Url, a Model and a Context. Every kind runs through the Server's
+		// tool loop, with Rounds.
 		$scope.IsApi = function ( kind )
 		{
-			return !!kind && kind !== 'claude-cli' && kind !== 'ollama';
-		};
-
-
-		$scope.IsLoop = function ( kind )
-		{
-			return !!kind && kind !== 'claude-cli';
+			return !!kind && kind !== 'ollama';
 		};
 
 
@@ -385,20 +378,12 @@ angular.module( 'Consensus' ).component( 'llmSession', {
 		};
 
 
-		function lines( text )
-		{
-			return String( text || '' ).split( /\r?\n/ ).map( function ( line ) { return line.trim(); } ).filter( function ( line ) { return line; } );
-		}
-
-
 		// The form as a save sends it; the Key only when one was typed, so the connection keeps the one it has.
 		function from_details( form )
 		{
 			let fields = {
 				Name: form.Name,
 				Kind: form.Kind,
-				Command: form.Command,
-				Arguments: lines( form.ArgumentsText ),
 				Url: form.Url,
 				Model: form.Model,
 				Timeout: form.Timeout,

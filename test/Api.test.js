@@ -13,6 +13,7 @@ const SERVER = require( '../src/Server.js' );
 const ROLES = require( '../src/Roles.js' );		// plan Rearchitecturation, Step 6: the plan names
 const PARTICIPANTS = require( '../src/Participants.js' );
 const REPO = require( './support/Repo.js' );
+const SERVICE = require( './support/Service.js' );
 
 const TEXT = [
 	'# A plan',
@@ -28,6 +29,8 @@ const TEXT = [
 
 let running = null;
 let token = null;
+let echo_service = null;		// the stand-in service of the echoing connections (plan Tool calls only, Step 3)
+let services = [];			// the scripted ones, closed at the end
 
 
 function temporary_folder()
@@ -96,6 +99,7 @@ let home = null;		// the first project's id (plan Run Shapes, Step 2: a prj- id,
 TEST.before( async function ()
 {
 	running = await SERVER.Start( { Data: temporary_folder(), Port: 0 } );
+	echo_service = await SERVICE.Start( { Format: 'openai', Echo: true, Models: [ 'stand-in' ], Delay: 400 } );
 	home = ( await running.Store.ListProjects() )[ 0 ].Id;
 	// The llm of these tests is a service acting for the owner (plan User Management, Step 2): the header names it.
 	token = null;
@@ -105,6 +109,11 @@ TEST.before( async function ()
 TEST.after( async function ()
 {
 	await running.Close();
+	await echo_service.Close();
+	for ( let service of services )
+	{
+		await service.Close();
+	}
 } );
 
 
@@ -1101,7 +1110,27 @@ TEST( 'a project\'s own States, Include, Exclude and Commands; a state in use st
 //---------------------------------------------------------------------
 // Plan Run Shapes, Step 3: the LLM connections and the runs in the server
 
-const ECHO_ARGUMENTS = [ '-e', "let t='';process.stdin.on('data',function(c){t+=c});process.stdin.on('end',function(){process.stdout.write('got: '+t.slice(0,60))})" ];
+// A connection to a stand-in service (plan Tool calls only, Step 3: test/support/Service.js): the echoing one answers
+// "got: " and the first words of the package; a scripted one calls the tools its script says.
+function served( name, service )
+{
+	return { Name: name, Kind: 'openai-compatible', Url: ( service || echo_service ).Url, Model: 'stand-in', Timeout: 30 };
+}
+
+
+async function stand_in( script )
+{
+	let service = await SERVICE.Start( { Format: 'openai', Script: script } );
+	services.push( service );
+	return service;
+}
+
+
+// What a run's tools are answered inside the Server: an Answer's body, or the answer itself.
+function body_of( answer )
+{
+	return ( answer && answer.Answer === true ) ? answer.Body : answer;
+}
 
 
 async function run_settled( id )
@@ -1130,7 +1159,7 @@ function listen_events()
 
 TEST( 'an LLM connection is made, each a speaker "<Name> by <owner>", with no token of its own', async function ()
 {
-	let made = await call( 'POST', '/api/llms', { Name: 'echo', Kind: 'claude-cli', Command: process.execPath, Arguments: ECHO_ARGUMENTS, Timeout: 30, Id: 'llm-chosen', Token: 'chosen-token-0123456789' } );
+	let made = await call( 'POST', '/api/llms', Object.assign( served( 'echo' ), { Id: 'llm-chosen', Token: 'chosen-token-0123456789' } ) );
 	ASSERT.equal( made.Status, 201 );
 	let echo = made.Body.Llm;
 	ASSERT.match( echo.Id, /^llm-/ );
@@ -1145,13 +1174,13 @@ TEST( 'an LLM connection is made, each a speaker "<Name> by <owner>", with no to
 	// everyone sees the list and, every request being the owner, the whole record
 	let listed = await call( 'GET', '/api/llms', undefined, true );
 	ASSERT.equal( listed.Status, 200 );
-	ASSERT.deepEqual( [ listed.Body.Llms[ 0 ].Id, listed.Body.Llms[ 0 ].Name, listed.Body.Llms[ 0 ].Speaker, listed.Body.Llms[ 0 ].Command, listed.Body.Llms[ 0 ].Running ], [ echo.Id, 'echo', 'echo by User', process.execPath, null ] );
-	ASSERT.deepEqual( listed.Body.Kinds, [ 'claude-cli', 'ollama', 'claude', 'chatgpt', 'gemini', 'grok', 'openai-compatible' ] );
+	ASSERT.deepEqual( [ listed.Body.Llms[ 0 ].Id, listed.Body.Llms[ 0 ].Name, listed.Body.Llms[ 0 ].Speaker, listed.Body.Llms[ 0 ].Url, listed.Body.Llms[ 0 ].Running ], [ echo.Id, 'echo', 'echo by User', echo_service.Url, null ] );
+	ASSERT.deepEqual( listed.Body.Kinds, [ 'claude', 'chatgpt', 'gemini', 'grok', 'openai-compatible', 'ollama' ] );
 	ASSERT.equal( typeof listed.Body.DefaultPrompts.Session, 'string' );
 	// changed in place, the id kept, a token given ignored; a second one with the same name is refused; a bad name too
 	let changed = await call( 'PUT', '/api/llms/' + echo.Id, { Timeout: 45, Token: 'ignored-0123456789abc' } );
 	ASSERT.equal( changed.Status, 200 );
-	ASSERT.deepEqual( [ changed.Body.Llm.Id, changed.Body.Llm.Timeout, changed.Body.Llm.Command, 'Token' in changed.Body.Llm ], [ echo.Id, 45, process.execPath, false ] );
+	ASSERT.deepEqual( [ changed.Body.Llm.Id, changed.Body.Llm.Timeout, changed.Body.Llm.Url, 'Token' in changed.Body.Llm ], [ echo.Id, 45, echo_service.Url, false ] );
 	let twice = await call( 'POST', '/api/llms', { Name: 'echo' } );
 	ASSERT.equal( twice.Status, 400 );
 	ASSERT.deepEqual( twice.Body.Problems, [ 'LLM connection "echo" is named twice' ] );
@@ -1160,13 +1189,13 @@ TEST( 'an LLM connection is made, each a speaker "<Name> by <owner>", with no to
 	// the check, saved or not
 	let checked = await call( 'POST', '/api/llms/' + echo.Id + '/check', {} );
 	ASSERT.equal( checked.Body.Ok, true );
-	ASSERT.match( checked.Body.Result, /--version: v\d+/ );
-	let unsaved = await call( 'POST', '/api/llms/check', { Kind: 'claude-cli', Command: PATH.join( OS.tmpdir(), 'no-such-command' ) } );
+	ASSERT.equal( checked.Body.Result, 'the Key is good; 1 models: stand-in' );
+	let unsaved = await call( 'POST', '/api/llms/check', { Kind: 'openai-compatible', Url: 'http://127.0.0.1:1/v1', Model: 'm' } );
 	ASSERT.equal( unsaved.Body.Ok, false );
 } );
 
 
-TEST( 'a run is asked of a connection, packaged from the project and the plan with a run token the server mints, run in the project\'s folder as the presser through the connection, its record read by everyone and its changes heard', async function ()
+TEST( 'a run is asked of a connection, packaged from the project and the plan with no token, run in the project\'s folder as the presser through the connection inside the Server, its record read by everyone and its changes heard', async function ()
 {
 	let echo = ( await call( 'GET', '/api/llms' ) ).Body.Llms[ 0 ];
 	let plan = await create( 'A plan to review' );
@@ -1179,17 +1208,15 @@ TEST( 'a run is asked of a connection, packaged from the project and the plan wi
 	ASSERT.match( lists.Body.Threads[ 0 ].Last, /^user: Is this so\?/ );
 	ASSERT.equal( Array.isArray( lists.Body.Documents ), true );
 	ASSERT.equal( ( await call( 'GET', '/api/runs/lists?Project=prj-nothing' ) ).Status, 400 );
-	// the package: the byline, a token promised for the run (the preview has none), this server's address, the plan and the folder
+	// the package: the byline, the tool instructions and no token or address (plan Tool calls only), the plan and the folder
 	let packaged = await call( 'POST', '/api/runs/package', { Llm: echo.Id, Task: 'answer', Project: home, Plan: plan.Id } );
 	ASSERT.equal( packaged.Status, 200 );
 	ASSERT.equal( packaged.Body.Speaker, 'echo by User' );
 	ASSERT.match( packaged.Body.Prompt, /^# Answer: a one-shot from Consensus\n/ );
 	ASSERT.match( packaged.Body.Prompt, /- Task: Answer\n- Writes: consensus\./ );
 	ASSERT.match( packaged.Body.Prompt, /You act for User, the owner of the Consensus server below, run once by that server ".*" through its LLM connection "echo": what you post reads "echo by User"\./ );
-	ASSERT.match( packaged.Body.Prompt, new RegExp( '- Consensus API: ' + running.Url + '/api' ) );
-	ASSERT.match( packaged.Body.Prompt, /Bearer <token>": made by the server when the run starts/ );
-	ASSERT.match( packaged.Body.Prompt, /## Agent instructions\n\n`{3,}\n# This server/ );
-	ASSERT.match( packaged.Body.Prompt, /- No token: a request with none is the owner, User, on this server\./ );
+	ASSERT.match( packaged.Body.Prompt, /## Tool instructions\n\n`{3,}\nYou have no shell and no network of your own/ );
+	ASSERT.doesNotMatch( packaged.Body.Prompt, /Bearer|Consensus API|Your token/ );
 	ASSERT.match( packaged.Body.Prompt, /## Threads of the plan waiting on echo by User/ );
 	ASSERT.match( packaged.Body.Prompt, new RegExp( '### Thread ' + thread.Id + ' \\(contested' ) );
 	ASSERT.equal( packaged.Body.Folder, ( await project_named( home ) ).Path );
@@ -1203,7 +1230,6 @@ TEST( 'a run is asked of a connection, packaged from the project and the plan wi
 	ASSERT.equal( started.Status, 201 );
 	ASSERT.match( started.Body.Run.Id, /^run-/ );
 	ASSERT.deepEqual( [ started.Body.Run.Status, started.Body.Run.By, started.Body.Run.Service, started.Body.Run.Token, started.Body.Run.Task, started.Body.Run.Writes, started.Body.Run.Prompt ], [ 'running', 'user', 'echo', 'Answer run', { Id: 'answer', Name: 'Answer' }, 'consensus', undefined ] );
-	ASSERT.equal( running.Tokens.Count(), 1 );
 	ASSERT.equal( ( await call( 'GET', '/api/llms', undefined, true ) ).Body.Llms[ 0 ].Running.Id, started.Body.Run.Id );
 	// a second press on the connection waits its turn (plan Multiuser, Step 3): queued behind the first, told so, run after it
 	let second = await call( 'POST', '/api/runs', { Llm: echo.Id, Task: 'session', Project: home } );
@@ -1211,21 +1237,18 @@ TEST( 'a run is asked of a connection, packaged from the project and the plan wi
 	ASSERT.deepEqual( [ second.Body.Run.Status, second.Body.Run.Started, second.Body.Run.Behind.Id, second.Body.Run.Behind.Task.Name, second.Body.Run.Behind.Plan.Title ], [ 'queued', null, started.Body.Run.Id, 'Answer', 'A plan to review' ] );
 	ASSERT.equal( typeof second.Body.Run.Queued, 'string' );
 	ASSERT.equal( ( await call( 'GET', '/api/runs/' + second.Body.Run.Id ) ).Body.Run.Status, 'queued' );
-	ASSERT.equal( running.Tokens.Count(), 2 );
 	let done = await run_settled( started.Body.Run.Id );
 	let second_done = await run_settled( second.Body.Run.Id );
 	ASSERT.equal( second_done.Status, 'done' );
 	ASSERT.equal( second_done.Behind.Id, started.Body.Run.Id );
-	ASSERT.match( second_done.Prompt, /Bearer <token>": [0-9a-f]{48}\n/ );
 	ASSERT.equal( done.Status, 'done' );
-	ASSERT.match( done.Output, /^got: # Answer: a one-shot from Consensus/ );
+	ASSERT.match( done.Output, /### Answer\n\ngot: # Answer: a one-shot from Consensus/ );
 	ASSERT.deepEqual( done.Project, { Id: home, Name: ( await project_named( home ) ).Name, Path: ( await project_named( home ) ).Path } );
 	ASSERT.deepEqual( done.Plan, { Id: plan.Id, Title: 'A plan to review' } );
-	// the run's prompt carries the run's token, which the preview did not; the token is gone with the run
-	ASSERT.match( done.Prompt, /Bearer <token>": [0-9a-f]{48}\n/ );
-	ASSERT.match( done.Prompt, /What you post reads "echo by User"/ );
-	ASSERT.notEqual( done.Prompt, packaged.Body.Prompt );
-	ASSERT.equal( running.Tokens.Count(), 0 );
+	// the run's prompt, as the preview's, holds no token; nothing the model was sent does
+	ASSERT.doesNotMatch( done.Prompt, /Bearer/ );
+	ASSERT.match( done.Prompt, /what you post reads "echo by User"/ );
+	ASSERT.doesNotMatch( JSON.stringify( echo_service.Requests ), /Bearer/ );
 	events.Stop();
 	ASSERT.match( events.Text(), new RegExp( '"Kind":"run","Run":"' + started.Body.Run.Id + '","Llm":"' + echo.Id + '","Status":"running"' ) );
 	ASSERT.match( events.Text(), new RegExp( '"Run":"' + started.Body.Run.Id + '","Llm":"' + echo.Id + '","Status":"done"' ) );
@@ -1246,7 +1269,7 @@ TEST( 'a run is asked of a connection, packaged from the project and the plan wi
 } );
 
 
-TEST( 'the tasks (plan LLM Tasks, Step 1): listed, edited in the settings, enabled per project, packaged by their switches, and a run token carries the task\'s Writes', async function ()
+TEST( 'the tasks (plan LLM Tasks, Step 1): listed, edited in the settings, enabled per project, packaged by their switches, and a run carries the task\'s Writes', async function ()
 {
 	let listed = await call( 'GET', '/api/tasks', undefined, true );
 	ASSERT.equal( listed.Status, 200 );
@@ -1273,7 +1296,7 @@ TEST( 'the tasks (plan LLM Tasks, Step 1): listed, edited in the settings, enabl
 	// enabled per project: the list of ids (trimmed, once each), or null for all
 	ASSERT.deepEqual( ( await call( 'PUT', '/api/projects/' + home, { Tasks: [ 'work', explain.Id, 'work', ' ' ] } ) ).Body.Project.Tasks, [ 'work', explain.Id ] );
 	ASSERT.deepEqual( ( await call( 'GET', '/api/tasks?Project=' + home ) ).Body.Tasks.map( function ( one ) { return one.Id; } ), [ 'work', explain.Id ] );
-	let echo = ( await call( 'POST', '/api/llms', { Name: 'echo2', Kind: 'claude-cli', Command: process.execPath, Arguments: ECHO_ARGUMENTS, Timeout: 30 } ) ).Body.Llm;
+	let echo = ( await call( 'POST', '/api/llms', served( 'echo2' ) ) ).Body.Llm;
 	let plan = await create( 'A plan to explain' );
 	ASSERT.match( ( await call( 'POST', '/api/runs/package', { Llm: echo.Id, Task: 'answer', Project: home, Plan: plan.Id } ) ).Body.Error, /"Answer" is not enabled in the project/ );
 	ASSERT.match( ( await call( 'POST', '/api/runs/package', { Llm: echo.Id, Project: home, Plan: plan.Id } ) ).Body.Error, /a Task is needed: one of answer, enhance, work, explain, session/ );
@@ -1289,27 +1312,22 @@ TEST( 'the tasks (plan LLM Tasks, Step 1): listed, edited in the settings, enabl
 	ASSERT.equal( ( await call( 'GET', '/api/tasks?Project=prj-nothing' ) ).Status, 404 );
 	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + home, { Tasks: null } ) ).Body.Project.Tasks, undefined );
 	ASSERT.equal( ( await call( 'GET', '/api/tasks?Project=' + home ) ).Body.Tasks.length, 6 );
-	// a run token with Writes none reads, and is refused every write; a consensus one replies
-	let read_only = running.Tokens.Mint( { Service: 'echo2', Name: 'Explain run', Project: home, Writes: 'none' } );
-	let me = await call( 'GET', '/api/me', undefined, 'Bearer ' + read_only );
-	ASSERT.deepEqual( [ me.Body.Me.Token, me.Body.Me.Writes ], [ 'Explain run', 'none' ] );
-	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id, undefined, 'Bearer ' + read_only ) ).Status, 200 );
-	let write = await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'I would like to say' }, 'Bearer ' + read_only );
-	ASSERT.deepEqual( [ write.Status, write.Body.Error ], [ 403, 'this run reads only' ] );
-	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Plan' }, 'Bearer ' + read_only ) ).Status, 403 );
-	let writing = running.Tokens.Mint( { Service: 'echo2', Name: 'Answer run', Project: home, Writes: 'consensus' } );
-	ASSERT.equal( ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Said.' }, 'Bearer ' + writing ) ).Status, 201 );
+	// a run with Writes none reads and is refused every write, inside the Server; a consensus one writes (plan Tool calls only)
+	let read_only = running.Runner.Performer( PARTICIPANTS.RunAccount( running.Settings, { Service: 'echo2', Name: 'Explain run', Writes: 'none' }, running.Users ) );
+	ASSERT.equal( body_of( await read_only( 'read_plan', { Id: plan.Id } ) ).Plan.Id, plan.Id );
+	await ASSERT.rejects( read_only( 'thread', { Id: plan.Id, Text: 'I would like to say' } ), function ( error ) { return error.Status === 403 && error.Error === 'this run reads only'; } );
+	await ASSERT.rejects( read_only( 'set_state', { Id: plan.Id, State: 'Plan' } ), function ( error ) { return error.Status === 403; } );
+	let writing = running.Runner.Performer( PARTICIPANTS.RunAccount( running.Settings, { Service: 'echo2', Name: 'Answer run', Writes: 'consensus' }, running.Users ) );
+	let said = body_of( await writing( 'thread', { Id: plan.Id, Text: 'Said.' } ) );
+	ASSERT.deepEqual( [ said.Thread.Replies[ 0 ].Service, said.Thread.Replies[ 0 ].Token ], [ 'echo2', 'Answer run' ] );
 	ASSERT.equal( 'Writes' in ( await call( 'GET', '/api/me' ) ).Body.Me, false );
-	running.Tokens.Drop( read_only );
-	running.Tokens.Drop( writing );
-	// a Work run's record names the task and its level; the token is named after the task
+	// a Work run's record names the task and its level, and the run after the task
 	let started = await call( 'POST', '/api/runs', { Llm: echo.Id, Task: 'work', Project: home, Plan: plan.Id } );
 	ASSERT.equal( started.Status, 201 );
 	ASSERT.deepEqual( [ started.Body.Run.Task, started.Body.Run.Writes, started.Body.Run.Token ], [ { Id: 'work', Name: 'Work' }, 'files', 'Work run' ] );
 	let done = await run_settled( started.Body.Run.Id );
-	ASSERT.match( done.Output, /^got: # Work: a one-shot from Consensus/ );
+	ASSERT.match( done.Output, /### Answer\n\ngot: # Work: a one-shot from Consensus/ );
 	ASSERT.match( done.Prompt, /- Writes: files\./ );
-	ASSERT.equal( running.Tokens.Count(), 0 );
 	// back to the shipped five
 	ASSERT.equal( ( await call( 'PUT', '/api/settings', { Settings: Object.assign( {}, settings, { Tasks: settings.Tasks } ) } ) ).Body.Settings.Tasks.length, 5 );
 	ASSERT.deepEqual( ( await call( 'DELETE', '/api/llms/' + echo.Id ) ).Body, { Deleted: echo.Id } );
@@ -1319,7 +1337,7 @@ TEST( 'the tasks (plan LLM Tasks, Step 1): listed, edited in the settings, enabl
 TEST( 'the project\'s LLM connection (plan LLM Tasks, Step 6): PUT /api/projects/:pid takes Llm, refuses one the server lacks, and null clears it', async function ()
 {
 	let project = ( await call( 'POST', '/api/projects', { Name: 'Connected' } ) ).Body.Project;
-	let llm = ( await call( 'POST', '/api/llms', { Name: 'chosen', Kind: 'claude-cli', Command: process.execPath, Arguments: [ '-e', '' ], Timeout: 60 } ) ).Body.Llm;
+	let llm = ( await call( 'POST', '/api/llms', served( 'chosen' ) ) ).Body.Llm;
 	ASSERT.equal( 'Llm' in project, false );
 	let set = await call( 'PUT', '/api/projects/' + project.Id, { Llm: llm.Id } );
 	ASSERT.equal( set.Status, 200 );
@@ -1342,32 +1360,27 @@ TEST( 'the project\'s LLM connection (plan LLM Tasks, Step 6): PUT /api/projects
 } );
 
 
-// A stand-in for an Enhance run (plan LLM Tasks, Step 2): it reads the package from its standard input, takes the API
-// address, the token, the plan id and the person's instructions from it, and posts a new text and one thread as the run.
-const ENHANCE_STAND_IN = [
-	"let t = '';",
-	"process.stdin.on( 'data', function ( c ) { t += c; } );",
-	"process.stdin.on( 'end', async function ()",
-	"{",
-	"\tlet api = /- Consensus API: (\\S+)/.exec( t )[ 1 ];",
-	"\tlet token = /Bearer <token>\": ([0-9a-f]{48})/.exec( t )[ 1 ];",
-	"\tlet plan = /The plan at hand: .* \\((pln-[^)]+)\\)/.exec( t )[ 1 ];",
-	"\tlet asked = /## Your instructions\\n\\n([^\\n]+)/.exec( t )[ 1 ];",
-	"\tlet headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };",
-	"\tlet current = await ( await fetch( api + '/plans/' + plan, { headers: headers } ) ).json();",
-	"\tlet text = '# A sketch\\n\\n## Enhanced\\n\\nAs asked: ' + asked + '\\n';",
-	"\tlet written = await ( await fetch( api + '/plans/' + plan + '/text', { method: 'PUT', headers: headers, body: JSON.stringify( { Text: text, Revision: current.Plan.Revision } ) } ) ).json();",
-	"\tlet thread = await ( await fetch( api + '/plans/' + plan + '/threads', { method: 'POST', headers: headers, body: JSON.stringify( { Anchor: { Text: 'As asked' }, Text: 'How many sections exactly?' } ) } ) ).json();",
-	"\tprocess.stdout.write( 'wrote revision ' + written.Plan.Revision + ' and asked in ' + thread.Thread.Id + ( t.includes( '## Threads' ) ? ' (threads were packaged)' : '' ) );",
-	"} );",
-].join( '\n' );
-
-
-TEST( 'Enhance (plan LLM Tasks, Step 2) runs end to end: the box\'s text is packaged under Your instructions, no threads are, and the run posts a revision and a thread on its token as the connection by the owner', async function ()
+// A stand-in for an Enhance run (plan LLM Tasks, Step 2; through the tools since plan Tool calls only, Step 3): it reads
+// the plan's id and the person's instructions from the package, writes a new text and opens one thread, then answers.
+function enhance_script()
 {
-	let stand_in = PATH.join( temporary_folder(), 'enhance.js' );
-	FS.writeFileSync( stand_in, ENHANCE_STAND_IN );
-	let echo = ( await call( 'POST', '/api/llms', { Name: 'enhancer', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Timeout: 60 } ) ).Body.Llm;
+	return [
+		function ( body, prompt )
+		{
+			let plan = /The plan at hand: .* \((pln-[^)]+)\)/.exec( prompt )[ 1 ];
+			let asked = /## Your instructions\n\n([^\n]+)/.exec( prompt )[ 1 ];
+			return { calls: [ [ 'write_text', { Id: plan, Text: '# A sketch\n\n## Enhanced\n\nAs asked: ' + asked + '\n' } ], [ 'thread', { Id: plan, Anchor: 'As asked', Text: 'How many sections exactly?' } ] ] };
+		},
+		function ( body, prompt )
+		{
+			return { content: 'Enhanced' + ( prompt.includes( '## Threads' ) ? ' (threads were packaged)' : '' ) + '.' };
+		},
+	];
+}
+
+TEST( 'Enhance (plan LLM Tasks, Step 2) runs end to end: the box\'s text is packaged under Your instructions, no threads are, and the run posts a revision and a thread through its tools as the connection by the owner', async function ()
+{
+	let echo = ( await call( 'POST', '/api/llms', served( 'enhancer', await stand_in( enhance_script() ) ) ) ).Body.Llm;
 	let plan = await create( 'A sketch', '# A sketch\n\nA few words.\n' );
 	let waiting = ( await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: { Text: 'A few words' }, Text: 'Is this enough?' } ) ).Body.Thread;
 	// the preview carries the text and names the task
@@ -1383,7 +1396,9 @@ TEST( 'Enhance (plan LLM Tasks, Step 2) runs end to end: the box\'s text is pack
 	ASSERT.deepEqual( [ started.Body.Run.Task, started.Body.Run.Text, started.Body.Run.Token ], [ { Id: 'enhance', Name: 'Enhance' }, 'Three sections, please.', 'Enhance run' ] );
 	let done = await run_settled( started.Body.Run.Id );
 	ASSERT.equal( done.Status, 'done', done.Output );
-	ASSERT.match( done.Output, /^wrote revision 2 and asked in thr-/ );
+	ASSERT.match( done.Output, /wrote pln-\S+, the plan is at revision 2/ );
+	ASSERT.match( done.Output, /posted thread thr-\S+ on "As asked"/ );
+	ASSERT.match( done.Output, /### Answer\n\nEnhanced\./ );
 	ASSERT.equal( done.Output.includes( 'threads were packaged' ), false );
 	let read = ( await call( 'GET', '/api/plans/' + plan.Id ) ).Body;
 	ASSERT.equal( read.Plan.Revision, 2 );
@@ -1392,27 +1407,22 @@ TEST( 'Enhance (plan LLM Tasks, Step 2) runs end to end: the box\'s text is pack
 	ASSERT.deepEqual( [ revisions[ 1 ].By, revisions[ 1 ].Service, revisions[ 1 ].Token, revisions[ 1 ].Reason ], [ 'user', 'enhancer', 'Enhance run', 'edit' ] );
 	let asked = read.Threads.find( function ( one ) { return one.Id !== waiting.Id; } );
 	ASSERT.deepEqual( [ asked.Status, asked.Replies[ 0 ].By, asked.Replies[ 0 ].Service, asked.Replies[ 0 ].Token, asked.Anchor.Text ], [ 'contested', 'user', 'enhancer', 'Enhance run', 'As asked' ] );
-	ASSERT.equal( running.Tokens.Count(), 0 );
 	ASSERT.deepEqual( ( await call( 'DELETE', '/api/llms/' + echo.Id ) ).Body, { Deleted: echo.Id } );
 } );
 
-// A stand-in for a Work run (plan LLM Tasks, Step 3): it reads the package from its standard input, writes a file in
-// the project's folder (its working folder) and posts a build log, a whole-document thread, as the run.
-const WORK_STAND_IN = [
-	"let t = '';",
-	"process.stdin.on( 'data', function ( c ) { t += c; } );",
-	"process.stdin.on( 'end', async function ()",
-	"{",
-	"\tlet api = /- Consensus API: (\\S+)/.exec( t )[ 1 ];",
-	"\tlet token = /Bearer <token>\": ([0-9a-f]{48})/.exec( t )[ 1 ];",
-	"\tlet plan = /The plan at hand: .* \\((pln-[^)]+)\\)/.exec( t )[ 1 ];",
-	"\trequire( 'fs' ).writeFileSync( 'built.txt', 'built\\n' );",
-	"\tlet headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };",
-	"\tlet thread = await ( await fetch( api + '/plans/' + plan + '/threads', { method: 'POST', headers: headers, body: JSON.stringify( { Text: '**Build log.** Made built.txt.' } ) } ) ).json();",
-	"\tprocess.stdout.write( 'posted ' + thread.Thread.Id );",
-	"} );",
-].join( '\n' );
-
+// A stand-in for a Work run (plan LLM Tasks, Step 3; through the tools since plan Tool calls only, Step 3): it writes a
+// file in the project's folder and posts a build log, a whole-document thread, then answers.
+function work_script()
+{
+	return [
+		function ( body, prompt )
+		{
+			let plan = /The plan at hand: .* \((pln-[^)]+)\)/.exec( prompt )[ 1 ];
+			return { calls: [ [ 'write', { Path: 'built.txt', Text: 'built\n' } ], [ 'thread', { Id: plan, Text: '**Build log.** Made built.txt.' } ] ] };
+		},
+		{ content: 'Built.' },
+	];
+}
 
 TEST( 'the Work options (plan LLM Tasks, Step 3): Git sync pulls before a run that writes files and refuses one outside a checkout; Auto-commit commits and pushes the build log the owner resolves, the thread keeping the record', { skip: REPO.Present() ? false : 'git is not on this machine' }, async function ()
 {
@@ -1427,9 +1437,7 @@ TEST( 'the Work options (plan LLM Tasks, Step 3): Git sync pulls before a run th
 	await call( 'PUT', '/api/projects/' + project.Id, { AutoCommit: true } );
 	ASSERT.deepEqual( [ ( await project_named( project.Id ) ).GitSync, ( await project_named( project.Id ) ).AutoCommit ], [ true, true ] );
 	// the run: a commit from elsewhere is pulled first, the stand-in writes a file and posts the build log
-	let stand_in = PATH.join( temporary_folder(), 'work.js' );
-	FS.writeFileSync( stand_in, WORK_STAND_IN );
-	let worker = ( await call( 'POST', '/api/llms', { Name: 'worker', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Timeout: 60 } ) ).Body.Llm;
+	let worker = ( await call( 'POST', '/api/llms', served( 'worker', await stand_in( work_script() ) ) ) ).Body.Llm;
 	let plan = ( await call( 'POST', '/api/plans', { Title: 'Build a thing', Text: '# Build a thing\n\nMake built.txt.\n', Project: project.Id } ) ).Body.Plan;
 	REPO.PushFromElsewhere( repo, 'elsewhere.txt', 'from elsewhere\n' );
 	let started = await call( 'POST', '/api/runs', { Llm: worker.Id, Task: 'work', Project: project.Id, Plan: plan.Id } );
@@ -1472,35 +1480,33 @@ TEST( 'the Work options (plan LLM Tasks, Step 3): Git sync pulls before a run th
 	let refused = await call( 'POST', '/api/runs', { Llm: worker.Id, Task: 'work', Project: plain.Id, Plan: elsewhere.Id } );
 	ASSERT.equal( refused.Status, 400 );
 	ASSERT.match( refused.Body.Error, /^git pull failed in .*not a git repository/ );
-	ASSERT.equal( running.Tokens.Count(), 0 );
 	ASSERT.deepEqual( ( await call( 'DELETE', '/api/llms/' + worker.Id ) ).Body, { Deleted: worker.Id } );
 } );
 
 
-// A stand-in for an Explain run (plan LLM Tasks, Step 4): it reads the package, finds the project's shape, reads the
-// first plan listed through the API on its token, answers from it, and tries a write, which the token refuses.
-const EXPLAIN_STAND_IN = [
-	"let t = '';",
-	"process.stdin.on( 'data', function ( c ) { t += c; } );",
-	"process.stdin.on( 'end', async function ()",
-	"{",
-	"\tlet api = /- Consensus API: (\\S+)/.exec( t )[ 1 ];",
-	"\tlet token = /Bearer <token>\": ([0-9a-f]{48})/.exec( t )[ 1 ];",
-	"\tlet listed = /## The project\\n[^]*?\\n- (.+?) \\((pln-[^)]+)\\): /.exec( t );",
-	"\tlet asked = /## Your instructions\\n\\n([^\\n]+)/.exec( t )[ 1 ];",
-	"\tlet headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };",
-	"\tlet read = await ( await fetch( api + '/plans/' + listed[ 2 ], { headers: headers } ) ).json();",
-	"\tlet refused = await fetch( api + '/plans/' + listed[ 2 ] + '/threads', { method: 'POST', headers: headers, body: JSON.stringify( { Text: 'May I?' } ) } );",
-	"\tprocess.stdout.write( '**' + asked + '** The plan \"' + read.Plan.Title + '\" has ' + read.Threads.length + ' thread(s) and is in state ' + read.Plan.State + '; a write was refused ' + refused.status + ( t.includes( '## Runs' ) ? '; runs listed' : '' ) + '.' );",
-	"} );",
-].join( '\n' );
-
-
-TEST( 'Explain (plan LLM Tasks, Step 4) runs end to end: the project\'s shape is packaged, the run reads a plan on its token and is refused a write, the answer is its output, and the conversation is listed, filtered and cleared', async function ()
+// A stand-in for an Explain run (plan LLM Tasks, Step 4; through the tools since plan Tool calls only, Step 3): it finds
+// the first plan of the project's shape in the package, reads it and tries a write, which a run that writes nothing
+// is not offered, then answers from what the tools said.
+function explain_script()
 {
-	let stand_in = PATH.join( temporary_folder(), 'explain.js' );
-	FS.writeFileSync( stand_in, EXPLAIN_STAND_IN );
-	let explainer = ( await call( 'POST', '/api/llms', { Name: 'explainer', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Timeout: 60 } ) ).Body.Llm;
+	return [
+		function ( body, prompt )
+		{
+			let listed = /## The project\n[^]*?\n- (.+?) \((pln-[^)]+)\): /.exec( prompt );
+			return { calls: [ [ 'read_plan', { Id: listed[ 2 ] } ], [ 'thread', { Id: listed[ 2 ], Text: 'May I?' } ] ] };
+		},
+		function ( body, prompt )
+		{
+			let asked = /## Your instructions\n\n([^\n]+)/.exec( prompt )[ 1 ];
+			let results = body.messages.filter( function ( message ) { return message.role === 'tool'; } );
+			return { content: '**' + asked + '** ' + results[ 0 ].content.split( '\n' )[ 0 ] + '; the write: ' + results[ 1 ].content.split( ';' )[ 0 ] + ( prompt.includes( '## Runs' ) ? '; runs listed' : '' ) + '.' };
+		},
+	];
+}
+
+TEST( 'Explain (plan LLM Tasks, Step 4) runs end to end: the project\'s shape is packaged, the run reads a plan through its tools and is offered no write, the answer is its output, and the conversation is listed, filtered and cleared', async function ()
+{
+	let explainer = ( await call( 'POST', '/api/llms', served( 'explainer', await stand_in( explain_script() ) ) ) ).Body.Llm;
 	let plan = await create( 'Explained plan', '# Explained plan\n\nA few words to ask about.\n' );
 	await call( 'POST', '/api/plans/' + plan.Id + '/threads', { Anchor: { Text: 'A few words' }, Text: 'Why so few?' } );
 	await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Plan' } );
@@ -1518,9 +1524,8 @@ TEST( 'Explain (plan LLM Tasks, Step 4) runs end to end: the project\'s shape is
 	ASSERT.deepEqual( [ started.Body.Run.Task, started.Body.Run.Writes, started.Body.Run.Text, started.Body.Run.Token, started.Body.Run.By ], [ { Id: 'explain', Name: 'Explain' }, 'none', 'What is the plan?', 'Explain run', 'user' ] );
 	let done = await run_settled( started.Body.Run.Id );
 	ASSERT.equal( done.Status, 'done', done.Output );
-	ASSERT.match( done.Output, /^\*\*What is the plan\?\*\* The plan ".+" has \d+ thread\(s\) and is in state \w+; a write was refused 403; runs listed\.$/ );
+	ASSERT.match( done.Output, /### Answer\n\n\*\*What is the plan\?\*\* # .+ \(pln-\S+\), state \w+, revision \d+; the write: there is no tool named thread; runs listed\.\s*$/ );
 	ASSERT.equal( ( await call( 'GET', '/api/plans/' + plan.Id ) ).Body.Threads.length, 1 );
-	ASSERT.equal( running.Tokens.Count(), 0 );
 	// the conversation: the person's Explain runs of the project, filtered by project, task and asker
 	let mine = ( await call( 'GET', '/api/runs?Project=' + home + '&Task=explain&By=user' ) ).Body.Runs;
 	ASSERT.deepEqual( mine.map( function ( run ) { return run.Id; } ), [ done.Id ] );
@@ -1609,7 +1614,7 @@ TEST( 'users and roles (plan User Management, Step 3): accounts made by the Admi
 	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Plan' }, ann_token ) ).Body.Error, 'a Watcher reads only' );
 	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/roles', { Watchers: [] }, ann_token ) ).Body.Error, 'a Watcher reads only' );
 	// the tasks a Watcher presses: Explain (Writes none) runs as ann through the connection; Work is refused
-	let echo = ( await call( 'POST', '/api/llms', { Name: 'echo3', Kind: 'claude-cli', Command: process.execPath, Arguments: ECHO_ARGUMENTS, Timeout: 30 } ) ).Body.Llm;
+	let echo = ( await call( 'POST', '/api/llms', served( 'echo3' ) ) ).Body.Llm;
 	ASSERT.equal( ( await call( 'POST', '/api/runs', { Llm: echo.Id, Task: 'work', Project: project.Id, Plan: plan.Id }, ann_token ) ).Body.Error, 'a Watcher presses the tasks that write nothing' );
 	let started = await call( 'POST', '/api/runs', { Llm: echo.Id, Task: 'explain', Project: project.Id, Text: 'What is this?' }, ann_token );
 	ASSERT.equal( started.Status, 201, JSON.stringify( started.Body ) );
@@ -1660,7 +1665,6 @@ TEST( 'users and roles (plan User Management, Step 3): accounts made by the Admi
 	ASSERT.deepEqual( ( await project_named( project.Id ) ).Roles.Watchers, [] );
 	ASSERT.equal( ( await call( 'DELETE', '/api/users/' + owner.Id ) ).Status, 409 );
 	ASSERT.equal( ( await call( 'DELETE', '/api/users/' + bob.Id, undefined, bob_token ) ).Body.Error, 'the Administrator\'s and the Managers\'' );
-	ASSERT.equal( running.Tokens.Count(), 0 );
 	// the owner's bare requests are as they were
 	ASSERT.equal( ( await call( 'PUT', '/api/plans/' + plan.Id + '/state', { State: 'Plan' } ) ).Status, 200 );
 	await call( 'DELETE', '/api/users/' + bob.Id );
@@ -1985,7 +1989,7 @@ TEST( 'Managers (plan The Server, Step 2): the Administrator makes a user a Mana
 	ASSERT.equal( ( await call( 'GET', '/api/settings', undefined, nina.Token ) ).Status, 403 );
 	let as_member = ( await call( 'GET', '/api/me', undefined, nina.Token ) ).Body;
 	ASSERT.deepEqual( [ as_member.Admin, as_member.Manager, as_member.Manage ], [ false, false, false ] );
-	let member_llm = await call( 'POST', '/api/llms', { Name: 'nina-llm', Kind: 'claude-cli', Command: process.execPath }, nina.Token );
+	let member_llm = await call( 'POST', '/api/llms', served( 'nina-llm' ), nina.Token );
 	ASSERT.deepEqual( [ member_llm.Status, member_llm.Body.Error ], [ 403, 'the Administrator\'s and the Managers\'' ] );
 	// the Administrator makes nina a Manager; a Service account cannot be one
 	let assigned = await call( 'PUT', '/api/users/' + nina.User.Id, { Manager: true } );
@@ -2005,12 +2009,12 @@ TEST( 'Managers (plan The Server, Step 2): the Administrator makes a user a Mana
 	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/mount', { Mounted: true }, nina.Token ) ).Status, 200 );
 	ASSERT.equal( ( await call( 'PUT', '/api/projects/' + project.Id + '/roles', { Members: [ omar.User.Id ] }, nina.Token ) ).Status, 200 );
 	// the LLM connections are hers to make, change and delete (the fix after plan The Server, Step 4), whole records shown
-	let managed_llm = await call( 'POST', '/api/llms', { Name: 'nina-llm', Kind: 'claude-cli', Command: process.execPath }, nina.Token );
+	let managed_llm = await call( 'POST', '/api/llms', served( 'nina-llm' ), nina.Token );
 	ASSERT.equal( managed_llm.Status, 201, JSON.stringify( managed_llm.Body ) );
 	let llm_id = managed_llm.Body.Llm.Id;
 	ASSERT.equal( ( await call( 'PUT', '/api/llms/' + llm_id, { Name: 'nina-llm-2' }, nina.Token ) ).Status, 200 );
 	let listed_llm = ( await call( 'GET', '/api/llms', undefined, nina.Token ) ).Body.Llms.find( function ( one ) { return one.Id === llm_id; } );
-	ASSERT.deepEqual( [ listed_llm.Name, listed_llm.Command ], [ 'nina-llm-2', process.execPath ] );
+	ASSERT.deepEqual( [ listed_llm.Name, listed_llm.Url ], [ 'nina-llm-2', echo_service.Url ] );
 	ASSERT.equal( ( await call( 'DELETE', '/api/llms/' + llm_id, undefined, nina.Token ) ).Status, 200 );
 	// a Member's details are hers to change; a new account too
 	ASSERT.equal( ( await call( 'PUT', '/api/users/' + omar.User.Id, { Email: 'omar.n@example.com' }, nina.Token ) ).Body.User.Email, 'omar.n@example.com' );

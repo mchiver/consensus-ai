@@ -12,7 +12,7 @@
 // the folder nor the Readme is renamed, moved, copied or deleted.
 //
 //   Operations( Context ) -> { List, Get( Name ), Perform( Name, Participant, Arguments ), Shared }
-//     Context = { Store, Settings, Events, Runs?, Runner?, Git?, Tokens?, Users?, Clerk? }, as Api.Attach takes it
+//     Context = { Store, Settings, Events, Runs?, Runner?, Git?, Users?, Clerk? }, as Api.Attach takes it
 //     List: the operations, each { Name, Method, Path, Description, Parameters, Action, Status, Perform }:
 //       Name        the operation's name, lower_case (read_plan, reply, apply, set_state, create_project ...)
 //       Method/Path the REST route it is served at (the path's :params are arguments too, by the names Api.js maps)
@@ -2676,7 +2676,7 @@ function Operations( Context )
 	//-----------------------------------------------------------------
 	// The LLM connections (plan Run Shapes, Step 3): the settings' Llms, each a tool a run goes through, its posts
 	// reading "<Name> by <owner>" (plan User Management, Step 2). Everyone sees the list (its public part); the owner
-	// writes it and sees the whole records. A connection's Check runs its command or asks its Ollama, saved or not.
+	// writes it and sees the whole records. A connection's Check asks its service or its Ollama, saved or not.
 
 	function llm_running( llm )
 	{
@@ -2793,7 +2793,7 @@ function Operations( Context )
 		Method: 'POST',
 		Path: '/llms',
 		Status: 201,
-		Description: 'A new LLM connection from the fields given (Name, Kind, Model, Url and Key for an API connection, Command for claude-cli, the prompts), filled with the defaults and checked; the Key is never answered; the Administrator\'s and the Managers\'.',
+		Description: 'A new LLM connection from the fields given (Name, Kind, Model, Url, Key, the prompts), filled with the defaults and checked; the Key is never answered; the Administrator\'s and the Managers\'.',
 		Parameters: {
 			Name: { Type: 'string' },
 			Kind: { Type: 'string', Description: 'one of the kinds list_llms names' },
@@ -2811,7 +2811,7 @@ function Operations( Context )
 		Name: 'check_llm',
 		Method: 'POST',
 		Path: '/llms/check',
-		Description: 'Checks a connection as given, saved or not: runs its command or asks its Ollama once; the Administrator\'s and the Managers\'.',
+		Description: 'Checks a connection as given, saved or not: asks its service for the models its Key may use (an Ollama for its models), and answers them as Models; the Administrator\'s and the Managers\'.',
 		Parameters: {
 			Kind: { Type: 'string' },
 		},
@@ -2942,7 +2942,7 @@ function Operations( Context )
 		Perform: async function ( participant, args )
 		{
 			may_run();
-			let made = await runner.Package( object_of( args ), undefined, participant );
+			let made = await runner.Package( object_of( args ), participant );
 			if ( made.Error )
 			{
 				refuse( 400, made.Error );
@@ -2958,7 +2958,7 @@ function Operations( Context )
 		Method: 'POST',
 		Path: '/runs',
 		Status: 201,
-		Description: 'Starts a run: the task pressed on a plan (or the project) through a connection, as you, in the project\'s folder, on a token named after the task that carries its Writes; its record comes back at once (Status running), or queued behind a run of the same plan or connection when there is one (Status queued, Behind which run), to start when its turn comes, packaged afresh; a run that writes files pulls first when the project\'s GitSync is on.',
+		Description: 'Starts a run: the task pressed on a plan (or the project) through a connection, as you, in the project\'s folder, its tools performed inside the Server as you through the connection, as far as the task\'s Writes allows; its record comes back at once (Status running), or queued behind a run of the same plan or connection when there is one (Status queued, Behind which run), to start when its turn comes, packaged afresh; a run that writes files pulls first when the project\'s GitSync is on.',
 		Parameters: {
 			Llm: { Type: 'string', Required: true, Description: 'the connection\'s id' },
 			Task: { Type: 'string', Required: true, Description: 'the task\'s id' },

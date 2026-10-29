@@ -10,7 +10,7 @@
 // tool call checked against its own operation's action; a notification is answered 202 with nothing.
 //
 //   Attach( App, Context ) -> the operations (Operations.Operations( Context )), mounted under /api
-//     Context = { Store, Settings, Events, Runs?, Runner?, Git?, Tokens?, Users?, Clerk?, Gate? }
+//     Context = { Store, Settings, Events, Runs?, Runner?, Git?, Users?, Clerk?, Gate? }
 //
 // The gate (plan The Server, Step 3; Gate.js): while a Server's gate is closed every route but Clerk's two answers
 // 401 "sign in" with the gate's Reason (Closed: true), so the page shows its sign-in; a Clerk session is let through
@@ -42,7 +42,6 @@ function Attach( App, Context )
 	let store = Context.Store;
 	let settings = Context.Settings;
 	let events = Context.Events;
-	let tokens = Context.Tokens || null;
 	let users = Context.Users || null;
 	let clerk = Context.Clerk || null;
 	let gate = Context.Gate || null;
@@ -79,9 +78,9 @@ function Attach( App, Context )
 
 	//-----------------------------------------------------------------
 	// Identity (plan User Management, Step 2): every request is the owner account, saying who it is with the
-	// X-Consensus-Service header, or a run on its run token; an unknown token is refused. request.Participant is the
-	// account: { Name, Display, Role, Service, Token, Writes, Speaker }, Speaker the key the rules run over. A run
-	// whose task writes nothing (plan LLM Tasks, Step 1: Writes none) is refused every request but a read.
+	// X-Consensus-Service header; an unknown token is refused. request.Participant is the account: { Name, Display,
+	// Role, Service, Token, Speaker }, Speaker the key the rules run over. A run makes no request (plan Tool calls only:
+	// its tools are performed inside the Server, perform_as_run, where a run that writes nothing is refused every write).
 	// Step 4: a Bearer value that is no token of ours is tried as a Clerk session token, its user the account; on a
 	// Public server a bare request is refused with "sign in" (on Local it stays the owner, and a session is the owner's).
 	// Plan The Server, Step 5: a Server (People) is as a Public one whatever its Scope: a bare request is refused, a
@@ -120,7 +119,7 @@ function Attach( App, Context )
 		{
 			return fail( response, 401, 'sign in' );
 		}
-		let participant = PARTICIPANTS.Identify( settings, { Authorization: authorization, Service: service }, tokens, users );
+		let participant = PARTICIPANTS.Identify( settings, { Authorization: authorization, Service: service }, users );
 		let session = false;
 		if ( !participant && clerk && clerk.On() )
 		{
@@ -138,10 +137,6 @@ function Attach( App, Context )
 		if ( !participant )
 		{
 			return fail( response, 401, session ? 'sign in' : 'unknown token' );
-		}
-		if ( participant.Writes === 'none' && request.method !== 'GET' && request.method !== 'HEAD' )
-		{
-			return fail( response, 403, 'this run reads only' );
 		}
 		request.Participant = participant;
 		next();
@@ -168,7 +163,7 @@ function Attach( App, Context )
 		{
 			return null;
 		}
-		let account = ( found.Record.Type === 'owner' ) ? PARTICIPANTS.Identify( settings, { Service: service }, tokens, users ) : PARTICIPANTS.UserAccount( settings, users, found.Record, PARTICIPANTS.ServiceOf( service ), null );
+		let account = ( found.Record.Type === 'owner' ) ? PARTICIPANTS.Identify( settings, { Service: service }, users ) : PARTICIPANTS.UserAccount( settings, users, found.Record, PARTICIPANTS.ServiceOf( service ), null );
 		account.Plan = found.License ? found.License.Plan : null;
 		account.Session = true;
 		if ( ( account.Type !== 'owner' || people ) && !admin_email() && found.Record.Email && ROLES.PlanRank( account.Plan ) >= ROLES.PlanRank( 'personal' ) )

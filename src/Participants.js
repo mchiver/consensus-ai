@@ -3,9 +3,8 @@
 // Participants - who is calling, from the settings and the request (plan User Management, Step 2).
 // An account is the principal. A bare request is the owner account (until plan Clerk brings the session): the
 // browser, an agent session, a script, each saying who it is with the header "X-Consensus-Service: <name>" (letters,
-// digits, dot, dash and colon), or saying nothing. A run started by the server carries "Authorization: Bearer <run
-// token>", a token the server made for that run and keeps in memory (RunTokens): the request is the presser (Step 3:
-// the account on the token, the owner before) with the connection's name as its Service. A user token (Step 3), one
+// digits, dot, dash and colon), or saying nothing. A run started by the server acts inside it, with no token (plan Tool
+// calls only: RunAccount, the presser with the connection's name as its Service). A user token (Step 3), one
 // minted on an account's page and kept hashed in Users.json, is that account, the token's name as its Token. Any
 // other token is refused.
 // A record of what a request did carries three fields: By (the account), Service and Token (the token's name); the
@@ -85,51 +84,15 @@ function ServiceOf( Header )
 
 
 //---------------------------------------------------------------------
-// RunTokens: the tokens the server makes for its runs, in memory, each { Service, Name, Project, Run }.
-//   Mint( { Service, Name, Project, Run?, Writes?, Account?, Role? } ) -> the token's value;  Find( value ) -> the record or null;  Drop( value )
-//   Account (Step 3): the presser's account fields { Id, Name, Display, Role, Type, Admin }; Role the presser's role in the project.
-
-function RunTokens()
-{
-	let tokens = {};
-
-	function Mint( Fields )
-	{
-		let value = NewToken();
-		tokens[ value ] = { Service: Fields.Service || null, Name: Fields.Name || 'run', Project: Fields.Project || null, Run: Fields.Run || null, Writes: Fields.Writes || null, Account: Fields.Account || null, Role: Fields.Role || null };
-		return value;
-	}
-
-	function Find( Value )
-	{
-		return ( Value && tokens[ Value ] ) ? tokens[ Value ] : null;
-	}
-
-	function Drop( Value )
-	{
-		delete tokens[ Value ];
-	}
-
-	function Count()
-	{
-		return Object.keys( tokens ).length;
-	}
-
-	return { Mint: Mint, Find: Find, Drop: Drop, Count: Count };
-}
-
-
-//---------------------------------------------------------------------
 // Identify: the account behind a request, or null when its token is unknown.
-//   Headers = { Authorization, Service }: the two headers' values.  Tokens: the server's RunTokens, or null.
-//   Users (Step 3): the registry (Users.js), or null.
+//   Headers = { Authorization, Service }: the two headers' values.  Users (Step 3): the registry (Users.js), or null.
 //   account = { Id, Name, Display, Role, Type, Admin, Service, Token, Writes, Speaker, ProjectRole? }: Role and Type
 //   owner, user or service (Role 'owner' passes every check); Admin whether the account is the Administrator; Service
-//   the header's name or the run's connection; Token the run token's name ("Answer run") or the user token's; Writes
-//   the run's level (none, consensus or files; null off a run); Speaker the key the rules run over; ProjectRole the
-//   presser's role carried by a run token.
+//   the header's name or the run's connection; Token the user token's name, or a run's ("Answer run", RunAccount);
+//   Writes the run's level (none, consensus or files; null off a run); Speaker the key the rules run over; ProjectRole
+//   the presser's role a run carries.
 
-function Identify( Settings, Headers, Tokens, Users )
+function Identify( Settings, Headers, Users )
 {
 	let headers = ( Headers && typeof Headers === 'object' ) ? Headers : { Authorization: Headers };
 	let authorization = ( headers.Authorization || '' ).trim();
@@ -144,15 +107,6 @@ function Identify( Settings, Headers, Tokens, Users )
 		return null;
 	}
 	let value = match[ 1 ].trim();
-	let run = Tokens ? Tokens.Find( value ) : null;
-	if ( run )
-	{
-		if ( run.Account )
-		{
-			return from_run( run );
-		}
-		return account_of( owner, run.Service, run.Name, run.Writes, Users );
-	}
 	let found = Users ? Users.ByToken( value ) : null;
 	if ( !found )
 	{
@@ -182,7 +136,7 @@ function user_account( settings, users, record, service, token )
 }
 
 
-// The presser behind a run token that carries the account (Step 3).
+// The presser a run acts for (Step 3), with the connection, the run's name and its level.
 function from_run( run )
 {
 	let account = Object.assign( {}, run.Account, { Service: run.Service || null, Token: run.Name || null, Writes: run.Writes || null, ProjectRole: run.Role || null } );
@@ -192,8 +146,9 @@ function from_run( run )
 
 
 // RunAccount (plan Tool calls only, Step 1): the account a run acts as when its tools are performed inside the Server,
-// with no token: the account a run token would have named. Fields = { Service, Name, Writes, Account?, Role? } as
-// RunTokens.Mint takes them: the presser's account when it is given, else the owner's.
+// with no token. Fields = { Service, Name, Writes, Account?, Role? }: the connection's name, the run's name ("Answer
+// run"), the task's level, the presser's account fields { Id, Name, Display, Role, Type, Admin, Manager } and role in
+// the project; the owner's account when no Account is given.
 function RunAccount( Settings, Fields, Users )
 {
 	let fields = Fields || {};
@@ -567,7 +522,6 @@ module.exports = {
 	HostOf: HostOf,
 	NewToken: NewToken,
 	ServiceOf: ServiceOf,
-	RunTokens: RunTokens,
 	Identify: Identify,
 	RunAccount: RunAccount,
 	UserAccount: user_account,

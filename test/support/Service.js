@@ -4,13 +4,15 @@
 // chat completions or Anthropic's Messages, answering each request from a script and keeping what it was sent, so
 // the tests and the smoke run an API connection end to end with no service and no key of ours.
 //
-//   Start( { Format: 'openai' | 'anthropic', Key?, Models?, Script } ) -> promise of { Url, Requests, Headers, Close() }
+//   Start( { Format: 'openai' | 'anthropic', Key?, Models?, Script, Default?, Echo?, Delay? } ) -> promise of { Url, Requests, Headers, Close() }
 //     Url       the base a connection takes, ending /v1
 //     Key       the key a request must carry (Authorization: Bearer <key>, or x-api-key); a wrong or missing one
 //               answers 401; none given takes any
 //     Models    the ids GET /v1/models lists
 //     Script    one entry per model request, in order: { content?, calls?: [ [ name, arguments ] ], delay?, status?, text? };
-//               status answers that status with text; past its end the answer is "nothing scripted"
+//               status answers that status with text; an entry may be a function ( Body, Prompt ) -> entry, Prompt the
+//               first message's text; past its end the answer is Default's words ("nothing scripted"), or with Echo
+//               "got: " and the prompt's first 60 characters; Delay the milliseconds an entry without its own delay waits
 //     Requests  the bodies of the model requests, parsed; Headers their headers
 
 const HTTP = require( 'http' );
@@ -24,6 +26,14 @@ function key_of( format, request )
 	}
 	let match = /^Bearer\s+(.+)$/i.exec( request.headers.authorization || '' );
 	return match ? match[ 1 ].trim() : '';
+}
+
+
+// The text of the conversation's first message: the run's package.
+function prompt_of( body )
+{
+	let first = ( body.messages || [] )[ 0 ] || {};
+	return ( typeof first.content === 'string' ) ? first.content : '';
 }
 
 
@@ -93,7 +103,12 @@ function Start( Options )
 			requests.push( body );
 			headers.push( request.headers );
 			let index = requests.length;
-			let entry = script[ index - 1 ] || { content: 'nothing scripted' };
+			let prompt = prompt_of( body );
+			let entry = script[ index - 1 ] || { content: options.Echo ? 'got: ' + prompt.slice( 0, 60 ) : ( options.Default || 'nothing scripted' ) };
+			if ( typeof entry === 'function' )
+			{
+				entry = entry( body, prompt ) || { content: 'nothing scripted' };
+			}
 			setTimeout( function ()
 			{
 				if ( entry.status )
@@ -103,7 +118,7 @@ function Start( Options )
 					return;
 				}
 				send( 200, ( format === 'anthropic' ) ? anthropic_reply( entry, body, index ) : openai_reply( entry, body, index ) );
-			}, entry.delay || 0 );
+			}, entry.delay || options.Delay || 0 );
 		} );
 	} );
 	return new Promise( function ( resolve )

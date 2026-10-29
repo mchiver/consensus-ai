@@ -13,6 +13,7 @@ const OS = require( 'os' );
 const PATH = require( 'path' );
 const SERVER = require( '../src/Server.js' );
 const CDP = require( './support/Cdp.js' );
+const SERVICE = require( './support/Service.js' );	// plan Tool calls only, Step 3: the connections' stand-in service
 const PARTICIPANTS = require( '../src/Participants.js' );
 
 const LLM_TOKEN = 'ui-llm-token-0123456789abcdef';
@@ -1686,7 +1687,7 @@ TEST( 'an API connection\'s Details (plan Tool calls only, Step 2): the kind sho
 	await page.Click( '#llm-details' );
 	await page.WaitFor( 'document.getElementById( "llm-kind" ) !== null' );
 	const SHOWN = function ( id ) { return '( document.getElementById( "' + id + '" ).closest( ".settings-row" ).offsetParent !== null )'; };
-	ASSERT.deepEqual( await page.Evaluate( '[ ' + SHOWN( 'llm-url' ) + ', ' + SHOWN( 'llm-key' ) + ', ' + SHOWN( 'llm-command' ) + ' ]' ), [ true, false, false ] );
+	ASSERT.deepEqual( await page.Evaluate( '[ ' + SHOWN( 'llm-url' ) + ', ' + SHOWN( 'llm-key' ) + ', ' + count_of( '#llm-command, #llm-arguments' ) + ' ]' ), [ true, false, 0 ] );
 	// another kind: the Url left for the Server to fill, the Key box shown, not set
 	await page.Evaluate( '( function () { let scope = angular.element( document.getElementById( "llm-kind" ) ).scope(); scope.$apply( function () { scope.Details.Form.Kind = "claude"; scope.Details.Form.Model = "claude-test"; scope.KindChanged(); } ); return true; } )()' );
 	ASSERT.deepEqual( await page.Evaluate( '[ ' + SHOWN( 'llm-url' ) + ', ' + SHOWN( 'llm-key' ) + ', document.getElementById( "llm-url" ).value, document.getElementById( "llm-key-state" ).textContent.trim() ]' ), [ true, true, '', 'not set' ] );
@@ -1709,7 +1710,7 @@ TEST( 'an API connection\'s Details (plan Tool calls only, Step 2): the kind sho
 
 TEST( 'the Work options (plan LLM Tasks, Step 3): the LLM page shows Git sync and Auto-commit when a task writes files, and a checkbox saves on the project', async function ()
 {
-	let llm = ( await api( 'POST', '/api/llms', { Name: 'worker', Kind: 'claude-cli', Command: process.execPath, Arguments: [ '-e', '' ], Timeout: 60 } ) ).Llm;
+	let llm = ( await api( 'POST', '/api/llms', { Name: 'worker', Kind: 'openai-compatible', Url: 'http://127.0.0.1:9/v1', Model: 'never-run', Timeout: 60 } ) ).Llm;
 	await page.Evaluate( 'window.location.hash = "#/llm/' + llm.Id + '"; true' );
 	await page.WaitFor( count_of( '#llm-git-row input[type=checkbox]' ) + ' === 2' );
 	ASSERT.equal( await page.Evaluate( 'getComputedStyle( document.getElementById( "llm-git-row" ) ).display !== "none"' ), true );
@@ -1729,7 +1730,7 @@ TEST( 'the Work options (plan LLM Tasks, Step 3): the LLM page shows Git sync an
 
 TEST( 'Explain (plan LLM Tasks, Step 4): the project\'s menu opens its Explain tab with the question box, the project\'s connection and Ask; the Explain button on the LLM page opens it too', async function ()
 {
-	let llm = ( await api( 'POST', '/api/llms', { Name: 'explainer', Kind: 'claude-cli', Command: process.execPath, Arguments: [ '-e', '' ], Timeout: 60 } ) ).Llm;
+	let llm = ( await api( 'POST', '/api/llms', { Name: 'explainer', Kind: 'openai-compatible', Url: 'http://127.0.0.1:9/v1', Model: 'never-run', Timeout: 60 } ) ).Llm;
 	await api( 'PUT', '/api/projects/' + home, { Llm: llm.Id } );	// plan LLM Tasks, Step 6: the tab runs the project's connection
 	await menu_pick( '.project[data-project="' + home + '"] .project-head', 'Explain' );
 	await page.WaitFor( 'window.location.hash === "#/x/' + home + '"' );
@@ -1753,24 +1754,17 @@ TEST( 'Explain (plan LLM Tasks, Step 4): the project\'s menu opens its Explain t
 } );
 
 
-// A stand-in for an Enhance run (as test/Api.test.js has it): it reads the package from its standard input, takes the
-// API address, the token, the plan id and the person's instructions from it, and posts a new text as the run.
-const ENHANCE_STAND_IN = [
-	"let t = '';",
-	"process.stdin.on( 'data', function ( c ) { t += c; } );",
-	"process.stdin.on( 'end', async function ()",
-	"{",
-	"\tlet api = /- Consensus API: (\\S+)/.exec( t )[ 1 ];",
-	"\tlet token = /Bearer <token>\": ([0-9a-f]{48})/.exec( t )[ 1 ];",
-	"\tlet plan = /The plan at hand: .* \\((pln-[^)]+)\\)/.exec( t )[ 1 ];",
-	"\tlet asked = /## Your instructions\\n\\n([^\\n]+)/.exec( t )[ 1 ];",
-	"\tlet headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };",
-	"\tlet current = await ( await fetch( api + '/plans/' + plan, { headers: headers } ) ).json();",
-	"\tlet text = '# Buttoned\\n\\n## Enhanced\\n\\nAs asked: ' + asked + '\\n';",
-	"\tlet written = await ( await fetch( api + '/plans/' + plan + '/text', { method: 'PUT', headers: headers, body: JSON.stringify( { Text: text, Revision: current.Plan.Revision } ) } ) ).json();",
-	"\tprocess.stdout.write( 'wrote revision ' + written.Plan.Revision );",
-	"} );",
-].join( '\n' );
+// A stand-in for an Enhance run (as test/Api.test.js has it): it reads the plan's id and the person's instructions from
+// the package and writes a new text through its tools, then answers.
+const ENHANCE_SCRIPT = [
+	function ( body, prompt )
+	{
+		let plan = /The plan at hand: .* \((pln-[^)]+)\)/.exec( prompt )[ 1 ];
+		let asked = /## Your instructions\n\n([^\n]+)/.exec( prompt )[ 1 ];
+		return { calls: [ [ 'write_text', { Id: plan, Text: '# Buttoned\n\n## Enhanced\n\nAs asked: ' + asked + '\n' } ] ] };
+	},
+	{ content: 'Enhanced.' },
+];
 
 
 TEST( 'the task buttons on the plan page (plan LLM Tasks, Step 6): on a plan\'s heading once the server has a connection, disabled until the project chooses its LLM connection in its settings; Enhance asks for the instructions in a popup and runs on that connection', async function ()
@@ -1781,9 +1775,8 @@ TEST( 'the task buttons on the plan page (plan LLM Tasks, Step 6): on a plan\'s 
 	// no connection on the server: no button
 	ASSERT.equal( await page.Evaluate( '[ ...document.querySelectorAll( ".plan-task" ) ].filter( function ( button ) { return button.offsetParent !== null; } ).length' ), 0 );
 	// a connection: the three plan-tasks appear, disabled with the reason
-	let stand_in = PATH.join( FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-ui-' ) ), 'enhance.js' );
-	FS.writeFileSync( stand_in, ENHANCE_STAND_IN );
-	let llm = ( await api( 'POST', '/api/llms', { Name: 'planner', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Timeout: 60 } ) ).Llm;
+	let service = await SERVICE.Start( { Format: 'openai', Script: ENHANCE_SCRIPT } );
+	let llm = ( await api( 'POST', '/api/llms', { Name: 'planner', Kind: 'openai-compatible', Url: service.Url, Model: 'stand-in', Timeout: 60 } ) ).Llm;
 	await page.WaitFor( '[ ...document.querySelectorAll( ".plan-task" ) ].filter( function ( button ) { return button.offsetParent !== null; } ).length === 3' );
 	ASSERT.deepEqual( await page.Evaluate( '[ ...document.querySelectorAll( ".plan-task" ) ].map( function ( button ) { return button.textContent.trim(); } )' ), [ 'Answer', 'Enhance', 'Work' ] );
 	ASSERT.equal( await page.Evaluate( 'document.getElementById( "plan-task-enhance" ).disabled' ), true );
@@ -1811,6 +1804,7 @@ TEST( 'the task buttons on the plan page (plan LLM Tasks, Step 6): on a plan\'s 
 	ASSERT.deepEqual( [ run.Llm.Id, run.Text, ( run.Plan && run.Plan.Id ) || run.Plan ], [ llm.Id, 'Three sections, please.', plan.Id ] );
 	await api( 'PUT', '/api/projects/' + home, { Llm: null } );
 	await api( 'DELETE', '/api/llms/' + llm.Id );
+	await service.Close();
 	ASSERT.deepEqual( page.Errors, [] );
 } );
 

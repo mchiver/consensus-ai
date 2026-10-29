@@ -4,23 +4,26 @@
 // task's record since plan LLM Tasks, Step 1): one text built from the items the task's Package switches on, in a
 // fixed order, each under a heading, then the task's Prompt, the person's instructions when the task has a Box
 // (Step 2), and the connection's Session Prompt at the end. Pure: the pieces are fetched by the caller (Runner.js).
+// Plan Tool calls only, Step 3: every run works through the Server's tools, so the prompt names no API address and
+// no token; the instructions are the tool instructions (Tools.js), and a plan is read with the read_plan tool.
 //
 //   Build( {
 //     Task: { Name, Package: { Instructions, Readme, Documents, Plan, Threads, Files, Project, Box }, Writes, Prompt },
 //     Text?: the person's instructions from the box,
 //     Llm: { Name, Prompts: { Session } },
-//     Server: { Url, Name },  Project: { Id, Name },  Plan: { Id, Title, State } | null,  Folder: path | null,
+//     Server: { Name },  Project: { Id, Name },  Plan: { Id, Title, State } | null,  Folder: path | null,
 //     Owner: { Name, Display, Role? }: the presser (plan User Management, Step 3: the owner, or an account with its
 //            role in the project, Owners | Members | Watchers),  Service: the connection's name (the byline is "<Service> by <Owner Display>"),
-//     Token?: the run's token; null for a run that needs none (ollama), undefined for a preview,
-//     Instructions: text | null,  InstructionsTitle?: 'Agent instructions',  DocumentsHint?: how to read one,
+//     Instructions: text | null (the tool instructions),
 //     Readme: { Id, Title, Text } | null,  Documents: [ { Id, Title } ],
 //     Threads: [ { Id, Status, Anchor, Replies: [ { By, At, Text } ] } ],
 //     Shape?: { Items: [ { Id, Title, Kind, State, Tally: { Contested, Resolved, Applied }, Archived } ], Runs: [ { Task, By, Started, Status, Plan } ] }
-//             the project's shape (Step 4, the Project switch),  ShapeHint?: how to read a plan,
+//             the project's shape (Step 4, the Project switch),
 //   } ) -> text
 
 const TASKS = require( './Tasks.js' );
+
+const READ_HINT = 'Read one with the read_plan tool.';
 
 
 //---------------------------------------------------------------------
@@ -80,7 +83,7 @@ function push_shape( lines, request )
 	let shape = request.Shape;
 	let name = request.Project ? request.Project.Name : 'the project';
 	heading( lines, 'The project' );
-	lines.push( 'Every plan and document of ' + name + ', as a title, id, state and tally. ' + ( request.ShapeHint || 'Read one through the API: GET /api/plans/<id> (its text and threads), /api/plans/<id>/revisions, /api/plans/<id>/report.md.' ) );
+	lines.push( 'Every plan and document of ' + name + ', as a title, id, state and tally. ' + READ_HINT );
 	lines.push( '' );
 	for ( let item of shape.Items || [] )
 	{
@@ -142,18 +145,6 @@ function Build( Request )
 	heading( lines, 'This run' );
 	lines.push( '- Task: ' + task.Name );
 	lines.push( '- Writes: ' + TASKS.WritesLine( task.Writes ) );
-	if ( request.Server && request.Server.Url )
-	{
-		lines.push( '- Consensus API: ' + String( request.Server.Url ).replace( /\/+$/, '' ) + '/api' );
-	}
-	if ( request.Token )
-	{
-		lines.push( '- Your token, sent as "Authorization: Bearer <token>": ' + request.Token );
-	}
-	else if ( request.Token === undefined )
-	{
-		lines.push( '- Your token, sent as "Authorization: Bearer <token>": made by the server when the run starts (this is a preview).' );
-	}
 	if ( request.Project )
 	{
 		lines.push( '- Project: ' + request.Project.Name + ' (' + request.Project.Id + ')' );
@@ -177,7 +168,7 @@ function Build( Request )
 
 	if ( switches.Instructions && request.Instructions )
 	{
-		heading( lines, request.InstructionsTitle || 'Agent instructions' );
+		heading( lines, 'Tool instructions' );
 		push_text( lines, request.Instructions );
 	}
 	if ( switches.Readme && request.Readme )
@@ -188,7 +179,7 @@ function Build( Request )
 	if ( switches.Documents && request.Documents && request.Documents.length )
 	{
 		heading( lines, 'Other documents of the Context folder' );
-		lines.push( request.DocumentsHint || 'Read one through the API: GET /api/plans/<id>.' );
+		lines.push( READ_HINT );
 		lines.push( '' );
 		for ( let document of request.Documents )
 		{

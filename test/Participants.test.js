@@ -29,39 +29,32 @@ TEST( 'default settings hold the owner, "user" shown as "User", and no participa
 } );
 
 
-TEST( 'every request is the owner: no header is the owner plain, the service header names the service, a run token names the run, anything else is nobody', function ()
+TEST( 'every request is the owner: no header is the owner plain, the service header names the service, anything else is nobody; a run is its account with no token', function ()
 {
 	let settings = PARTICIPANTS.DefaultSettings( 3500 );
-	let tokens = PARTICIPANTS.RunTokens();
-	let plain = PARTICIPANTS.Identify( settings, {}, tokens );
+	let plain = PARTICIPANTS.Identify( settings, {} );
 	ASSERT.deepEqual( plain, { Id: null, Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Service: null, Token: null, Writes: null, Plan: null, Speaker: 'user' } );
-	ASSERT.deepEqual( PARTICIPANTS.Identify( settings, { Authorization: '' }, tokens ).Speaker, 'user' );
+	ASSERT.deepEqual( PARTICIPANTS.Identify( settings, { Authorization: '' } ).Speaker, 'user' );
 	ASSERT.deepEqual( PARTICIPANTS.Identify( settings, undefined, null ).Speaker, 'user' );
-	let agent = PARTICIPANTS.Identify( settings, { Service: ' Claude-CLI ' }, tokens );
+	let agent = PARTICIPANTS.Identify( settings, { Service: ' Claude-CLI ' } );
 	ASSERT.deepEqual( agent, { Id: null, Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Service: 'Claude-CLI', Token: null, Writes: null, Plan: null, Speaker: 'Claude-CLI by user' } );
 	// a bad service name is ignored
-	ASSERT.equal( PARTICIPANTS.Identify( settings, { Service: 'not a name' }, tokens ).Service, null );
-	ASSERT.equal( PARTICIPANTS.Identify( settings, { Service: 'x'.repeat( 41 ) }, tokens ).Service, null );
+	ASSERT.equal( PARTICIPANTS.Identify( settings, { Service: 'not a name' } ).Service, null );
+	ASSERT.equal( PARTICIPANTS.Identify( settings, { Service: 'x'.repeat( 41 ) } ).Service, null );
 	ASSERT.equal( PARTICIPANTS.ServiceOf( 'ollama-kimi:cloud' ), 'ollama-kimi:cloud' );
 	ASSERT.equal( PARTICIPANTS.ServiceOf( '' ), null );
-	// a run token: the owner through the connection, the token's name as Token; the header is not read for a run
-	let value = tokens.Mint( { Service: 'claude-cli', Name: 'Review run', Project: 'prj-1' } );
-	ASSERT.match( value, /^[0-9a-f]{48}$/ );
-	let run = PARTICIPANTS.Identify( settings, { Authorization: 'Bearer ' + value, Service: 'other' }, tokens );
-	ASSERT.deepEqual( run, { Id: null, Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Service: 'claude-cli', Token: 'Review run', Writes: null, Plan: null, Speaker: 'claude-cli by user' } );
-	// a run token carrying the presser's account (plan User Management, Step 3) is that account, with its role in the project
-	let pressed = tokens.Mint( { Service: 'claude-cli', Name: 'Explain run', Project: 'prj-1', Writes: 'none', Account: { Id: 'usr-1', Name: 'ann', Display: 'Ann', Role: 'user', Type: 'user', Admin: false }, Role: 'Watchers' } );
-	ASSERT.deepEqual( PARTICIPANTS.Identify( settings, { Authorization: 'Bearer ' + pressed }, tokens ), { Id: 'usr-1', Name: 'ann', Display: 'Ann', Role: 'user', Type: 'user', Admin: false, Service: 'claude-cli', Token: 'Explain run', Writes: 'none', ProjectRole: 'Watchers', Speaker: 'claude-cli by ann' } );
-	tokens.Drop( pressed );
-	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'bearer ' + value }, tokens ).Token, 'Review run' );
-	ASSERT.equal( tokens.Count(), 1 );
-	tokens.Drop( value );
-	ASSERT.equal( tokens.Count(), 0 );
-	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'Bearer ' + value }, tokens ), null );
-	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'Bearer wrong' }, tokens ), null );
+	// a run (plan Tool calls only): the owner through the connection, the run's name as Token, with no token at all
+	let run = PARTICIPANTS.RunAccount( settings, { Service: 'claude', Name: 'Review run', Writes: 'consensus' } );
+	ASSERT.deepEqual( run, { Id: null, Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Service: 'claude', Token: 'Review run', Writes: 'consensus', Plan: null, Speaker: 'claude by user' } );
+	// a run pressed by an account (plan User Management, Step 3) is that account, with its role in the project
+	let pressed = PARTICIPANTS.RunAccount( settings, { Service: 'claude', Name: 'Explain run', Writes: 'none', Account: { Id: 'usr-1', Name: 'ann', Display: 'Ann', Role: 'user', Type: 'user', Admin: false }, Role: 'Watchers' } );
+	ASSERT.deepEqual( pressed, { Id: 'usr-1', Name: 'ann', Display: 'Ann', Role: 'user', Type: 'user', Admin: false, Service: 'claude', Token: 'Explain run', Writes: 'none', ProjectRole: 'Watchers', Speaker: 'claude by ann' } );
+	ASSERT.equal( PARTICIPANTS.RunTokens, undefined );
+	// a Bearer value that is no user token of the registry is nobody
+	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'Bearer wrong' } ), null );
 	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'Bearer wrong' }, null ), null );
-	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'Basic abc' }, tokens ), null );
-	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'Bearer ' }, tokens ), null );
+	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'Basic abc' } ), null );
+	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'Bearer ' } ), null );
 	// the public view: the empty fields left out
 	ASSERT.deepEqual( PARTICIPANTS.Public( plain ), { Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Speaker: 'user' } );
 	ASSERT.deepEqual( PARTICIPANTS.Public( agent ), { Name: 'user', Display: 'User', Role: 'owner', Type: 'owner', Admin: true, Speaker: 'Claude-CLI by user', Service: 'Claude-CLI' } );

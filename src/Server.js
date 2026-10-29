@@ -26,6 +26,9 @@
 // folder's port is hashed into, Sidecar.SIDECAR_APP_RANGE for the app) and AddressFile (false: no ~sidecar.json).
 // Step 3: Guide, the path of the guide the instructions serve, the page and the MCP tool alike
 // (Instructions.SIDECAR_GUIDE_PATH for the app).
+// Plan Tool calls only, Step 3: a connection of a kind the Server does not run (claude-cli) is removed from the
+// settings when they are read, each named on the log; a project that had chosen it has none chosen. No run token is
+// made any more: the runs are the tool loop, their tools performed inside the Server (Runner.Attach, from Api.js).
 
 const PATH = require( 'path' );
 const OS = require( 'os' );
@@ -79,7 +82,12 @@ async function Start( Options )
 		console.log( 'settings prepared: ' + line );
 	}
 	let before = JSON.stringify( settings.Llms || [] );
-	settings.Llms = ( Array.isArray( settings.Llms ) ? settings.Llms : [] ).map( LLMS.Fill );
+	let unknown = LLMS.Unknown( settings.Llms );
+	for ( let llm of unknown )
+	{
+		console.log( 'settings: the LLM connection "' + ( ( llm && llm.Name ) || '?' ) + '" removed: the kind "' + ( ( llm && llm.Kind ) || '?' ) + '" is no longer run' );
+	}
+	settings.Llms = ( Array.isArray( settings.Llms ) ? settings.Llms : [] ).filter( function ( llm ) { return !unknown.includes( llm ); } ).map( LLMS.Fill );
 	if ( ( prepared.length || JSON.stringify( settings.Llms ) !== before ) && !read_only )
 	{
 		await store.WriteSettings( settings );
@@ -159,8 +167,7 @@ async function Start( Options )
 	let events = EVENTS.Hub();
 	events.Attach( app, '/api/events' );
 	let url = null;
-	let tokens = PARTICIPANTS.RunTokens();
-	let runs = RUNS.Runs( { Folder: PATH.join( store.Folder, 'runs' ), Tokens: tokens } );
+	let runs = RUNS.Runs( { Folder: PATH.join( store.Folder, 'runs' ) } );
 	runs.OnChange( function ( summary )
 	{
 		events.Send( { Kind: 'run', Run: summary.Id, Llm: summary.Llm ? summary.Llm.Id : null, Status: summary.Status } );
@@ -175,7 +182,7 @@ async function Start( Options )
 		await gate.Check();
 	}
 	let git = GIT.Git();
-	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Url: function () { return url; }, Tokens: tokens, Users: users, Git: git } );
+	let runner = RUNNER.Runner( { Store: store, Settings: settings, Runs: runs, Users: users, Git: git } );
 	if ( project && typeof options.Activate === 'function' )
 	{
 		// A Desktop's sidecar brings its window to the front for a second launch on its folder (Sidecar.Activate).
@@ -185,7 +192,7 @@ async function Start( Options )
 			response.json( { Ok: true } );
 		} );
 	}
-	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Tokens: tokens, Git: git, Users: users, Clerk: clerk, Gate: gate, People: people, Guide: options.Guide || null, Url: function () { return url; } } );
+	API.Attach( app, { Store: store, Settings: settings, Events: events, Runs: runs, Runner: runner, Git: git, Users: users, Clerk: clerk, Gate: gate, People: people, Guide: options.Guide || null, Url: function () { return url; } } );
 	INSTRUCTIONS.Attach( app, { Settings: settings, Project: project, People: people, Guide: options.Guide || null } );
 	attach_vendor( app );
 	if ( FS.existsSync( PUBLIC_FOLDER ) )
@@ -289,7 +296,6 @@ async function Start( Options )
 		ReadOnly: read_only,
 		HostFile: host_file,
 		Settings: settings,
-		Tokens: tokens,
 		Users: users,
 		Clerk: clerk,
 		Gate: gate,

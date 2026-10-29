@@ -73,9 +73,9 @@ TEST( 'an API connection is filled with its kind\'s Url, named <kind>-<model>, n
 	ASSERT.equal( LLMS.Fill( { Kind: 'openai-compatible', Url: 'https://api.mistral.ai/v1/' } ).Url, 'https://api.mistral.ai/v1' );
 	ASSERT.deepEqual( [ 'claude-cli', 'ollama', 'claude', 'chatgpt', 'gemini', 'grok', 'openai-compatible' ].map( LLMS.IsLoop ), [ false, true, true, true, true, true, true ] );
 	ASSERT.deepEqual( [ 'ollama', 'claude', 'chatgpt', 'gemini', 'grok', 'openai-compatible', 'claude-cli' ].map( LLMS.FormatOf ), [ 'ollama', 'anthropic', 'openai', 'openai', 'openai', 'openai', null ] );
-	// the problems: a Model, and a Url for the compatible kind
+	// the problems: a Url for the compatible kind; a Model is asked of a run, not of a save (Step 3)
 	let settings = { Owner: { Name: 'user', Display: 'User' }, Llms: [ LLMS.Fill( { Name: 'a', Kind: 'chatgpt' } ), LLMS.Fill( { Name: 'b', Kind: 'openai-compatible', Model: 'm' } ) ] };
-	ASSERT.deepEqual( LLMS.Problems( settings ), [ 'LLM connection "a": a Model is needed', 'LLM connection "b": the Url must start with http:// or https://' ] );
+	ASSERT.deepEqual( LLMS.Problems( settings ), [ 'LLM connection "b": the Url must start with http:// or https://' ] );
 	// the Key: never in what an answer carries, KeySet in its place
 	let whole = LLMS.Public( claude, settings, true );
 	ASSERT.equal( whole.Key, undefined );
@@ -192,6 +192,44 @@ TEST( 'the Check of an API connection: the Key tried against the models, the Mod
 } );
 
 
+TEST( 'claude-cli is gone (Step 3): a Server reading one in its settings removes it and logs its name, a new one of that kind is refused, and a connection with no Model is refused a run', async function ()
+{
+	let data = temporary_folder( 'consensus-connections-gone-' );
+	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( { Name: 'test', Port: 0, Scope: 'Local', Owner: { Name: 'user', Display: 'User' }, Llms: [
+		{ Id: 'llm-old-cli-one', Name: 'claude-cli', Kind: 'claude-cli', Command: 'claude', Arguments: [ '-p' ] },
+		{ Id: 'llm-new-api-one', Name: 'unpicked', Kind: 'claude', Key: KEY },
+	] } ) );
+	let logged = [];
+	let log = console.log;
+	console.log = function ( line ) { logged.push( String( line ) ); };
+	let target = null;
+	try
+	{
+		target = await SERVER.Start( { Data: data, Port: 0 } );
+	}
+	finally
+	{
+		console.log = log;
+	}
+	try
+	{
+		ASSERT.ok( logged.includes( 'settings: the LLM connection "claude-cli" removed: the kind "claude-cli" is no longer run' ), logged.join( '\n' ) );
+		let llms = ( await owner( target.Url, 'GET', '/api/llms' ) ).Body.Llms;
+		ASSERT.deepEqual( llms.map( function ( one ) { return one.Id; } ), [ 'llm-new-api-one' ] );
+		ASSERT.deepEqual( JSON.parse( FS.readFileSync( PATH.join( data, 'consensus.json' ), 'utf8' ) ).Llms.map( function ( one ) { return one.Kind; } ), [ 'claude' ] );
+		let project = ( await owner( target.Url, 'GET', '/api/projects' ) ).Body.Projects[ 0 ];
+		let plan = ( await owner( target.Url, 'POST', '/api/plans', { Title: 'P', Text: '# P\n', Project: project.Id } ) ).Body.Plan;
+		let refused = await owner( target.Url, 'POST', '/api/runs', { Llm: 'llm-new-api-one', Task: 'enhance', Project: project.Id, Plan: plan.Id, Text: 'x' } );
+		ASSERT.deepEqual( [ refused.Status, refused.Body.Error ], [ 400, 'the connection "unpicked" has no Model: pick one in its Details' ] );
+		ASSERT.equal( ( await owner( target.Url, 'POST', '/api/llms', { Name: 'again', Kind: 'claude-cli', Command: 'claude' } ) ).Status, 400 );
+	}
+	finally
+	{
+		await target.Close();
+	}
+} );
+
+
 TEST( 'an API connection through the Server: the Key saved and kept but never answered, and a run posts through it with the Key in no record', async function ()
 {
 	let data = temporary_folder( 'consensus-connections-server-' );
@@ -239,7 +277,7 @@ TEST( 'an API connection through the Server: the Key saved and kept but never an
 		ASSERT.match( record.Output, /### Answer\n\nReplied\./ );
 		ASSERT.equal( JSON.stringify( record ).includes( KEY ), false );
 		ASSERT.equal( JSON.stringify( service.Requests ).includes( KEY ), false );
-		ASSERT.equal( target.Tokens.Count(), 0 );
+		ASSERT.equal( target.Tokens, undefined );
 		let thread = ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body.Threads.find( function ( one ) { return one.Id === contested.Id; } );
 		ASSERT.deepEqual( [ thread.Replies[ 1 ].By, thread.Replies[ 1 ].Service, thread.Replies[ 1 ].Text ], [ 'user', 'claude', 'Because a sketch is short.' ] );
 		let runs_folder = PATH.join( data, 'runs' );

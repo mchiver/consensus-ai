@@ -3,29 +3,34 @@
 // Llms - the LLM connections of a server (plan Run Shapes, Step 3): the Llms list of the global config, which the
 // desktop kept before. Each is a connection the server runs one-shots through (Runs.js). A run is the presser's
 // (plan User Management, Step 2): what it posts reads "<connection Name> by <owner>", the byline (SpeakerName is
-// the key, SpeakerDisplay what the page shows), on a token the server makes for the run; the connection has no
-// token of its own any more. The owner sees the whole record, everyone else its public part. What a run is given
+// the key, SpeakerDisplay what the page shows). The Administrator and the Managers see the whole record but its Key,
+// everyone else its public part. What a run is given
 // and asked is the task's (plan LLM Tasks, Step 1: Tasks.js); the connection keeps its Session Prompt and the
 // documents and threads it leaves out.
 //
-//   { "Id": "llm-…", "Name": "claude-cli", "Kind": "claude-cli", "Command": "claude", "Arguments": [ "-p", … ],
-//     "Url": "", "Model": "sonnet", "Timeout": 300, "Context": 32768, "Rounds": 30,
+//   { "Id": "llm-…", "Name": "claude-sonnet-4-5", "Kind": "claude", "Url": "https://api.anthropic.com/v1",
+//     "Model": "claude-sonnet-4-5", "Key": "…", "Timeout": 300, "Context": 32768, "Rounds": 30,
 //     "Unchecked": { "Documents": [ "doc-…" ], "Threads": [ "thr-…" ] },
 //     "Prompts": { "Session": "" } }
-//   Context (the model's window, Ollama's num_ctx) and Rounds (the most tool rounds a run takes) matter to an ollama
-//   connection; Command and Arguments to a claude-cli one.
+//   Rounds (the most tool rounds a run takes) matters to every kind, Context (the model's window, Ollama's num_ctx)
+//   to an ollama connection alone.
 //
 // Plan Tool calls only, Step 2: the API connections, each a hosted model the Server's tool loop (Loop.js) reaches over
 // its API: claude (Anthropic's Messages), chatgpt, gemini and grok (OpenAI's chat completions, Gemini through Google's
 // OpenAI-compatible endpoint), and openai-compatible (any other service that speaks it, at the Url given). Each has
 // a Url (filled in for the named kinds), a Model (required) and a Key. The Key is write-only: Public and Hidden never
-// carry it, only KeySet; a save without a Key keeps the one the connection has. Every kind but claude-cli runs
-// through the tool loop (IsLoop), and FormatOf says which adapter speaks for it.
+// carry it, only KeySet; a save without a Key keeps the one the connection has. Every kind runs through the tool
+// loop (IsLoop), and FormatOf says which adapter speaks for it.
+//
+// Step 3: claude-cli is gone. Fill keeps a Kind it does not know as it is, never turning it into another kind, and
+// Unknown names such connections, which the Server removes when it reads its settings. A new connection with no Kind
+// is a claude one. The Model is asked of a run, not of a save: a connection is saved without one, and a run of it is
+// refused until its Details pick one.
 
 const IDS = require( './Ids.js' );
 const PARTICIPANTS = require( './Participants.js' );
 
-const KINDS = [ 'claude-cli', 'ollama', 'claude', 'chatgpt', 'gemini', 'grok', 'openai-compatible' ];
+const KINDS = [ 'claude', 'chatgpt', 'gemini', 'grok', 'openai-compatible', 'ollama' ];
 // The API kinds: the format of their requests, and the Url a new connection is given.
 const API_KINDS = {
 	'claude': { Format: 'anthropic', Url: 'https://api.anthropic.com/v1' },
@@ -34,8 +39,6 @@ const API_KINDS = {
 	'grok': { Format: 'openai', Url: 'https://api.x.ai/v1' },
 	'openai-compatible': { Format: 'openai', Url: '' },
 };
-const DEFAULT_COMMAND = 'claude';
-const DEFAULT_ARGUMENTS = [ '-p', '--output-format', 'text', '--allowedTools', 'Bash,Read,Edit,Write,Glob,Grep,MultiEdit,WebFetch' ];
 const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
 const DEFAULT_TIMEOUT = 300;
 const DEFAULT_CONTEXT = 32768;
@@ -67,28 +70,32 @@ function lines_of( value, fallback )
 
 
 //---------------------------------------------------------------------
-// DefaultName( Kind, Model ): the name a new connection is offered: claude-cli, or <kind>-<model> (ollama-llama3,
-// claude-sonnet-4-5), or the kind alone without a model.
+// DefaultName( Kind, Model ): the name a new connection is offered: <kind>-<model> (ollama-llama3,
+// claude-claude-sonnet-4-5), or the kind alone without a model.
 
 function DefaultName( Kind, Model )
 {
-	if ( Kind === 'ollama' || API_KINDS[ Kind ] )
-	{
-		let model = text_of( Model ).replace( /[^A-Za-z0-9.:-]+/g, '-' );
-		return model ? Kind + '-' + model : Kind;
-	}
-	return 'claude-cli';
+	let kind = text_of( Kind, KINDS[ 0 ] ).replace( /[^A-Za-z0-9.:-]+/g, '-' ) || KINDS[ 0 ];
+	let model = text_of( Model ).replace( /[^A-Za-z0-9.:-]+/g, '-' );
+	return model ? kind + '-' + model : kind;
 }
 
 
-// IsLoop( Kind ): whether a connection of the kind runs through the Server's tool loop: every kind but claude-cli.
+// Unknown( Llms ): the connections of a kind this Server does not run (claude-cli, since Step 3), which it removes.
+function Unknown( Llms )
+{
+	return ( Array.isArray( Llms ) ? Llms : [] ).filter( function ( llm ) { return !llm || !KINDS.includes( llm.Kind ); } );
+}
+
+
+// IsLoop( Kind ): whether a connection of the kind runs through the Server's tool loop: every kind it knows.
 function IsLoop( Kind )
 {
 	return Kind === 'ollama' || !!API_KINDS[ Kind ];
 }
 
 
-// FormatOf( Kind ): the adapter a loop kind speaks through: ollama, anthropic or openai; null for claude-cli.
+// FormatOf( Kind ): the adapter a loop kind speaks through: ollama, anthropic or openai; null for a kind it does not know.
 function FormatOf( Kind )
 {
 	if ( Kind === 'ollama' )
@@ -115,7 +122,7 @@ function default_url( kind )
 function Fill( Llm )
 {
 	let given = ( Llm && typeof Llm === 'object' ) ? Llm : {};
-	let kind = KINDS.includes( given.Kind ) ? given.Kind : KINDS[ 0 ];
+	let kind = text_of( given.Kind ) || KINDS[ 0 ];
 	let prompts = {};
 	for ( let name of Object.keys( DEFAULT_PROMPTS ) )
 	{
@@ -129,8 +136,6 @@ function Fill( Llm )
 		Id: text_of( given.Id ) || IDS.New( IDS.LLM ),
 		Name: text_of( given.Name ) || DefaultName( kind, given.Model ),
 		Kind: kind,
-		Command: text_of( given.Command ) || DEFAULT_COMMAND,
-		Arguments: Array.isArray( given.Arguments ) ? given.Arguments.map( function ( argument ) { return String( argument ); } ) : DEFAULT_ARGUMENTS.slice(),
 		Url: ( text_of( given.Url ) || default_url( kind ) ).replace( /\/+$/, '' ),
 		Model: text_of( given.Model ),
 		Key: text_of( given.Key ),
@@ -187,17 +192,9 @@ function Problems( Settings )
 		{
 			problems.push( what + ': the Kind is "' + llm.Kind + '", not one of ' + KINDS.join( ', ' ) );
 		}
-		if ( llm.Kind === 'claude-cli' && !llm.Command )
-		{
-			problems.push( what + ': a Command is needed' );
-		}
 		if ( IsLoop( llm.Kind ) && !/^https?:\/\/\S+$/.test( llm.Url || '' ) )
 		{
 			problems.push( what + ': the Url must start with http:// or https://' );
-		}
-		if ( IsLoop( llm.Kind ) && !llm.Model )
-		{
-			problems.push( what + ': a Model is needed' );
 		}
 	}
 	return problems;
@@ -277,8 +274,6 @@ module.exports = {
 	KINDS: KINDS,
 	API_KINDS: API_KINDS,
 	DEFAULT_PROMPTS: DEFAULT_PROMPTS,
-	DEFAULT_COMMAND: DEFAULT_COMMAND,
-	DEFAULT_ARGUMENTS: DEFAULT_ARGUMENTS,
 	DEFAULT_OLLAMA_URL: DEFAULT_OLLAMA_URL,
 	DEFAULT_TIMEOUT: DEFAULT_TIMEOUT,
 	DEFAULT_CONTEXT: DEFAULT_CONTEXT,
@@ -286,6 +281,7 @@ module.exports = {
 	NAME_PATTERN: NAME_PATTERN,
 	DefaultName: DefaultName,
 	IsLoop: IsLoop,
+	Unknown: Unknown,
 	FormatOf: FormatOf,
 	Hidden: Hidden,
 	Given: Given,

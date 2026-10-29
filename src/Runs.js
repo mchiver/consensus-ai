@@ -6,36 +6,35 @@
 // per connection and per plan (plan Multiuser, Step 3): a run asked while its connection or its plan has one on is
 // queued behind it, in press order, its record saying so (Status queued, Queued when, Behind which run), and starts
 // when both are free, packaged again then through Request.Prepare since the plan may have changed; Stop takes a queued
-// run out of the line. A running one is stopped with Stop, and killed when it takes longer than the connection's
-// Timeout. The
-// command runs without a shell, in the project's folder, with the prompt on its standard input; its output (stdout,
-// then stderr) is kept. An ollama connection runs through Ollama.js instead of a child process: the tool loop in
-// this process, with the tools of Tools.js over the project's folder and this server; the Transcript (Ollama.js's
-// entries) is kept whole and the Output is its markdown, both growing with every call, and every listener hears
-// each call; Rounds and Usage are kept; Stop aborts the request in flight. Plan Tool calls only, Step 2: an API
-// connection (claude, chatgpt, gemini, grok, openai-compatible) runs through the same loop (Loop.js) with its kind's
-// adapter (Llm.Adapter); its record's Command reads "<kind> <model> at <url>", and its Key is in no record.
+// run out of the line. A running one is stopped with Stop, and ends failed when it takes longer than the connection's
+// Timeout.
 //
-//   Runs( { Folder, Spawn?, Tokens? } ) -> { Start( Request ), Stop( Id ), List( Filter? ), Read( Id ), Delete( Id ), Running( LlmId ),
-//                                           IsBlocked( { Llm, Plan } ), OnChange( Handler ), Close() }
+// Plan Tool calls only: every run is the tool loop in this process (Loop.js), with its kind's adapter (Llm.Adapter:
+// ollama, claude, chatgpt, gemini, grok, openai-compatible) and the tools of Tools.js over the project's folder and
+// this Server, performed inside it (Step 1); no command is spawned and no token is made (Step 3: claude-cli is gone).
+// The Transcript (the loop's entries) is kept whole and the Output is its markdown, both growing with every call, and
+// every listener hears each call; Rounds and Usage are kept; Stop aborts the request in flight. A record's Command
+// reads "<kind> <model> at <url>"; the connection's Key is in no record.
+//
+//   Runs( { Folder } ) -> { Start( Request ), Stop( Id ), List( Filter? ), Read( Id ), Delete( Id ), Running( LlmId ),
+//                         IsBlocked( { Llm, Plan } ), OnChange( Handler ), Close() }
 //   IsBlocked: the summary of the run a press on that connection or that plan would wait for, or null.
 //   Filter: a connection's id, or { Llm?, Project?, Task?, By? } (plan LLM Tasks, Step 4: a person's Explain runs of a project);
 //   Delete removes a record that is not running (its file), true when there was one; a running one throws.
-//   Tokens: the server's RunTokens (Participants.js); a run's token (Request.Token, minted by the Runner) is dropped when it ends.
-//   Request = { Llm, Task: { Id, Name }, Writes, Text, By, Token: { Value, Name } | null, Project: { Id, Name, Path }, Plan: { Id, Title } | null,
+//   Request = { Llm, Task: { Id, Name }, Writes, Text, By, Name, Project: { Id, Name, Path }, Plan: { Id, Title } | null,
 //               Folder: { Path, Include, Exclude, Commands } | null (the project's folder, the run's working folder),
-//               Prompt, Server?: { Perform, Project } (an ollama run's Consensus tools, performed inside the Server: plan Tool calls only, Step 1), Git?: { Pull } (the pull before the run, Step 3),
+//               Prompt, Server?: { Perform, Project } (the run's Consensus tools), Git?: { Pull } (the pull before the run, Step 3),
 //               Prepare?: async () -> { Prompt, Folder?, Git? } | { Error } (a queued run's package and pull, made when it starts) }
+//             Name the run's name ("Answer run"), which its record and its posts carry as Token.
 //   record  = { Id, Llm: { Id, Name }, Task, Writes, Text, Git, By, Service, Token, Project, Plan, Queued, Behind, Started, Ended, Duration, Status, Exit, Error, Prompt, Output, Rounds, Usage, Transcript }
 //             Queued the time of a press that waited (null for one that ran at once), Behind { Id, Task, Plan } the run it waited for.
-//             By the presser's account, Service the connection's name, Token the run token's name: the three fields of the plan.
+//             By the presser's account, Service the connection's name, Token the run's name: the three fields of the plan.
 //             Task the button's task (plan LLM Tasks, Step 1), Writes its level,
 //             Text the person's instructions from the task's box (Step 2), null without; Git the pull's words (Step 3), null without.
 //   Status  = 'queued' | 'running' | 'done' | 'failed' | 'stopped'
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
-const CHILD_PROCESS = require( 'child_process' );
 const IDS = require( './Ids.js' );
 const LLMS = require( './Llms.js' );
 const LLM = require( './Llm.js' );
@@ -57,9 +56,7 @@ function Runs( Options )
 {
 	let options = Options || {};
 	let folder = options.Folder;
-	let spawn = options.Spawn || CHILD_PROCESS.spawn;
-	let tokens = options.Tokens || null;
-	let running = {};		// Llm id -> { Record, Child, Timer }
+	let running = {};		// Llm id -> { Record, Abort, Timer }
 	let queued = [];		// [ { Request, Record, Starting } ] waiting for their connection or plan, in press order
 	let handlers = [];
 
@@ -107,19 +104,9 @@ function Runs( Options )
 	}
 
 
-	// The run's token leaves the server's memory with the run.
-	function drop_token( request )
-	{
-		if ( tokens && request.Token && request.Token.Value )
-		{
-			tokens.Drop( request.Token.Value );
-		}
-	}
-
-
 	//-----------------------------------------------------------------
 	// Start: the run begins, or waits its turn (plan Multiuser, Step 3); its record is returned at once, with Status
-	// running or queued, and the command runs on.
+	// running or queued, and the loop runs on.
 
 	function Start( Request )
 	{
@@ -127,6 +114,10 @@ function Runs( Options )
 		if ( !llm || !llm.Id )
 		{
 			throw new Error( 'an LLM connection is needed' );
+		}
+		if ( !LLMS.IsLoop( llm.Kind ) )
+		{
+			throw new Error( 'the connection "' + llm.Name + '" is of a kind this Server does not run: ' + llm.Kind );
 		}
 		if ( Request.Folder && !FS.existsSync( Request.Folder.Path ) )
 		{
@@ -148,8 +139,7 @@ function Runs( Options )
 	// The record of a press, running at once or queued behind another run.
 	function make_record( llm, Request, behind )
 	{
-		let is_loop = LLMS.IsLoop( llm.Kind );
-		let line = is_loop ? loop_line( llm ) : LLM.CommandLine( llm );
+		let line = loop_line( llm );
 		let now = new Date().toISOString();
 		return {
 			Id: IDS.New( IDS.RUN ),
@@ -160,7 +150,7 @@ function Runs( Options )
 			Git: Request.Git || null,
 			By: Request.By || null,
 			Service: llm.Name,
-			Token: Request.Token ? Request.Token.Name : null,
+			Token: Request.Name || null,
 			Project: Request.Project ? { Id: Request.Project.Id, Name: Request.Project.Name, Path: Request.Project.Path || null } : null,
 			Plan: Request.Plan ? { Id: Request.Plan.Id, Title: Request.Plan.Title } : null,
 			Command: [ line.Command ].concat( line.Arguments ).join( ' ' ),
@@ -176,101 +166,17 @@ function Runs( Options )
 			Output: '',
 			Rounds: null,
 			Usage: null,
-			Transcript: is_loop ? [] : null,
+			Transcript: [],
 		};
 	}
 
 
-	// The run itself: the command spawned, or the local model's loop; the record says running from here.
+	// The run itself: the loop; the record says running from here.
 	function launch( llm, Request, record )
 	{
-		let is_loop = LLMS.IsLoop( llm.Kind );
-		let line = is_loop ? loop_line( llm ) : LLM.CommandLine( llm );
 		record.Started = record.Started || new Date().toISOString();
 		record.Status = 'running';
-		if ( is_loop )
-		{
-			return start_loop( llm, Request, record );
-		}
-		let child = null;
-		try
-		{
-			child = spawn( line.Command, line.Arguments, { cwd: Request.Folder ? Request.Folder.Path : undefined, windowsHide: true, stdio: [ 'pipe', 'pipe', 'pipe' ] } );
-		}
-		catch ( error )
-		{
-			throw new Error( 'could not start ' + line.Command + ': ' + error.message );
-		}
-		let state = { Record: record, Child: child, Timer: null, Stderr: '', Stopped: false };
-		running[ llm.Id ] = state;
-		write( record );
-		changed( record );
-
-		function take( chunk, which )
-		{
-			if ( which === 'stderr' )
-			{
-				state.Stderr += chunk;
-				return;
-			}
-			if ( record.Output.length < OUTPUT_LIMIT )
-			{
-				record.Output += chunk;
-			}
-		}
-
-		function end( status, exit, error )
-		{
-			if ( record.Status !== 'running' )
-			{
-				return;
-			}
-			clearTimeout( state.Timer );
-			delete running[ llm.Id ];
-			drop_token( Request );
-			if ( state.Stderr.trim() )
-			{
-				record.Output += ( record.Output ? '\n' : '' ) + '--- stderr ---\n' + state.Stderr;
-			}
-			record.Ended = new Date().toISOString();
-			record.Duration = Math.round( ( new Date( record.Ended ) - new Date( record.Started ) ) / 1000 );
-			record.Status = status;
-			record.Exit = ( exit === undefined ) ? null : exit;
-			record.Error = error || null;
-			write( record );
-			changed( record );
-			drain();
-		}
-
-		state.Timer = setTimeout( function ()
-		{
-			state.Stopped = true;
-			child.kill();
-			end( 'failed', null, line.Command + ' took longer than ' + llm.Timeout + ' seconds' );
-		}, ( llm.Timeout || LLMS.DEFAULT_TIMEOUT ) * 1000 );
-		child.stdout.on( 'data', function ( chunk ) { take( String( chunk ), 'stdout' ); } );
-		child.stderr.on( 'data', function ( chunk ) { take( String( chunk ), 'stderr' ); } );
-		child.on( 'error', function ( error )
-		{
-			end( 'failed', null, 'could not run ' + line.Command + ': ' + error.message );
-		} );
-		child.on( 'close', function ( code, signal )
-		{
-			if ( state.Stopped )
-			{
-				end( 'stopped', code, 'stopped' );
-				return;
-			}
-			if ( code === 0 )
-			{
-				end( 'done', 0, null );
-				return;
-			}
-			end( 'failed', code, line.Command + ' exited ' + ( code === null ? 'on signal ' + signal : code ) );
-		} );
-		child.stdin.on( 'error', function () {} );
-		child.stdin.end( record.Prompt, 'utf8' );
-		return summary_of( record );
+		return start_loop( llm, Request, record );
 	}
 
 
@@ -282,7 +188,7 @@ function Runs( Options )
 	{
 		let adapter = LLM.Adapter( llm );
 		let abort = new AbortController();
-		let state = { Record: record, Child: null, Abort: abort, Timer: null, Stopped: false, Timed: false, Progress: null };
+		let state = { Record: record, Abort: abort, Timer: null, Stopped: false, Timed: false, Progress: null };
 		let tools = TOOLS.Tools( { Writes: Request.Writes, Folder: Request.Folder || null, Server: Request.Server || null } );
 		running[ llm.Id ] = state;
 		write( record );
@@ -297,7 +203,6 @@ function Runs( Options )
 			clearTimeout( state.Timer );
 			clearTimeout( state.Progress );
 			delete running[ llm.Id ];
-			drop_token( Request );
 			record.Ended = new Date().toISOString();
 			record.Duration = Math.round( ( new Date( record.Ended ) - new Date( record.Started ) ) / 1000 );
 			record.Status = status;
@@ -474,7 +379,6 @@ function Runs( Options )
 	// A queued run that ends without having run: stopped, or failed to start.
 	function never_started( record, request, status, error )
 	{
-		drop_token( request );
 		record.Ended = new Date().toISOString();
 		record.Duration = 0;
 		record.Status = status;
@@ -508,8 +412,7 @@ function Runs( Options )
 
 
 	//-----------------------------------------------------------------
-	// Stop( Id ): the run is killed (a command) or aborted (a local model), or taken out of the queue; its record says
-	// stopped.
+	// Stop( Id ): the run's request aborted, or the run taken out of the queue; its record says stopped.
 
 	function Stop( Id )
 	{
@@ -526,14 +429,7 @@ function Runs( Options )
 			if ( state.Record.Id === Id )
 			{
 				state.Stopped = true;
-				if ( state.Child )
-				{
-					state.Child.kill();
-				}
-				else
-				{
-					state.Abort.abort();
-				}
+				state.Abort.abort();
 				return true;
 			}
 		}

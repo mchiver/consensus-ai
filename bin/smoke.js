@@ -30,6 +30,7 @@ const CHILD_PROCESS = require( 'child_process' );
 const SERVER = require( '../src/Server.js' );
 const PARTICIPANTS = require( '../src/Participants.js' );
 const CDP = require( '../test/support/Cdp.js' );
+const SERVICE = require( '../test/support/Service.js' );
 
 const ROOT = PATH.join( __dirname, '..' );
 const OUT = PATH.join( ROOT, '~smoke' );
@@ -709,20 +710,17 @@ async function smoke_sidecar()
 
 //---------------------------------------------------------------------
 // The Client app (plan Client Edition, Step 5), over its own DevTools port: two temporary servers, one with a slow
-// stand-in connection, and a temporary config whose client.json names the first. Signed out, the sign-in box alone;
+// connection to a stand-in service (plan Tool calls only, Step 3: test/support/Service.js, a round every 1.2 s, each
+// saying a step and calling a tool), and a temporary config whose client.json names the first. Signed out, the sign-in box alone;
 // then the smoke stands in for a sign-in (a person signs in through Clerk; the servers are Local, so the calls need
 // no token): no configuration on the page, its menus and About, Add server, a task's run followed from the press
 // (the button, the popup, the notice, My runs), and Quit.
 
 const CLIENT_SLOW = [
-	"let t = '';",
-	"process.stdin.on( 'data', function ( c ) { t += c; } );",
-	"process.stdin.on( 'end', async function ()",
-	"{",
-	"\tfor ( let i = 1; i <= 3; i++ ) { process.stdout.write( 'step ' + i + '\\n\\n' ); await new Promise( function ( r ) { setTimeout( r, 1200 ); } ); }",
-	"\tprocess.stdout.write( 'all done' );",
-	"} );",
-].join( '\n' );
+	{ content: 'step 1', calls: [ [ 'list_projects', {} ] ], delay: 1200 },
+	{ content: 'step 2', calls: [ [ 'list_projects', {} ] ], delay: 1200 },
+	{ content: 'all done', delay: 1200 },
+];
 const INJECTOR = 'angular.element( document.body ).injector()';
 const FAKE_EVENT = '{ preventDefault: function () {}, stopPropagation: function () {}, currentTarget: document.body, target: document.body, clientX: 10, clientY: 10 }';
 
@@ -773,6 +771,7 @@ async function smoke_client()
 	let base = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-client-' ) );
 	let servers = [];
 	let child = null;
+	let service = null;
 	try
 	{
 		for ( let name of [ 'first', 'second' ] )
@@ -781,9 +780,8 @@ async function smoke_client()
 			FS.mkdirSync( folder );
 			servers.push( await SERVER.Start( { Project: folder, Config: PATH.join( base, name + '-config' ), Port: 0, AddressFile: false } ) );
 		}
-		let slow = PATH.join( base, 'slow.js' );
-		FS.writeFileSync( slow, CLIENT_SLOW );
-		let llm = ( await local_api( servers[ 0 ], 'POST', '/api/llms', { Name: 'planner', Kind: 'claude-cli', Command: process.execPath, Arguments: [ slow ], Timeout: 60 } ) ).Llm;
+		service = await SERVICE.Start( { Format: 'openai', Script: CLIENT_SLOW } );
+		let llm = ( await local_api( servers[ 0 ], 'POST', '/api/llms', { Name: 'planner', Kind: 'openai-compatible', Url: service.Url, Model: 'stand-in', Timeout: 60 } ) ).Llm;
 		let project = ( await local_api( servers[ 0 ], 'GET', '/api/projects' ) ).Projects[ 0 ];
 		await local_api( servers[ 0 ], 'PUT', '/api/projects/' + project.Id, { Llm: llm.Id } );
 		let plan = ( await local_api( servers[ 0 ], 'POST', '/api/plans', { Title: 'Client plan', Text: '# Client plan\n\nA sketch.\n', Project: project.Id } ) ).Plan;
@@ -858,6 +856,10 @@ async function smoke_client()
 		for ( let server of servers )
 		{
 			await server.Close().catch( function () {} );
+		}
+		if ( service )
+		{
+			await service.Close();
 		}
 		await wait( 1000 );
 		FS.rmSync( base, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );

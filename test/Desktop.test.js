@@ -287,7 +287,7 @@ TEST( 'sidecar mode: the window\'s server reads the Server\'s consensus.json rea
 	let folder = PATH.join( temporary_folder( 'desktop-readonly-project-' ), 'thing' );
 	FS.mkdirSync( folder );
 	let file = PATH.join( config, 'consensus.json' );
-	let written = JSON.stringify( { Port: 3977, Owner: { Name: 'user', Display: 'User' }, Llms: [ { Name: 'first', Kind: 'claude-cli', Command: process.execPath } ], Tasks: [ { Id: 'answer', Name: 'Answer', Prompt: 'Answer what waits on you.' } ] }, null, '\t' );
+	let written = JSON.stringify( { Port: 3977, Owner: { Name: 'user', Display: 'User' }, Llms: [ { Name: 'first', Kind: 'claude', Model: 'claude-test' } ], Tasks: [ { Id: 'answer', Name: 'Answer', Prompt: 'Answer what waits on you.' } ] }, null, '\t' );
 	FS.writeFileSync( file, written );
 	let running = await SERVER.Start( { Config: config, Port: 0, Project: folder, ReadOnly: true } );
 	let service = { 'X-Consensus-Service': 'Test', 'Content-Type': 'application/json' };

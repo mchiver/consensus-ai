@@ -319,5 +319,36 @@
 				"Text": "A correction to the count above: the run of every file but the docs test was 277 tests, 273 passed, 1 failed (the API-reference test, which passed once docs/guide/api.md was re-rendered), 3 skipped. So with the fix it is 274 passing, not 276."
 			}
 		]
+	},
+	{
+		"Id": "thr-7h3-r94-oi6",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "user",
+			"At": "2026-10-29T05:56:53.204Z"
+		},
+		"Applied": {
+			"By": "user",
+			"Service": "Claude-CLI",
+			"Token": "LLM session: Consensus",
+			"At": "2026-10-29T05:57:33.883Z",
+			"Revision": 2,
+			"RevisionId": "rev-q8f-hwt-m9c",
+			"Outcome": "Accepted: Step 3 (claude-cli out) as built: the claude-cli kind, its Command and Arguments and the spawn path removed, claude-cli connections dropped from the settings on load and logged, no run tokens, the Model asked at run time rather than at save, and the tests, docs pictures and smoke moved to the stand-in service. Committed as \"Tool calls only Step 3: claude-cli out\"."
+		},
+		"Created": "2026-10-29T05:01:43.487Z",
+		"Replies": [
+			{
+				"Id": "rep-lat-5tb-8vz",
+				"By": "user",
+				"Service": "Claude-CLI",
+				"Token": "LLM session: Consensus",
+				"At": "2026-10-29T05:01:43.487Z",
+				"Text": "Build log: Tool calls only, Step 3 (claude-cli out).\n\nBuilt by Claude Opus 5.5 (claude-opus-5-5), as Claude-CLI.\n\n**What was built, and where**\n\n- **The kind is gone:**\n  - `src/Llms.js`: the kinds are claude, chatgpt, gemini, grok, openai-compatible and ollama. Command, Arguments and their defaults are gone. A connection given no Kind is a claude one.\n  - `src/Llm.js`: CommandLine and the command's Check are gone. A kind the Server does not run is checked as \"not one this Server runs\".\n  - `src/Runs.js`: the spawn path is gone (the child process, its stdin and stderr, its kill). Every run is the tool loop, and a connection of an unknown kind is refused at the start.\n- **Old connections removed** (as you said on thr-3rq-zob-5so):\n  - `src/Server.js`: when the settings are read, a connection of a kind the Server does not run is taken out, each named on the log (\"settings: the LLM connection \"claude-cli\" removed: the kind \"claude-cli\" is no longer run\"), and the file is written without it. A project that had chosen it is left with no connection, and its buttons say so as before.\n  - Fill no longer turns an unknown Kind into the first kind. It keeps the Kind as given, `LLMS.Unknown` names it, and a save of one is refused by Problems.\n- **No run tokens anywhere:**\n  - `src/Participants.js`: RunTokens is removed, and Identify no longer looks for one (Identify( Settings, Headers, Users )).\n  - `src/Api.js`: no token store, and the old \"this run reads only\" check at the door is gone. That check lives where the runs act now: inside the Server, in perform_as_run.\n  - `src/Runner.js`: no token, no server address needed, and the instructions are always the tool instructions. A run's record and its posts still carry the run's name (\"Answer run\").\n  - `src/Package.js`: the prompt names no API address and no token, and a document or plan is read \"with the read_plan tool\".\n- **The Model:**\n  - I moved the Model requirement from the save to the run. New LLM in the tree makes a connection by its name alone, so a required Model would refuse every new one, and a Server reading a file with a connection missing its Model would not start.\n  - Now the save takes a connection without a Model, Check says \"pick a Model\", and a run is refused with \"the connection \"<name>\" has no Model: pick one in its Details\".\n  - The plan says \"The Model is required\", and it still is before anything runs. Reply if you want it at the save instead; New LLM would then open Details first.\n- **The page** (`public/components/llm-session`): Details has no Command or Arguments rows. Url, Model and Rounds show for every kind, Context for ollama, and the Key for the API kinds.\n- **The stand-ins:**\n  - `test/support/Service.js` now also takes scripted functions of the request and its prompt, an echoing default, and a default delay.\n  - `bin/docs.js`: the demo's connection is a claude one (\"claude-sonnet\") to the stand-in, which answers the review. The run's picture waits for the transcript.\n  - `bin/smoke.js`: the Client's slow connection is an openai-compatible one to the stand-in, saying a step per round.\n- `docs/guide/api.md` (and .html) re-rendered for the changed descriptions (check_llm, create_llm, create_run). The guide's prose and its pictures are Step 4.\n\n**How it was tested**\n\n- **The tests moved off claude-cli:** Api, Runs, Participants, Tools, Ui, GlobalIds, Desktop and ClerkSmoke. The Enhance, Work and Explain stand-ins now act through tool calls (write_text and thread; write and thread; read_plan and a thread it is not offered) instead of curl with a token.\n- **New checks:**\n  - A Server reading a claude-cli connection removes it, logs it and rewrites the file.\n  - A new claude-cli connection is refused.\n  - A run of a connection without a Model is refused.\n  - A Writes none run is refused writes inside the Server.\n  - No package holds an API address or a token.\n  - Server.Start no longer returns Tokens.\n- **The whole suite:**\n  - Every file but the docs test: 278 tests, 274 passed, 3 skipped (the Clerk smoke tests) and 1 failed. That was the API-reference test, which passed after re-rendering docs/guide/api.md.\n  - `test/Docs.test.js` alone: 2 of 2, once the run's picture waited for the transcript.\n- **`node bin/smoke.js`:** SMOKE OK, every part (page, Desktop, Server, Sidecar, Client).\n\nResolve to accept Step 3; reply with anything to change."
+			}
+		]
 	}
 ]

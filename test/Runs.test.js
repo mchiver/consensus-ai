@@ -3,7 +3,7 @@
 // The LLM connections and the runs in the server (plan Run Shapes, Step 3; from Consensus Desktop, Step 3): the
 // connections filled and checked (Llms.js), each a speaker of the server (Participants.js: its runs post as the
 // owner through it, "<connection> by <owner>"), the
-// package (Package.js), the check and the command line (Llm.js), the records of a run (Runs.js) and the files of a
+// package (Package.js), the check (Llm.js), the records of a run (Runs.js, over a stand-in service) and the files of a
 // folder (Files.js). Nothing here needs Electron; the last test starts a server over a read-only store (plan
 // Rearchitecturation, Step 4) and runs a connection through it.
 
@@ -21,6 +21,7 @@ const RUNS = require( '../src/Runs.js' );
 const FILES = require( '../src/Files.js' );
 const STORE = require( '../src/Store.js' );
 const SERVER = require( '../src/Server.js' );		// plan Rearchitecturation, Step 4: a run from a read-only store's server
+const SERVICE = require( './support/Service.js' );	// plan Tool calls only, Step 3: the runs' stand-in service
 
 let folders = [];
 
@@ -47,12 +48,12 @@ TEST.after( function ()
 
 TEST( 'an LLM connection is filled in with an id and the defaults, no token, named by its kind when unnamed, and its problems are named', function ()
 {
-	let claude = LLMS.Fill( { Name: ' claude-cli ', Model: 'sonnet', Timeout: '120', Checks: { Readme: false }, Prompts: { Review: 'old', Session: 'Be brief.' } } );
+	let claude = LLMS.Fill( { Name: ' claude ', Model: 'claude-sonnet-4-5', Timeout: '120', Checks: { Readme: false }, Prompts: { Review: 'old', Session: 'Be brief.' }, Command: 'claude', Arguments: [ '-p' ] } );
 	ASSERT.match( claude.Id, /^llm-[0-9a-z]{3}-[0-9a-z]{3}-[0-9a-z]{3}$/ );
-	ASSERT.equal( claude.Name, 'claude-cli' );
-	ASSERT.equal( claude.Kind, 'claude-cli' );
-	ASSERT.equal( claude.Command, 'claude' );
-	ASSERT.deepEqual( claude.Arguments, LLMS.DEFAULT_ARGUMENTS );
+	ASSERT.equal( claude.Name, 'claude' );
+	ASSERT.equal( claude.Kind, 'claude' );
+	ASSERT.equal( claude.Url, 'https://api.anthropic.com/v1' );
+	ASSERT.deepEqual( [ 'Command' in claude, 'Arguments' in claude ], [ false, false ] );
 	ASSERT.equal( claude.Timeout, 120 );
 	ASSERT.equal( 'Checks' in claude, false );
 	ASSERT.deepEqual( claude.Unchecked, { Documents: [], Threads: [] } );
@@ -70,7 +71,11 @@ TEST( 'an LLM connection is filled in with an id and the defaults, no token, nam
 	ASSERT.equal( 'Token' in local, false );
 	ASSERT.equal( LLMS.Fill( { Name: 'o', Context: '8192', Rounds: 5.5 } ).Context, 8192 );
 	ASSERT.equal( LLMS.Fill( { Name: 'o', Context: -1, Rounds: 'x' } ).Rounds, LLMS.DEFAULT_ROUNDS );
-	ASSERT.equal( LLMS.Fill( {} ).Name, 'claude-cli' );
+	// no kind: a claude one; a kind the Server does not run is kept as it is, never turned into another (plan Tool calls only, Step 3)
+	ASSERT.deepEqual( [ LLMS.Fill( {} ).Name, LLMS.Fill( {} ).Kind ], [ 'claude', 'claude' ] );
+	let old = LLMS.Fill( { Name: 'claude-cli', Kind: 'claude-cli', Command: 'claude' } );
+	ASSERT.deepEqual( [ old.Kind, old.Url ], [ 'claude-cli', '' ] );
+	ASSERT.deepEqual( LLMS.Unknown( [ claude, old, local, null ] ), [ old, null ] );
 	ASSERT.equal( LLMS.DefaultName( 'ollama', 'kimi-k2.6:cloud' ), 'ollama-kimi-k2.6:cloud' );
 	ASSERT.equal( LLMS.DefaultName( 'ollama', 'a model/here' ), 'ollama-a-model-here' );
 
@@ -78,40 +83,41 @@ TEST( 'an LLM connection is filled in with an id and the defaults, no token, nam
 	ASSERT.deepEqual( LLMS.Problems( settings ), [] );
 	ASSERT.equal( LLMS.ById( settings, 'llm-aaa-bbb-ccc' ), local );
 	ASSERT.equal( LLMS.ById( settings, 'nope' ), null );
-	ASSERT.equal( LLMS.SpeakerName( claude, settings ), 'claude-cli by user' );
-	ASSERT.equal( LLMS.SpeakerDisplay( claude, settings ), 'claude-cli by User' );
+	ASSERT.equal( LLMS.SpeakerName( claude, settings ), 'claude by user' );
+	ASSERT.equal( LLMS.SpeakerDisplay( claude, settings ), 'claude by User' );
 	ASSERT.deepEqual( LLMS.Public( local, settings, false ), { Id: 'llm-aaa-bbb-ccc', Name: 'ollama-llama3', Kind: 'ollama', Model: 'llama3', Speaker: 'ollama-llama3 by User' } );
 	ASSERT.equal( 'Token' in LLMS.Public( local, settings, true ), false );
 	ASSERT.equal( LLMS.Public( local, settings, true ).Speaker, 'ollama-llama3 by User' );
 
 	let broken = {
 		Name: 'srv',
-		Llms: [ LLMS.Fill( { Name: 'a' } ), LLMS.Fill( { Name: 'a' } ), LLMS.Fill( { Name: 'o', Kind: 'ollama', Url: 'nowhere', Model: '' } ), LLMS.Fill( { Name: 'bad name' } ), LLMS.Fill( { Name: 'x' } ), { Name: '', Id: 'llm-1', Kind: 'claude-cli', Command: 'c' } ],
+		Llms: [ LLMS.Fill( { Name: 'a' } ), LLMS.Fill( { Name: 'a' } ), LLMS.Fill( { Name: 'o', Kind: 'ollama', Url: 'nowhere', Model: '' } ), LLMS.Fill( { Name: 'bad name' } ), LLMS.Fill( { Name: 'x' } ), { Name: '', Id: 'llm-1', Kind: 'claude', Url: 'https://a' }, old ],
 	};
 	ASSERT.deepEqual( LLMS.Problems( broken ), [
 		'LLM connection "a" is named twice',
 		'LLM connection "o": the Url must start with http:// or https://',
-		'LLM connection "o": a Model is needed',
 		'LLM connection "bad name": the Name is letters, digits, dot, dash and colon',
 		'an LLM connection has no Name',
+		'LLM connection "claude-cli": the Kind is "claude-cli", not one of claude, chatgpt, gemini, grok, openai-compatible, ollama',
 	] );
-	ASSERT.deepEqual( LLMS.Problems( { Llms: 'no' } ), [ 'Llms must be a list' ] );} );
+	ASSERT.deepEqual( LLMS.Problems( { Llms: 'no' } ), [ 'Llms must be a list' ] );
+} );
 
 
-TEST( 'every connection is a speaker of its server: listed after the owner, its runs identified by a run token the server minted', function ()
+TEST( 'every connection is a speaker of its server: listed after the owner, and a run acts as the presser through it, with no token (plan Tool calls only)', function ()
 {
-	let claude = LLMS.Fill( { Name: 'claude-cli' } );
+	let claude = LLMS.Fill( { Name: 'claude' } );
 	let settings = { Name: 'cube4', Owner: { Name: 'user', Display: 'User' }, Llms: [ claude ] };
 	ASSERT.deepEqual( PARTICIPANTS.Speakers( settings ), [
 		{ Name: 'user', Display: 'User', Role: 'owner', Owner: true },
-		{ Name: 'claude-cli by user', Display: 'claude-cli by User', Role: 'llm', Llm: claude.Id },
+		{ Name: 'claude by user', Display: 'claude by User', Role: 'llm', Llm: claude.Id },
 	] );
-	let tokens = PARTICIPANTS.RunTokens();
-	let value = tokens.Mint( { Service: claude.Name, Name: 'Review run', Project: 'prj-1' } );
-	let run = PARTICIPANTS.Identify( settings, { Authorization: 'Bearer ' + value }, tokens );
-	ASSERT.deepEqual( [ run.Name, run.Service, run.Token, run.Speaker ], [ 'user', 'claude-cli', 'Review run', 'claude-cli by user' ] );
-	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'Bearer nothing-like-it-0123456789' }, tokens ), null );
-	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: '' }, tokens ).Speaker, 'user' );
+	let run = PARTICIPANTS.RunAccount( settings, { Service: claude.Name, Name: 'Review run', Writes: 'consensus' } );
+	ASSERT.deepEqual( [ run.Name, run.Service, run.Token, run.Writes, run.Speaker ], [ 'user', 'claude', 'Review run', 'consensus', 'claude by user' ] );
+	let pressed = PARTICIPANTS.RunAccount( settings, { Service: claude.Name, Name: 'Explain run', Writes: 'none', Account: { Id: 'usr-1', Name: 'ann', Display: 'Ann', Role: 'user', Type: 'user', Admin: false }, Role: 'Watchers' } );
+	ASSERT.deepEqual( [ pressed.Name, pressed.ProjectRole, pressed.Speaker ], [ 'ann', 'Watchers', 'claude by ann' ] );
+	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: 'Bearer nothing-like-it-0123456789' } ), null );
+	ASSERT.equal( PARTICIPANTS.Identify( settings, { Authorization: '' } ).Speaker, 'user' );
 	ASSERT.equal( PARTICIPANTS.Speakers( { Name: 'x' } ).length, 1 );
 } );
 
@@ -121,24 +127,23 @@ TEST( 'every connection is a speaker of its server: listed after the owner, its 
 
 TEST( 'the package is one prompt from the items the task switches on, in order, the task\'s prompt, and the connection\'s session prompt last', function ()
 {
-	let llm = LLMS.Fill( { Name: 'claude-cli', Prompts: { Session: 'Answer in English.' } } );
+	let llm = LLMS.Fill( { Name: 'claude', Prompts: { Session: 'Answer in English.' } } );
 	let request = {
 		Task: TASKS.DefaultOf( 'answer' ),
 		Llm: llm,
-		Server: { Url: 'http://cube4:3500/', Name: 'cube4' },
+		Server: { Name: 'cube4' },
 		Project: { Id: 'prj-1', Name: 'Consensus' },
 		Plan: { Id: 'pln-1', Title: 'Step 3', State: 'Plan' },
 		Folder: 'W:/code/repo',
 		Owner: { Name: 'user', Display: 'User' },
-		Service: 'claude-cli',
-		Token: 'the-token-of-claude-cli-0123',
-		Instructions: '# This server\n\n- API: http://cube4:3500/api\n',
+		Service: 'claude',
+		Instructions: 'You have no shell and no network of your own.\n',
 		Readme: { Id: 'ctx-1', Title: 'Readme', Text: '# Consensus\n\nThe background.\n' },
 		Documents: [ { Id: 'doc-1', Title: 'Notes' } ],
 		Threads: [ { Id: 'thr-1', Status: 'contested', Anchor: { Text: 'a passage' }, Replies: [ { By: 'user', At: '2026-10-01T05:00:00.000Z', Text: 'Why?' } ] } ],
 	};
 	let text = PACKAGE.Build( request );
-	let order = [ '# Answer: a one-shot from Consensus', 'You act for User, the owner of the Consensus server below', 'run once by that server "cube4" through its LLM connection "claude-cli": what you post reads "claude-cli by User".', '## This run', '- Task: Answer', '- Writes: consensus. You may change Consensus', '- Consensus API: http://cube4:3500/api', '- Your token, sent as "Authorization: Bearer <token>": the-token-of-claude-cli-0123', '- The plan at hand: Step 3 (pln-1), state Plan', '- The project\'s folder: W:/code/repo', '## Agent instructions', '# This server', '## Readme of Consensus (ctx-1)', 'The background.', '## Other documents of the Context folder', '- Notes (doc-1)', '## Threads of the plan waiting on claude-cli by User', '### Thread thr-1 (contested, on "a passage")', '**user**', 'Why?', '## Your task: Answer', 'Take your turn on the plan at hand', '## Further instructions', 'Answer in English.' ];
+	let order = [ '# Answer: a one-shot from Consensus', 'You act for User, the owner of the Consensus server below', 'run once by that server "cube4" through its LLM connection "claude": what you post reads "claude by User".', '## This run', '- Task: Answer', '- Writes: consensus. You may change Consensus', '- The plan at hand: Step 3 (pln-1), state Plan', '- The project\'s folder: W:/code/repo', '## Tool instructions', 'You have no shell and no network of your own.', '## Readme of Consensus (ctx-1)', 'The background.', '## Other documents of the Context folder', 'Read one with the read_plan tool.', '- Notes (doc-1)', '## Threads of the plan waiting on claude by User', '### Thread thr-1 (contested, on "a passage")', '**user**', 'Why?', '## Your task: Answer', 'Take your turn on the plan at hand', '## Further instructions', 'Answer in English.' ];
 	let at = -1;
 	for ( let piece of order )
 	{
@@ -147,11 +152,13 @@ TEST( 'the package is one prompt from the items the task switches on, in order, 
 		at = found;
 	}
 	ASSERT.equal( text.includes( '## Your task: Work' ), false );
+	// no API address and no token in any package (plan Tool calls only, Step 3)
+	ASSERT.doesNotMatch( text, /Consensus API|Bearer|Your token/ );
 
 	// a task with every switch off carries its own prompt only; Work writes files and packages no threads
 	let bare = TASKS.Fill( { Id: 'bare', Name: 'Bare', Package: { Instructions: false, Readme: false, Documents: false, Plan: false, Threads: false, Files: false }, Writes: 'files', Prompt: 'Do the thing.' } );
 	let built = PACKAGE.Build( Object.assign( {}, request, { Task: bare } ) );
-	ASSERT.equal( built.includes( '## Agent instructions' ), false );
+	ASSERT.equal( built.includes( '## Tool instructions' ), false );
 	ASSERT.equal( built.includes( '## Readme' ), false );
 	ASSERT.equal( built.includes( '## Threads' ), false );
 	ASSERT.equal( built.includes( 'The plan at hand' ), false );
@@ -172,52 +179,43 @@ TEST( 'the package is one prompt from the items the task switches on, in order, 
 	// Explain (Step 4): the project's shape and the last runs under the Project switch, after the threads and before the task
 	let shape = { Items: [ { Id: 'pln-1', Title: 'Step 3', Kind: 'plan', State: 'Plan', Tally: { Contested: 1, Resolved: 0, Applied: 2 }, Archived: false }, { Id: 'doc-1', Title: 'Notes', Kind: 'document', State: null, Tally: null, Archived: true } ], Runs: [ { Task: 'Work', By: 'user', Started: '2026-10-19T10:00:00.000Z', Status: 'done', Plan: 'Step 3' } ] };
 	let explain = PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'explain' ), Text: 'Who resolved Step 3?', Shape: shape } ) );
-	ASSERT.match( explain, /## The project\n\nEvery plan and document of Consensus[^]*\n- Step 3 \(pln-1\): Plan, contested 1, resolved 0, applied 2\n- Notes \(doc-1\): a document, archived\n\n\n## Runs\n\n[^]*\n- Work by user at 2026-10-19T10:00:00.000Z: done, on Step 3\n\n\n## Your task: Explain\n\nAnswer the question[^]*## Your instructions\n\nWho resolved Step 3\?/ );
+	ASSERT.match( explain, /## The project\n\nEvery plan and document of Consensus, as a title, id, state and tally\. Read one with the read_plan tool\.[^]*\n- Step 3 \(pln-1\): Plan, contested 1, resolved 0, applied 2\n- Notes \(doc-1\): a document, archived\n\n\n## Runs\n\n[^]*\n- Work by user at 2026-10-19T10:00:00.000Z: done, on Step 3\n\n\n## Your task: Explain\n\nAnswer the question[^]*## Your instructions\n\nWho resolved Step 3\?/ );
 	ASSERT.match( explain, /- Writes: none\. This run reads only/ );
 	ASSERT.equal( explain.includes( 'The plan at hand' ), false );
 	ASSERT.equal( explain.includes( '## Threads' ), false );
 	ASSERT.equal( PACKAGE.Build( Object.assign( {}, request, { Shape: shape } ) ).includes( '## The project' ), false );
 	ASSERT.match( PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'explain' ), Shape: { Items: [], Runs: [] } } ) ), /## The project\n\n[^\n]*\n\nNone\.\n\n\n## Runs\n\n[^\n]*\n\nNone\./ );
-	// a session: no plan line, no threads, the session prompt as the task; no token for a local model
-	let session = PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'session' ), Plan: null, Folder: null, Token: null } ) );
+	// a session: no plan line, no threads, the session prompt as the task
+	let session = PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.DefaultOf( 'session' ), Plan: null, Folder: null } ) );
 	ASSERT.equal( session.includes( 'No plan is selected' ), false );
 	ASSERT.match( session, /- No folder/ );
-	ASSERT.equal( session.includes( 'Your token' ), false );
 	ASSERT.equal( session.includes( 'Your task: Answer' ), false );
 	ASSERT.match( session, /## Your task\n\nAnswer in English\./ );
 	// an Answer with no plan says so; a none task says it reads only
 	ASSERT.match( PACKAGE.Build( Object.assign( {}, request, { Plan: null } ) ), /- No plan is selected\./ );
 	ASSERT.match( PACKAGE.Build( Object.assign( {}, request, { Task: TASKS.Fill( { Id: 'ro', Name: 'Explain', Writes: 'none' } ) } ) ), /- Writes: none\. This run reads only/ );
-	// a preview (no token yet) says the server makes one when the run starts
-	ASSERT.match( PACKAGE.Build( Object.assign( {}, request, { Token: undefined } ) ), /Your token, sent as "Authorization: Bearer <token>": made by the server when the run starts/ );
 	// a readme holding a fence is fenced with a longer one
 	let fenced = PACKAGE.Build( Object.assign( {}, request, { Llm: LLMS.Fill( { Name: 'x' } ), Readme: { Id: 'ctx-1', Title: 'Readme', Text: 'a\n```\nb\n```\n' } } ) );
 	ASSERT.match( fenced, /````\na\n```\nb\n```\n````/ );
 } );
 
 //---------------------------------------------------------------------
-// The check and the command line
+// The check
 
-TEST( 'the check runs the command with --version, and the command line carries the arguments and the model', async function ()
+TEST( 'the check asks the connection\'s service; a kind the Server does not run is no connection to check', async function ()
 {
-	let llm = LLMS.Fill( { Name: 'node', Command: process.execPath, Model: 'sonnet' } );
-	let checked = await LLM.Check( llm );
-	ASSERT.equal( checked.Ok, true );
-	ASSERT.match( checked.Result, /--version: v\d+/ );
-	let missing = await LLM.Check( LLMS.Fill( { Name: 'nope', Command: PATH.join( OS.tmpdir(), 'no-such-command-here' ) } ) );
-	ASSERT.equal( missing.Ok, false );
-	ASSERT.match( missing.Error, /--version/ );
-	let line = LLM.CommandLine( llm );
-	ASSERT.equal( line.Command, process.execPath );
-	ASSERT.deepEqual( line.Arguments, LLMS.DEFAULT_ARGUMENTS.concat( [ '--model', 'sonnet' ] ) );
 	let ollama = await LLM.Check( LLMS.Fill( { Name: 'o', Kind: 'ollama', Url: 'http://127.0.0.1:1', Model: 'm' } ) );
 	ASSERT.equal( ollama.Ok, false );
 	ASSERT.match( ollama.Error, /does not answer/ );
+	let gone = await LLM.Check( LLMS.Fill( { Name: 'c', Kind: 'claude-cli', Command: process.execPath } ) );
+	ASSERT.deepEqual( [ gone.Ok, gone.Error ], [ false, 'the kind "claude-cli" is not one this Server runs: claude, chatgpt, gemini, grok, openai-compatible, ollama' ] );
+	ASSERT.equal( LLM.Adapter( LLMS.Fill( { Kind: 'claude-cli' } ) ), null );
+	ASSERT.equal( LLM.CommandLine, undefined );
 } );
 
 
 //---------------------------------------------------------------------
-// The runs
+// The runs, over a stand-in service (plan Tool calls only, Step 3: test/support/Service.js)
 
 async function settled( runs, id )
 {
@@ -231,20 +229,49 @@ async function settled( runs, id )
 }
 
 
-TEST( 'a run keeps its record: the prompt on stdin, the output, the exit, the duration, who asked; stopped and timed out runs say so', async function ()
+let services = [];
+
+
+async function service( options )
+{
+	let started = await SERVICE.Start( Object.assign( { Format: 'openai' }, options ) );
+	services.push( started );
+	return started;
+}
+
+
+TEST.after( async function ()
+{
+	for ( let one of services )
+	{
+		await one.Close();
+	}
+} );
+
+
+function served( name, of, more )
+{
+	return LLMS.Fill( Object.assign( { Name: name, Kind: 'openai-compatible', Url: of.Url, Model: 'stand-in', Timeout: 30 }, more || {} ) );
+}
+
+
+TEST( 'a run keeps its record: the prompt, the output, the exit, the duration, who asked; failed, stopped and timed out runs say so', async function ()
 {
 	let folder = temporary_folder( 'consensus-runs-' );
 	let runs = RUNS.Runs( { Folder: PATH.join( folder, 'runs' ) } );
-	let echo = LLMS.Fill( { Name: 'echo', Command: process.execPath, Arguments: [ '-e', "let t='';process.stdin.on('data',function(c){t+=c});process.stdin.on('end',function(){process.stdout.write('got: '+t);process.stderr.write('noted')})" ], Timeout: 30 } );
+	let echoing = await service( { Echo: true, Delay: 200 } );
+	let echo = served( 'echo', echoing );
 	let heard = [];
 	runs.OnChange( function ( summary ) { heard.push( summary.Status ); } );
 	ASSERT.deepEqual( runs.List(), [] );
 	ASSERT.throws( function () { runs.Start( { Llm: echo, Task: { Id: 'answer', Name: 'Answer' }, Writes: 'consensus', Prompt: 'x', Folder: { Path: PATH.join( folder, 'missing' ) } } ); }, /does not exist/ );
+	ASSERT.throws( function () { runs.Start( { Llm: LLMS.Fill( { Name: 'old', Kind: 'claude-cli' } ), Prompt: 'x' } ); }, /of a kind this Server does not run: claude-cli/ );
 
-	let started = runs.Start( { Llm: echo, Task: { Id: 'answer', Name: 'Answer' }, Writes: 'consensus', By: 'user', Project: { Id: 'prj-1', Name: 'Consensus', Path: folder }, Plan: { Id: 'pln-1', Title: 'Step 3' }, Folder: { Path: folder, Include: [], Exclude: [], Commands: [] }, Prompt: 'hello there' } );
-	ASSERT.deepEqual( [ started.Task, started.Writes, 'Kind' in started ], [ { Id: 'answer', Name: 'Answer' }, 'consensus', false ] );
+	let started = runs.Start( { Llm: echo, Task: { Id: 'answer', Name: 'Answer' }, Writes: 'consensus', By: 'user', Name: 'Answer run', Project: { Id: 'prj-1', Name: 'Consensus', Path: folder }, Plan: { Id: 'pln-1', Title: 'Step 3' }, Folder: { Path: folder, Include: [], Exclude: [], Commands: [] }, Prompt: 'hello there' } );
+	ASSERT.deepEqual( [ started.Task, started.Writes, started.Token, 'Kind' in started ], [ { Id: 'answer', Name: 'Answer' }, 'consensus', 'Answer run', false ] );
 	ASSERT.match( started.Id, /^run-/ );
 	ASSERT.equal( started.Status, 'running' );
+	ASSERT.equal( started.Command, 'openai-compatible stand-in at ' + echoing.Url );
 	ASSERT.equal( started.Prompt, undefined );
 	ASSERT.equal( started.By, 'user' );
 	ASSERT.deepEqual( runs.Running( echo.Id ), started );
@@ -253,7 +280,8 @@ TEST( 'a run keeps its record: the prompt on stdin, the output, the exit, the du
 	ASSERT.equal( record.Exit, 0 );
 	ASSERT.equal( record.Error, null );
 	ASSERT.equal( record.Prompt, 'hello there' );
-	ASSERT.equal( record.Output, 'got: hello there\n--- stderr ---\nnoted' );
+	ASSERT.equal( record.Output, '### Answer\n\ngot: hello there\n' );
+	ASSERT.deepEqual( [ record.Rounds, record.Usage ], [ 1, { Prompt: 10, Answer: 5 } ] );
 	ASSERT.equal( typeof record.Duration, 'number' );
 	ASSERT.deepEqual( record.Plan, { Id: 'pln-1', Title: 'Step 3' } );
 	ASSERT.deepEqual( record.Project, { Id: 'prj-1', Name: 'Consensus', Path: folder } );
@@ -268,24 +296,22 @@ TEST( 'a run keeps its record: the prompt on stdin, the output, the exit, the du
 	ASSERT.deepEqual( runs.List( 'llm-other' ), [] );
 	ASSERT.equal( FS.existsSync( PATH.join( folder, 'runs', started.Id + '.json' ) ), true );
 
-	// a failing command
-	let failing = LLMS.Fill( { Name: 'fail', Command: process.execPath, Arguments: [ '-e', 'process.stdout.write("partial");process.exit(3)' ] } );
+	// a refusal from the service
+	let failing = served( 'fail', await service( { Script: [ { status: 500, text: 'the model is down' } ] } ) );
 	let failed = await settled( runs, runs.Start( { Llm: failing, Task: { Id: 'work', Name: 'Work' }, Writes: 'files', Prompt: '' } ).Id );
 	ASSERT.equal( failed.Status, 'failed' );
-	ASSERT.equal( failed.Exit, 3 );
-	ASSERT.match( failed.Error, /exited 3/ );
-	ASSERT.equal( failed.Output, 'partial' );
+	ASSERT.equal( failed.Exit, null );
+	ASSERT.equal( failed.Error, 'The service refused: 500 the model is down' );
 
 	// stopped, and timed out
-	let sleeper = LLMS.Fill( { Name: 'sleep', Command: process.execPath, Arguments: [ '-e', 'setTimeout(function(){},60000)' ], Timeout: 60 } );
-	let sleeping = runs.Start( { Llm: sleeper, Task: { Id: 'session', Name: 'Session' }, Writes: 'files', Prompt: '' } );
+	let sleepy = await service( { Delay: 20000 } );
+	let sleeping = runs.Start( { Llm: served( 'sleep', sleepy, { Timeout: 60 } ), Task: { Id: 'session', Name: 'Session' }, Writes: 'files', Prompt: '' } );
 	ASSERT.equal( runs.Stop( sleeping.Id ), true );
 	ASSERT.equal( runs.Stop( 'run-nothing' ), false );
 	ASSERT.equal( ( await settled( runs, sleeping.Id ) ).Status, 'stopped' );
-	let slow = LLMS.Fill( { Name: 'slow', Command: process.execPath, Arguments: [ '-e', 'setTimeout(function(){},60000)' ], Timeout: 1 } );
-	let timed = await settled( runs, runs.Start( { Llm: slow, Task: { Id: 'session', Name: 'Session' }, Writes: 'files', Prompt: '' } ).Id );
+	let timed = await settled( runs, runs.Start( { Llm: served( 'slow', sleepy, { Timeout: 1 } ), Task: { Id: 'session', Name: 'Session' }, Writes: 'files', Prompt: '' } ).Id );
 	ASSERT.equal( timed.Status, 'failed' );
-	ASSERT.match( timed.Error, /longer than 1 seconds/ );
+	ASSERT.equal( timed.Error, 'The service took longer than 1 seconds' );
 	ASSERT.equal( runs.List().length, 4 );
 	ASSERT.equal( runs.List()[ 0 ].Id, timed.Id );
 	ASSERT.equal( runs.Read( 'run-nothing' ), null );
@@ -297,9 +323,9 @@ TEST( 'one run per connection and per plan at a time (plan Multiuser, Step 3): a
 {
 	let folder = temporary_folder( 'consensus-queue-' );
 	let runs = RUNS.Runs( { Folder: PATH.join( folder, 'runs' ) } );
-	const ECHO = [ '-e', "let t='';process.stdin.on('data',function(c){t+=c});process.stdin.on('end',function(){process.stdout.write('got: '+t)})" ];
-	let echo = LLMS.Fill( { Name: 'echo', Command: process.execPath, Arguments: ECHO } );
-	let other = LLMS.Fill( { Name: 'other', Command: process.execPath, Arguments: ECHO } );
+	let echoing = await service( { Echo: true, Delay: 300 } );
+	let echo = served( 'echo', echoing );
+	let other = served( 'other', echoing );
 	let heard = [];
 	runs.OnChange( function ( summary ) { heard.push( summary.Id + ' ' + summary.Status ); } );
 	let first = runs.Start( { Llm: echo, Task: { Id: 'work', Name: 'Work' }, Writes: 'consensus', Plan: { Id: 'pln-1', Title: 'One' }, Prompt: 'first' } );
@@ -326,9 +352,9 @@ TEST( 'one run per connection and per plan at a time (plan Multiuser, Step 3): a
 	let done_first = await settled( runs, first.Id );
 	let done_second = await settled( runs, second.Id );
 	let done_third = await settled( runs, third.Id );
-	ASSERT.equal( done_first.Output, 'got: first' );
-	ASSERT.deepEqual( [ done_second.Status, done_second.Output, done_second.Behind.Id, prepared ], [ 'done', 'got: fresh', first.Id, 1 ] );
-	ASSERT.deepEqual( [ done_third.Status, done_third.Output ], [ 'done', 'got: third' ] );
+	ASSERT.equal( done_first.Output, '### Answer\n\ngot: first\n' );
+	ASSERT.deepEqual( [ done_second.Status, done_second.Output, done_second.Behind.Id, prepared ], [ 'done', '### Answer\n\ngot: fresh\n', first.Id, 1 ] );
+	ASSERT.deepEqual( [ done_third.Status, done_third.Output ], [ 'done', '### Answer\n\ngot: third\n' ] );
 	ASSERT.equal( done_second.Started >= done_second.Queued, true );
 	ASSERT.deepEqual( heard.slice( 0, 6 ), [ first.Id + ' running', second.Id + ' queued', third.Id + ' queued', fourth.Id + ' queued', fourth.Id + ' stopped', first.Id + ' done' ] );
 	ASSERT.deepEqual( heard.slice( 6 ).sort(), [ second.Id + ' done', second.Id + ' running', third.Id + ' done', third.Id + ' running' ].sort() );

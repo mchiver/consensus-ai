@@ -293,9 +293,7 @@ async function comment( Page, Text )
 TEST( 'a Watcher and a Member (plan User Management, Step 5): as a Watcher the page refuses a comment with the reason and holds the plan\'s task buttons, as a Member it posts under the person\'s name and the buttons are free, and moved out the project is gone', { skip: SKIP, timeout: 480000 }, async function ()
 {
 	let folder = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-clerk-roles-' ) );
-	let stand_in = PATH.join( folder, 'never-run.js' );
-	FS.writeFileSync( stand_in, 'process.exit( 0 );\n' );
-	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( { Port: 0, Scope: 'Public', Clerk: { PublishableKey: PUBLISHABLE }, Llms: [ { Id: SMOKE_LLM_ID, Name: 'planner', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Timeout: 60 } ] } ) );
+	FS.writeFileSync( PATH.join( folder, 'consensus.json' ), JSON.stringify( { Port: 0, Scope: 'Public', Clerk: { PublishableKey: PUBLISHABLE }, Llms: [ { Id: SMOKE_LLM_ID, Name: 'planner', Kind: 'openai-compatible', Url: 'http://127.0.0.1:9/v1', Model: 'never-run', Timeout: 60 } ] } ) );
 	let running = await SERVER.Start( { Config: folder, Port: 0 } );
 	let browser = null;
 	try

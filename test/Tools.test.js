@@ -235,7 +235,7 @@ TEST( 'the Consensus tools: list, read, waiting, reply, apply (the revision supp
 		// the tools perform the operations inside the Server as the run's account, on no token (plan Tool calls only, Step 1)
 		let account = PARTICIPANTS.RunAccount( target.Settings, { Service: 'llm', Name: 'Review run', Writes: 'consensus' }, target.Users );
 		let tools = TOOLS.Tools( { Writes: 'consensus', Folder: null, Server: { Perform: target.Runner.Performer( account ), Project: project.Id } } );
-		ASSERT.equal( target.Tokens.Count(), 0 );
+		ASSERT.equal( target.Tokens, undefined );
 		ASSERT.deepEqual( tools.Definitions.map( function ( d ) { return d.function.name; } ), [ 'list_projects', 'read_plan', 'list_threads', 'list_revisions', 'read_revision', 'waiting', 'thread', 'reply', 'reanchor', 'apply', 'write_text', 'set_state', 'create_plan' ] );
 
 		let listed = await tools.Call( 'list_projects', {} );
@@ -330,7 +330,7 @@ TEST( 'an ollama run through the Server mints no token: its prompt holds none, i
 		let started = await owner( url, 'POST', '/api/runs', { Llm: llm.Id, Task: 'enhance', Project: project.Id, Plan: plan.Id, Text: 'Answer the thread.' } );
 		ASSERT.equal( started.Status, 201 );
 		ASSERT.equal( started.Body.Run.Token, 'Enhance run' );
-		ASSERT.equal( target.Tokens.Count(), 0 );
+		ASSERT.equal( target.Tokens, undefined );
 		let record = null;
 		for ( let attempt = 0; attempt < 200 && ( !record || record.Status === 'running' ); attempt++ )
 		{
@@ -342,7 +342,7 @@ TEST( 'an ollama run through the Server mints no token: its prompt holds none, i
 		ASSERT.doesNotMatch( JSON.stringify( fake.Requests ), /Bearer/ );
 		let thread = ( await owner( url, 'GET', '/api/plans/' + plan.Id ) ).Body.Threads.find( function ( one ) { return one.Id === contested.Id; } );
 		ASSERT.deepEqual( [ thread.Replies[ 1 ].By, thread.Replies[ 1 ].Service, thread.Replies[ 1 ].Token, thread.Replies[ 1 ].Text ], [ 'user', 'local', 'Enhance run', 'Because a sketch is short.' ] );
-		ASSERT.equal( target.Tokens.Count(), 0 );
+		ASSERT.equal( target.Tokens, undefined );
 	}
 	finally
 	{

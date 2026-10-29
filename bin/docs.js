@@ -782,21 +782,22 @@ const PAGE_PICTURES = [
 //---------------------------------------------------------------------
 // The desktop's pictures: the connect screen, the LLM page and a finished run, over the desktop started with its own
 // user-data folder, connected to the seeded server, whose LLM connection (plan Run Shapes, Step 3: the server's, run
-// by it in the project's folder) is a stand-in command.
+// by it in the project's folder) is a claude connection to a stand-in service (plan Tool calls only, Step 3:
+// test/support/Service.js) that answers like a review.
 
 const DOC_LLM_ID = 'llm-doc-cla-ude';
 
-const REVIEW_STAND_IN = 'let input = "";\n'
-	+ 'process.stdin.setEncoding( "utf8" );\n'
-	+ 'process.stdin.on( "data", function ( chunk ) { input += chunk; } );\n'
-	+ 'process.stdin.on( "end", function () {\n'
-	+ '\tconsole.log( "## Review of Shopping list\\n" );\n'
-	+ '\tconsole.log( "I read the plan, its three threads and the project\'s folder (" + input.length + " characters of prompt).\\n" );\n'
-	+ '\tconsole.log( "- **grouped by aisle**: replied with the recipe-section grouping as the default; a store layout is a plan of its own." );\n'
-	+ '\tconsole.log( "- **a swipe removes it**: resolved by the owner; applied as \\"a swipe, confirmed, removes it\\"." );\n'
-	+ '\tconsole.log( "- The applied staples thread needs nothing more.\\n" );\n'
-	+ '\tconsole.log( "Nothing else waits on me. Your turn." );\n'
-	+ '} );\n';
+const REVIEW_ANSWER = [
+	'## Review of Shopping list',
+	'',
+	'I read the plan, its three threads and the project\'s folder.',
+	'',
+	'- **grouped by aisle**: replied with the recipe-section grouping as the default; a store layout is a plan of its own.',
+	'- **a swipe removes it**: resolved by the owner; applied as "a swipe, confirmed, removes it".',
+	'- The applied staples thread needs nothing more.',
+	'',
+	'Nothing else waits on me. Your turn.',
+].join( '\n' );
 
 
 async function wait_for_target( Port, Test, TimeoutMs )
@@ -905,7 +906,7 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 		{
 			await page.Evaluate( 'document.querySelector( ".run-row.done" ).click(); true' );
 		}
-		await page.WaitFor( visible( '.run-popup' ) + ' && document.getElementById( "run-output-rendered" ) && document.getElementById( "run-output-rendered" ).textContent.includes( "Review of" )', 20000 );
+		await page.WaitFor( visible( '.run-popup' ) + ' && document.getElementById( "run-transcript" ) && document.getElementById( "run-transcript" ).textContent.includes( "Review of" )', 20000 );
 		await wait( 600 );
 		for ( let theme of THEMES )
 		{
@@ -995,6 +996,7 @@ async function Screenshots( Options )
 	const SERVER = require( '../src/Server.js' );
 	const PARTICIPANTS = require( '../src/Participants.js' );
 	const CDP = require( '../test/support/Cdp.js' );
+	const SERVICE = require( '../test/support/Service.js' );
 	let folder = ( Options && Options.Folder ) || DOCS_FOLDER;
 	let log = ( Options && Options.Log ) || function () {};
 	let with_desktop = !( Options && Options.Desktop === false );
@@ -1004,10 +1006,10 @@ async function Screenshots( Options )
 	let data = PATH.join( DEMO_ROOT, 'data' );
 	FS.mkdirSync( data, { recursive: true } );
 	let settings = PARTICIPANTS.DefaultSettings( 3500 );
-	// The LLM connection of the seeded server (plan Run Shapes, Step 3): a stand-in command that answers like a review.
-	let stand_in = PATH.join( DEMO_ROOT, 'claude-one-shot.js' );
-	FS.writeFileSync( stand_in, REVIEW_STAND_IN );
-	settings.Llms = [ { Id: DOC_LLM_ID, Name: 'claude-code', Kind: 'claude-cli', Command: process.execPath, Arguments: [ stand_in ], Model: 'opus', Timeout: 120 } ];
+	// The LLM connection of the seeded server (plan Run Shapes, Step 3): a claude connection to a stand-in service that
+	// answers like a review (plan Tool calls only, Step 3).
+	let service = await SERVICE.Start( { Format: 'anthropic', Default: REVIEW_ANSWER } );
+	settings.Llms = [ { Id: DOC_LLM_ID, Name: 'claude-sonnet', Kind: 'claude', Url: service.Url, Model: 'claude-sonnet-4-5', Key: 'demo', Timeout: 120 } ];
 	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( settings, null, '\t' ) );
 	// The settings say 3500, as a real one's would; the server itself takes a free port.
 	let running = await SERVER.Start( { Data: data, Port: 0 } );
@@ -1054,6 +1056,7 @@ async function Screenshots( Options )
 			await browser.Close();
 		}
 		await running.Close();
+		await service.Close();
 		FS.rmSync( DEMO_ROOT, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 } );
 	}
 	return files;

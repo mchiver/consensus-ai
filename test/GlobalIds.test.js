@@ -93,14 +93,13 @@ TEST( 'revisions: each has an Id and the Parent it was made from; the plan\'s He
 TEST( 'an applied thread names its revision by number and by RevisionId', async function ()
 {
 	let running = await SERVER.Start( { Data: temporary_folder( 'consensus-ids-api-' ), Port: 0 } );
-	// a run token the server minted (plan User Management, Step 2): the apply is the owner's through the llm
-	let token = running.Tokens.Mint( { Service: 'llm', Name: 'Review run' } );
+	// the apply is the owner's through the llm, the service header naming it
 	let plan = ( await call( running, 'POST', '/api/plans', { Title: 'Plan', Text: '# Plan\n\nA line to change.\n' } ) ).Body.Plan;
 	ASSERT.equal( IDS.Is( plan.Id, IDS.PLAN ), true );
 	let thread = ( await call( running, 'POST', '/api/plans/' + plan.Id + '/threads', { Text: 'Change it.', Resolve: true } ) ).Body.Thread;
 	ASSERT.equal( IDS.Is( thread.Id, IDS.THREAD ), true );
 	ASSERT.equal( IDS.Is( thread.Replies[ 0 ].Id, IDS.REPLY ), true );
-	let response = await fetch( running.Url + '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/apply', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify( { Text: '# Plan\n\nA line changed.\n', Revision: 1, Outcome: 'changed' } ) } );
+	let response = await fetch( running.Url + '/api/plans/' + plan.Id + '/threads/' + thread.Id + '/apply', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Consensus-Service': 'llm' }, body: JSON.stringify( { Text: '# Plan\n\nA line changed.\n', Revision: 1, Outcome: 'changed' } ) } );
 	let applied = ( await response.json() ).Thread.Applied;
 	let revision = ( await call( running, 'GET', '/api/plans/' + plan.Id + '/revisions' ) ).Body.Revisions[ 1 ];
 	ASSERT.deepEqual( [ applied.Revision, applied.RevisionId ], [ 2, revision.Id ] );

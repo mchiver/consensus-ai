@@ -4,28 +4,26 @@
 // connected server's API, done in the server over its own store: the lists the packaging popup checks, the package
 // (Package.js) from the task's switches (plan LLM Tasks, Step 1: the task the button names, Tasks.js, says what the
 // one-shot is given, what it may write and what it is asked), and the start of a run (Runs.js) in the project's
-// folder, posting as the presser through the connection (plan User Management, Step 2: the run token the server
-// mints, Tokens, names the connection as the Service and carries the task's Writes, so the run's posts read
-// "<connection> by <owner>" and a none run is refused every write). A run reaches this server at its own address
-// (Url), so a run is always on this machine. The Work options (plan LLM Tasks, Step 3): a run of a task with Writes
-// files pulls first when the project's GitSync is on (Git.js), a failed pull refusing the run; the record keeps git's words.
+// folder, posting as the presser through the connection (plan User Management, Step 2: the run's posts read
+// "<connection> by <owner>" and a none run is refused every write). The Work options (plan LLM Tasks, Step 3): a run of
+// a task with Writes files pulls first when the project's GitSync is on (Git.js), a failed pull refusing the run; the
+// record keeps git's words.
 //
-// Plan Tool calls only, Step 1: a tool loop run (ollama, and since Step 2 an API connection) is minted no token. Its Consensus tools are performed inside the Server
-// as the run's account (Participants.RunAccount: the presser through the connection, carrying the task's Writes),
-// through what the API attaches (Attach), so nothing of the run's identity is a secret that could leave the Server.
-// The run's record still names the run ("Answer run") where a token's name was, which ties a build log to its run.
+// Plan Tool calls only: every run is the tool loop (Step 3: claude-cli is gone), minted no token. Its Consensus tools
+// are performed inside the Server as the run's account (Participants.RunAccount: the presser through the connection,
+// carrying the task's Writes and the presser's role), through what the API attaches (Attach), so nothing of the run's
+// identity is a secret that could leave the Server. The run's record and its posts name the run ("Answer run") as
+// their Token, which ties a build log to its run. A connection with no Model is refused a run.
 //
-//   Runner( { Store, Settings, Runs, Url, Tokens, Users?, Git? } ) -> { Lists( Request ), Package( Request, Token? ), Start( Request, By ), Attach( Perform ) }
+//   Runner( { Store, Settings, Runs, Users?, Git? } ) -> { Lists( Request ), Package( Request, By? ), Start( Request, By ), Attach( Perform ), Performer( Account ) }
 //   Attach( Perform ): Perform( Account, Name, Arguments ), the API's check and the operation (Api.js), which a run's tools call.
-//   Url(): this server's address, what a run's tools and prompt reach it at; null when it does not listen.
 //   Lists( { Project, Plan?, Llm? } ) -> { Documents, Threads, Speaker } | { Error }
-//   Package( { Llm, Task, Project, Plan?, Text?, Overrides? }, Token?, By? ) -> { Prompt, Llm, Task, Writes, Text, Project, Plan, Folder, Speaker } | { Error }
+//   Package( { Llm, Task, Project, Plan?, Text?, Overrides? }, By? ) -> { Prompt, Llm, Task, Writes, Text, Project, Plan, Folder, Speaker } | { Error }
 //     By (plan User Management, Step 3): the presser's account, named in the package in place of the owner;
 //     Task: the task's id; Text: the person's instructions, read when the task has a Box (Step 2); a task with the
-//     Project switch (Step 4) packages the project's shape, every plan and document with its state and tally, and the last runs;
-//     Token: the run's token value; none for a preview, whose prompt says a token is made at the start.
+//     Project switch (Step 4) packages the project's shape, every plan and document with its state and tally, and the last runs.
 //   Start( Request, By ) -> { Run } | { Error, Status }
-//     By: the presser's account (Participants.js), or a name; the run token carries the account and its role (Step 3).
+//     By: the presser's account (Participants.js), or a name; the run acts as that account with its role (Step 3).
 
 const FS = require( 'fs' );
 const PACKAGE = require( './Package.js' );
@@ -34,7 +32,6 @@ const TASKS = require( './Tasks.js' );
 const TOOLS = require( './Tools.js' );
 const RULES = require( './Rules.js' );
 const PARTICIPANTS = require( './Participants.js' );
-const INSTRUCTIONS = require( './Instructions.js' );
 const TREE = require( './Tree.js' );
 
 const SHAPE_RUNS = 20;		// the runs the Project switch packages (Step 4)
@@ -45,11 +42,9 @@ function Runner( Options )
 	let store = Options.Store;
 	let settings = Options.Settings;
 	let runs = Options.Runs;
-	let tokens = Options.Tokens || null;
 	let users = Options.Users || null;
 	let git = Options.Git || null;
 	let perform = null;
-	let url_of = Options.Url || function () { return null; };
 
 
 	function documents_of( project )
@@ -207,7 +202,7 @@ function Runner( Options )
 	// Package: the prompt of a run, from the task's switches; Overrides are the popup's unsaved fields of the
 	// connection (its Session Prompt and its unchecked ids).
 
-	async function Package( Request, Token, By )
+	async function Package( Request, By )
 	{
 		let request = Request || {};
 		let owner = PARTICIPANTS.Owner( settings );
@@ -226,10 +221,13 @@ function Runner( Options )
 		{
 			return { Error: request.Task ? 'no task with the id ' + request.Task : 'a Task is needed: one of ' + ( settings.Tasks || [] ).map( function ( one ) { return one.Id; } ).join( ', ' ) };
 		}
-		let url = url_of();
-		if ( !url && !LLMS.IsLoop( llm.Kind ) )
+		if ( !LLMS.IsLoop( llm.Kind ) )
 		{
-			return { Error: 'this server does not listen (Scope None): a run could not reach it' };
+			return { Error: 'the connection "' + llm.Name + '" is of a kind this Server does not run: ' + llm.Kind };
+		}
+		if ( !llm.Model )
+		{
+			return { Error: 'the connection "' + llm.Name + '" has no Model: pick one in its Details' };
 		}
 		let project = await project_of( request.Project );
 		if ( !project )
@@ -246,7 +244,6 @@ function Runner( Options )
 			return { Error: 'a ' + task.Name + ' needs the project\'s folder on this machine' + ( project.Path ? ': ' + project.Path + ' is missing' : '' ) };
 		}
 		let participant = LLMS.SpeakerName( llm, settings );
-		let is_loop = LLMS.IsLoop( llm.Kind );		// the tool loop: ollama or an API connection (plan Tool calls only, Step 2)
 		let readme = null;
 		if ( task.Package.Readme && project.Context )
 		{
@@ -259,14 +256,7 @@ function Runner( Options )
 		let instructions = null;
 		if ( task.Package.Instructions )
 		{
-			if ( is_loop )
-			{
-				instructions = TOOLS.Tools( { Writes: task.Writes, Folder: folder, Server: { Project: project.Id } } ).Instructions();
-			}
-			else
-			{
-				instructions = INSTRUCTIONS.Make( settings, url, await INSTRUCTIONS.Guide(), { Service: llm.Name, Token: Token || null, Writes: task.Writes, By: presser } );
-			}
+			instructions = TOOLS.Tools( { Writes: task.Writes, Folder: folder, Server: { Project: project.Id } } ).Instructions();
 		}
 		let plan = null;
 		let threads = [];
@@ -293,21 +283,17 @@ function Runner( Options )
 			Task: task,
 			Text: text,
 			Llm: llm,
-			Server: { Url: url, Name: settings.Name },
+			Server: { Name: settings.Name },
 			Project: { Id: project.Id, Name: project.Name },
 			Plan: plan,
 			Folder: folder ? folder.Path : null,
 			Owner: presser,
 			Service: llm.Name,
-			Token: is_loop ? null : Token,
 			Instructions: instructions,
-			InstructionsTitle: is_loop ? 'Tool instructions' : 'Agent instructions',
-			DocumentsHint: is_loop ? 'Read one with the read_plan tool.' : undefined,
 			Readme: readme,
 			Documents: documents_of( project ).filter( function ( document ) { return !llm.Unchecked.Documents.includes( document.Id ); } ),
 			Threads: threads,
 			Shape: shape,
-			ShapeHint: is_loop ? 'Read one with the read_plan tool.' : undefined,
 		} );
 		return {
 			Prompt: prompt,
@@ -324,9 +310,8 @@ function Runner( Options )
 
 
 	//-----------------------------------------------------------------
-	// Start: the run's token minted (named after the task, carrying its Writes), the package made with it, the pull
-	// when the task writes files and the project syncs (Step 3), the run begun, By the presser's account name; the
-	// token is dropped if the run cannot start, and by Runs when it ends.
+	// Start: the run's account (named after the task, carrying its Writes), the package, the pull when the task writes
+	// files and the project syncs (Step 3), the run begun, By the presser's account name.
 
 	async function Start( Request, By )
 	{
@@ -334,28 +319,16 @@ function Runner( Options )
 		let by = ( By && typeof By === 'object' ) ? By : { Name: By || null, Role: 'owner' };
 		let llm = LLMS.ById( settings, request.Llm );
 		let task = TASKS.ById( settings, request.Task );
-		let token = null;
+		let name = task ? task.Name + ' run' : 'run';
 		let run_account = null;
 		if ( llm && task )
 		{
-			let name = task.Name + ' run';
 			let account = by.Name ? { Id: by.Id || null, Name: by.Name, Display: by.Display || by.Name, Role: by.Role || 'owner', Type: by.Type || 'owner', Admin: ( by.Admin === undefined ) ? true : !!by.Admin, Manager: !!by.Manager } : null;
-			let fields = { Service: llm.Name, Name: name, Project: request.Project || null, Writes: task.Writes, Account: account, Role: by.ProjectRole || null };
-			if ( LLMS.IsLoop( llm.Kind ) )
-			{
-				// no token: the run's tools act inside the Server as this account; the name stays on the record
-				run_account = PARTICIPANTS.RunAccount( settings, fields, users );
-				token = { Value: null, Name: name };
-			}
-			else if ( tokens )
-			{
-				token = { Value: tokens.Mint( fields ), Name: name };
-			}
+			run_account = PARTICIPANTS.RunAccount( settings, { Service: llm.Name, Name: name, Writes: task.Writes, Account: account, Role: by.ProjectRole || null }, users );
 		}
-		let made = await Package( request, token ? token.Value : null, by );
+		let made = await Package( request, by );
 		if ( made.Error )
 		{
-			drop( token );
 			return { Error: made.Error, Status: 400 };
 		}
 		// A press that must wait for its connection or its plan (plan Multiuser, Step 3) is packaged and pulled again
@@ -367,18 +340,13 @@ function Runner( Options )
 			pulled = await pull_for( request, made );
 			if ( pulled && pulled.Error )
 			{
-				drop( token );
 				return { Error: pulled.Error, Status: 400 };
 			}
 		}
-		let server = null;
-		if ( LLMS.IsLoop( made.Llm.Kind ) )
-		{
-			server = { Perform: Performer( run_account ), Project: made.Project.Id };
-		}
+		let server = { Perform: Performer( run_account ), Project: made.Project.Id };
 		async function prepare()
 		{
-			let again = await Package( request, token ? token.Value : null, by );
+			let again = await Package( request, by );
 			if ( again.Error )
 			{
 				return { Error: again.Error };
@@ -392,12 +360,11 @@ function Runner( Options )
 		}
 		try
 		{
-			let run = runs.Start( { Llm: made.Llm, Task: made.Task, Writes: made.Writes, Text: made.Text, By: by.Name || null, Token: token, Project: made.Project, Plan: made.Plan, Folder: made.Folder, Prompt: made.Prompt, Server: server, Git: pulled, Prepare: prepare } );
+			let run = runs.Start( { Llm: made.Llm, Task: made.Task, Writes: made.Writes, Text: made.Text, By: by.Name || null, Name: name, Project: made.Project, Plan: made.Plan, Folder: made.Folder, Prompt: made.Prompt, Server: server, Git: pulled, Prepare: prepare } );
 			return { Run: run };
 		}
 		catch ( error )
 		{
-			drop( token );
 			return { Error: error.message, Status: /already running/.test( error.message ) ? 409 : 400 };
 		}
 	}
@@ -444,15 +411,6 @@ function Runner( Options )
 			}
 			return await perform( Account, Name, Arguments );
 		};
-	}
-
-
-	function drop( token )
-	{
-		if ( token && token.Value && tokens )
-		{
-			tokens.Drop( token.Value );
-		}
 	}
 
 
