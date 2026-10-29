@@ -1682,29 +1682,39 @@ TEST( 'Printing and Reporting: Report in a plan\'s row menu, the heading\'s butt
 TEST( 'an API connection\'s Details (plan Tool calls only, Step 2): the kind shows a Url, a Model and a Key box; the Key is saved, said to be set, and never shown again', async function ()
 {
 	let llm = ( await api( 'POST', '/api/llms', { Name: 'hosted', Kind: 'ollama', Model: 'm' } ) ).Llm;
-	await page.Evaluate( 'window.location.hash = "#/llm/' + llm.Id + '"; true' );
-	await page.WaitFor( 'document.getElementById( "llm-details" ) !== null && document.getElementById( "llm-details" ).offsetParent !== null' );
-	await page.Click( '#llm-details' );
-	await page.WaitFor( 'document.getElementById( "llm-kind" ) !== null' );
-	const SHOWN = function ( id ) { return '( document.getElementById( "' + id + '" ).closest( ".settings-row" ).offsetParent !== null )'; };
-	ASSERT.deepEqual( await page.Evaluate( '[ ' + SHOWN( 'llm-url' ) + ', ' + SHOWN( 'llm-key' ) + ', ' + count_of( '#llm-command, #llm-arguments' ) + ' ]' ), [ true, false, 0 ] );
-	// another kind: the Url left for the Server to fill, the Key box shown, not set
-	await page.Evaluate( '( function () { let scope = angular.element( document.getElementById( "llm-kind" ) ).scope(); scope.$apply( function () { scope.Details.Form.Kind = "claude"; scope.Details.Form.Model = "claude-test"; scope.KindChanged(); } ); return true; } )()' );
-	ASSERT.deepEqual( await page.Evaluate( '[ ' + SHOWN( 'llm-url' ) + ', ' + SHOWN( 'llm-key' ) + ', document.getElementById( "llm-url" ).value, document.getElementById( "llm-key-state" ).textContent.trim() ]' ), [ true, true, '', 'not set' ] );
-	await page.Click( '#llm-key' );
-	await page.Type( 'sk-ui-test-key-0123' );
-	ASSERT.equal( await page.Evaluate( 'document.getElementById( "llm-key" ).type' ), 'password' );
-	await page.Click( '#llm-save' );
-	await page.WaitFor( 'document.getElementById( "llm-kind" ) === null' );
-	let saved = ( await api( 'GET', '/api/llms' ) ).Llms.find( function ( one ) { return one.Id === llm.Id; } );
-	ASSERT.deepEqual( [ saved.Kind, saved.Url, saved.KeySet, saved.Key ], [ 'claude', 'https://api.anthropic.com/v1', true, undefined ] );
-	// opened again: set, the box empty
-	await page.Click( '#llm-details' );
-	await page.WaitFor( 'document.getElementById( "llm-key-state" ) !== null && document.getElementById( "llm-key-state" ).textContent.trim() === "set"' );
-	ASSERT.equal( await page.Evaluate( 'document.getElementById( "llm-key" ).value' ), '' );
-	await page.Click( '#llm-cancel' );
-	await api( 'DELETE', '/api/llms/' + llm.Id );
-	ASSERT.deepEqual( page.Errors, [] );
+	try
+	{
+		await page.Evaluate( 'window.location.hash = "#/llm/' + llm.Id + '"; true' );
+		await page.WaitFor( 'document.getElementById( "llm-details" ) !== null && document.getElementById( "llm-details" ).offsetParent !== null' );
+		await page.Click( '#llm-details' );
+		await page.WaitFor( 'document.getElementById( "llm-kind" ) !== null' );
+		const SHOWN = function ( id ) { return '( document.getElementById( "' + id + '" ).closest( ".settings-row" ).offsetParent !== null )'; };
+		ASSERT.deepEqual( await page.Evaluate( '[ ' + SHOWN( 'llm-url' ) + ', ' + SHOWN( 'llm-key' ) + ', ' + count_of( '#llm-command, #llm-arguments' ) + ' ]' ), [ true, false, 0 ] );
+		// another kind: the Url left for the Server to fill, the Key box shown, not set
+		await page.Evaluate( '( function () { let scope = angular.element( document.getElementById( "llm-kind" ) ).scope(); scope.$apply( function () { scope.Details.Form.Kind = "claude"; scope.Details.Form.Model = "claude-test"; scope.KindChanged(); } ); return true; } )()' );
+		ASSERT.deepEqual( await page.Evaluate( '[ ' + SHOWN( 'llm-url' ) + ', ' + SHOWN( 'llm-key' ) + ', document.getElementById( "llm-url" ).value, document.getElementById( "llm-key-state" ).textContent.trim() ]' ), [ true, true, '', 'not set' ] );
+		await page.Click( '#llm-key' );
+		await page.Type( 'sk-ui-test-key-0123' );
+		// the whole key is in the box before Save: under the full run's load the last keys can land late (plan Review
+		// 2026-10-29, Step 1)
+		await page.WaitFor( 'document.getElementById( "llm-key" ).value === "sk-ui-test-key-0123"' );
+		ASSERT.equal( await page.Evaluate( 'document.getElementById( "llm-key" ).type' ), 'password' );
+		await page.Click( '#llm-save' );
+		await page.WaitFor( 'document.getElementById( "llm-kind" ) === null' );
+		let saved = ( await api( 'GET', '/api/llms' ) ).Llms.find( function ( one ) { return one.Id === llm.Id; } );
+		ASSERT.deepEqual( [ saved.Kind, saved.Url, saved.KeySet, saved.Key ], [ 'claude', 'https://api.anthropic.com/v1', true, undefined ] );
+		// opened again: set, the box empty
+		await page.Click( '#llm-details' );
+		await page.WaitFor( 'document.getElementById( "llm-key-state" ) !== null && document.getElementById( "llm-key-state" ).textContent.trim() === "set"' );
+		ASSERT.equal( await page.Evaluate( 'document.getElementById( "llm-key" ).value' ), '' );
+		await page.Click( '#llm-cancel' );
+		ASSERT.deepEqual( page.Errors, [] );
+	}
+	finally
+	{
+		// the connection goes whatever happened above, so the next test finds the server with none
+		await api( 'DELETE', '/api/llms/' + llm.Id ).catch( function () {} );
+	}
 } );
 
 

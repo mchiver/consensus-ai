@@ -305,12 +305,13 @@ function attach_handlers()
 		{
 			return Object.assign( tier_now(), { Error: 'the sign-in could not be verified' } );
 		}
-		let before = JSON.stringify( LICENSE.Read( config_folder() ) );
+		let before = LICENSE.Read( config_folder() );
 		LICENSE.Write( config_folder(), record );
 		console.log( 'signed in: ' + LICENSE.Line( record ) );
-		// the same user checked again changes nothing but Checked: the page is not reloaded for it
+		// the same user checked again changes nothing but Checked: the page is not reloaded for it; a first sign-in,
+		// with no record before, is never the same (plan Review 2026-10-29, Step 1)
 		let was_open = running && running.Gate ? running.Gate.Open() : true;
-		let same = before && JSON.parse( before ).Clerk === record.Clerk && JSON.parse( before ).Plan === record.Plan;
+		let same = LICENSE.SameUser( before, record );
 		if ( running && running.Gate )
 		{
 			await running.Gate.Check();

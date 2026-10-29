@@ -336,8 +336,25 @@ function Authority( Record, AdminEmail, Now )
 }
 
 
+//---------------------------------------------------------------------
+// SameUser: whether two records are the same person at the same plan (a sign-in checked again changes nothing but
+// Checked). Null-safe: a first sign-in, with no record before it, is never the same (plan Review 2026-10-29, Step 1).
+
+function SameUser( A, B )
+{
+	let a = Clean( A );
+	let b = Clean( B );
+	if ( !a || !b )
+	{
+		return false;
+	}
+	return a.Clerk === b.Clerk && a.Plan === b.Plan;
+}
+
+
 module.exports = {
 	Authority: Authority,
+	SameUser: SameUser,
 	TIERS: TIERS,
 	TITLES: TITLES,
 	CACHE_DAYS: CACHE_DAYS,

@@ -1,0 +1,436 @@
+[
+	{
+		"Id": "thr-c61-vb6-u79",
+		"Anchor": {
+			"Text": "Web API appears twice, with different values for the Client and an empty Server cell.",
+			"Prefix": "not settle which side is right: ",
+			"Suffix": " Decided 2026-10-29: one row, We"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T09:09:13.881Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T09:17:59.025Z",
+			"Revision": 14,
+			"RevisionId": "rev-nl6-zcy-8qr",
+			"Outcome": "Resolved with no reply. The row proposed changed with the decision on the API and MCP in every edition: the table now has one row, Web API and MCP, Yes for every edition; the duplicate row and the empty row are gone."
+		},
+		"Created": "2026-10-29T07:14:19.622Z",
+		"Replies": [
+			{
+				"Id": "rep-z3e-3h6-z6i",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T07:14:19.622Z",
+				"Text": "The table has two Web API rows: the first says Client Yes, Desktop Yes and leaves the Server empty; the second says Sidecar Yes, Client No, Desktop Yes, Server Yes. Which stands?\n\nRecommendation: keep one row reading Sidecar Yes, Client No, Desktop Yes, Server Yes, which is what the code does (the Client has no server of its own; the other three mount /api), and drop the first row. Resolve with no reply to take it."
+			},
+			{
+				"Id": "rep-vm6-iw4-lyc",
+				"By": "andre@cube12",
+				"At": "2026-10-29T08:37:02.231Z",
+				"Text": "not sure yet. i think other threads may resolve this."
+			},
+			{
+				"Id": "rep-d4g-k80-xfl",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T08:46:40.744Z",
+				"Text": "Agreed; it hangs on the thread about running the API and MCP in every edition, and on the Desktop's cut. Once those are resolved I will propose the one row here with its values, for you to resolve."
+			}
+		]
+	},
+	{
+		"Id": "thr-n8x-wk5-edi",
+		"Anchor": {
+			"Text": "Use Local Folders says No for the Desktop; the Desktop opens a folder on its own sidecar, as Sidecar does.",
+			"Prefix": "lient and an empty Server cell. ",
+			"Suffix": " Decided 2026-10-29: the table i"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T09:15:17.376Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T09:17:58.884Z",
+			"Revision": 11,
+			"RevisionId": "rev-n5w-woh-sr7",
+			"Outcome": "Resolved with no reply: the recommendation went in. The Desktop opens remote projects alone, several at a time; the Client one; the client/ code base becomes the Desktop and the Client is narrowed, as Step 5, The editions cut, now in the Steps."
+		},
+		"Created": "2026-10-29T07:14:19.638Z",
+		"Replies": [
+			{
+				"Id": "rep-1p6-kty-io6",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T07:14:19.638Z",
+				"Text": "Is the Desktop meant to stop opening local folders? Today a folder on its command line, Open folder, New project and the recent list all open a sidecar over the folder, exactly as the Sidecar app does; the chooser also connects to Servers. If the cell is the intent, open_folder_here, the recent list, New project, the folder routing through desktop/Host.js and the sidecar start leave the Desktop, and the Desktop becomes a licensed Client over several Servers.\n\nRecommendation: the Desktop keeps both (local folders and Servers), the cell changes to Yes, and the two single-purpose apps stay the simple ones. Resolve with no reply to take it; reply with the other reading and the removal goes on the work list."
+			},
+			{
+				"Id": "rep-y34-6nn-wk7",
+				"By": "andre@cube12",
+				"At": "2026-10-29T08:41:36.456Z",
+				"Text": "correct. the cut i made is this:\n- sidecar: opens a local folder\n- client: opens a single remote project\n- desktop: opens multiple remote projects\n- server: opens local folders and remotes them"
+			},
+			{
+				"Id": "rep-cjs-m5n-qgq",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T08:46:40.761Z",
+				"Text": "Understood. The cut I will apply to the table and the findings:\n\n- Sidecar: a local folder, one project, no Server.\n- Client: one remote project on one Server.\n- Desktop: several remote projects at a time, from one or more Servers; never a local folder.\n- Server: local folders, served to the others.\n\nFor the Desktop that means: Use Local Folders No, Connects to Server Yes, Projects Multiple; and in the code, open_folder_here, New project, the recent folders, the folder routing (desktop/Host.js), START.Run and the sidecar start leave the Desktop, whose chooser lists Servers and their projects alone. For the Client: Projects Single.\n\nOne follow-up, because the code today is the other way round: the present Client already shows every project of every added Server (the Desktop of your cut), while the present Desktop's Connect to Server opens one Server project in a window (the Client of your cut). Recommendation: swap rather than rewrite: the client/ code base becomes the Desktop (its Servers list, its one sign-in, whole trees), and the Client is narrowed to one Server and one project, with the chooser of today's Desktop over the shared Servers store. This becomes a Step of its own, \"The editions cut\", after the scaffold. Resolve with no reply to take it; reply if you would rather grow the present Desktop into the multi-project one and shrink the present Client."
+			}
+		]
+	},
+	{
+		"Id": "thr-q5p-19t-ej6",
+		"Anchor": {
+			"Text": "Minimum License says Personal for the Desktop; the code opens a folder with no sign-in and asks Registered only to connect to a Server.",
+			"Prefix": "erver and one project (Step 5). ",
+			"Suffix": " Decided 2026-10-29: the table s"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T09:16:05.032Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T09:17:58.942Z",
+			"Revision": 12,
+			"RevisionId": "rev-lvr-0ag-mci",
+			"Outcome": "Resolved with no reply: the wording went in. Desktop Personal, Client Registered, the check in the app on the current user; the check is part of Step 5."
+		},
+		"Created": "2026-10-29T07:14:19.654Z",
+		"Replies": [
+			{
+				"Id": "rep-92u-v7g-ut6",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T07:14:19.654Z",
+				"Text": "Should the Desktop refuse to run below Personal? The code has no such gate: a folder opens with nobody signed in (the sidecar tier), and Connect to Server asks Registered. A Personal minimum would mean a sign-in before the chooser does anything.\n\nRecommendation: the table follows the code: None for a folder, Registered to connect to a Server; a paid minimum for the Desktop is a Monetization decision, not this review's. Resolve with no reply to take it."
+			},
+			{
+				"Id": "rep-cnp-n2c-wdj",
+				"By": "andre@cube12",
+				"At": "2026-10-29T08:43:47.576Z",
+				"Text": "correct. desktop opens only remote projects, never local ones. The difference between client and desktop is that desktop can open multiple projects at a time, even from different servers."
+			},
+			{
+				"Id": "rep-lqx-0gx-onh",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T08:46:40.777Z",
+				"Text": "Understood: the table stands. The Desktop is the paid multi-project client at Personal, the Client is Registered. The wording I will apply: Minimum License, Desktop Personal, Client Registered; and in the code the Desktop checks Personal on the machine's current user before it opens or connects to anything, as it checks Registered today, since a Server cannot tell which application is calling. Resolve to apply it; the check itself goes into the editions cut Step."
+			}
+		]
+	},
+	{
+		"Id": "thr-0zh-1w1-wzp",
+		"Anchor": {
+			"Text": "Web MCP says No for the Server; every server mounts POST /api/mcp, the Server included.",
+			"Prefix": "pplication is calling (Step 5). ",
+			"Suffix": " Decided 2026-10-29: Yes, settle"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T09:16:16.367Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T09:17:58.978Z",
+			"Revision": 13,
+			"RevisionId": "rev-7jr-gz4-5ug",
+			"Outcome": "Resolved with no reply: settled by the thread on the API and MCP in every edition. The Server's MCP cell is Yes."
+		},
+		"Created": "2026-10-29T07:14:19.671Z",
+		"Replies": [
+			{
+				"Id": "rep-qbz-cz8-0ue",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T07:14:19.671Z",
+				"Text": "Should the Server stop serving MCP? Api.js mounts POST /api/mcp on every server, and bin/mcp.js reaches a Server with --server and a token, which the served instructions describe.\n\nRecommendation: the cell changes to Yes; an agent against a Server over MCP is a use the guide already documents. Resolve with no reply to take it."
+			},
+			{
+				"Id": "rep-9ye-xm9-jsx",
+				"By": "andre@cube12",
+				"At": "2026-10-29T08:44:15.655Z",
+				"Text": "this may be decided by another thread"
+			},
+			{
+				"Id": "rep-bvf-w30-rlp",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T08:46:40.791Z",
+				"Text": "Agreed; it hangs on the thread about running the API and MCP in every edition. If that one is taken, the Server's cell is Yes and this thread is settled by it."
+			}
+		]
+	},
+	{
+		"Id": "thr-hpl-68p-4bk",
+		"Anchor": {
+			"Text": "The Server app on electron/Windows.js",
+			"Prefix": "atus and Projects.HostProjects. ",
+			"Suffix": ": Options, Attach, AttachChrome,"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T07:46:58.538Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T08:46:40.535Z",
+			"Revision": 4,
+			"RevisionId": "rev-buq-uul-gfq",
+			"Outcome": "Resolved with no reply: the recommendation went in. The Server window moves onto electron/Windows.js; its tray, single instance and gate stay."
+		},
+		"Created": "2026-10-29T07:14:19.690Z",
+		"Replies": [
+			{
+				"Id": "rep-c6n-qu6-rpe",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T07:14:19.690Z",
+				"Text": "Move the Server window onto electron/Windows.js, as the other three apps are: the frameless window with the window buttons over the page's title bar, the chrome message, the close question for a dirty document (on the tray's Quit too), the report window's Print to PDF and View in Browser? Its tray, its single instance and its gate stay as they are.\n\nRecommendation: yes; it removes the last window built by hand and gives the Server the same look as the others. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-owo-4z5-lg3",
+		"Anchor": {
+			"Text": "An app hands it its title, its settings object, its boot fields and its extra handlers.",
+			"Prefix": "erve_page on a remembered port. ",
+			"Suffix": " Decided 2026-10-29: yes, electr"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T07:45:23.569Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T08:46:40.570Z",
+			"Revision": 5,
+			"RevisionId": "rev-xt2-v4a-spt",
+			"Outcome": "Resolved with no reply: the recommendation went in. electron/App.js and a base electron/Settings.js, with one Remember and one theme list."
+		},
+		"Created": "2026-10-29T07:14:19.712Z",
+		"Replies": [
+			{
+				"Id": "rep-cvl-43t-ez8",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T07:14:19.712Z",
+				"Text": "Make electron/App.js and a base electron/Settings.js as proposed, so desktop, sidecar and client main.js keep only what differs (their arguments, their boot fields, their own handlers), and the three Settings modules keep only their fields and Default? The theme lists would be defined once (and theme.js read from or match that one list).\n\nRecommendation: yes, with Remember taking the Desktop's behaviour (a deep copy, the key capped) for all three. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-o70-b5h-nbt",
+		"Anchor": {
+			"Text": "Nine call sites become one.",
+			"Prefix": " Store's rename retry included. ",
+			"Suffix": " Decided 2026-10-29: yes, src/At"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T07:45:50.098Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T08:46:40.610Z",
+			"Revision": 6,
+			"RevisionId": "rev-nl5-6nr-ntc",
+			"Outcome": "Resolved with no reply: the recommendation went in. One atomic write helper, src/Atomic.js, for the nine writes."
+		},
+		"Created": "2026-10-29T07:14:19.754Z",
+		"Replies": [
+			{
+				"Id": "rep-kxk-2sb-y68",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T07:14:19.754Z",
+				"Text": "One atomic write helper for the nine temporary-file writes (Host, License, Runs, Sidecar, Store, Users and the three Settings), the temporary name carrying the pid everywhere and Store's rename retry kept for all?\n\nRecommendation: yes, as src/Atomic.js with WriteJson and WriteText, since src/Files.js is the corpus walker and not a file writer. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-3mx-3dm-nge",
+		"Anchor": {
+			"Text": "Two Sidecar windows on one folder are two writers of one store.",
+			"Prefix": " Desktop, or a second attempt). ",
+			"Suffix": " Sidecar starts its server with "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T07:34:27.823Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T08:46:40.651Z",
+			"Revision": 7,
+			"RevisionId": "rev-q7d-vqr-0gv",
+			"Outcome": "The owner's reply is the outcome: no action on this at this time. Noted on the finding; nothing goes on the work list."
+		},
+		"Created": "2026-10-29T07:14:19.771Z",
+		"Replies": [
+			{
+				"Id": "rep-y4c-yge-2et",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T07:14:19.771Z",
+				"Text": "Should Sidecar write the address file and answer Activate as the Desktop does, so a second launch on a folder that is open brings that window to the front instead of starting a second server over the same .consensus? Start.Run already has the check; Sidecar turns it off with AddressFile false.\n\nRecommendation: yes: Sidecar writes ~sidecar.json while the folder is open (the agent session gains the address too, as the guide for the Desktop describes), passes Activate, and a second launch on the same folder exits after bringing the first to the front. Resolve with no reply to take it."
+			},
+			{
+				"Id": "rep-zuz-z0f-jjt",
+				"By": "andre@cube12",
+				"At": "2026-10-29T07:34:27.822Z",
+				"Text": "take no action on this at this time"
+			}
+		]
+	},
+	{
+		"Id": "thr-03l-ibj-hqi",
+		"Anchor": {
+			"Text": "Desktop's Hosts, chooser Servers section, connect_host_here; Client's Servers",
+			"Prefix": "h nulls) Connecting to a Server ",
+			"Suffix": " 2 implementations The two guide"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T07:38:29.748Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T08:46:40.689Z",
+			"Revision": 8,
+			"RevisionId": "rev-6ts-eg0-grx",
+			"Outcome": "Resolved with no reply: the recommendation went in. One Servers store and one probe shared by the Desktop and the Client; whether the Desktop connects at all is the thread on Use Local Folders, answered there."
+		},
+		"Created": "2026-10-29T07:14:19.787Z",
+		"Replies": [
+			{
+				"Id": "rep-d9y-qzm-0x2",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T07:14:19.787Z",
+				"Text": "The Desktop and the Client each implement connecting to a Server: the Desktop with Hosts in desktop.json, the chooser's Servers section, try_server and connect_host_here; the Client with Servers in client.json, the Servers popup and its own try_server. Keep both, or make one the component the other uses?\n\nRecommendation: one Servers store and one probe (src/Probe.js) shared by both, with the Desktop keeping its chooser and the Client its popup over the same functions; whether the Desktop keeps connecting at all is the thread on Use Local Folders. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-804-4bx-ua4",
+		"Anchor": {
+			"Text": "Proposed components, each a plain module with one job, following the Sidecar and Client pattern of handing in what differs:",
+			"Prefix": "ost.js wraps src/Host.js naming ",
+			"Suffix": " electron/App.js: the arguments "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T07:44:16.637Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T08:46:40.729Z",
+			"Revision": 9,
+			"RevisionId": "rev-zv3-i0f-dmo",
+			"Outcome": "Resolved with no reply: the recommendation went in. A Steps section lists the four Steps; the editions cut, still open in its threads, will add to it."
+		},
+		"Created": "2026-10-29T07:14:19.802Z",
+		"Replies": [
+			{
+				"Id": "rep-fb9-rvz-bxu",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T07:14:19.802Z",
+				"Text": "How does this review become work? The findings fall into four pieces: the correctness fixes (the Server window's first sign-in, the Client's dead menu item, the Desktop-only check in Windows.js, the versions, the flaky test's cleanup), the shared Electron scaffold (App.js, the base Settings, Atomic.js, CurrentUser.js, Probe.js), the Server window onto Windows.js, and the dead code taken out.\n\nRecommendation: four Steps under this plan, in that order, each designed on its subplan before its build and committed on its own, the correctness fixes first since they stand on their own. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-l21-ivg-di9",
+		"Anchor": {
+			"Text": "The table at the top does not match the code in four places, and the review cannot settle which side is right:",
+			"Prefix": "ctions.Make. The editions table ",
+			"Suffix": " Web API appears twice, with dif"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T09:09:04.710Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T09:17:58.849Z",
+			"Revision": 10,
+			"RevisionId": "rev-sxk-116-2nm",
+			"Outcome": "Resolved with no reply: the recommendation went in. Every edition serves API, MCP and instructions on localhost; the Client and the Desktop through the forwarder with an MCP translator, no local Store. Part of the editions cut Step."
+		},
+		"Created": "2026-10-29T08:20:45.187Z",
+		"Replies": [
+			{
+				"Id": "rep-p45-8ie-6g8",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T08:20:45.187Z",
+				"Text": "Which editions run the API and MCP, and whether the UI depends on them (asked in the session, 2026-10-29):\n\nThe UI is driven by the REST API alone. The page in public/ has no other data path: every list, plan, thread, run and setting is a fetch to /api, and the live updates come over the /api/events stream. In the three apps on the shared page server (Desktop, Sidecar, Client) those calls go through the forwarder at /servers/<key>/api on the app's own loopback origin, which relays them to the server the root names. The Electron bridge carries only app-level things: theme and scale, the remembered view state, the folder picker, Print to PDF, the license token and the close question.\n\nMCP is POST /api/mcp, attached inside Api.Attach, so it is on wherever the API is, with no switch to leave it out. The page never calls it; it is for agents and bin/mcp.js.\n\nWho starts a server:\n- Sidecar: always, over the folder, on 127.0.0.1 in the 52000 range. API and MCP on; the page uses that API through the forwarder.\n- Desktop: only while a folder is open: the sidecar over that folder in the 3600 range, with the address file. API and MCP on. Connected to a Server, or on a routed folder, it starts nothing and the page uses the Server's API. On the chooser it serves no API.\n- Client: never. No API or MCP of its own; the page talks to the added Servers' APIs through the forwarder, the Clerk token on each call.\n- Server: always, and it refuses Scope None. Its window loads the page from the server's own address with no forwarder. API and MCP on, behind the gate and the sign-in.\n\nRecommendation for the table: one row, \"Web API and MCP\", reading Sidecar Yes, Client No, Desktop Yes while a folder is open, Server Yes; the two cannot be separated today, so a row that says MCP No for the Server would need a switch in Api.Attach first. Resolve with no reply to take it."
+			},
+			{
+				"Id": "rep-09a-rmw-qfv",
+				"By": "andre@cube12",
+				"At": "2026-10-29T08:36:24.552Z",
+				"Text": "would it simplify things if we always ran the API/MCP service for each edition. This would allow each edition to support sidecar functionality. we could have the UI always connect to localhost and, in Client and Desktop, can proxy the upstream connection."
+			},
+			{
+				"Id": "rep-kgq-gqm-uln",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T08:46:40.807Z",
+				"Text": "Yes, it would simplify things, and most of it is already there. Where things stand: in the Desktop, Sidecar and Client the page already talks to localhost: the page server on 127.0.0.1 (electron/Page.js) forwards /servers/<key>/api and /servers/<key>/instructions to the upstream, headers and streams included. What is missing for an agent beside a Client or a Desktop is three things on that local address: a plain /api (not under /servers/<key>), an /instructions page naming the window's project, and /api/mcp.\n\nWhat it does not need: a full src/Server.js with a Store in the Client and the Desktop. A proxy edition is the forwarder plus one small adapter: Operations already gives every operation its Method and Path (Operations.Route), so a local MCP endpoint can turn each tools/call into the upstream REST call with the person's session token, and the local /api is the forwarder pointed at the window's one upstream. The identity question has one answer: the local address acts for the signed-in person (the token the window holds goes on every forwarded call), which is the sidecar model, \"<service> by <person>\". With several projects open (the Desktop), the instructions name the current one and the MCP shim takes --project as it does against a Server.\n\nWhat it buys: one shape in every edition (localhost API, MCP and instructions), one guide, and the table's Web API and Web MCP cells all Yes. What it costs: the local-only forwarder gaining /api, /instructions and /api/mcp (about one module, electron/Proxy.js), and the Desktop needing a notion of the current project for the instructions.\n\nRecommendation: yes: every edition serves API, MCP and instructions on its localhost address; the Sidecar and the Server as they do now, the Client and the Desktop through the forwarder with the MCP translator, no local Store. It becomes part of the editions cut Step. Resolve with no reply to take it."
+			}
+		]
+	}
+]

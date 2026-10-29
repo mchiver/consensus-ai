@@ -13,9 +13,11 @@
 //   WebPreferences( Preload )                 the page's: the preload, isolated, no Node
 //   Options( { Width, Height, Title, Icon, Theme, DarkThemes, Preload } )   a window's options
 //   IsReportUrl( PageUrl, Url )               a report page on the app's own origin
-//   Attach( Window, { PageUrl, Icon, Preload, Options( Width, Height ), OnClosed? } )
-//                                             the main window's detached tabs, report windows and close
-//   AskToClose( Target, Destroy )             the page asked, then Destroy when it agrees (or does not answer)
+//   Attach( Window, { PageUrl, Icon, Preload, Options( Width, Height ), AsksPage( Url )?, OnClosed? } )
+//                                             the main window's detached tabs, report windows and close; AsksPage says
+//                                             which pages are asked before closing (every one when not given)
+//   AskToClose( Target, Destroy, AsksPage? )  the page asked, then Destroy when it agrees (or does not answer)
+//   MenuTemplate( { NewWindow?, OpenFolderWindow?, Reload? } )   the menu's template, an item left out with its action
 //   AttachChrome()                            the 'chrome' message: the window buttons follow the page's palette
 //   PrintToPdf( Sender, Name, Folder )        the save dialog in Folder, then the page as a PDF: { Path } | { Cancelled } | { Error }
 //   ViewInBrowser( Url, Roots )               the report at its root's own address, in the system browser: { Url } | { Error }
@@ -104,10 +106,12 @@ function IsReportUrl( PageUrl, Url )
 
 // The main window: a tab's Detach opens "?detached=1#/p/<id>" on the page's origin, which becomes a window of the app;
 // a report opens in a plain framed window; any other address goes to the system browser. The window and each detached
-// one ask their page before they close.
+// one ask their page before they close; Fields.AsksPage( url ), when given, says whether the page at that address is
+// one to ask (the Desktop's chooser is not; plan Review 2026-10-29, Step 1), else every page is asked.
 function Attach( Window, Fields )
 {
 	let fields = Fields || {};
+	let asks_page = ( typeof fields.AsksPage === 'function' ) ? fields.AsksPage : null;
 	let closing = false;
 	Window.setMenuBarVisibility( false );
 	Window.webContents.on( 'preload-error', function ( event, path, error )
@@ -139,7 +143,7 @@ function Attach( Window, Fields )
 		child.on( 'close', function ( event )
 		{
 			event.preventDefault();
-			AskToClose( child, function () { child.destroy(); } );
+			AskToClose( child, function () { child.destroy(); }, asks_page );
 		} );
 	} );
 	Window.on( 'close', function ( event )
@@ -153,7 +157,7 @@ function Attach( Window, Fields )
 		{
 			closing = true;
 			Window.destroy();
-		} );
+		}, asks_page );
 	} );
 	Window.on( 'closed', function ()
 	{
@@ -166,13 +170,13 @@ function Attach( Window, Fields )
 
 
 // The page is asked before its window closes: close-requested goes to it, and it answers close-decided once its
-// prompt about the unsaved edits is settled, or at once when nothing is dirty or Confirm on close is off; a page with
-// no prompt (Desktop's chooser) is not asked; no answer within CLOSE_ANSWER_WAIT and the window closes anyway.
-// Destroy closes it without another close event.
-function AskToClose( Target, Destroy )
+// prompt about the unsaved edits is settled, or at once when nothing is dirty or Confirm on close is off; a page the
+// app says not to ask (AsksPage( url ) false: the Desktop's chooser) is not asked; no answer within CLOSE_ANSWER_WAIT
+// and the window closes anyway. Destroy closes it without another close event.
+function AskToClose( Target, Destroy, AsksPage )
 {
 	let contents = Target.webContents;
-	if ( Target.isDestroyed() || contents.isDestroyed() || contents.getURL().indexOf( 'connect.html' ) >= 0 )
+	if ( Target.isDestroyed() || contents.isDestroyed() || ( typeof AsksPage === 'function' && !AsksPage( contents.getURL() ) ) )
 	{
 		Destroy();
 		return;
@@ -323,21 +327,40 @@ async function pick_folder( owner, current_folder )
 
 // The menu: Project (New window, Open folder in new window, Reload), View, Quit. Not shown (the window has no menu bar;
 // the page's application menu has the app's items), but set, since its accelerators are what keep Ctrl+R, Ctrl+N,
-// Ctrl+Shift+O, the DevTools, the zoom and F11 working.
-function BuildMenu( Actions )
+// Ctrl+Shift+O, the DevTools, the zoom and F11 working. An item whose action is not given is left out, with its
+// accelerator (the Client has no folder to open; plan Review 2026-10-29, Step 1): MenuTemplate is the template alone,
+// for the tests.
+function MenuTemplate( Actions )
 {
 	let actions = Actions || {};
-	let template = [
+	let project = [
+		{ Label: 'New window', Accelerator: 'CmdOrCtrl+N', Action: actions.NewWindow },
+		{ Label: 'Open folder in new window…', Accelerator: 'CmdOrCtrl+Shift+O', Action: actions.OpenFolderWindow },
+		{ Separator: true },
+		{ Label: 'Reload', Accelerator: 'CmdOrCtrl+R', Action: actions.Reload },
+		{ Separator: true },
+		{ Role: 'quit' },
+	];
+	let items = [];
+	for ( let entry of project )
+	{
+		if ( entry.Separator )
+		{
+			items.push( { type: 'separator' } );
+		}
+		else if ( entry.Role )
+		{
+			items.push( { role: entry.Role } );
+		}
+		else if ( typeof entry.Action === 'function' )
+		{
+			items.push( { label: entry.Label, accelerator: entry.Accelerator, click: entry.Action } );
+		}
+	}
+	return [
 		{
 			label: 'Project',
-			submenu: [
-				{ label: 'New window', accelerator: 'CmdOrCtrl+N', click: function () { actions.NewWindow(); } },
-				{ label: 'Open folder in new window…', accelerator: 'CmdOrCtrl+Shift+O', click: function () { actions.OpenFolderWindow(); } },
-				{ type: 'separator' },
-				{ label: 'Reload', accelerator: 'CmdOrCtrl+R', click: function () { actions.Reload(); } },
-				{ type: 'separator' },
-				{ role: 'quit' },
-			],
+			submenu: items,
 		},
 		{
 			label: 'View',
@@ -351,7 +374,12 @@ function BuildMenu( Actions )
 			],
 		},
 	];
-	ELECTRON.Menu.setApplicationMenu( ELECTRON.Menu.buildFromTemplate( template ) );
+}
+
+
+function BuildMenu( Actions )
+{
+	ELECTRON.Menu.setApplicationMenu( ELECTRON.Menu.buildFromTemplate( MenuTemplate( Actions ) ) );
 }
 
 
@@ -368,6 +396,7 @@ module.exports = {
 	PrintToPdf: PrintToPdf,
 	ViewInBrowser: ViewInBrowser,
 	PickFolder: PickFolder,
+	MenuTemplate: MenuTemplate,
 	BuildMenu: BuildMenu,
 	CLOSE_ANSWER_WAIT: CLOSE_ANSWER_WAIT,
 };

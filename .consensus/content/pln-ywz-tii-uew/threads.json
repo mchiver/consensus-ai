@@ -1,0 +1,31 @@
+[
+	{
+		"Id": "thr-uk7-7e0-tmz",
+		"Anchor": null,
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-29T19:01:21.501Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-29T19:04:13.106Z",
+			"Revision": 1,
+			"RevisionId": "rev-gmb-onh-un5",
+			"Outcome": "Accepted by the owner on 2026-10-29. Committed as \"Review 2026-10-29 Step 1: The correctness fixes\"; the Step is Finished and the Readme names it."
+		},
+		"Created": "2026-10-29T10:06:01.818Z",
+		"Replies": [
+			{
+				"Id": "rep-kqe-oih-3ca",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T10:06:01.818Z",
+				"Text": "Build log: Step 1, The correctness fixes. Built by Claude Fable 5.1 (Claude-CLI) on 2026-10-29. Nothing is committed.\n\nWhat was built, by item:\n\n1. The Server window's first sign-in. src/License.js gains SameUser( A, B ): the same person at the same plan, null-safe, so a first sign-in with no user.json is never \"the same\". server/main.js's set-license handler reads the record before the write and asks SameUser instead of stringifying and parsing it; the first sign-in now writes the user, checks the gate again and reloads the page.\n2. The Client's dead menu item. electron/Windows.js: MenuTemplate( Actions ) builds the template and leaves out any item whose action is not given, with its accelerator; BuildMenu sets the menu from it. client/main.js no longer passes an empty OpenFolderWindow, so the Client's menu has no Open folder item and Ctrl+Shift+O does nothing there. The Desktop and the Sidecar are unchanged.\n3. The Desktop-only check in the shared module. Windows.Attach takes AsksPage( url ), handed on to AskToClose for the main window and its detached ones; without it every page is asked. desktop/main.js gives one that says no for connect.html; the connect.html test is gone from Windows.js.\n4. The versions. desktop/package.json is 0.5.1. New test/Manifests.test.js asserts the four application manifests carry the root's version.\n5. The flaky Details test. test/Ui.test.js: the connection test waits for the whole key to be in the box before Save, and deletes its connection in a finally, so a failure no longer leaves a connection for the next test.\n6. The Readme's Purpose line. The sentence \"Security is relaxed for now…\" is replaced with the present rule: a request with no token is the owner on a project's own server and in the Sidecar; a Server refuses it whatever its Scope, and a Clerk session or a minted token is its account (Readme revision 109).\n\nFiles: src/License.js, server/main.js, electron/Windows.js, client/main.js, desktop/main.js, desktop/package.json, test/License.test.js (SameUser), test/Desktop.test.js (MenuTemplate), test/Ui.test.js, test/Manifests.test.js (new); the Readme through the API.\n\nHow it was checked:\n\n- License, Manifests and Desktop tests: 15 of 15 pass (the two new tests among them).\n- The whole suite: 308 tests, 302 pass, 3 skipped (the Clerk keys), 3 failed under the full run's load: the docs screenshot script waiting for a run row, the editor's flash mark, a roles folder count. None is in code this Step touched. Run alone, the screenshot test and the roles test pass; test/Ui.test.js run alone on its own passes all 48, the editor test and the two formerly flaky ones included. The two tests that failed before this Step (the Details test and the task buttons it took down) pass in the full run now.\n\nDecided during the build: SameUser lives in src/License.js so it is a unit test, since server/main.js needs Electron; MenuTemplate is exported beside BuildMenu for the same reason (electron/Windows.js loads in plain node, the electron module resolving to its path).\n\nResolve to accept: I apply this thread, commit as \"Review 2026-10-29 Step 1: The correctness fixes\", set the Step Finished and bring the Readme up to date. Reply to send it back."
+			}
+		]
+	}
+]

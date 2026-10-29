@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-29T01:55:05.126Z",
-	"Version": 107,
+	"Updated": "2026-10-29T09:59:42.218Z",
+	"Version": 119,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -88,7 +88,29 @@
 				},
 				{
 					"Kind": "plan",
-					"Id": "pln-qj8-oqb-70k"
+					"Id": "pln-rw5-vko-1n7",
+					"Items": [
+						{
+							"Kind": "plan",
+							"Id": "pln-ywz-tii-uew"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-uo2-zlu-f0j"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-2f3-e8j-m56"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-hxq-zo3-dgj"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-m5d-sfr-lbu"
+						}
+					]
 				}
 			]
 		},
@@ -386,6 +408,10 @@
 				{
 					"Kind": "plan",
 					"Id": "pln-t24-bp7-mlp"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-qj8-oqb-70k"
 				}
 			]
 		}
@@ -412,6 +438,6 @@
 	"View": {
 		"ThreadsWidth": 494,
 		"Highlight": "open",
-		"SidebarWidth": 395
+		"SidebarWidth": 439
 	}
 }

@@ -12,6 +12,7 @@ const OS = require( 'os' );
 const PATH = require( 'path' );
 const SETTINGS = require( '../desktop/Settings.js' );
 const PAGE = require( '../electron/Page.js' );
+const WINDOWS = require( '../electron/Windows.js' );
 const PROJECTS = require( '../desktop/Projects.js' );
 const SERVER = require( '../src/Server.js' );
 const HOST = require( '../desktop/Host.js' );
@@ -397,4 +398,24 @@ TEST( 'the Server from the Desktop: Status finds a running Server by its file an
 	ASSERT.equal( await HOST.Routed( config, folder ), null, 'the Server gone, the folder opens as a sidecar' );
 	ASSERT.equal( HOST.Start, undefined, 'the Desktop starts no Server' );
 	ASSERT.equal( HOST.Stop, undefined, 'nor stops one' );
+} );
+
+
+//---------------------------------------------------------------------
+// The shared window parts without Electron (electron/Windows.js; plan Review 2026-10-29, Step 1)
+
+TEST( 'the hidden menu: an item whose action is not given is left out with its accelerator (the Client has no folder to open); the Desktop and the Sidecar keep all three', function ()
+{
+	function labels( template )
+	{
+		return template[ 0 ].submenu.filter( function ( item ) { return item.label; } ).map( function ( item ) { return item.label + ' ' + item.accelerator; } );
+	}
+	let noop = function () {};
+	let all = WINDOWS.MenuTemplate( { NewWindow: noop, OpenFolderWindow: noop, Reload: noop } );
+	ASSERT.deepEqual( labels( all ), [ 'New window CmdOrCtrl+N', 'Open folder in new window… CmdOrCtrl+Shift+O', 'Reload CmdOrCtrl+R' ] );
+	let client = WINDOWS.MenuTemplate( { NewWindow: noop, Reload: noop } );
+	ASSERT.deepEqual( labels( client ), [ 'New window CmdOrCtrl+N', 'Reload CmdOrCtrl+R' ] );
+	ASSERT.equal( client[ 0 ].submenu.some( function ( item ) { return item.accelerator === 'CmdOrCtrl+Shift+O'; } ), false, 'the accelerator goes with the item' );
+	ASSERT.deepEqual( all[ 0 ].submenu.filter( function ( item ) { return item.role; } ), [ { role: 'quit' } ] );
+	ASSERT.equal( all[ 1 ].label, 'View' );
 } );

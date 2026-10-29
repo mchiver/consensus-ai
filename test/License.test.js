@@ -171,3 +171,22 @@ TEST( 'Authority: with no Administrator yet a Personal or Professional user star
 	ASSERT.equal( LICENSE.Authority( ann, 'ann@example.com', now + 15 * DAY ).Reason, 'the Server runs under its Administrator: sign in as ann@example.com' );
 	ASSERT.deepEqual( [ LICENSE.Authority( bo, 'bo@example.com', now ).Public, LICENSE.Authority( bo, 'bo@example.com', now ).Tier ], [ true, 'professional' ] );
 } );
+
+
+//---------------------------------------------------------------------
+// The same user (plan Review 2026-10-29, Step 1)
+
+TEST( 'SameUser: the same person at the same plan, whatever the check time; another person, another plan, or no record before (a first sign-in) is not the same', function ()
+{
+	let checked = '2026-10-26T10:00:00.000Z';
+	let later = '2026-10-27T10:00:00.000Z';
+	let ann = { Email: 'ann@example.com', Clerk: 'user_1', Display: 'Ann', Plan: 'personal', Until: null, Checked: checked };
+	ASSERT.equal( LICENSE.SameUser( ann, Object.assign( {}, ann, { Checked: later } ) ), true );
+	ASSERT.equal( LICENSE.SameUser( ann, Object.assign( {}, ann, { Plan: 'professional' } ) ), false );
+	ASSERT.equal( LICENSE.SameUser( ann, Object.assign( {}, ann, { Clerk: 'user_2' } ) ), false );
+	// the Server window's first sign-in: no user.json before it
+	ASSERT.equal( LICENSE.SameUser( null, ann ), false );
+	ASSERT.equal( LICENSE.SameUser( ann, null ), false );
+	ASSERT.equal( LICENSE.SameUser( undefined, undefined ), false );
+	ASSERT.equal( LICENSE.SameUser( { Email: 'x' }, ann ), false );
+} );

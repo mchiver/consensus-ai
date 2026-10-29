@@ -465,6 +465,8 @@ function create_window()
 		Icon: ICON,
 		Preload: PRELOAD,
 		Options: window_options,
+		// the chooser has no draft to ask about (plan Review 2026-10-29, Step 1)
+		AsksPage: function ( url ) { return String( url || '' ).indexOf( 'connect.html' ) < 0; },
 		OnClosed: function () { window = null; },
 	} );
 }

@@ -310,12 +310,12 @@ function open_window()
 }
 
 
-// The menu (not shown; its accelerators are): New window opens another window here; there is no folder to open.
+// The menu (not shown; its accelerators are): New window opens another window here; there is no folder to open, so
+// no OpenFolderWindow is given and the item and its accelerator are left out (plan Review 2026-10-29, Step 1).
 function build_menu()
 {
 	WINDOWS.BuildMenu( {
 		NewWindow: function () { open_window(); },
-		OpenFolderWindow: function () {},
 		Reload: function ()
 		{
 			let focused = ELECTRON.BrowserWindow.getFocusedWindow();
