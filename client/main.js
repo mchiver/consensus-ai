@@ -13,7 +13,10 @@
 // the machine's current user (electron/CurrentUser.js), shared with the Server application on the same machine:
 // Registered is the minimum, which any sign-in is. No local folder, no server of its own, no address file and no
 // port: the desktop code's folder opening, New project, the recent folders, the routing to this machine's Server
-// (desktop/ServerStatus.js) and the start module are gone. Plan UI Components, Step 5: the window has no frame of its
+// (desktop/ServerStatus.js) and the start module are gone. The window's own address serves an agent beside it (plan
+// Review 2026-10-29, Step 5.3, electron/Proxy.js): /api/* forwarded to the window's Server with the person's session
+// token (the page hands every token it gets, SetToken), /instructions composed here over the common guide, /api/mcp the
+// tools as the Server's REST requests. Plan UI Components, Step 5: the window has no frame of its
 // own (Electron's window buttons over the page's title bar, the bar the drag region, the native menu set for its
 // accelerators alone); the window parts are electron/Windows.js's and the command line, the saving, the common bridge
 // handlers, the page server on its remembered port and the shutdown electron/App.js's.
@@ -31,6 +34,7 @@ const WINDOWS = require( '../electron/Windows.js' );
 const APP = require( '../electron/App.js' );
 const SERVERS = require( '../electron/Servers.js' );
 const CURRENT_USER = require( '../electron/CurrentUser.js' );
+const PROXY = require( '../electron/Proxy.js' );
 
 const VERSION = require( '../package.json' ).version;
 const TITLE = 'Consensus Client';
@@ -58,6 +62,8 @@ let pick = null;		// the saved Server whose projects the chooser lists first (--
 const SAVER = APP.Saver( { Write: function () { SETTINGS.Write( config_folder(), client ); }, Label: SETTINGS.FILE } );
 // The machine's current user (plan The Server, Step 1): <config>/user.json, shared with the Server (electron/CurrentUser.js).
 const USER = CURRENT_USER.Make( config_folder );
+// The person's session token as the page hands it (Step 5.3), for the local API.
+const TOKENS = APP.Tokens();
 
 
 //---------------------------------------------------------------------
@@ -127,6 +133,21 @@ function apply_roots()
 	{
 		page.SetRoots( roots_now().map( function ( root ) { return { Key: root.Key, Url: root.Url }; } ) );
 	}
+}
+
+
+// The local API's upstream (Step 5.3): the window's Server, or none on the chooser.
+function upstream_now()
+{
+	return opened ? { Name: opened.Server.Name, Url: opened.Server.Url } : null;
+}
+
+
+// What the composed instructions say of this window.
+function about_now()
+{
+	let project = project_info();
+	return { Edition: 'Client', Project: project ? { Id: project.Id, Name: project.Name } : null, Others: [] };
 }
 
 
@@ -366,6 +387,7 @@ function attach_handlers()
 		Roots: roots_now,
 		NewWindow: function () { new_window(); },
 		Protected: [ APP.PAGE_PORT ],
+		Tokens: TOKENS,
 	} );
 
 	// The chooser's list, and the window's project when it has one; Pick names the Server whose projects it lists first.
@@ -449,7 +471,8 @@ async function main()
 	client_path = loaded.Path;
 	loaded.Lines.forEach( function ( line ) { console.log( line ); } );
 	WINDOWS.ApplyNativeTheme( client.Theme, SETTINGS.DARK_THEMES );
-	page = await APP.ServePage( { Settings: client, Saver: SAVER, Folders: [ CONNECT_FOLDER ] } );
+	page = await APP.ServePage( { Settings: client, Saver: SAVER, Folders: [ CONNECT_FOLDER ], Proxy: PROXY.Make( { Upstream: upstream_now, Token: TOKENS.Token, About: about_now } ) } );
+	console.log( TITLE + ': the page and the local API on ' + page.Url );
 	attach_handlers();
 	create_window();
 	APP.AttachShutdown( {

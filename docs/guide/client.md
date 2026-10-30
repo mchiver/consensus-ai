@@ -42,6 +42,14 @@ The title bar's **Menu** has New window, **Settings** (the project's, or the Ser
 
 ![The Client's menu: New window, Settings, Sign out, Reload and Quit.](../images/client-menu.png)
 
+## An agent beside the window
+
+The window has an address of its own on this machine, `http://127.0.0.1:<port>`, printed when the Client starts and kept as `page-port` in `client.json`, and it serves what a Server serves an agent session: `/instructions`, composed for this window (the Server behind it, the project open in it, the token rule) over the common guide; `/api`, every call forwarded to the window's Server with your sign-in added to a request that carries none, so the agent acts as you and may do what your roles allow (a request with its own token is passed as it is); and `/api/mcp`, the same tools as the Server's, each call the Server's request. Start an agent session beside the window with one line:
+
+> Read the instructions at `http://127.0.0.1:<port>/instructions` with curl, then load your context.
+
+For an MCP client, the stdio relay from a checkout takes the window's address and needs no token: `node <checkout>/bin/mcp.js --server http://127.0.0.1:<port> --service Claude-CLI`. Until you sign in, a request with no token is answered 401 "sign in"; on the chooser, with no Server open, 503.
+
 ## Settings
 
 The Client keeps its settings in `client.json` in the config folder (`<your home>/.consensus`, unless `--config` names another), beside the Desktop's `desktop.json` and the Server's `consensus.json`: your Servers, each with the project you opened on it last, the theme and the size, and the view as you left it. Nothing is carried over from the Desktop's file.

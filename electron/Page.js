@@ -7,9 +7,14 @@
 // the page and every API share one origin. The server sends no CORS headers and is not changed for the desktop, and
 // Electron runs no preload for a window whose web security is off, so the forwarding is what lets the page call
 // another origin's API; the base URL the preload hands the page stays the page's own origin. Plan Sidecar Edition,
-// Step 1: shared by Desktop and Sidecar (moved from desktop/Page.js); the app names its own pages' folders.
+// Step 1: shared by Desktop and Sidecar (moved from desktop/Page.js); the app names its own pages' folders. Plan Review
+// 2026-10-29, Step 5.3: Proxy, the local API of the Client and the Desktop (electron/Proxy.js), takes /api/* and
+// /instructions on the page's own address in place of the 503 "through /servers/<key>" of before; it forwards with
+// Forward, the same piping /servers/<key> uses.
 //
-//   Serve( { Folder?, Folders?, Port? } ) -> { Url, Roots(), SetRoots( [ { Key, Url } ] ), Close }
+//   Serve( { Folder?, Folders?, Port?, Proxy? } ) -> { Url, Roots(), SetRoots( [ { Key, Url } ] ), Close }
+//   Forward( Target, Request, Response, { Path?, Headers? } )   one request piped to Target (an address with no trailing
+//                                                              slash) at Path (the request's url when none), Headers added
 
 const FS = require( 'fs' );
 const PATH = require( 'path' );
@@ -37,9 +42,16 @@ async function Serve( Options )
 	app.disable( 'x-powered-by' );
 	SERVER.AttachVendor( app );
 	app.use( '/servers/:key', forward );
-	for ( let prefix of FORWARDED )
+	if ( options.Proxy )
 	{
-		app.use( prefix, not_here );
+		app.use( options.Proxy );
+	}
+	else
+	{
+		for ( let prefix of FORWARDED )
+		{
+			app.use( prefix, not_here );
+		}
 	}
 	app.use( EXPRESS.static( folder ) );
 	for ( let extra of ( options.Folders || [] ) )
@@ -55,9 +67,8 @@ async function Serve( Options )
 	}
 
 
-	// One request forwarded to the root's server as it is: method, path (the rest after /servers/<key>), headers (the
-	// host is the target's, the window's host kept as X-Forwarded-Host so a Clerk session's azp still matches, plan
-	// Clerk Step 7) and body, the answer streamed back, which keeps the events stream open.
+	// One request forwarded to the root's server as it is (Forward): the rest after /servers/<key>, under /api or
+	// /instructions alone.
 	function forward( request, response )
 	{
 		let target = roots[ request.params.key ];
@@ -72,44 +83,7 @@ async function Serve( Options )
 			response.status( 404 ).json( { Error: 'not forwarded' } );
 			return;
 		}
-		let url = new URL( rest, target );
-		let headers = {};
-		for ( let name of Object.keys( request.headers ) )
-		{
-			if ( !HOP_BY_HOP.includes( name ) && name !== 'host' )
-			{
-				headers[ name ] = request.headers[ name ];
-			}
-		}
-		headers[ 'x-forwarded-host' ] = request.headers.host || '';
-		headers.host = url.host;
-		let client = ( url.protocol === 'https:' ) ? HTTPS : HTTP;
-		let upstream = client.request( url, { method: request.method, headers: headers }, function ( answer )
-		{
-			let sent = {};
-			for ( let name of Object.keys( answer.headers ) )
-			{
-				if ( !HOP_BY_HOP.includes( name ) )
-				{
-					sent[ name ] = answer.headers[ name ];
-				}
-			}
-			response.writeHead( answer.statusCode, sent );
-			answer.pipe( response );
-		} );
-		upstream.on( 'error', function ( error )
-		{
-			if ( !response.headersSent )
-			{
-				response.status( 502 ).json( { Error: 'the server at ' + target + ' does not answer: ' + error.message } );
-			}
-			else
-			{
-				response.end();
-			}
-		} );
-		response.on( 'close', function () { upstream.destroy(); } );
-		request.pipe( upstream );
+		Forward( target, request, response );
 	}
 
 
@@ -157,6 +131,61 @@ async function Serve( Options )
 }
 
 
+//---------------------------------------------------------------------
+// Forward( Target, Request, Response, Options? ): one request piped to the server at Target as it is: method, path
+// (Options.Path, else the request's url), headers (the host is the target's, the window's host kept as X-Forwarded-Host
+// so a Clerk session's azp still matches, plan Clerk Step 7; Options.Headers added, lower-case names) and body, the
+// answer streamed back, which keeps the events stream open.
+
+function Forward( Target, Request, Response, Options )
+{
+	let options = Options || {};
+	let url = new URL( options.Path || Request.url, Target );
+	let headers = {};
+	for ( let name of Object.keys( Request.headers ) )
+	{
+		if ( !HOP_BY_HOP.includes( name ) && name !== 'host' )
+		{
+			headers[ name ] = Request.headers[ name ];
+		}
+	}
+	for ( let name of Object.keys( options.Headers || {} ) )
+	{
+		headers[ name.toLowerCase() ] = options.Headers[ name ];
+	}
+	headers[ 'x-forwarded-host' ] = Request.headers.host || '';
+	headers.host = url.host;
+	let client = ( url.protocol === 'https:' ) ? HTTPS : HTTP;
+	let upstream = client.request( url, { method: Request.method, headers: headers }, function ( answer )
+	{
+		let sent = {};
+		for ( let name of Object.keys( answer.headers ) )
+		{
+			if ( !HOP_BY_HOP.includes( name ) )
+			{
+				sent[ name ] = answer.headers[ name ];
+			}
+		}
+		Response.writeHead( answer.statusCode, sent );
+		answer.pipe( Response );
+	} );
+	upstream.on( 'error', function ( error )
+	{
+		if ( !Response.headersSent )
+		{
+			Response.status( 502 ).json( { Error: 'the server at ' + Target + ' does not answer: ' + error.message } );
+		}
+		else
+		{
+			Response.end();
+		}
+	} );
+	Response.on( 'close', function () { upstream.destroy(); } );
+	Request.pipe( upstream );
+}
+
+
 module.exports = {
 	Serve: Serve,
+	Forward: Forward,
 };

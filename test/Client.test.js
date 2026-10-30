@@ -299,6 +299,13 @@ TEST( 'the Client app: its own folder and npm script; the desktop code of before
 		ASSERT.equal( main.indexOf( gone ), -1, 'the Client\'s main has no ' + gone );
 	}
 	ASSERT.match( main, /CURRENT_USER\.Make\( config_folder \)/ );
+	// the local API (Step 5.3): electron/Proxy.js on the page server, over the window's Server and the token the page hands in
+	ASSERT.ok( main.indexOf( "Proxy.js' )" ) >= 0, 'the Client\'s main requires Proxy.js' );
+	ASSERT.match( main, /const TOKENS = APP\.Tokens\(\)/ );
+	ASSERT.match( main, /Tokens: TOKENS,/ );
+	ASSERT.match( main, /Proxy: PROXY\.Make\( \{ Upstream: upstream_now, Token: TOKENS\.Token, About: about_now \} \)/ );
+	ASSERT.match( main, /return opened \? \{ Name: opened\.Server\.Name, Url: opened\.Server\.Url \} : null;/ );
+	ASSERT.match( main, /Edition: 'Client', Project: project \? \{ Id: project\.Id, Name: project\.Name \} : null/ );
 	ASSERT.match( main, /'connect-server'|'server-projects'|'remove-server'|'set-license'|'clear-license'/ );
 	ASSERT.equal( FS.existsSync( PATH.join( ROOT, 'client', 'page', 'connect.html' ) ), true );
 	ASSERT.equal( FS.existsSync( PATH.join( ROOT, 'client', 'Projects.js' ) ), true );
@@ -306,7 +313,7 @@ TEST( 'the Client app: its own folder and npm script; the desktop code of before
 	ASSERT.equal( PROJECTS.NewFolder, undefined, 'no folder is made' );
 	let preload = read( 'client/preload.js' );
 	ASSERT.match( preload, /exposeInMainWorld\( 'ConsensusDesktop', \{\s*\/\/[^\n]*\n\s*Edition: 'client',/ );
-	for ( let name of [ 'SetLicense', 'ClearLicense', 'Project', 'ConnectServer', 'ServerProjects', 'RemoveServer', 'Settings', 'NewWindow', 'Quit' ] )
+	for ( let name of [ 'SetLicense', 'ClearLicense', 'SetToken', 'Project', 'ConnectServer', 'ServerProjects', 'RemoveServer', 'Settings', 'NewWindow', 'Quit' ] )
 	{
 		ASSERT.ok( preload.indexOf( name + ':' ) >= 0, 'the Client\'s bridge has ' + name );
 	}
@@ -341,7 +348,7 @@ TEST( 'the installer: Consensus Client, its own appId and artifact, the Client\'
 	{
 		ASSERT.ok( build.files.includes( needed ), 'the installer holds ' + needed );
 	}
-	ASSERT.equal( build.files.some( function ( file ) { return file.indexOf( '.guides' ) >= 0; } ), false, 'no LLM guide until Step 5.3' );
+	ASSERT.ok( build.files.includes( '.guides/build-with-consensus.md' ), 'the common guide ships, for the local /instructions (Step 5.3)' );
 	let others = [ 'desktop', 'server', 'sidecar' ].map( function ( name ) { return JSON.parse( read( 'build/' + name + '.json' ) ).appId; } );
 	ASSERT.equal( others.includes( build.appId ), false, 'it installs beside the others' );
 	let dist = JSON.parse( read( 'package.json' ) ).scripts.dist;

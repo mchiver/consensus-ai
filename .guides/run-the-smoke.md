@@ -67,6 +67,10 @@ The Client:
   name, the session's Base `/servers/First`, the Server saved in client.json with that project as its last, and no
   address file in the project folder (the Client starts no server). A failure is `connect_server_here` or
   `save_server` in `client/main.js`, `electron/Servers.js`, or the single mode of `server-row` and `project-view`.
+- **local API** (plan Review 2026-10-29, Step 5.3): the window's own address answers `/instructions` composed for the
+  Client (the Server, the project, then the common guide), `/api/me` with no token and nobody signed in as 401 "sign
+  in", a call with its own token forwarded to the Server, and `/api/mcp` tools/list with the tools. A failure is
+  `electron/Proxy.js`, `Instructions.Local` or the Proxy option of `electron/Page.js`.
 - **overlay**: `navigator.windowControlsOverlay` is visible and its area stops before the window buttons; the bar is
   exactly that wide and as high as the overlay; the bar is the drag region and its buttons are not; the window has
   no native title or menu bar. A failure is `window_options` in `client/main.js`, the chrome message, or

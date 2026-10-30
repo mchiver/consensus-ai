@@ -52,7 +52,9 @@ words.
 ## Talking to Consensus
 
 - The API's address, and how this server knows you, are in **This server**, at the top of this page when the
-  server serves it: on a local or trusted-network server a request with no token is the owner.
+  server serves it: on a local or trusted-network server a request with no token is the owner. Beside a Consensus
+  Client or Desktop window, the window's own address serves this page and forwards your calls to the Server the
+  person is on, adding their sign-in to a request with no token: you act as them, and This server says so.
 - Everything goes through the API; you have no access to the server's files. The API keeps the queues,
   revisions and anchors right.
 - **Calling the API:** plain HTTP requests (`curl` or any client) to the address in This server, each with the
@@ -106,7 +108,9 @@ its arguments, and `instructions` is this page. A project is given by its id or 
   saved Server of desktop.json; `--project <id or name>` fills in the project for the tools that take one, which
   is how the one-project rule is set for a client). For Claude Code: `claude mcp add consensus -- consensus mcp
   <folder>`, or against a Server `claude mcp add consensus -e CONSENSUS_TOKEN=<token> -- node
-  <checkout>/bin/mcp.js --server http://127.0.0.1:3500 --service Claude-CLI --project <your project>`.
+  <checkout>/bin/mcp.js --server http://127.0.0.1:3500 --service Claude-CLI --project <your project>`. Beside a
+  Client or a Desktop window, `--server` takes the window's own address (in its This server) and no token is
+  needed: the window adds the person's.
 - **HTTP**: `POST http://<server>:<port>/api/mcp`, a JSON-RPC message in the body, with the same header a curl
   request carries.
 

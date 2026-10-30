@@ -184,6 +184,13 @@ TEST( 'the Desktop app: its own folder and npm script; the Client\'s code base: 
 	ASSERT.match( main, /\n\t\tLicense: null,/, 'the boot hands no license' );
 	ASSERT.equal( main.indexOf( 'USER.Tier' ), -1, 'the Desktop reads the current user for nothing of its own' );
 	ASSERT.equal( main.indexOf( 'USER.Read' ), -1, 'the Desktop reads the current user for nothing of its own' );
+	// the local API (Step 5.3): electron/Proxy.js on the page server, over the current root and the token the page hands in
+	ASSERT.ok( main.indexOf( "Proxy.js' )" ) >= 0, 'the Desktop\'s main requires Proxy.js' );
+	ASSERT.match( main, /const TOKENS = APP\.Tokens\(\)/ );
+	ASSERT.match( main, /Tokens: TOKENS,/ );
+	ASSERT.match( main, /const CURRENT_ROOT = 'consensus\.current-root'/ );
+	ASSERT.match( main, /Proxy: PROXY\.Make\( \{ Upstream: upstream_now, Token: TOKENS\.Token, About: about_now \} \)/ );
+	ASSERT.match( main, /Edition: 'Desktop', Project: null, Others: desktop/ );
 	ASSERT.equal( main.indexOf( 'SERVER.Start' ), -1, 'the Desktop starts no server' );
 	ASSERT.equal( main.indexOf( 'SecretKey' ), -1, 'no secret goes to the page' );
 	ASSERT.match( main, /Title: 'the Desktop', Flags: FLAGS \}/, 'the command line is --config alone: no Positional, no Rest' );
@@ -196,7 +203,7 @@ TEST( 'the Desktop app: its own folder and npm script; the Client\'s code base: 
 		ASSERT.doesNotMatch( preload, new RegExp( '^\\t' + name + ':', 'm' ), 'the Desktop\'s bridge has no ' + name );
 	}
 	ASSERT.match( preload, /^\tLicense: null,/m, 'the bridge hands no license' );
-	for ( let name of [ 'Servers', 'AddServer', 'RenameServer', 'RemoveServer', 'Clerk', 'SetLicense', 'ClearLicense' ] )
+	for ( let name of [ 'Servers', 'AddServer', 'RenameServer', 'RemoveServer', 'Clerk', 'SetLicense', 'ClearLicense', 'SetToken' ] )
 	{
 		ASSERT.ok( preload.indexOf( name + ':' ) >= 0, 'the Desktop\'s bridge has ' + name );
 	}
@@ -231,6 +238,11 @@ TEST( 'the Desktop\'s page: the thin page by Edition desktop (the Client flag of
 	ASSERT.match( read( 'public/js/app.js' ), /if \( !Session\.Admitted\(\) \)\s*\{\s*return;\s*\}\s*State\.LoadMe\(\)\.then\( route \);\s*listen_all\(\);/, 'no root is read or listened to below Personal' );
 	ASSERT.match( read( 'public/components/client-servers/client-servers.js' ), /if \( Session\.Admitted\(\) && Roots\.List\.length === 0 \)/ );
 	ASSERT.match( read( 'public/js/llm.js' ), /Session\.Ready\.then\( function \(\)\s*\{\s*if \( Session\.Admitted\(\) \)\s*\{\s*read_all\(\);/, 'the LLM connections are read at start only for a person admitted' );
+	// the local API (Step 5.3): every token to the app, the current root remembered for the upstream
+	ASSERT.match( session, /function hand_token\( token \)/ );
+	ASSERT.match( session, /bridge\.SetToken\( token \)/ );
+	ASSERT.match( session, /setInterval\( refresh_token, TOKEN_REFRESH \)/ );
+	ASSERT.match( read( 'public/js/app.js' ), /\$scope\.\$on\( 'root-changed', function \( event, root \)\s*\{\s*if \( Roots\.Desktop && root && root\.Key && \$window\.ConsensusStored \)\s*\{\s*\$window\.ConsensusStored\.Write\( 'current-root', String\( root\.Key \), false \);/ );
 	ASSERT.match( read( 'public/components/title-bar/title-bar.js' ), /if \( ClientServers\.Available && Session\.Admitted\(\) \)/ );
 	ASSERT.match( read( 'public/components/sign-in-box/sign-in-box.html' ), /&& \$ctrl\.Session\.Every">This account has no Consensus-AI <b>Personal<\/b> license, which the Desktop needs\./ );
 	ASSERT.match( read( 'public/index.html' ), /ng-hide="DesktopSignedOut\(\)"/ );
@@ -247,7 +259,7 @@ TEST( 'the Desktop\'s page: the thin page by Edition desktop (the Client flag of
 //---------------------------------------------------------------------
 // The installer
 
-TEST( 'the installer: Consensus Desktop, its files, no guide and no folder command (the Desktop opens no folder)', function ()
+TEST( 'the installer: Consensus Desktop, its files with the common guide (Step 5.3), no folder command (the Desktop opens no folder)', function ()
 {
 	let build = JSON.parse( read( 'build/desktop.json' ) );
 	ASSERT.equal( build.productName, 'Consensus Desktop' );
@@ -257,7 +269,8 @@ TEST( 'the installer: Consensus Desktop, its files, no guide and no folder comma
 	{
 		ASSERT.ok( build.files.includes( needed ), 'the installer holds ' + needed );
 	}
-	ASSERT.equal( build.files.some( function ( file ) { return file.indexOf( '.guides' ) >= 0; } ), false, 'no LLM guide until Step 5.3' );
+	ASSERT.ok( build.files.includes( '.guides/build-with-consensus.md' ), 'the common guide ships, for the local /instructions' );
+	ASSERT.equal( build.files.some( function ( file ) { return file.indexOf( 'build-with-sidecar' ) >= 0; } ), false, 'the Sidecar\'s guide is not the Desktop\'s' );
 	ASSERT.equal( build.nsis.include, undefined, 'no Open in Consensus Desktop on a folder' );
 	ASSERT.equal( FS.existsSync( PATH.join( ROOT, 'build', 'installer.nsh' ) ), false );
 } );

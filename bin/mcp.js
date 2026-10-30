@@ -16,7 +16,10 @@
 //              sidecar's one project is filled in for the tools that take one. `consensus mcp <folder>` is the same.
 //   --server   the server's address (http://127.0.0.1:3500), or the Name of a saved Server in the Desktop's own file
 //              (<config>/desktop.json, its Servers list; plan Review 2026-10-29, Step 5.1, the Hosts list until then),
-//              whose Url is taken; a saved Server carries no token, so a shared server takes --token
+//              whose Url is taken; a saved Server carries no token, so a shared server takes --token. The Client's or
+//              the Desktop's own address (http://127.0.0.1:<page port>, in its /instructions; plan Review 2026-10-29,
+//              Step 5.3) is a server to the relay too: it forwards to the window's Server with the signed-in person's
+//              token, so no --token is needed there
 //   --service  how the relay says who it is, the X-Consensus-Service header ("MCP" when neither this nor a token
 //              is given); a Claude Code configuration passes --service Claude-CLI to keep its byline
 //   --token    an account's token, minted on the person's user page, for a shared server; with none given, the

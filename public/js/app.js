@@ -894,6 +894,16 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		$scope.$applyAsync( route );
 	} );
 
+	// The Desktop's current root (plan Review 2026-10-29, Step 5.3): remembered as a shared key, consensus.current-root,
+	// which the app reads for its local API's upstream, the Server whose project is open in the window.
+	$scope.$on( 'root-changed', function ( event, root )
+	{
+		if ( Roots.Desktop && root && root.Key && $window.ConsensusStored )
+		{
+			$window.ConsensusStored.Write( 'current-root', String( root.Key ), false );
+		}
+	} );
+
 	// The session's token was missing from the first calls (plan Clerk, Step 7): every root's lists are read again.
 	$scope.$on( 'session-ready', function ()
 	{

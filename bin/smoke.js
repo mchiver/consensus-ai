@@ -343,6 +343,13 @@ async function smoke_client()
 		await page.WaitFor( count_of( '.root' ) + ' === 1 && ' + count_of( '.project' ) + ' === 1', 30000 );
 		check( 'tree: one project view, open, and no root head', await page.Evaluate( count_of( '.project.single.open' ) + ' + "/" + ' + count_of( '.root-head' ) ), '1/0' );
 		check( 'session: the window\'s Server is its own', await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Base' ), '/servers/First' );
+		// the window's own address (plan Review 2026-10-29, Step 5.3): the instructions composed for this window over the common guide, the API forwarded as the signed-in person (nobody here: 401), an agent's own token passed as it is
+		let origin = await page.Evaluate( 'window.location.origin' );
+		let local_instructions = await ( await fetch( origin + '/instructions' ) ).text();
+		check( 'local API: /instructions names the Client, the Server and the project', /the local address of this Consensus Client: every call is forwarded to the Server First at /.test( local_instructions ) && local_instructions.indexOf( '- The project: ' + project.Name + ' (' + project.Id + ')' ) >= 0 && local_instructions.indexOf( '\n# Build with Consensus' ) > 0, true );
+		check( 'local API: a call with no token and nobody signed in is 401 "sign in"', ( await fetch( origin + '/api/me' ) ).status, 401 );
+		check( 'local API: a call with its own token reaches the Server', ( await ( await fetch( origin + '/api/me', { headers: { Authorization: 'Bearer not-a-token-of-the-server' } } ) ).json() ).Error !== 'sign in', true );
+		check( 'local API: MCP tools/list answers the tools', ( await ( await fetch( origin + '/api/mcp', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer any' }, body: JSON.stringify( { jsonrpc: '2.0', id: 1, method: 'tools/list' } ) } ) ).json() ).result.tools.some( function ( tool ) { return tool.name === 'read_plan'; } ), true );
 		let saved = JSON.parse( FS.readFileSync( PATH.join( config, 'client.json' ), 'utf8' ) ).Servers[ 0 ];
 		check( 'client.json: the Server with its last project', saved.Name + '/' + saved.Project + '/' + saved.Title, 'First/' + project.Id + '/' + project.Name );
 		check( 'no local server: no address file in the project folder', FS.existsSync( PATH.join( folder, '.consensus', '~sidecar.json' ) ), false );

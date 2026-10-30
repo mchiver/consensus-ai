@@ -8,6 +8,8 @@
 // project of the window's own and no recent list. License is null: the Desktop's gate is the session's plan in the
 // page (Step 5.2, the Personal check); SetLicense( Token ) hands the sign-in to the app, which verifies it and writes
 // it as the machine's current user for the Server application beside it, and ClearLicense() removes it at sign-out.
+// SetToken( Token ) hands the session token to the app at every load and refresh (Step 5.3), for the window's own
+// address, which adds it to an agent's requests; null at a sign-out.
 // Clerk is our instance's publishable key and Frontend API host, for the page's sign-in; the Servers: Servers() the
 // list, AddServer( { Url, Token } ), RenameServer( { Name, To } ), RemoveServer( Name ), each answering { Server } or
 // { Error }; a change reloads every window on the new list. The page's application menu calls window.Desktop: New
@@ -47,6 +49,7 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	ViewInBrowser: function () { return invoke( 'view-in-browser' ); },
 	SetLicense: function ( Token ) { return invoke( 'set-license', Token ); },
 	ClearLicense: function () { return invoke( 'clear-license' ); },
+	SetToken: function ( Token ) { ELECTRON.ipcRenderer.send( 'token', { Token: Token } ); },
 	Servers: function () { return invoke( 'servers' ); },
 	AddServer: function ( Fields ) { return invoke( 'add-server', { Url: Fields && Fields.Url, Token: Fields && Fields.Token } ); },
 	RenameServer: function ( Fields ) { return invoke( 'rename-server', { Name: Fields && Fields.Name, To: Fields && Fields.To } ); },

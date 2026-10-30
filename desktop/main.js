@@ -2,8 +2,12 @@
 
 // main - the Desktop's main process (plan Review 2026-10-29, Step 5.1: the editions cut). The Desktop opens several
 // remote projects at a time from one or more Consensus Servers and never a local folder: it took the Client's code
-// base (plan Client Edition), the Client the desktop code of before, narrowed. It has no server of its own, no API or
-// MCP of its own until Step 5.3 (electron/Proxy.js) and no tokens; all configuration is the Servers' own. The Personal
+// base (plan Client Edition), the Client the desktop code of before, narrowed. It has no server of its own and no
+// tokens; all configuration is the Servers' own. Its own address serves an agent beside it (Step 5.3, electron/Proxy.js):
+// /api/* forwarded to the current root, the Server whose project is open in the window (the page remembers it as the
+// key consensus.current-root; the first Server until one opens), with the person's session token (the page hands every
+// token it gets, SetToken), /instructions composed here over the common guide, /api/mcp the tools as that Server's REST
+// requests; the other Servers stay reachable under /servers/<name>/api. The Personal
 // check (Step 5.2) is the page's, on the session's plan: signed in below Personal, the page shows the sign-in box with
 // the license message and loads no Server. The sign-in's token is also handed here (set-license), verified and written
 // as the machine's current user (electron/CurrentUser.js, <config>/user.json), so the Server application on this machine
@@ -31,6 +35,7 @@ const WINDOWS = require( '../electron/Windows.js' );
 const APP = require( '../electron/App.js' );
 const SERVERS = require( '../electron/Servers.js' );
 const CURRENT_USER = require( '../electron/CurrentUser.js' );
+const PROXY = require( '../electron/Proxy.js' );
 const SETTINGS = require( './Settings.js' );
 
 const VERSION = require( '../package.json' ).version;
@@ -39,6 +44,7 @@ const ICON = PATH.join( __dirname, 'icon.ico' );		// the windows' icon from the 
 const PRELOAD = PATH.join( __dirname, 'preload.js' );
 const USAGE = 'usage: consensus-desktop [--config <folder>]';
 const TRY_TIMEOUT = 5000;
+const CURRENT_ROOT = 'consensus.current-root';		// the page's remembered key (stored.js, shared): the root whose project is open
 const FLAGS = [
 	{ Name: '--config', Takes: 'value', Key: 'Config', Needs: 'a folder' },
 	{ Name: '--help', Alias: '-h', Takes: 'flag', Key: 'Help' },
@@ -53,6 +59,8 @@ let windows = [];		// the open windows, all on the same list of Servers
 const SAVER = APP.Saver( { Write: function () { SETTINGS.Write( config_folder(), desktop ); }, Label: SETTINGS.FILE } );
 // The machine's current user, <config>/user.json, written for the Server application beside this one (Step 5.2).
 const USER = CURRENT_USER.Make( config_folder );
+// The person's session token as the page hands it (Step 5.3), for the local API.
+const TOKENS = APP.Tokens();
 
 
 //---------------------------------------------------------------------
@@ -89,6 +97,24 @@ function roots_now()
 function apply_roots()
 {
 	page.SetRoots( roots_now().map( function ( root ) { return { Key: root.Key, Url: root.Url }; } ) );
+}
+
+
+// The local API's upstream (Step 5.3): the current root, the Server whose project is open (remembered by the page), else
+// the first Server; null with none.
+function upstream_now()
+{
+	let key = ( desktop && desktop.Remembered ) ? desktop.Remembered[ CURRENT_ROOT ] : null;
+	let current = ( typeof key === 'string' ) ? desktop.Servers.find( function ( server ) { return server.Name === key; } ) : null;
+	let server = current || ( desktop ? desktop.Servers[ 0 ] : null ) || null;
+	return server ? { Name: server.Name, Url: server.Url } : null;
+}
+
+
+// What the composed instructions say of this window: the Desktop, its Servers by name.
+function about_now()
+{
+	return { Edition: 'Desktop', Project: null, Others: desktop ? desktop.Servers.map( function ( server ) { return server.Name; } ) : [] };
 }
 
 
@@ -262,6 +288,7 @@ function attach_handlers()
 		Roots: roots_now,
 		NewWindow: function () { open_window(); },
 		Protected: [ APP.PAGE_PORT ],
+		Tokens: TOKENS,
 	} );
 
 	// The Servers: the list, Add server, rename and remove.
@@ -322,9 +349,9 @@ async function main()
 	desktop = loaded.Settings;
 	loaded.Lines.forEach( function ( line ) { console.log( line ); } );
 	WINDOWS.ApplyNativeTheme( desktop.Theme, SETTINGS.DARK_THEMES );
-	page = await APP.ServePage( { Settings: desktop, Saver: SAVER } );
+	page = await APP.ServePage( { Settings: desktop, Saver: SAVER, Proxy: PROXY.Make( { Upstream: upstream_now, Token: TOKENS.Token, About: about_now } ) } );
 	apply_roots();
-	console.log( TITLE + ': the page on ' + page.Url + ', ' + desktop.Servers.length + ' Server' + ( desktop.Servers.length === 1 ? '' : 's' ) );
+	console.log( TITLE + ': the page and the local API on ' + page.Url + ', ' + desktop.Servers.length + ' Server' + ( desktop.Servers.length === 1 ? '' : 's' ) );
 	attach_handlers();
 	build_menu();
 	open_window();

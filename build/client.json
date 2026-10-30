@@ -15,6 +15,7 @@
 		"desktop/icon.ico",
 		"src/**",
 		"public/**",
+		".guides/build-with-consensus.md",
 		"package.json"
 	],
 	"win": {

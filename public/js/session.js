@@ -31,6 +31,9 @@
 // it, the session keeps a license refusal (Error license, Plan personal) and Admitted() is false, so the page shows the
 // sign-in box with the license message and Sign out in place of the Servers and loads no root; the gate is the
 // session's plan (Plan()), never the machine's current user, which the Desktop writes for the Server beside it alone.
+// The token to the app (plan Review 2026-10-29, Step 5.3): in the Client and the Desktop every token Clerk gives is
+// handed to the app (ConsensusDesktop.SetToken), at the start, before every call and on a timer while signed in (Clerk
+// refreshes the token about once a minute), null at a sign-out; the app's own address adds it to an agent's requests.
 //
 //   Session { Key, Base (the own server's root key and base, null when there is none), Every (the Desktop: every root's calls carry the token),
 //             On, Loaded, Required, Asked, Refusal, Closed (a Server's closed gate: its reason), Error, Config, Pricing, Ready (a promise: loaded), License (the
@@ -44,6 +47,7 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	const PLANS = [ 'personal', 'professional' ];	// Roles.js's PLANS: the rank is the index plus one (plan Rearchitecturation, Step 6)
 	const REMEMBERED = 'consensus-signed-in';
 	const SESSION_WAIT = 4000;	// milliseconds given to a remembered session to arrive after ClerkJS loads
+	const TOKEN_REFRESH = 50000;	// milliseconds between the tokens handed to the app while signed in (Clerk's live about a minute)
 	const DESKTOP = !!( window.ConsensusDesktop && window.ConsensusDesktop.Edition === 'desktop' );
 	let own = own_root();
 	let session = { Key: own ? own.Key : null, Base: own ? own.Base : null, On: false, Loaded: false, Required: false, Asked: false, Refusal: null, Closed: null, Error: null, Config: null, Pricing: null, Ready: null, Every: DESKTOP, License: ( window.ConsensusDesktop && window.ConsensusDesktop.License ) ? window.ConsensusDesktop.License : null };
@@ -51,6 +55,7 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	let loading = null;
 	let was_signed_in = false;
 	let retried = false;
+	let handed = undefined;		// the token the app has (Step 5.3), so the same one is not sent twice
 
 
 	// The page's own server: the browser's one root, or the window's one Server (the Client); the Desktop has none.
@@ -228,6 +233,11 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 			clerk.addListener( on_change );
 			check_tier();
 			await report_license();
+			await refresh_token();
+			if ( clerk.user && token_bridge() )
+			{
+				setInterval( refresh_token, TOKEN_REFRESH );
+			}
 		}
 		catch ( error )
 		{
@@ -284,6 +294,10 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 			was_signed_in = signed_in;
 			remember( signed_in );
 			let bridge = license_bridge();
+			if ( !signed_in )
+			{
+				hand_token( null );
+			}
 			if ( !signed_in && bridge && typeof bridge.ClearLicense === 'function' )
 			{
 				Promise.resolve( bridge.ClearLicense() ).catch( function () {} ).then( function () { window.location.reload(); } );
@@ -330,7 +344,59 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	}
 
 
-	// The session token for a call to the page's own server, or null when there is no session.
+	// The app the page runs in when it has an address of its own to hand the token to (the Client and the Desktop, plan
+	// Review 2026-10-29, Step 5.3), or null.
+	function token_bridge()
+	{
+		return ( window.ConsensusDesktop && typeof window.ConsensusDesktop.SetToken === 'function' ) ? window.ConsensusDesktop : null;
+	}
+
+
+	// A token to the app, once per token: the latest one Clerk gave, or null at a sign-out.
+	function hand_token( token )
+	{
+		let bridge = token_bridge();
+		if ( !bridge || token === handed )
+		{
+			return;
+		}
+		handed = token;
+		try
+		{
+			bridge.SetToken( token );
+		}
+		catch ( error )
+		{
+			// the app is not listening; nothing else depends on it
+		}
+	}
+
+
+	// The token as Clerk holds it now, handed to the app: at the start and on the timer.
+	async function refresh_token()
+	{
+		if ( !token_bridge() )
+		{
+			return;
+		}
+		if ( !clerk || !clerk.session )
+		{
+			hand_token( null );
+			return;
+		}
+		try
+		{
+			hand_token( await clerk.session.getToken() );
+		}
+		catch ( error )
+		{
+			// kept as it was; the next refresh tries again
+		}
+	}
+
+
+	// The session token for a call to the page's own server, or null when there is no session; every token goes to the
+	// app too (Step 5.3).
 	async function Token()
 	{
 		await session.Ready;
@@ -344,7 +410,9 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		}
 		try
 		{
-			return await clerk.session.getToken();
+			let token = await clerk.session.getToken();
+			hand_token( token );
+			return token;
 		}
 		catch ( error )
 		{

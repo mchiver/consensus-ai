@@ -95,7 +95,12 @@ without a sign-in or a token.
 An agent session in any repo is started with one line: "read the instructions at
 `http://<server>:<port>/instructions`" (with `curl`). That page is `.guides/build-with-consensus.md` with a
 **This server** section first: the API's address, as the request reached it, and how to say who you are; on a
-Server the LLM Instructions popup puts a token minted for the person at the top of the copied text.
+Server the LLM Instructions popup puts a token minted for the person at the top of the copied text. Since plan Review
+2026-10-29, Step 5.3, a Client or a Desktop window serves the same `/instructions`, `/api` and `/api/mcp` at its own
+address (`electron/Proxy.js` on the page server): the calls forwarded to the window's Server (the Desktop's current
+root, remembered by the page as `consensus.current-root`) with the signed-in person's session token added to a request
+that carries none (the page hands every token to the app, `SetToken`; none yet is 401 "sign in"), the text composed by
+`Instructions.Local` over the common guide, the MCP's tool calls the Server's REST requests through `Operations.Route`.
 An MCP client (plan MCP Server, 2026-10-23) gets the same operations as tools: `POST /api/mcp` in the server, or the
 stdio relay `node bin/mcp.js --server <url or saved Server> [--service <name>] [--token <token>] [--project <id or name>]` on its own
 machine (a saved Server is a Name from `desktop.json`'s Hosts, its Url taken; with no `--token` the environment's
@@ -623,7 +628,7 @@ folder, which create in it.
 
 Layout: `desktop/main.js`, `desktop/preload.js` and `desktop/Settings.js` the Desktop (desktop.json); `client/main.js`,
 `client/preload.js`, `client/Settings.js` (client.json), `client/Projects.js` and the chooser (`client/page/connect.html`,
-`connect.js`, `connect.css`) the Client; `electron/Page.js` the server for the page and the chooser; the runs are the
+`connect.js`, `connect.css`) the Client; `electron/Page.js` the server for the page and the chooser, `electron/Proxy.js` the window's own API, instructions and MCP over it (Step 5.3); the runs are the
 server's:
 `src/Llms.js` the connections, `src/Runner.js` the package and the start of a run over the store,
 `src/Runs.js` the runs and their records, `src/Package.js` the one-shot prompt, `src/Llm.js` a connection's

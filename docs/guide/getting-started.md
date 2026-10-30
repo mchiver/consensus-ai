@@ -38,9 +38,11 @@ With no Servers yet, the popup opens on its own after you sign in. Every Server 
 
 **Settings.** The Desktop keeps its settings in `desktop.json` in the config folder (`<your home>/.consensus`, unless `--config` names another), beside the Client's `client.json` and the Server's `consensus.json`: your Servers, the theme and the size, and the view as you left it. A `desktop.json` from before the editions were cut (recent folders, Hosts) is read for its look and view alone.
 
+**An agent beside the Desktop.** The Desktop's window has an address of its own on this machine, `http://127.0.0.1:<port>`, printed when it starts and kept as `page-port` in `desktop.json`. It serves what a Server serves an agent: `/instructions`, composed for the Desktop over the common guide; `/api`, forwarded to the Server whose project is open in the window (the others under `/servers/<name>/api`), with your sign-in added to a request that carries none, so an agent beside the window acts as you, allowed what your roles allow; and `/api/mcp`, the same tools, which the stdio relay reaches with `--server http://127.0.0.1:<port>` and no token. Until you sign in, a request with no token is answered 401 "sign in". The current Server changes as you open a project elsewhere; the instructions tell the agent to read them again when a call answers an unknown project.
+
 ## The Client
 
-The Client is the Desktop's narrower sibling: one project on one Server per window, which is the shape for working on one thing with an agent session beside you. Its chooser lists the Servers you connected to, each with the project you opened on it last, and **Connect to Server** takes a Server's address and one of its projects. [Consensus Client](client.html) has the page.
+The Client is the Desktop's narrower sibling: one project on one Server per window, which is the shape for working on one thing with an agent session beside you. Its chooser lists the Servers you connected to, each with the project you opened on it last, and **Connect to Server** takes a Server's address and one of its projects. Its window's own address serves the agent beside it, as the Desktop's does, forwarded to the window's Server as you. [Consensus Client](client.html) has the page.
 
 ## The installers
 

@@ -18,12 +18,17 @@
 //   Saver( { Write, Label } )               { Save(), SaveSoon(), Flush() }: Write called now, or SAVE_DELAY ms after
 //                                           the last SaveSoon; a Write that throws is logged as "<Label> could not be
 //                                           written"; Flush saves what a SaveSoon left pending
-//   AttachHandlers( { Boot, Settings, Saver, Roots, NewWindow, Protected? } )
+//   AttachHandlers( { Boot, Settings, Saver, Roots, NewWindow, Protected?, Tokens? } )
 //       the bridge handlers boot, remember, theme, print-pdf, view-in-browser, quit and new-window, and the title bar's
 //       chrome message (Windows.AttachChrome); Boot() the boot object, Settings() the live settings object (its Theme,
 //       Scale and Remembered), Roots() the page's roots for View in Browser, NewWindow() another window; Protected the
-//       remembered keys the page may not change (the page server's port)
-//   ServePage( { Settings, Saver, Folders? } )   the page server on the remembered PAGE_PORT, a free one remembered instead
+//       remembered keys the page may not change (the page server's port); Tokens a holder (below), which adds the
+//       token handler: the page's SetToken (plan Review 2026-10-29, Step 5.3)
+//   Tokens()                                { Set( Token ), Token(), Expiry() }: the person's session token as the page
+//                                           hands it, the latest kept with its expiry (the exp claim, ms), null when
+//                                           nobody is signed in; what the local API adds to an agent's requests
+//   ServePage( { Settings, Saver, Folders?, Proxy? } )   the page server on the remembered PAGE_PORT, a free one
+//                                           remembered instead; Proxy electron/Proxy.js's router, the local API
 //   AttachShutdown( { Saver, Close } )      window-all-closed: the pending save flushed, Close() awaited, the app quit
 //   ELECTRON_SWITCH, SAVE_DELAY, PAGE_PORT, REPORT_FOLDER
 
@@ -238,6 +243,16 @@ function AttachHandlers( Fields )
 		return {};
 	} );
 
+	// The person's session token from the page (plan Review 2026-10-29, Step 5.3), at every load and refresh; null at a
+	// sign-out. The local API (electron/Proxy.js) adds it to an agent's requests.
+	if ( fields.Tokens )
+	{
+		ELECTRON.ipcMain.on( 'token', function ( event, change )
+		{
+			fields.Tokens.Set( change ? change.Token : null );
+		} );
+	}
+
 	// The report window's Print to PDF (plan Printing and Reporting): the save dialog in the folder last used.
 	ELECTRON.ipcMain.handle( 'print-pdf', async function ( event, name )
 	{
@@ -281,19 +296,74 @@ async function ServePage( Fields )
 	{
 		try
 		{
-			return await PAGE.Serve( { Port: remembered, Folders: fields.Folders } );
+			return await PAGE.Serve( { Port: remembered, Folders: fields.Folders, Proxy: fields.Proxy } );
 		}
 		catch ( error )
 		{
 			console.log( 'the page port ' + remembered + ' is in use: another one' );
 		}
 	}
-	let served = await PAGE.Serve( { Folders: fields.Folders } );
+	let served = await PAGE.Serve( { Folders: fields.Folders, Proxy: fields.Proxy } );
 	if ( SETTINGS.Remember( settings, PAGE_PORT, Number( new URL( served.Url ).port ) ) )
 	{
 		fields.Saver.Save();
 	}
 	return served;
+}
+
+
+//---------------------------------------------------------------------
+// The person's session token as the page hands it (plan Review 2026-10-29, Step 5.3): the latest, with its expiry read
+// from the token's exp claim when it has one (a JWT), for the local API to add to an agent's requests. Set( null ) at a
+// sign-out forgets it.
+
+function Tokens()
+{
+	let latest = null;
+	let expiry = null;
+
+
+	function Set( Token )
+	{
+		let token = ( typeof Token === 'string' ) ? Token.trim() : '';
+		latest = token || null;
+		expiry = token ? expiry_of( token ) : null;
+	}
+
+
+	function Token()
+	{
+		return latest;
+	}
+
+
+	function Expiry()
+	{
+		return expiry;
+	}
+
+
+	return { Set: Set, Token: Token, Expiry: Expiry };
+}
+
+
+// The exp claim of a JWT in milliseconds, or null when the token is not one or has none.
+function expiry_of( token )
+{
+	let parts = token.split( '.' );
+	if ( parts.length !== 3 )
+	{
+		return null;
+	}
+	try
+	{
+		let payload = JSON.parse( Buffer.from( parts[ 1 ], 'base64url' ).toString( 'utf8' ) );
+		return Number.isFinite( payload.exp ) ? payload.exp * 1000 : null;
+	}
+	catch ( error )
+	{
+		return null;
+	}
 }
 
 
@@ -323,6 +393,7 @@ module.exports = {
 	FailToStart: FailToStart,
 	Saver: Saver,
 	AttachHandlers: AttachHandlers,
+	Tokens: Tokens,
 	ServePage: ServePage,
 	AttachShutdown: AttachShutdown,
 };

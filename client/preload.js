@@ -4,7 +4,9 @@
 // until then, the Client having taken the desktop code of before). Before the page's scripts run it asks the main
 // process (main.js) what it shows; the Consensus page reads window.ConsensusDesktop for the root (the window's one
 // Server), the window's one project, the API's base URL and the theme; the chooser calls window.Desktop, and the page
-// calls it for its menu. There is no folder to pick or open and no recent list.
+// calls it for its menu. There is no folder to pick or open and no recent list. SetToken( Token ) hands the person's
+// session token to the app at every load and refresh (plan Review 2026-10-29, Step 5.3), for the window's own address,
+// which adds it to an agent's requests; null at a sign-out.
 
 const ELECTRON = require( 'electron' );
 
@@ -35,6 +37,7 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	License: BOOT.License || null,
 	SetLicense: function ( Token ) { return invoke( 'set-license', Token ); },
 	ClearLicense: function () { return invoke( 'clear-license' ); },
+	SetToken: function ( Token ) { ELECTRON.ipcRenderer.send( 'token', { Token: Token } ); },
 	Reason: BOOT.Reason || null,
 	Remembered: BOOT.Remembered || {},
 	SetTheme: function ( Theme ) { ELECTRON.ipcRenderer.send( 'theme', { Theme: Theme } ); },
