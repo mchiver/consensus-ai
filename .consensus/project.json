@@ -4,8 +4,8 @@
 	"Context": "ctx-263-g6x-2oh",
 	"ContextFolder": "fld-vi6-61j-kzx",
 	"Created": "2026-10-12T16:22:34.882Z",
-	"Updated": "2026-10-30T01:43:30.588Z",
-	"Version": 123,
+	"Updated": "2026-10-30T05:50:32.062Z",
+	"Version": 124,
 	"Items": [
 		{
 			"Kind": "folder",
@@ -85,46 +85,6 @@
 				{
 					"Kind": "plan",
 					"Id": "pln-lv9-2n4-kcc"
-				},
-				{
-					"Kind": "plan",
-					"Id": "pln-rw5-vko-1n7",
-					"Items": [
-						{
-							"Kind": "plan",
-							"Id": "pln-ywz-tii-uew"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-uo2-zlu-f0j"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-2f3-e8j-m56"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-hxq-zo3-dgj"
-						},
-						{
-							"Kind": "plan",
-							"Id": "pln-m5d-sfr-lbu",
-							"Items": [
-								{
-									"Kind": "plan",
-									"Id": "pln-88f-w04-96t"
-								},
-								{
-									"Kind": "plan",
-									"Id": "pln-lc8-a7m-qpp"
-								},
-								{
-									"Kind": "plan",
-									"Id": "pln-z08-8az-j26"
-								}
-							]
-						}
-					]
 				}
 			]
 		},
@@ -426,6 +386,46 @@
 				{
 					"Kind": "plan",
 					"Id": "pln-qj8-oqb-70k"
+				},
+				{
+					"Kind": "plan",
+					"Id": "pln-rw5-vko-1n7",
+					"Items": [
+						{
+							"Kind": "plan",
+							"Id": "pln-ywz-tii-uew"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-uo2-zlu-f0j"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-2f3-e8j-m56"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-hxq-zo3-dgj"
+						},
+						{
+							"Kind": "plan",
+							"Id": "pln-m5d-sfr-lbu",
+							"Items": [
+								{
+									"Kind": "plan",
+									"Id": "pln-88f-w04-96t"
+								},
+								{
+									"Kind": "plan",
+									"Id": "pln-lc8-a7m-qpp"
+								},
+								{
+									"Kind": "plan",
+									"Id": "pln-z08-8az-j26"
+								}
+							]
+						}
+					]
 				}
 			]
 		}
