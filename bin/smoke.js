@@ -674,6 +674,28 @@ const INJECTOR = 'angular.element( document.body ).injector()';
 const FAKE_EVENT = '{ preventDefault: function () {}, stopPropagation: function () {}, currentTarget: document.body, target: document.body, clientX: 10, clientY: 10 }';
 
 
+// A stand-in for the person's sign-in (plan Review 2026-10-29, Step 5.2): ClerkJS stood in for before the page loads, with
+// a user at the plan given (null: signed in with no license), so the session's gate on the plan and the reads at start run
+// as they would for a real sign-in; its token is null, so no call carries one and nothing goes to the app's SetLicense.
+// Answers the script's identifier, for its removal.
+function clerk_stand_in( plan )
+{
+	return 'window.Clerk = { user: { id: "user_stand_in", publicMetadata: { license: ' + JSON.stringify( plan ) + ' }, organizationMemberships: [] }, organization: null,'
+		+ ' session: { getToken: function () { return Promise.resolve( null ); } }, load: function () { return Promise.resolve(); }, addListener: function () {},'
+		+ ' setActive: function () { return Promise.resolve(); }, signOut: function () { return Promise.resolve(); },'
+		+ ' mountSignIn: function () {}, unmountSignIn: function () {}, mountUserButton: function () {}, unmountUserButton: function () {} };';
+}
+
+
+async function stand_in_sign_in( Page, Plan )
+{
+	let added = await Page.Send( 'Page.addScriptToEvaluateOnNewDocument', { source: clerk_stand_in( Plan ) } );
+	await Page.Send( 'Page.reload' );
+	await Page.WaitFor( 'typeof angular !== "undefined" && ' + INJECTOR + ' && ' + INJECTOR + '.get( "Session" ).Loaded', 30000 );
+	return added.identifier;
+}
+
+
 async function desktop_page( TimeoutMs )
 {
 	let limit = Date.now() + ( TimeoutMs || 30000 );
@@ -740,13 +762,18 @@ async function smoke_desktop()
 		FS.writeFileSync( settings_file, JSON.stringify( { Servers: [ { Name: 'First', Url: servers[ 0 ].Url } ] } ) );
 		child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--config', config, '--user-data-dir=' + PATH.join( base, 'user-data' ), '--remote-debugging-port=' + DESKTOP_PORT ], { cwd: ROOT, stdio: 'ignore' } );
 		let page = await desktop_attach();
-		check( 'window: the Desktop, no license and no folder picker yet', await page.Evaluate( 'window.ConsensusDesktop.Edition === "desktop" && !window.ConsensusDesktop.SetLicense && !window.Desktop.PickFolder && window.ConsensusDesktop.Client === undefined' ), true );
+		check( 'window: the Desktop, SetLicense for the Server beside it and no license of its own, no folder picker', await page.Evaluate( 'window.ConsensusDesktop.Edition === "desktop" && typeof window.ConsensusDesktop.SetLicense === "function" && window.ConsensusDesktop.License === null && !window.Desktop.PickFolder && window.ConsensusDesktop.Client === undefined' ), true );
 		check( 'window: no native title or menu bar', await page.Evaluate( NO_FRAME ), true );
 		await page.WaitFor( 'document.getElementById( "sign-in-popup" ) !== null', 15000 ).catch( function () {} );
 		check( 'signed out: the sign-in box alone', await page.Evaluate( 'document.querySelector( ".layout" ).classList.contains( "ng-hide" ) && document.getElementById( "sign-in-popup" ).innerText.indexOf( "Sign in to Consensus" ) >= 0' ), true );
-		// a stand-in for the person's sign-in
-		await page.Evaluate( '( function () { let session = ' + INJECTOR + '.get( "Session" ); session.SignedIn = function () { return true; }; ' + INJECTOR + '.get( "$rootScope" ).$apply(); return true; } )()' );
-		await page.WaitFor( INJECTOR + '.get( "Roots" ).List.every( function ( root ) { return root.Loaded && root.Me; } )', 20000 );
+		// the Personal check (plan Review 2026-10-29, Step 5.2): a stand-in sign-in with no license is shown the license message and nothing else
+		let below = await stand_in_sign_in( page, null );
+		await page.WaitFor( 'document.getElementById( "sign-in-license" ) !== null', 15000 ).catch( function () {} );
+		check( 'below Personal: the license message, Sign out, the page hidden, no root read', await page.Evaluate( 'document.querySelector( ".layout" ).classList.contains( "ng-hide" ) && document.getElementById( "sign-in-license" ) !== null && document.getElementById( "sign-in-license" ).innerText.indexOf( "which the Desktop needs" ) >= 0 && document.getElementById( "sign-in-sign-out" ) !== null && !' + INJECTOR + '.get( "Session" ).Admitted() && ' + INJECTOR + '.get( "Roots" ).List.every( function ( root ) { return !root.Loaded; } )' ), true );
+		await page.Send( 'Page.removeScriptToEvaluateOnNewDocument', { identifier: below } );
+		// a stand-in sign-in at Personal: the page
+		await stand_in_sign_in( page, 'personal' );
+		await page.WaitFor( INJECTOR + '.get( "Session" ).Admitted() && ' + INJECTOR + '.get( "Roots" ).List.every( function ( root ) { return root.Loaded && root.Me; } )', 20000 );
 		check( 'signed in: the page', await page.Evaluate( '!document.querySelector( ".layout" ).classList.contains( "ng-hide" )' ), true );
 		check( 'overlay: visible', await page.Evaluate( 'navigator.windowControlsOverlay && navigator.windowControlsOverlay.visible' ), true );
 		check( 'no configuration: LLMS, USERS and role folders', await page.Evaluate( count_of( 'llm-fold, users-fold, roles-folder' ) ), 0 );

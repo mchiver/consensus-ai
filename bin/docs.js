@@ -945,8 +945,30 @@ async function client_pictures( Url, Demo, Folder, Log )
 }
 
 
+// A stand-in for the person's sign-in (plan Review 2026-10-29, Step 5.2): ClerkJS stood in for before the page loads, with
+// a user at the plan given (null: signed in with no license), so the session's gate on the plan and the reads at start run
+// as they would for a real sign-in; its token is null, so no call carries one and nothing goes to the app's SetLicense.
+// Answers the script's identifier, for its removal.
+function clerk_stand_in( plan )
+{
+	return 'window.Clerk = { user: { id: "user_stand_in", publicMetadata: { license: ' + JSON.stringify( plan ) + ' }, organizationMemberships: [] }, organization: null,'
+		+ ' session: { getToken: function () { return Promise.resolve( null ); } }, load: function () { return Promise.resolve(); }, addListener: function () {},'
+		+ ' setActive: function () { return Promise.resolve(); }, signOut: function () { return Promise.resolve(); },'
+		+ ' mountSignIn: function () {}, unmountSignIn: function () {}, mountUserButton: function () {}, unmountUserButton: function () {} };';
+}
+
+
+async function stand_in_sign_in( Page, Plan )
+{
+	let added = await Page.Send( 'Page.addScriptToEvaluateOnNewDocument', { source: clerk_stand_in( Plan ) } );
+	await Page.Send( 'Page.reload' );
+	await Page.WaitFor( 'typeof angular !== "undefined" && angular.element( document.body ).injector() && angular.element( document.body ).injector().get( "Session" ).Loaded', 30000 );
+	return added.identifier;
+}
+
 // The Desktop: its window with the seeded Server as one of its Servers. The page signs in through Clerk, which the
-// demo has no session for, so the sign-in is stood in for (as bin/smoke.js does): the Server is Local and needs no token.
+// demo has no session for, so the sign-in is stood in for at Personal (stand_in_sign_in, as bin/smoke.js does; plan Review
+// 2026-10-29, Step 5.2): the Server is Local and needs no token.
 async function desktop_pictures( Url, Folder, Log )
 {
 	const CDP = require( '../test/support/Cdp.js' );
@@ -967,8 +989,8 @@ async function desktop_pictures( Url, Folder, Log )
 		page = await CDP.Attach( target.webSocketDebuggerUrl );
 		await page.Send( 'Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false } );
 		await page.WaitFor( 'typeof angular !== "undefined" && ' + INJECTOR + ' && ' + INJECTOR + '.get( "Session" ).Loaded', 30000 );
-		await page.Evaluate( '( function () { let session = ' + INJECTOR + '.get( "Session" ); session.SignedIn = function () { return true; }; ' + INJECTOR + '.get( "$rootScope" ).$apply(); return true; } )()' );
-		await page.WaitFor( INJECTOR + '.get( "Roots" ).List.every( function ( root ) { return root.Loaded && root.Me; } ) && ' + count_of( '.tree-item' ) + ' > 0 && document.body.textContent.indexOf( "{{" ) < 0', 30000 );
+		await stand_in_sign_in( page, 'personal' );
+		await page.WaitFor( INJECTOR + '.get( "Session" ).Admitted() && ' + INJECTOR + '.get( "Roots" ).List.every( function ( root ) { return root.Loaded && root.Me; } ) && ' + count_of( '.tree-item' ) + ' > 0 && document.body.textContent.indexOf( "{{" ) < 0', 30000 );
 		await page.Evaluate( 'document.documentElement.style.setProperty( "--sidebar-width", ' + JSON.stringify( SIDEBAR_WIDTH ) + ' ); true' );
 		await wait( 800 );
 		for ( let theme of THEMES )

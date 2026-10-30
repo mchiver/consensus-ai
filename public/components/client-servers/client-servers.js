@@ -80,12 +80,13 @@ angular.module( 'Consensus' ).factory( 'ClientServers', [ '$window', function ( 
 		} );
 
 
-		// Signed in with no Servers yet: the popup opens by itself, once.
+		// Admitted (a sign-in at Personal, plan Review 2026-10-29, Step 5.2) with no Servers yet: the popup opens by itself,
+		// once.
 		if ( ClientServers.Available )
 		{
 			Session.Ready.then( function ()
 			{
-				if ( Session.SignedIn() && Roots.List.length === 0 )
+				if ( Session.Admitted() && Roots.List.length === 0 )
 				{
 					ClientServers.Show();
 					$scope.$applyAsync();

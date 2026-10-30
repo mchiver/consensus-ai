@@ -2079,6 +2079,82 @@ TEST( 'Clerk on a Local server (plan User Management, Step 4; plan Clerk, Step 5
 
 
 //---------------------------------------------------------------------
+// The Desktop's Personal check (plan Review 2026-10-29, Step 5.2): the page as the Desktop's window, with a stand-in
+// for the bridge and for ClerkJS (window.Clerk set before the page loads, which session.js takes as it is).
+
+function desktop_stand_in( license )
+{
+	return [
+		'window.__licenses = [];',
+		'window.ConsensusDesktop = { Edition: "desktop", Base: "", Version: "0.0.0", Roots: [ { Key: "srv", Name: "srv", Url: "http://127.0.0.1:1", Kind: "server" } ], Project: null, Recent: [], Remembered: {}, License: null,',
+		'  Clerk: { On: true, Required: true, PublishableKey: "pk_test_stand_in", FrontendApi: "stand-in.clerk.accounts.dev", Pricing: "https://example.test/pricing" },',
+		'  Servers: function () { return Promise.resolve( { Servers: [ { Name: "srv", Url: "http://127.0.0.1:1" } ] } ); }, AddServer: function () { return Promise.resolve( { Error: "a stand-in" } ); },',
+		'  RenameServer: function () {}, RemoveServer: function () {},',
+		'  SetLicense: function ( token ) { window.__licenses.push( token ); return Promise.resolve( { Tier: "personal", Line: "a stand-in" } ); }, ClearLicense: function () { return Promise.resolve( {} ); } };',
+		'window.Clerk = { user: { id: "user_1", publicMetadata: { license: ' + JSON.stringify( license ) + ' }, organizationMemberships: [] }, organization: null,',
+		'  session: { getToken: function () { return Promise.resolve( "stand-in-token" ); } }, load: function () { return Promise.resolve(); }, addListener: function () {},',
+		'  setActive: function () { return Promise.resolve(); }, signOut: function () { return Promise.resolve(); },',
+		'  mountSignIn: function () {}, unmountSignIn: function () {}, mountUserButton: function () {}, unmountUserButton: function () {} };',
+	].join( '\n' );
+}
+
+
+TEST( 'the Desktop\'s Personal check (plan Review 2026-10-29, Step 5.2): signed in below Personal the page is the sign-in box with the license message and Sign out, no Servers popup and no root loaded; at Personal the page opens and reads its roots; the sign-in goes to the app either way', async function ()
+{
+	const SESSION = 'angular.element( document.body ).injector().get( "Session" )';
+	const SERVER_CALLS = 'performance.getEntriesByType( "resource" ).filter( function ( entry ) { return entry.name.indexOf( "/servers/" ) >= 0; } ).map( function ( entry ) { return entry.name.slice( entry.name.indexOf( "/servers/" ) ); } )';
+	let below = await browser.OpenPage();
+	try
+	{
+		await below.Send( 'Page.addScriptToEvaluateOnNewDocument', { source: desktop_stand_in( null ) } );
+		await below.Navigate( running.Url + '/' );
+		await below.WaitFor( '( function () { let session = ' + SESSION + '; return session.Loaded && session.SignedIn(); } )()', 30000 );
+		ASSERT.deepEqual( await below.Evaluate( '[ ' + SESSION + '.Tier(), ' + SESSION + '.Admitted(), ' + SESSION + '.Refusal.Error, ' + SESSION + '.Refusal.Plan ]' ), [ 'registered', false, 'license', 'personal' ] );
+		await below.WaitFor( count_of( '#sign-in-license' ) + ' === 1' );
+		ASSERT.match( await below.Evaluate( text_of( '#sign-in-license' ) ), /^This account has no Consensus-AI Personal license, which the Desktop needs\. Consensus Client opens one project of a Server at a time with any account\./ );
+		ASSERT.equal( await below.Evaluate( count_of( '#sign-in-sign-out' ) ), 1, 'Sign out is offered' );
+		ASSERT.equal( await below.Evaluate( count_of( '#sign-in-mount' ) ), 0, 'no form: the person is signed in' );
+		ASSERT.equal( await below.Evaluate( count_of( '.sign-in-popup .popup-close' ) ), 0, 'the box cannot be closed' );
+		ASSERT.equal( await below.Evaluate( 'document.querySelector( ".layout" ).classList.contains( "ng-hide" )' ), true, 'the page is hidden behind the box' );
+		ASSERT.equal( await below.Evaluate( count_of( '#client-servers-popup' ) ), 0, 'no Servers popup' );
+		ASSERT.deepEqual( await below.Evaluate( SERVER_CALLS ), [], 'no root is loaded' );
+		ASSERT.equal( await below.Evaluate( 'angular.element( document.body ).injector().get( "Roots" ).List[ 0 ].Loaded' ), false );
+		await below.WaitFor( 'window.__licenses.length === 1' );
+		ASSERT.deepEqual( await below.Evaluate( 'window.__licenses' ), [ 'stand-in-token' ], 'the sign-in goes to the app for the Server beside it' );
+		ASSERT.deepEqual( below.Errors, [] );
+	}
+	finally
+	{
+		// the stand-in sign-in is not remembered for the main page, which shares the origin
+		await below.Evaluate( 'localStorage.removeItem( "consensus-signed-in" ); true' ).catch( function () {} );
+		await below.Send( 'Page.close' ).catch( function () {} );
+		below.Close();
+	}
+	let admitted = await browser.OpenPage();
+	try
+	{
+		await admitted.Send( 'Page.addScriptToEvaluateOnNewDocument', { source: desktop_stand_in( 'personal' ) } );
+		await admitted.Navigate( running.Url + '/' );
+		await admitted.WaitFor( '( function () { let session = ' + SESSION + '; return session.Loaded && session.Admitted(); } )()', 30000 );
+		ASSERT.deepEqual( await admitted.Evaluate( '[ ' + SESSION + '.Tier(), ' + SESSION + '.Refusal ]' ), [ 'personal', null ] );
+		ASSERT.equal( await admitted.Evaluate( count_of( '#sign-in-popup' ) ), 0 );
+		await admitted.WaitFor( '!document.querySelector( ".layout" ).classList.contains( "ng-hide" )' );
+		// the roots are read (the stand-in Server answers nothing: the page server of a real Desktop would forward to it)
+		await admitted.WaitFor( SERVER_CALLS + '.length >= 1', 10000 );
+		await admitted.WaitFor( 'window.__licenses.length === 1' );
+		ASSERT.deepEqual( admitted.Errors.filter( function ( line ) { return line.indexOf( '/servers/srv/' ) < 0; } ), [] );
+	}
+	finally
+	{
+		await admitted.Evaluate( 'localStorage.removeItem( "consensus-signed-in" ); true' ).catch( function () {} );
+		await admitted.Send( 'Page.close' ).catch( function () {} );
+		admitted.Close();
+		await page.Send( 'Page.bringToFront' );
+	}
+} );
+
+
+//---------------------------------------------------------------------
 // The Host's page (plan Rearchitecturation, Step 5): the array of project views, the Mount switch
 
 TEST( 'the Host\'s page (plan Rearchitecturation, Step 5): one project-view per registered project in the one sidebar, each collapsible; a new project is marked unmounted for the Administrator, Mount in its menu lifts the mark and Unmount brings it back', async function ()

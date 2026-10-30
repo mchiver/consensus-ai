@@ -128,8 +128,9 @@ angular.module( 'Consensus' ).component( 'titleBar', {
 					items.push( { Label: 'Open ' + entry.Path.split( /[\\/]/ ).filter( Boolean ).pop() + ' in new window', Icon: 'detach', Act: function () { desktop.OpenRecent( entry.Path ); } } );
 				}
 				items.push( { Separator: true } );
-				// the Desktop (plan Client Edition, Step 2, as the Client): its Servers, added, renamed and removed
-				if ( ClientServers.Available && Session.SignedIn() )
+				// the Desktop (plan Client Edition, Step 2, as the Client): its Servers, added, renamed and removed, for a person
+				// admitted (plan Review 2026-10-29, Step 5.2: a sign-in at Personal)
+				if ( ClientServers.Available && Session.Admitted() )
 				{
 					items.push( { Label: 'Servers…', Icon: 'settings', Act: function () { ClientServers.Show(); } } );
 				}

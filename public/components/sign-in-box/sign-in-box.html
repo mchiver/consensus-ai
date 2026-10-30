@@ -3,7 +3,8 @@
 		<div class="subplan-head">Sign in to {{ $ctrl.Name() }}<button class="popup-close" type="button" title="close (Escape)" ng-if="$ctrl.CanClose()" ng-click="$ctrl.Close()"><svg class="icon"><use href="#i-x"></use></svg></button></div>
 		<div class="sign-in-closed" id="sign-in-closed" ng-if="$ctrl.Session.Closed">{{ $ctrl.Session.Closed }}.</div>
 		<div class="sign-in-license" id="sign-in-license" ng-if="$ctrl.Session.Refusal">
-			<div ng-if="$ctrl.Session.Refusal.Error !== 'closed'">This account has no Consensus-AI <b>{{ $ctrl.Session.Refusal.Plan === 'professional' ? 'Professional' : 'Personal' }}</b> license, which the Administrator of {{ $ctrl.Session.Refusal.Plan === 'professional' ? 'a Public server' : 'a server' }} needs.<span ng-if="$ctrl.Session.Refusal.Has"> It holds a {{ $ctrl.Session.Refusal.Has }} license.</span></div>
+			<div ng-if="$ctrl.Session.Refusal.Error !== 'closed' && $ctrl.Session.Every">This account has no Consensus-AI <b>Personal</b> license, which the Desktop needs. Consensus Client opens one project of a Server at a time with any account.</div>
+			<div ng-if="$ctrl.Session.Refusal.Error !== 'closed' && !$ctrl.Session.Every">This account has no Consensus-AI <b>{{ $ctrl.Session.Refusal.Plan === 'professional' ? 'Professional' : 'Personal' }}</b> license, which the Administrator of {{ $ctrl.Session.Refusal.Plan === 'professional' ? 'a Public server' : 'a server' }} needs.<span ng-if="$ctrl.Session.Refusal.Has"> It holds a {{ $ctrl.Session.Refusal.Has }} license.</span></div>
 			<div class="small"><a ng-href="{{ $ctrl.Session.Pricing }}" target="_blank" rel="noopener">The licenses and their prices</a></div>
 			<button class="btn btn-sm btn-outline-secondary" type="button" id="sign-in-sign-out" ng-click="$ctrl.SignOut()">Sign out</button>
 		</div>

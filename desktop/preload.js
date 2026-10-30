@@ -5,11 +5,13 @@
 // bridge every edition gives it, so the page is shared: Edition desktop, which the page reads for its name and for
 // the thin page (one sign-in for every Server, no configuration of a Server's); the Servers as the window's roots
 // (each reached through /servers/<name>), the API's base URL, the look and the remembered view state; there is no
-// project of the window's own, no recent list and, until Step 5.2, no license (no SetLicense: the Desktop keeps no
-// current user yet). Clerk is our instance's publishable key and Frontend API host, for the page's sign-in; the
-// Servers: Servers() the list, AddServer( { Url, Token } ), RenameServer( { Name, To } ), RemoveServer( Name ), each
-// answering { Server } or { Error }; a change reloads every window on the new list. The page's application menu calls
-// window.Desktop: New window and Quit; there is no folder to pick or open.
+// project of the window's own and no recent list. License is null: the Desktop's gate is the session's plan in the
+// page (Step 5.2, the Personal check); SetLicense( Token ) hands the sign-in to the app, which verifies it and writes
+// it as the machine's current user for the Server application beside it, and ClearLicense() removes it at sign-out.
+// Clerk is our instance's publishable key and Frontend API host, for the page's sign-in; the Servers: Servers() the
+// list, AddServer( { Url, Token } ), RenameServer( { Name, To } ), RemoveServer( Name ), each answering { Server } or
+// { Error }; a change reloads every window on the new list. The page's application menu calls window.Desktop: New
+// window and Quit; there is no folder to pick or open.
 
 const ELECTRON = require( 'electron' );
 
@@ -43,6 +45,8 @@ ELECTRON.contextBridge.exposeInMainWorld( 'ConsensusDesktop', {
 	CloseDecided: function ( Ok ) { ELECTRON.ipcRenderer.send( 'close-decided', !!Ok ); },
 	PrintToPdf: function ( Name ) { return invoke( 'print-pdf', Name ); },
 	ViewInBrowser: function () { return invoke( 'view-in-browser' ); },
+	SetLicense: function ( Token ) { return invoke( 'set-license', Token ); },
+	ClearLicense: function () { return invoke( 'clear-license' ); },
 	Servers: function () { return invoke( 'servers' ); },
 	AddServer: function ( Fields ) { return invoke( 'add-server', { Url: Fields && Fields.Url, Token: Fields && Fields.Token } ); },
 	RenameServer: function ( Fields ) { return invoke( 'rename-server', { Name: Fields && Fields.Name, To: Fields && Fields.To } ); },

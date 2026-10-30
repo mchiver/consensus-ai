@@ -3,8 +3,11 @@
 // main - the Desktop's main process (plan Review 2026-10-29, Step 5.1: the editions cut). The Desktop opens several
 // remote projects at a time from one or more Consensus Servers and never a local folder: it took the Client's code
 // base (plan Client Edition), the Client the desktop code of before, narrowed. It has no server of its own, no API or
-// MCP of its own until Step 5.3 (electron/Proxy.js), no tokens and, until Step 5.2 (the Personal check), no current
-// user; all configuration is the Servers' own. A window shows every added Server as a root of the page's tree; the
+// MCP of its own until Step 5.3 (electron/Proxy.js) and no tokens; all configuration is the Servers' own. The Personal
+// check (Step 5.2) is the page's, on the session's plan: signed in below Personal, the page shows the sign-in box with
+// the license message and loads no Server. The sign-in's token is also handed here (set-license), verified and written
+// as the machine's current user (electron/CurrentUser.js, <config>/user.json), so the Server application on this machine
+// sees the sign-in; the Desktop reads that file for nothing of its own. A window shows every added Server as a root of the page's tree; the
 // window's page is served by the page server (electron/Page.js) on 127.0.0.1, which forwards each Server's API through
 // /servers/<name>/api. New window opens another window of this process on the same list. The settings are
 // desktop.json in the config folder (Settings.js). The window parts are shared with the other editions
@@ -27,6 +30,7 @@ const PROBE = require( '../src/Probe.js' );
 const WINDOWS = require( '../electron/Windows.js' );
 const APP = require( '../electron/App.js' );
 const SERVERS = require( '../electron/Servers.js' );
+const CURRENT_USER = require( '../electron/CurrentUser.js' );
 const SETTINGS = require( './Settings.js' );
 
 const VERSION = require( '../package.json' ).version;
@@ -47,6 +51,8 @@ let windows = [];		// the open windows, all on the same list of Servers
 
 // The settings saved: now, or a moment after the last change (the view state changes often: a fold, a tab).
 const SAVER = APP.Saver( { Write: function () { SETTINGS.Write( config_folder(), desktop ); }, Label: SETTINGS.FILE } );
+// The machine's current user, <config>/user.json, written for the Server application beside this one (Step 5.2).
+const USER = CURRENT_USER.Make( config_folder );
 
 
 //---------------------------------------------------------------------
@@ -160,6 +166,29 @@ function clerk_config()
 
 
 //---------------------------------------------------------------------
+// The machine's current user (electron/CurrentUser.js): a sign-in's session token, verified and written whole as the
+// current user (replacing whoever was there), for the Server application on this machine; answers the tier, or the tier
+// with an Error and the user unchanged. The Desktop's own gate is the page's, on the session's plan.
+
+async function set_license( Token )
+{
+	let answer = await USER.SetLicense( Token, {} );
+	if ( answer.Error )
+	{
+		return Object.assign( answer.Tier, { Error: answer.Error } );
+	}
+	return answer.Tier;
+}
+
+
+// Sign out: the current user removed.
+function clear_license()
+{
+	return USER.Clear();
+}
+
+
+//---------------------------------------------------------------------
 // The windows
 
 function boot_info()
@@ -171,7 +200,7 @@ function boot_info()
 		Scale: desktop.Scale,
 		Remembered: desktop.Remembered,
 		Roots: roots_now(),
-		License: null,
+		License: null,		// the Desktop's gate is the session's plan (Step 5.2), never the machine's current user
 		Project: null,
 		Recent: [],
 		Reason: null,
@@ -254,6 +283,17 @@ function attach_handlers()
 	ELECTRON.ipcMain.handle( 'remove-server', function ( event, name )
 	{
 		return remove_server( name );
+	} );
+
+	// The sign-in, for the machine's current user (Step 5.2).
+	ELECTRON.ipcMain.handle( 'set-license', function ( event, token )
+	{
+		return set_license( String( token || '' ) );
+	} );
+
+	ELECTRON.ipcMain.handle( 'clear-license', function ()
+	{
+		return clear_license();
 	} );
 }
 

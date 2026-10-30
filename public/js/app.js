@@ -705,10 +705,10 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 
 
 	// The Desktop (plan Client Edition, Step 2, as the Client; plan Review 2026-10-29, Step 5.1): until someone is signed
-	// in, the sign-in box and nothing else.
+	// in at Personal (Step 5.2: Session.Admitted), the sign-in box and nothing else.
 	$scope.DesktopSignedOut = function ()
 	{
-		return Session.Every === true && !( Session.Loaded && Session.SignedIn() );
+		return Session.Every === true && !( Session.Loaded && Session.Admitted() );
 	};
 
 
@@ -903,17 +903,35 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 		}
 	} );
 
-	// The first root is the current one until an item of another opens; the route is read once its identity is known,
-	// and every root's stream brings its lists in as it connects.
+	// Every root's stream brings its lists in as it connects.
+	function listen_all()
+	{
+		for ( let root of Roots.List )
+		{
+			Roots.Listen( root, function ( event ) { on_change( root, event ); }, function ( live ) { on_status( root, live ); } );
+		}
+	}
+
+
+	// The first root is the current one until an item of another opens; the route is read once its identity is known.
+	// In the Desktop (Session.Every) nothing is read before the sign-in is known, and the roots are read and listened to
+	// only for a person admitted (plan Review 2026-10-29, Step 5.2: a sign-in at Personal); below it the page is the box.
 	State.SetRoot( Roots.List[ 0 ] || null );
-	State.LoadMe().then( route );
 	if ( Session.Every === true )
 	{
-		// the Client: the route is read once the sign-in is known
-		Session.Ready.then( function () { $scope.$applyAsync( route ); } );
+		Session.Ready.then( function ()
+		{
+			if ( !Session.Admitted() )
+			{
+				return;
+			}
+			State.LoadMe().then( route );
+			listen_all();
+		} );
 	}
-	for ( let root of Roots.List )
+	else
 	{
-		Roots.Listen( root, function ( event ) { on_change( root, event ); }, function ( live ) { on_status( root, live ); } );
+		State.LoadMe().then( route );
+		listen_all();
 	}
 } ] );

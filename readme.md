@@ -29,7 +29,7 @@ agent beside them, with no sign-in, no LLM connections, no tasks and no users; *
 opens one remote project on one Server per window, picked in its chooser or named with `--connect <server>
 [<project>]`, the Server signing the person in on its page (Registered, which any sign-in is); **Consensus Desktop**
 (`desktop/`) opens several remote projects at a time from one or more Servers, never a local folder, with one Clerk
-sign-in for every Server (Personal, checked from Step 5.2); and **Consensus Server** (`server/`), one server holding
+sign-in for every Server (Personal, checked at the sign-in since Step 5.2); and **Consensus Server** (`server/`), one server holding
 a registry of projects and serving the mounted ones to signed-in accounts, with the users, roles, LLM connections
 and tasks managed on its page by its **Administrator** and **Managers**; the LLM tasks always run on the Server.
 Four Electron applications over one page and the shared `electron/` modules, plus the headless form for a plain
@@ -515,8 +515,9 @@ AtLeast, Authority), read from the machine's current user, `<config>/user.json` 
 any more). No project role needs a license (`Roles.PlanFor` and `NEEDS_PLAN` are gone): at sign-in only the
 Administrator needs personal, and the role folders take any account. The Administrator is the first Personal or
 Professional sign-in to a Server; a Server opens under its Administrator's license alone (the gate), Public needing
-professional. The Sidecar needs no license, the Client a sign-in (Registered), the Desktop Personal (checked from plan Review
-2026-10-29, Step 5.2); none of them starts a Server. The LLM connections and settings are the Administrator's and the Managers'.
+professional. The Sidecar needs no license, the Client a sign-in (Registered), the Desktop Personal (checked at the sign-in in the page, on the
+session's plan, since plan Review 2026-10-29, Step 5.2; the Desktop writes the current user for the Server beside it and
+reads it for nothing); none of them starts a Server. The LLM connections and settings are the Administrator's and the Managers'.
 
 **The license** (the subplan Clerk, Step 5, 2026-10-20; the tiers of plan Rearchitecturation, Step 6, 2026-10-25)
 belongs to a person, not to a server. **Free** is no license: the Desktop on local folders and the sidecar, no

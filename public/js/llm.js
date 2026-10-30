@@ -242,9 +242,30 @@ angular.module( 'Consensus' ).factory( 'Llms', [ '$rootScope', 'Client', 'State'
 	llms.ProjectLlm = ProjectLlm;
 	llms.Reason = Reason;
 	llms.Reload = function () { return For( State.Root ).Reload(); };
-	for ( let root of Roots.List )
+	// The read at start: in the Desktop (Session.Every) only once the person is admitted (plan Review 2026-10-29,
+	// Step 5.2: a sign-in at Personal), as app.js reads the roots; below it nothing is read.
+	function read_all()
 	{
-		For( root ).Reload();
+		for ( let root of Roots.List )
+		{
+			For( root ).Reload();
+		}
+	}
+
+
+	if ( Session.Every === true )
+	{
+		Session.Ready.then( function ()
+		{
+			if ( Session.Admitted() )
+			{
+				read_all();
+			}
+		} );
+	}
+	else
+	{
+		read_all();
 	}
 	return llms;
 } ] )

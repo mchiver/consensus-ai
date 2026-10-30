@@ -5,8 +5,9 @@
 // Settings popup's Sign in button asked for one on a Local server (Asked). The form is Clerk's, mounted into the box
 // by the clerk-mount directive below; a finished sign-in reloads the page (Session). When the server refused a
 // signed-in person for their license (401 "license"), the box says which plan the person's roles need, links the
-// pricing page and offers Clerk's sign-out instead of the form. The same directive mounts Clerk's user button in the
-// title bar.
+// pricing page and offers Clerk's sign-out instead of the form; in the Desktop (Session.Every) the refusal is the
+// Desktop's own, a sign-in below Personal (plan Review 2026-10-29, Step 5.2), and the message says so. The same
+// directive mounts Clerk's user button in the title bar.
 //
 // Interface:
 //   <sign-in-box></sign-in-box>

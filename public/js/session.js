@@ -22,16 +22,20 @@
 // authorizes that identity project by project. Clerk's session stays in the window's own storage. Signed in, a
 // Server's refusal is that Server's (its root shows it) and never the box.
 //
-// In the Client and the Server's window (plan Rearchitecturation, Step 6) a sign-in's token goes to the app
+// In the Client, the Server's window and the Desktop (plan Rearchitecturation, Step 6; the Desktop since plan Review
+// 2026-10-29, Step 5.2) a sign-in's token goes to the app
 // (ConsensusDesktop.SetLicense), at every load while signed in, which verifies it and writes it as the machine's
 // current user (plan The Server, Step 1: <config>/user.json, kept 14 days from the last check, so it holds offline); a
 // sign-out removes it. The tiers are unlicensed (no sign-in), registered (a sign-in with no license), personal and
-// professional.
+// professional. The Desktop needs Personal (plan Review 2026-10-29, Step 5.2, the Personal check): signed in below
+// it, the session keeps a license refusal (Error license, Plan personal) and Admitted() is false, so the page shows the
+// sign-in box with the license message and Sign out in place of the Servers and loads no root; the gate is the
+// session's plan (Plan()), never the machine's current user, which the Desktop writes for the Server beside it alone.
 //
 //   Session { Key, Base (the own server's root key and base, null when there is none), Every (the Desktop: every root's calls carry the token),
 //             On, Loaded, Required, Asked, Refusal, Closed (a Server's closed gate: its reason), Error, Config, Pricing, Ready (a promise: loaded), License (the
 //             Desktop's cached tier { Tier, Days, Line } or null),
-//             Token(), SignedIn(), User(), Plan(), Tier(), Licensed( plan ), Needed( body ), Open(), SignOut(),
+//             Token(), SignedIn(), User(), Plan(), Tier(), Licensed( plan ), Admitted(), Needed( body ), Open(), SignOut(),
 //             MountSignIn( element ), MountUserButton( element ), Unmount( element, kind ) }
 
 angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', function ( $rootScope )
@@ -207,7 +211,11 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	{
 		try
 		{
-			await load_script( session.Config.FrontendApi, session.Config.PublishableKey );
+			// ClerkJS already on the page (a stand-in in the tests) is taken as it is
+			if ( !window.Clerk )
+			{
+				await load_script( session.Config.FrontendApi, session.Config.PublishableKey );
+			}
 			clerk = window.Clerk;
 			await clerk.load();
 			if ( remembered() && !( clerk.user && clerk.session ) )
@@ -218,6 +226,7 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 			remember( was_signed_in );
 			await activate_organization();
 			clerk.addListener( on_change );
+			check_tier();
 			await report_license();
 		}
 		catch ( error )
@@ -289,8 +298,8 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	// verifies it and answers the tier it is at now.
 	// The application the page runs in, which keeps the machine's current user: the Desktop or the Server application
 	// (plan The Server, Step 3; since plan Review 2026-10-29, Step 3, the Server gives the same ConsensusDesktop bridge,
-	// Edition server, and the Client since Step 5.1), null in a plain browser or an app with no current user (the Sidecar,
-	// and the Desktop until Step 5.2: no SetLicense).
+	// Edition server, the Client since Step 5.1 and the Desktop since Step 5.2), null in a plain browser or the Sidecar, which
+	// has no current user.
 	function license_bridge()
 	{
 		return window.ConsensusDesktop || null;
@@ -419,6 +428,29 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	}
 
 
+	// The Desktop's gate (plan Review 2026-10-29, Step 5.2): signed in below Personal, the session keeps the refusal the
+	// sign-in box shows (the license message and Sign out), as a Server's 401 "license" would be kept.
+	function check_tier()
+	{
+		if ( DESKTOP && clerk && clerk.user && !Licensed( 'personal' ) )
+		{
+			session.Refusal = { Error: 'license', Plan: 'personal' };
+		}
+	}
+
+
+	// Whether the page is open to the person: in the Desktop a sign-in at Personal or above, elsewhere always (a Server's
+	// refusal is its own root's).
+	function Admitted()
+	{
+		if ( !DESKTOP )
+		{
+			return true;
+		}
+		return SignedIn() && !session.Refusal && Licensed( 'personal' );
+	}
+
+
 	// The server refused a request with 401: the sign-in box shows (when Clerk is on); a "license" refusal is kept
 	// with the plan wanted, so the box says so instead of asking for a sign-in again.
 	function Needed( Body )
@@ -533,6 +565,7 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	session.Plan = Plan;
 	session.Tier = Tier;
 	session.Licensed = Licensed;
+	session.Admitted = Admitted;
 	session.Needed = Needed;
 	session.Open = Open;
 	session.SignOut = SignOut;

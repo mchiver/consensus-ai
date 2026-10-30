@@ -86,9 +86,12 @@ The Client:
 
 The Desktop:
 
-- **signed out**: the window is Edition desktop with no SetLicense and no folder picker, and shows the sign-in box
-  alone; the smoke then stands in for the sign-in (the servers are Local). A failure is `desktop/preload.js` or
-  `session.js`.
+- **signed out**: the window is Edition desktop with SetLicense (for the Server beside it; its own License null) and no
+  folder picker, and shows the sign-in box alone. A failure is `desktop/preload.js` or `session.js`.
+- **the Personal check**: the smoke stands in for ClerkJS before the page loads (`stand_in_sign_in`), first with a
+  sign-in holding no license: the box shows the license message ("which the Desktop needs") with Sign out, the page
+  stays hidden and no root is read; then at Personal: the page, every root read (the servers are Local, the stand-in's
+  token null). A failure is `session.js` (check_tier, Admitted), `app.js` (the reads at start) or `sign-in-box.html`.
 - **the page**: no LLMs, Users or role folders; the menu has Servers… and Sign out and no Settings or folder item; the
   project menu has Explain and no settings, instructions, rename or delete; the server menu has Servers… and Reload;
   the title and About name Consensus Desktop. A failure is `roots.js`, `tree.js`, `title-bar.js` or the

@@ -21,7 +21,7 @@ Consensus Desktop is for working in projects that live on one or more Consensus 
 npm run desktop -- [--config <folder>]
 ```
 
-**Signing in.** The Desktop shows nothing but the sign-in box until you sign in with your Consensus-AI account. The same sign-in goes with every call to every Server, and each Server decides, project by project, what you may see and do. The sign-in is kept in the Desktop's own window, so a restart finds you still signed in; **Sign out** is in the window's menu.
+**Signing in.** The Desktop shows nothing but the sign-in box until you sign in with your Consensus-AI account, which needs a **Personal** license: signed in with less, the box says so, with the link to the licenses and **Sign out**, and nothing else opens. The same sign-in goes with every call to every Server, and each Server decides, project by project, what you may see and do. The sign-in is kept in the Desktop's own window, so a restart finds you still signed in; **Sign out** is in the window's menu. The sign-in is also written as this machine's signed-in person, so a Server started on the same machine sees it.
 
 **Your Servers.** **Servers…**, in the window's menu or in a Server's own menu in the tree, lists the Servers you added:
 

@@ -162,7 +162,7 @@ TEST( 'the Servers: added under the Server\'s name, a name taken numbered on, an
 //---------------------------------------------------------------------
 // The app's files
 
-TEST( 'the Desktop app: its own folder and npm script; the Client\'s code base: no folder, no server, no Start.js, no license or user yet', function ()
+TEST( 'the Desktop app: its own folder and npm script; the Client\'s code base: no folder, no server, no Start.js; the sign-in written as the machine\'s current user for the Server beside it and read for nothing (Step 5.2)', function ()
 {
 	let scripts = JSON.parse( read( 'package.json' ) ).scripts;
 	ASSERT.equal( scripts.desktop, 'electron desktop' );
@@ -170,10 +170,20 @@ TEST( 'the Desktop app: its own folder and npm script; the Client\'s code base: 
 	ASSERT.equal( own.main, 'main.js' );
 	ASSERT.equal( own.version, JSON.parse( read( 'package.json' ) ).version );
 	let main = read( 'desktop/main.js' );
-	for ( let module of [ 'Sidecar.js', 'License.js', 'Instructions.js', 'Start.js', 'Mcp.js', 'ServerStatus.js', 'Projects.js', 'CurrentUser.js' ] )
+	for ( let module of [ 'Sidecar.js', 'License.js', 'Instructions.js', 'Start.js', 'Mcp.js', 'ServerStatus.js', 'Projects.js' ] )
 	{
 		ASSERT.equal( main.indexOf( module + "' )" ), -1, 'the Desktop\'s main requires no ' + module );
 	}
+	// the Personal check (Step 5.2): the sign-in goes to electron/CurrentUser.js for the Server beside the Desktop; the boot hands no license, the gate being the page's
+	ASSERT.ok( main.indexOf( "CurrentUser.js' )" ) >= 0, 'the Desktop\'s main requires CurrentUser.js' );
+	ASSERT.match( main, /const USER = CURRENT_USER\.Make\( config_folder \)/ );
+	ASSERT.match( main, /ipcMain\.handle\( 'set-license', function \( event, token \)\s*\{\s*return set_license\( String\( token \|\| '' \) \);/ );
+	ASSERT.match( main, /await USER\.SetLicense\( Token, \{\} \)/ );
+	ASSERT.match( main, /ipcMain\.handle\( 'clear-license', function \(\)\s*\{\s*return clear_license\(\);/ );
+	ASSERT.match( main, /return USER\.Clear\(\);/ );
+	ASSERT.match( main, /\n\t\tLicense: null,/, 'the boot hands no license' );
+	ASSERT.equal( main.indexOf( 'USER.Tier' ), -1, 'the Desktop reads the current user for nothing of its own' );
+	ASSERT.equal( main.indexOf( 'USER.Read' ), -1, 'the Desktop reads the current user for nothing of its own' );
 	ASSERT.equal( main.indexOf( 'SERVER.Start' ), -1, 'the Desktop starts no server' );
 	ASSERT.equal( main.indexOf( 'SecretKey' ), -1, 'no secret goes to the page' );
 	ASSERT.match( main, /Title: 'the Desktop', Flags: FLAGS \}/, 'the command line is --config alone: no Positional, no Rest' );
@@ -181,18 +191,19 @@ TEST( 'the Desktop app: its own folder and npm script; the Client\'s code base: 
 	ASSERT.deepEqual( FS.existsSync( PATH.join( ROOT, 'desktop', 'page' ) ), false, 'the chooser is the Client\'s' );
 	let preload = read( 'desktop/preload.js' );
 	ASSERT.match( preload, /exposeInMainWorld\( 'ConsensusDesktop', \{\s*Edition: 'desktop',/ );
-	for ( let name of [ 'SetLicense', 'ClearLicense', 'SetUser', 'PickFolder', 'OpenFolderWindow', 'OpenRecent', 'Client' ] )
+	for ( let name of [ 'SetUser', 'PickFolder', 'OpenFolderWindow', 'OpenRecent', 'Client' ] )
 	{
 		ASSERT.doesNotMatch( preload, new RegExp( '^\\t' + name + ':', 'm' ), 'the Desktop\'s bridge has no ' + name );
 	}
-	for ( let name of [ 'Servers', 'AddServer', 'RenameServer', 'RemoveServer', 'Clerk' ] )
+	ASSERT.match( preload, /^\tLicense: null,/m, 'the bridge hands no license' );
+	for ( let name of [ 'Servers', 'AddServer', 'RenameServer', 'RemoveServer', 'Clerk', 'SetLicense', 'ClearLicense' ] )
 	{
 		ASSERT.ok( preload.indexOf( name + ':' ) >= 0, 'the Desktop\'s bridge has ' + name );
 	}
 } );
 
 
-TEST( 'the Desktop\'s page: the thin page by Edition desktop (the Client flag of before gone): one sign-in for every Server, no configuration of a Server\'s, the runs and the Servers popup', function ()
+TEST( 'the Desktop\'s page: the thin page by Edition desktop (the Client flag of before gone): one sign-in for every Server at Personal (Step 5.2), no configuration of a Server\'s, the runs and the Servers popup', function ()
 {
 	let session = read( 'public/js/session.js' );
 	ASSERT.match( session, /const DESKTOP = !!\( window\.ConsensusDesktop && window\.ConsensusDesktop\.Edition === 'desktop' \)/ );
@@ -212,7 +223,16 @@ TEST( 'the Desktop\'s page: the thin page by Edition desktop (the Client flag of
 	{
 		ASSERT.equal( desktop_menu.indexOf( left_out ), -1, 'the Desktop\'s project menu has no ' + left_out );
 	}
-	ASSERT.match( read( 'public/js/app.js' ), /\$scope\.DesktopSignedOut = function/ );
+	// the Personal check (Step 5.2): the session's gate on its plan; the page, the Servers popup and the Servers menu item wait on it
+	ASSERT.match( session, /function check_tier\(\)\s*\{\s*if \( DESKTOP && clerk && clerk\.user && !Licensed\( 'personal' \) \)\s*\{\s*session\.Refusal = \{ Error: 'license', Plan: 'personal' \};/ );
+	ASSERT.match( session, /function Admitted\(\)\s*\{\s*if \( !DESKTOP \)\s*\{\s*return true;\s*\}\s*return SignedIn\(\) && !session\.Refusal && Licensed\( 'personal' \);/ );
+	ASSERT.match( session, /session\.Admitted = Admitted;/ );
+	ASSERT.match( read( 'public/js/app.js' ), /\$scope\.DesktopSignedOut = function \(\)\s*\{\s*return Session\.Every === true && !\( Session\.Loaded && Session\.Admitted\(\) \);/ );
+	ASSERT.match( read( 'public/js/app.js' ), /if \( !Session\.Admitted\(\) \)\s*\{\s*return;\s*\}\s*State\.LoadMe\(\)\.then\( route \);\s*listen_all\(\);/, 'no root is read or listened to below Personal' );
+	ASSERT.match( read( 'public/components/client-servers/client-servers.js' ), /if \( Session\.Admitted\(\) && Roots\.List\.length === 0 \)/ );
+	ASSERT.match( read( 'public/js/llm.js' ), /Session\.Ready\.then\( function \(\)\s*\{\s*if \( Session\.Admitted\(\) \)\s*\{\s*read_all\(\);/, 'the LLM connections are read at start only for a person admitted' );
+	ASSERT.match( read( 'public/components/title-bar/title-bar.js' ), /if \( ClientServers\.Available && Session\.Admitted\(\) \)/ );
+	ASSERT.match( read( 'public/components/sign-in-box/sign-in-box.html' ), /&& \$ctrl\.Session\.Every">This account has no Consensus-AI <b>Personal<\/b> license, which the Desktop needs\./ );
 	ASSERT.match( read( 'public/index.html' ), /ng-hide="DesktopSignedOut\(\)"/ );
 	ASSERT.match( read( 'public/components/client-servers/client-servers.js' ), /bridge\.Edition === 'desktop' && typeof bridge\.AddServer === 'function'/ );
 	ASSERT.match( read( 'public/components/client-runs/client-runs.js' ), /\$window\.ConsensusDesktop\.Edition === 'desktop'/ );
