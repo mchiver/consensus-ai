@@ -4,7 +4,7 @@
 // docs - the website in docs/ (the plan "Documentation"): the landing page, the user guide and the screenshots,
 // published as it is to the S3 bucket.
 //   node bin/docs.js build         renders guide/*.md into template.html, copies Bootstrap, checks every link and image
-//   node bin/docs.js screenshots   makes every picture of docs/images/ from a seeded server and the desktop
+//   node bin/docs.js screenshots   makes every picture of docs/images/ from a seeded server, the Client and the Desktop
 //   node bin/docs.js publish       build, then `aws s3 sync docs/ s3://consensus-ai.mchiver.com --delete`
 // Build( { Folder } ) and Screenshots( { Folder } ) are exported for the test, which runs them over a copy of docs/.
 
@@ -24,14 +24,14 @@ const BUCKET = 's3://consensus-ai.mchiver.com';
 const EXTERNAL = /^(https?:|mailto:|data:|javascript:|#)/i;
 
 // The screenshots: the window, the service the seeding posts as on the seeded server (plan User Management, Step 2:
-// an LLM acts for the owner, with a byline), the demo project's export, and the desktop's DevTools port.
+// an LLM acts for the owner, with a byline), the demo project's export, and the applications' DevTools port.
 const WIDTH = 1440;
 const HEIGHT = 900;
 const THEMES = [ 'light', 'dark' ];
 const LLM_SERVICE = 'Claude-CLI';
 const DEMO_FILE = 'recipe-box.json';
 const DESKTOP_PORT = 9333;
-// The server's data folder and the desktop's workspace while the pictures are made: a git-ignored folder in the
+// The server's data folder and the applications' config folders while the pictures are made: a git-ignored folder in the
 // checkout, so the paths the pictures show are the project's, not the machine's temporary folder; removed after.
 const DEMO_ROOT = PATH.join( __dirname, '..', '~docs-demo' );
 const SIDEBAR_WIDTH = '340px';
@@ -780,10 +780,12 @@ const PAGE_PICTURES = [
 
 
 //---------------------------------------------------------------------
-// The desktop's pictures: the connect screen, the LLM page and a finished run, over the desktop started with its own
-// user-data folder, connected to the seeded server, whose LLM connection (plan Run Shapes, Step 3: the server's, run
-// by it in the project's folder) is a claude connection to a stand-in service (plan Tool calls only, Step 3:
-// test/support/Service.js) that answers like a review.
+// The applications' pictures (plan Review 2026-10-29, Step 5.1: the editions cut). The Client: its chooser with the
+// seeded Server saved, the Server's project opened in the window (the one project's page) and its menu, then on the
+// same window the Server's LLM page and a finished run, the connection (plan Run Shapes, Step 3: the Server's, run by it
+// in the project's folder) a claude connection to a stand-in service (plan Tool calls only, Step 3:
+// test/support/Service.js) that answers like a review. The Desktop: its window with the seeded Server as one of its
+// Servers, the sign-in stood in for. Each app starts with its own user-data folder, over the DevTools port.
 
 const DOC_LLM_ID = 'llm-doc-cla-ude';
 
@@ -820,7 +822,7 @@ async function wait_for_target( Port, Test, TimeoutMs )
 		}
 		await wait( 250 );
 	}
-	throw new Error( 'the desktop did not show the expected page within ' + TimeoutMs + ' ms' );
+	throw new Error( 'the app did not show the expected page within ' + TimeoutMs + ' ms' );
 }
 
 
@@ -831,48 +833,42 @@ function demo_user( Config )
 }
 
 
-async function desktop_pictures( Url, Demo, Folder, Log )
+async function client_pictures( Url, Demo, Folder, Log )
 {
 	const CDP = require( '../test/support/Cdp.js' );
-	const PARTICIPANTS = require( '../src/Participants.js' );
 	let electron = require( 'electron' );
-	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-docs-desktop-' ) );
-	// The desktop's config folder (plan Run Shapes): its own server not started (Scope None), and the seeded one saved as
-	// a Host in the desktop's own file, desktop.json (plan Rearchitecturation, Step 1).
-	let config = PATH.join( DEMO_ROOT, 'desktop-config' );
+	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-docs-client-' ) );
+	// The Client's config folder: the seeded Server saved in client.json, the demo project as its last.
+	let config = PATH.join( DEMO_ROOT, 'client-config' );
 	FS.mkdirSync( config, { recursive: true } );
-	let settings = Object.assign( PARTICIPANTS.DefaultSettings( 3500, 'None' ), { Name: 'Recipe Box desktop' } );
-	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( settings, null, '\t' ) );
-	// The seeded project saved as a Host project (plan Rearchitecturation, Step 2: one entry per Host project).
-	let desktop = { Hosts: [ { Name: 'Recipe Box server', Url: Url, Project: Demo.Id, Title: 'Recipe Box' } ], Theme: 'light', Scale: 'normal' };
-	FS.writeFileSync( PATH.join( config, 'desktop.json' ), JSON.stringify( desktop, null, '\t' ) );
-	// a Personal user signed in (plan Rearchitecturation, Step 6; plan The Server, Step 1: user.json): connecting to a Server needs a sign-in
+	let entry = { Name: 'Recipe Box server', Url: Url, Project: Demo.Id, Title: 'Recipe Box' };
+	FS.writeFileSync( PATH.join( config, 'client.json' ), JSON.stringify( { Servers: [ entry ], Theme: 'light', Scale: 'normal' }, null, '\t' ) );
 	demo_user( config );
 
-	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data, '--config', config ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );
+	let child = CHILD_PROCESS.spawn( electron, [ 'client', '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data, '--config', config ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );
 	let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
 	let files = [];
 	let page = null;
 	try
 	{
-		// With no folder the app opens on the chooser (plan Rearchitecturation, Step 2), pictured first with the saved Host
-		// project; then the Host project is opened in the window, and the page pictured.
+		// With no --connect the app opens on the chooser, pictured first with the saved Server; then the Server's project
+		// is opened in the window, and the page pictured.
 		let target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return Target.url.includes( 'connect.html' ); }, 60000 );
 		await wait( 500 );
 		page = await CDP.Attach( target.webSocketDebuggerUrl );
 		await page.Send( 'Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false } );
-		await page.WaitFor( count_of( '.host-row' ) + ' === 1 && document.body.textContent.indexOf( "{{" ) < 0', 20000 );
+		await page.WaitFor( count_of( '.server-row' ) + ' === 1 && document.body.textContent.indexOf( "{{" ) < 0', 20000 );
 		await wait( 500 );
 		for ( let theme of THEMES )
 		{
 			await set_theme( page, theme );
-			files.push( await capture( page, Folder, 'desktop-connect', theme ) );
-			Log( 'desktop-connect ' + theme );
+			files.push( await capture( page, Folder, 'client-connect', theme ) );
+			Log( 'client-connect ' + theme );
 		}
 		await set_theme( page, 'light' );
 
-		// The Host project opened in this window; the DevTools target is attached again after the navigation.
-		await page.Evaluate( 'window.Desktop.ConnectHost( ' + JSON.stringify( desktop.Hosts[ 0 ] ) + ' ).then( function ( answer ) { if ( !answer.Ok ) { throw new Error( answer.Error ); } return true; } )' );
+		// The Server's project opened in this window; the DevTools target is attached again after the navigation.
+		await page.Evaluate( 'window.Desktop.ConnectServer( ' + JSON.stringify( entry ) + ' ).then( function ( answer ) { if ( !answer.Ok ) { throw new Error( answer.Error ); } return true; } )' );
 		page.Close();
 		target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return Target.url.includes( '127.0.0.1' ) && !Target.url.includes( 'connect.html' ); }, 30000 );
 		await wait( 1000 );
@@ -883,7 +879,27 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 		// The old document is marked, so the wait is for the new one and not for the old one still showing.
 		await page.Evaluate( 'window.DocsOldDocument = true; localStorage.setItem( "consensus.--sidebar-width", ' + JSON.stringify( SIDEBAR_WIDTH ) + ' ); localStorage.setItem( "consensus.--threads-width", ' + JSON.stringify( THREADS_WIDTH ) + ' ); location.reload(); true' );
 		await wait( 1500 );
-		await page.WaitFor( '!window.DocsOldDocument && ' + count_of( '.tree-item' ) + ' > 0', 30000 );
+		await page.WaitFor( '!window.DocsOldDocument && ' + count_of( '.project.single.open' ) + ' === 1 && document.body.textContent.indexOf( "{{" ) < 0', 30000 );
+		await wait( 800 );
+		for ( let theme of THEMES )
+		{
+			await set_theme( page, theme );
+			files.push( await capture( page, Folder, 'client-project', theme ) );
+			Log( 'client-project ' + theme );
+		}
+		for ( let theme of THEMES )
+		{
+			await set_theme( page, theme );
+			await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
+			await page.WaitFor( visible( '#popup-menu' ) );
+			await wait( 300 );
+			files.push( await capture( page, Folder, 'client-menu', theme, { Selector: 'body', Height: 470 } ) );
+			Log( 'client-menu ' + theme );
+			await page.Press( 'Escape' );
+			await wait( 200 );
+		}
+		await set_theme( page, 'light' );
+
 		// The demo project open, with its plan last opened, so the LLM page's pickers start on them.
 		await open_plan( page, Url, Demo.Plans[ 'Shopping list' ] );
 		await page.Evaluate( 'location.hash = "#/llm/' + DOC_LLM_ID + '"; true' );
@@ -892,8 +908,8 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 		for ( let theme of THEMES )
 		{
 			await set_theme( page, theme );
-			files.push( await capture( page, Folder, 'desktop-llm', theme ) );
-			Log( 'desktop-llm ' + theme );
+			files.push( await capture( page, Folder, 'llm-page', theme ) );
+			Log( 'llm-page ' + theme );
 		}
 		await set_theme( page, 'light' );
 
@@ -911,8 +927,8 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 		for ( let theme of THEMES )
 		{
 			await set_theme( page, theme );
-			files.push( await capture( page, Folder, 'desktop-run', theme ) );
-			Log( 'desktop-run ' + theme );
+			files.push( await capture( page, Folder, 'llm-run', theme ) );
+			Log( 'llm-run ' + theme );
 		}
 	}
 	finally
@@ -929,47 +945,37 @@ async function desktop_pictures( Url, Demo, Folder, Log )
 }
 
 
-// A folder open in the desktop (plan Rearchitecturation, Step 7): the app started on a temporary folder, the one project
-// pictured, then its menu (Sign in…).
-async function desktop_folder_pictures( Folder, Log )
+// The Desktop: its window with the seeded Server as one of its Servers. The page signs in through Clerk, which the
+// demo has no session for, so the sign-in is stood in for (as bin/smoke.js does): the Server is Local and needs no token.
+async function desktop_pictures( Url, Folder, Log )
 {
 	const CDP = require( '../test/support/Cdp.js' );
+	const INJECTOR = 'angular.element( document.body ).injector()';
 	let electron = require( 'electron' );
-	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-docs-desktop-folder-' ) );
-	let config = PATH.join( DEMO_ROOT, 'desktop-folder-config' );
+	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-docs-desktop-' ) );
+	let config = PATH.join( DEMO_ROOT, 'desktop-config' );
 	FS.mkdirSync( config, { recursive: true } );
-	FS.writeFileSync( PATH.join( config, 'desktop.json' ), JSON.stringify( { Theme: 'light', Scale: 'normal' }, null, '\t' ) );
-	demo_user( config );
-	let project = PATH.join( DEMO_ROOT, 'recipe-box-folder' );
-	FS.mkdirSync( project, { recursive: true } );
-	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', project, '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data, '--config', config ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );
+	FS.writeFileSync( PATH.join( config, 'desktop.json' ), JSON.stringify( { Servers: [ { Name: 'Recipe Box server', Url: Url } ], Theme: 'light', Scale: 'normal' }, null, '\t' ) );
+	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--remote-debugging-port=' + DESKTOP_PORT, '--user-data-dir=' + user_data, '--config', config ], { cwd: PATH.join( __dirname, '..' ), stdio: 'ignore' } );
 	let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
 	let files = [];
 	let page = null;
 	try
 	{
-		let target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return Target.url.includes( '127.0.0.1' ) && !Target.url.includes( 'connect.html' ); }, 60000 );
+		let target = await wait_for_target( DESKTOP_PORT, function ( Target ) { return /^http:\/\/127\.0\.0\.1:\d+\/(#.*)?$/.test( Target.url ); }, 60000 );
 		await wait( 1000 );
 		page = await CDP.Attach( target.webSocketDebuggerUrl );
 		await page.Send( 'Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false } );
-		await page.WaitFor( count_of( '.project.single.open' ) + ' === 1 && document.body.textContent.indexOf( "{{" ) < 0', 30000 );
+		await page.WaitFor( 'typeof angular !== "undefined" && ' + INJECTOR + ' && ' + INJECTOR + '.get( "Session" ).Loaded', 30000 );
+		await page.Evaluate( '( function () { let session = ' + INJECTOR + '.get( "Session" ); session.SignedIn = function () { return true; }; ' + INJECTOR + '.get( "$rootScope" ).$apply(); return true; } )()' );
+		await page.WaitFor( INJECTOR + '.get( "Roots" ).List.every( function ( root ) { return root.Loaded && root.Me; } ) && ' + count_of( '.tree-item' ) + ' > 0 && document.body.textContent.indexOf( "{{" ) < 0', 30000 );
+		await page.Evaluate( 'document.documentElement.style.setProperty( "--sidebar-width", ' + JSON.stringify( SIDEBAR_WIDTH ) + ' ); true' );
 		await wait( 800 );
 		for ( let theme of THEMES )
 		{
 			await set_theme( page, theme );
-			files.push( await capture( page, Folder, 'desktop-project', theme ) );
-			Log( 'desktop-project ' + theme );
-		}
-		for ( let theme of THEMES )
-		{
-			await set_theme( page, theme );
-			await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
-			await page.WaitFor( visible( '#popup-menu' ) );
-			await wait( 300 );
-			files.push( await capture( page, Folder, 'desktop-menu', theme, { Selector: 'body', Height: 470 } ) );
-			Log( 'desktop-menu ' + theme );
-			await page.Press( 'Escape' );
-			await wait( 200 );
+			files.push( await capture( page, Folder, 'desktop-servers', theme ) );
+			Log( 'desktop-servers ' + theme );
 		}
 	}
 	finally
@@ -989,7 +995,7 @@ async function desktop_folder_pictures( Folder, Log )
 //---------------------------------------------------------------------
 // Screenshots( { Folder, Log, Desktop } ): every picture, into Folder/images. A server runs on a temporary data
 // folder with the demo project; a headless Chrome or Edge takes the page's pictures in both themes; then the
-// desktop's. Returns the files written.
+// Client's and the Desktop's. Returns the files written.
 
 async function Screenshots( Options )
 {
@@ -1045,8 +1051,8 @@ async function Screenshots( Options )
 		}
 		if ( with_desktop )
 		{
-			files = files.concat( await desktop_pictures( running.Url, demo, folder, log ) );
-			files = files.concat( await desktop_folder_pictures( folder, log ) );
+			files = files.concat( await client_pictures( running.Url, demo, folder, log ) );
+			files = files.concat( await desktop_pictures( running.Url, folder, log ) );
 		}
 	}
 	finally

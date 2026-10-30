@@ -1,7 +1,7 @@
 {
 	"name": "consensus-client",
 	"version": "0.5.1",
-	"description": "Consensus Client: projects on one or more Consensus Servers, a Clerk sign-in, no local folder and no API of its own (plan Client Edition). Run from the checkout with npm run client.",
+	"description": "Consensus Client: one remote project on one Consensus Server per window, picked in the chooser or named on the command line, no local folder and no server of its own (plan Review 2026-10-29, Step 5.1: the editions cut). Run from the checkout with npm run client.",
 	"private": true,
 	"main": "main.js"
 }

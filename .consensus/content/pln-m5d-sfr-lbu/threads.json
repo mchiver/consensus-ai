@@ -1,1 +1,200 @@
-[]
+[
+	{
+		"Id": "thr-6ps-2av-9zu",
+		"Anchor": {
+			"Text": "the Client's command line",
+			"Prefix": "9), every recommendation taken: ",
+			"Suffix": ", consensus-client [--connect []"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-30T01:36:48.094Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-30T01:43:20.117Z",
+			"Revision": 2,
+			"RevisionId": "rev-15s-uib-cp4",
+			"Outcome": "Resolved with no reply: the recommendation went in. The Client takes [--connect <server> [<project>]] [--config <folder>] through App.Arguments with Rest false; no --port, a bare folder refused."
+		},
+		"Created": "2026-10-29T21:50:49.786Z",
+		"Replies": [
+			{
+				"Id": "rep-1f0-lq0-sw5",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T21:50:49.786Z",
+				"Text": "The Client's command line. Today's desktop code, which becomes the Client, takes [<folder> | --connect <server name>] [--config] [--port], with --connect naming a saved Server and the project coming from the saved entry. The Client has no folder and no port of its own (its page server picks a free one, remembered), so the line shrinks to the Server, the project and --config.\n\nRecommendation: consensus-client [--connect <server> [<project>]] [--config <folder>], through App.Arguments with Rest false: --connect takes the saved Server's Name (the address is in client.json) and an optional second word, the project's id or name on it, else the Server's last project for that entry, else the chooser's project list; with no --connect the chooser. --port goes (there is no server of the Client's own to put on a port), and a bare folder is refused as \"not an argument the Client knows\". Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-y02-5ks-xbw",
+		"Anchor": {
+			"Text": "the current root as the Desktop's /api upstream",
+			"Prefix": "fig ], no --port and no folder; ",
+			"Suffix": "; the page handing the session t"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-30T01:37:44.029Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-30T01:43:20.144Z",
+			"Revision": 3,
+			"RevisionId": "rev-s4n-s79-k6t",
+			"Outcome": "Resolved with no reply: the recommendation went in. The Desktop's /api forwards to the current root, remembered, the first Server until one opens; the instructions tell an agent to read them again on an unknown project."
+		},
+		"Created": "2026-10-29T21:50:49.811Z",
+		"Replies": [
+			{
+				"Id": "rep-9ba-9gi-g9y",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T21:50:49.811Z",
+				"Text": "Where the Desktop's local /api goes. The Desktop shows several Servers at once, each under /servers/<key>/api, and an agent beside the window reaches one address, /api on the page server. Which Server is behind it: (a) the current root, the one whose project is open in the window (remembered as a page key, the first Server until one opens), as the plan says; (b) a Server chosen in the Servers popup as \"the one for agents\"; (c) no bare /api on the Desktop at all, agents taking /servers/<key>/api from the instructions.\n\nRecommendation: (a), the current root: it follows what the person is working on, the instructions name it and the others, and the Client's one Server is the same rule with one root. The upstream changes as the person opens a project elsewhere, so an agent mid-task reads the instructions again when a call answers an unknown project; the instructions say so. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-go1-ajk-id5",
+		"Anchor": {
+			"Text": "the page handing the session token to the app for the proxy (SetToken)",
+			"Prefix": "as the Desktop's /api upstream; ",
+			"Suffix": "; no migration of the old settin"
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-30T01:38:50.433Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-30T01:43:20.167Z",
+			"Revision": 4,
+			"RevisionId": "rev-1mt-rjv-jqe",
+			"Outcome": "Resolved with no reply: the recommendation went in. session.js hands every token to the app through SetToken; a request with no Authorization gets the latest; with no token the proxy answers 401 \"sign in\"."
+		},
+		"Created": "2026-10-29T21:50:49.821Z",
+		"Replies": [
+			{
+				"Id": "rep-hta-dnz-0oh",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T21:50:49.821Z",
+				"Text": "How the proxy gets the person's token. The page signs in through Clerk and asks clerk.session.getToken() before each call; the token lives about a minute and Clerk refreshes it. The proxy, in the main process, has no Clerk session of its own. Two ways: (a) the page hands the token to the app (a SetToken on the bridge) at load and at each refresh, and the proxy puts it on a request that carries none; (b) the main process signs in on its own, with Clerk's backend keys, and keeps a token of its own, which means a second sign-in and the secret keys in the app.\n\nRecommendation: (a), SetToken from the page, as the plan says: session.js calls it with every token it gets, the main process keeps the latest and its expiry, and a request to /api with no Authorization gets it; with no token yet (nobody signed in) the proxy answers 401 \"sign in\", as a Server would. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-mwc-juj-czb",
+		"Anchor": {
+			"Text": "no migration of the old settings files",
+			"Prefix": "e app for the proxy (SetToken); ",
+			"Suffix": "; the guide staying one for the "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-30T01:39:36.552Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-30T01:43:20.190Z",
+			"Revision": 5,
+			"RevisionId": "rev-neq-7vz-318",
+			"Outcome": "Resolved with no reply: the recommendation went in. No migration: an older desktop.json gives its look and remembered state alone, today's client.json is already the new Desktop's shape."
+		},
+		"Created": "2026-10-29T21:50:49.830Z",
+		"Replies": [
+			{
+				"Id": "rep-l9u-s9s-1ef",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T21:50:49.830Z",
+				"Text": "The old settings files. After the swap the Desktop's file desktop.json holds Servers, Theme, Scale and Remembered, and the Client's client.json holds Servers with their last project, Theme, Scale and Remembered. A desktop.json from today's Desktop holds Recent and Hosts (saved Servers with their projects); a client.json from today's Client holds Servers.\n\nRecommendation: no migration, as the plan says: nothing shipped carries the old files, and the two installed apps so far are the owner's own; an older desktop.json is read for Theme, Scale and Remembered alone (Fill leaves Recent and Hosts out and the next save drops them), and today's client.json's Servers are the new Desktop's Servers as they are, since the file is the same shape. Reply \"hosts\" to have the old Hosts entries carried into the new Desktop's Servers once, at the first load. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-96q-68l-0un",
+		"Anchor": {
+			"Text": "the guide staying one for the proxied editions",
+			"Prefix": "tion of the old settings files; ",
+			"Suffix": "."
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-30T01:40:33.305Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-30T01:43:20.214Z",
+			"Revision": 6,
+			"RevisionId": "rev-i75-vqp-5ym",
+			"Outcome": "Resolved with no reply: the recommendation went in. The Client and the Desktop serve the common guide, build-with-consensus.md, the local address and the proxy's rule in the composed text above it."
+		},
+		"Created": "2026-10-29T21:50:49.866Z",
+		"Replies": [
+			{
+				"Id": "rep-mk3-87z-nps",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T21:50:49.866Z",
+				"Text": "The guide the proxied editions serve. /instructions on the Client and the Desktop composes its text locally with Instructions.Make and names the guide; today there are two guides, build-with-consensus.md (a server, the Desktop's sidecar of before) and build-with-sidecar.md (the Sidecar app). An agent beside a Client or Desktop window works against a remote Server through the local address, as the person.\n\nRecommendation: the common guide, build-with-consensus.md, for the Client and the Desktop, with the local address and the proxy's rule said in the composed text above it (This server: the local address; a request with no token acts for the signed-in person; the Desktop's other Servers under /servers/<key>), rather than a third guide: what the agent does on a plan is the same, and the two guides already share 54 lines. Resolve with no reply to take it."
+			}
+		]
+	},
+	{
+		"Id": "thr-hm3-fpk-2au",
+		"Anchor": {
+			"Text": "The four editions as the owner cut them on 2026-10-29",
+			"Prefix": "Step 5: The editions cut ",
+			"Suffix": ": Sidecar opens a local folder; "
+		},
+		"Detached": false,
+		"Status": "resolved",
+		"Reopened": false,
+		"Resolved": {
+			"By": "andre@cube12",
+			"At": "2026-10-30T01:35:32.324Z"
+		},
+		"Applied": {
+			"By": "andre@cube12",
+			"Service": "Claude-CLI",
+			"At": "2026-10-30T01:43:20.237Z",
+			"Revision": 7,
+			"RevisionId": "rev-jfj-1wl-5vc",
+			"Outcome": "Resolved with no reply: the recommendation went in. Three subplans, 5.1 The swap, 5.2 The Personal check, 5.3 The local API, MCP and instructions, each built and committed on its own acceptance, made on this turn."
+		},
+		"Created": "2026-10-29T21:50:49.878Z",
+		"Replies": [
+			{
+				"Id": "rep-gwd-w4x-ggl",
+				"By": "andre@cube12",
+				"Service": "Claude-CLI",
+				"At": "2026-10-29T21:50:49.878Z",
+				"Text": "How this Step is built and accepted. It is three pieces of work, each leaving the tree in a state of its own: the swap of the two code bases with the Client narrowed (desktop/, client/, their Settings, preloads, tests, builds and smokes), the Personal gate in the page, and electron/Proxy.js with the local API, MCP and instructions. One build log for all three is long to review and a single commit of the three is hard to read back.\n\nRecommendation: three subplans under this Step, Step 5.1 The swap, Step 5.2 The Personal check, Step 5.3 The local API, MCP and instructions, each built on \"build step 5.N\", reported in its own build log and committed on its own acceptance, in that order; this Step is set Finished after 5.3. Nothing further to design on them: their text is this plan's sections as they stand after this turn. Resolve with no reply to take it; reply \"one\" to build the Step whole."
+			}
+		]
+	}
+]

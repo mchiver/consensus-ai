@@ -1,6 +1,6 @@
 # The Server
 
-Consensus-AI comes as two applications. **Consensus Desktop** opens one project folder in one window, with the project's own server inside, the sidecar, for you and your agent on this machine; [Getting started](getting-started.html) is about it. **Consensus Server** is the other: one server that holds a registry of projects and serves them to people, each signed in and each with a role, on this machine or on the network. It is everything the desktop is, plus the management of the machine's resources: the users, the LLM connections and tasks, the projects and their permissions. This page is the Server: how it starts, what it serves, who manages what on it, and how the desktop works with it. [Sharing a server](sharing.html) follows with the sign-in, the roles and the tokens.
+Consensus-AI comes as four applications. **Consensus Sidecar** opens one local folder for you and your agent, **Consensus Client** one project on a Server, **Consensus Desktop** several Servers at once; [Getting started](getting-started.html) tells them apart. **Consensus Server** is the fourth: one server that holds a registry of projects and serves them to people, each signed in and each with a role, on this machine or on the network, in the Client's and the Desktop's windows and in a browser. It adds the management of the machine's resources: the users, the LLM connections and tasks, the projects and their permissions. This page is the Server: how it starts, what it serves, who manages what on it, and how the Client and the Desktop reach it. [Sharing a server](sharing.html) follows with the sign-in, the roles and the tokens.
 
 ## Starting it
 
@@ -11,7 +11,7 @@ npm run server
 node bin/consensus-server.js [--open <folder>] [--config <folder>] [--port 3500] [--scope local|public] [--headless]
 ```
 
-The Server reads the config folder (`.consensus` in your user folder, or the one `--config` names), listens as its Scope says, and serves every project its registry lists. Its window shows the Server's own page: every registered project as a tree of its own in the one sidebar, with the LLM connections, the Users fold and the Trash beneath them. One Server runs per machine: a second launch hands its arguments to the first and ends. Closing the window does not stop the Server: its icon in the tray brings the window back, shows the address, and its **Quit** ends the Server. While it runs it writes its address to `<config>/~host.json`, so the desktop on the same machine finds it.
+The Server reads the config folder (`.consensus` in your user folder, or the one `--config` names), listens as its Scope says, and serves every project its registry lists. Its window shows the Server's own page: every registered project as a tree of its own in the one sidebar, with the LLM connections, the Users fold and the Trash beneath them. One Server runs per machine: a second launch hands its arguments to the first and ends. Closing the window does not stop the Server: its icon in the tray brings the window back, shows the address, and its **Quit** ends the Server. While it runs it writes its address to `<config>/~host.json`.
 
 `--headless` runs the Server with no window, which is what the Docker image and `npm start` do; `consensus serve` is the same for a plain node install. It prints where it is and whether it is open:
 
@@ -49,11 +49,11 @@ A project registered on the Server, with **New project** or **Add folder**, star
 
 The users, the roles, the LLM connections and the tasks are managed on the Server's page, by the Administrator and the Managers, as [Sharing a server](sharing.html) and [Working with an LLM](llm.html) describe: they make accounts and place anyone in a project's roles, define the connections and the tasks, and mount the projects; a project's Owners place people in its roles. Only the Administrator makes Managers. The LLM tasks always run on the Server.
 
-## The desktop and the Server
+## The Client, the Desktop and the Server
 
-The desktop starts no Server: the Server is an application of its own. A desktop window reaches one in two ways, both needing a sign-in in the desktop (a free Registered account is enough):
+Neither the Client nor the Desktop starts a Server: the Server is an application of its own, and both reach it by its address.
 
-- **Connect to Server** on the desktop's chooser: a name and the address, then **Try**. A Server answers that it asks for a sign-in, and **Connect** opens it in the window, where you sign in and see the projects you may; a saved entry with a project opens on it. The page works on the Server and writes nothing on your machine, and its tasks are the Server's.
-- **Open folder**, or **Open in Consensus Desktop**, on a folder the Server's registry lists as mounted, while the Server runs, connects the window to the Server's project instead of opening the folder as a sidecar, so the Server stays the one writer of that folder. When the Server is not running the folder opens as a sidecar.
+- **The Client** opens one of the Server's projects per window: **Connect to Server** on its chooser takes a name and the address, then **Try**; a Server that asks for a sign-in says so, and **Connect** opens it in the window, where you sign in and see the projects you may; a saved Server opens on its last project. The page works on the Server and writes nothing on your machine, and its tasks are the Server's. See [Consensus Client](client.html).
+- **The Desktop** adds the Server to its list by address, signed in once for every Server it shows, and the Server's projects are a root of its tree. See [Getting started](getting-started.html#the-desktop).
 
-An agent session beside a Server project takes its token from the project's **LLM Instructions**, or, wired through MCP, from `CONSENSUS_TOKEN`: `node bin/mcp.js --server http://<server>:<port> --service <your name>`. The sidecar's fixed entry, `consensus mcp <folder>`, is the desktop's own; see [Working with an LLM](llm.html#through-mcp).
+An agent session beside a Server project takes its token from the project's **LLM Instructions**, or, wired through MCP, from `CONSENSUS_TOKEN`: `node bin/mcp.js --server http://<server>:<port> --service <your name>`. See [Working with an LLM](llm.html#through-mcp).

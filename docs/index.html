@@ -131,8 +131,8 @@
 			<div class="runs">
 				<div class="cards">
 					<div class="card-plain">
-						<h3>The desktop</h3>
-						<p>One project folder in one window, with its own server inside for you and your agent. No account needed; signed in, it connects to Servers.</p>
+						<h3>The applications</h3>
+						<p>The Sidecar for a folder of your own with your agent beside it, no account needed; the Client for one project on a Server; the Desktop for several Servers at once, signed in once.</p>
 					</div>
 					<div class="card-plain">
 						<h3>The Server</h3>
@@ -144,8 +144,8 @@
 					</div>
 				</div>
 				<figure class="shot">
-					<img class="light-only" src="images/desktop-connect.png" alt="The desktop's chooser.">
-					<img class="dark-only" src="images/desktop-connect-dark.png" alt="The desktop's chooser.">
+					<img class="light-only" src="images/client-connect.png" alt="The Client's chooser.">
+					<img class="dark-only" src="images/client-connect-dark.png" alt="The Client's chooser.">
 				</figure>
 			</div>
 		</div>
@@ -176,16 +176,18 @@ docker compose up -d</code></pre>
 					<p style="margin-top: 0.75rem;">Port 3500. <a href="guide/getting-started.html#in-docker">More in the guide.</a></p>
 				</div>
 				<div class="card-plain">
-					<span class="tag">The desktop</span>
+					<span class="tag">The applications</span>
 					<h3>A window of its own</h3>
-					<p>Run the desktop from the checkout and open a folder, or connect to a Server.</p>
-					<pre><code>npm run desktop</code></pre>
-					<p style="margin-top: 0.75rem;"><a href="guide/getting-started.html#the-desktop">More in the guide.</a></p>
+					<p>Run the Sidecar on a folder, the Client on a Server's project, or the Desktop on your Servers.</p>
+					<pre><code>npm run sidecar -- &lt;folder&gt;
+npm run client
+npm run desktop</code></pre>
+					<p style="margin-top: 0.75rem;"><a href="guide/getting-started.html#which-application">More in the guide.</a></p>
 				</div>
 				<div class="card-plain">
 					<span class="tag">The installer</span>
 					<h3>Windows, no checkout</h3>
-					<p>Consensus Desktop and Consensus Server, each packaged with its server: download, install, open. The installers are not signed yet, so Windows asks once before each runs.</p>
+					<p>Consensus Sidecar, Client, Desktop and Server, each packaged: download, install, open. The installers are not signed yet, so Windows asks once before each runs.</p>
 					<p style="margin-top: 0.75rem;"><a class="btn btn-primary" href="https://github.com/mchiver/consensus-ai/releases/latest">Download the latest release</a></p>
 					<p style="margin-top: 0.75rem;"><a href="guide/getting-started.html#the-installers">More in the guide.</a></p>
 				</div>

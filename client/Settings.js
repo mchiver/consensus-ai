@@ -1,20 +1,24 @@
 'use strict';
 
-// Settings - the Client's settings (plan Client Edition, Step 1): client.json in the global config folder
-// (<user>/.consensus unless --config names another), beside desktop.json and consensus.json, read and written by the
-// Client alone. A missing file is the defaults; nothing is carried over from desktop.json's saved Servers. The file is
-// written when a value changes. Since plan Review 2026-10-29, Step 2, the file's reading, writing and look lists are
-// electron/Settings.js's and the Servers functions electron/Servers.js's; this module keeps what is the Client's own.
+// Settings - the Client's settings: client.json in the global config folder (<user>/.consensus unless --config names
+// another), beside desktop.json and the Server's consensus.json, read and written by the Client alone (plan Client
+// Edition, Step 1 made the file; plan Review 2026-10-29, Step 5.1, the editions cut, gave it the Servers with their
+// last project, the Client having taken the desktop code of before, narrowed to one Server and one project per
+// window). A missing file is the defaults; nothing is carried over from desktop.json. The file is written when a
+// value changes. The file's reading, writing and look lists are electron/Settings.js's and the Servers functions
+// electron/Servers.js's; this module keeps what is the Client's own.
 //
 //   {
-//     "Servers": [ { "Name": "Team", "Url": "https://consensus.example.com" } ],
+//     "Servers": [ { "Name": "Team", "Url": "https://consensus.example.com", "Project": "prj-aaa-bbb-ccc", "Title": "Test" } ],
 //     "Theme": "system", "Scale": "normal",
 //     "Remembered": {}
 //   }
-//   Servers: the Servers the person added, each under its own name (the root's key on the page) and its address.
+//   Servers: the Servers the person connected to, each under its own name (the root's key on the page) and its
+//   address, with Project the id of the project opened on it last and Title that project's name as last seen; an
+//   entry with no Project is a Server saved before a project was picked. No tokens: the Server signs the person in.
 //   Theme and Scale: the look. Remembered: the page's view state by key (the open item, the folds, the tabs, the sort,
-//   the widths, the report folder) and the page server's port (page-port), so the window's origin, and with it
-//   Clerk's session in the window's storage, stays the same between starts.
+//   the widths, the report folder; keyed by the Server's address and the project id) and the page server's port
+//   (page-port), so the window's origin stays the same between starts.
 //
 //   FILE, THEMES, DARK_THEMES, SCALES
 //   Path( Config )                  <config>/client.json
@@ -54,7 +58,7 @@ function Fill( Settings )
 
 //---------------------------------------------------------------------
 
-const FILE_BASE = BASE.Make( { File: FILE, Label: 'settings', Default: Default, Fill: Fill } );
+const FILE_BASE = BASE.Make( { File: FILE, Label: 'client settings', Default: Default, Fill: Fill } );
 
 
 module.exports = {

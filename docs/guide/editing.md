@@ -22,13 +22,13 @@ Editing is allowed at any time. A manual edit changes no thread's status, and th
 
 ## Closing with unsaved changes
 
-Closing a tab that holds a draft asks: **Save**, **Discard** or **Cancel**. Close others and Close all ask the same when any tab they would close is dirty, listing the documents that would lose their changes; a draft whose plan moved on since is marked as one that cannot be saved, and Save saves the others and keeps it. The desktop's window close asks the same way, and so does Quit; a browser shows its own prompt before the page is left. **Confirm on close**, behind the gear in the title bar, turns the window's and the browser's prompts off; a tab's own close always asks. Off, nothing is lost: the drafts are kept with their tabs and come back next time.
+Closing a tab that holds a draft asks: **Save**, **Discard** or **Cancel**. Close others and Close all ask the same when any tab they would close is dirty, listing the documents that would lose their changes; a draft whose plan moved on since is marked as one that cannot be saved, and Save saves the others and keeps it. An application window's close asks the same way, and so does Quit; a browser shows its own prompt before the page is left. **Confirm on close**, behind the gear in the title bar, turns the window's and the browser's prompts off; a tab's own close always asks. Off, nothing is lost: the drafts are kept with their tabs and come back next time.
 
 ![Closing a tab with unsaved changes.](../images/close-prompt.png)
 
 ## Monaco mode
 
-The **Editor** setting behind the gear can pick Monaco, the editor of VS Code, instead of CodeMirror. The page then works as it did before the one view: **Read** shows the rendered text with the threads' passages, **Edit** opens Monaco beside a live preview, with a **Preview** button, Save and Discard in the editor's bar, and Ctrl+E switches between Read and Edit, from the editor too, saving first. Monaco neither renders the markdown in place nor marks the threads' passages. The setting takes effect at once, is part of the look (the project's in the desktop, the Server's on a Server; see [Settings and themes](settings.html#the-look)), and the comment and reply boxes follow it.
+The **Editor** setting behind the gear can pick Monaco, the editor of VS Code, instead of CodeMirror. The page then works as it did before the one view: **Read** shows the rendered text with the threads' passages, **Edit** opens Monaco beside a live preview, with a **Preview** button, Save and Discard in the editor's bar, and Ctrl+E switches between Read and Edit, from the editor too, saving first. Monaco neither renders the markdown in place nor marks the threads' passages. The setting takes effect at once, is part of the look (the project's in the Sidecar, the Server's on a Server; see [Settings and themes](settings.html#the-look)), and the comment and reply boxes follow it.
 
 ## Revisions
 
@@ -48,7 +48,7 @@ A tab's menu (the ▾ beside its ×, or a right-click) has Close, Close others, 
 
 The small button at the right end of the tab strip hides or shows the threads pane, and its mirror at the left end the project tree (Ctrl+Shift+T and Ctrl+Shift+E do the same); each is part of the look. A document gives the threads pane's room to the text.
 
-The project tree's state per server, the open project, the folded folders and the LLMs fold, is remembered under the server; the sort order and the open tabs are the window's, whatever the servers it shows; the hidden panes and the pane widths are the look, the project's in the desktop and the Server's on a Server.
+The project tree's state per server, the open project, the folded folders and the LLMs fold, is remembered under the server; the sort order and the open tabs are the window's, whatever the servers it shows; the hidden panes and the pane widths are the look, the project's in the Sidecar and the Server's on a Server.
 
 ## Hotkeys
 
@@ -71,11 +71,11 @@ The project tree's state per server, the open project, the folded folders and th
 | Ctrl+End, or Alt+End | Last tab |
 | Ctrl+F4, or Alt+W | Close the tab |
 
-In a browser, Ctrl+PgUp, Ctrl+PgDn, Ctrl+Shift+T and Ctrl+F4 are the browser's own and never reach the page; the second key of each does. In the desktop both work. The keys work in the editor too, but Ctrl+Home and Ctrl+End, which are the editor's own there (Alt+Home and Alt+End go to the first and last tab from the editor). Escape closes the open popup wherever the focus is; every popup also has an × at its top right.
+In a browser, Ctrl+PgUp, Ctrl+PgDn, Ctrl+Shift+T and Ctrl+F4 are the browser's own and never reach the page; the second key of each does. In an application's window both work. The keys work in the editor too, but Ctrl+Home and Ctrl+End, which are the editor's own there (Alt+Home and Alt+End go to the first and last tab from the editor). Escape closes the open popup wherever the focus is; every popup also has an × at its top right.
 
 The editor has keys of its own, listed under the page's in Menu > Hotkeys: Ctrl+Up and Ctrl+Down scroll a line with the cursor staying; Ctrl+B puts `**` around the selection, or the word at the cursor, and takes it off again; Ctrl+I does the same with `_`; Ctrl+Home and Ctrl+End go to the start and the end of the text. Each tab remembers where its text was scrolled and where the cursor stood, so switching tabs and back finds the editor as you left it.
 
-The desktop window has keys of its own, listed under the page's in Menu > Hotkeys:
+An application's window has keys of its own, listed under the page's in Menu > Hotkeys:
 
 | Keys | What |
 | --- | --- |

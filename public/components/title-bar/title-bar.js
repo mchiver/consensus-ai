@@ -80,8 +80,8 @@ angular.module( 'Consensus' ).component( 'titleBar', {
 			{
 				return '';
 			}
-			// the Client (plan Client Edition, Step 3): no LLM page; the person's runs are beside the waiting list
-			if ( Roots.Client )
+			// the Desktop (plan Client Edition, Step 3, as the Client): no LLM page; the person's runs are beside the waiting list
+			if ( Roots.Desktop )
 			{
 				return '#/waiting';
 			}
@@ -128,7 +128,7 @@ angular.module( 'Consensus' ).component( 'titleBar', {
 					items.push( { Label: 'Open ' + entry.Path.split( /[\\/]/ ).filter( Boolean ).pop() + ' in new window', Icon: 'detach', Act: function () { desktop.OpenRecent( entry.Path ); } } );
 				}
 				items.push( { Separator: true } );
-				// the Client (plan Client Edition, Step 2): its Servers, added, renamed and removed
+				// the Desktop (plan Client Edition, Step 2, as the Client): its Servers, added, renamed and removed
 				if ( ClientServers.Available && Session.SignedIn() )
 				{
 					items.push( { Label: 'Servers…', Icon: 'settings', Act: function () { ClientServers.Show(); } } );

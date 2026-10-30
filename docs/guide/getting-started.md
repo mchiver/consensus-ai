@@ -1,72 +1,68 @@
 # Getting started
 
-Consensus-AI is a tool you run yourself. It keeps your plans as plain files in a folder, shows them in a window or a browser, and lets an LLM take part through its API. It comes as two applications: **Consensus Desktop**, one project in one window with a server of its own inside, which is where you work on your own folders; and **Consensus Server**, one server for several people, which also manages the users, the LLM connections and tasks, and the projects. This page gets the desktop running first, from the Windows installer or from the checkout, then the Server.
+Consensus-AI is a tool you run yourself. It keeps your plans as plain files in a folder, shows them in a window or a browser, and lets an LLM take part through its API. It comes as four applications, which install beside each other and share the page: **Consensus Sidecar** opens one local folder, for you and the agent session beside it; **Consensus Client** opens one project on one Consensus Server; **Consensus Desktop** opens several projects at a time from one or more Servers; and **Consensus Server** opens local folders and serves them to the others, with the users, the LLM connections and tasks, and the projects managed on its page. This page says which to start with, then gets the Desktop and the Server running, from the Windows installers or from the checkout.
 
 The code is public at [github.com/mchiver/consensus-ai](https://github.com/mchiver/consensus-ai). The Windows installers are on the [releases page](https://github.com/mchiver/consensus-ai/releases/latest); everything else starts from the checkout.
 
 Consensus-AI is not [Consensus](https://consensus.app), the research search engine at consensus.app, and has no connection to it. Consensus-AI is a tool for settling a plan with your LLM, thread by thread.
 
-## The desktop
+## Which application
 
-Consensus Desktop is where you work: one project in one window, with a Consensus server of its own inside. The app opens a folder, as an editor does, makes the folder's `.consensus` when it has none, and shows that project's tree. On Windows the [installer](#the-installers) is the quickest way in; from the checkout:
+- **Your own folder, you and your agent.** [Consensus Sidecar](sidecar.html): one window over one local project folder, no sign-in, no Server; your agent works in the project through its API or MCP. Free.
+- **One project on a Server.** [Consensus Client](client.html): one project of one Consensus Server per window, picked in its chooser or named on the command line; the Server signs you in, and any account will do.
+- **Several Servers at once.** Consensus Desktop, below: every Server you add is a root of one tree, with one sign-in for all of them, for a Personal license.
+- **A server for several people.** [The Server](server.html), below and on its own page: local folders served to the Client and the Desktop, in a window of its own or headless, on this machine or on the network.
 
-```
-npm run desktop
-npm run desktop -- W:\projects\tic-tac-toe
-npm run desktop -- --connect cube4
-```
+## The Desktop
 
-With no folder the app opens on the **chooser**: **Recent projects** (Open, or Forget to drop one from the list; the folder stays), **Open folder…**, **New project** (a name and the folder to put it in) and the **Servers** you connected to, each opening in this window. Another project is another window: the menu's **New window** opens a chooser, **Open folder in new window…** and the recent folders start one on a folder, and the app is one process per window, so a folder already open in another window is brought to the front, not opened twice.
-
-![The chooser: recent projects, Open folder, New project, and the Servers.](../images/desktop-connect.png)
-
-The page shows the one project: its tree, open, with the Trash beneath it. The window has no frame of its own: the page's title bar is the window's, the minimize, maximize and close buttons sit over its right end in the palette's colours, and the bar drags the window.
-
-![A folder open in the desktop: the one project.](../images/desktop-project.png)
-
-### The sidecar
-
-The server inside the window is the **sidecar**: the API and the MCP of the open project, on this machine alone, for the agent session you keep beside the window. It listens on a port hashed from the folder's path into 3600 to 3699, stepping up while the port is taken, and keeps its address in the folder's `.consensus/~sidecar.json` while the project is open, so an agent finds it without a copy and paste. It needs no sign-in: every request is you.
-
-This is **sidecar mode**: the agent session is the LLM's way in, and the window has no LLM connections, no LLM tasks, no users and no roles of its own; those are a Server's.
-
-Two ways to point an agent at it. **LLM Instructions** in the project's menu opens the instructions page the server serves, with the address first and a **Copy** button: paste the one line into your session ("read the instructions at http://127.0.0.1:36xx/instructions with curl") and it knows the rules, the address and the one project it works in. Or give the agent one MCP entry per project, fixed for good:
+Consensus Desktop is for working in projects that live on one or more Consensus Servers at the same time. You sign in once, add the Servers you work with, and each one is a root of the tree, showing the projects it gives you by your roles. It opens no local folder and has no server of its own: every Server's projects, roles, LLM connections and tasks are set by that Server's Administrator and Managers, and the Desktop configures nothing. On Windows the [installer](#the-installers) is the quickest way in; from the checkout:
 
 ```
-claude mcp add consensus -- consensus mcp W:\projects\tic-tac-toe
+npm run desktop -- [--config <folder>]
 ```
 
-`consensus mcp <folder>` reads the sidecar's address from the folder at every message and fills in the project for every tool, so the entry keeps working as the project is closed and opened; while the folder is not open, each request is answered with one message saying so. [Working with an LLM](llm.html) has the rest.
+**Signing in.** The Desktop shows nothing but the sign-in box until you sign in with your Consensus-AI account. The same sign-in goes with every call to every Server, and each Server decides, project by project, what you may see and do. The sign-in is kept in the Desktop's own window, so a restart finds you still signed in; **Sign out** is in the window's menu.
 
-### Connecting to a Server
+**Your Servers.** **Servers…**, in the window's menu or in a Server's own menu in the tree, lists the Servers you added:
 
-Signed in, the desktop is also a thin client of a Server: **Connect to Server** on the chooser takes a name and the Server's address, and opens the Server in the window, where you sign in and work on the projects you have a role in, with the Server's LLM tasks. The pair is saved under **Servers** for next time, and `--connect <name>` opens it from the command line. A folder the Server on this machine serves opens through the Server rather than as a sidecar, so one folder never has two writers. [The Server](server.html#the-desktop-and-the-server) has the details.
+- **Add server** takes the Server's address (`https://consensus.example.com`, or `http://127.0.0.1:3500` for the Server on this machine). The Desktop tries it with your sign-in and saves it under the Server's own name; a name you already use gets a number. An address that does not answer, or is already in the list, is refused with the reason.
+- **The name** can be changed in place. It is the Server's name in this Desktop only.
+- **Remove** takes the Server out of the list and changes nothing on the Server.
+- Each Server shows **online**, or **offline** with the reason. An offline Server stays in the list and comes back by itself when it answers again.
 
-### The menu, the account and the tiers
+With no Servers yet, the popup opens on its own after you sign in. Every Server is a root of the project tree, with its projects beneath it, and the waiting list and the tabs cover all of them. **New window** (Ctrl+N, or the window's menu) opens another window on the same Servers.
 
-The title bar's **Menu** has New window, Open folder in new window and the recent folders, **Settings** (the project's), **Sign in…**, Reload and Quit; Ctrl+N, Ctrl+Shift+O and Ctrl+R do the same, and F11 goes full screen.
+![The Desktop: a Server as a root of the tree, with its projects.](../images/desktop-servers.png)
 
-![The desktop's menu: the windows, Settings, Sign in and Quit.](../images/desktop-menu.png)
+**Working in the projects.** Plans, documents, folders, threads, revisions, reports, Export and the look all work as they do everywhere, as far as your role in each project allows. A Server's LLM tasks run on the Server, as you: the button on a plan's heading follows the run (**Answer · Running 0:42**, or **Queued**), a click while it runs opens the run's popup with its output as it comes and **Stop**, a notice names it when it ends, and **My runs**, under the waiting list, holds your own runs on every Server. The Desktop has no Server Settings, no project settings, no New Project, no Mount, no Users, accounts or role folders, no LLM connections or task settings, no LLM page and no LLM Instructions: a Server's Administrator and Managers configure it in [the Server's own window](server.html), in its page in a browser, or in the Client.
 
-The desktop is free to use on your own folders with no account. **Sign in…** signs you in with your Consensus-AI account; one person is signed in on a machine at a time, kept in `~/.consensus/user.json` for both applications, and a later sign-in replaces them. The license the account carries sets the tier, kept for fourteen days without a check and shown in About:
+**Settings.** The Desktop keeps its settings in `desktop.json` in the config folder (`<your home>/.consensus`, unless `--config` names another), beside the Client's `client.json` and the Server's `consensus.json`: your Servers, the theme and the size, and the view as you left it. A `desktop.json` from before the editions were cut (recent folders, Hosts) is read for its look and view alone.
 
-- **Unlicensed** (not signed in): the desktop in sidecar mode.
-- **Registered** (signed in, free): connecting the desktop to Servers.
-- **Personal**: running the Server on this machine.
-- **Professional**: running the Server on the network.
+## The Client
 
-After fourteen days with no check you are signed out, with a line in About, and nothing you saved is locked away. [The licenses](../pricing.html) lists the tiers.
-
-`--config <folder>` names the config folder and `--port` the sidecar's port. The desktop has no headless form: `consensus-server --headless` runs a Server, and `consensus <folder>` one project's server with no window.
+The Client is the Desktop's narrower sibling: one project on one Server per window, which is the shape for working on one thing with an agent session beside you. Its chooser lists the Servers you connected to, each with the project you opened on it last, and **Connect to Server** takes a Server's address and one of its projects. [Consensus Client](client.html) has the page.
 
 ## The installers
 
-On Windows each application comes packaged with its server, with nothing to install first. From the [latest release](https://github.com/mchiver/consensus-ai/releases/latest):
+On Windows each application comes packaged, with nothing to install first. From the [latest release](https://github.com/mchiver/consensus-ai/releases/latest):
 
-- `Consensus-Desktop-Setup-<version>.exe` installs **Consensus Desktop**, and adds **Open in Consensus Desktop** to the file explorer's right-click menu of a folder (and of the empty space inside one), which opens the desktop on that folder's project alone.
-- `Consensus-Server-Setup-<version>.exe` installs **Consensus Server**, and adds **Open in Consensus Server**, which registers the folder as a project of the Server and shows it in the Server's window.
+- `Consensus-Sidecar-Setup-<version>.exe` installs **Consensus Sidecar**, which asks for a folder when it starts.
+- `Consensus-Client-Setup-<version>.exe` installs **Consensus Client**.
+- `Consensus-Desktop-Setup-<version>.exe` installs **Consensus Desktop**.
+- `Consensus-Server-Setup-<version>.exe` installs **Consensus Server**, and adds **Open in Consensus Server** to the file explorer's right-click menu of a folder (and of the empty space inside one), which registers the folder as a project of the Server and shows it in the Server's window.
 
-Run one, pick the folder (the default is under your user profile), and it puts the application in the Start menu and starts it. Both read the same config folder, `<user>/.consensus`, as the other ways do, so a checkout and the installed applications share the settings and the signed-in person. On Windows 11 the folder entries are under "Show more options"; the uninstaller removes them. The installers are not signed yet: Windows SmartScreen warns once ("Windows protected your PC"); More info, then Run anyway, lets it through. A new version is installed over the old one from its own installer; the config folder stays.
+Run one, pick the folder (the default is under your user profile), and it puts the application in the Start menu and starts it. The Client, the Desktop and the Server read the same config folder, `<user>/.consensus`, as the checkout does, so a checkout and the installed applications share the settings and the signed-in person; the Sidecar keeps its settings with the project. On Windows 11 the Server's folder entry is under "Show more options"; the uninstaller removes it. The installers are not signed yet: Windows SmartScreen warns once ("Windows protected your PC"); More info, then Run anyway, lets it through. A new version is installed over the old one from its own installer; the config folder stays.
+
+## The account and the tiers
+
+One person is signed in on a machine at a time, kept in `~/.consensus/user.json` for the Client and the Server, and a later sign-in replaces them; the Desktop keeps its sign-in in its window. The license the account carries sets the tier, kept for fourteen days without a check and shown in About:
+
+- **Unlicensed** (not signed in): the Sidecar, which needs no account.
+- **Registered** (signed in, free): the Client.
+- **Personal**: the Desktop, and running the Server on this machine.
+- **Professional**: running the Server on the network.
+
+After fourteen days with no check you are signed out, with a line in About, and nothing you saved is locked away. [The licenses](../pricing.html) lists the tiers.
 
 ## The Server
 
@@ -96,7 +92,7 @@ A new Server is closed until its first sign-in: sign in on its page, in the wind
 
 ![The page at first start: the Default project and its Readme.](../images/first-start.png)
 
-Across the top runs the **title bar**: the brand, a **Menu** (About, with the version, the links and a summary of every project's threads; Hotkeys; and, in the desktop, the window's commands), **Waiting on you** with the count of threads that wait on you, **Running** while an LLM run is in progress, and a gear for the look: the theme, the size, the editor and Confirm on close.
+Across the top runs the **title bar**: the brand, a **Menu** (About, with the version, the links and a summary of every project's threads; Hotkeys; and, in an application's window, the window's commands), **Waiting on you** with the count of threads that wait on you, **Running** while an LLM run is in progress, and a gear for the look: the theme, the size, the editor and Confirm on close.
 
 ![The title bar, with the look popover open.](../images/title-bar.png)
 

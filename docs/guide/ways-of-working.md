@@ -22,7 +22,7 @@ The agent's own setup is nothing: no package, no key, no file in the repository.
 
 The other way needs no terminal. Your server keeps **LLM connections**, each a model and the service that runs it: Claude, ChatGPT, Gemini or Grok through its API with your key, any other service that speaks OpenAI's API, or a local model through Ollama. A connection is listed in the sidebar under the server's projects, and its page has the buttons. Press one and the server runs the model once, in the project's folder, with a prompt it packages for the task, and logs the run: who pressed it, what it was given, what it answered.
 
-![The LLM page: the connection, the project and plan pickers, the task buttons, and the log of runs.](../images/desktop-llm.png)
+![The LLM page: the connection, the project and plan pickers, the task buttons, and the log of runs.](../images/llm-page.png)
 
 A run is yours. Whatever it posts reads `<connection> by <you>`, and it is allowed what your role in the project allows, no more. The same buttons are on a plan's heading, for the tasks that take the plan, through the connection the project chose in its settings; a task that wants your instructions asks for them in a popup first.
 

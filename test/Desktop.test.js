@@ -1,9 +1,10 @@
 'use strict';
 
-// The desktop (plan Consensus Desktop, Step 2), without Electron: its settings module (desktop.json, the desktop's own
-// file beside the Server's consensus.json: plan Rearchitecturation, Step 1), and the page server that serves its copy of
-// the Consensus page and the vendor files. Plan The Server, Step 4: sidecar mode (the window's server over the Server's
-// consensus.json read-only, none of its connections or tasks) and the Server found and routed to, never started here.
+// The Desktop (plan Review 2026-10-29, Step 5.1: the editions cut), without Electron: several remote projects at a time
+// from one or more Servers, never a local folder. Its settings (desktop.json: the Servers, the look and the remembered
+// state, over the base Settings), the app's files (the Client's code base of before: no folder, no server, no Start.js;
+// no license or user until Step 5.2), the page's switch for the thin page (Edition desktop in place of the Client flag),
+// the installer, and the hidden menu's template (electron/Windows.js).
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -11,14 +12,10 @@ const FS = require( 'fs' );
 const OS = require( 'os' );
 const PATH = require( 'path' );
 const SETTINGS = require( '../desktop/Settings.js' );
-const PAGE = require( '../electron/Page.js' );
+const SERVERS = require( '../electron/Servers.js' );
 const WINDOWS = require( '../electron/Windows.js' );
-const PROJECTS = require( '../desktop/Projects.js' );
-const SERVER = require( '../src/Server.js' );
-const SERVER_STATUS = require( '../desktop/ServerStatus.js' );
-const NET = require( 'net' );
 
-const VERSION = require( '../package.json' ).version;
+const ROOT = PATH.join( __dirname, '..' );
 
 let folders = [];
 
@@ -28,6 +25,12 @@ function temporary_folder( prefix )
 	let folder = FS.mkdtempSync( PATH.join( OS.tmpdir(), prefix ) );
 	folders.push( folder );
 	return folder;
+}
+
+
+function read( path )
+{
+	return FS.readFileSync( PATH.join( ROOT, path ), 'utf8' );
 }
 
 
@@ -41,370 +44,209 @@ TEST.after( function ()
 
 
 //---------------------------------------------------------------------
-// Settings
+// desktop.json
 
-TEST( 'settings: a missing desktop.json reads as the defaults, and a written one reads back filled in; Recent and the Hosts', function ()
+TEST( 'desktop.json: in the config folder; missing, the defaults with no Servers; nothing written by a read; nothing read from client.json', function ()
 {
-	let folder = temporary_folder( 'desktop-settings-' );
-	let path = SETTINGS.Path( folder );
-	ASSERT.equal( path, PATH.join( folder, 'desktop.json' ) );
-	ASSERT.deepEqual( SETTINGS.Read( path ), { Recent: [], Hosts: [], Theme: 'system', Scale: 'normal', Remembered: {} } );
+	let config = temporary_folder( 'desktop-settings-' );
+	ASSERT.equal( SETTINGS.Path( config ), PATH.join( config, 'desktop.json' ) );
+	FS.writeFileSync( PATH.join( config, 'client.json' ), JSON.stringify( { Servers: [ { Name: 'Team', Url: 'http://team:3500', Project: 'prj-1' } ], Theme: 'nord' } ) );
+	let loaded = SETTINGS.Load( config );
+	ASSERT.deepEqual( loaded.Settings, { Servers: [], Theme: 'system', Scale: 'normal', Remembered: {} } );
+	ASSERT.equal( loaded.Path, SETTINGS.Path( config ) );
+	ASSERT.deepEqual( loaded.Lines, [ 'desktop settings start with the defaults (' + loaded.Path + ' is written at the first change)' ] );
+	ASSERT.equal( FS.existsSync( SETTINGS.Path( config ) ), false );
+} );
 
-	let settings = SETTINGS.Fill( {
-		Hosts: [ { Name: ' cube4 ', Url: 'http://cube4:3500/', Token: 'secret' }, { Name: 'cube4', Url: 'http://cube4:3500', Project: 'prj-aaa-bbb-ccc', Title: ' Test ' } ],
-		Recent: [ { Path: ' W:/code/tic-tac-toe ', Opened: '2026-10-25T10:00:00.000Z' }, { Path: '' }, null ],
-		Servers: [ { Name: 'old', Url: 'http://old:1' } ],
-		Theme: 'dark',
-		Scale: 'huge',
-		Extra: true,
-		License: { Plan: 'personal', Until: null, Checked: '2026-10-25T10:00:00.000Z' },
-	} );
-	// the saved servers of before, a token on a Host, the License of before (plan The Server, Step 1: user.json now) and
-	// anything else are not kept; a Host project (Step 2) carries its
-	// Title, the project's name as last seen
-	ASSERT.deepEqual( settings, {
+
+TEST( 'desktop.json: an older file with Recent and Hosts is read for its look and remembered state alone; no migration of the Hosts', function ()
+{
+	let config = temporary_folder( 'desktop-older-' );
+	FS.writeFileSync( SETTINGS.Path( config ), JSON.stringify( {
 		Recent: [ { Path: 'W:/code/tic-tac-toe', Opened: '2026-10-25T10:00:00.000Z' } ],
-		Hosts: [ { Name: 'cube4', Url: 'http://cube4:3500', Project: null, Title: null }, { Name: 'cube4', Url: 'http://cube4:3500', Project: 'prj-aaa-bbb-ccc', Title: 'Test' } ],
-		Theme: 'dark',
-		Scale: 'normal',
-		Remembered: {},
+		Hosts: [ { Name: 'cube4', Url: 'http://cube4:3500', Project: 'prj-aaa-bbb-ccc', Title: 'Test' } ],
+		Theme: 'nord',
+		Scale: 'large',
+		Remembered: { 'consensus.open': 'pln-1', 'page-port': 51234 },
+		License: { Plan: 'personal' },
+	} ) );
+	let loaded = SETTINGS.Load( config );
+	ASSERT.deepEqual( loaded.Settings, { Servers: [], Theme: 'nord', Scale: 'large', Remembered: { 'consensus.open': 'pln-1', 'page-port': 51234 } } );
+	ASSERT.deepEqual( loaded.Lines, [ 'desktop settings from ' + loaded.Path ] );
+	// the next save drops what the shape has not
+	SETTINGS.Write( config, loaded.Settings );
+	ASSERT.deepEqual( Object.keys( JSON.parse( FS.readFileSync( loaded.Path, 'utf8' ) ) ).sort(), [ 'Remembered', 'Scale', 'Servers', 'Theme' ] );
+} );
+
+
+TEST( 'desktop.json: written whole and read back; Servers kept by name and address, trimmed; what is not usable is left out', function ()
+{
+	let config = temporary_folder( 'desktop-written-' );
+	let path = SETTINGS.Write( config, {
+		Servers: [
+			{ Name: ' Team ', Url: 'https://consensus.example.com/ ' },
+			{ Name: 'team', Url: 'http://other:3500' },
+			{ Name: 'Home', Url: 'http://127.0.0.1:3500' },
+			{ Name: 'No address', Url: 'ftp://nowhere' },
+			{ Name: 'a/b', Url: 'http://slashed:3500' },
+			{ Url: 'http://nameless:3500' },
+			'Team',
+		],
+		Theme: 'nord',
+		Scale: 'large',
+		Remembered: { 'consensus.open': 'pln-1', 'page-port': 51234 },
+		Other: 1,
 	} );
-	SETTINGS.Write( path, settings );
-	ASSERT.deepEqual( SETTINGS.Read( path ), settings );
-	ASSERT.equal( FS.readdirSync( folder ).some( function ( name ) { return name.endsWith( '.tmp' ); } ), false );
-	ASSERT.deepEqual( Object.keys( SETTINGS.Fill( {} ) ).sort(), SETTINGS.DESKTOP_FIELDS.slice().sort() );
+	ASSERT.equal( path, SETTINGS.Path( config ) );
+	let written = JSON.parse( FS.readFileSync( path, 'utf8' ) );
+	ASSERT.deepEqual( written, {
+		Servers: [ { Name: 'Team', Url: 'https://consensus.example.com' }, { Name: 'Home', Url: 'http://127.0.0.1:3500' } ],
+		Theme: 'nord',
+		Scale: 'large',
+		Remembered: { 'consensus.open': 'pln-1', 'page-port': 51234 },
+	} );
+	ASSERT.deepEqual( SETTINGS.Load( config ).Settings, written );
+	ASSERT.equal( FS.readdirSync( config ).filter( function ( name ) { return name.endsWith( '.tmp' ); } ).length, 0 );
+	ASSERT.deepEqual( SETTINGS.Fill( { Servers: 'x', Theme: 'purple', Scale: 'huge', Remembered: [ 1 ] } ), SETTINGS.Default() );
 	// the palettes (plan UI Tweaks IV): any of them is a Theme; the dark ones are named
 	ASSERT.equal( SETTINGS.Fill( { Theme: 'nord' } ).Theme, 'nord' );
 	ASSERT.equal( SETTINGS.Fill( { Theme: 'neon' } ).Theme, 'system' );
 	ASSERT.equal( SETTINGS.DARK_THEMES.includes( 'nord' ), true );
 	ASSERT.equal( SETTINGS.DARK_THEMES.includes( 'sepia' ), false );
 	ASSERT.equal( SETTINGS.DARK_THEMES.every( function ( theme ) { return SETTINGS.THEMES.includes( theme ); } ), true );
-
-	// the page's remembered state (plan UI Tweaks V): kept by key in desktop.json, forgotten with null
-	let kept = SETTINGS.Fill( { Remembered: { 'consensus.a:1.project': 'default', 'consensus.threads-hidden': true }, Extra: 1 } );
-	ASSERT.deepEqual( kept.Remembered, { 'consensus.a:1.project': 'default', 'consensus.threads-hidden': true } );
-	ASSERT.equal( SETTINGS.Remember( kept, 'consensus.a:1.tabs', { Tabs: [ { Key: 'p:x' } ], Active: 'p:x' } ), true );
-	ASSERT.equal( SETTINGS.Remember( kept, 'consensus.a:1.tabs', { Tabs: [ { Key: 'p:x' } ], Active: 'p:x' } ), false );
-	ASSERT.equal( SETTINGS.Remember( kept, 'consensus.threads-hidden', null ), true );
-	ASSERT.equal( SETTINGS.Remember( kept, 'consensus.threads-hidden', null ), false );
-	ASSERT.equal( SETTINGS.Remember( kept, '', 1 ), false );
-	SETTINGS.Write( path, kept );
-	ASSERT.deepEqual( SETTINGS.Read( path ).Remembered, { 'consensus.a:1.project': 'default', 'consensus.a:1.tabs': { Tabs: [ { Key: 'p:x' } ], Active: 'p:x' } } );
-	ASSERT.deepEqual( SETTINGS.Fill( { Remembered: [ 1 ] } ).Remembered, {} );
-	ASSERT.deepEqual( SETTINGS.HostNamed( settings, 'cube4' ), { Name: 'cube4', Url: 'http://cube4:3500', Project: null, Title: null } );
-	ASSERT.equal( SETTINGS.HostNamed( settings, 'nope' ), null );
-	ASSERT.deepEqual( SETTINGS.HostEntry( settings, 'cube4', 'prj-aaa-bbb-ccc' ), { Name: 'cube4', Url: 'http://cube4:3500', Project: 'prj-aaa-bbb-ccc', Title: 'Test' } );
-	ASSERT.equal( SETTINGS.HostEntry( settings, 'cube4', 'prj-zzz-zzz-zzz' ), null );
-
-	// Recent: a folder opened goes first, once; the newest RECENT_LIMIT are kept
-	ASSERT.equal( SETTINGS.Opened( settings, 'W:/code/other', '2026-10-25T11:00:00.000Z' ), true );
-	ASSERT.equal( SETTINGS.Opened( settings, 'W:/code/tic-tac-toe', '2026-10-25T12:00:00.000Z' ), true );
-	ASSERT.deepEqual( settings.Recent, [ { Path: 'W:/code/tic-tac-toe', Opened: '2026-10-25T12:00:00.000Z' }, { Path: 'W:/code/other', Opened: '2026-10-25T11:00:00.000Z' } ] );
-	ASSERT.equal( SETTINGS.Opened( settings, '' ), false );
-	for ( let index = 0; index < SETTINGS.RECENT_LIMIT + 5; index++ )
-	{
-		SETTINGS.Opened( settings, 'W:/many/' + index );
-	}
-	ASSERT.equal( settings.Recent.length, SETTINGS.RECENT_LIMIT );
-	ASSERT.equal( settings.Recent[ 0 ].Path, 'W:/many/' + ( SETTINGS.RECENT_LIMIT + 4 ) );
-	ASSERT.match( settings.Recent[ 0 ].Opened, /^20[0-9][0-9]-/ );
 } );
 
 
-TEST( 'settings: the problems are named', function ()
+TEST( 'desktop.json: a file that cannot be read is the defaults, left as it is; a remembered value set, changed and removed', function ()
 {
-	ASSERT.deepEqual( SETTINGS.Problems( SETTINGS.Default() ), [] );
-	// a Host project is listed once: the Name and the Project together (Step 2), so one Host may hold several projects
-	let problems = SETTINGS.Problems( SETTINGS.Fill( { Hosts: [ { Name: 'a', Url: 'http://a:1' }, { Name: 'a', Url: 'cube4:3500' }, { Name: '', Url: 'http://b:2' }, { Name: 'a', Url: 'http://a:1', Project: 'prj-1' }, { Name: 'a', Url: 'http://a:1', Project: 'prj-1' } ] } ) );
-	ASSERT.deepEqual( problems, [ 'host "a" is listed twice', 'host "a": the Url must start with http:// or https://', 'a host has no Name', 'host "a" with the project prj-1 is listed twice' ] );
-} );
-
-
-TEST( 'settings: Load reads the desktop\'s file from the config folder and says so; the desktop writes desktop.json and never consensus.json', function ()
-{
-	let folder = temporary_folder( 'desktop-two-files-' );
-	let host_file = PATH.join( folder, 'consensus.json' );
-	let host_text = JSON.stringify( { Name: 'host', Port: 3500, Scope: 'Local', Owner: { Name: 'user' }, Projects: [ { Path: 'W:/p', Mounted: true } ], Theme: 'dark', Servers: [ { Name: 'old', Url: 'http://old:1' } ] }, null, '\t' );
-	FS.writeFileSync( host_file, host_text );
-	let loaded = SETTINGS.Load( folder );
-	ASSERT.equal( loaded.Path, PATH.join( folder, 'desktop.json' ) );
-	// the Host's file is not the desktop's: its Theme and its old Servers are not read
+	let config = temporary_folder( 'desktop-unreadable-' );
+	FS.writeFileSync( SETTINGS.Path( config ), '{ not json' );
+	let loaded = SETTINGS.Load( config );
 	ASSERT.deepEqual( loaded.Settings, SETTINGS.Default() );
-	ASSERT.deepEqual( loaded.Lines, [ 'desktop settings start with the defaults (' + loaded.Path + ' is written at the first change)' ] );
-	loaded.Settings.Theme = 'nord';
-	SETTINGS.Opened( loaded.Settings, 'W:/p', '2026-10-25T10:00:00.000Z' );
-	SETTINGS.Write( loaded.Path, loaded.Settings );
-	let again = SETTINGS.Load( folder );
-	ASSERT.deepEqual( again.Lines, [ 'desktop settings from ' + loaded.Path ] );
-	ASSERT.equal( again.Settings.Theme, 'nord' );
-	ASSERT.deepEqual( again.Settings.Recent, [ { Path: 'W:/p', Opened: '2026-10-25T10:00:00.000Z' } ] );
-	ASSERT.deepEqual( Object.keys( JSON.parse( FS.readFileSync( loaded.Path, 'utf8' ) ) ).sort(), SETTINGS.DESKTOP_FIELDS.slice().sort() );
-	ASSERT.equal( FS.readFileSync( host_file, 'utf8' ), host_text );
-	// Apply: in place, every field replaced
-	let same = loaded.Settings;
-	SETTINGS.Apply( loaded.Settings, SETTINGS.Fill( { Theme: 'sepia' } ) );
-	ASSERT.equal( same, loaded.Settings );
-	ASSERT.deepEqual( loaded.Settings, SETTINGS.Fill( { Theme: 'sepia' } ) );
+	ASSERT.match( loaded.Lines[ 0 ], /could not be read/ );
+	ASSERT.equal( FS.readFileSync( SETTINGS.Path( config ), 'utf8' ), '{ not json' );
+	let settings = SETTINGS.Default();
+	ASSERT.equal( SETTINGS.Remember( settings, 'consensus.open', 'pln-1' ), true );
+	ASSERT.equal( SETTINGS.Remember( settings, 'consensus.open', 'pln-1' ), false );
+	ASSERT.equal( SETTINGS.Remember( settings, 'consensus.open', null ), true );
+	ASSERT.equal( SETTINGS.Remember( settings, '', 1 ), false );
+	ASSERT.deepEqual( settings.Remembered, {} );
 } );
 
 
 //---------------------------------------------------------------------
-// The page server
+// The Servers: added by address under the Server's own name, renamed, removed (electron/Servers.js)
 
-TEST( 'the page server serves the page, the connect screen and the vendor files, and forwards to each root\'s server', async function ()
+TEST( 'the Servers: added under the Server\'s name, a name taken numbered on, an address twice refused, renamed, removed', function ()
 {
-	// the connect screen is Desktop's own folder, named to the shared page server (plan Sidecar Edition, Step 1)
-	let served = await PAGE.Serve( { Folders: [ PATH.join( __dirname, '..', 'desktop', 'page' ) ] } );
-	try
-	{
-		ASSERT.match( served.Url, /^http:\/\/127\.0\.0\.1:\d+$/ );
-		let index = await fetch( served.Url + '/' );
-		ASSERT.equal( index.status, 200 );
-		ASSERT.match( await index.text(), /ng-app="Consensus"/ );
-		let connect = await fetch( served.Url + '/connect.html' );
-		ASSERT.equal( connect.status, 200 );
-		ASSERT.match( await connect.text(), /ng-app="Connect"/ );
-		ASSERT.equal( ( await fetch( served.Url + '/vendor/angular.min.js' ) ).status, 200 );
-		ASSERT.equal( ( await fetch( served.Url + '/vendor/bootstrap.min.css' ) ).status, 200 );
-		ASSERT.equal( ( await fetch( served.Url + '/js/client.js' ) ).status, 200 );
-		ASSERT.match( await ( await fetch( served.Url + '/js/client.js' ) ).text(), /ConsensusDesktop/ );
-		// no root: the API answers 503; with roots (plan Run Shapes, Step 5), /servers/<key>/api and /instructions are
-		// forwarded to that root's server, bodies and the events stream too; a key the window has not is 503
-		ASSERT.equal( ( await fetch( served.Url + '/api/me' ) ).status, 503 );
-		ASSERT.equal( ( await fetch( served.Url + '/servers/a/api/me' ) ).status, 503 );
-		ASSERT.deepEqual( served.Roots(), [] );
-		let data = temporary_folder( 'desktop-page-target-' );
-		FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( { Port: 0, Owner: { Name: 'user', Display: 'User' } } ) );
-		let target = await SERVER.Start( { Data: data, Port: 0 } );
-		try
-		{
-			served.SetRoots( [ { Key: 'a', Url: target.Url + '/' }, { Key: 'b', Url: 'http://127.0.0.1:1' } ] );
-			ASSERT.deepEqual( served.Roots(), [ { Key: 'a', Url: target.Url }, { Key: 'b', Url: 'http://127.0.0.1:1' } ] );
-			let me = await fetch( served.Url + '/servers/a/api/me' );
-			ASSERT.equal( me.status, 200 );
-			ASSERT.equal( ( await me.json() ).Version, VERSION );
-			let made = await fetch( served.Url + '/servers/a/api/plans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Through the desktop', Text: '# T\n' } ) } );
-			ASSERT.equal( made.status, 201 );
-			let id = ( await made.json() ).Plan.Id;
-			ASSERT.equal( ( await ( await fetch( target.Url + '/api/plans/' + id ) ).json() ).Plan.Title, 'Through the desktop' );
-			ASSERT.equal( ( await fetch( served.Url + '/servers/a/api/plans/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { Title: 'Renamed through the desktop' } ) } ) ).status, 200 );
-			ASSERT.equal( ( await fetch( served.Url + '/servers/a/api/nothing' ) ).status, 404 );
-			ASSERT.equal( ( await fetch( served.Url + '/servers/a/nothing' ) ).status, 404 );
-			ASSERT.equal( ( await fetch( served.Url + '/servers/b/api/me' ) ).status, 502 );
-			ASSERT.equal( ( await fetch( served.Url + '/servers/c/api/me' ) ).status, 503 );
-			ASSERT.equal( ( await fetch( served.Url + '/api/me' ) ).status, 503 );
-			ASSERT.match( await ( await fetch( served.Url + '/servers/a/instructions' ) ).text(), /^# This server/ );
-			let events = await fetch( served.Url + '/servers/a/api/events' );
-			ASSERT.equal( events.headers.get( 'content-type' ), 'text/event-stream' );
-			let reader = events.body.getReader();
-			await fetch( target.Url + '/api/plans/' + id + '/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( { State: 'Plan' } ) } );
-			let heard = '';
-			for ( let attempt = 0; attempt < 20 && !/"Kind":"state"/.test( heard ); attempt++ )
-			{
-				let chunk = await reader.read();
-				heard += new TextDecoder().decode( chunk.value || new Uint8Array() );
-				if ( chunk.done ) { break; }
-			}
-			ASSERT.match( heard, /"Kind":"state"/ );
-			await reader.cancel();
-			served.SetRoots( [] );
-			ASSERT.equal( ( await fetch( served.Url + '/servers/a/api/me' ) ).status, 503 );
-		}
-		finally
-		{
-			await target.Close();
-		}
-	}
-	finally
-	{
-		await served.Close();
-	}
-	await ASSERT.rejects( PAGE.Serve( { Folder: temporary_folder( 'desktop-nopage-' ) } ), /the page is missing/ );
+	let settings = SETTINGS.Default();
+	ASSERT.deepEqual( SERVERS.AddServer( settings, { Url: 'https://team.example.com/', Name: 'Team' } ), { Server: { Name: 'Team', Url: 'https://team.example.com' } } );
+	ASSERT.deepEqual( SERVERS.AddServer( settings, { Url: 'http://other:3500', Name: 'team' } ).Server, { Name: 'team 2', Url: 'http://other:3500' } );
+	ASSERT.equal( SERVERS.AddServer( settings, { Url: 'http://nameless:3500' } ).Server.Name, 'nameless:3500' );
+	ASSERT.match( SERVERS.AddServer( settings, { Url: 'HTTPS://team.example.com' } ).Error, /in the list already, as Team/ );
+	ASSERT.match( SERVERS.AddServer( settings, { Url: 'team.example.com' } ).Error, /http:\/\/ or https:\/\// );
+	ASSERT.equal( settings.Servers.length, 3 );
+	ASSERT.equal( SERVERS.UniqueName( settings, 'x'.repeat( SERVERS.NAME_LIMIT ) ), 'x'.repeat( SERVERS.NAME_LIMIT ) );
+	settings.Servers.push( { Name: 'x'.repeat( SERVERS.NAME_LIMIT ), Url: 'http://long:1' } );
+	ASSERT.equal( SERVERS.UniqueName( settings, 'x'.repeat( SERVERS.NAME_LIMIT ) ), 'x'.repeat( SERVERS.NAME_LIMIT - 2 ) + ' 2' );
+	settings.Servers.pop();
+	ASSERT.deepEqual( SERVERS.RenameServer( settings, 'team 2', ' Other ' ).Server, { Name: 'Other', Url: 'http://other:3500' } );
+	ASSERT.match( SERVERS.RenameServer( settings, 'Other', 'TEAM' ).Error, /another Server is named "Team"/ );
+	ASSERT.match( SERVERS.RenameServer( settings, 'Nobody', 'x' ).Error, /no Server named/ );
+	ASSERT.deepEqual( SERVERS.RemoveServer( settings, 'OTHER' ).Server, { Name: 'Other', Url: 'http://other:3500' } );
+	ASSERT.match( SERVERS.RemoveServer( settings, 'Other' ).Error, /no Server named/ );
+	ASSERT.deepEqual( settings.Servers.map( function ( one ) { return one.Name; } ), [ 'Team', 'nameless:3500' ] );
 } );
 
 
 //---------------------------------------------------------------------
-// The chooser's work without Electron (plan Rearchitecturation, Step 2)
+// The app's files
 
-TEST( 'projects: a new project\'s folder is made under a parent and refused when it is not new; the key of a window\'s project', function ()
+TEST( 'the Desktop app: its own folder and npm script; the Client\'s code base: no folder, no server, no Start.js, no license or user yet', function ()
 {
-	let parent = temporary_folder( 'desktop-projects-' );
-	let folder = PROJECTS.NewFolder( parent, ' tic-tac-toe ' );
-	ASSERT.equal( folder, PROJECTS.Normalize( PATH.join( parent, 'tic-tac-toe' ) ) );
-	ASSERT.equal( FS.statSync( folder ).isDirectory(), true );
-	ASSERT.equal( folder.includes( '\\' ), false );
-	// an empty folder that is there already is taken; one holding anything is refused, as is a file, a bad name, a missing parent
-	ASSERT.equal( PROJECTS.NewFolder( parent, 'tic-tac-toe' ), folder );
-	FS.writeFileSync( PATH.join( folder, 'readme.md' ), '# T\n' );
-	ASSERT.throws( function () { PROJECTS.NewFolder( parent, 'tic-tac-toe' ); }, /holds something: open it instead/ );
-	ASSERT.throws( function () { PROJECTS.NewFolder( parent, 'tic-tac-toe/readme.md' ); }, /a project needs a folder name/ );
-	ASSERT.throws( function () { PROJECTS.NewFolder( parent, '..' ); }, /a project needs a folder name/ );
-	ASSERT.throws( function () { PROJECTS.NewFolder( parent, '' ); }, /a project needs a folder name/ );
-	ASSERT.throws( function () { PROJECTS.NewFolder( PATH.join( parent, 'nowhere' ), 'x' ); }, /the parent folder is not there/ );
-	FS.writeFileSync( PATH.join( parent, 'notes.md' ), '# N\n' );
-	ASSERT.throws( function () { PROJECTS.NewFolder( parent, 'notes.md' ); }, /a file is there already/ );
-	// the key: the folder with forward slashes, or the Host's address and the project id
-	ASSERT.equal( PROJECTS.Key( { Kind: 'folder', Path: 'W:\\code\\one' } ), 'W:/code/one' );
-	ASSERT.equal( PROJECTS.Key( { Kind: 'host', Host: { Name: 'cube4', Url: 'http://cube4:3500/' }, Project: { Id: 'prj-aaa-bbb-ccc' } } ), 'host:cube4:3500/prj-aaa-bbb-ccc' );
-	ASSERT.equal( PROJECTS.Key( null ), null );
-	// a project found among a Host's, by id first, else by name
-	let list = [ { Id: 'prj-1', Name: 'Alpha' }, { Id: 'prj-2', Name: 'prj-1' } ];
-	ASSERT.deepEqual( PROJECTS.FindProject( list, 'prj-1' ), { Id: 'prj-1', Name: 'Alpha' } );
-	ASSERT.deepEqual( PROJECTS.FindProject( list, 'Alpha' ), { Id: 'prj-1', Name: 'Alpha' } );
-	ASSERT.equal( PROJECTS.FindProject( list, 'Beta' ), null );
-	ASSERT.equal( PROJECTS.FindProject( list, '' ), null );
+	let scripts = JSON.parse( read( 'package.json' ) ).scripts;
+	ASSERT.equal( scripts.desktop, 'electron desktop' );
+	let own = JSON.parse( read( 'desktop/package.json' ) );
+	ASSERT.equal( own.main, 'main.js' );
+	ASSERT.equal( own.version, JSON.parse( read( 'package.json' ) ).version );
+	let main = read( 'desktop/main.js' );
+	for ( let module of [ 'Sidecar.js', 'License.js', 'Instructions.js', 'Start.js', 'Mcp.js', 'ServerStatus.js', 'Projects.js', 'CurrentUser.js' ] )
+	{
+		ASSERT.equal( main.indexOf( module + "' )" ), -1, 'the Desktop\'s main requires no ' + module );
+	}
+	ASSERT.equal( main.indexOf( 'SERVER.Start' ), -1, 'the Desktop starts no server' );
+	ASSERT.equal( main.indexOf( 'SecretKey' ), -1, 'no secret goes to the page' );
+	ASSERT.match( main, /Title: 'the Desktop', Flags: FLAGS \}/, 'the command line is --config alone: no Positional, no Rest' );
+	ASSERT.match( main, /'servers'|'add-server'|'rename-server'|'remove-server'/ );
+	ASSERT.deepEqual( FS.existsSync( PATH.join( ROOT, 'desktop', 'page' ) ), false, 'the chooser is the Client\'s' );
+	let preload = read( 'desktop/preload.js' );
+	ASSERT.match( preload, /exposeInMainWorld\( 'ConsensusDesktop', \{\s*Edition: 'desktop',/ );
+	for ( let name of [ 'SetLicense', 'ClearLicense', 'SetUser', 'PickFolder', 'OpenFolderWindow', 'OpenRecent', 'Client' ] )
+	{
+		ASSERT.doesNotMatch( preload, new RegExp( '^\\t' + name + ':', 'm' ), 'the Desktop\'s bridge has no ' + name );
+	}
+	for ( let name of [ 'Servers', 'AddServer', 'RenameServer', 'RemoveServer', 'Clerk' ] )
+	{
+		ASSERT.ok( preload.indexOf( name + ':' ) >= 0, 'the Desktop\'s bridge has ' + name );
+	}
 } );
 
 
-TEST( 'projects: a Host\'s projects are listed from its API for the chooser to pick from; a Host that does not answer says so', async function ()
+TEST( 'the Desktop\'s page: the thin page by Edition desktop (the Client flag of before gone): one sign-in for every Server, no configuration of a Server\'s, the runs and the Servers popup', function ()
 {
-	let data = temporary_folder( 'desktop-host-' );
-	FS.writeFileSync( PATH.join( data, 'consensus.json' ), JSON.stringify( { Port: 0, Owner: { Name: 'user', Display: 'User' } } ) );
-	let host = await SERVER.Start( { Data: data, Port: 0 } );
-	try
+	let session = read( 'public/js/session.js' );
+	ASSERT.match( session, /const DESKTOP = !!\( window\.ConsensusDesktop && window\.ConsensusDesktop\.Edition === 'desktop' \)/ );
+	ASSERT.match( session, /config = window\.ConsensusDesktop\.Clerk/ );
+	ASSERT.match( session, /Every: DESKTOP/ );
+	ASSERT.match( read( 'public/js/client.js' ), /Session\.Every === true \|\|/ );
+	let roots = read( 'public/js/roots.js' );
+	ASSERT.match( roots, /roots\.Desktop = roots\.Edition === 'desktop'/ );
+	ASSERT.match( roots, /desktop: 'Consensus Desktop'/ );
+	ASSERT.match( read( 'public/components/server-row/server-row.html' ), /<llm-fold ng-if="[^"]*!\$ctrl\.Roots\.Desktop"/ );
+	ASSERT.match( read( 'public/components/server-row/server-row.html' ), /<users-fold ng-if="[^"]*!\$ctrl\.Roots\.Desktop"/ );
+	ASSERT.match( read( 'public/components/project-view/project-view.html' ), /<roles-folder ng-if="[^"]*!\$ctrl\.Roots\.Desktop"/ );
+	let tree = read( 'public/js/tree.js' );
+	ASSERT.match( tree, /const DESKTOP_APP = !!\( window\.ConsensusDesktop && window\.ConsensusDesktop\.Edition === 'desktop' \)/ );
+	let desktop_menu = /if \( DESKTOP_APP \)\s*\{\s*return \[([\s\S]*?)\];/.exec( tree.slice( tree.indexOf( 'function project_actions' ) ) )[ 1 ];
+	for ( let left_out of [ 'Rename', 'Project settings', 'LLM Instructions', 'Delete', 'mount' ] )
 	{
-		let made = await host.Store.CreateProject( { Name: 'Second' } );
-		let listed = await PROJECTS.HostProjects( host.Url + '/' );
-		ASSERT.deepEqual( listed.map( function ( project ) { return project.Name; } ), [ 'Default', 'Second' ] );
-		ASSERT.equal( listed[ 1 ].Id, made.Id );
-		ASSERT.deepEqual( Object.keys( listed[ 0 ] ).sort(), [ 'Id', 'Name' ] );
+		ASSERT.equal( desktop_menu.indexOf( left_out ), -1, 'the Desktop\'s project menu has no ' + left_out );
 	}
-	finally
+	ASSERT.match( read( 'public/js/app.js' ), /\$scope\.DesktopSignedOut = function/ );
+	ASSERT.match( read( 'public/index.html' ), /ng-hide="DesktopSignedOut\(\)"/ );
+	ASSERT.match( read( 'public/components/client-servers/client-servers.js' ), /bridge\.Edition === 'desktop' && typeof bridge\.AddServer === 'function'/ );
+	ASSERT.match( read( 'public/components/client-runs/client-runs.js' ), /\$window\.ConsensusDesktop\.Edition === 'desktop'/ );
+	// no page file reads the flag of before
+	for ( let file of [ 'public/js/session.js', 'public/js/roots.js', 'public/js/tree.js', 'public/js/app.js', 'public/components/title-bar/title-bar.js' ] )
 	{
-		await host.Close();
+		ASSERT.equal( read( file ).indexOf( '.Client === true' ), -1, file + ' reads no Client flag' );
 	}
-	await ASSERT.rejects( PROJECTS.HostProjects( 'http://127.0.0.1:9', 2000 ), /does not answer/ );
-	await ASSERT.rejects( PROJECTS.HostProjects( 'cube4:3500' ), /must start with http/ );
-} );
-
-
-//---------------------------------------------------------------------
-// Sidecar mode (plan The Server, Step 4): the window's server over the Server's file read-only, with no connections or
-// tasks of its own.
-
-TEST( 'sidecar mode: the window\'s server reads the Server\'s consensus.json read-only and takes none of its connections or tasks: /api/me says Sidecar, nothing to run, a connection or settings save refused with the Server\'s line, the file never written; a missing file is the defaults, unwritten', async function ()
-{
-	let config = temporary_folder( 'desktop-readonly-' );
-	let folder = PATH.join( temporary_folder( 'desktop-readonly-project-' ), 'thing' );
-	FS.mkdirSync( folder );
-	let file = PATH.join( config, 'consensus.json' );
-	let written = JSON.stringify( { Port: 3977, Owner: { Name: 'user', Display: 'User' }, Llms: [ { Name: 'first', Kind: 'claude', Model: 'claude-test' } ], Tasks: [ { Id: 'answer', Name: 'Answer', Prompt: 'Answer what waits on you.' } ] }, null, '\t' );
-	FS.writeFileSync( file, written );
-	let running = await SERVER.Start( { Config: config, Port: 0, Project: folder, ReadOnly: true } );
-	let service = { 'X-Consensus-Service': 'Test', 'Content-Type': 'application/json' };
-	async function api( method, path, body )
-	{
-		let response = await fetch( running.Url + path, { method: method, headers: service, body: body ? JSON.stringify( body ) : undefined } );
-		return { Status: response.status, Body: await response.json() };
-	}
-	try
-	{
-		ASSERT.equal( running.ReadOnly, true );
-		ASSERT.equal( running.Store.ReadOnly, true );
-		ASSERT.equal( FS.readFileSync( file, 'utf8' ), written, 'the start wrote nothing' );
-		ASSERT.equal( FS.existsSync( PATH.join( config, 'users.json' ) ), false, 'no users file made' );
-		ASSERT.equal( running.Users.List().some( function ( one ) { return one.Type === 'owner'; } ), true, 'the owner record kept in memory, so a sign-in on the window\'s server is the owner\'s' );
-		ASSERT.ok( FS.existsSync( PATH.join( folder, '.consensus', 'project.json' ) ), 'the project\'s own folder is made' );
-		let me = ( await api( 'GET', '/api/me' ) ).Body;
-		ASSERT.equal( me.Sidecar, true );
-		ASSERT.equal( me.Host, undefined );
-		// none of the Server's connections or tasks
-		ASSERT.deepEqual( ( await api( 'GET', '/api/llms' ) ).Body.Llms, [] );
-		ASSERT.deepEqual( ( await api( 'GET', '/api/tasks' ) ).Body.Tasks, [] );
-		let plan = ( await api( 'POST', '/api/plans', { Title: 'Run me', Text: '# Run me\n', Project: running.Project.Id } ) ).Body.Plan;
-		let run = await api( 'POST', '/api/runs', { Llm: 'llm-aaa-bbb-ccc', Task: 'answer', Project: running.Project.Id, Plan: plan.Id } );
-		ASSERT.ok( run.Status >= 400, 'nothing to run: ' + JSON.stringify( run ) );
-		// the writes refused with the Server's line
-		ASSERT.deepEqual( await api( 'POST', '/api/llms', { Name: 'second' } ), { Status: 403, Body: { Error: 'Connections are managed by the Server' } } );
-		ASSERT.deepEqual( await api( 'PUT', '/api/settings', { Name: 'Renamed' } ), { Status: 403, Body: { Error: 'The settings are managed by the Server' } } );
-		ASSERT.equal( FS.readFileSync( file, 'utf8' ), written, 'still untouched' );
-		ASSERT.equal( running.RereadSettings, undefined, 'the file is not watched' );
-	}
-	finally
-	{
-		await running.Close();
-	}
-	// a missing file: the defaults in memory, nothing written, the folder's project still opens
-	let empty = temporary_folder( 'desktop-readonly-empty-' );
-	let bare = await SERVER.Start( { Config: empty, Port: 0, Project: folder, ReadOnly: true } );
-	try
-	{
-		ASSERT.equal( FS.existsSync( PATH.join( empty, 'consensus.json' ) ), false );
-		ASSERT.equal( bare.SettingsWritten, false );
-		let llms = await ( await fetch( bare.Url + '/api/llms', { headers: { 'X-Consensus-Service': 'Test' } } ) ).json();
-		ASSERT.deepEqual( llms.Llms, [] );
-		ASSERT.equal( bare.Project.Name, 'thing' );
-	}
-	finally
-	{
-		await bare.Close();
-	}
-	ASSERT.equal( FS.existsSync( PATH.join( empty, 'consensus.json' ) ), false );
 } );
 
 
 //---------------------------------------------------------------------
-// The Server on this machine as the Desktop sees it (plan Rearchitecturation, Step 5; plan The Server, Step 4: found,
-// never started or stopped from the Desktop)
+// The installer
 
-async function free_port()
+TEST( 'the installer: Consensus Desktop, its files, no guide and no folder command (the Desktop opens no folder)', function ()
 {
-	let holder = NET.createServer();
-	await new Promise( function ( resolve, reject ) { holder.once( 'error', reject ); holder.listen( 0, '127.0.0.1', resolve ); } );
-	let port = holder.address().port;
-	await new Promise( function ( resolve ) { holder.close( resolve ); } );
-	return port;
-}
-
-
-TEST( 'the Server from the Desktop: Status finds a running Server by its file and by its port, a mounted folder is routed through it and an unmounted one is not, and nothing is routed once it ends', async function ()
-{
-	let config = temporary_folder( 'desktop-host-' );
-	let port = await free_port();
-	FS.writeFileSync( PATH.join( config, 'consensus.json' ), JSON.stringify( { Port: port, Owner: { Name: 'user', Display: 'User' } } ) );
-	let before = await SERVER_STATUS.Status( config );
-	ASSERT.deepEqual( before, { Running: false, Url: 'http://127.0.0.1:' + port, Pid: null, Started: null, Ours: false } );
-	ASSERT.equal( await SERVER_STATUS.HostPort( config ), port );
-	let folder = PATH.join( temporary_folder( 'desktop-host-project-' ), 'served' );
-	FS.mkdirSync( folder );
-	ASSERT.equal( await SERVER_STATUS.Routed( config, folder ), null, 'no Server, nothing routed' );
-	// the Server as its application runs it: every registered project, in process (the gate is the Server's affair)
-	let server = await SERVER.Start( { Config: config } );
-	try
+	let build = JSON.parse( read( 'build/desktop.json' ) );
+	ASSERT.equal( build.productName, 'Consensus Desktop' );
+	ASSERT.equal( build.appId, 'com.mchiver.consensus' );
+	ASSERT.equal( build.extraMetadata.main, 'desktop/main.js' );
+	for ( let needed of [ 'desktop/**', 'electron/**', 'src/**', 'public/**', 'package.json' ] )
 	{
-		let status = await SERVER_STATUS.Status( config );
-		ASSERT.deepEqual( [ status.Running, status.Url, status.Pid, status.Ours ], [ true, 'http://127.0.0.1:' + port, process.pid, true ] );
-		// found by its port alone when the file is not this machine's: the file set aside
-		FS.renameSync( PATH.join( config, '~host.json' ), PATH.join( config, '~host.json.aside' ) );
-		let by_port = await SERVER_STATUS.Status( config );
-		ASSERT.deepEqual( [ by_port.Running, by_port.Url, by_port.Ours ], [ true, 'http://127.0.0.1:' + port, false ] );
-		FS.renameSync( PATH.join( config, '~host.json.aside' ), PATH.join( config, '~host.json' ) );
-		// the folder registered on the Server: unmounted, not routed; mounted, routed to the Server's project
-		let headers = { 'Content-Type': 'application/json', 'X-Consensus-Service': 'Test' };
-		let made = await ( await fetch( status.Url + '/api/projects', { method: 'POST', headers: headers, body: JSON.stringify( { Name: 'served', Path: folder } ) } ) ).json();
-		ASSERT.equal( made.Project.Mounted, false );
-		ASSERT.equal( await SERVER_STATUS.Routed( config, folder ), null, 'unmounted: opened as a sidecar' );
-		let mounted = await ( await fetch( status.Url + '/api/projects/' + made.Project.Id + '/mount', { method: 'PUT', headers: headers, body: JSON.stringify( { Mounted: true } ) } ) ).json();
-		ASSERT.equal( mounted.Project.Mounted, true );
-		let routed = await SERVER_STATUS.Routed( config, folder.toUpperCase() );
-		ASSERT.deepEqual( routed, { Url: status.Url, Project: { Id: made.Project.Id, Name: 'served' } } );
-		ASSERT.equal( await SERVER_STATUS.Routed( config, PATH.join( folder, '..', 'elsewhere' ) ), null );
+		ASSERT.ok( build.files.includes( needed ), 'the installer holds ' + needed );
 	}
-	finally
-	{
-		await server.Close();
-	}
-	ASSERT.equal( ( await SERVER_STATUS.Status( config, port ) ).Running, false );
-	ASSERT.equal( await SERVER_STATUS.Routed( config, folder ), null, 'the Server gone, the folder opens as a sidecar' );
-	ASSERT.equal( SERVER_STATUS.Start, undefined, 'the Desktop starts no Server' );
-	ASSERT.equal( SERVER_STATUS.Stop, undefined, 'nor stops one' );
+	ASSERT.equal( build.files.some( function ( file ) { return file.indexOf( '.guides' ) >= 0; } ), false, 'no LLM guide until Step 5.3' );
+	ASSERT.equal( build.nsis.include, undefined, 'no Open in Consensus Desktop on a folder' );
+	ASSERT.equal( FS.existsSync( PATH.join( ROOT, 'build', 'installer.nsh' ) ), false );
 } );
 
 
 //---------------------------------------------------------------------
-// The shared window parts without Electron (electron/Windows.js; plan Review 2026-10-29, Step 1)
+// The shared window parts without Electron (electron/Windows.js; plan Review 2026-10-29, Steps 1 and 5.1)
 
-TEST( 'the hidden menu: an item whose action is not given is left out with its accelerator (the Client has no folder to open); the Desktop and the Sidecar keep all three', function ()
+TEST( 'the hidden menu: an item whose action is not given is left out with its accelerator (the Desktop and the Client have no folder to open); the Sidecar keeps all three', function ()
 {
 	function labels( template )
 	{
@@ -413,9 +255,13 @@ TEST( 'the hidden menu: an item whose action is not given is left out with its a
 	let noop = function () {};
 	let all = WINDOWS.MenuTemplate( { NewWindow: noop, OpenFolderWindow: noop, Reload: noop } );
 	ASSERT.deepEqual( labels( all ), [ 'New window CmdOrCtrl+N', 'Open folder in new window… CmdOrCtrl+Shift+O', 'Reload CmdOrCtrl+R' ] );
-	let client = WINDOWS.MenuTemplate( { NewWindow: noop, Reload: noop } );
-	ASSERT.deepEqual( labels( client ), [ 'New window CmdOrCtrl+N', 'Reload CmdOrCtrl+R' ] );
-	ASSERT.equal( client[ 0 ].submenu.some( function ( item ) { return item.accelerator === 'CmdOrCtrl+Shift+O'; } ), false, 'the accelerator goes with the item' );
+	let no_folder = WINDOWS.MenuTemplate( { NewWindow: noop, Reload: noop } );
+	ASSERT.deepEqual( labels( no_folder ), [ 'New window CmdOrCtrl+N', 'Reload CmdOrCtrl+R' ] );
+	ASSERT.equal( no_folder[ 0 ].submenu.some( function ( item ) { return item.accelerator === 'CmdOrCtrl+Shift+O'; } ), false, 'the accelerator goes with the item' );
 	ASSERT.deepEqual( all[ 0 ].submenu.filter( function ( item ) { return item.role; } ), [ { role: 'quit' } ] );
 	ASSERT.equal( all[ 1 ].label, 'View' );
+	// the Sidecar alone passes the folder action
+	ASSERT.match( read( 'sidecar/main.js' ), /OpenFolderWindow: function/ );
+	ASSERT.equal( read( 'desktop/main.js' ).indexOf( 'OpenFolderWindow: function' ), -1 );
+	ASSERT.equal( read( 'client/main.js' ).indexOf( 'OpenFolderWindow: function' ), -1 );
 } );

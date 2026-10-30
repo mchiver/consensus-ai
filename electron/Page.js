@@ -1,7 +1,7 @@
 'use strict';
 
 // Page - serves the Consensus page (public/, the one page since plan Run Shapes, Step 3), the app's own pages (Folders:
-// Desktop's connect screen, desktop/page/) and the vendor files on 127.0.0.1, for the window to load (plan Consensus Desktop, Step 2), and forwards
+// the Client's chooser, client/page/) and the vendor files on 127.0.0.1, for the window to load (plan Consensus Desktop, Step 2), and forwards
 // the page's API calls to the servers the window shows: since plan Run Shapes, Step 5, one root per server,
 // /servers/<key>/api/* (the events stream included) and /servers/<key>/instructions going to that root's server, so
 // the page and every API share one origin. The server sends no CORS headers and is not changed for the desktop, and

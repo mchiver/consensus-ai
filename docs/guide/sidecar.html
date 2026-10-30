@@ -48,7 +48,7 @@
 		<main class="guide-main">
 			<article class="guide-article">
 <h1 id="consensus-sidecar">Consensus Sidecar</h1>
-<p><strong>Consensus Sidecar</strong> is the simplest way to use Consensus: one window over one local project folder, you, and your agent session beside it. It never connects to a Server, never asks you to sign in, and has no users, roles, licenses, LLM connections or tasks. Your agent (Claude Code or any other) works in the project through its API or MCP, and Sidecar is where the two of you settle the plans thread by thread. It installs beside Consensus Desktop and Consensus Server and changes neither.</p>
+<p><strong>Consensus Sidecar</strong> is the simplest way to use Consensus: one window over one local project folder, you, and your agent session beside it. It never connects to a Server, never asks you to sign in, and has no users, roles, licenses, LLM connections or tasks. Your agent (Claude Code or any other) works in the project through its API or MCP, and Sidecar is where the two of you settle the plans thread by thread. It installs beside Consensus Client, Consensus Desktop and Consensus Server and changes none of them.</p>
 <h2 id="installing-and-starting-it">Installing and starting it</h2>
 <p>On Windows, run <code>Consensus-Sidecar-Setup-&lt;version&gt;.exe</code> from the <a href="https://github.com/mchiver/consensus-ai/releases/latest">latest release</a>; it puts <strong>Consensus Sidecar</strong> in the Start menu. Start it and it asks for a folder: pick your project&#39;s folder (the dialog&#39;s New folder button makes one), and the window opens on it. Cancel quits. A folder that has no <code>.consensus</code> yet gets one, with a Readme in its Context folder.</p>
 <p>From the command line, or from the checkout:</p>
@@ -70,9 +70,9 @@ npm run sidecar -- &lt;folder&gt; [--port &lt;port&gt;]
 <li><strong>The theme and the size</strong>, from the gear in the title bar.</li>
 <li><strong>The view</strong>: the open plan, the tabs, the folds, the sort, the widths.</li>
 </ul>
-<p>The project&#39;s own settings (its name and its plan states) stay in <code>.consensus/project.json</code>, as in Desktop. <code>sidecar.json</code> holds your name and the view as you left it, which changes as you click; if you would rather keep it out of source control, add <code>.consensus/sidecar.json</code> to your <code>.gitignore</code>. Sidecar does nothing with git itself.</p>
+<p>The project&#39;s own settings (its name and its plan states) stay in <code>.consensus/project.json</code>, as everywhere. <code>sidecar.json</code> holds your name and the view as you left it, which changes as you click; if you would rather keep it out of source control, add <code>.consensus/sidecar.json</code> to your <code>.gitignore</code>. Sidecar does nothing with git itself.</p>
 <h2 id="what-sidecar-leaves-out">What Sidecar leaves out</h2>
-<p>Sidecar is Desktop with everything about servers and people taken away: no Connect to Server, no sign-in, no tiers, no Users or roles, no tokens, no LLM connections, task buttons or Explain, and no recent-folders chooser. When you want those, <a href="getting-started.html">Consensus Desktop</a> and <a href="server.html">the Server</a> have them.</p>
+<p>Sidecar is the page with everything about servers and people taken away: no Connect to Server, no sign-in, no tiers, no Users or roles, no tokens, no LLM connections, task buttons or Explain. When your project lives on a Server, <a href="client.html">Consensus Client</a> opens one of its projects and <a href="getting-started.html#the-desktop">Consensus Desktop</a> several Servers at once; <a href="server.html">the Server</a> is what serves them.</p>
 
 			</article>
 			<nav class="guide-pager">

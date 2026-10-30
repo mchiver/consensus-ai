@@ -48,39 +48,34 @@
 		<main class="guide-main">
 			<article class="guide-article">
 <h1 id="consensus-client">Consensus Client</h1>
-<p><strong>Consensus Client</strong> is for working in projects that live on one or more Consensus Servers. You sign in once, add the Servers you work with, and each one shows the projects it gives you by your roles. There is no local folder and no server of its own, the Client mints no tokens and has no API or MCP for an agent, and it configures nothing: every Server&#39;s projects, roles, LLM connections and tasks are set by that Server&#39;s Administrator and Managers. It installs beside Consensus Sidecar, Consensus Desktop and Consensus Server and changes none of them.</p>
+<p><strong>Consensus Client</strong> opens one project on one Consensus Server per window: the shape for working on one thing, with an agent session beside you, in a project that lives on a Server. It has no local folder and no server of its own; the Server signs you in on its page and decides, by your role, what you may see and do. It installs beside Consensus Sidecar, Consensus Desktop and Consensus Server and changes none of them.</p>
 <h2 id="installing-and-starting-it">Installing and starting it</h2>
 <p>On Windows, run <code>Consensus-Client-Setup-&lt;version&gt;.exe</code> from the <a href="https://github.com/mchiver/consensus-ai/releases/latest">latest release</a>; it puts <strong>Consensus Client</strong> in the Start menu.</p>
 <p>From the command line, or from the checkout:</p>
-<pre><code>&quot;Consensus Client.exe&quot; [--config &lt;folder&gt;]
-npm run client -- [--config &lt;folder&gt;]
+<pre><code>&quot;Consensus Client.exe&quot; [--connect &lt;server&gt; [&lt;project&gt;]] [--config &lt;folder&gt;]
+npm run client -- [--connect &lt;server&gt; [&lt;project&gt;]] [--config &lt;folder&gt;]
 </code></pre>
-<p><strong>New window</strong> (Ctrl+N, or the window&#39;s menu) opens another window on the same Servers.</p>
+<p><code>--connect</code> names a Server you saved, and after it a project of that Server, by its id or its name; with no project the Server&#39;s last project opens, and with none yet the chooser lists the Server&#39;s projects to pick from. With no <code>--connect</code> the window opens on the chooser. The Client has no <code>--port</code>: its page is served on a free port of this machine, remembered between starts. A bare folder on the command line is refused: the Client opens no folder; <a href="sidecar.html">Consensus Sidecar</a> does.</p>
+<h2 id="the-chooser">The chooser</h2>
+<p>A window with no project shows the <strong>chooser</strong>: the Servers you connected to, and <strong>Connect to Server</strong>.</p>
+<figure class="shot"><img class="light-only" src="../images/client-connect.png" alt="The chooser: the saved Servers, each with its last project, and Connect to Server."><img class="dark-only" src="../images/client-connect-dark.png" alt="The chooser: the saved Servers, each with its last project, and Connect to Server."><figcaption>The chooser: the saved Servers, each with its last project, and Connect to Server.</figcaption></figure>
+<ul>
+<li><strong>Connect to Server</strong> takes a name of your choosing and the Server&#39;s address (<code>https://consensus.example.com</code>, or <code>http://127.0.0.1:3500</code> for the Server on this machine), then <strong>Try</strong>. A Server that lets you in without a sign-in lists its projects to pick one; a Server that asks for a sign-in says so, and <strong>Connect</strong> opens the whole Server in the window, where you sign in and see the projects you may. The Server is saved under its name, with the project you picked as its last.</li>
+<li>Each saved Server has <strong>Open</strong>, which opens its last project (or the whole Server, when none was picked yet), <strong>Project…</strong>, which lists its projects again to pick another, and <strong>Remove</strong>, which drops the entry and tells the Server nothing.</li>
+</ul>
+<p><strong>New window</strong> (Ctrl+N, or the window&#39;s menu) opens another chooser: a window is one project, and another project is another window.</p>
 <h2 id="signing-in">Signing in</h2>
-<p>The Client shows nothing but the sign-in box until you sign in with your Consensus-AI account. Any account will do, with a license or without one: the Client checks no tier. The same sign-in goes with every call to every Server, and each Server decides, project by project, what you may see and do.</p>
-<p>The sign-in is kept in the Client&#39;s own window, so a restart finds you still signed in. <strong>Sign out</strong> is in the window&#39;s menu. The Client keeps no current user of the machine, so signing in or out here changes nothing in Desktop or the Server.</p>
-<h2 id="your-servers">Your Servers</h2>
-<p><strong>Servers…</strong>, in the window&#39;s menu or in a Server&#39;s own menu in the tree, lists the Servers you added:</p>
-<ul>
-<li><strong>Add server</strong> takes the Server&#39;s address (<code>https://consensus.example.com</code>, or <code>http://127.0.0.1:3500</code> for the Server on this machine). The Client tries it with your sign-in and saves it under the Server&#39;s own name; a name you already use gets a number. An address that does not answer, or is already in the list, is refused with the reason.</li>
-<li><strong>The name</strong> can be changed in place. It is the Server&#39;s name in this Client only.</li>
-<li><strong>Remove</strong> takes the Server out of the list and changes nothing on the Server.</li>
-<li>Each Server shows <strong>online</strong>, or <strong>offline</strong> with the reason. An offline Server stays in the list and comes back by itself when it answers again.</li>
-</ul>
-<p>With no Servers yet, the popup opens on its own after you sign in. Every Server is a root of the project tree, with its projects beneath it, and the waiting list and the tabs cover all of them.</p>
-<h2 id="working-in-the-projects">Working in the projects</h2>
-<p>Plans, documents, folders, threads, revisions, reports, Export and the look all work as they do in Desktop, as far as your role in each project allows. A project&#39;s menu has New Folder, New Draft, Copy, Paste, Export and Explain.</p>
-<p>A Server&#39;s LLM tasks are read from the Server: the buttons on a plan&#39;s heading are the tasks the project enables, and the Explain tab is there when the project has it. They run on the Server, as you.</p>
-<ul>
-<li><strong>At the press</strong>, the button follows the run: <strong>Answer · Running 0:42</strong>, or <strong>Queued behind</strong> the run it waits for. While it runs, a click opens the run instead of pressing again.</li>
-<li><strong>The run&#39;s popup</strong> shows its state and time and its output as it comes in, with <strong>Stop</strong>.</li>
-<li><strong>When it ends</strong>, a notice in the corner names it and opens it, and the button has <strong>Done</strong>, <strong>Failed</strong> or <strong>Stopped</strong> beside it.</li>
-<li><strong>My runs</strong>, under the waiting list, holds your own runs on every Server, newest first.</li>
-</ul>
+<p>A Server takes no request without a sign-in, so its page shows Consensus-AI&#39;s sign-in box when the window opens on it; sign in with your Consensus-AI account and you are who you are on that Server, with your roles in its projects. Any account will do: Registered, the free tier, is enough. The sign-in is kept in the window and handed to the Client, which writes it as this machine&#39;s signed-in person (<code>&lt;config&gt;/user.json</code>, shared with the Server application on the same machine, so a sign-in here counts there too). <strong>Sign out</strong> is in the window&#39;s menu.</p>
+<h2 id="the-window">The window</h2>
+<p>The page shows the one project: its tree, open, with the Trash beneath it. The window has no frame of its own: the page&#39;s title bar is the window&#39;s, the minimize, maximize and close buttons sit over its right end in the palette&#39;s colours, and the bar drags the window.</p>
+<figure class="shot"><img class="light-only" src="../images/client-project.png" alt="A Server's project open in the Client: the one project."><img class="dark-only" src="../images/client-project-dark.png" alt="A Server's project open in the Client: the one project."><figcaption>A Server's project open in the Client: the one project.</figcaption></figure>
+<p>Plans, documents, folders, threads, revisions, reports, Export and the look work as they do everywhere, as far as your role in the project allows; the project&#39;s settings, its LLM Instructions and the Server&#39;s own settings are there for the Administrator and the Managers, as on the Server&#39;s page. The Server&#39;s LLM tasks run on the Server, as you, from the buttons on a plan&#39;s heading and from the LLM page.</p>
+<p>The title bar&#39;s <strong>Menu</strong> has New window, <strong>Settings</strong> (the project&#39;s, or the Server&#39;s for its Administrator and Managers), <strong>Sign in…</strong> or <strong>Sign out</strong>, Reload and Quit; Ctrl+N and Ctrl+R do the same, and F11 goes full screen.</p>
+<figure class="shot"><img class="light-only" src="../images/client-menu.png" alt="The Client's menu: New window, Settings, Sign out, Reload and Quit."><img class="dark-only" src="../images/client-menu-dark.png" alt="The Client's menu: New window, Settings, Sign out, Reload and Quit."><figcaption>The Client's menu: New window, Settings, Sign out, Reload and Quit.</figcaption></figure>
 <h2 id="settings">Settings</h2>
-<p>The Client keeps its settings in <code>client.json</code> in the config folder (<code>&lt;your home&gt;/.consensus</code>, unless <code>--config</code> names another), beside Desktop&#39;s <code>desktop.json</code> and the Server&#39;s <code>consensus.json</code>: your Servers, the theme and the size, and the view as you left it. Nothing is carried over from Desktop&#39;s saved Servers.</p>
+<p>The Client keeps its settings in <code>client.json</code> in the config folder (<code>&lt;your home&gt;/.consensus</code>, unless <code>--config</code> names another), beside the Desktop&#39;s <code>desktop.json</code> and the Server&#39;s <code>consensus.json</code>: your Servers, each with the project you opened on it last, the theme and the size, and the view as you left it. Nothing is carried over from the Desktop&#39;s file.</p>
 <h2 id="what-the-client-leaves-out">What the Client leaves out</h2>
-<p>The Client is for working in projects, not for running them. It has no Server Settings, no project settings, no New Project, no Mount, no Users, accounts or role folders, no LLM connections or task settings, no LLM page and no LLM Instructions. That holds for a Server&#39;s Administrator and Managers too: they configure the Server in <a href="server.html">the Server&#39;s own window</a> or in its page in a browser.</p>
+<p>The Client opens no local folder and starts no server: a folder of your own is <a href="sidecar.html">Consensus Sidecar</a>&#39;s, and several Servers at once are <a href="getting-started.html#the-desktop">Consensus Desktop</a>&#39;s. Everything else is the Server&#39;s to give, by your role.</p>
 
 			</article>
 			<nav class="guide-pager">

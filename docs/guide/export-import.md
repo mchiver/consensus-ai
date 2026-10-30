@@ -29,7 +29,7 @@ The same goes through `POST /api/projects/import` with the export as the body.
 
 **Report** in a plan's menu, the **Report** button in its heading, or Ctrl+P, opens the plan, its Subplans and all their threads flattened into one page: a title page with the plan's state, dates, participants and thread counts; the text, each anchored passage marked and numbered; then every thread in the order of its passage, with each reply's author and time, and the resolve and apply records with their revisions. Subplans follow as chapters. It is a record of both sides' work at the plan's final revision; deleted threads and the revision history stay out.
 
-The page's **Print** button prints it: in a browser the print dialog's destinations include Save as PDF, and the print leaves the controls out, puts each plan on a new page and keeps the colours; in the desktop the button asks where to save and writes the PDF, and **View in Browser** opens the same report in your browser, for its own preview and print. The same report is served as markdown at the page's **Markdown** link (`/api/plans/<id>/report.md`), for an agent or for keeping with the source.
+The page's **Print** button prints it: in a browser the print dialog's destinations include Save as PDF, and the print leaves the controls out, puts each plan on a new page and keeps the colours; in an application's window the button asks where to save and writes the PDF, and **View in Browser** opens the same report in your browser, for its own preview and print. The same report is served as markdown at the page's **Markdown** link (`/api/plans/<id>/report.md`), for an agent or for keeping with the source.
 
 ## Older exports
 

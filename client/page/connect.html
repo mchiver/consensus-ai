@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="Connect">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Consensus Client</title>
+	<link rel="icon" href="data:,">
+	<link rel="stylesheet" href="/vendor/bootstrap.min.css">
+	<link rel="stylesheet" href="/connect.css">
+	<script src="/js/theme.js"></script>
+</head>
+<body ng-controller="ConnectController" ng-cloak>
+
+	<!-- The Client's chooser (plan Review 2026-10-29, Step 5.1; the desktop's chooser of plan Rearchitecturation,
+	     Step 2, narrowed): a window with no project. The saved Servers, each with its last project (Open, Project…,
+	     Remove), and Connect to Server (a name and an address tried, then one of its projects); each opens the project
+	     in this window, where the Server signs you in. -->
+
+	<header class="connect-head">
+		<div class="connect-title"><span class="connect-kind">Consensus</span> Client <span class="muted small">{{ Version }}</span></div>
+		<div class="connect-controls">
+			<select class="form-select form-select-sm" ng-model="Theme" ng-change="SetTheme()" title="theme" id="theme-select" ng-options="palette.Id as palette.Label for palette in Palettes"></select>
+			<select class="form-select form-select-sm" ng-model="Scale" ng-change="SetScale()" title="size" id="scale-select">
+				<option value="small">Small</option>
+				<option value="normal">Normal</option>
+				<option value="large">Large</option>
+			</select>
+		</div>
+	</header>
+
+	<main class="connect-main">
+		<div class="alert alert-warning py-2" id="reason" ng-show="Reason">{{ Reason }}</div>
+		<div class="alert alert-danger py-2" id="error" ng-show="Error">{{ Error }} <button class="btn btn-link btn-sm" ng-click="Error = null">dismiss</button></div>
+
+		<section class="block" id="servers-block">
+			<div class="block-head">
+				<h2>Servers</h2>
+				<button class="btn btn-sm btn-primary" id="add-server" ng-click="StartAdd()" ng-hide="Adding" ng-disabled="Busy" title="a Server by its address, then one of its projects">Connect to Server</button>
+			</div>
+			<div class="muted small" id="servers-empty" ng-hide="Settings.Servers.length || Adding">none yet: a Server's address, such as http://cube4:3500, then one of its projects; the Server signs you in on its page</div>
+			<div class="server-row" ng-repeat="entry in Settings.Servers track by entry.Name">
+				<div class="server-name">{{ entry.Name }}</div>
+				<div class="muted small server-url">{{ entry.Url }}<span ng-show="entry.Project"> · {{ entry.Title || entry.Project }}</span></div>
+				<span class="grow"></span>
+				<button class="btn btn-sm btn-outline-primary open-server" ng-click="Open( entry )" ng-disabled="Busy" title="{{ entry.Project ? 'open ' + ( entry.Title || entry.Project ) + ' in this window' : 'open the Server in this window: its page lists the projects' }}">Open</button>
+				<button class="btn btn-sm btn-outline-secondary pick-project" ng-click="StartPick( entry )" ng-disabled="Busy || Adding" title="another of its projects">Project…</button>
+				<button class="btn btn-sm btn-outline-danger remove-server" ng-click="Remove( entry )" ng-disabled="Busy" title="leave the list; the Server is not told">Remove</button>
+			</div>
+			<form class="server-form" ng-if="Adding" ng-submit="Connect()">
+				<div class="field-row">
+					<label for="server-name">Name</label>
+					<input class="form-control form-control-sm" id="server-name" ng-model="Adding.Name" placeholder="cube4" ng-readonly="Adding.Fixed" auto-focus>
+					<label for="server-url">Url</label>
+					<input class="form-control form-control-sm" id="server-url" ng-model="Adding.Url" placeholder="http://cube4:3500">
+					<button class="btn btn-sm btn-outline-secondary" type="button" id="try-server" ng-click="Try()" ng-disabled="!Adding.Url || Busy">Try</button>
+				</div>
+				<div class="small tried" id="tried" ng-show="Adding.Tried">
+					<span ng-show="Adding.Tried.Ok && Adding.Tried.SignIn">The Server answers and asks for a sign-in: Connect opens it in this window, where you sign in and pick a project.</span>
+					<span ng-show="Adding.Tried.Ok && !Adding.Tried.SignIn">Consensus {{ Adding.Tried.Version || '(older than 0.2.0)' }} answers with {{ Adding.Projects.length }} project{{ Adding.Projects.length === 1 ? '' : 's' }}.<span class="text-warning" ng-show="Adding.Tried.Version !== Version"> Its version differs from this app's {{ Version }}.</span></span>
+					<span class="text-danger" ng-hide="Adding.Tried.Ok">{{ Adding.Tried.Error }}</span>
+				</div>
+				<div class="field-row" ng-show="Adding.Tried.Ok && Adding.Projects.length">
+					<label for="server-project">Project</label>
+					<select class="form-select form-select-sm" id="server-project" ng-model="Adding.Project" ng-options="project.Id as project.Name for project in Adding.Projects"></select>
+				</div>
+				<div class="field-row">
+					<button class="btn btn-sm btn-primary" type="submit" id="connect-server" ng-disabled="!Adding.Name || !Adding.Tried.Ok || ( !Adding.Project && !Adding.Tried.SignIn ) || Busy">Connect</button>
+					<button class="btn btn-sm btn-outline-secondary" type="button" ng-click="CancelAdd()">Cancel</button>
+				</div>
+			</form>
+		</section>
+
+		<div class="muted small">A window is one project on one Server. Another project at the same time: <a href="" ng-click="NewWindow()">New window</a> opens another chooser, and <code>consensus-client --connect &lt;server&gt; [&lt;project&gt;]</code> opens one from the command line.</div>
+	</main>
+
+	<script src="/vendor/angular.min.js"></script>
+	<script src="/connect.js"></script>
+</body>
+</html>

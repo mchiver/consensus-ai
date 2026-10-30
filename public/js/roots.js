@@ -47,11 +47,13 @@ angular.module( 'Consensus' ).factory( 'Roots', [ '$rootScope', 'Client', functi
 	roots.List = given.map( make );
 	// The window's one project (the Desktop), or null for a page of many.
 	roots.Project = ( window.ConsensusDesktop && window.ConsensusDesktop.Project && window.ConsensusDesktop.Project.Id ) ? window.ConsensusDesktop.Project : null;
-	// The Client (plan Client Edition, Step 3): its page leaves out every Server's configuration.
-	roots.Client = !!( window.ConsensusDesktop && window.ConsensusDesktop.Client === true );
 	// The edition the page runs in (plan Review 2026-10-29, Step 3): the bridge's Edition, 'desktop', 'sidecar',
 	// 'client' or 'server'; null in a browser.
 	roots.Edition = ( window.ConsensusDesktop && typeof window.ConsensusDesktop.Edition === 'string' ) ? window.ConsensusDesktop.Edition : null;
+	// The Desktop (plan Review 2026-10-29, Step 5.1, the editions cut; the Client's page until then, plan Client
+	// Edition, Step 3): the thin page over Servers alone, one sign-in for all of them, which leaves out every Server's
+	// configuration.
+	roots.Desktop = roots.Edition === 'desktop';
 	// The application's name, in the title bar, the window's title and About; plain Consensus in a browser.
 	roots.Product = product_name();
 	document.title = roots.Product;

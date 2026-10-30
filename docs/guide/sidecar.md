@@ -1,6 +1,6 @@
 # Consensus Sidecar
 
-**Consensus Sidecar** is the simplest way to use Consensus: one window over one local project folder, you, and your agent session beside it. It never connects to a Server, never asks you to sign in, and has no users, roles, licenses, LLM connections or tasks. Your agent (Claude Code or any other) works in the project through its API or MCP, and Sidecar is where the two of you settle the plans thread by thread. It installs beside Consensus Desktop and Consensus Server and changes neither.
+**Consensus Sidecar** is the simplest way to use Consensus: one window over one local project folder, you, and your agent session beside it. It never connects to a Server, never asks you to sign in, and has no users, roles, licenses, LLM connections or tasks. Your agent (Claude Code or any other) works in the project through its API or MCP, and Sidecar is where the two of you settle the plans thread by thread. It installs beside Consensus Client, Consensus Desktop and Consensus Server and changes none of them.
 
 ## Installing and starting it
 
@@ -37,8 +37,8 @@ Sidecar keeps its settings with the project, in `.consensus/sidecar.json`:
 - **The theme and the size**, from the gear in the title bar.
 - **The view**: the open plan, the tabs, the folds, the sort, the widths.
 
-The project's own settings (its name and its plan states) stay in `.consensus/project.json`, as in Desktop. `sidecar.json` holds your name and the view as you left it, which changes as you click; if you would rather keep it out of source control, add `.consensus/sidecar.json` to your `.gitignore`. Sidecar does nothing with git itself.
+The project's own settings (its name and its plan states) stay in `.consensus/project.json`, as everywhere. `sidecar.json` holds your name and the view as you left it, which changes as you click; if you would rather keep it out of source control, add `.consensus/sidecar.json` to your `.gitignore`. Sidecar does nothing with git itself.
 
 ## What Sidecar leaves out
 
-Sidecar is Desktop with everything about servers and people taken away: no Connect to Server, no sign-in, no tiers, no Users or roles, no tokens, no LLM connections, task buttons or Explain, and no recent-folders chooser. When you want those, [Consensus Desktop](getting-started.html) and [the Server](server.html) have them.
+Sidecar is the page with everything about servers and people taken away: no Connect to Server, no sign-in, no tiers, no Users or roles, no tokens, no LLM connections, task buttons or Explain. When your project lives on a Server, [Consensus Client](client.html) opens one of its projects and [Consensus Desktop](getting-started.html#the-desktop) several Servers at once; [the Server](server.html) is what serves them.

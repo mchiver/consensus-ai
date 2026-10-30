@@ -122,8 +122,8 @@
 	     desktop the window's title bar, with Electron's window buttons over its right end. -->
 	<title-bar></title-bar>
 
-	<!-- The Client signed out (plan Client Edition, Step 2): the sign-in box and nothing else. -->
-	<div class="layout" ng-hide="ClientSignedOut()" ng-class="{ 'no-threads': State.Open.Plan.Kind === 'document' || State.ThreadsHidden || State.View === 'llm' || State.View === 'x' || State.View === 'u', 'no-tree': State.TreeHidden }">
+	<!-- The Desktop signed out (plan Client Edition, Step 2, as the Client): the sign-in box and nothing else. -->
+	<div class="layout" ng-hide="DesktopSignedOut()" ng-class="{ 'no-threads': State.Open.Plan.Kind === 'document' || State.ThreadsHidden || State.View === 'llm' || State.View === 'x' || State.View === 'u', 'no-tree': State.TreeHidden }">
 
 		<!-- ============================================================= -->
 		<aside class="sidebar">
@@ -376,10 +376,10 @@
 	<!-- Clerk's sign-in (plan User Management, Step 4), when the server signs people in and refused the request. -->
 	<sign-in-box></sign-in-box>
 
-	<!-- The Client's Servers (plan Client Edition, Step 2): Add server, rename, remove. -->
+	<!-- The Desktop's Servers (plan Client Edition, Step 2, as the Client): Add server, rename, remove. -->
 	<client-servers></client-servers>
 
-	<!-- The Client's runs (plan Client Edition, Step 3): a run's popup, and a notice when a run pressed here ends. -->
+	<!-- The Desktop's runs (plan Client Edition, Step 3, as the Client): a run's popup, and a notice when a run pressed here ends. -->
 	<client-runs></client-runs>
 
 	<!-- Help (plan UI Tweaks VI): About, and the hotkeys. -->

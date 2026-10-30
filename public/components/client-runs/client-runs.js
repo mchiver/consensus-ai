@@ -1,12 +1,13 @@
 'use strict';
 
-// client-runs - the Client's runs (plan Client Edition, Step 3): what a person sees of the tasks they press, every
+// client-runs - the Desktop's runs (plan Client Edition, Step 3, as the Client's; the Desktop's since plan Review
+// 2026-10-29, Step 5.1, the editions cut, the component keeping its name): what a person sees of the tasks they press, every
 // run being the Server's. My runs, shown beside the waiting list: the person's own runs on every Server (GET
 // /api/runs?By=<their name>), newest first, each with its task, plan, Server, state and time. A run's popup: its state,
 // its Output (an ollama run's Output is its transcript rendered) growing as it comes in, read again on every event of
 // the run and every two seconds while it is queued or running, with Stop for the person who pressed. When a run the
 // person pressed in this window ends, a short notice links to it. Nothing here changes on the Server: it reads the
-// records and events it already has. The run's Prompt is not shown in the Client.
+// records and events it already has. The run's Prompt is not shown in the Desktop.
 //
 // Interface:
 //   <client-runs></client-runs>                 My runs (in the waiting view), the run's popup and the notices
@@ -19,7 +20,7 @@ angular.module( 'Consensus' ).factory( 'ClientRuns', [ '$rootScope', '$window', 
 	const POLL = 2000;			// a queued or running run in the popup is read again this often
 	const NOTICE_TIME = 15000;	// a notice stays this long unless dismissed
 	const ENDED = [ 'done', 'failed', 'stopped' ];
-	let available = !!( $window.ConsensusDesktop && $window.ConsensusDesktop.Client === true );
+	let available = !!( $window.ConsensusDesktop && $window.ConsensusDesktop.Edition === 'desktop' );
 	let mine = {};				// root key -> [ summaries ], newest first
 	let pressed = {};			// run id -> root key: the runs pressed in this window, for the notices
 	let poll = null;

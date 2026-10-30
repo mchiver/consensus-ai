@@ -50,25 +50,36 @@ TEST( 'Arguments: the Sidecar\'s line: one folder and --port; a second folder, a
 } );
 
 
-TEST( 'Arguments: the Client\'s line: --config alone; a bare argument is refused', function ()
+TEST( 'Arguments: the Desktop\'s line: --config alone; a bare argument and --port are refused (plan Review 2026-10-29, Step 5.1: the Desktop opens no folder and has no server)', function ()
 {
 	let flags = [ { Name: '--config', Takes: 'value', Key: 'Config', Needs: 'a folder' }, { Name: '--help', Alias: '-h', Takes: 'flag', Key: 'Help' } ];
-	let options = { Title: 'the Client', Flags: flags, Packaged: false };
+	let options = { Title: 'the Desktop', Flags: flags, Packaged: false };
 	ASSERT.deepEqual( APP.Arguments( EXE.concat( [ '--config', 'C:/cfg' ] ), options ), { Options: { Config: 'C:/cfg', Help: false }, Positional: null, Rest: [] } );
-	ASSERT.throws( function () { APP.Arguments( EXE.concat( [ 'W:/p' ] ), options ); }, /not an argument the Client knows: W:\/p/ );
+	ASSERT.throws( function () { APP.Arguments( EXE.concat( [ 'W:/p' ] ), options ); }, /not an argument the Desktop knows: W:\/p/ );
+	ASSERT.throws( function () { APP.Arguments( EXE.concat( [ '--port', '0' ] ), options ); }, /not an argument the Desktop knows: --port/ );
 	ASSERT.throws( function () { APP.Arguments( EXE.concat( [ '--config' ] ), options ); }, /--config needs a folder/ );
 } );
 
 
-TEST( 'Arguments: the Desktop\'s and the Server\'s lines: their own flag taken, the rest kept in order for Start.js', function ()
+TEST( 'Arguments: the Client\'s line: --connect <server> with and without the project, --config; --port and a second project are refused (the bare folder is main.js\'s to refuse, test/Client.test.js)', function ()
 {
-	let desktop = { Title: 'the Desktop', Rest: true, Flags: [ { Name: '--connect', Takes: 'value', Key: 'Connect', Needs: 'the Name of a saved Server' } ], Packaged: false };
-	ASSERT.deepEqual( APP.Arguments( EXE.concat( [ '--config', 'C:/cfg', '--connect', 'Team', 'W:/p', '--port', '0', '--help' ] ), desktop ), { Options: { Connect: 'Team' }, Positional: null, Rest: [ '--config', 'C:/cfg', 'W:/p', '--port', '0', '--help' ] } );
-	ASSERT.deepEqual( APP.Arguments( EXE.concat( [ 'W:/p' ] ), desktop ), { Options: { Connect: null }, Positional: null, Rest: [ 'W:/p' ] } );
-	ASSERT.throws( function () { APP.Arguments( EXE.concat( [ '--connect' ] ), desktop ); }, /--connect needs the Name of a saved Server/ );
-	ASSERT.throws( function () { APP.Arguments( EXE.concat( [ '--connect', '--port' ] ), desktop ); }, /--connect needs the Name of a saved Server/ );
+	let flags = [ { Name: '--connect', Takes: 'value', Key: 'Connect', Needs: 'the Name of a saved Server' }, { Name: '--config', Takes: 'value', Key: 'Config', Needs: 'a folder' }, { Name: '--help', Alias: '-h', Takes: 'flag', Key: 'Help' } ];
+	let options = { Title: 'the Client', Positional: true, PositionalName: 'project', Flags: flags, Packaged: false };
+	ASSERT.deepEqual( APP.Arguments( EXE.concat( [ '--connect', 'Team', 'Alpha', '--config', 'C:/cfg' ] ), options ), { Options: { Connect: 'Team', Config: 'C:/cfg', Help: false }, Positional: 'Alpha', Rest: [] } );
+	ASSERT.deepEqual( APP.Arguments( EXE.concat( [ '--connect', 'Team' ] ), options ).Positional, null );
+	ASSERT.throws( function () { APP.Arguments( EXE.concat( [ '--connect' ] ), options ); }, /--connect needs the Name of a saved Server/ );
+	ASSERT.throws( function () { APP.Arguments( EXE.concat( [ '--connect', '--config', 'x' ] ), options ); }, /--connect needs the Name of a saved Server/ );
+	ASSERT.throws( function () { APP.Arguments( EXE.concat( [ '--port', '0' ] ), options ); }, /not an argument the Client knows: --port/ );
+	ASSERT.throws( function () { APP.Arguments( EXE.concat( [ '--connect', 'Team', 'Alpha', 'Beta' ] ), options ); }, /one project only: Beta/ );
+} );
+
+
+TEST( 'Arguments: the Server\'s line: its own flag taken, the rest kept in order for Start.js', function ()
+{
 	let server = { Title: 'the Server', Rest: true, Flags: [ { Name: '--open', Takes: 'value', Key: 'Open', Needs: 'a folder' } ], Packaged: false };
 	ASSERT.deepEqual( APP.Arguments( EXE.concat( [ '--headless', '--open', 'W:/p', '--scope', 'public', '--allow-file-access' ] ), server ), { Options: { Open: 'W:/p' }, Positional: null, Rest: [ '--headless', '--scope', 'public' ] } );
+	ASSERT.deepEqual( APP.Arguments( EXE.concat( [ 'W:/p', '--config', 'C:/cfg' ] ), server ), { Options: { Open: null }, Positional: null, Rest: [ 'W:/p', '--config', 'C:/cfg' ] } );
+	ASSERT.throws( function () { APP.Arguments( EXE.concat( [ '--open' ] ), server ); }, /--open needs a folder/ );
 	ASSERT.ok( APP.ELECTRON_SWITCH.test( '--user-data-dir=C:/x' ) );
 	ASSERT.ok( !APP.ELECTRON_SWITCH.test( '--config' ) );
 } );

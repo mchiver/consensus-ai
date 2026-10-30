@@ -14,8 +14,9 @@ own; a thread waiting there is left alone even when the waiting route lists it.
 
 ## The sidecar
 
-The one-project server itself (plan Rearchitecturation, Step 3): the Desktop runs one per window over the
-window's folder, and the headless `consensus <folder>` the same. It listens on localhost alone, on a port
+The one-project server itself (plan Rearchitecturation, Step 3): the headless `consensus <folder>` runs one over the
+folder (the Desktop ran one per window until plan Review 2026-10-29, Step 5.1, the editions cut; the Sidecar app's
+server is the same kind, with no address file). It listens on localhost alone, on a port
 hashed from the folder's absolute path (lower-cased on Windows) into 3600 to 3699, stepped up by one while the
 port is taken and wrapping at the end; `--port` overrides it for one start. While the project is open, the
 address is in `<folder>/.consensus/~sidecar.json` as `{ Url, Port, Pid, Started, Project }`, written at start

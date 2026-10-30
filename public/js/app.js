@@ -704,8 +704,9 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	$scope.Roots = Roots;
 
 
-	// The Client (plan Client Edition, Step 2): until someone is signed in, the sign-in box and nothing else.
-	$scope.ClientSignedOut = function ()
+	// The Desktop (plan Client Edition, Step 2, as the Client; plan Review 2026-10-29, Step 5.1): until someone is signed
+	// in, the sign-in box and nothing else.
+	$scope.DesktopSignedOut = function ()
 	{
 		return Session.Every === true && !( Session.Loaded && Session.SignedIn() );
 	};
@@ -755,11 +756,11 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	}
 
 
-	// The Client (plan Client Edition, Step 3): the LLM page and an account's page are a Server's configuration, so
-	// their routes go to the waiting list instead.
-	function client_route_of( where )
+	// The Desktop (plan Client Edition, Step 3, as the Client): the LLM page and an account's page are a Server's
+	// configuration, so their routes go to the waiting list instead.
+	function desktop_route_of( where )
 	{
-		if ( where && Roots.Client && ( where.Kind === 'llm' || where.Kind === 'u' ) )
+		if ( where && Roots.Desktop && ( where.Kind === 'llm' || where.Kind === 'u' ) )
 		{
 			return { Kind: 'waiting', Root: where.Root };
 		}
@@ -771,14 +772,14 @@ angular.module( 'Consensus', [ 'Consensus.Client', 'Consensus.Render', 'Consensu
 	// last tab, or the start page when there are no tabs.
 	function route()
 	{
-		// the Client signed out (plan Client Edition, Step 5): no route, and no tab restored into the address, while
+		// the Desktop signed out (plan Client Edition, Step 5): no route, and no tab restored into the address, while
 		// Clerk's form is the page
-		if ( $scope.ClientSignedOut() )
+		if ( $scope.DesktopSignedOut() )
 		{
 			return;
 		}
 		let hash = $window.location.hash;
-		let where = client_route_of( route_of( hash ) );
+		let where = desktop_route_of( route_of( hash ) );
 		if ( !where )
 		{
 			let last = Tabs.Active() || Tabs.List[ Tabs.List.length - 1 ];

@@ -1,10 +1,10 @@
 # Sharing a server
 
-A project open in the desktop is yours alone: its sidecar takes every request as you, and nobody signs in. A server for several people is [the Server](server.html): it signs people in through Consensus-AI and gives each of them a role in each project, whether it listens on this machine only or on the network, and a project reaches them once the Administrator has mounted it. This page is the order you meet it in: the sign-in, the Administrator and the Managers, mounting, the accounts, the roles, the tokens, and what each role sees. [Settings and themes](settings.html) has the settings themselves.
+A project open in the Sidecar is yours alone: its server takes every request as you, and nobody signs in. A server for several people is [the Server](server.html): it signs people in through Consensus-AI and gives each of them a role in each project, whether it listens on this machine only or on the network, and a project reaches them once the Administrator has mounted it. This page is the order you meet it in: the sign-in, the Administrator and the Managers, mounting, the accounts, the roles, the tokens, and what each role sees. [Settings and themes](settings.html) has the settings themselves.
 
 ## Signing in
 
-The Server tells people apart by their sign-in, whatever its Scope: a request with no session and no token is refused. Its page shows Consensus-AI's sign-in box, and a person who has signed in is who they are everywhere on the Server: in its own window, in a browser, and in a desktop window connected to it. Consensus keeps no password: Consensus-AI's sign-in identifies people by their email, and Consensus holds the roles.
+The Server tells people apart by their sign-in, whatever its Scope: a request with no session and no token is refused. Its page shows Consensus-AI's sign-in box, and a person who has signed in is who they are everywhere on the Server: in its own window, in a browser, in the Client and in the Desktop. Consensus keeps no password: Consensus-AI's sign-in identifies people by their email, and Consensus holds the roles.
 
 The Scope says only where the Server listens. **Local** is this machine; **Public** is every interface, for a team on the network, and needs the Administrator's **Professional** license: in the Settings popup, sign in, and once the page holds a Professional license the Public choice is enabled; save, and the Server listens on the network from its next start.
 

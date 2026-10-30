@@ -1,11 +1,12 @@
 'use strict';
 
-// client-servers - the Client's Servers popup (plan Client Edition, Step 2): the Servers the person added, each with its
+// client-servers - the Desktop's Servers popup (plan Client Edition, Step 2, as the Client's; the Desktop's since plan
+// Review 2026-10-29, Step 5.1, the editions cut, the component keeping its name): the Servers the person added, each with its
 // name (renamed in place), its address, and whether it answers now (offline with the reason); Remove takes it out of
 // the list and changes nothing on the Server; Add server takes an address, which the Client tries (GET /api/me with
 // the person's session token) and saves under the Server's own name. A change reloads every window on the new list.
 // Opened from the application menu (Servers…) and a Server's row menu, and at once when someone signed in has no
-// Servers yet. Shown only in the Client (window.ConsensusDesktop.Client).
+// Servers yet. Shown only in the Desktop (window.ConsensusDesktop.Edition desktop).
 //
 // Interface:
 //   <client-servers></client-servers>
@@ -16,7 +17,7 @@
 angular.module( 'Consensus' ).factory( 'ClientServers', [ '$window', function ( $window )
 {
 	let bridge = $window.ConsensusDesktop;
-	let available = !!( bridge && bridge.Client === true && typeof bridge.AddServer === 'function' );
+	let available = !!( bridge && bridge.Edition === 'desktop' && typeof bridge.AddServer === 'function' );
 	let panel = {
 		Available: available,
 		Open: false,

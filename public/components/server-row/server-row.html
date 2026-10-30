@@ -13,11 +13,11 @@
 		<project-view class="project" ng-repeat="project in $ctrl.Projects() track by project.Id" ng-class="{ open: $ctrl.single || $ctrl.Tree.IsOpen(project), single: $ctrl.single }" data-project="{{ project.Id }}" entry="project" root="$ctrl.server" single="$ctrl.single"></project-view>
 	</div>
 
-	<!-- The Desktop's sidecar mode (plan The Server, Step 4): no LLMs and no users; those are a Server's. The Client
-	     (plan Client Edition, Step 3) shows neither: the connections and the accounts are the Server's configuration. -->
-	<llm-fold ng-if="!$ctrl.server.Sidecar && !$ctrl.Roots.Client" root="$ctrl.server" first="$ctrl.first"></llm-fold>
+	<!-- A sidecar's server (plan The Server, Step 4): no LLMs and no users; those are a Server's. The Desktop (plan
+	     Client Edition, Step 3, as the Client) shows neither: the connections and the accounts are the Server's configuration. -->
+	<llm-fold ng-if="!$ctrl.server.Sidecar && !$ctrl.Roots.Desktop" root="$ctrl.server" first="$ctrl.first"></llm-fold>
 
-	<users-fold ng-if="!$ctrl.server.Sidecar && !$ctrl.Roots.Client" root="$ctrl.server" first="$ctrl.first"></users-fold>
+	<users-fold ng-if="!$ctrl.server.Sidecar && !$ctrl.Roots.Desktop" root="$ctrl.server" first="$ctrl.first"></users-fold>
 
 	<div class="list-heading trash-heading" ng-click="$ctrl.Tree.ToggleTrash( $ctrl.server )" title="the deleted items of this server's projects" on-context-menu="$ctrl.Tree.OpenMenu('trash', $ctrl.server, null, $event)">Trash <span class="tally" title="the items in the trash">{{ $ctrl.Tree.Of( $ctrl.server ).Trash.length }}</span>
 		<span class="row-menu" role="button" ng-if="$ctrl.server.Me.Role === 'owner'" ng-class="{ shown: $ctrl.Tree.MenuOpenFor( { Id: 'trash:' + $ctrl.server.Key } ) }" title="actions" ng-click="$ctrl.Tree.OpenMenu('trash', $ctrl.server, null, $event)"><svg class="icon"><use href="#i-more"></use></svg></span>

@@ -14,9 +14,9 @@
 //              <folder>/.consensus/~sidecar.json at every message, so the entry stays fixed while the project is opened
 //              and closed; a folder not open in Consensus answers each request with one message saying so. The
 //              sidecar's one project is filled in for the tools that take one. `consensus mcp <folder>` is the same.
-//   --server   the server's address (http://127.0.0.1:3500), or the Name of a saved Host in the desktop's own file
-//              (<config>/desktop.json, its Hosts list; plan Rearchitecturation, Step 1), whose Url is taken; a Host's
-//              entry carries no token, so a shared server takes --token
+//   --server   the server's address (http://127.0.0.1:3500), or the Name of a saved Server in the Desktop's own file
+//              (<config>/desktop.json, its Servers list; plan Review 2026-10-29, Step 5.1, the Hosts list until then),
+//              whose Url is taken; a saved Server carries no token, so a shared server takes --token
 //   --service  how the relay says who it is, the X-Consensus-Service header ("MCP" when neither this nor a token
 //              is given); a Claude Code configuration passes --service Claude-CLI to keep its byline
 //   --token    an account's token, minted on the person's user page, for a shared server; with none given, the
@@ -24,7 +24,7 @@
 //              as the one a project's LLM Instructions mint); --service then still names the relay in the byline
 //   --project  the project (an id or a name) filled in for the tools that take one when the client leaves it out:
 //              sidecar mode's one-project rule, set for a client
-//   --config   the config folder the saved Hosts are read from (~/.consensus)
+//   --config   the config folder the saved Servers are read from (~/.consensus)
 //
 // A client's configuration, for Claude Code: claude mcp add consensus -- consensus mcp <folder>
 // (or node <checkout>/bin/mcp.js <folder>); against a Host: node <checkout>/bin/mcp.js --server http://127.0.0.1:3500 --service Claude-CLI
@@ -54,7 +54,7 @@ function usage()
 		'',
 		'The MCP stdio transport for Consensus: a relay to a running server\'s POST /api/mcp. A folder names a project open in',
 		'Consensus, whose sidecar\'s address is read from its .consensus/~sidecar.json; --server takes a server\'s address or the',
-		'Name of a saved Host in <config>/desktop.json; --service names the relay (MCP by default) and --token carries an',
+		'Name of a saved Server in <config>/desktop.json; --service names the relay (MCP by default) and --token carries an',
 		'account\'s token instead; --project fills in the project for the tools that take one when the client leaves it out.',
 	].join( '\n' );
 }
@@ -101,7 +101,7 @@ function parse_arguments( argv )
 }
 
 
-// A saved Host by its Name, from the desktop's Hosts list: { Url, Token: null, Service: null }.
+// A saved Server by its Name, from the Desktop's Servers list: { Url, Token: null, Service: null }.
 function saved_server( name, config_folder )
 {
 	let folder = config_folder || PATH.join( OS.homedir(), CONFIG_FOLDER );
@@ -113,9 +113,9 @@ function saved_server( name, config_folder )
 	}
 	catch ( error )
 	{
-		throw new Error( 'no saved Hosts: ' + file + ' cannot be read (' + error.message + ')' );
+		throw new Error( 'no saved Servers: ' + file + ' cannot be read (' + error.message + ')' );
 	}
-	let found = ( Array.isArray( settings.Hosts ) ? settings.Hosts : [] ).find( function ( host ) { return host && host.Name === name; } );
+	let found = ( Array.isArray( settings.Servers ) ? settings.Servers : [] ).find( function ( server ) { return server && server.Name === name; } );
 	if ( !found || typeof found.Url !== 'string' )
 	{
 		throw new Error( 'no saved server named ' + name + ' in ' + file );

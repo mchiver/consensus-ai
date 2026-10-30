@@ -1,25 +1,27 @@
 'use strict';
 
-// smoke - the page and the desktop looked at end to end, by hand (plan UI Components, Step 6). Not a test that npm
+// smoke - the page and the applications looked at end to end, by hand (plan UI Components, Step 6). Not a test that npm
 // test runs: it needs the installed Chrome or Edge, and Electron with a screen. First a temporary server with a plan
 // and two threads, and a headless browser through the page: the title bar, the application menu, the look popover,
 // the layout filling the window, the tree, the header, the threads pane, the Read view's anchors, the Edit view in
-// both engines, no console errors. Then the desktop on a temporary config (--config, --port 0) and its own
-// --user-data-dir, over its own DevTools port: the window controls overlay, the title bar as the drag region, the
-// menu's desktop items, the overlay following the theme and the size, a detached window, the connect screen, Quit.
+// both engines, no console errors. Then the Client app (plan Review 2026-10-29, Step 5.1: one remote project on one
+// Server) on a temporary config and its own --user-data-dir, over its own DevTools port: the chooser with its Servers
+// alone, a temporary server's project opened in the window through the bridge, the window controls overlay, the title
+// bar as the drag region, the menu's items, the overlay following the theme and the size, a detached window, Quit.
 // Then the Server application (plan The Server, Step 3) on a temporary config and its own --user-data-dir: its gate
 // closed with no current user (the sign-in with the reason), open for a Personal one (the whole tree, the Users fold),
 // and a second launch with --open handed to the first, which registers the folder. Then the Sidecar app (plan Sidecar
 // Edition, Step 5) on a temporary folder and its own --user-data-dir: no sign-in, its menus, About and guide, the user
-// renamed and the theme set into the project's sidecar.json, Quit, and both back after a restart. Then the Client app
-// (plan Client Edition, Step 5) over two temporary servers: the sign-in box alone, no configuration on the page, its
-// menus and About, a task's run followed from the press, Add server, Quit.
+// renamed and the theme set into the project's sidecar.json, Quit, and both back after a restart. Then the Desktop
+// (plan Review 2026-10-29, Step 5.1: several Servers at once, one sign-in; the Client's code base of before) over two
+// temporary servers: the sign-in box alone, no configuration on the page, its menus and About, a task's run followed
+// from the press, Add server, Quit.
 // Each check prints ok or FAIL; the exit code is 1 when any failed. Pictures go to ~smoke/ in the checkout (a tilde
-// keeps the folder out of source control): the page in both themes, and captures of the desktop window's top, from
-// the screen, since the window buttons are not part of the page.
+// keeps the folder out of source control): the page in both themes, and captures of the windows' tops, from the
+// screen, since the window buttons are not part of the page.
 //
-//   npm run smoke                     the page, then the desktop
-//   npm run smoke -- --no-desktop     the page alone (no desktop, no Server application, no Sidecar, no Client)
+//   npm run smoke                     the page, then the four applications
+//   npm run smoke -- --no-desktop     the page alone (no Client, no Server application, no Sidecar, no Desktop)
 //
 // Nothing of the real config folder or the real user data is touched: both are temporary and removed after.
 
@@ -223,13 +225,13 @@ async function smoke_page()
 
 
 //---------------------------------------------------------------------
-// The desktop, over its DevTools port.
+// An application's pages, over its DevTools port.
 
-async function desktop_targets()
+async function app_targets( Port )
 {
 	try
 	{
-		let list = await ( await fetch( 'http://127.0.0.1:' + DESKTOP_PORT + '/json/list' ) ).json();
+		let list = await ( await fetch( 'http://127.0.0.1:' + Port + '/json/list' ) ).json();
 		return list.filter( function ( target ) { return target.type === 'page' && /^http:\/\/127\.0\.0\.1/.test( target.url ); } );
 	}
 	catch ( error )
@@ -239,19 +241,19 @@ async function desktop_targets()
 }
 
 
-async function wait_target( Test, TimeoutMs )
+async function wait_target( Port, Test, TimeoutMs )
 {
 	let limit = Date.now() + ( TimeoutMs || 30000 );
 	while ( Date.now() < limit )
 	{
-		let found = ( await desktop_targets() ).find( Test );
+		let found = ( await app_targets( Port ) ).find( Test );
 		if ( found )
 		{
 			return found;
 		}
 		await wait( 250 );
 	}
-	throw new Error( 'the desktop did not show the expected page within ' + ( TimeoutMs || 30000 ) + ' ms' );
+	throw new Error( 'the app did not show the expected page within ' + ( TimeoutMs || 30000 ) + ' ms' );
 }
 
 
@@ -288,59 +290,62 @@ const BAR = '( function () { let r = document.querySelector( ".title-bar" ).getB
 const NO_FRAME = '( window.outerHeight - window.innerHeight ) <= ( window.outerWidth - window.innerWidth ) + 2';
 
 
-async function smoke_desktop()
+// The Client app (plan Review 2026-10-29, Step 5.1: the desktop code of before, narrowed to one remote project on one
+// Server), over its DevTools port: a temporary server with a plan, a temporary config whose client.json names it,
+// the chooser (the Servers alone: no Open folder, no New project, no recent folders), the Server's project opened in
+// the window through the bridge, the one project's page, the window controls overlay, the title bar as the drag
+// region, the menu's items, the overlay following the theme and the size, a detached window, and Quit asking about a
+// draft.
+
+async function smoke_client()
 {
-	console.log( '== the desktop' );
+	console.log( '== the Client app' );
 	let electron = require( 'electron' );
-	let config = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-config-' ) );
-	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-user-data-' ) );
-	// A window is one project (plan Rearchitecturation, Step 2): with no folder the app opens on the chooser, which is
-	// checked first; Open folder (here by its path, the picker being native) then opens a temporary project in the window.
-	let project_folder = PATH.join( FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-project-' ) ), 'smoke-project' );
-	FS.mkdirSync( project_folder );
-	let child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--config', config, '--port', '0', '--user-data-dir=' + user_data, '--remote-debugging-port=' + DESKTOP_PORT ], { cwd: ROOT, stdio: 'ignore' } );
-	let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
+	let config = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-client-config-' ) );
+	let user_data = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-client-user-data-' ) );
+	let base = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-client-server-' ) );
+	let folder = PATH.join( base, 'project' );
+	FS.mkdirSync( folder );
+	// the Server the window connects to: a one-project server on a free port, Local, so the probe and the page need no sign-in
+	let server = await SERVER.Start( { Project: folder, Config: PATH.join( base, 'config' ), Port: 0, AddressFile: false } );
+	let child = null;
 	try
 	{
-		let chooser_target = await wait_target( function () { return true; } );
-		check( 'chooser: the app opens on it with no folder', /connect\.html/.test( chooser_target.url ), true );
+		let plan = await make_plan( server.Url );
+		let project = ( await api( server.Url, 'GET', '/api/projects' ) ).Projects[ 0 ];
+		FS.writeFileSync( PATH.join( config, 'client.json' ), JSON.stringify( { Servers: [ { Name: 'First', Url: server.Url } ] } ) );
+		child = CHILD_PROCESS.spawn( electron, [ 'client', '--config', config, '--user-data-dir=' + user_data, '--remote-debugging-port=' + CLIENT_APP_PORT ], { cwd: ROOT, stdio: 'ignore' } );
+		let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
+		let chooser_target = await wait_target( CLIENT_APP_PORT, function () { return true; } );
+		check( 'chooser: the app opens on it with no --connect', /connect\.html/.test( chooser_target.url ), true );
 		let chooser = await CDP.Attach( chooser_target.webSocketDebuggerUrl );
-		await chooser.WaitFor( count_of( '.connect-head' ) + ' === 1 && document.body.textContent.indexOf( "{{" ) < 0 && ' + count_of( '#recent-empty' ) + ' === 1', 30000 );
+		await chooser.WaitFor( count_of( '.connect-head' ) + ' === 1 && document.body.textContent.indexOf( "{{" ) < 0 && ' + count_of( '.server-row' ) + ' === 1', 30000 );
 		await wait( 500 );
 		check( 'chooser: the overlay', await chooser.Evaluate( 'navigator.windowControlsOverlay.visible' ), true );
 		check( 'chooser: the header is the drag region', await chooser.Evaluate( 'getComputedStyle( document.querySelector( ".connect-head" ) ).webkitAppRegion' ), 'drag' );
 		let fit = JSON.parse( await chooser.Evaluate( '( function () { let r = navigator.windowControlsOverlay.getTitlebarAreaRect(); let c = document.querySelector( ".connect-controls" ).getBoundingClientRect(); return JSON.stringify( { Controls: c.right, Area: r.x + r.width, Height: r.height, Head: document.querySelector( ".connect-head" ).getBoundingClientRect().height } ); } )()' ) );
 		check( 'chooser: the controls stop before the buttons', fit.Controls <= fit.Area + 1 );
 		check( 'chooser: the overlay follows the header', Math.abs( fit.Height - fit.Head ) <= 1 );
-		check( 'chooser: Open folder, New project and Connect to Server', await chooser.Evaluate( count_of( '#open-folder' ) + ' + ' + count_of( '#new-project' ) + ' + ' + count_of( '#add-host' ) ), 3 );
-		check( 'chooser: the Servers', await chooser.Evaluate( text_of( '#hosts-block h2' ) + ' + "/" + ' + text_of( '#add-host' ) ), 'Servers/Connect to Server' );
-		check( 'chooser: Connect to Server needs a sign-in', await chooser.Evaluate( 'document.getElementById( "add-host" ).disabled' ), true );
-		check( 'chooser: no recent project yet', await chooser.Evaluate( 'getComputedStyle( document.getElementById( "recent-empty" ) ).display !== "none"' ), true );
-		await capture_window( chooser, 'desktop-chooser' );
-		// a folder opened in this window: this machine's server over it alone, its .consensus made, the page shown
-		let answer = JSON.parse( await chooser.Evaluate( 'window.Desktop.OpenPath( ' + JSON.stringify( project_folder.replace( /\\\\/g, '/' ) ) + ' ).then( function ( a ) { return JSON.stringify( a ); } )' ) );
-		check( 'chooser: Open folder answers the project', answer.Ok === true && answer.Project && answer.Project.Name, 'smoke-project' );
-		let target = await wait_target( function ( candidate ) { return !/connect\.html/.test( candidate.url ); } );
+		check( 'chooser: the Servers alone, no folder, no New project, no recent', await chooser.Evaluate( count_of( '#add-server' ) + ' + "/" + ' + count_of( '#open-folder, #new-project, #recent-block, #hosts-block' ) ), '1/0' );
+		check( 'chooser: the saved Server, with Open', await chooser.Evaluate( text_of( '.server-row .server-name' ) + ' + "/" + ' + count_of( '.server-row .open-server' ) ), 'First/1' );
+		check( 'chooser: Connect to Server asks no sign-in first (the Server signs the person in)', await chooser.Evaluate( 'document.getElementById( "add-server" ).disabled' ), false );
+		await capture_window( chooser, 'client-chooser' );
+		let tried = JSON.parse( await chooser.Evaluate( 'window.Desktop.ServerProjects( ' + JSON.stringify( server.Url ) + ' ).then( JSON.stringify )' ) );
+		check( 'chooser: the Server tried, its one project listed', tried.Ok === true && Array.isArray( tried.Projects ) && tried.Projects.length === 1, true );
+		// the project opened in this window: the Server saved with it as its last, the page shown
+		let answer = JSON.parse( await chooser.Evaluate( 'window.Desktop.ConnectServer( ' + JSON.stringify( { Name: 'First', Url: server.Url, Project: project.Id, Title: project.Name } ) + ' ).then( JSON.stringify )' ) );
+		check( 'chooser: Connect answers the project', answer.Ok === true && answer.Project && answer.Project.Name, project.Name );
+		let target = await wait_target( CLIENT_APP_PORT, function ( candidate ) { return !/connect\.html/.test( candidate.url ); } );
 		let page = await CDP.Attach( target.webSocketDebuggerUrl );
 		await page.WaitFor( 'window.ConsensusDesktop !== undefined && ' + count_of( 'title-bar .brand' ) + ' === 1 && document.querySelector( ".connection" ) !== null && document.querySelector( ".connection" ).classList.contains( "live" )', 30000 );
-		check( 'project: the .consensus is made in the folder', FS.existsSync( PATH.join( project_folder, '.consensus', 'project.json' ) ), true );
-		// the sidecar (plan Rearchitecturation, Step 3): the address file in the folder, the port the one listened on (the
-		// smoke passes --port 0, honoured as given, so the port is free-chosen here, not the folder's hashed one)
-		let sidecar_file = PATH.join( project_folder, '.consensus', '~sidecar.json' );
-		check( 'sidecar: the address file is written', FS.existsSync( sidecar_file ), true );
-		let sidecar = FS.existsSync( sidecar_file ) ? JSON.parse( FS.readFileSync( sidecar_file, 'utf8' ) ) : {};
-		check( 'sidecar: the port is a port', Number.isInteger( sidecar.Port ) && sidecar.Port > 0, true );
-		check( 'sidecar: the Url names the port', sidecar.Url, 'http://127.0.0.1:' + sidecar.Port );
-		check( 'sidecar: the project is named', sidecar.Project && sidecar.Project.Name, PATH.basename( project_folder ) );
-		check( 'sidecar: activate answers', ( await fetch( sidecar.Url + '/api/desktop/activate', { method: 'POST' } ) ).status, 200 );
-		check( 'project: the window knows its one project', await page.Evaluate( 'window.ConsensusDesktop.Project && window.ConsensusDesktop.Project.Name' ), 'smoke-project' );
+		check( 'project: the window knows its one project', await page.Evaluate( 'window.ConsensusDesktop.Project && window.ConsensusDesktop.Project.Name' ), project.Name );
+		check( 'root: the one Server, by its name', await page.Evaluate( 'JSON.stringify( window.ConsensusDesktop.Roots.map( function ( root ) { return root.Key + ":" + root.Kind; } ) )' ), '["First:server"]' );
 		await page.WaitFor( count_of( '.root' ) + ' === 1 && ' + count_of( '.project' ) + ' === 1', 30000 );
 		check( 'tree: one project view, open, and no root head', await page.Evaluate( count_of( '.project.single.open' ) + ' + "/" + ' + count_of( '.root-head' ) ), '1/0' );
-		// sidecar mode (plan The Server, Step 4): no LLMs, no Users and no role folders
-		check( 'sidecar mode: no LLMs, Users or roles', await page.Evaluate( count_of( 'llm-fold' ) + ' + "/" + ' + count_of( 'users-fold' ) + ' + "/" + ' + count_of( 'roles-folder' ) ), '0/0/0' );
-		check( 'recent: the folder is first in desktop.json', JSON.parse( FS.readFileSync( PATH.join( config, 'desktop.json' ), 'utf8' ) ).Recent[ 0 ].Path, project_folder.replace( /\\/g, '/' ) );
-		let roots = JSON.parse( await page.Evaluate( 'JSON.stringify( window.ConsensusDesktop.Roots )' ) );
-		let plan = await make_plan( roots[ 0 ].Url );
+		check( 'session: the window\'s Server is its own', await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Base' ), '/servers/First' );
+		let saved = JSON.parse( FS.readFileSync( PATH.join( config, 'client.json' ), 'utf8' ) ).Servers[ 0 ];
+		check( 'client.json: the Server with its last project', saved.Name + '/' + saved.Project + '/' + saved.Title, 'First/' + project.Id + '/' + project.Name );
+		check( 'no local server: no address file in the project folder', FS.existsSync( PATH.join( folder, '.consensus', '~sidecar.json' ) ), false );
 		await page.Evaluate( 'window.location.hash = "#/p/' + plan.Id + '"; true' );
 		await page.WaitFor( count_of( '.header .title' ) + ' === 1 && ' + count_of( '#editor .cm-editor' ) + ' === 1', 30000 );
 		await wait( 800 );
@@ -360,9 +365,8 @@ async function smoke_desktop()
 		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
 		await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
 		let menu_items = await page.Evaluate( MENU_ITEMS );
-		// Sign in… sits before Reload when the window's server offers Clerk (plan Rearchitecturation, Step 6); no Server
-		// items (plan The Server, Step 4)
-		check( 'menu: the desktop items', /^About\|Hotkeys\|New window\|Open folder in new window…\|Settings\|(Sign in…\|)?Reload\|Quit$/.test( menu_items ), true );
+		// Sign in… sits before Reload when the Server offers Clerk; no folder items (the Client opens no folder)
+		check( 'menu: the Client\'s items', /^About\|Hotkeys\|New window\|Settings\|(Sign in…\|)?Reload\|Quit$/.test( menu_items ), true );
 		// while the menu is open the bar is no drag region, so a click on it closes the menu (plan UI Tweaks IX)
 		check( 'menu: the bar gives up the drag region while a menu is open', await page.Evaluate( 'getComputedStyle( document.querySelector( ".title-bar" ) ).webkitAppRegion' ), 'no-drag' );
 		let bar_spot = JSON.parse( await page.Evaluate( '( function () { let r = document.querySelector( ".title-bar" ).getBoundingClientRect(); return JSON.stringify( { x: r.left + r.width / 2, y: r.top + r.height / 2 } ); } )()' ) );
@@ -371,86 +375,29 @@ async function smoke_desktop()
 		await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display === "none"', 5000 );
 		check( 'menu: a click on the bar closed it', await page.Evaluate( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display' ), 'none' );
 		check( 'menu: the bar is the drag region again', await page.Evaluate( 'getComputedStyle( document.querySelector( ".title-bar" ) ).webkitAppRegion' ), 'drag' );
-		// a click in the text closes it too
-		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
-		await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
-		let text_spot = JSON.parse( await page.Evaluate( '( function () { let r = document.querySelector( "#editor .cm-content" ).getBoundingClientRect(); return JSON.stringify( { x: r.left + 40, y: r.top + 20 } ); } )()' ) );
-		await page.Send( 'Input.dispatchMouseEvent', { type: 'mousePressed', x: text_spot.x, y: text_spot.y, button: 'left', clickCount: 1 } );
-		await page.Send( 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: text_spot.x, y: text_spot.y, button: 'left', clickCount: 1 } );
-		await page.WaitFor( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display === "none"', 5000 );
-		check( 'menu: a click in the text closed it', await page.Evaluate( 'getComputedStyle( document.getElementById( "popup-menu" ) ).display' ), 'none' );
-		check( 'bridge: OpenFolderWindow, Quit, SetChrome', await page.Evaluate( 'typeof window.Desktop.OpenFolderWindow + "," + typeof window.Desktop.Quit + "," + typeof window.ConsensusDesktop.SetChrome' ), 'function,function,function' );
-		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
-		await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
-		await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( button ) { return button.textContent.trim() === "Hotkeys"; } ).click(); true' );
-		await page.WaitFor( count_of( '.desktop-keys-table tr' ) + ' === 6' );
-		check( 'hotkeys: the desktop table is listed', await page.Evaluate( count_of( '.desktop-keys-table tr' ) ), 6 );
-		// the popup closes on Escape once it has the focus, which it takes a moment after it opens
-		await page.WaitFor( '!!document.activeElement && !!document.activeElement.closest( ".help-form" )', 5000 );
-		await page.Press( 'Escape' );
-		await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
-		// About names the Desktop and lists the window's project alone, not the rest of its server
+		check( 'bridge: NewWindow, Quit, SetLicense, SetChrome; no folder picker', await page.Evaluate( 'typeof window.Desktop.NewWindow + "," + typeof window.Desktop.Quit + "," + typeof window.ConsensusDesktop.SetLicense + "," + typeof window.ConsensusDesktop.SetChrome + "," + typeof window.Desktop.PickFolder' ), 'function,function,function,function,undefined' );
+		// About names the Client and lists the window's project alone, not the rest of its Server
 		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
 		await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
 		await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( button ) { return button.textContent.trim() === "About"; } ).click(); true' );
 		await page.WaitFor( count_of( '.about-table' ) + ' === 1' );
-		check( 'title: Consensus Desktop', await page.Evaluate( 'JSON.stringify( [ document.querySelector( "title-bar .brand" ).textContent.trim(), document.title ] )' ), JSON.stringify( [ 'Consensus Desktop', 'Consensus Desktop' ] ) );
-		check( 'about: names Consensus Desktop', /^About Consensus Desktop/.test( await page.Evaluate( text_of( '.help-form .subplan-head' ) ) ), true );
-		// the look is the project's (plan Project settings, Step 2): a hidden tree is saved to its project.json's View
-		await page.WaitFor( 'window.ConsensusStored.ViewWritable() === true', 10000 );
-		await page.Evaluate( 'document.getElementById( "tree-toggle" ).click(); true' );
-		await page.WaitFor( 'getComputedStyle( document.querySelector( ".sidebar" ) ).display === "none"' );
-		await wait( 1000 );
-		let project_view = JSON.parse( FS.readFileSync( PATH.join( project_folder, '.consensus', 'project.json' ), 'utf8' ) ).View || {};
-		check( 'look: the hidden tree is in the project\'s View', project_view.TreeHidden, true );
-		await page.Evaluate( 'document.getElementById( "tree-toggle" ).click(); true' );
-		await page.WaitFor( 'getComputedStyle( document.querySelector( ".sidebar" ) ).display !== "none"' );
-		check( 'about: the window\'s project alone',await page.Evaluate( '[ ...document.querySelectorAll( ".about-table tbody tr" ) ].filter( function ( row ) { return getComputedStyle( row ).display !== "none"; } ).length' ), 1 );
+		check( 'title: Consensus Client', await page.Evaluate( 'JSON.stringify( [ document.querySelector( "title-bar .brand" ).textContent.trim(), document.title ] )' ), JSON.stringify( [ 'Consensus Client', 'Consensus Client' ] ) );
+		check( 'about: names Consensus Client', /^About Consensus Client/.test( await page.Evaluate( text_of( '.help-form .subplan-head' ) ) ), true );
+		check( 'about: the window\'s project alone', await page.Evaluate( '[ ...document.querySelectorAll( ".about-table tbody tr" ) ].filter( function ( row ) { return getComputedStyle( row ).display !== "none"; } ).length' ), 1 );
 		await page.WaitFor( '!!document.activeElement && !!document.activeElement.closest( ".help-form" )', 5000 );
 		await page.Press( 'Escape' );
 		await page.WaitFor( count_of( '.help-form' ) + ' === 0' );
 
-		// the sign-in (plan Clerk, Step 7): the session knows the desktop's own server, and nothing is loaded from Clerk
-		// until Sign in is asked for
-		check( 'settings: the session knows the desktop\'s own server', await page.Evaluate( 'angular.element( document.body ).injector().get( "Session" ).Base' ), '/servers/local' );
-		check( 'settings: nothing loaded from Clerk', await page.Evaluate( 'typeof window.Clerk' ), 'undefined' );
-		// Settings is the project's (plan Project settings, Step 3): its Name and Work options and its look, no connection
-		// or tasks, never the global config's; a margin changed there lands in project.json's View
-		async function project_settings()
-		{
-			await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
-			await page.WaitFor( count_of( '#popup-menu .menu-button' ) + ' >= 2' );
-			await page.Evaluate( '[ ...document.querySelectorAll( "#popup-menu .menu-button" ) ].find( function ( button ) { return button.textContent.trim() === "Settings"; } ).click(); true' );
-			await page.WaitFor( count_of( '#project-view #view-Margins' ) + ' === 1', 20000 );
-		}
-		function pick_margins( value )
-		{
-			return '( function () { let select = document.getElementById( "view-Margins" ); select.selectedIndex = [ ...select.options ].findIndex( function ( option ) { return option.label === ' + JSON.stringify( value ) + '; } ); select.dispatchEvent( new Event( "change" ) ); return true; } )()';
-		}
-		await project_settings();
-		check( 'settings: the project\'s, by name', await page.Evaluate( 'document.getElementById( "project-name" ).value.length > 0' ), true );
-		check( 'settings: no connection or tasks, no global settings', JSON.stringify( await page.Evaluate( '[ ' + count_of( '#project-llm' ) + ', ' + count_of( '.project-tasks' ) + ', ' + count_of( '#settings-popup .settings-form' ) + ' ]' ) ), '[0,0,0]' );
-		await page.Evaluate( pick_margins( 'narrow' ) );
-		await page.Evaluate( 'document.getElementById( "project-settings-save" ).click(); true' );
-		await page.WaitFor( 'getComputedStyle( document.getElementById( "project-settings-saved" ) ).display !== "none"', 10000 );
-		await page.WaitFor( 'document.documentElement.dataset.margins === "narrow"', 10000 );
-		check( 'settings: the margins in the project\'s View', ( JSON.parse( FS.readFileSync( PATH.join( project_folder, '.consensus', 'project.json' ), 'utf8' ) ).View || {} ).Margins, 'narrow' );
-		await page.Evaluate( pick_margins( 'normal' ) );
-		await page.Evaluate( 'document.getElementById( "project-settings-save" ).click(); true' );
-		await page.WaitFor( 'document.documentElement.dataset.margins === "normal"', 10000 );
-		await page.Evaluate( 'document.getElementById( "project-settings-close" ).click(); true' );
-		await page.WaitFor( count_of( '.settings-form' ) + ' === 0' );
-
 		// the overlay follows the theme and the size
 		await page.Evaluate( 'window.ConsensusTheme.SetTheme( "light" ); true' );
 		await wait( 600 );
-		await capture_window( page, 'desktop-light' );
+		await capture_window( page, 'client-light' );
 		await page.Click( '#look-button' );
 		await page.WaitFor( count_of( '#look-popover #theme-select' ) + ' === 1' );
 		await page.Evaluate( pick_theme( 'Dark' ) );
 		await wait( 600 );
 		check( 'theme: dark applied', await page.Evaluate( 'document.documentElement.dataset.theme' ), 'dark' );
-		await capture_window( page, 'desktop-dark' );
+		await capture_window( page, 'client-dark' );
 		await page.Press( 'Escape' );
 		await page.Evaluate( 'window.ConsensusTheme.SetScale( "large" ); true' );
 		await wait( 600 );
@@ -462,19 +409,18 @@ async function smoke_desktop()
 
 		// a detached window
 		await page.Evaluate( 'window.open( window.location.origin + "/?detached=1#/p/' + plan.Id + '", "detached-smoke" ); true' );
-		let detached_target = await wait_target( function ( candidate ) { return /detached=1/.test( candidate.url ); } );
+		let detached_target = await wait_target( CLIENT_APP_PORT, function ( candidate ) { return /detached=1/.test( candidate.url ); } );
 		let detached = await CDP.Attach( detached_target.webSocketDebuggerUrl );
 		await detached.WaitFor( count_of( 'title-bar .brand' ) + ' === 1 && ' + count_of( '#editor .cm-editor' ) + ' === 1', 30000 );
 		await wait( 500 );
 		check( 'detached: the overlay', await detached.Evaluate( 'navigator.windowControlsOverlay.visible' ), true );
 		check( 'detached: no native title or menu bar', await detached.Evaluate( NO_FRAME ), true );
-		check( 'detached: the bar', await detached.Evaluate( text_of( 'title-bar .brand' ) ), 'Consensus Desktop' );
-		await capture_window( detached, 'desktop-detached' );
+		check( 'detached: the bar', await detached.Evaluate( text_of( 'title-bar .brand' ) ), 'Consensus Client' );
+		await capture_window( detached, 'client-detached' );
 		await detached.Evaluate( 'window.close(); true' );
 		await wait( 500 );
 
-		// Quit, from the page reloaded (the chooser was checked first, where the app opened; the reload takes the detached
-		// tab back in, so a draft on it shows its dot)
+		// Quit, from the page reloaded (the reload takes the detached tab back in, so a draft on it shows its dot)
 		let back = page;
 		await page.Send( 'Page.bringToFront' ).catch( function () {} );
 		await page.Evaluate( 'window.DocsOldDocument = true; location.reload(); true' );
@@ -498,14 +444,15 @@ async function smoke_desktop()
 	}
 	finally
 	{
-		if ( child.exitCode === null )
+		if ( child && child.exitCode === null )
 		{
 			child.kill();
 		}
 		await wait( 1000 );
+		await server.Close().catch( function () {} );
 		FS.rmSync( config, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
 		FS.rmSync( user_data, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
-		FS.rmSync( PATH.dirname( project_folder ), { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
+		FS.rmSync( base, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 } );
 	}
 }
 
@@ -710,14 +657,15 @@ async function smoke_sidecar()
 
 
 //---------------------------------------------------------------------
-// The Client app (plan Client Edition, Step 5), over its own DevTools port: two temporary servers, one with a slow
-// connection to a stand-in service (plan Tool calls only, Step 3: test/support/Service.js, a round every 1.2 s, each
-// saying a step and calling a tool), and a temporary config whose client.json names the first. Signed out, the sign-in box alone;
-// then the smoke stands in for a sign-in (a person signs in through Clerk; the servers are Local, so the calls need
-// no token): no configuration on the page, its menus and About, Add server, a task's run followed from the press
-// (the button, the popup, the notice, My runs), and Quit.
+// The Desktop (plan Review 2026-10-29, Step 5.1: several Servers at once, one sign-in; the Client's code base of plan
+// Client Edition, Step 5, which this part was written for), over its own DevTools port: two temporary servers, one with
+// a slow connection to a stand-in service (plan Tool calls only, Step 3: test/support/Service.js, a round every 1.2 s,
+// each saying a step and calling a tool), and a temporary config whose desktop.json names the first. Signed out, the
+// sign-in box alone; then the smoke stands in for a sign-in (a person signs in through Clerk; the servers are Local, so
+// the calls need no token): no configuration on the page, its menus and About, Add server, a task's run followed from
+// the press (the button, the popup, the notice, My runs), and Quit.
 
-const CLIENT_SLOW = [
+const DESKTOP_SLOW = [
 	{ content: 'step 1', calls: [ [ 'list_projects', {} ] ], delay: 1200 },
 	{ content: 'step 2', calls: [ [ 'list_projects', {} ] ], delay: 1200 },
 	{ content: 'all done', delay: 1200 },
@@ -726,14 +674,14 @@ const INJECTOR = 'angular.element( document.body ).injector()';
 const FAKE_EVENT = '{ preventDefault: function () {}, stopPropagation: function () {}, currentTarget: document.body, target: document.body, clientX: 10, clientY: 10 }';
 
 
-async function client_page( TimeoutMs )
+async function desktop_page( TimeoutMs )
 {
 	let limit = Date.now() + ( TimeoutMs || 30000 );
 	while ( Date.now() < limit )
 	{
 		try
 		{
-			let list = await ( await fetch( 'http://127.0.0.1:' + CLIENT_APP_PORT + '/json/list' ) ).json();
+			let list = await ( await fetch( 'http://127.0.0.1:' + DESKTOP_PORT + '/json/list' ) ).json();
 			let found = list.find( function ( target ) { return target.type === 'page' && /^http:\/\/127\.0\.0\.1:\d+\/(#.*)?$/.test( target.url ); } );
 			if ( found )
 			{
@@ -746,13 +694,13 @@ async function client_page( TimeoutMs )
 		}
 		await wait( 300 );
 	}
-	throw new Error( 'the Client showed no page within ' + ( ( TimeoutMs || 30000 ) / 1000 ) + ' seconds' );
+	throw new Error( 'the Desktop showed no page within ' + ( ( TimeoutMs || 30000 ) / 1000 ) + ' seconds' );
 }
 
 
-async function client_attach()
+async function desktop_attach()
 {
-	let page = await CDP.Attach( ( await client_page() ).webSocketDebuggerUrl );
+	let page = await CDP.Attach( ( await desktop_page() ).webSocketDebuggerUrl );
 	await page.WaitFor( 'typeof angular !== "undefined" && ' + INJECTOR + ' && ' + INJECTOR + '.get( "Session" ).Loaded', 30000 );
 	return page;
 }
@@ -765,11 +713,11 @@ async function local_api( Server, Method, Path, Body )
 }
 
 
-async function smoke_client()
+async function smoke_desktop()
 {
-	console.log( '== the Client app' );
+	console.log( '== the Desktop' );
 	let electron = require( 'electron' );
-	let base = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-client-' ) );
+	let base = FS.mkdtempSync( PATH.join( OS.tmpdir(), 'consensus-smoke-desktop-' ) );
 	let servers = [];
 	let child = null;
 	let service = null;
@@ -781,29 +729,31 @@ async function smoke_client()
 			FS.mkdirSync( folder );
 			servers.push( await SERVER.Start( { Project: folder, Config: PATH.join( base, name + '-config' ), Port: 0, AddressFile: false } ) );
 		}
-		service = await SERVICE.Start( { Format: 'openai', Script: CLIENT_SLOW } );
+		service = await SERVICE.Start( { Format: 'openai', Script: DESKTOP_SLOW } );
 		let llm = ( await local_api( servers[ 0 ], 'POST', '/api/llms', { Name: 'planner', Kind: 'openai-compatible', Url: service.Url, Model: 'stand-in', Timeout: 60 } ) ).Llm;
 		let project = ( await local_api( servers[ 0 ], 'GET', '/api/projects' ) ).Projects[ 0 ];
 		await local_api( servers[ 0 ], 'PUT', '/api/projects/' + project.Id, { Llm: llm.Id } );
-		let plan = ( await local_api( servers[ 0 ], 'POST', '/api/plans', { Title: 'Client plan', Text: '# Client plan\n\nA sketch.\n', Project: project.Id } ) ).Plan;
+		let plan = ( await local_api( servers[ 0 ], 'POST', '/api/plans', { Title: 'Desktop plan', Text: '# Desktop plan\n\nA sketch.\n', Project: project.Id } ) ).Plan;
 		let config = PATH.join( base, 'config' );
 		FS.mkdirSync( config );
-		let settings_file = PATH.join( config, 'client.json' );
+		let settings_file = PATH.join( config, 'desktop.json' );
 		FS.writeFileSync( settings_file, JSON.stringify( { Servers: [ { Name: 'First', Url: servers[ 0 ].Url } ] } ) );
-		child = CHILD_PROCESS.spawn( electron, [ 'client', '--config', config, '--user-data-dir=' + PATH.join( base, 'user-data' ), '--remote-debugging-port=' + CLIENT_APP_PORT ], { cwd: ROOT, stdio: 'ignore' } );
-		let page = await client_attach();
-		check( 'window: the Client', await page.Evaluate( 'window.ConsensusDesktop.Client === true && !window.ConsensusDesktop.SetLicense && !window.Desktop.PickFolder' ), true );
+		child = CHILD_PROCESS.spawn( electron, [ 'desktop', '--config', config, '--user-data-dir=' + PATH.join( base, 'user-data' ), '--remote-debugging-port=' + DESKTOP_PORT ], { cwd: ROOT, stdio: 'ignore' } );
+		let page = await desktop_attach();
+		check( 'window: the Desktop, no license and no folder picker yet', await page.Evaluate( 'window.ConsensusDesktop.Edition === "desktop" && !window.ConsensusDesktop.SetLicense && !window.Desktop.PickFolder && window.ConsensusDesktop.Client === undefined' ), true );
+		check( 'window: no native title or menu bar', await page.Evaluate( NO_FRAME ), true );
 		await page.WaitFor( 'document.getElementById( "sign-in-popup" ) !== null', 15000 ).catch( function () {} );
 		check( 'signed out: the sign-in box alone', await page.Evaluate( 'document.querySelector( ".layout" ).classList.contains( "ng-hide" ) && document.getElementById( "sign-in-popup" ).innerText.indexOf( "Sign in to Consensus" ) >= 0' ), true );
 		// a stand-in for the person's sign-in
 		await page.Evaluate( '( function () { let session = ' + INJECTOR + '.get( "Session" ); session.SignedIn = function () { return true; }; ' + INJECTOR + '.get( "$rootScope" ).$apply(); return true; } )()' );
 		await page.WaitFor( INJECTOR + '.get( "Roots" ).List.every( function ( root ) { return root.Loaded && root.Me; } )', 20000 );
 		check( 'signed in: the page', await page.Evaluate( '!document.querySelector( ".layout" ).classList.contains( "ng-hide" )' ), true );
+		check( 'overlay: visible', await page.Evaluate( 'navigator.windowControlsOverlay && navigator.windowControlsOverlay.visible' ), true );
 		check( 'no configuration: LLMS, USERS and role folders', await page.Evaluate( count_of( 'llm-fold, users-fold, roles-folder' ) ), 0 );
 		await page.Evaluate( 'document.getElementById( "app-menu" ).click(); true' );
 		await wait( 300 );
 		let app_menu = JSON.parse( await page.Evaluate( MENU_LABELS ) );
-		check( 'menu: Servers… and Sign out, no Settings', app_menu.indexOf( 'Servers…' ) >= 0 && app_menu.indexOf( 'Sign out' ) >= 0 && app_menu.indexOf( 'Settings' ) < 0, true );
+		check( 'menu: Servers… and Sign out, no Settings, no folder', app_menu.indexOf( 'Servers…' ) >= 0 && app_menu.indexOf( 'Sign out' ) >= 0 && app_menu.indexOf( 'Settings' ) < 0 && app_menu.indexOf( 'Open folder in new window…' ) < 0, true );
 		await page.Evaluate( CLOSE_MENU );
 		await page.Evaluate( PROJECT_MENU );
 		await wait( 200 );
@@ -814,8 +764,8 @@ async function smoke_client()
 		check( 'server menu: Servers… and Reload', await page.Evaluate( MENU_LABELS ), JSON.stringify( [ 'Servers…', '---', 'Reload' ] ) );
 		await page.Evaluate( CLOSE_MENU );
 		await page.Evaluate( SHOW_ABOUT );
-		check( 'title: Consensus Client', await page.Evaluate( 'JSON.stringify( [ document.querySelector( "title-bar .brand" ).textContent.trim(), document.title ] )' ), JSON.stringify( [ 'Consensus Client', 'Consensus Client' ] ) );
-		check( 'about: names Consensus Client', await page.WaitFor( 'document.body.innerText.indexOf( "About Consensus Client" ) >= 0', 5000 ).catch( function () { return false; } ), true );
+		check( 'title: Consensus Desktop', await page.Evaluate( 'JSON.stringify( [ document.querySelector( "title-bar .brand" ).textContent.trim(), document.title ] )' ), JSON.stringify( [ 'Consensus Desktop', 'Consensus Desktop' ] ) );
+		check( 'about: names Consensus Desktop', await page.WaitFor( 'document.body.innerText.indexOf( "About Consensus Desktop" ) >= 0', 5000 ).catch( function () { return false; } ), true );
 		await page.Evaluate( CLOSE_ABOUT );
 		// a task's run, from the press
 		await page.Evaluate( 'window.location.hash = "#/s/First/p/' + plan.Id + '"; true' );
@@ -827,20 +777,20 @@ async function smoke_client()
 		check( 'press again: the run\'s popup, with Stop', await page.WaitFor( 'document.getElementById( "client-run-popup" ) !== null && document.getElementById( "client-run-stop" ).offsetParent !== null', 5000 ).catch( function () { return false; } ), true );
 		check( 'popup: the output as it comes', await page.WaitFor( 'document.getElementById( "client-run-rendered" ).innerText.indexOf( "step 1" ) >= 0', 8000 ).catch( function () { return false; } ), true );
 		await page.Evaluate( '( function () { ' + INJECTOR + '.get( "$rootScope" ).$apply( function () { ' + INJECTOR + '.get( "ClientRuns" ).Close(); } ); return true; } )()' );
-		check( 'end: the notice', await page.WaitFor( 'document.querySelector( ".client-run-notice" ) !== null && document.querySelector( ".client-run-notice" ).innerText.indexOf( "Answer on Client plan: done" ) >= 0', 20000 ).catch( function () { return false; } ), true );
+		check( 'end: the notice', await page.WaitFor( 'document.querySelector( ".client-run-notice" ) !== null && document.querySelector( ".client-run-notice" ).innerText.indexOf( "Answer on Desktop plan: done" ) >= 0', 20000 ).catch( function () { return false; } ), true );
 		check( 'end: Done beside the button', await page.WaitFor( 'document.getElementById( "plan-task-state-answer" ) !== null && document.getElementById( "plan-task-state-answer" ).textContent.indexOf( "Done" ) === 0', 5000 ).catch( function () { return false; } ), true );
 		await page.Evaluate( 'window.location.hash = "#/waiting"; true' );
 		check( 'My runs: the run', await page.WaitFor( 'document.querySelectorAll( "#my-runs .client-run.done" ).length === 1', 10000 ).catch( function () { return false; } ), true );
-		await capture_window( page, 'client-top' );
+		await capture_window( page, 'desktop-top' );
 		// Add server: the second, under its own name; the window reloads on the new list
 		let added = JSON.parse( await page.Evaluate( 'window.ConsensusDesktop.AddServer( { Url: "' + servers[ 1 ].Url + '/" } ).then( JSON.stringify )' ) );
 		check( 'add server: saved under the Server\'s name', !!( added.Server && added.Server.Url === servers[ 1 ].Url ), true );
 		check( 'add server: the same address refused', /in the list already/.test( JSON.parse( await page.Evaluate( 'window.ConsensusDesktop.AddServer( { Url: "' + servers[ 0 ].Url + '" } ).then( JSON.stringify )' ) ).Error || '' ), true );
 		await wait( 1500 );
 		page.Close();
-		page = await client_attach();
+		page = await desktop_attach();
 		check( 'add server: two roots after the reload', await page.Evaluate( INJECTOR + '.get( "Roots" ).List.length' ), 2 );
-		check( 'client.json: both Servers', JSON.parse( FS.readFileSync( settings_file, 'utf8' ) ).Servers.length, 2 );
+		check( 'desktop.json: both Servers, nothing else', JSON.stringify( Object.keys( JSON.parse( FS.readFileSync( settings_file, 'utf8' ) ) ).sort() ) + '/' + JSON.parse( FS.readFileSync( settings_file, 'utf8' ) ).Servers.length, '["Remembered","Scale","Servers","Theme"]/2' );
 		check( 'no user.json in the config folder', FS.existsSync( PATH.join( config, 'user.json' ) ), false );
 		let exited = new Promise( function ( Resolve ) { child.on( 'exit', Resolve ); } );
 		await page.Evaluate( 'window.Desktop.Quit(); true' ).catch( function () {} );

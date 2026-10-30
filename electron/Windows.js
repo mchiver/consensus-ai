@@ -353,7 +353,8 @@ async function pick_folder( owner, current_folder )
 // The menu: Project (New window, Open folder in new window, Reload), View, Quit. Not shown (the window has no menu bar;
 // the page's application menu has the app's items), but set, since its accelerators are what keep Ctrl+R, Ctrl+N,
 // Ctrl+Shift+O, the DevTools, the zoom and F11 working. An item whose action is not given is left out, with its
-// accelerator (the Client has no folder to open; plan Review 2026-10-29, Step 1): MenuTemplate is the template alone,
+// accelerator (the Desktop and the Client have no folder to open; plan Review 2026-10-29, Steps 1 and 5.1): MenuTemplate
+// is the template alone,
 // for the tests.
 function MenuTemplate( Actions )
 {

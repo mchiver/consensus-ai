@@ -1,6 +1,6 @@
 # Projects, plans and documents
 
-Everything in Consensus-AI lives in a **project**. The sidebar on the left is a tree: on a Server, in its window or a browser, the Server's projects; in the desktop the window's one project. Each holds plans, documents and folders.
+Everything in Consensus-AI lives in a **project**. The sidebar on the left is a tree: on a Server, in its window, a browser or the Desktop, the Server's projects; in the Sidecar and the Client the window's one project. Each holds plans, documents and folders.
 
 ![The sidebar: projects, the Context folder, folders and plans with their states.](../images/tree.png)
 
@@ -39,7 +39,7 @@ The **Default** project is there from the first start; ad-hoc items live there. 
 
 **Project settings…** in a project's menu, for its Owners, the Administrator and the Managers, opens its own settings: its **Name**; its lists, one per line each: its **States** (the server's list is only the default for a new project; a state still used by one of its plans cannot be removed), and the **Include**, **Exclude** and **Commands** an LLM working in its folder goes by; its Work options **Git sync** and **Auto-commit**; then, on a Server, the tasks it enables and its **LLM connection** (plan LLM Tasks, Step 6), the one the task buttons on its plans' headings and its Explain tab run through (none chosen, those buttons wait and say so). The state picker and the menu's "New …" follow the project's States. All of it is kept in the project's `project.json`, but for the tasks and the connection, which are the Server's and kept on the project's entry in its `consensus.json`.
 
-In the desktop, **Settings** in the title bar's Menu opens the same popup for the window's project. It has no connection or tasks (the desktop's sidecar has none) and holds the project's **look** instead, saved to its `project.json` (see [Settings and themes](settings.html#the-look)). On a Server the look is the Server's and is never part of a project's settings.
+In the Sidecar, **Settings** in the title bar's Menu opens the same popup for the window's project. It has no connection or tasks (the Sidecar has none) and holds the project's **look** instead, saved to its `project.json` (see [Settings and themes](settings.html#the-look)). On a Server the look is the Server's and is never part of a project's settings.
 
 ## Archive
 

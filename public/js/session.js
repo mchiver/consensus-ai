@@ -15,18 +15,20 @@
 // Step 7); since plan The Server, Step 5, a desktop window connected to a Server (client mode) signs in to that
 // Server the same way, and a desktop window with no server has no session. The Sidecar app (plan Sidecar Edition,
 // Step 3) never signs anyone in: it has no session.
-// The Client (plan Client Edition, Step 2: ConsensusDesktop.Client) has no server of its own and no current user: the
-// person signs in through our Clerk instance, whose configuration the Client hands in (ConsensusDesktop.Clerk, so
-// nothing is asked of a Server first), the sign-in always Required; Every is true, so the session token goes with
-// every call to every Server, which authorizes that identity project by project. Clerk's session stays in the
-// window's own storage. Signed in, a Server's refusal is that Server's (its root shows it) and never the box.
+// The Desktop (plan Client Edition, Step 2, as the Client; the Desktop since plan Review 2026-10-29, Step 5.1, the
+// editions cut: Edition desktop) has no server of its own and no current user: the person signs in through our Clerk
+// instance, whose configuration the Desktop hands in (ConsensusDesktop.Clerk, so nothing is asked of a Server first),
+// the sign-in always Required; Every is true, so the session token goes with every call to every Server, which
+// authorizes that identity project by project. Clerk's session stays in the window's own storage. Signed in, a
+// Server's refusal is that Server's (its root shows it) and never the box.
 //
-// In the Desktop (plan Rearchitecturation, Step 6) a sign-in's token goes to the desktop (ConsensusDesktop.SetLicense),
-// at every load while signed in, which verifies it and writes it as the machine's current user (plan The Server,
-// Step 1: <config>/user.json, kept 14 days from the last check, so it holds offline); a sign-out removes it. The tiers
-// are unlicensed (no sign-in), registered (a sign-in with no license), personal and professional.
+// In the Client and the Server's window (plan Rearchitecturation, Step 6) a sign-in's token goes to the app
+// (ConsensusDesktop.SetLicense), at every load while signed in, which verifies it and writes it as the machine's
+// current user (plan The Server, Step 1: <config>/user.json, kept 14 days from the last check, so it holds offline); a
+// sign-out removes it. The tiers are unlicensed (no sign-in), registered (a sign-in with no license), personal and
+// professional.
 //
-//   Session { Key, Base (the own server's root key and base, null when there is none), Every (the Client: every root's calls carry the token),
+//   Session { Key, Base (the own server's root key and base, null when there is none), Every (the Desktop: every root's calls carry the token),
 //             On, Loaded, Required, Asked, Refusal, Closed (a Server's closed gate: its reason), Error, Config, Pricing, Ready (a promise: loaded), License (the
 //             Desktop's cached tier { Tier, Days, Line } or null),
 //             Token(), SignedIn(), User(), Plan(), Tier(), Licensed( plan ), Needed( body ), Open(), SignOut(),
@@ -38,16 +40,16 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	const PLANS = [ 'personal', 'professional' ];	// Roles.js's PLANS: the rank is the index plus one (plan Rearchitecturation, Step 6)
 	const REMEMBERED = 'consensus-signed-in';
 	const SESSION_WAIT = 4000;	// milliseconds given to a remembered session to arrive after ClerkJS loads
-	const CLIENT = !!( window.ConsensusDesktop && window.ConsensusDesktop.Client === true );
+	const DESKTOP = !!( window.ConsensusDesktop && window.ConsensusDesktop.Edition === 'desktop' );
 	let own = own_root();
-	let session = { Key: own ? own.Key : null, Base: own ? own.Base : null, On: false, Loaded: false, Required: false, Asked: false, Refusal: null, Closed: null, Error: null, Config: null, Pricing: null, Ready: null, Every: CLIENT, License: ( window.ConsensusDesktop && window.ConsensusDesktop.License ) ? window.ConsensusDesktop.License : null };
+	let session = { Key: own ? own.Key : null, Base: own ? own.Base : null, On: false, Loaded: false, Required: false, Asked: false, Refusal: null, Closed: null, Error: null, Config: null, Pricing: null, Ready: null, Every: DESKTOP, License: ( window.ConsensusDesktop && window.ConsensusDesktop.License ) ? window.ConsensusDesktop.License : null };
 	let clerk = null;
 	let loading = null;
 	let was_signed_in = false;
 	let retried = false;
 
 
-	// The page's own server: the browser's one root, or the desktop's own server (Kind local).
+	// The page's own server: the browser's one root, or the window's one Server (the Client); the Desktop has none.
 	function own_root()
 	{
 		if ( !window.ConsensusDesktop )
@@ -58,13 +60,13 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		{
 			return null;
 		}
-		if ( window.ConsensusDesktop.Client === true )
+		if ( DESKTOP )
 		{
 			return { Key: null, Base: '' };
 		}
 		let roots = Array.isArray( window.ConsensusDesktop.Roots ) ? window.ConsensusDesktop.Roots : [];
 		let local = roots.find( function ( root ) { return root && root.Kind === 'local' && root.Key; } );
-		// a window connected to a Server (plan The Server, Step 5: client mode) signs in to that Server
+		// a window on a Server (plan The Server, Step 5: the Client since the editions cut) signs in to that Server
 		let own = local || ( ( roots.length === 1 && roots[ 0 ] && roots[ 0 ].Kind === 'server' && roots[ 0 ].Key ) ? roots[ 0 ] : null );
 		return own ? { Key: String( own.Key ), Base: '/servers/' + encodeURIComponent( String( own.Key ) ) } : null;
 	}
@@ -142,7 +144,7 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 			return;
 		}
 		let config = { On: false };
-		if ( CLIENT )
+		if ( DESKTOP )
 		{
 			config = window.ConsensusDesktop.Clerk || { On: false };
 			session.Required = true;
@@ -169,9 +171,9 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 		{
 			await load_clerk();
 		}
-		// the Client signed out (plan Client Edition, Step 5): the page's route leaves the address before Clerk's form
+		// the Desktop signed out (plan Client Edition, Step 5): the page's route leaves the address before Clerk's form
 		// is mounted, since the form reads the hash as its own step and sends the window to Clerk's hosted page
-		if ( CLIENT && !SignedIn() && window.location.hash )
+		if ( DESKTOP && !SignedIn() && window.location.hash )
 		{
 			window.history.replaceState( null, '', window.location.pathname + window.location.search );
 		}
@@ -283,11 +285,12 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	}
 
 
-	// The Desktop's license cache (plan Rearchitecturation, Step 6): a signed-in session's token goes to the desktop,
-	// which verifies it and answers the tier it is at now.
+	// The app's license cache (plan Rearchitecturation, Step 6): a signed-in session's token goes to the app, which
+	// verifies it and answers the tier it is at now.
 	// The application the page runs in, which keeps the machine's current user: the Desktop or the Server application
 	// (plan The Server, Step 3; since plan Review 2026-10-29, Step 3, the Server gives the same ConsensusDesktop bridge,
-	// Edition server), null in a plain browser or an app with no current user (the Sidecar, the Client: no SetLicense).
+	// Edition server, and the Client since Step 5.1), null in a plain browser or an app with no current user (the Sidecar,
+	// and the Desktop until Step 5.2: no SetLicense).
 	function license_bridge()
 	{
 		return window.ConsensusDesktop || null;
@@ -394,10 +397,11 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 	}
 
 
-	// The tier: in the Desktop the cached license's (free when none), elsewhere the signed-in person's plan or free.
+	// The tier: in an app with a current user (the Client, the Server's window) the cached license's (free when none),
+	// elsewhere the signed-in person's plan or free.
 	function Tier()
 	{
-		if ( window.ConsensusDesktop && !CLIENT )
+		if ( window.ConsensusDesktop && !DESKTOP )
 		{
 			return ( session.License && session.License.Tier ) ? session.License.Tier : 'unlicensed';
 		}
@@ -431,8 +435,8 @@ angular.module( 'Consensus.Client' ).factory( 'Session', [ '$rootScope', functio
 			$rootScope.$broadcast( 'session-ready' );
 			return;
 		}
-		// the Client, signed in: a Server that refuses the person says so on its own root, the others go on
-		if ( CLIENT && clerk && clerk.user )
+		// the Desktop, signed in: a Server that refuses the person says so on its own root, the others go on
+		if ( DESKTOP && clerk && clerk.user )
 		{
 			return;
 		}

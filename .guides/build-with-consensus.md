@@ -9,10 +9,10 @@ Consensus through its API; the chat carries short summaries and the questions th
 
 For an agent session (Claude Code or similar) working on a repo whose plans live in Consensus: **sidecar mode**,
 the session open beside an open Consensus, prompted with "check consensus" or "your turn" instead of the page's
-task buttons, with every tool and all the context the session's harness keeps. The usual case is the Desktop
-(plan Rearchitecturation): a window holds one project, and the server inside it, the **sidecar**, is that project's
-API and MCP on this machine, its address in the folder's `.consensus/~sidecar.json` while the project is open; the
-fixed MCP entry is `consensus mcp <folder>`, and the instructions page names the one project. Sidecar mode is one
+task buttons, with every tool and all the context the session's harness keeps. The usual case is the Sidecar
+app, or `consensus <folder>`: a window holds one project, and its server is that project's API and MCP on this
+machine (the headless form keeps its address in the folder's `.consensus/~sidecar.json` while the project is open,
+and the fixed MCP entry is `consensus mcp <folder>`); the instructions page names the one project. Sidecar mode is one
 project's: the plans are made in Consensus and carried out in the session, and the session works in that project
 alone. The other case is a **Server**, one server holding several projects for several people: there you act
 for a person, on the token at the top of the instructions your user copied from the project's LLM Instructions (or
@@ -96,7 +96,7 @@ operation of the API under the same name (`waiting`, `read_plan`, `reply`, `appl
 for, checked against their role as a request is, posting with the same byline; `tools/list` describes each with
 its arguments, and `instructions` is this page. A project is given by its id or its name. Two transports:
 
-- **stdio**, on your machine. Over a project open in the Desktop, or in `consensus <folder>`, the shim:
+- **stdio**, on your machine. Over a project open in `consensus <folder>`, the shim:
   `consensus mcp <folder>` (`node <checkout>/bin/mcp.js <folder> --service <your name>`). The one-project server
   is the sidecar: its address sits in `<folder>/.consensus/~sidecar.json` while the project is open, the shim reads
   it at every message, so the entry is fixed, `{ "command": "consensus", "args": [ "mcp", "<folder>" ] }`, and its

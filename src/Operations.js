@@ -527,7 +527,7 @@ function Operations( Context )
 		Name: 'read_view',
 		Method: 'GET',
 		Path: '/view',
-		Description: 'The look: the project\'s in the Desktop, the Server\'s on a Server (Margins, Highlight, Editor, PreviewHidden, Source, ThreadsHidden, TreeHidden, ShowUpdated, SidebarWidth, ThreadsWidth, PreviewWidth), whether you may change it, where it is kept, and its Shape (the choices, the switches, the widths and the defaults, for a form).',
+		Description: 'The look: the project\'s in the Sidecar, the Server\'s on a Server (Margins, Highlight, Editor, PreviewHidden, Source, ThreadsHidden, TreeHidden, ShowUpdated, SidebarWidth, ThreadsWidth, PreviewWidth), whether you may change it, where it is kept, and its Shape (the choices, the switches, the widths and the defaults, for a form).',
 		Parameters: {},
 		Perform: async function ( participant )
 		{
@@ -540,7 +540,7 @@ function Operations( Context )
 		Name: 'write_view',
 		Method: 'PUT',
 		Path: '/view',
-		Description: 'Changes the look: the fields given over the look as it is, null clearing one; in the Desktop it is saved to the project\'s project.json, on a Server to its settings, by the Administrator and the Managers alone.',
+		Description: 'Changes the look: the fields given over the look as it is, null clearing one; in the Sidecar it is saved to the project\'s project.json, on a Server to its settings, by the Administrator and the Managers alone.',
 		Parameters: {
 			View: { Type: 'object', Required: true, Description: 'the fields to change' },
 		},

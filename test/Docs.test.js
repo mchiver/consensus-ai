@@ -3,7 +3,7 @@
 // The website (the plan "Documentation"): the build renders every page of pages.json into the template, every
 // internal link and image resolves, and the landing page and each guide page hold the header and the footer. The
 // screenshot script runs over a copy of docs/ with its images emptied, and every listed picture must be written;
-// it needs the installed Chrome or Edge, as the page's test does, and Electron for the desktop's pictures.
+// it needs the installed Chrome or Edge, as the page's test does, and Electron for the Client's and the Desktop's pictures.
 
 const TEST = require( 'node:test' );
 const ASSERT = require( 'node:assert/strict' );
@@ -13,7 +13,7 @@ const PATH = require( 'path' );
 const DOCS = require( '../bin/docs.js' );
 
 const PAGE_PICTURES = [ 'first-start', 'plan', 'threads', 'tree', 'menu', 'comment', 'edit', 'source', 'revisions', 'tabs', 'close-prompt', 'build-log', 'waiting', 'instructions', 'plan-tasks', 'explain', 'settings', 'tasks', 'users', 'roles', 'title-bar', 'host-mount' ];
-const DESKTOP_PICTURES = [ 'desktop-connect', 'desktop-llm', 'desktop-run', 'desktop-project', 'desktop-menu' ];
+const APP_PICTURES = [ 'client-connect', 'client-project', 'client-menu', 'llm-page', 'llm-run', 'desktop-servers' ];
 
 let copy = null;
 
@@ -78,7 +78,7 @@ TEST( 'the screenshot script writes every listed picture, in both themes, and th
 	} );
 	let files = await DOCS.Screenshots( { Folder: copy } );
 	let expected = [];
-	PAGE_PICTURES.concat( DESKTOP_PICTURES ).forEach( function ( Name )
+	PAGE_PICTURES.concat( APP_PICTURES ).forEach( function ( Name )
 	{
 		expected.push( Name + '.png', Name + '-dark.png' );
 	} );

@@ -1,7 +1,7 @@
 {
 	"name": "consensus-desktop",
 	"version": "0.5.1",
-	"description": "Consensus Desktop: a client for any Consensus server, with its own copy of the page and one local server (plan Consensus Desktop, Step 2). Run from the checkout with npm run desktop.",
+	"description": "Consensus Desktop: several remote projects at a time from one or more Consensus Servers, one Clerk sign-in, never a local folder (plan Review 2026-10-29, Step 5.1: the editions cut). Run from the checkout with npm run desktop.",
 	"private": true,
 	"main": "main.js"
 }

@@ -31,8 +31,9 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	tree.HasDesktop = !!( window.Desktop && typeof window.Desktop.PickFolder === 'function' );
 	// the Sidecar app (plan Sidecar Edition, Step 3): no LLM tasks, so no Explain
 	const SIDECAR_APP = !!( window.ConsensusDesktop && window.ConsensusDesktop.Sidecar === true );
-	// the Client (plan Client Edition, Step 3): every project's configuration is its Server's Administrator's and Managers'
-	const CLIENT_APP = !!( window.ConsensusDesktop && window.ConsensusDesktop.Client === true );
+	// the Desktop (plan Review 2026-10-29, Step 5.1; the Client's page until the editions cut, plan Client Edition, Step 3):
+	// every project's configuration is its Server's Administrator's and Managers'
+	const DESKTOP_APP = !!( window.ConsensusDesktop && window.ConsensusDesktop.Edition === 'desktop' );
 	tree.Creating = null;
 	tree.Renaming = null;
 	tree.Deleting = null;
@@ -172,8 +173,8 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	// left it with plan Rearchitecturation, Step 2: a window is one project, and the chooser is a new window.)
 	function root_actions( root )
 	{
-		// the Client (plan Client Edition, Step 2): a Server is renamed or removed in the Servers popup; the Server's own
-		// configuration is its Administrator's and Managers', never the Client's
+		// the Desktop (plan Client Edition, Step 2, as the Client): a Server is renamed or removed in the Servers popup; the
+		// Server's own configuration is its Administrator's and Managers', never the Desktop's
 		if ( ClientServers.Available )
 		{
 			return [
@@ -220,7 +221,7 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 			event.stopPropagation();
 		}
 		let where = root || State.Root;
-		if ( CLIENT_APP )
+		if ( DESKTOP_APP )
 		{
 			return;
 		}
@@ -744,9 +745,9 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 
 	function project_actions( project )
 	{
-		// The Client: the project's content and Explain; no Rename, Project settings, LLM Instructions, Mount or Delete,
+		// The Desktop: the project's content and Explain; no Rename, Project settings, LLM Instructions, Mount or Delete,
 		// which configure the project on its Server.
-		if ( CLIENT_APP )
+		if ( DESKTOP_APP )
 		{
 			return [
 				action( 'New Folder', 'plus', create_in( 'folder', project ) ),
@@ -921,7 +922,7 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 
 	tree.OpenProjectSettings = function ( project )
 	{
-		if ( CLIENT_APP )
+		if ( DESKTOP_APP )
 		{
 			return;
 		}
@@ -1437,7 +1438,7 @@ angular.module( 'Consensus' ).factory( 'Tree', [ '$rootScope', '$window', 'State
 	// LLM Instructions (plan UI Tweaks VII): the server's page, the project named first, in a popup to copy.
 	tree.OpenInstructions = async function ( project )
 	{
-		if ( CLIENT_APP )
+		if ( DESKTOP_APP )
 		{
 			return;
 		}
